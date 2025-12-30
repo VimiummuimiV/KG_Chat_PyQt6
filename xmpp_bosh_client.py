@@ -177,6 +177,11 @@ class XMPPBoshClient:
                 root = self.parse_xml(response)
                 
                 if root is not None:
+                    # Check if session was terminated
+                    if root.get('type') == 'terminate':
+                        print("\n⚠️  Session terminated by server")
+                        break
+                    
                     # Parse incoming messages
                     for message in root.findall('.//{jabber:client}message'):
                         from_jid = message.get('from', '')
@@ -188,20 +193,26 @@ class XMPPBoshClient:
                     for presence in root.findall('.//{jabber:client}presence'):
                         from_jid = presence.get('from', '')
                         ptype = presence.get('type', 'available')
-                        print(f"👤 {from_jid} is now {ptype}")
+                        if ptype != 'available':
+                            print(f"👤 {from_jid} is now {ptype}")
         
         except KeyboardInterrupt:
             print("\n\n👋 Disconnecting...")
+        except Exception as e:
+            print(f"\n❌ Connection error: {e}")
 
 
 def main():
     # Initialize client
     client = XMPPBoshClient()
     
-    # Display available accounts
-    client.account_manager.display_accounts()
+    # Show interactive menu and get selected account
+    selected = client.account_manager.interactive_menu()
     
-    # Connect with active account (or specify: client.connect(0) or client.connect("Main Account"))
+    if selected == "exit" or selected is None:
+        return
+    
+    # Connect with selected account
     if client.connect():
         # Auto-join rooms
         rooms = client.account_manager.get_rooms()

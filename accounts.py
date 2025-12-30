@@ -245,3 +245,100 @@ class AccountManager:
             status = "✅ ACTIVE" if account.get('active', False) else "⭕ Inactive"
             print(f"{idx}. [{status}] {account.get('login')} (ID: {account.get('user_id')})")
         print("=" * 60)
+    
+    def interactive_menu(self):
+        """Display interactive account selection menu"""
+        accounts = self.list_accounts()
+        
+        if not accounts:
+            print("❌ No accounts available")
+            return None
+        
+        print("\n" + "=" * 60)
+        print("📋 Select Account:")
+        print("=" * 60)
+        for idx, account in enumerate(accounts):
+            print(f"{idx + 1}. 👤 {account['login']} (ID: {account['user_id']})")
+        print(f"{len(accounts) + 1}. ➕ Add new account")
+        print(f"{len(accounts) + 2}. ❌ Remove account")
+        print(f"{len(accounts) + 3}. 🚪 Exit")
+        print("=" * 60)
+        
+        try:
+            choice = input("\nSelect option: ").strip()
+            choice_num = int(choice)
+            
+            if choice_num == len(accounts) + 1:
+                # Add new account
+                self._add_account_interactive()
+                return None
+            
+            elif choice_num == len(accounts) + 2:
+                # Remove account
+                self._remove_account_interactive()
+                return None
+            
+            elif choice_num == len(accounts) + 3:
+                print("\n👋 Goodbye!")
+                return "exit"
+            
+            elif 1 <= choice_num <= len(accounts):
+                # Return selected account
+                selected = accounts[choice_num - 1]
+                self.switch_account(selected['login'])
+                return selected
+            else:
+                print("❌ Invalid option")
+                return None
+        
+        except (ValueError, KeyboardInterrupt, EOFError):
+            print("\n❌ Cancelled")
+            return None
+    
+    def _add_account_interactive(self):
+        """Interactively add a new account"""
+        print("\n➕ Add New Account")
+        print("-" * 40)
+        
+        try:
+            user_id = input("User ID: ").strip()
+            if not user_id:
+                print("❌ Cancelled")
+                return
+            
+            login = input("Login: ").strip()
+            if not login:
+                print("❌ Cancelled")
+                return
+            
+            password = input("Password: ").strip()
+            if not password:
+                print("❌ Cancelled")
+                return
+            
+            self.add_account(user_id, login, password, set_active=False)
+        except (KeyboardInterrupt, EOFError):
+            print("\n❌ Cancelled")
+    
+    def _remove_account_interactive(self):
+        """Interactively remove an account"""
+        accounts = self.list_accounts()
+        
+        print("\n❌ Remove Account")
+        print("-" * 40)
+        for idx, account in enumerate(accounts):
+            print(f"{idx + 1}. {account['login']} (ID: {account['user_id']})")
+        
+        try:
+            remove_choice = input("\nSelect account to remove: ").strip()
+            remove_num = int(remove_choice)
+            
+            if 1 <= remove_num <= len(accounts):
+                selected = accounts[remove_num - 1]
+                confirm = input(f"Remove '{selected['login']}'? (y/n): ").strip().lower()
+                if confirm == 'y':
+                    self.remove_account(selected['login'])
+            else:
+                print("❌ Invalid option")
+        except (ValueError, KeyboardInterrupt, EOFError):
+            print("\n❌ Cancelled")
