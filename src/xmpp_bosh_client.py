@@ -3,12 +3,17 @@ import xml.etree.ElementTree as ET
 import base64
 import random
 from accounts import AccountManager
+from pathlib import Path
 
 class XMPPBoshClient:
     """XMPP BOSH Client with account management"""
     
-    def __init__(self, config_path: str = 'config.json'):
-        self.account_manager = AccountManager(config_path)
+    def __init__(self, config_path: str | None = None):
+        if config_path is None:
+            base_dir = Path(__file__).resolve().parent
+            config_path = base_dir / "config.json"
+
+        self.account_manager = AccountManager(str(config_path))
         self.rid = int(random.random() * 1e10)
         self.sid = None
         self.jid = None
@@ -18,6 +23,11 @@ class XMPPBoshClient:
         self.url = server.get('url')
         self.domain = server.get('domain')
         self.resource = server.get('resource')
+
+        if not self.url or not self.domain:
+            raise RuntimeError(
+                "❌ Invalid server config. Check config.json (url/domain missing)"
+            )
         
         conn = self.account_manager.get_connection_config()
         self.conn_params = {
