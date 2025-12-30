@@ -1,0 +1,202 @@
+"""XMPP message and presence parsing"""
+
+import xml.etree.ElementTree as ET
+from typing import List, Tuple, Optional
+from dataclasses import dataclass
+from datetime import datetime
+
+
+@dataclass
+class Message:
+    """Parsed message"""
+    from_jid: str
+    body: str
+    msg_type: str
+    login: Optional[str] = None
+    avatar: Optional[str] = None
+    background: Optional[str] = None
+    timestamp: Optional[datetime] = None
+    
+    def get_avatar_url(self) -> Optional[str]:
+        if self.avatar:
+            return f"https://klavogonki.ru{self.avatar}"
+        return None
+
+
+@dataclass
+class Presence:
+    """Parsed presence"""
+    from_jid: str
+    presence_type: str
+    login: Optional[str] = None
+    user_id: Optional[str] = None
+    avatar: Optional[str] = None
+    background: Optional[str] = None
+    game_id: Optional[str] = None
+    affiliation: str = 'none'
+    role: str = 'participant'
+    
+    def get_avatar_url(self) -> Optional[str]:
+        if self.avatar:
+            return f"https://klavogonki.ru{self.avatar}"
+        return None
+
+
+class MessageParser:
+    """Parse XMPP messages and presence"""
+    
+    @staticmethod
+    def parse(xml_text: str) -> Tuple[List[Message], List[Presence]]:
+        """Parse XML response"""
+        try:
+            root = ET.fromstring(xml_text)
+        except ET.ParseError:
+            return [], []
+        
+        messages = MessageParser._parse_messages(root)
+        presence = MessageParser._parse_presence(root)
+        
+        return messages, presence
+    
+    @staticmethod
+    def _parse_messages(root: ET.Element) -> List[Message]:
+        """Parse messages"""
+        messages = []
+        
+        for msg in root.findall('.//{jabber:client}message'):
+            from_jid = msg.get('from', '')
+            msg_type = msg.get('type', 'chat')
+            
+            body_elem = msg.find('{jabber:client}body')
+            if body_elem is None or not body_elem.text:
+                continue
+            
+            body = body_elem.text
+            login = None
+            avatar = None
+            background = None
+            
+            userdata = msg.find('.//{klavogonki:userdata}user')
+            if userdata is not None:
+                login_elem = userdata.find('login')
+                if login_elem is not None:
+                    login = login_elem.text
+                
+                avatar_elem = userdata.find('avatar')
+                if avatar_elem is not None:
+                    avatar = avatar_elem.text
+                
+                bg_elem = userdata.find('background')
+                if bg_elem is not None:
+                    background = bg_elem.text
+            
+            timestamp = None
+            delay_elem = msg.find('.//{urn:xmpp:delay}delay')
+            if delay_elem is not None:
+                stamp = delay_elem.get('stamp')
+                if stamp:
+                    try:
+                        timestamp = datetime.fromisoformat(stamp.replace('Z', '+00:00'))
+                    except:
+                        pass
+            
+            if not timestamp:
+                timestamp = datetime.now()
+            
+            messages.append(Message(
+                from_jid=from_jid,
+                body=body,
+                msg_type=msg_type,
+                login=login,
+                avatar=avatar,
+                background=background,
+                timestamp=timestamp
+            ))
+        
+        return messages
+    
+    @staticmethod
+    def _parse_presence(root: ET.Element) -> List[Presence]:
+        """Parse presence"""
+        presence_list = []
+        
+        for pres in root.findall('.//{jabber:client}presence'):
+            from_jid = pres.get('from', '')
+            ptype = pres.get('type', 'available')
+            
+            login = None
+            user_id = None
+            avatar = None
+            background = None
+            game_id = None
+            
+            userdata = pres.find('.//{klavogonki:userdata}user')
+            if userdata is not None:
+                login_elem = userdata.find('login')
+                if login_elem is not None:
+                    login = login_elem.text
+                
+                avatar_elem = userdata.find('avatar')
+                if avatar_elem is not None:
+                    avatar = avatar_elem.text
+                
+                bg_elem = userdata.find('background')
+                if bg_elem is not None:
+                    background = bg_elem.text
+            
+            game_elem = pres.find('.//{klavogonki:userdata}game_id')
+            if game_elem is not None:
+                game_id = game_elem.text
+            
+            affiliation = 'none'
+            role = 'participant'
+            
+            muc_item = pres.find('.//{http://jabber.org/protocol/muc#user}item')
+            if muc_item is not None:
+                affiliation = muc_item.get('affiliation', 'none')
+                role = muc_item.get('role', 'participant')
+            
+            if not user_id and '#' in from_jid:
+                try:
+                    user_id = from_jid.split('/')[-1].split('#')[0]
+                except:
+                    pass
+            
+            if not login and '#' in from_jid:
+                try:
+                    login = from_jid.split('#')[1].split('/')[0] if '/' in from_jid.split('#')[1] else from_jid.split('#')[1]
+                except:
+                    pass
+            
+            presence_list.append(Presence(
+                from_jid=from_jid,
+                presence_type=ptype,
+                login=login,
+                user_id=user_id,
+                avatar=avatar,
+                background=background,
+                game_id=game_id,
+                affiliation=affiliation,
+                role=role
+            ))
+        
+        return presence_list
+    
+    @staticmethod
+    def format_message(msg: Message) -> str:
+        """Format message for display"""
+        sender = msg.login if msg.login else msg.from_jid.split('/')[-1]
+        return f"💬 [{sender}]: {msg.body}"
+    
+    @staticmethod
+    def format_presence(pres: Presence) -> str:
+        """Format presence for display"""
+        user = pres.login if pres.login else pres.from_jid.split('/')[-1]
+        
+        if pres.presence_type == 'unavailable':
+            return f"👋 {user} left"
+        elif pres.presence_type == 'available':
+            game = f" (game #{pres.game_id})" if pres.game_id else ""
+            return f"👋 {user} joined{game}"
+        else:
+            return f"👤 {user} is {pres.presence_type}"

@@ -1,33 +1,41 @@
+"""XMPP BOSH Client"""
+
 import requests
 import xml.etree.ElementTree as ET
 import base64
 import random
-from accounts import AccountManager
 from pathlib import Path
+from typing import Optional, Callable
 
-class XMPPBoshClient:
-    """XMPP BOSH Client with account management"""
+from accounts import AccountManager
+from userlist import UserList
+from messages import MessageParser
+
+
+class XMPPClient:
+    """XMPP BOSH Client"""
     
-    def __init__(self, config_path: str | None = None):
+    def __init__(self, config_path: str = None):
         if config_path is None:
-            base_dir = Path(__file__).resolve().parent
-            config_path = base_dir / "config.json"
-
+            config_path = Path(__file__).parent / "config.json"
+        
         self.account_manager = AccountManager(str(config_path))
         self.rid = int(random.random() * 1e10)
         self.sid = None
         self.jid = None
         
-        # Load configurations
+        self.message_callback: Optional[Callable] = None
+        self.presence_callback: Optional[Callable] = None
+        
+        self.user_list = UserList()
+        
         server = self.account_manager.get_server_config()
         self.url = server.get('url')
         self.domain = server.get('domain')
         self.resource = server.get('resource')
-
+        
         if not self.url or not self.domain:
-            raise RuntimeError(
-                "❌ Invalid server config. Check config.json (url/domain missing)"
-            )
+            raise RuntimeError("❌ Invalid config")
         
         conn = self.account_manager.get_connection_config()
         self.conn_params = {
@@ -46,8 +54,16 @@ class XMPPBoshClient:
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         }
     
-    def build_bosh_body(self, children=None, **attrs):
-        """Build BOSH body element with proper namespaces"""
+    def set_message_callback(self, callback: Callable):
+        """Set message callback"""
+        self.message_callback = callback
+    
+    def set_presence_callback(self, callback: Callable):
+        """Set presence callback"""
+        self.presence_callback = callback
+    
+    def build_body(self, children=None, **attrs):
+        """Build BOSH body"""
         body = ET.Element('body', {
             'rid': str(self.rid),
             'xmlns': 'http://jabber.org/protocol/httpbind',
@@ -62,16 +78,18 @@ class XMPPBoshClient:
                 body.append(child)
         return ET.tostring(body, encoding='utf-8').decode('utf-8')
     
-    def send_request(self, payload):
-        """Send BOSH request and return response"""
-        print(f"\n📤 Sending:\n{payload}")
+    def send_request(self, payload, verbose: bool = True):
+        """Send request"""
+        if verbose:
+            print(f"\n📤 {payload[:100]}...")
         response = requests.post(self.url, data=payload, headers=self.headers)
         response.raise_for_status()
-        print(f"📥 Response:\n{response.text}")
+        if verbose:
+            print(f"📥 {response.text[:100]}...")
         return response.text
     
     def parse_xml(self, xml_text):
-        """Parse XML response safely"""
+        """Parse XML"""
         try:
             return ET.fromstring(xml_text)
         except ET.ParseError as e:
@@ -79,34 +97,33 @@ class XMPPBoshClient:
             return None
     
     def connect(self, account=None):
-        """Connect using specified account or active account"""
-        # Get account
+        """Connect to XMPP"""
         if account is None:
             account = self.account_manager.get_active_account()
         elif isinstance(account, str):
-            # Login provided
             account = self.account_manager.get_account_by_login(account)
         
         if not account:
-            return print("❌ No account found")
+            print("❌ No account")
+            return False
         
-        print(f"\n🔑 Connecting as: {account['login']} (ID: {account['user_id']})")
+        print(f"\n🔑 Connecting: {account['login']}")
         
         user_id = account['user_id']
         login = account['login']
         password = account['password']
         
-        # 🔌 Step 1: Initialize BOSH session
-        payload = self.build_bosh_body(to=self.domain, **self.conn_params)
+        # Initialize session
+        payload = self.build_body(to=self.domain, **self.conn_params)
         root = self.parse_xml(self.send_request(payload))
         if root is not None:
             self.sid = root.get('sid')
-            print(f"\n✅ Session ID: {self.sid}")
+            print(f"✅ SID: {self.sid}")
         
         if not self.sid:
-            return print("❌ Failed to obtain SID")
+            return False
         
-        # 🔐 Step 2: SASL PLAIN authentication
+        # Auth
         self.rid += 1
         authcid = f'{user_id}#{login}'
         auth_str = f'\0{authcid}\0{password}'
@@ -118,48 +135,47 @@ class XMPPBoshClient:
         })
         auth_elem.text = auth_b64
         
-        self.send_request(self.build_bosh_body(children=[auth_elem]))
+        self.send_request(self.build_body(children=[auth_elem]))
         
-        # 🔄 Step 3: Restart XMPP stream
+        # Restart stream
         self.rid += 1
-        payload = self.build_bosh_body(**{
+        payload = self.build_body(**{
             'xmpp:restart': 'true',
             'to': self.domain,
             'xml:lang': 'en'
         })
         self.send_request(payload)
         
-        # 🏷️ Step 4: Bind resource and get JID
+        # Bind resource
         self.rid += 1
         iq = ET.Element('iq', {'type': 'set', 'id': 'bind_1', 'xmlns': 'jabber:client'})
         bind = ET.SubElement(iq, 'bind', {'xmlns': 'urn:ietf:params:xml:ns:xmpp-bind'})
         ET.SubElement(bind, 'resource').text = self.resource
         
-        root = self.parse_xml(self.send_request(self.build_bosh_body(children=[iq])))
+        root = self.parse_xml(self.send_request(self.build_body(children=[iq])))
         if root is not None:
             jid_el = root.find('.//{urn:ietf:params:xml:ns:xmpp-bind}jid')
             if jid_el is not None:
                 self.jid = jid_el.text
-                print(f"\n✅ Bound JID: {self.jid}")
+                print(f"✅ JID: {self.jid}")
         
         if not self.jid:
-            return print("❌ Failed to bind JID")
+            return False
         
-        # 📝 Step 5: Establish session
+        # Session
         self.rid += 1
         iq = ET.Element('iq', {'type': 'set', 'id': 'session_1', 'xmlns': 'jabber:client'})
         ET.SubElement(iq, 'session', {'xmlns': 'urn:ietf:params:xml:ns:xmpp-session'})
-        self.send_request(self.build_bosh_body(children=[iq]))
+        self.send_request(self.build_body(children=[iq]))
         
         return True
     
     def join_room(self, room_jid, nickname=None):
-        """Join a MUC room"""
+        """Join MUC room"""
         account = self.account_manager.get_active_account()
         if nickname is None:
             nickname = f"{account['user_id']}#{account['login']}"
         
-        # 🚪 Step 6: Join MUC room
         self.rid += 1
         presence = ET.Element('presence', {
             'xmlns': 'jabber:client',
@@ -167,72 +183,102 @@ class XMPPBoshClient:
         })
         ET.SubElement(presence, 'x', {'xmlns': 'http://jabber.org/protocol/muc'})
         
-        # Add userdata
         x_data = ET.SubElement(presence, 'x', {'xmlns': 'klavogonki:userdata'})
         user = ET.SubElement(x_data, 'user')
         ET.SubElement(user, 'login').text = account['login']
         
-        self.send_request(self.build_bosh_body(children=[presence]))
+        response = self.send_request(self.build_body(children=[presence]))
+        self._process_response(response)
         
-        print(f"\n🎉 Joined room: {room_jid}")
+        print(f"🎉 Joined: {room_jid}")
+    
+    def send_message(self, body: str, room_jid: str = None):
+        """Send message"""
+        if not self.sid or not self.jid:
+            return False
+        
+        if room_jid is None:
+            rooms = self.account_manager.get_rooms()
+            for room in rooms:
+                if room.get('auto_join'):
+                    room_jid = room['jid']
+                    break
+        
+        if not room_jid:
+            return False
+        
+        self.rid += 1
+        message = ET.Element('message', {
+            'xmlns': 'jabber:client',
+            'to': room_jid,
+            'type': 'groupchat'
+        })
+        ET.SubElement(message, 'body').text = body
+        
+        try:
+            self.send_request(self.build_body(children=[message]), verbose=False)
+            return True
+        except:
+            return False
+    
+    def _process_response(self, xml_text: str):
+        """Process response"""
+        messages, presence_updates = MessageParser.parse(xml_text)
+        
+        for msg in messages:
+            print(MessageParser.format_message(msg))
+            if self.message_callback:
+                self.message_callback(msg)
+        
+        for pres in presence_updates:
+            if pres.presence_type == 'available':
+                self.user_list.add_or_update(
+                    jid=pres.from_jid,
+                    login=pres.login,
+                    user_id=pres.user_id,
+                    avatar=pres.avatar,
+                    background=pres.background,
+                    game_id=pres.game_id,
+                    affiliation=pres.affiliation,
+                    role=pres.role
+                )
+            elif pres.presence_type == 'unavailable':
+                self.user_list.remove(pres.from_jid)
+                print(MessageParser.format_presence(pres))
+            
+            if self.presence_callback:
+                self.presence_callback(pres)
     
     def listen(self):
-        """Listen for incoming messages in real-time"""
-        print("📡 Listening for messages...\n")
+        """Listen for messages"""
+        print("📡 Listening...\n")
         
         try:
             while True:
                 self.rid += 1
-                response = self.send_request(self.build_bosh_body())
-                root = self.parse_xml(response)
+                response = self.send_request(self.build_body(), verbose=False)
                 
+                root = self.parse_xml(response)
                 if root is not None:
-                    # Check if session was terminated
                     if root.get('type') == 'terminate':
-                        print("\n⚠️  Session terminated by server")
+                        print("\n⚠️ Terminated")
                         break
                     
-                    # Parse incoming messages
-                    for message in root.findall('.//{jabber:client}message'):
-                        from_jid = message.get('from', '')
-                        body = message.find('{jabber:client}body')
-                        if body is not None and body.text:
-                            print(f"\n💬 [{from_jid}]: {body.text}")
-                    
-                    # Parse presence updates
-                    for presence in root.findall('.//{jabber:client}presence'):
-                        from_jid = presence.get('from', '')
-                        ptype = presence.get('type', 'available')
-                        if ptype != 'available':
-                            print(f"👤 {from_jid} is now {ptype}")
+                    self._process_response(response)
         
         except KeyboardInterrupt:
-            print("\n\n👋 Disconnecting...")
+            print("\n👋 Bye")
         except Exception as e:
-            print(f"\n❌ Connection error: {e}")
-
-
-def main():
-    # Initialize client
-    client = XMPPBoshClient()
+            print(f"\n❌ Error: {e}")
     
-    # Show interactive menu and get selected account
-    selected = client.account_manager.interactive_menu()
-    
-    if selected == "exit" or selected is None:
-        return
-    
-    # Connect with selected account
-    if client.connect():
-        # Auto-join rooms
-        rooms = client.account_manager.get_rooms()
-        for room in rooms:
-            if room.get('auto_join', False):
-                client.join_room(room['jid'])
-        
-        # Start listening
-        client.listen()
-
-
-if __name__ == "__main__":
-    main()
+    def disconnect(self):
+        """Disconnect"""
+        if self.sid:
+            try:
+                self.rid += 1
+                self.send_request(self.build_body(type='terminate'), verbose=False)
+            except:
+                pass
+            finally:
+                self.sid = None
+                self.jid = None
