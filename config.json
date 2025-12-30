@@ -1,0 +1,22 @@
+{
+  "server": {
+    "url": "https://klavogonki.ru/xmpp-httpbind/",
+    "domain": "jabber.klavogonki.ru",
+    "resource": "web"
+  },
+  "rooms": [
+    {
+      "jid": "general@conference.jabber.klavogonki.ru",
+      "name": "General",
+      "auto_join": true
+    }
+  ],
+  "connection": {
+    "wait": "60",
+    "hold": "1",
+    "content_type": "text/xml; charset=utf-8",
+    "version": "1.6",
+    "xmpp_version": "1.0",
+    "lang": "en"
+  }
+}
