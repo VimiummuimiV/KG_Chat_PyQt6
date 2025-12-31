@@ -1,0 +1,130 @@
+/* Klavogonki Dark Theme */
+
+QMainWindow {
+    background-color: #1e1e1e;
+}
+
+QMenuBar {
+    background-color: #2d2d30;
+    color: #cccccc;
+}
+QMenuBar::item:selected {
+    background-color: #3e3e42;
+}
+QMenu {
+    background-color: #2d2d30;
+    color: #cccccc;
+    border: 1px solid #454545;
+}
+QMenu::item:selected {
+    background-color: #0e639c;
+}
+
+QTextBrowser {
+    background-color: #1e1e1e;
+    color: #cccccc;
+    border: none;
+    padding: 5px;
+    font-family: 'Consolas', 'Monaco', monospace;
+}
+
+QLineEdit {
+    background-color: #252526;
+    color: #cccccc;
+    border: 1px solid #3e3e42;
+    border-radius: 3px;
+    padding: 8px;
+}
+
+QPushButton {
+    background-color: #0e639c;
+    color: white;
+    border: none;
+    border-radius: 3px;
+    padding: 8px 20px;
+    font-weight: bold;
+}
+QPushButton:hover {
+    background-color: #1177bb;
+}
+QPushButton:pressed {
+    background-color: #0d5a8f;
+}
+
+/* Dialogs (Account, Add Account, etc.) */
+QDialog {
+    background-color: #1e1e1e;
+}
+QDialog QLabel {
+    color: #cccccc;
+    font-size: 12px;
+}
+QDialog QLineEdit {
+    background-color: #3c3c3c;
+    color: #cccccc;
+    border: 1px solid #555;
+    border-radius: 3px;
+    padding: 8px;
+    font-size: 12px;
+}
+QDialog QComboBox {
+    background-color: #3c3c3c;
+    color: #cccccc;
+    border: 1px solid #555;
+    border-radius: 3px;
+    padding: 5px;
+}
+
+/* Right panel - users list */
+QWidget#right_panel {
+    background-color: #252526;
+}
+
+QLabel#users_header {
+    color: #888;
+    font-weight: bold;
+    padding: 10px;
+    text-transform: uppercase;
+    font-size: 11px;
+}
+
+QScrollArea {
+    border: none;
+    background-color: #252526;
+}
+
+QWidget#user_list_widget {
+    background-color: #252526;
+}
+
+QLabel#user_count_label {
+    color: #666;
+    padding: 8px;
+    font-size: 10px;
+}
+
+/* Zoom slider */
+QSlider::groove:horizontal {
+    border: 1px solid #555;
+    height: 4px;
+    background: #333;
+    border-radius: 2px;
+}
+QSlider::handle:horizontal {
+    background: #0e639c;
+    border: 1px solid #0e639c;
+    width: 12px;
+    margin: -4px 0;
+    border-radius: 6px;
+}
+QSlider::handle:horizontal:hover {
+    background: #1177bb;
+}
+
+/* Status bar dynamic classes (applied in code) */
+.status-connected {
+    background-color: #007acc;
+}
+.status-disconnected {
+    background-color: #ce3939;
+}
