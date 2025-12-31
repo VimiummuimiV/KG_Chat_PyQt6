@@ -21,6 +21,7 @@
   },
   "ui": {
     "selected_palette": "dark/dark_material.css",
-    "zoom": 169
+    "zoom": 169,
+    "userlist_visible": false
   }
 }

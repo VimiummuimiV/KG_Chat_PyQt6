@@ -346,6 +346,19 @@ class ChatWindow(QMainWindow):
         self.zoom_level = 100
         self.previous_users = set()
 
+        # Determine preferred font family available on the system
+        preferred_list = ["Montserrat", "Roboto", "Tahoma", "Calibri", "Ubuntu", "Helvetica Neue", "Arial"]
+        try:
+            fams = {f.lower() for f in QFontDatabase().families()}
+            chosen = None
+            for p in preferred_list:
+                if p.lower() in fams:
+                    chosen = p
+                    break
+            self.preferred_font_family = chosen or ""
+        except Exception:
+            self.preferred_font_family = ""
+
         # Discover palettes in themes/dark and themes/light
         self.dark_theme_files, self.light_theme_files = ThemeManager.discover()
 
@@ -356,6 +369,12 @@ class ChatWindow(QMainWindow):
             saved = cfg.get("ui", {}).get("selected_palette")
         except Exception:
             saved = None
+
+        # Restore userlist visibility if present
+        try:
+            self.userlist_visible = cfg.get("ui", {}).get("userlist_visible", True)
+        except Exception:
+            self.userlist_visible = True
 
         templates_dir = os.path.join(os.path.dirname(__file__), "themes")
         base_tpl = os.path.join(templates_dir, "base_theme.qss")
@@ -494,6 +513,13 @@ class ChatWindow(QMainWindow):
         reset_zoom_action.triggered.connect(self.reset_zoom)
         view_menu.addAction(reset_zoom_action)
 
+        # Show/hide user list action (persisted)
+        self.show_users_action = QAction("Show Users", self)
+        self.show_users_action.setCheckable(True)
+        self.show_users_action.setChecked(getattr(self, 'userlist_visible', True))
+        self.show_users_action.toggled.connect(self.set_userlist_visible)
+        view_menu.addAction(self.show_users_action)
+
         central = QWidget()
         self.setCentralWidget(central)
         main_layout = QHBoxLayout(central)
@@ -549,35 +575,45 @@ class ChatWindow(QMainWindow):
         self.splitter.setStretchFactor(1, 1)
         main_layout.addWidget(self.splitter)
 
-        # Status bar: left side shows connection status; right side hosts zoom controls
+        # Status bar: left side shows connection status inside a padded container
+        left_status_widget = QWidget()
+        left_status_layout = QHBoxLayout(left_status_widget)
+        left_status_layout.setContentsMargins(8, 2, 8, 2)
+        left_status_layout.setSpacing(6)
         self.status_label = QLabel("Disconnected")
-        self.statusBar().addWidget(self.status_label)
+        left_status_layout.addWidget(self.status_label)
+        # add the left container with stretch so it occupies the center area professionally
+        self.statusBar().addWidget(left_status_widget, 1)
 
-        # Separate right-side widget so it appears at the very right
-        zoom_widget = QWidget()
-        zoom_layout = QHBoxLayout(zoom_widget)
-        zoom_layout.setContentsMargins(4, 4, 4, 4)
+        # Toggle button for user list (checkable) followed by zoom percent and slider at the far right
+        self.toggle_users_btn = QPushButton("Users")
+        self.toggle_users_btn.setCheckable(True)
+        self.toggle_users_btn.setChecked(getattr(self, 'userlist_visible', True))
+        self.toggle_users_btn.setFixedSize(60, 22)
+        self.toggle_users_btn.setObjectName("toggle_users_btn")
+        self.toggle_users_btn.toggled.connect(self.set_userlist_visible)
+        self.statusBar().addPermanentWidget(self.toggle_users_btn)
 
-        zoom_label = QLabel("Zoom:")
-        zoom_label.setObjectName("zoom_label")
-        zoom_layout.addWidget(zoom_label)
+        self.zoom_percent_label = QLabel(f"{self.zoom_level}%")
+        self.zoom_percent_label.setObjectName("zoom_percent_label")
+        self.statusBar().addPermanentWidget(self.zoom_percent_label)
 
         self.zoom_slider = QSlider(Qt.Orientation.Horizontal)
         self.zoom_slider.setRange(50, 200)
         self.zoom_slider.setValue(self.zoom_level)
         self.zoom_slider.setFixedWidth(140)
         self.zoom_slider.setFixedHeight(18)
-        self.zoom_slider.setMaximumHeight(18)
         self.zoom_slider.valueChanged.connect(self.on_zoom_slider_changed)
-        zoom_layout.addWidget(self.zoom_slider)
+        self.statusBar().addPermanentWidget(self.zoom_slider)
 
-        self.zoom_percent_label = QLabel(f"{self.zoom_level}%")
-        self.zoom_percent_label.setObjectName("zoom_percent_label")
-        zoom_layout.addWidget(self.zoom_percent_label)
-
-        # make sure status bar has comfortable height for the slider handle
+        # ensure status bar has comfortable height for the slider handle
         self.statusBar().setMinimumHeight(30)
-        self.statusBar().addPermanentWidget(zoom_widget)
+
+        # Apply initial userlist visibility state
+        try:
+            self.set_userlist_visible(self.userlist_visible)
+        except Exception:
+            pass
 
     def handle_link_clicked(self, url: QUrl):
         link = url.toString()
@@ -734,8 +770,52 @@ class ChatWindow(QMainWindow):
 
         self.user_list_widget.setMinimumWidth(max_width + 20)
         self.right_panel.setMinimumWidth(max_width + 40)
-        self.right_panel.setMaximumWidth(max_width + 40)
+        # Allow the right panel to be resized by the splitter (do not set a fixed maximum)
         self.user_count_label.setText(f"Total: {len(users)}")
+
+    def set_userlist_visible(self, visible: bool):
+        """Show or hide the right-side user list and persist the choice."""
+        visible = bool(visible)
+        try:
+            if not visible:
+                # save current splitter sizes so we can restore when showing again
+                try:
+                    self._saved_splitter_sizes = self.splitter.sizes()
+                except Exception:
+                    self._saved_splitter_sizes = None
+                self.right_panel.hide()
+            else:
+                self.right_panel.show()
+                # restore previous sizes if available
+                try:
+                    if getattr(self, '_saved_splitter_sizes', None):
+                        self.splitter.setSizes(self._saved_splitter_sizes)
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+        # keep UI controls in sync
+        try:
+            if hasattr(self, 'toggle_users_btn'):
+                self.toggle_users_btn.setChecked(visible)
+        except Exception:
+            pass
+        try:
+            if hasattr(self, 'show_users_action'):
+                self.show_users_action.setChecked(visible)
+        except Exception:
+            pass
+
+        # Persist selection
+        try:
+            cfg = ThemeManager.load_config()
+            ui = cfg.get('ui', {})
+            ui['userlist_visible'] = bool(visible)
+            cfg['ui'] = ui
+            ThemeManager.save_config(cfg)
+        except Exception:
+            pass
 
     def zoom_in(self):
         self.zoom_level = min(200, self.zoom_level + 10)
@@ -762,11 +842,17 @@ class ChatWindow(QMainWindow):
 
         base_size = 13
         scaled_size = int(base_size * f)
-        font = QFont("Consolas", scaled_size)
-        self.messages_display.document().setDefaultFont(font)
-        self.messages_display.setFont(font)
 
-        self.input_field.setFont(QFont("", scaled_size))
+        # Apply preferred font family to chat document so messages use UI font priority and support Cyrillic
+        pf = getattr(self, 'preferred_font_family', '')
+        if pf:
+            doc_font = QFont(pf, scaled_size)
+        else:
+            doc_font = QFont("", scaled_size)
+        self.messages_display.document().setDefaultFont(doc_font)
+        # Keep widget font-family controlled by QSS; set only font-size via inline stylesheet so family comes from base_theme.qss
+        self.messages_display.setStyleSheet(f"font-size: {scaled_size}px;")
+        self.input_field.setStyleSheet(f"font-size: {scaled_size}px;")
 
         # font sizing and spacing only; colors come from theme
         self.users_header.setStyleSheet(f"font-size: {int(11 * f)}px; padding: {int(10 * f)}px;")

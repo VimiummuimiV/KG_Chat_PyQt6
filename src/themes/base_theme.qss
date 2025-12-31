@@ -2,7 +2,9 @@
    Placeholders use {{name}} and will be replaced with palette values.
    Example placeholder: {{bg}} will be replaced by palette variable --bg
 */
-QWidget, QMainWindow {
+/* Default UI font priority: Montserrat, Roboto, Tahoma, Calibri, Ubuntu, Helvetica Neue, Arial */
+QWidget, QMainWindow, QMenuBar, QMenu, QLabel, QPushButton, QLineEdit, QTextEdit, QPlainTextEdit, QComboBox, QTextBrowser {
+  font-family: "Montserrat", "Roboto", "Tahoma", "Calibri", "Ubuntu", "Helvetica Neue", Arial, sans-serif;
   background-color: {{bg}};
   color: {{on_surface}};
 }
