@@ -93,16 +93,52 @@ class UserWidget(QWidget):
     
     def load_avatar(self, url):
         """Load avatar from URL"""
-        try:
-            response = requests.get(url, timeout=5)
-            if response.status_code == 200:
-                pixmap = QPixmap()
-                pixmap.loadFromData(response.content)
-                scaled = pixmap.scaled(32, 32, Qt.AspectRatioMode.KeepAspectRatioByExpanding, 
-                                      Qt.TransformationMode.SmoothTransformation)
-                self.avatar_label.setPixmap(scaled)
-        except:
-            pass
+        if not url:
+            print(f"✗ No avatar URL provided")
+            return
+            
+        print(f"🔄 Loading avatar: {url}")
+        
+        def load_in_thread():
+            try:
+                # Make sure URL is complete
+                if not url.startswith('http'):
+                    full_url = f"https://klavogonki.ru{url}"
+                else:
+                    full_url = url
+                
+                print(f"  → Fetching: {full_url}")
+                response = requests.get(full_url, timeout=5)
+                
+                if response.status_code == 200:
+                    from PyQt6.QtCore import QByteArray
+                    pixmap = QPixmap()
+                    byte_array = QByteArray(response.content)
+                    
+                    if pixmap.loadFromData(byte_array):
+                        # Crop to square and scale
+                        size = min(pixmap.width(), pixmap.height())
+                        if size > 0:
+                            x = (pixmap.width() - size) // 2
+                            y = (pixmap.height() - size) // 2
+                            square = pixmap.copy(x, y, size, size)
+                            scaled = square.scaled(32, 32, Qt.AspectRatioMode.KeepAspectRatio, 
+                                                  Qt.TransformationMode.SmoothTransformation)
+                            self.avatar_label.setPixmap(scaled)
+                            print(f"  ✓ Avatar loaded successfully")
+                        else:
+                            print(f"  ✗ Invalid image dimensions")
+                    else:
+                        print(f"  ✗ Failed to load image data")
+                else:
+                    print(f"  ✗ HTTP {response.status_code}")
+            except Exception as e:
+                print(f"  ✗ Exception: {e}")
+        
+        # Load avatar in background thread
+        import threading
+        thread = threading.Thread(target=load_in_thread, daemon=True)
+        thread.start()
 
 
 class AccountDialog(QDialog):
@@ -264,6 +300,8 @@ class ChatWindow(QMainWindow):
         self.commands = AccountCommands(self.xmpp.account_manager)
         self.signals = SignalEmitter()
         
+        self.zoom_level = 100  # Default zoom level
+        
         self.signals.message_received.connect(self.on_message)
         self.signals.presence_update.connect(self.on_presence)
         self.signals.connection_status.connect(self.on_connection_status)
@@ -356,6 +394,24 @@ class ChatWindow(QMainWindow):
         exit_action.triggered.connect(self.close)
         accounts_menu.addAction(exit_action)
         
+        # View menu
+        view_menu = menubar.addMenu("View")
+        
+        zoom_in_action = QAction("Zoom In", self)
+        zoom_in_action.setShortcut("Ctrl++")
+        zoom_in_action.triggered.connect(self.zoom_in)
+        view_menu.addAction(zoom_in_action)
+        
+        zoom_out_action = QAction("Zoom Out", self)
+        zoom_out_action.setShortcut("Ctrl+-")
+        zoom_out_action.triggered.connect(self.zoom_out)
+        view_menu.addAction(zoom_out_action)
+        
+        reset_zoom_action = QAction("Reset Zoom", self)
+        reset_zoom_action.setShortcut("Ctrl+0")
+        reset_zoom_action.triggered.connect(self.reset_zoom)
+        view_menu.addAction(reset_zoom_action)
+        
         # Central widget
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
@@ -423,6 +479,7 @@ class ChatWindow(QMainWindow):
         self.user_list_layout.addStretch()
         self.user_list_widget.setLayout(self.user_list_layout)
         self.user_list_widget.setStyleSheet("background-color: #252526;")
+        self.user_list_widget.setMinimumWidth(200)  # Ensure minimum width
         
         scroll_area.setWidget(self.user_list_widget)
         right_layout.addWidget(scroll_area, 1)
@@ -444,14 +501,61 @@ class ChatWindow(QMainWindow):
         
         main_layout.addWidget(splitter)
         
-        self.statusBar().showMessage("Disconnected")
-        self.statusBar().setStyleSheet("background-color: #007acc; color: white; font-size: 11px;")
+        # Status bar with zoom slider
+        status_widget = QWidget()
+        status_layout = QHBoxLayout()
+        status_layout.setContentsMargins(5, 2, 5, 2)
+        status_widget.setLayout(status_layout)
+        
+        self.status_label = QLabel("Disconnected")
+        self.status_label.setStyleSheet("color: white; font-size: 11px;")
+        status_layout.addWidget(self.status_label, 1)
+        
+        # Zoom controls
+        zoom_label = QLabel("Zoom:")
+        zoom_label.setStyleSheet("color: white; font-size: 11px; margin-right: 5px;")
+        status_layout.addWidget(zoom_label)
+        
+        from PyQt6.QtWidgets import QSlider
+        self.zoom_slider = QSlider(Qt.Orientation.Horizontal)
+        self.zoom_slider.setMinimum(50)
+        self.zoom_slider.setMaximum(200)
+        self.zoom_slider.setValue(100)
+        self.zoom_slider.setFixedWidth(100)
+        self.zoom_slider.valueChanged.connect(self.on_zoom_slider_changed)
+        self.zoom_slider.setStyleSheet("""
+            QSlider::groove:horizontal {
+                border: 1px solid #555;
+                height: 4px;
+                background: #333;
+                border-radius: 2px;
+            }
+            QSlider::handle:horizontal {
+                background: #0e639c;
+                border: 1px solid #0e639c;
+                width: 12px;
+                margin: -4px 0;
+                border-radius: 6px;
+            }
+            QSlider::handle:horizontal:hover {
+                background: #1177bb;
+            }
+        """)
+        status_layout.addWidget(self.zoom_slider)
+        
+        self.zoom_percent_label = QLabel("100%")
+        self.zoom_percent_label.setStyleSheet("color: white; font-size: 11px; margin-left: 5px; min-width: 40px;")
+        status_layout.addWidget(self.zoom_percent_label)
+        
+        self.statusBar().addPermanentWidget(status_widget, 1)
+        self.statusBar().setStyleSheet("background-color: #007acc;")
     
     def show_account_dialog(self):
         dialog = AccountDialog(self.xmpp.account_manager, self)
         if dialog.exec() == QDialog.DialogCode.Accepted and dialog.selected_account:
             self.connect_xmpp(dialog.selected_account)
         else:
+            self.status_label.setText("Disconnected")
             sys.exit(0)
     
     def switch_account_dialog(self):
@@ -506,7 +610,7 @@ class ChatWindow(QMainWindow):
                 QMessageBox.information(self, "Success", f"Account '{acc['login']}' removed!")
     
     def connect_xmpp(self, account):
-        self.statusBar().showMessage("Connecting...")
+        self.status_label.setText("Connecting...")
         
         def connect_thread():
             try:
@@ -528,11 +632,13 @@ class ChatWindow(QMainWindow):
     
     def on_connection_status(self, success, message):
         if success:
-            self.statusBar().showMessage(message)
-            self.statusBar().setStyleSheet("background-color: #007acc; color: white;")
+            self.status_label.setText(message)
+            self.statusBar().setStyleSheet("background-color: #007acc;")
+            # Force initial userlist update
+            self.update_user_list()
         else:
-            self.statusBar().showMessage(message)
-            self.statusBar().setStyleSheet("background-color: #ce3939; color: white;")
+            self.status_label.setText(message)
+            self.statusBar().setStyleSheet("background-color: #ce3939;")
     
     def handle_xmpp_message(self, message):
         active_account = self.xmpp.account_manager.get_active_account()
@@ -554,41 +660,96 @@ class ChatWindow(QMainWindow):
     
     def on_presence(self, presence):
         """Silently update user list - no join/leave spam"""
+        from PyQt6.QtCore import QTimer
+        # Update immediately
         self.update_user_list()
+        # Also schedule another update after 100ms to catch any delayed updates
+        QTimer.singleShot(100, self.update_user_list)
     
     def add_message(self, sender, text, timestamp="", color="#cccccc"):
-        """Add message with colored username"""
+        """Add message with colored username - each on new line"""
         cursor = self.messages_display.textCursor()
         cursor.movePosition(QTextCursor.MoveOperation.End)
         
         # Escape HTML
         text = text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
         
-        html = f"""
-        <div style="margin: 2px 0; font-family: Consolas, monospace;">
-            <span style="color: #888; font-size: 11px;">{timestamp}</span>
-            <span style="color: {color}; font-weight: bold; margin-left: 10px;">{sender}</span>
-            <span style="color: #cccccc; margin-left: 5px;">{text}</span>
-        </div>
-        """
+        # Insert newline before message for proper separation
+        cursor.insertText("\n")
         
-        cursor.insertHtml(html)
+        # Insert timestamp
+        cursor.insertHtml(f'<span style="color: #666; font-size: 11px;">{timestamp}</span> ')
+        
+        # Insert username with color
+        cursor.insertHtml(f'<span style="color: {color}; font-weight: bold;">{sender}</span> ')
+        
+        # Insert message text
+        cursor.insertHtml(f'<span style="color: #ccc;">{text}</span>')
+        
         self.messages_display.setTextCursor(cursor)
         self.messages_display.ensureCursorVisible()
     
     def update_user_list(self):
         """Update user list"""
+        # Clear existing widgets
         while self.user_list_layout.count() > 1:
             item = self.user_list_layout.takeAt(0)
             if item.widget():
                 item.widget().deleteLater()
         
         users = self.xmpp.user_list.get_online()
+        print(f"🔍 Updating user list: {len(users)} users online")
+        
         for user in sorted(users, key=lambda u: u.login.lower()):
+            print(f"  👤 Adding user: {user.login} (avatar: {user.avatar})")
             user_widget = UserWidget(user)
             self.user_list_layout.insertWidget(self.user_list_layout.count() - 1, user_widget)
         
         self.user_count_label.setText(f"Total: {len(users)}")
+        print(f"✓ User list updated")
+    
+    def zoom_in(self):
+        """Increase zoom level"""
+        self.zoom_level = min(200, self.zoom_level + 10)
+        self.apply_zoom()
+    
+    def zoom_out(self):
+        """Decrease zoom level"""
+        self.zoom_level = max(50, self.zoom_level - 10)
+        self.apply_zoom()
+    
+    def reset_zoom(self):
+        """Reset zoom to 100%"""
+        self.zoom_level = 100
+        self.apply_zoom()
+    
+    def on_zoom_slider_changed(self, value):
+        """Handle zoom slider change"""
+        self.zoom_level = value
+        self.apply_zoom()
+    
+    def apply_zoom(self):
+        """Apply zoom level to interface"""
+        # Update slider if changed via keyboard
+        self.zoom_slider.setValue(self.zoom_level)
+        self.zoom_percent_label.setText(f"{self.zoom_level}%")
+        
+        # Calculate font size based on zoom
+        base_font_size = 13
+        scaled_font_size = int(base_font_size * self.zoom_level / 100)
+        
+        # Apply to messages display
+        font = self.messages_display.font()
+        font.setPointSize(scaled_font_size)
+        self.messages_display.setFont(font)
+        
+        # Apply to input field
+        input_font = self.input_field.font()
+        input_font.setPointSize(scaled_font_size)
+        self.input_field.setFont(input_font)
+        
+        # Apply zoom factor to messages display for better rendering
+        self.messages_display.setZoomFactor(self.zoom_level / 100.0)
     
     def send_message(self):
         text = self.input_field.text().strip()
