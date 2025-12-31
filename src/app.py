@@ -250,11 +250,31 @@ class UserWidget(QWidget):
         self.avatar_label.setScaledContents(True)  # Enables crisp downscaling from 100×100
         self.avatar_label.setObjectName("avatar_label")
         
-        # Hide avatar by default (no placeholder icon)
-        # Only show it when an actual image is loaded
+        # Check if user has avatar
         url = self.user.get_avatar_url()
         if not url:
-            self.avatar_label.hide()
+            # No avatar - use random emoji face based on username
+            emoji_faces = ['😀', '😃', '😄', '😁', '😆', '😊', '😇', '🙂', '🙃', '😉',
+                          '😌', '😍', '🥰', '😘', '😗', '😙', '😚', '😋', '😛', '😝',
+                          '😜', '🤪', '🤨', '🧐', '🤓', '😎', '🥳', '🤩', '🥸', '😏',
+                          '😒', '😞', '😔', '😟', '😕', '🙁', '😣', '😖', '😫', '😩',
+                          '🥺', '😢', '😭', '😤', '😠', '😡', '🤬', '🤯', '😳', '🥵']
+            # Generate consistent emoji based on username hash
+            emoji_index = hash(self.user.login) % len(emoji_faces)
+            emoji = emoji_faces[emoji_index]
+            
+            # Set emoji as text with proper styling
+            self.avatar_label.setText(emoji)
+            self.avatar_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            self.avatar_label.setFont(QFont("Segoe UI Emoji", int(14 * f)))  # Smaller emoji font
+            self.avatar_label.setScaledContents(False)  # Don't scale text
+            # Add subtle background to make emoji stand out
+            try:
+                palette = ThemeManager.parse_palette(self.window().current_theme) if self.window().current_theme else {}
+                overlay_color = palette.get('overlay', 'rgba(255,255,255,0.04)')
+                self.avatar_label.setStyleSheet(f"background-color: {overlay_color}; border-radius: 6px; padding: 2px;")
+            except:
+                self.avatar_label.setStyleSheet("background-color: rgba(255,255,255,0.04); border-radius: 6px; padding: 2px;")
         
         layout.addWidget(self.avatar_label)
 
@@ -288,7 +308,7 @@ class UserWidget(QWidget):
         self.setLayout(layout)
         self.setObjectName("user_widget")
 
-        # Minimum width calculation
+        # Minimum width calculation - always include avatar since we show emoji
         fm = QFontMetrics(username_label.font())
         username_width = fm.horizontalAdvance(self.user.login) + int(5 * f)
         game_width = 0
@@ -296,9 +316,8 @@ class UserWidget(QWidget):
             game_fm = QFontMetrics(game_label.font())
             game_width = game_fm.horizontalAdvance(game_label.text()) + int(5 * f)
         
-        # Calculate min width - only include avatar width if it's visible
-        avatar_width = avatar_display_size if url else 0
-        min_width = int(8 * f) + avatar_width + int(5 * f) + username_width + game_width + int(8 * f)
+        # Avatar is always visible (either image or emoji)
+        min_width = int(8 * f) + avatar_display_size + int(5 * f) + username_width + game_width + int(8 * f)
         self.setMinimumWidth(max(int(180 * f), min_width))
 
     def load_avatar(self, url):

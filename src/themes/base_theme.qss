@@ -155,7 +155,8 @@ QTextBrowser:focus {
 
 QTextBrowser .timestamp {
   color: {{muted}};
-  font-size: 0.85em;
+  font-size: 0.75em;
+  opacity: 0.6;
 }
 
 QTextBrowser .username {
