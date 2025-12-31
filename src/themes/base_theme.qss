@@ -2,11 +2,14 @@
    Design: Everything on dark {{bg}}, only input field uses {{surface}}
 */
 
+/* Import Noto Color Emoji from Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Color+Emoji&display=swap');
+
 /* ========================================
    Global - One Dark Background
    ======================================== */
 QWidget, QMainWindow, QMenuBar, QMenu, QLabel, QTextBrowser {
-  font-family: "Montserrat", "Roboto", "Tahoma", "Calibri", "Ubuntu", "Helvetica Neue", Arial, sans-serif;
+  font-family: "Montserrat", "Roboto", "Tahoma", "Calibri", "Ubuntu", "Helvetica Neue", Arial, "Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", sans-serif;
   background-color: {{bg}};
   color: {{on_surface}};
 }
@@ -126,6 +129,7 @@ QLineEdit, QTextEdit, QPlainTextEdit, QComboBox {
   border-radius: 8px;
   selection-background-color: {{primary}};
   selection-color: {{btn_text}};
+  font-family: "Montserrat", "Roboto", "Tahoma", "Calibri", "Ubuntu", "Helvetica Neue", Arial, "Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", sans-serif;
 }
 
 QLineEdit:focus, QTextEdit:focus, QPlainTextEdit:focus, QComboBox:focus {
@@ -146,6 +150,7 @@ QTextBrowser {
   color: {{on_surface}};
   border: none;
   padding: 12px;
+  font-family: "Montserrat", "Roboto", "Tahoma", "Calibri", "Ubuntu", "Helvetica Neue", Arial, "Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", sans-serif;
 }
 
 QTextBrowser:focus {
@@ -211,8 +216,6 @@ QLabel#username_label {
    Avatar Labels
    ======================================== */
 QLabel#avatar_label {
-  border: none;
-  border-radius: 6px;
   background-color: {{transparent}};
 }
 

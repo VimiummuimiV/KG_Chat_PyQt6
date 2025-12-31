@@ -247,13 +247,22 @@ class XMPPClient:
                     affiliation=pres.affiliation,
                     role=pres.role
                 )
+                # Print join notifications so joins are visible in logs
+                try:
+                    print(MessageParser.format_presence(pres))
+                except Exception:
+                    pass
                 # Only send callback for actual joins (not initial roster)
                 if not is_initial_roster and self.initial_roster_received and self.presence_callback:
                     self.presence_callback(pres)
                     
             elif pres.presence_type == 'unavailable':
                 self.user_list.remove(pres.from_jid)
-                print(MessageParser.format_presence(pres))
+                # print leave notifications as before
+                try:
+                    print(MessageParser.format_presence(pres))
+                except Exception:
+                    pass
                 # Always send leave notifications
                 if self.presence_callback:
                     self.presence_callback(pres)

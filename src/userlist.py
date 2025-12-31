@@ -63,8 +63,8 @@ class UserList:
                 user.avatar = avatar
             if background:
                 user.background = background
-            if game_id:
-                user.game_id = game_id
+            # Always set/clear game_id based on presence update so UI reflects current state
+            user.game_id = game_id
             user.affiliation = affiliation
             user.role = role
             user.status = 'available'

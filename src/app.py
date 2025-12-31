@@ -14,10 +14,10 @@ from PyQt6.QtWidgets import (
     QTextBrowser, QLineEdit, QPushButton, QLabel, QSplitter,
     QScrollArea, QDialog, QComboBox, QMessageBox, QMenuBar, QMenu, QSlider
 )
-from PyQt6.QtCore import Qt, pyqtSignal, QObject, QTimer, QUrl, QByteArray
+from PyQt6.QtCore import Qt, pyqtSignal, QObject, QTimer, QUrl, QByteArray, QRectF
 from PyQt6.QtGui import (
     QPixmap, QFont, QTextCursor, QAction, QActionGroup, QDesktopServices,
-    QFontMetrics, QKeySequence
+    QFontMetrics, QKeySequence, QPainter, QPen, QColor
 )
 
 from xmpp import XMPPClient
@@ -170,6 +170,7 @@ class ClickableTextBrowser(QTextBrowser):
     """Text browser with clickable usernames without using links"""
     
     username_clicked = pyqtSignal(str)  # Signal when username is clicked
+    username_double_clicked = pyqtSignal(str)  # Signal when username is double-clicked
     
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -178,6 +179,9 @@ class ClickableTextBrowser(QTextBrowser):
         self.setMouseTracking(True)  # Enable mouse tracking for cursor changes
         # Store username positions
         self.username_ranges = []  # List of (start_pos, end_pos, username)
+        # Track clicks for double-click detection
+        self._last_click_time = 0
+        self._last_clicked_username = None
     
     def mouseMoveEvent(self, event):
         """Change cursor when hovering over usernames"""
@@ -200,16 +204,32 @@ class ClickableTextBrowser(QTextBrowser):
         super().mouseMoveEvent(event)
         
     def mousePressEvent(self, event):
-        """Handle mouse clicks to detect username clicks"""
+        """Handle mouse clicks to detect username clicks and double-clicks"""
         cursor = self.cursorForPosition(event.pos())
         position = cursor.position()
         
         # Check if click is on a username
         for start_pos, end_pos, username in self.username_ranges:
             if start_pos <= position <= end_pos:
-                self.username_clicked.emit(username)
+                # Check for double-click
+                current_time = datetime.now().timestamp()
+                time_diff = current_time - self._last_click_time
+                
+                if time_diff < 0.4 and self._last_clicked_username == username:
+                    # Double-click detected
+                    self.username_double_clicked.emit(username)
+                    self._last_click_time = 0  # Reset to prevent triple-click
+                    self._last_clicked_username = None
+                else:
+                    # Single click
+                    self.username_clicked.emit(username)
+                    self._last_click_time = current_time
+                    self._last_clicked_username = username
                 return
         
+        # Click was not on a username, reset tracking
+        self._last_click_time = 0
+        self._last_clicked_username = None
         # Otherwise, handle normally
         super().mousePressEvent(event)
     
@@ -253,28 +273,35 @@ class UserWidget(QWidget):
         # Check if user has avatar
         url = self.user.get_avatar_url()
         if not url:
-            # No avatar - use random emoji face based on username
-            emoji_faces = ['😀', '😃', '😄', '😁', '😆', '😊', '😇', '🙂', '🙃', '😉',
-                          '😌', '😍', '🥰', '😘', '😗', '😙', '😚', '😋', '😛', '😝',
-                          '😜', '🤪', '🤨', '🧐', '🤓', '😎', '🥳', '🤩', '🥸', '😏',
-                          '😒', '😞', '😔', '😟', '😕', '🙁', '😣', '😖', '😫', '😩',
-                          '🥺', '😢', '😭', '😤', '😠', '😡', '🤬', '🤯', '😳', '🥵']
-            # Generate consistent emoji based on username hash
-            emoji_index = hash(self.user.login) % len(emoji_faces)
-            emoji = emoji_faces[emoji_index]
-            
-            # Set emoji as text with proper styling
-            self.avatar_label.setText(emoji)
-            self.avatar_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            self.avatar_label.setFont(QFont("Segoe UI Emoji", int(14 * f)))  # Smaller emoji font
-            self.avatar_label.setScaledContents(False)  # Don't scale text
-            # Add subtle background to make emoji stand out
+            # No avatar - display an empty rounded placeholder (SVG-like) instead of an emoji
+            pm = QPixmap(avatar_display_size, avatar_display_size)
+            pm.fill(QColor(0, 0, 0, 0))  # transparent
+
             try:
                 palette = ThemeManager.parse_palette(self.window().current_theme) if self.window().current_theme else {}
-                overlay_color = palette.get('overlay', 'rgba(255,255,255,0.04)')
-                self.avatar_label.setStyleSheet(f"background-color: {overlay_color}; border-radius: 6px; padding: 2px;")
-            except:
-                self.avatar_label.setStyleSheet("background-color: rgba(255,255,255,0.04); border-radius: 6px; padding: 2px;")
+                stroke_color = palette.get('muted') or palette.get('fg') or '#888'
+            except Exception:
+                stroke_color = '#888'
+
+            # Render compact user SVG into the pixmap using the theme color as stroke
+            svg_template = '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="{stroke}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>'''
+            svg = svg_template.format(stroke=stroke_color)
+
+            try:
+                from PyQt6.QtSvg import QSvgRenderer
+                renderer = QSvgRenderer(QByteArray(svg.encode('utf-8')))
+                pm_svg = QPixmap(avatar_display_size, avatar_display_size)
+                pm_svg.fill(QColor(0, 0, 0, 0))
+                painter = QPainter(pm_svg)
+                renderer.render(painter)
+                painter.end()
+                self.avatar_label.setPixmap(pm_svg)
+            except Exception:
+                # Fallback: leave transparent pixmap if SVG rendering isn't available
+                self.avatar_label.setPixmap(pm)
+
+            self.avatar_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            self.avatar_label.setScaledContents(True)
         
         layout.addWidget(self.avatar_label)
 
@@ -298,10 +325,16 @@ class UserWidget(QWidget):
             username_label.setStyleSheet("padding-left: %dpx;" % int(5 * f))
         layout.addWidget(username_label, 1)
 
-        if self.user.game_id:
-            game_label = QLabel(f"🎮 {self.user.game_id}")
-            game_label.setFont(QFont("Arial", int(8 * f)))
+        # Display game counter (semaphore emoji + count) using global font/QSS
+        # Lookup using stable key (login preferred)
+        key = self.user.login or self.user.user_id or self.user.jid
+        game_state = getattr(self.window(), 'user_game_state', {}).get(key, {'count': 0})
+        game_count = game_state.get('count', 0)
+        if game_count > 0:
+            # Use a semaphore/traffic-light emoji (🚦) followed by the per-user count
+            game_label = QLabel(f"🚦 {game_count}")
             game_label.setObjectName("game_label")
+            # Do not set a font explicitly; QSS/global font will apply (Montserrat primary)
             layout.addWidget(game_label)
 
         username_label.setObjectName("username_label")
@@ -312,9 +345,11 @@ class UserWidget(QWidget):
         fm = QFontMetrics(username_label.font())
         username_width = fm.horizontalAdvance(self.user.login) + int(5 * f)
         game_width = 0
-        if self.user.game_id:
-            game_fm = QFontMetrics(game_label.font())
-            game_width = game_fm.horizontalAdvance(game_label.text()) + int(5 * f)
+        # Calculate game width only if we rendered a game counter
+        game_label_obj = next((w for w in self.findChildren(QLabel) if w.objectName() == 'game_label'), None)
+        if game_label_obj is not None:
+            game_fm = QFontMetrics(game_label_obj.font())
+            game_width = game_fm.horizontalAdvance(game_label_obj.text()) + int(5 * f)
         
         # Avatar is always visible (either image or emoji)
         min_width = int(8 * f) + avatar_display_size + int(5 * f) + username_width + game_width + int(8 * f)
@@ -438,6 +473,9 @@ class ChatWindow(QMainWindow):
         self.avatar_cache = {}
         self.zoom_level = 100
         self.previous_users = set()
+        
+        # Track per-user game state: { jid: {'last_game_id': Optional[str], 'count': int} }
+        self.user_game_state = {}
         
         # Store message history for theme switching
         self.message_history = []  # List of (sender, text, timestamp, color) tuples
@@ -630,6 +668,7 @@ class ChatWindow(QMainWindow):
         
         self.messages_display = ClickableTextBrowser()
         self.messages_display.username_clicked.connect(self.on_username_clicked)
+        self.messages_display.username_double_clicked.connect(self.on_username_double_clicked)
         left_layout.addWidget(self.messages_display, 1)
 
         # Input container for visual separation (styled by QSS)
@@ -751,28 +790,41 @@ class ChatWindow(QMainWindow):
             self.right_panel.show()  # Fallback to visible
 
     def on_username_clicked(self, username):
-        """Handle username clicks - replace existing username or add new one"""
-        current = self.input_field.text().rstrip()
+        """Handle single username clicks - add username if not present"""
+        current = self.input_field.text()
         
-        # Check if there's already a username mention (ends with ", ")
-        if current and current.endswith(", "):
-            # Find the last username (text after last space before ", ")
-            # e.g., "Hello Alice, " -> find "Alice"
-            before_comma = current.rstrip(", ")
-            parts = before_comma.split()
-            if parts:
-                # Replace the last word (username) with the new one
-                parts[-1] = username
-                self.input_field.setText(" ".join(parts) + ", ")
-            else:
-                self.input_field.setText(f"{username}, ")
-        elif current:
-            # There's text but no username mention yet
-            self.input_field.setText(f"{current} {username}, ")
+        # Extract all existing usernames from comma-separated list
+        existing_usernames = []
+        if current.strip():
+            # Split by comma and extract each username
+            parts = current.split(",")
+            for part in parts:
+                part = part.strip()
+                if part:
+                    existing_usernames.append(part)
+        
+        # Check if username already exists
+        if username in existing_usernames:
+            # Username already present, don't add duplicate
+            self.input_field.setFocus()
+            return
+        
+        # Add the new username
+        if current.strip() and current.rstrip().endswith(","):
+            # Already has username mentions ending with comma, add another
+            self.input_field.setText(f"{current.rstrip()} {username}, ")
+        elif current.strip():
+            # Has text but no proper comma separation yet
+            self.input_field.setText(f"{current.rstrip()}, {username}, ")
         else:
             # Empty field
             self.input_field.setText(f"{username}, ")
         
+        self.input_field.setFocus()
+
+    def on_username_double_clicked(self, username):
+        """Handle double-click on username - replace everything with just this username"""
+        self.input_field.setText(f"{username}, ")
         self.input_field.setFocus()
 
     def show_account_dialog(self):
@@ -890,6 +942,41 @@ class ChatWindow(QMainWindow):
         self.signals.message_received.emit(message)
 
     def handle_xmpp_presence(self, presence):
+        """Update internal game counters and forward presence update"""
+        try:
+            # Use login as the canonical key when available (more stable than full JID resource)
+            key = presence.login or presence.user_id or presence.from_jid
+            # Only consider available presences for game counting logic
+            if presence.presence_type == 'available':
+                if presence.game_id:
+                    new_gid = str(presence.game_id).strip()
+                    state = self.user_game_state.get(key, {'last_game_id': None, 'count': 0})
+                    last_gid = state.get('last_game_id')
+                    if last_gid is None:
+                        state['last_game_id'] = new_gid
+                        state['count'] = 1
+                        # Debug information
+                        print(f"[game-counter] {key}: initialized to 1 (gid={new_gid})")
+                    elif new_gid != last_gid:
+                        old = state.get('count', 0)
+                        state['last_game_id'] = new_gid
+                        state['count'] = old + 1
+                        print(f"[game-counter] {key}: {old} -> {state['count']} (gid={new_gid})")
+                    # same gid => do nothing
+                    self.user_game_state[key] = state
+                else:
+                    # Presence with no game_id resets the sequence for this user
+                    self.user_game_state[key] = {'last_game_id': None, 'count': 0}
+            else:
+                # Unavailable -> keep game state (do not clear). This allows counting
+                # to increment when a user leaves and later re-joins with a game_id.
+                # We intentionally do not pop the user's state here.
+                pass
+        except Exception:
+            # Be resilient; on errors, fall back to just forwarding the presence
+            pass
+
+        # Forward for normal processing (UI updates happen in on_presence)
         self.signals.presence_update.emit(presence)
 
     def on_message(self, message):
@@ -957,6 +1044,14 @@ class ChatWindow(QMainWindow):
         users = sorted(self.xmpp.user_list.get_online(), key=lambda u: u.login.lower())
         max_width = 0
         
+        # Ensure initial state for users currently in a game (so counts show on first render)
+        for user in users:
+            if user.game_id:
+                key = user.login or user.user_id or user.jid
+                if key not in self.user_game_state:
+                    # Initialize unseen in-game users with count=1
+                    self.user_game_state[key] = {'last_game_id': str(user.game_id).strip(), 'count': 1}
+
         try:
             for user in users:
                 widget = UserWidget(user, self.signals, self)
@@ -1036,6 +1131,8 @@ class ChatWindow(QMainWindow):
 
         base_size = 13
         scaled_size = int(base_size * f)
+        # Make emojis 30% larger than regular text for better visibility
+        emoji_size = int(scaled_size * 1.3)
 
         # Apply preferred font family to chat document so messages use UI font priority and support Cyrillic
         pf = getattr(self, 'preferred_font_family', '')
@@ -1044,9 +1141,15 @@ class ChatWindow(QMainWindow):
         else:
             doc_font = QFont("", scaled_size)
         self.messages_display.document().setDefaultFont(doc_font)
-        # Keep widget font-family controlled by QSS; set only font-size via inline stylesheet so family comes from base_theme.qss
-        self.messages_display.setStyleSheet(f"font-size: {scaled_size}px;")
-        self.input_field.setStyleSheet(f"font-size: {scaled_size}px;")
+        
+        # Set up font-size with emoji support via CSS
+        # Use Noto Color Emoji as fallback for emoji characters
+        emoji_css = f"""
+            font-size: {scaled_size}px;
+            font-family: {pf if pf else 'sans-serif'}, 'Noto Color Emoji', 'Apple Color Emoji', 'Segoe UI Emoji';
+        """
+        self.messages_display.setStyleSheet(emoji_css)
+        self.input_field.setStyleSheet(f"font-size: {scaled_size}px; font-family: {pf if pf else 'sans-serif'}, 'Noto Color Emoji', 'Apple Color Emoji', 'Segoe UI Emoji';")
 
         self.update_user_list()
 
@@ -1172,6 +1275,12 @@ class ChatWindow(QMainWindow):
         sender_html = html.escape(sender)
         text_html = html.escape(text)
 
+        # Calculate emoji size (30% larger than base text)
+        f = self.zoom_level / 100.0
+        base_size = 13
+        scaled_size = int(base_size * f)
+        emoji_size = int(scaled_size * 1.3)
+
         # Add timestamp (styled by QSS)
         if timestamp:
             cursor.insertHtml(f'<span class="timestamp">{timestamp}</span> ')
@@ -1202,8 +1311,42 @@ class ChatWindow(QMainWindow):
         # Register the username position for click detection
         self.messages_display.add_username_range(username_start, username_end, sender)
         
-        # Add message text (styled by QSS)
-        cursor.insertHtml(f'<span class="message-text">{text_html}</span>')
+        # Process message text to make emojis larger
+        # Use the preferred UI font for message text and explicitly wrap emoji characters
+        # in spans that force the Noto Color Emoji font (so non-avatar emoji use it)
+        emoji_display_size = scaled_size * 2  # make emojis three times larger than base text
+
+        # Helper to detect emoji characters using common Unicode ranges
+        def is_emoji(ch):
+            o = ord(ch)
+            ranges = [
+                (0x1F300, 0x1F5FF),  # Misc Symbols and Pictographs
+                (0x1F600, 0x1F64F),  # Emoticons
+                (0x1F680, 0x1F6FF),  # Transport & Map
+                (0x2600, 0x26FF),    # Misc symbols
+                (0x2700, 0x27BF),    # Dingbats
+                (0x1F900, 0x1F9FF),  # Supplemental Symbols and Pictographs
+                (0x1FA70, 0x1FAFF),  # Symbols & Pictographs Extended-A
+                (0x1F1E6, 0x1F1FF),  # Regional indicator symbols (flags)
+            ]
+            return any(start <= o <= end for start, end in ranges)
+
+        # Build HTML where emoji characters are wrapped with an explicit Noto Color Emoji span
+        parts = []
+        for ch in text:
+            if is_emoji(ch):
+                parts.append(
+                    f"<span class=\"emoji\" style=\"font-family: 'Noto Color Emoji', 'Apple Color Emoji', 'Segoe UI Emoji'; font-size: {emoji_display_size}px; line-height: 1; vertical-align: middle;\">{html.escape(ch)}</span>"
+                )
+            else:
+                parts.append(html.escape(ch))
+
+        pf = (self.preferred_font_family if getattr(self, 'preferred_font_family', '') else 'sans-serif')
+        message_html = (
+            f'<span class="message-text" style="font-family: {pf}, \'Noto Color Emoji\', \'Apple Color Emoji\', \'Segoe UI Emoji\'; font-size: {scaled_size}px;">'
+            + ''.join(parts) + '</span>'
+        )
+        cursor.insertHtml(message_html)
         
         # Set the cursor back to the document
         self.messages_display.setTextCursor(cursor)
