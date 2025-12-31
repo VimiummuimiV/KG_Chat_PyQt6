@@ -1,0 +1,19 @@
+/* Palette: dark_catppuccin */
+--bg: #1E1E2E;
+--surface: #313244;
+--card: #45475A;
+--primary: #89B4FA;
+--accent: #F5C2E7;
+--secondary: #A6E3A1;
+--error: #F38BA8;
+--on_surface: #CDD6F4;
+--muted: #6C7086;
+--btn_text: #1E1E2E;
+--primary_hover: #9dc4ff;
+--overlay: rgba(205,214,244,0.04);
+--overlay_light: rgba(205,214,244,0.02);
+--border: rgba(205,214,244,0.06);
+--scroll_thumb: rgba(205,214,244,0.08);
+--slider_groove: rgba(205,214,244,0.04);
+--focus_border: rgba(137,180,250,0.20);
+--transparent: transparent;

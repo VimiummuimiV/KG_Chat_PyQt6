@@ -1,0 +1,19 @@
+/* Palette: light_pastel */
+--bg: #FFF8F0;
+--surface: #FFFFFF;
+--card: #FFF5EB;
+--primary: #FF9A8B;
+--accent: #A78BFA;
+--secondary: #86EFAC;
+--error: #FCA5A5;
+--on_surface: #374151;
+--muted: #9CA3AF;
+--btn_text: #FFFFFF;
+--primary_hover: #ffad9f;
+--overlay: rgba(0,0,0,0.03);
+--overlay_light: rgba(0,0,0,0.01);
+--border: rgba(0,0,0,0.06);
+--scroll_thumb: rgba(0,0,0,0.08);
+--slider_groove: rgba(0,0,0,0.03);
+--focus_border: rgba(255,154,139,0.20);
+--transparent: transparent;

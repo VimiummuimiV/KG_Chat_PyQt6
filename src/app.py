@@ -166,6 +166,62 @@ class SignalEmitter(QObject):
     avatar_loaded = pyqtSignal(str, QPixmap)  # JID, Pixmap
 
 
+class ClickableTextBrowser(QTextBrowser):
+    """Text browser with clickable usernames without using links"""
+    
+    username_clicked = pyqtSignal(str)  # Signal when username is clicked
+    
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setReadOnly(True)
+        self.setOpenExternalLinks(True)  # For actual URLs
+        self.setMouseTracking(True)  # Enable mouse tracking for cursor changes
+        # Store username positions
+        self.username_ranges = []  # List of (start_pos, end_pos, username)
+    
+    def mouseMoveEvent(self, event):
+        """Change cursor when hovering over usernames"""
+        cursor = self.cursorForPosition(event.pos())
+        position = cursor.position()
+        
+        # Check if hovering over a username
+        over_username = False
+        for start_pos, end_pos, username in self.username_ranges:
+            if start_pos <= position <= end_pos:
+                over_username = True
+                break
+        
+        # Change cursor appearance
+        if over_username:
+            self.viewport().setCursor(Qt.CursorShape.PointingHandCursor)
+        else:
+            self.viewport().setCursor(Qt.CursorShape.IBeamCursor)
+        
+        super().mouseMoveEvent(event)
+        
+    def mousePressEvent(self, event):
+        """Handle mouse clicks to detect username clicks"""
+        cursor = self.cursorForPosition(event.pos())
+        position = cursor.position()
+        
+        # Check if click is on a username
+        for start_pos, end_pos, username in self.username_ranges:
+            if start_pos <= position <= end_pos:
+                self.username_clicked.emit(username)
+                return
+        
+        # Otherwise, handle normally
+        super().mousePressEvent(event)
+    
+    def add_username_range(self, start_pos, end_pos, username):
+        """Register a username range for click detection"""
+        self.username_ranges.append((start_pos, end_pos, username))
+    
+    def clear_username_ranges(self):
+        """Clear all username ranges"""
+        self.username_ranges.clear()
+
+
 class UserWidget(QWidget):
     def __init__(self, user, signal_emitter, parent=None):
         super().__init__(parent)
@@ -192,9 +248,14 @@ class UserWidget(QWidget):
         self.avatar_label = QLabel()
         self.avatar_label.setFixedSize(avatar_display_size, avatar_display_size)
         self.avatar_label.setScaledContents(True)  # Enables crisp downscaling from 100×100
-        self.avatar_label.setText("👤")
-        self.avatar_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.avatar_label.setFont(QFont("Arial", int(14 * f)))
+        self.avatar_label.setObjectName("avatar_label")
+        
+        # Hide avatar by default (no placeholder icon)
+        # Only show it when an actual image is loaded
+        url = self.user.get_avatar_url()
+        if not url:
+            self.avatar_label.hide()
+        
         layout.addWidget(self.avatar_label)
 
         username_label = QLabel(self.user.login)
@@ -223,7 +284,6 @@ class UserWidget(QWidget):
             game_label.setObjectName("game_label")
             layout.addWidget(game_label)
 
-        self.avatar_label.setObjectName("avatar_label")
         username_label.setObjectName("username_label")
         self.setLayout(layout)
         self.setObjectName("user_widget")
@@ -235,7 +295,10 @@ class UserWidget(QWidget):
         if self.user.game_id:
             game_fm = QFontMetrics(game_label.font())
             game_width = game_fm.horizontalAdvance(game_label.text()) + int(5 * f)
-        min_width = int(8 * f) + avatar_display_size + int(5 * f) + username_width + game_width + int(8 * f)
+        
+        # Calculate min width - only include avatar width if it's visible
+        avatar_width = avatar_display_size if url else 0
+        min_width = int(8 * f) + avatar_width + int(5 * f) + username_width + game_width + int(8 * f)
         self.setMinimumWidth(max(int(180 * f), min_width))
 
     def load_avatar(self, url):
@@ -265,7 +328,7 @@ class UserWidget(QWidget):
 
     def apply_avatar(self, pixmap):
         self.avatar_label.setPixmap(pixmap)
-        self.avatar_label.setText("")
+        self.avatar_label.show()  # Show avatar when image is loaded
 
     def on_avatar_loaded(self, jid, pixmap):
         if jid == self.user.jid:
@@ -356,6 +419,9 @@ class ChatWindow(QMainWindow):
         self.avatar_cache = {}
         self.zoom_level = 100
         self.previous_users = set()
+        
+        # Store message history for theme switching
+        self.message_history = []  # List of (sender, text, timestamp, color) tuples
 
         # Determine preferred font family available on the system
         preferred_list = ["Montserrat", "Roboto", "Tahoma", "Calibri", "Ubuntu", "Helvetica Neue", "Arial"]
@@ -540,21 +606,30 @@ class ChatWindow(QMainWindow):
         # Left panel - chat
         left = QWidget()
         left_layout = QVBoxLayout(left)
-        self.messages_display = QTextBrowser()
-        self.messages_display.setOpenExternalLinks(False)
-        self.messages_display.setTextInteractionFlags(Qt.TextInteractionFlag.TextBrowserInteraction)
-        self.messages_display.anchorClicked.connect(self.handle_link_clicked)
+        left_layout.setSpacing(0)
+        left_layout.setContentsMargins(0, 0, 0, 0)
+        
+        self.messages_display = ClickableTextBrowser()
+        self.messages_display.username_clicked.connect(self.on_username_clicked)
         left_layout.addWidget(self.messages_display, 1)
 
-        input_layout = QHBoxLayout()
+        # Input container for visual separation (styled by QSS)
+        input_container = QWidget()
+        input_container.setObjectName("input_container")
+        input_layout = QHBoxLayout(input_container)
+        input_layout.setContentsMargins(12, 12, 12, 12)
+        input_layout.setSpacing(8)
+        
         self.input_field = QLineEdit()
         self.input_field.setPlaceholderText("Type message...")
         self.input_field.returnPressed.connect(self.send_message)
         input_layout.addWidget(self.input_field, 1)
+        
         self.send_button = QPushButton("Send")
         self.send_button.clicked.connect(self.send_message)
         input_layout.addWidget(self.send_button)
-        left_layout.addLayout(input_layout)
+        
+        left_layout.addWidget(input_container)
 
         # Right panel - users
         self.right_panel = QWidget()
@@ -598,6 +673,10 @@ class ChatWindow(QMainWindow):
         self.splitter.addWidget(self.right_panel)
         self.splitter.setStretchFactor(0, 4)
         self.splitter.setStretchFactor(1, 1)
+        
+        # Set minimum width for right panel to ensure it's visible
+        self.right_panel.setMinimumWidth(200)
+        
         main_layout.addWidget(self.splitter)
 
         # Status bar: left side shows connection status inside a padded container
@@ -614,7 +693,8 @@ class ChatWindow(QMainWindow):
         self.toggle_users_btn = QPushButton("Users")
         self.toggle_users_btn.setCheckable(True)
         self.toggle_users_btn.setChecked(getattr(self, 'userlist_visible', True))
-        self.toggle_users_btn.setFixedSize(60, 22)
+        self.toggle_users_btn.setMinimumSize(60, 24)
+        self.toggle_users_btn.setMaximumHeight(24)
         self.toggle_users_btn.setObjectName("toggle_users_btn")
         self.toggle_users_btn.toggled.connect(self.set_userlist_visible)
         self.statusBar().addPermanentWidget(self.toggle_users_btn)
@@ -636,21 +716,45 @@ class ChatWindow(QMainWindow):
 
         # Apply initial userlist visibility state
         try:
-            self.set_userlist_visible(self.userlist_visible)
-        except Exception:
-            pass
+            # Force visible on first load to ensure it's shown
+            initial_visible = getattr(self, 'userlist_visible', True)
+            if initial_visible:
+                self.right_panel.show()
+            else:
+                self.right_panel.hide()
+            # Sync button state
+            if hasattr(self, 'toggle_users_btn'):
+                self.toggle_users_btn.blockSignals(True)
+                self.toggle_users_btn.setChecked(initial_visible)
+                self.toggle_users_btn.blockSignals(False)
+        except Exception as e:
+            print(f"Error setting initial userlist visibility: {e}")
+            self.right_panel.show()  # Fallback to visible
 
-    def handle_link_clicked(self, url: QUrl):
-        link = url.toString()
-        if link.startswith("user:"):
-            username = link[5:]
-            current = self.input_field.text().rstrip()
-            self.input_field.setText(f"{current} {username}, " if current else f"{username}, ")
-            self.input_field.setFocus()
-            # Prevent default action that might affect message display
-            return
+    def on_username_clicked(self, username):
+        """Handle username clicks - replace existing username or add new one"""
+        current = self.input_field.text().rstrip()
+        
+        # Check if there's already a username mention (ends with ", ")
+        if current and current.endswith(", "):
+            # Find the last username (text after last space before ", ")
+            # e.g., "Hello Alice, " -> find "Alice"
+            before_comma = current.rstrip(", ")
+            parts = before_comma.split()
+            if parts:
+                # Replace the last word (username) with the new one
+                parts[-1] = username
+                self.input_field.setText(" ".join(parts) + ", ")
+            else:
+                self.input_field.setText(f"{username}, ")
+        elif current:
+            # There's text but no username mention yet
+            self.input_field.setText(f"{current} {username}, ")
         else:
-            QDesktopServices.openUrl(url)
+            # Empty field
+            self.input_field.setText(f"{username}, ")
+        
+        self.input_field.setFocus()
 
     def show_account_dialog(self):
         dialog = AccountDialog(self.xmpp.account_manager, self)
@@ -715,14 +819,40 @@ class ChatWindow(QMainWindow):
         threading.Thread(target=thread_func, daemon=True).start()
 
     def disconnect_xmpp(self):
+        # Disconnect XMPP first to stop receiving presence updates
         self.xmpp.disconnect()
+        
+        # Clear message display and history
         self.messages_display.clear()
-        while self.user_list_layout.count() > 1:
-            item = self.user_list_layout.takeAt(0)
-            if item.widget():
-                item.widget().deleteLater()
+        self.messages_display.clear_username_ranges()
+        self.message_history.clear()
+        
+        # Clear user data
         self.xmpp.user_list.clear()
         self.previous_users.clear()
+        
+        # Clear user list widgets safely
+        try:
+            # Clear top container
+            if hasattr(self, 'top_layout') and self.top_layout:
+                while self.top_layout.count() > 0:
+                    item = self.top_layout.takeAt(0)
+                    if item and item.widget():
+                        item.widget().deleteLater()
+        except RuntimeError:
+            pass
+        
+        try:
+            # Clear bottom container
+            if hasattr(self, 'bottom_layout') and self.bottom_layout:
+                while self.bottom_layout.count() > 0:
+                    item = self.bottom_layout.takeAt(0)
+                    if item and item.widget():
+                        item.widget().deleteLater()
+        except RuntimeError:
+            pass
+        
+        # Update status
         self.status_label.setText("Disconnected")
         self.statusBar().setProperty("class", "status-disconnected")
 
@@ -754,112 +884,103 @@ class ChatWindow(QMainWindow):
         QTimer.singleShot(100, self.update_user_list)
 
     def add_message(self, sender, text, timestamp="", color=None):
+        # Store message in history for theme switching (keep last 100 messages)
+        self.message_history.append((sender, text, timestamp, color))
+        if len(self.message_history) > 100:
+            self.message_history.pop(0)
+        
         # Save current scroll position
         scrollbar = self.messages_display.verticalScrollBar()
         was_at_bottom = scrollbar.value() >= scrollbar.maximum() - 10
         
-        # Get cursor and move to end
-        cursor = self.messages_display.textCursor()
-        cursor.movePosition(QTextCursor.MoveOperation.End)
-        
-        # Only add newline if there's already content
-        if not self.messages_display.document().isEmpty():
-            cursor.insertText("\n")
-        
-        sender_html = html.escape(sender)
-        text_html = html.escape(text)
-
-        # pick colors from current theme palette when available
-        palette = {}
-        try:
-            if self.current_theme:
-                palette = ThemeManager.parse_palette(self.current_theme)
-        except Exception:
-            palette = {}
-        ts_color = palette.get("muted", "#666")
-        text_color = palette.get("on_surface", "#ccc")
-        # message background used to check/boost contrast for sender link color
-        bg_for_messages = palette.get('card') or palette.get('surface') or palette.get('bg') or '#000000'
-        link_color = color or palette.get('primary', '#888')
-        try:
-            from color_utils import ensure_contrast
-            link_color = ensure_contrast(link_color, bg_for_messages, min_ratio=4.5)
-        except Exception:
-            pass
-
-        if timestamp:
-            cursor.insertHtml(f'<span style="color: {ts_color};">{timestamp}</span> ')
-        cursor.insertHtml(f'<a href="user:{sender_html}" style="color: {link_color}; font-weight: bold; text-decoration: none;">{sender_html}</a> ')
-        cursor.insertHtml(f'<span style="color: {text_color};">{text_html}</span>')
+        # Add the message
+        self._add_message_internal(sender, text, timestamp, color)
         
         # Only scroll if we were at bottom before
         if was_at_bottom:
             self.messages_display.moveCursor(QTextCursor.MoveOperation.End)
             self.messages_display.ensureCursorVisible()
 
+
     def update_user_list(self):
+        # Safety check: ensure layouts still exist
+        try:
+            if not hasattr(self, 'top_layout') or not hasattr(self, 'bottom_layout'):
+                return
+            if self.top_layout is None or self.bottom_layout is None:
+                return
+        except RuntimeError:
+            # Layout has been deleted
+            return
+        
         current_logins = {u.login for u in self.xmpp.user_list.get_online()}
         self.previous_users = current_logins.copy()
 
         # Clear top and bottom containers completely
-        while self.top_layout.count() > 0:
-            item = self.top_layout.takeAt(0)
-            if item.widget():
-                item.widget().deleteLater()
-        while self.bottom_layout.count() > 0:
-            item = self.bottom_layout.takeAt(0)
-            if item.widget():
-                item.widget().deleteLater()
+        try:
+            while self.top_layout.count() > 0:
+                item = self.top_layout.takeAt(0)
+                if item.widget():
+                    item.widget().deleteLater()
+        except RuntimeError:
+            # Layout was deleted while clearing
+            return
+            
+        try:
+            while self.bottom_layout.count() > 0:
+                item = self.bottom_layout.takeAt(0)
+                if item.widget():
+                    item.widget().deleteLater()
+        except RuntimeError:
+            # Layout was deleted while clearing
+            return
 
         users = sorted(self.xmpp.user_list.get_online(), key=lambda u: u.login.lower())
         max_width = 0
-        for user in users:
-            widget = UserWidget(user, self.signals, self)
-            if user.game_id:
-                # users currently in-game go to bottom container
-                self.bottom_layout.addWidget(widget)
-            else:
-                # general users go to top container
-                self.top_layout.addWidget(widget)
-            max_width = max(max_width, widget.minimumWidth())
+        
+        try:
+            for user in users:
+                widget = UserWidget(user, self.signals, self)
+                if user.game_id:
+                    # users currently in-game go to bottom container
+                    self.bottom_layout.addWidget(widget)
+                else:
+                    # general users go to top container
+                    self.top_layout.addWidget(widget)
+                max_width = max(max_width, widget.minimumWidth())
 
-        self.user_list_widget.setMinimumWidth(max_width + 20)
-        self.right_panel.setMinimumWidth(max_width + 40)
-        # Right panel remains resizable via splitter (no fixed maximum)
+            self.user_list_widget.setMinimumWidth(max_width + 20)
+            self.right_panel.setMinimumWidth(max_width + 40)
+        except RuntimeError:
+            # Layouts were deleted while adding widgets
+            pass
+
 
     def set_userlist_visible(self, visible: bool):
         """Show or hide the right-side user list and persist the choice."""
         visible = bool(visible)
-        try:
-            if not visible:
-                # save current splitter sizes so we can restore when showing again
-                try:
-                    self._saved_splitter_sizes = self.splitter.sizes()
-                except Exception:
-                    self._saved_splitter_sizes = None
-                self.right_panel.hide()
-            else:
-                self.right_panel.show()
-                # restore previous sizes if available
-                try:
-                    if getattr(self, '_saved_splitter_sizes', None):
-                        self.splitter.setSizes(self._saved_splitter_sizes)
-                except Exception:
-                    pass
-        except Exception:
-            pass
+        
+        # Show or hide the panel
+        if not visible:
+            # save current splitter sizes so we can restore when showing again
+            self._saved_splitter_sizes = self.splitter.sizes()
+            self.right_panel.hide()
+        else:
+            self.right_panel.show()
+            # restore previous sizes if available
+            if hasattr(self, '_saved_splitter_sizes') and self._saved_splitter_sizes:
+                self.splitter.setSizes(self._saved_splitter_sizes)
 
-        # keep UI controls in sync
-        try:
-            if hasattr(self, 'toggle_users_btn'):
-                self.toggle_users_btn.setChecked(visible)
-        except Exception:
-            pass
-        try:
-            if hasattr(self, 'show_users_action'):
-                self.show_users_action.setChecked(visible)
-        except Exception:
-            pass
+        # keep UI controls in sync (block signals to prevent recursion)
+        if hasattr(self, 'toggle_users_btn'):
+            self.toggle_users_btn.blockSignals(True)
+            self.toggle_users_btn.setChecked(visible)
+            self.toggle_users_btn.blockSignals(False)
+            
+        if hasattr(self, 'show_users_action'):
+            self.show_users_action.blockSignals(True)
+            self.show_users_action.setChecked(visible)
+            self.show_users_action.blockSignals(False)
 
         # Persist selection
         try:
@@ -967,9 +1088,16 @@ class ChatWindow(QMainWindow):
         # Apply stylesheet globally and reapply UI scale so fonts remain as set by user
         app.setStyleSheet(qss)
         self.current_theme = path
+        
         # Reapply zoom so messages and other font sizes don't reset when stylesheet changes
         try:
             self.apply_zoom()
+        except Exception:
+            pass
+        
+        # Redraw all messages to recalculate username colors for new theme
+        try:
+            self.redraw_messages_for_theme()
         except Exception:
             pass
 
@@ -987,6 +1115,82 @@ class ChatWindow(QMainWindow):
                 self.refresh_theme_menus()
         except Exception:
             pass
+
+    def redraw_messages_for_theme(self):
+        """Redraw all messages to recalculate username colors for the current theme."""
+        if not self.message_history:
+            return
+        
+        # Save scroll state
+        scrollbar = self.messages_display.verticalScrollBar()
+        was_at_bottom = scrollbar.value() >= scrollbar.maximum() - 10
+        
+        # Clear display
+        self.messages_display.clear()
+        self.messages_display.clear_username_ranges()
+        
+        # Redraw all messages with new theme colors
+        for sender, text, timestamp, color in self.message_history:
+            self._add_message_internal(sender, text, timestamp, color)
+        
+        # Restore scroll position
+        if was_at_bottom:
+            scrollbar.setValue(scrollbar.maximum())
+    
+    def _add_message_internal(self, sender, text, timestamp="", color=None):
+        """Internal method to add a message without storing in history."""
+        # Block signals to prevent any interference
+        self.messages_display.blockSignals(True)
+        
+        # Get cursor and move to end
+        cursor = self.messages_display.textCursor()
+        cursor.movePosition(QTextCursor.MoveOperation.End)
+        
+        # Only add newline if there's already content
+        if not self.messages_display.document().isEmpty():
+            cursor.insertText("\n")
+        
+        sender_html = html.escape(sender)
+        text_html = html.escape(text)
+
+        # Add timestamp (styled by QSS)
+        if timestamp:
+            cursor.insertHtml(f'<span class="timestamp">{timestamp}</span> ')
+        
+        # Add username as clickable styled text
+        # Apply user's custom color if provided, with contrast boosting
+        username_start = cursor.position()
+        if color:
+            # Boost color contrast against background for readability
+            try:
+                from color_utils import ensure_contrast
+                # Get current theme background color for contrast calculation
+                palette = {}
+                try:
+                    palette = ThemeManager.parse_palette(self.current_theme) if self.current_theme else {}
+                except Exception:
+                    palette = {}
+                bg_color = palette.get('bg') or '#000000'
+                boosted_color = ensure_contrast(color, bg_color, min_ratio=4.5)
+                cursor.insertHtml(f'<span class="username" style="color: {boosted_color};">{sender_html}</span> ')
+            except Exception:
+                # Fallback to original color if boosting fails
+                cursor.insertHtml(f'<span class="username" style="color: {color};">{sender_html}</span> ')
+        else:
+            cursor.insertHtml(f'<span class="username">{sender_html}</span> ')
+        username_end = cursor.position()
+        
+        # Register the username position for click detection
+        self.messages_display.add_username_range(username_start, username_end, sender)
+        
+        # Add message text (styled by QSS)
+        cursor.insertHtml(f'<span class="message-text">{text_html}</span>')
+        
+        # Set the cursor back to the document
+        self.messages_display.setTextCursor(cursor)
+        
+        # Restore signals
+        self.messages_display.blockSignals(False)
 
 
 
