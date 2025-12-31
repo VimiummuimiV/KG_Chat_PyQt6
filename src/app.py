@@ -936,9 +936,14 @@ class ChatWindow(QMainWindow):
             self.update_user_list()
 
     def handle_xmpp_message(self, message):
-        active = self.xmpp.account_manager.get_active_account()
-        if active and message.login == active['login']:
+        """Receive message callbacks from XMPP client and forward to UI.
+        We display our own messages as well; filter out bot/system messages here too.
+        """
+        # Filter out the Klavobot messages and generic "not anonymous" warnings
+        body = (message.body or "").strip()
+        if message.login == 'Клавобот' or ('not anonymous' in body.lower()):
             return
+        # Forward to UI (include messages from ourselves)
         self.signals.message_received.emit(message)
 
     def handle_xmpp_presence(self, presence):
@@ -1177,15 +1182,8 @@ class ChatWindow(QMainWindow):
         if not text:
             return
         if self.xmpp.send_message(text):
-            ts = datetime.now().strftime("%H:%M:%S")
-            active = self.xmpp.account_manager.get_active_account()
-            # outgoing message color from current palette (fallback to a warm pink)
-            try:
-                palette = ThemeManager.parse_palette(self.current_theme) if self.current_theme else {}
-            except Exception:
-                palette = {}
-            outgoing_color = palette.get("outgoing", palette.get("accent", "#fe3272"))
-            self.add_message(active['login'], text, ts, outgoing_color)
+            # Do not display outgoing message locally — wait for the server echo and
+            # display the canonical message received from XMPP instead.
             self.input_field.clear()
 
     def apply_theme(self, path: str):

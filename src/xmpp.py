@@ -231,7 +231,15 @@ class XMPPClient:
         messages, presence_updates = MessageParser.parse(xml_text)
         
         for msg in messages:
-            print(MessageParser.format_message(msg))
+            # Filter out automated/system messages or undesired bots
+            body = (msg.body or "").strip()
+            # Skip messages from Klavobot (Cyrillic name) and messages mentioning "not anonymous"
+            if msg.login == 'Клавобот' or ('not anonymous' in body.lower()):
+                continue
+            try:
+                print(MessageParser.format_message(msg))
+            except Exception:
+                pass
             if self.message_callback:
                 self.message_callback(msg)
         
