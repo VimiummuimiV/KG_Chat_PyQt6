@@ -201,7 +201,18 @@ class UserWidget(QWidget):
         username_label.setFont(QFont("Arial", int(10 * f)))
         color = self.user.background or None
         if color:
-            username_label.setStyleSheet(f"color: {color}; padding-left: {int(5 * f)}px;")
+            try:
+                from color_utils import ensure_contrast
+                palette = {}
+                try:
+                    palette = ThemeManager.parse_palette(self.window().current_theme) if self.window().current_theme else {}
+                except Exception:
+                    palette = {}
+                panel_bg = palette.get('card') or palette.get('surface') or palette.get('bg') or '#000000'
+                safe_color = ensure_contrast(color, panel_bg, min_ratio=3.0)
+            except Exception:
+                safe_color = color
+            username_label.setStyleSheet(f"color: {safe_color}; padding-left: {int(5 * f)}px;")
         else:
             username_label.setStyleSheet("padding-left: %dpx;" % int(5 * f))
         layout.addWidget(username_label, 1)
@@ -743,7 +754,14 @@ class ChatWindow(QMainWindow):
             palette = {}
         ts_color = palette.get("muted", "#666")
         text_color = palette.get("on_surface", "#ccc")
-        link_color = color or palette.get("primary", "#888")
+        # message background used to check/boost contrast for sender link color
+        bg_for_messages = palette.get('card') or palette.get('surface') or palette.get('bg') or '#000000'
+        link_color = color or palette.get('primary', '#888')
+        try:
+            from color_utils import ensure_contrast
+            link_color = ensure_contrast(link_color, bg_for_messages, min_ratio=4.5)
+        except Exception:
+            pass
 
         if timestamp:
             cursor.insertHtml(f'<span style="color: {ts_color};">{timestamp}</span> ')
