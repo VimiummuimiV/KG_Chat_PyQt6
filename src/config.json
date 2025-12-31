@@ -18,5 +18,9 @@
     "version": "1.6",
     "xmpp_version": "1.0",
     "lang": "en"
+  },
+  "ui": {
+    "selected_palette": "dark/dark_material.css",
+    "zoom": 169
   }
 }

@@ -1,0 +1,62 @@
+/* Base QSS template for the application.
+   Placeholders use {{name}} and will be replaced with palette values.
+   Example placeholder: {{bg}} will be replaced by palette variable --bg
+*/
+QWidget, QMainWindow {
+  background-color: {{bg}};
+  color: {{on_surface}};
+}
+
+QMenuBar { background: {{transparent}}; color: {{on_surface}}; }
+QMenuBar::item { padding: 6px 10px; }
+QMenuBar::item:selected { background: {{overlay}}; }
+
+QMenu { background: {{surface}}; color: {{on_surface}}; border: 1px solid {{border}}; }
+QMenu::item:selected { background: {{overlay}}; }
+
+QPushButton {
+  background-color: {{primary}};
+  color: {{btn_text}};
+  border-radius: 6px;
+  padding: 6px 10px;
+}
+QPushButton:hover { background-color: {{primary_hover}}; }
+QPushButton:flat { background: {{transparent}}; }
+
+QLineEdit, QTextEdit, QPlainTextEdit, QComboBox {
+  background-color: {{card}};
+  color: {{on_surface}};
+  border: 1px solid {{border}};
+  padding: 6px;
+  border-radius: 6px;
+}
+
+QTextBrowser { background: {{transparent}}; color: {{on_surface}}; }
+QLabel { color: {{on_surface}}; }
+
+/* Avatar and user list widgets */
+QLabel#avatar_label { border: 1px solid {{border}}; border-radius: 4px; background-color: {{card}}; color: {{muted}}; }
+QWidget#user_widget { background-color: {{transparent}}; }
+QWidget#user_widget:hover { background-color: {{overlay_light}}; }
+QLabel#username_label { padding-left: 6px; }
+
+
+/* Named labels */
+QLabel#users_header { color: {{muted}}; font-weight: bold; padding: 10px; }
+QLabel#user_count_label { color: {{muted}}; }
+QLabel#zoom_label, QLabel#zoom_percent_label { color: {{muted}}; }
+QLabel#game_label { color: {{muted}}; font-size: 0.85em; }
+
+QScrollBar:vertical { background: {{transparent}}; width: 10px; }
+QScrollBar::handle:vertical { background: {{scroll_thumb}}; border-radius: 6px; }
+QScrollBar::add-line, QScrollBar::sub-line { height: 0; }
+
+/* Consistent rounded slider */
+QSlider::groove:horizontal { background: {{slider_groove}}; height: 8px; border-radius: 4px; }
+QSlider::handle:horizontal { background: {{primary}}; width: 16px; height:16px; border-radius:8px; margin: -4px 0; }
+
+QToolTip { background-color: {{card}}; color: {{on_surface}}; border: 1px solid {{border}}; }
+
+/* Status labels inherit color; no inline colors in code */
+
+*:focus { outline: none; border: 1px solid {{focus_border}}; }

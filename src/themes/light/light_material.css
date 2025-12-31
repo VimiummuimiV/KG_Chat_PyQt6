@@ -1,0 +1,20 @@
+/* Palette: light_material */
+--bg: #FAFAFA;
+--surface: #FFFFFF;
+--card: #FFFFFF;
+--primary: #6200EE;
+--primary-variant: #3700B3;
+--secondary: #018786;
+--error: #B00020;
+--on_surface: #202124;
+--muted: #6E6E6E;
+--btn_text: #FFFFFF;
+--primary_hover: #7b39ff;
+--overlay: rgba(0,0,0,0.06);
+--overlay_light: rgba(0,0,0,0.04);
+--border: rgba(0,0,0,0.08);
+--scroll_thumb: rgba(0,0,0,0.08);
+--slider_groove: rgba(0,0,0,0.04);
+--focus_border: rgba(98,0,238,0.18);
+--transparent: transparent;
+
