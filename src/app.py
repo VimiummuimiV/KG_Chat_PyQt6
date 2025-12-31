@@ -49,28 +49,35 @@ class UserWidget(QWidget):
         self.signal_emitter = signal_emitter
         self.zoom_factor = getattr(self.window(), "zoom_level", 100) / 100.0
         self.setup_ui()
+
         self.signal_emitter.avatar_loaded.connect(self.on_avatar_loaded)
-        if self.user.avatar:
-            self.load_avatar(self.user.get_avatar_url())
+
+        # Load high-resolution avatar if available
+        url = self.user.get_avatar_url()
+        if url:
+            self.load_avatar(url)
 
     def setup_ui(self):
         f = self.zoom_factor
         layout = QHBoxLayout()
         layout.setContentsMargins(int(8 * f), int(4 * f), int(8 * f), int(4 * f))
 
-        avatar_size = int(32 * f)
+        # Display size = 24×24 px (compact, but sharp thanks to high-res source + scaledContents)
+        avatar_display_size = int(24 * f)
+
         self.avatar_label = QLabel()
-        self.avatar_label.setFixedSize(avatar_size, avatar_size)
+        self.avatar_label.setFixedSize(avatar_display_size, avatar_display_size)
+        self.avatar_label.setScaledContents(True)  # Enables crisp downscaling from 100×100
         self.avatar_label.setStyleSheet(f"""
             QLabel {{
                 border: 1px solid #444;
-                border-radius: {int(3 * f)}px;
+                border-radius: {int(4 * f)}px;
                 background-color: #2a2a2a;
             }}
         """)
         self.avatar_label.setText("👤")
         self.avatar_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.avatar_label.setFont(QFont("Arial", int(16 * f)))
+        self.avatar_label.setFont(QFont("Arial", int(14 * f)))
         layout.addWidget(self.avatar_label)
 
         username_label = QLabel(self.user.login)
@@ -98,8 +105,8 @@ class UserWidget(QWidget):
         if self.user.game_id:
             game_fm = QFontMetrics(game_label.font())
             game_width = game_fm.horizontalAdvance(game_label.text()) + int(5 * f)
-        min_width = int(8 * f) + avatar_size + int(5 * f) + username_width + game_width + int(8 * f)
-        self.setMinimumWidth(max(int(200 * f), min_width))
+        min_width = int(8 * f) + avatar_display_size + int(5 * f) + username_width + game_width + int(8 * f)
+        self.setMinimumWidth(max(int(180 * f), min_width))
 
     def load_avatar(self, url):
         if not url:
@@ -116,39 +123,19 @@ class UserWidget(QWidget):
                 if response.status_code != 200:
                     return
                 pixmap = QPixmap()
-                if pixmap.loadFromData(QByteArray(response.content)):
-                    size = min(pixmap.width(), pixmap.height())
-                    if size > 0:
-                        x = (pixmap.width() - size) // 2
-                        y = (pixmap.height() - size) // 2
-                        square = pixmap.copy(x, y, size, size)
-                        avatar_size = int(32 * self.zoom_factor)
-                        scaled = square.scaled(avatar_size, avatar_size,
-                                               Qt.AspectRatioMode.KeepAspectRatioByExpanding,
-                                               Qt.TransformationMode.SmoothTransformation)
-                        cropped = scaled.copy((scaled.width() - avatar_size) // 2,
-                                              (scaled.height() - avatar_size) // 2,
-                                              avatar_size, avatar_size)
-                        radius = int(3 * self.zoom_factor)
-                        mask = QPixmap(avatar_size, avatar_size)
-                        mask.fill(Qt.GlobalColor.transparent)
-                        painter = QPainter(mask)
-                        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-                        painter.setBrush(QBrush(QColor("white")))
-                        painter.drawRoundedRect(0, 0, avatar_size, avatar_size, radius, radius)
-                        painter.end()
-                        cropped.setMask(mask.mask())
-                        self.signal_emitter.avatar_loaded.emit(self.user.jid, cropped)
-                        window.avatar_cache[full_url] = cropped
+                if pixmap.loadFromData(QByteArray(response.content)) and not pixmap.isNull():
+                    # Cache the full-resolution 100×100 pixmap
+                    window.avatar_cache[full_url] = pixmap
+                    # Emit – QLabel will downscale it beautifully
+                    self.signal_emitter.avatar_loaded.emit(self.user.jid, pixmap)
             except Exception:
-                pass
+                pass  # Silent fail
 
         threading.Thread(target=load_in_thread, daemon=True).start()
 
     def apply_avatar(self, pixmap):
         self.avatar_label.setPixmap(pixmap)
         self.avatar_label.setText("")
-        self.avatar_label.setScaledContents(True)
 
     def on_avatar_loaded(self, jid, pixmap):
         if jid == self.user.jid:
@@ -242,7 +229,6 @@ class ChatWindow(QMainWindow):
         self.zoom_level = 100
         self.previous_users = set()
 
-        # Load dark theme
         self.setStyleSheet(load_theme("dark"))
 
         self.signals.message_received.connect(self.on_message)

@@ -51,7 +51,7 @@ QPushButton:pressed {
     background-color: #0d5a8f;
 }
 
-/* Dialogs (Account, Add Account, etc.) */
+/* Dialogs */
 QDialog {
     background-color: #1e1e1e;
 }
@@ -74,12 +74,22 @@ QDialog QComboBox {
     border-radius: 3px;
     padding: 5px;
 }
+QDialog QPushButton {
+    background-color: #0e639c;
+    color: white;
+    border: none;
+    border-radius: 3px;
+    padding: 8px 15px;
+    font-size: 12px;
+}
+QDialog QPushButton:hover {
+    background-color: #1177bb;
+}
 
-/* Right panel - users list */
+/* Right panel */
 QWidget#right_panel {
     background-color: #252526;
 }
-
 QLabel#users_header {
     color: #888;
     font-weight: bold;
@@ -87,16 +97,13 @@ QLabel#users_header {
     text-transform: uppercase;
     font-size: 11px;
 }
-
 QScrollArea {
     border: none;
     background-color: #252526;
 }
-
 QWidget#user_list_widget {
     background-color: #252526;
 }
-
 QLabel#user_count_label {
     color: #666;
     padding: 8px;
@@ -121,7 +128,7 @@ QSlider::handle:horizontal:hover {
     background: #1177bb;
 }
 
-/* Status bar dynamic classes (applied in code) */
+/* Status bar */
 .status-connected {
     background-color: #007acc;
 }
