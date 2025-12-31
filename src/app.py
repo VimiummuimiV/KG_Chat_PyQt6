@@ -560,25 +560,36 @@ class ChatWindow(QMainWindow):
         self.right_panel.setObjectName("right_panel")
         right_layout = QVBoxLayout(self.right_panel)
 
-        self.users_header = QLabel("Users".upper())
-        self.users_header.setObjectName("users_header")
-        right_layout.addWidget(self.users_header)
-
         self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(True)
         self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.user_list_widget = QWidget()
         self.user_list_widget.setObjectName("user_list_widget")
         self.user_list_layout = QVBoxLayout(self.user_list_widget)
-        self.user_list_layout.setSpacing(1)
+        self.user_list_layout.setSpacing(6)
         self.user_list_layout.setContentsMargins(0, 0, 0, 0)
-        self.user_list_layout.addStretch()
+
+        # Top container: users not currently in a game
+        self.top_container = QWidget()
+        self.top_container.setObjectName("user_list_top")
+        self.top_layout = QVBoxLayout(self.top_container)
+        self.top_layout.setSpacing(1)
+        self.top_layout.setContentsMargins(0, 0, 0, 0)
+        self.top_layout.addStretch()
+
+        # Bottom container: users currently in a game (game_id present)
+        self.bottom_container = QWidget()
+        self.bottom_container.setObjectName("user_list_bottom")
+        self.bottom_layout = QVBoxLayout(self.bottom_container)
+        self.bottom_layout.setSpacing(1)
+        self.bottom_layout.setContentsMargins(0, 0, 0, 0)
+        self.bottom_layout.addStretch()
+
+        self.user_list_layout.addWidget(self.top_container)
+        self.user_list_layout.addWidget(self.bottom_container)
+
         self.scroll_area.setWidget(self.user_list_widget)
         right_layout.addWidget(self.scroll_area, 1)
-
-        self.user_count_label = QLabel("Total: 0")
-        self.user_count_label.setObjectName("user_count_label")
-        right_layout.addWidget(self.user_count_label)
 
         self.splitter.addWidget(left)
         self.splitter.addWidget(self.right_panel)
@@ -774,8 +785,13 @@ class ChatWindow(QMainWindow):
         current_logins = {u.login for u in self.xmpp.user_list.get_online()}
         self.previous_users = current_logins.copy()
 
-        while self.user_list_layout.count() > 1:
-            item = self.user_list_layout.takeAt(0)
+        # Clear top and bottom containers (retain the final stretch)
+        while self.top_layout.count() > 1:
+            item = self.top_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+        while self.bottom_layout.count() > 1:
+            item = self.bottom_layout.takeAt(0)
             if item.widget():
                 item.widget().deleteLater()
 
@@ -783,13 +799,17 @@ class ChatWindow(QMainWindow):
         max_width = 0
         for user in users:
             widget = UserWidget(user, self.signals, self)
-            self.user_list_layout.insertWidget(self.user_list_layout.count() - 1, widget)
+            if user.game_id:
+                # users currently in-game go to bottom container
+                self.bottom_layout.insertWidget(self.bottom_layout.count() - 1, widget)
+            else:
+                # general users go to top container
+                self.top_layout.insertWidget(self.top_layout.count() - 1, widget)
             max_width = max(max_width, widget.minimumWidth())
 
         self.user_list_widget.setMinimumWidth(max_width + 20)
         self.right_panel.setMinimumWidth(max_width + 40)
-        # Allow the right panel to be resized by the splitter (do not set a fixed maximum)
-        self.user_count_label.setText(f"Total: {len(users)}")
+        # Right panel remains resizable via splitter (no fixed maximum)
 
     def set_userlist_visible(self, visible: bool):
         """Show or hide the right-side user list and persist the choice."""
