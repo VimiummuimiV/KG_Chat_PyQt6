@@ -360,6 +360,7 @@ class ChatWindow(QMainWindow):
         # Determine preferred font family available on the system
         preferred_list = ["Montserrat", "Roboto", "Tahoma", "Calibri", "Ubuntu", "Helvetica Neue", "Arial"]
         try:
+            from PyQt6.QtGui import QFontDatabase
             fams = {f.lower() for f in QFontDatabase().families()}
             chosen = None
             for p in preferred_list:
@@ -575,7 +576,6 @@ class ChatWindow(QMainWindow):
         self.top_layout = QVBoxLayout(self.top_container)
         self.top_layout.setSpacing(1)
         self.top_layout.setContentsMargins(0, 0, 0, 0)
-        self.top_layout.addStretch()
 
         # Bottom container: users currently in a game (game_id present)
         self.bottom_container = QWidget()
@@ -583,10 +583,13 @@ class ChatWindow(QMainWindow):
         self.bottom_layout = QVBoxLayout(self.bottom_container)
         self.bottom_layout.setSpacing(1)
         self.bottom_layout.setContentsMargins(0, 0, 0, 0)
-        self.bottom_layout.addStretch()
 
         self.user_list_layout.addWidget(self.top_container)
+        # Add small spacing between groups
+        self.user_list_layout.addSpacing(10)
         self.user_list_layout.addWidget(self.bottom_container)
+        # Add stretch at the end to push everything to the top
+        self.user_list_layout.addStretch()
 
         self.scroll_area.setWidget(self.user_list_widget)
         right_layout.addWidget(self.scroll_area, 1)
@@ -644,6 +647,8 @@ class ChatWindow(QMainWindow):
             current = self.input_field.text().rstrip()
             self.input_field.setText(f"{current} {username}, " if current else f"{username}, ")
             self.input_field.setFocus()
+            # Prevent default action that might affect message display
+            return
         else:
             QDesktopServices.openUrl(url)
 
@@ -718,7 +723,6 @@ class ChatWindow(QMainWindow):
                 item.widget().deleteLater()
         self.xmpp.user_list.clear()
         self.previous_users.clear()
-        self.user_count_label.setText("Total: 0")
         self.status_label.setText("Disconnected")
         self.statusBar().setProperty("class", "status-disconnected")
 
@@ -750,9 +754,18 @@ class ChatWindow(QMainWindow):
         QTimer.singleShot(100, self.update_user_list)
 
     def add_message(self, sender, text, timestamp="", color=None):
+        # Save current scroll position
+        scrollbar = self.messages_display.verticalScrollBar()
+        was_at_bottom = scrollbar.value() >= scrollbar.maximum() - 10
+        
+        # Get cursor and move to end
         cursor = self.messages_display.textCursor()
         cursor.movePosition(QTextCursor.MoveOperation.End)
-        cursor.insertText("\n")
+        
+        # Only add newline if there's already content
+        if not self.messages_display.document().isEmpty():
+            cursor.insertText("\n")
+        
         sender_html = html.escape(sender)
         text_html = html.escape(text)
 
@@ -778,19 +791,22 @@ class ChatWindow(QMainWindow):
             cursor.insertHtml(f'<span style="color: {ts_color};">{timestamp}</span> ')
         cursor.insertHtml(f'<a href="user:{sender_html}" style="color: {link_color}; font-weight: bold; text-decoration: none;">{sender_html}</a> ')
         cursor.insertHtml(f'<span style="color: {text_color};">{text_html}</span>')
-        self.messages_display.setTextCursor(cursor)
-        self.messages_display.ensureCursorVisible()
+        
+        # Only scroll if we were at bottom before
+        if was_at_bottom:
+            self.messages_display.moveCursor(QTextCursor.MoveOperation.End)
+            self.messages_display.ensureCursorVisible()
 
     def update_user_list(self):
         current_logins = {u.login for u in self.xmpp.user_list.get_online()}
         self.previous_users = current_logins.copy()
 
-        # Clear top and bottom containers (retain the final stretch)
-        while self.top_layout.count() > 1:
+        # Clear top and bottom containers completely
+        while self.top_layout.count() > 0:
             item = self.top_layout.takeAt(0)
             if item.widget():
                 item.widget().deleteLater()
-        while self.bottom_layout.count() > 1:
+        while self.bottom_layout.count() > 0:
             item = self.bottom_layout.takeAt(0)
             if item.widget():
                 item.widget().deleteLater()
@@ -801,10 +817,10 @@ class ChatWindow(QMainWindow):
             widget = UserWidget(user, self.signals, self)
             if user.game_id:
                 # users currently in-game go to bottom container
-                self.bottom_layout.insertWidget(self.bottom_layout.count() - 1, widget)
+                self.bottom_layout.addWidget(widget)
             else:
                 # general users go to top container
-                self.top_layout.insertWidget(self.top_layout.count() - 1, widget)
+                self.top_layout.addWidget(widget)
             max_width = max(max_width, widget.minimumWidth())
 
         self.user_list_widget.setMinimumWidth(max_width + 20)
@@ -891,10 +907,6 @@ class ChatWindow(QMainWindow):
         # Keep widget font-family controlled by QSS; set only font-size via inline stylesheet so family comes from base_theme.qss
         self.messages_display.setStyleSheet(f"font-size: {scaled_size}px;")
         self.input_field.setStyleSheet(f"font-size: {scaled_size}px;")
-
-        # font sizing and spacing only; colors come from theme
-        self.users_header.setStyleSheet(f"font-size: {int(11 * f)}px; padding: {int(10 * f)}px;")
-        self.user_count_label.setStyleSheet(f"font-size: {int(10 * f)}px; padding: {int(8 * f)}px;")
 
         self.update_user_list()
 
