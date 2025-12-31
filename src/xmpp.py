@@ -28,6 +28,7 @@ class XMPPClient:
         self.presence_callback: Optional[Callable] = None
         
         self.user_list = UserList()
+        self.initial_roster_received = False  # Track if we got initial roster
         
         server = self.account_manager.get_server_config()
         self.url = server.get('url')
@@ -188,7 +189,11 @@ class XMPPClient:
         ET.SubElement(user, 'login').text = account['login']
         
         response = self.send_request(self.build_body(children=[presence]))
-        self._process_response(response)
+        
+        # Mark that we're receiving initial roster
+        self.initial_roster_received = False
+        self._process_response(response, is_initial_roster=True)
+        self.initial_roster_received = True
         
         print(f"🎉 Joined: {room_jid}")
     
@@ -221,7 +226,7 @@ class XMPPClient:
         except:
             return False
     
-    def _process_response(self, xml_text: str):
+    def _process_response(self, xml_text: str, is_initial_roster: bool = False):
         """Process response"""
         messages, presence_updates = MessageParser.parse(xml_text)
         
@@ -242,12 +247,16 @@ class XMPPClient:
                     affiliation=pres.affiliation,
                     role=pres.role
                 )
+                # Only send callback for actual joins (not initial roster)
+                if not is_initial_roster and self.initial_roster_received and self.presence_callback:
+                    self.presence_callback(pres)
+                    
             elif pres.presence_type == 'unavailable':
                 self.user_list.remove(pres.from_jid)
                 print(MessageParser.format_presence(pres))
-            
-            if self.presence_callback:
-                self.presence_callback(pres)
+                # Always send leave notifications
+                if self.presence_callback:
+                    self.presence_callback(pres)
     
     def listen(self):
         """Listen for messages"""

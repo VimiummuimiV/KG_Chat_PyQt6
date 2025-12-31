@@ -101,13 +101,14 @@ class UserList:
         if not users:
             return "👥 No users"
         
-        result = f"👥 Users ({len(users)}):\n" + "=" * 45 + "\n"
+        result = f"👥 Users ({len(users)}):\n" + "═" * 40 + "\n"
         for user in sorted(users, key=lambda u: u.login.lower()):
             emoji = "🟢" if user.status == 'available' else "⚫"
-            game = f" 🎮#{user.game_id}" if user.game_id else ""
             avatar = " 🖼️" if user.avatar else ""
-            result += f"{emoji} {user.login}{avatar}{game}\n"
-        result += "=" * 45
+            game = f"\n   └─ 🎮 Game #{user.game_id}" if user.game_id else ""
+            bg = f" [{user.background}]" if user.background else ""
+            result += f"{emoji} {user.login}{avatar}{bg}{game}\n"
+        result += "═" * 40
         return result
     
     def clear(self):
