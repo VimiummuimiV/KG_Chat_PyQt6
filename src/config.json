@@ -20,7 +20,7 @@
     "lang": "en"
   },
   "ui": {
-    "selected_palette": "dark/dark_dracula.css",
+    "selected_palette": "dark/dark_monokai.css",
     "zoom": 161,
     "userlist_visible": true,
     "username_colors": {
