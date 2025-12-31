@@ -12,7 +12,7 @@ from PyQt6.QtWidgets import (
     QTextEdit, QLineEdit, QPushButton, QLabel, QSplitter, 
     QScrollArea, QDialog, QComboBox, QMessageBox, QMenuBar, QMenu
 )
-from PyQt6.QtCore import Qt, pyqtSignal, QObject
+from PyQt6.QtCore import Qt, pyqtSignal, QObject, QTimer
 from PyQt6.QtGui import QPixmap, QFont, QTextCursor, QAction
 
 from xmpp import XMPPClient
@@ -25,15 +25,20 @@ class SignalEmitter(QObject):
     message_received = pyqtSignal(object)
     presence_update = pyqtSignal(object)
     connection_status = pyqtSignal(bool, str)
+    avatar_loaded = pyqtSignal(str, QPixmap)  # JID, Pixmap
 
 
 class UserWidget(QWidget):
     """Widget for displaying a single user"""
     
-    def __init__(self, user, parent=None):
+    def __init__(self, user, signal_emitter, parent=None):
         super().__init__(parent)
         self.user = user
+        self.signal_emitter = signal_emitter
         self.setup_ui()
+        
+        # Connect avatar loading signal
+        self.signal_emitter.avatar_loaded.connect(self.on_avatar_loaded)
     
     def setup_ui(self):
         layout = QHBoxLayout()
@@ -50,20 +55,21 @@ class UserWidget(QWidget):
             }
         """)
         
+        # Default avatar
+        self.avatar_label.setText("👤")
+        self.avatar_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.avatar_label.setStyleSheet("""
+            QLabel {
+                border: 1px solid #444;
+                border-radius: 3px;
+                background-color: #2a2a2a;
+                font-size: 16px;
+            }
+        """)
+        
         # Load avatar if available
         if self.user.avatar:
             self.load_avatar(self.user.get_avatar_url())
-        else:
-            self.avatar_label.setText("👤")
-            self.avatar_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            self.avatar_label.setStyleSheet("""
-                QLabel {
-                    border: 1px solid #444;
-                    border-radius: 3px;
-                    background-color: #2a2a2a;
-                    font-size: 16px;
-                }
-            """)
         
         layout.addWidget(self.avatar_label)
         
@@ -90,14 +96,22 @@ class UserWidget(QWidget):
                 background-color: #2a2a2a;
             }
         """)
+        
+        # Calculate minimum width based on content
+        min_width = 200
+        if self.user.login:
+            # Estimate width: 50 (avatar) + len(username)*7 + 40 (padding)
+            username_width = len(self.user.login) * 7
+            if self.user.game_id:
+                username_width += 60  # Add space for game indicator
+            min_width = max(min_width, 50 + username_width + 40)
+        
+        self.setMinimumWidth(min_width)
     
     def load_avatar(self, url):
-        """Load avatar from URL"""
+        """Load avatar from URL in background thread"""
         if not url:
-            print(f"✗ No avatar URL provided")
             return
-            
-        print(f"🔄 Loading avatar: {url}")
         
         def load_in_thread():
             try:
@@ -107,7 +121,7 @@ class UserWidget(QWidget):
                 else:
                     full_url = url
                 
-                print(f"  → Fetching: {full_url}")
+                print(f"🔄 Loading avatar: {full_url}")
                 response = requests.get(full_url, timeout=5)
                 
                 if response.status_code == 200:
@@ -124,21 +138,26 @@ class UserWidget(QWidget):
                             square = pixmap.copy(x, y, size, size)
                             scaled = square.scaled(32, 32, Qt.AspectRatioMode.KeepAspectRatio, 
                                                   Qt.TransformationMode.SmoothTransformation)
-                            self.avatar_label.setPixmap(scaled)
-                            print(f"  ✓ Avatar loaded successfully")
+                            # Emit signal to update UI in main thread
+                            self.signal_emitter.avatar_loaded.emit(self.user.jid, scaled)
+                            print(f"✓ Avatar loaded for {self.user.login}")
                         else:
-                            print(f"  ✗ Invalid image dimensions")
+                            print(f"✗ Invalid dimensions for {self.user.login}")
                     else:
-                        print(f"  ✗ Failed to load image data")
+                        print(f"✗ Failed to load image for {self.user.login}")
                 else:
-                    print(f"  ✗ HTTP {response.status_code}")
+                    print(f"✗ HTTP {response.status_code} for {self.user.login}")
             except Exception as e:
-                print(f"  ✗ Exception: {e}")
+                print(f"✗ Avatar error for {self.user.login}: {e}")
         
-        # Load avatar in background thread
-        import threading
         thread = threading.Thread(target=load_in_thread, daemon=True)
         thread.start()
+    
+    def on_avatar_loaded(self, jid, pixmap):
+        """Handle avatar loaded in main thread"""
+        if jid == self.user.jid:
+            self.avatar_label.setPixmap(pixmap)
+            self.avatar_label.setText("")  # Clear emoji
 
 
 class AccountDialog(QDialog):
@@ -479,7 +498,6 @@ class ChatWindow(QMainWindow):
         self.user_list_layout.addStretch()
         self.user_list_widget.setLayout(self.user_list_layout)
         self.user_list_widget.setStyleSheet("background-color: #252526;")
-        self.user_list_widget.setMinimumWidth(200)  # Ensure minimum width
         
         scroll_area.setWidget(self.user_list_widget)
         right_layout.addWidget(scroll_area, 1)
@@ -660,7 +678,6 @@ class ChatWindow(QMainWindow):
     
     def on_presence(self, presence):
         """Silently update user list - no join/leave spam"""
-        from PyQt6.QtCore import QTimer
         # Update immediately
         self.update_user_list()
         # Also schedule another update after 100ms to catch any delayed updates
@@ -700,10 +717,16 @@ class ChatWindow(QMainWindow):
         users = self.xmpp.user_list.get_online()
         print(f"🔍 Updating user list: {len(users)} users online")
         
+        max_width = 200
         for user in sorted(users, key=lambda u: u.login.lower()):
             print(f"  👤 Adding user: {user.login} (avatar: {user.avatar})")
-            user_widget = UserWidget(user)
+            user_widget = UserWidget(user, self.signals)
             self.user_list_layout.insertWidget(self.user_list_layout.count() - 1, user_widget)
+            # Track maximum width needed
+            max_width = max(max_width, user_widget.minimumWidth())
+        
+        # Set minimum width for entire user list widget
+        self.user_list_widget.setMinimumWidth(max_width)
         
         self.user_count_label.setText(f"Total: {len(users)}")
         print(f"✓ User list updated")
@@ -747,9 +770,6 @@ class ChatWindow(QMainWindow):
         input_font = self.input_field.font()
         input_font.setPointSize(scaled_font_size)
         self.input_field.setFont(input_font)
-        
-        # Apply zoom factor to messages display for better rendering
-        self.messages_display.setZoomFactor(self.zoom_level / 100.0)
     
     def send_message(self):
         text = self.input_field.text().strip()

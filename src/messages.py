@@ -76,20 +76,32 @@ class MessageParser:
             avatar = None
             background = None
             
+            # Try to get user data from klavogonki:userdata
             userdata = msg.find('.//{klavogonki:userdata}user')
             if userdata is not None:
                 login_elem = userdata.find('login')
-                if login_elem is not None:
+                if login_elem is not None and login_elem.text:
                     login = login_elem.text
                 
                 avatar_elem = userdata.find('avatar')
-                if avatar_elem is not None:
+                if avatar_elem is not None and avatar_elem.text:
                     avatar = avatar_elem.text
                 
                 bg_elem = userdata.find('background')
-                if bg_elem is not None:
+                if bg_elem is not None and bg_elem.text:
                     background = bg_elem.text
             
+            # If login still not found, extract from JID
+            if not login and from_jid:
+                # Format: general@conference.jabber.klavogonki.ru/748754#ПОТРОШИТЕЛЬЧАТА
+                if '/' in from_jid:
+                    resource = from_jid.split('/')[-1]
+                    if '#' in resource:
+                        login = resource.split('#', 1)[1]
+                    else:
+                        login = resource
+            
+            # Parse timestamp
             timestamp = None
             delay_elem = msg.find('.//{urn:xmpp:delay}delay')
             if delay_elem is not None:
