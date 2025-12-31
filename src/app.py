@@ -1053,14 +1053,23 @@ class ChatWindow(QMainWindow):
                     self.user_game_state[key] = {'last_game_id': str(user.game_id).strip(), 'count': 1}
 
         try:
-            for user in users:
+            # Add non-game users first (top container), alphabetically
+            not_in_game = [u for u in users if not u.game_id]
+            for user in not_in_game:
                 widget = UserWidget(user, self.signals, self)
-                if user.game_id:
-                    # users currently in-game go to bottom container
-                    self.bottom_layout.addWidget(widget)
-                else:
-                    # general users go to top container
-                    self.top_layout.addWidget(widget)
+                self.top_layout.addWidget(widget)
+                max_width = max(max_width, widget.minimumWidth())
+
+            # Add in-game users sorted by descending game counter (bigger counts on top)
+            in_game = [u for u in users if u.game_id]
+            in_game_sorted = sorted(
+                in_game,
+                key=lambda u: self.user_game_state.get(u.login or u.user_id or u.jid, {}).get('count', 0),
+                reverse=True
+            )
+            for user in in_game_sorted:
+                widget = UserWidget(user, self.signals, self)
+                self.bottom_layout.addWidget(widget)
                 max_width = max(max_width, widget.minimumWidth())
 
             self.user_list_widget.setMinimumWidth(max_width + 20)

@@ -202,10 +202,12 @@ QLabel#zoom_label, QLabel#zoom_percent_label {
 
 QLabel#game_label {
   color: {{muted}};
-  font-size: 0.85em;
-  padding: 2px 6px;
-  background: {{overlay}};
-  border-radius: 4px;
+  /* Make semaphore + count visually larger (approx 2×) and transparent background */
+  font-size: 18px;
+  line-height: 1;
+  padding: 0 6px;
+  background: transparent;
+  border: none;
 }
 
 QLabel#username_label {
