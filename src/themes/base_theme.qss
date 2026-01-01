@@ -503,17 +503,17 @@ QWidget#input_container {
     color: {{on_surface}};
     overflow: hidden;
 }
-
 #popup_title {
     font-weight: 600;
     font-size: 14px;
     color: {{on_surface}};
     margin-bottom: 4px;
+    background-color: transparent;  /* Add this */
 }
-
 #popup_message {
     font-size: 13px;
     color: {{on_surface}};
     opacity: 0.9;
     word-wrap: break-word;
+    background-color: transparent;  /* Add this */
 }
