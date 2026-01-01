@@ -501,6 +501,7 @@ QWidget#input_container {
     border: 1px solid {{border}};
     padding: 12px 16px;
     color: {{on_surface}};
+    overflow: hidden;
 }
 
 #popup_title {
