@@ -1,4 +1,4 @@
-"""XMPP BOSH Client"""
+"""XMPP BOSH Client (core)"""
 
 import requests
 import xml.etree.ElementTree as ET
@@ -7,9 +7,9 @@ import random
 from pathlib import Path
 from typing import Optional, Callable
 
-from accounts import AccountManager
-from userlist import UserList
-from messages import MessageParser
+from .accounts import AccountManager
+from .userlist import UserList
+from .messages import MessageParser
 
 
 class XMPPClient:
@@ -17,7 +17,7 @@ class XMPPClient:
     
     def __init__(self, config_path: str = None):
         if config_path is None:
-            config_path = Path(__file__).parent / "config.json"
+            config_path = Path(__file__).parent / ".." / "config.json"
         
         self.account_manager = AccountManager(str(config_path))
         self.rid = int(random.random() * 1e10)
@@ -172,7 +172,14 @@ class XMPPClient:
         return True
     
     def join_room(self, room_jid, nickname=None):
-        """Join MUC room"""
+        """Join MUC room (idempotent)"""
+        if not hasattr(self, '_joined_rooms'):
+            self._joined_rooms = set()
+        if room_jid in self._joined_rooms:
+            # Already joined — skip
+            print(f"ℹ️ Already joined: {room_jid}")
+            return
+
         account = self.account_manager.get_active_account()
         if nickname is None:
             nickname = f"{account['user_id']}#{account['login']}"
@@ -194,7 +201,9 @@ class XMPPClient:
         self.initial_roster_received = False
         self._process_response(response, is_initial_roster=True)
         self.initial_roster_received = True
-        
+
+        # Record joined room
+        self._joined_rooms.add(room_jid)
         print(f"🎉 Joined: {room_jid}")
     
     def send_message(self, body: str, room_jid: str = None):

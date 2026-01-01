@@ -20,13 +20,8 @@
     "lang": "en"
   },
   "ui": {
-    "selected_palette": "dark/turbo_dark.css",
-    "zoom": 136,
-    "userlist_visible": false,
-    "username_colors": {
-      "Unknown": "#dda7bf",
-      "\u041a\u043b\u0430\u0432\u043e\u0431\u043e\u0442": "#e4dbb4",
-      "\u041f\u041e\u0422\u0420\u041e\u0428\u0418\u0422\u0415\u041b\u042c\u0427\u0410\u0422\u0410": "#8fa5cc"
-    }
+    "current_theme": "",
+    "ui_scale": 100,
+    "userlist_visible": true
   }
 }
