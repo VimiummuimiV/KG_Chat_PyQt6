@@ -23,6 +23,7 @@ from PyQt6.QtGui import (
 from xmpp import XMPPClient
 from accounts import AccountManager
 from commands import AccountCommands
+from popup_notification import PopupNotification
 
 
 class ThemeManager:
@@ -988,7 +989,16 @@ class ChatWindow(QMainWindow):
         sender = message.login or "Unknown"
         ts = message.timestamp.strftime("%H:%M:%S") if message.timestamp else ""
         color = message.background or None
+
         self.add_message(sender, message.body, ts, color)
+
+        # Show popup if window not focused
+        if not self.isActiveWindow():
+            PopupNotification(
+                title=f"New message from {sender}",
+                message=message.body,
+                parent=self
+            ).show()
 
     def on_presence(self, presence):
         self.update_user_list()

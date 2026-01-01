@@ -490,3 +490,26 @@ QWidget#input_container {
   padding: 12px;
   border: none;
 }
+
+
+/* ========================================
+   Notifications system
+   ======================================== */
+
+#popup_notification {
+    background: {{card}};
+    border-radius: 10px;
+    border: 1px solid {{border}};
+}
+
+#popup_title {
+    font-weight: 600;
+    font-size: 14px;
+    color: {{on_surface}};
+}
+
+#popup_message {
+    font-size: 13px;
+    color: {{on_surface}};
+    opacity: 0.9;
+}

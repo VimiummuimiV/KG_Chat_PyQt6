@@ -20,9 +20,9 @@
     "lang": "en"
   },
   "ui": {
-    "selected_palette": "dark/dark_monokai.css",
-    "zoom": 161,
-    "userlist_visible": true,
+    "selected_palette": "dark/turbo_dark.css",
+    "zoom": 136,
+    "userlist_visible": false,
     "username_colors": {
       "Unknown": "#dda7bf",
       "\u041a\u043b\u0430\u0432\u043e\u0431\u043e\u0442": "#e4dbb4",
