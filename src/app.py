@@ -995,7 +995,7 @@ class ChatWindow(QMainWindow):
         # Show popup if window not focused
         if not self.isActiveWindow():
             PopupNotification(
-                title=f"New message from {sender}",
+                title=f"{sender}",
                 message=message.body,
                 parent=self
             ).show()
