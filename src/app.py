@@ -62,9 +62,12 @@ class MainWindow(QWidget):
         main_layout.addWidget(self.user_list, stretch=1)
 
         # Signals
-        # ... 
-
+        self.toggle_userlist_button.clicked.connect(self.toggle_user_list)
+        
         self.show()
+    
+    def toggle_user_list(self):
+        self.user_list.setVisible(not self.user_list.isVisible())
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
