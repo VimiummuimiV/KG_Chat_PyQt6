@@ -8,7 +8,7 @@ from PyQt6.QtGui import QFont, QIcon
 from PyQt6.QtCore import Qt, pyqtSignal, QSize
 
 from helpers.create import create_icon_button
-from helpers.load import load_avatar_by_id
+from helpers.load import load_avatar_by_id, make_rounded_pixmap
 from core.accounts import AccountManager
 
 
@@ -62,7 +62,7 @@ class AccountWindow(QWidget):
         self.account_dropdown = QComboBox()
         self.account_dropdown.setFont(app_font)
         self.account_dropdown.setMinimumHeight(46)
-        self.account_dropdown.currentIndexChanged.connect(self.on_account_changed)
+        self.account_dropdown.currentIndexChanged.connect(self.update_avatar)
         connect_row.addWidget(self.account_dropdown, stretch=1)
         
         # Connect button (icon-based)
@@ -123,7 +123,6 @@ class AccountWindow(QWidget):
             self.account_dropdown.addItem("No accounts available")
             self.connect_button.setEnabled(False)
             self.remove_button.setEnabled(False)
-            self.account_avatar.setEnabled(False)
             return
         
         self.connect_button.setEnabled(True)
@@ -139,30 +138,24 @@ class AccountWindow(QWidget):
         
         # Set active account as current
         self.account_dropdown.setCurrentIndex(active_index)
-        
-        # Load avatar for active account
-        self.on_account_changed()
     
-    def on_account_changed(self):
-        # Load avatar when account selection changes
+    def update_avatar(self):
         account = self.account_dropdown.currentData()
-        
         if not account or not account.get('user_id'):
-            # No valid account - fallback to icon
             self.account_avatar.setIcon(QIcon(str(self.icons_path / "user.svg")))
+            self.account_avatar.setIconSize(QSize(30, 30))
             self.account_avatar.setEnabled(False)
             return
         
-        # Try to load avatar
         pixmap = load_avatar_by_id(account['user_id'])
-        
         if pixmap:
-            # Avatar loaded successfully - set it and enable button
-            self.account_avatar.setIcon(QIcon(pixmap))
-            self.account_avatar.setIconSize(QSize(40, 40))
+            rounded = make_rounded_pixmap(pixmap, 100, radius=20)
+            rounded.setDevicePixelRatio(2.0)
+            self.account_avatar.setIcon(QIcon(rounded))
+            self.account_avatar.setIconSize(QSize(44, 44))
+            self.account_avatar.setStyleSheet("background: transparent;")
             self.account_avatar.setEnabled(True)
         else:
-            # No avatar - fallback to icon and disable
             self.account_avatar.setIcon(QIcon(str(self.icons_path / "user.svg")))
             self.account_avatar.setIconSize(QSize(30, 30))
             self.account_avatar.setEnabled(False)
