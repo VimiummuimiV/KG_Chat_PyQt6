@@ -1,4 +1,5 @@
 import sys
+import json
 from pathlib import Path
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout,
@@ -7,15 +8,46 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtGui import QFont, QIcon
 from PyQt6.QtCore import Qt, QSize
 
+class Config:
+    def __init__(self, path):
+        self.path = path
+        self.data = self.load()
+    
+    def load(self):
+        with open(self.path, 'r') as f:
+            return json.load(f)
+    
+    def save(self):
+        with open(self.path, 'w') as f:
+            json.dump(self.data, f, indent=2)
+    
+    def get(self, *keys):
+        value = self.data
+        for key in keys:
+            value = value.get(key)
+        return value
+    
+    def set(self, *keys, value):
+        d = self.data
+        for key in keys[:-1]:
+            d = d.setdefault(key, {})
+        d[keys[-1]] = value
+        self.save()
+
+
 class MainWindow(QWidget):
     def __init__(self):
         super().__init__()
+        
+        self.config_path = Path(__file__).parent / "settings" / "config.json"
+        self.icons_path = Path(__file__).parent / "icons"
+        
+        self.config = Config(self.config_path)
         self.initializeUI()
     
     def create_icon_button(self, icon_name, icon_size=30, button_size=48):
         button = QPushButton()
-        icon_path = Path(__file__).parent / "icons" / icon_name
-        button.setIcon(QIcon(str(icon_path)))
+        button.setIcon(QIcon(str(self.icons_path / icon_name)))
         button.setIconSize(QSize(icon_size, icon_size))
         button.setFixedSize(button_size, button_size)
         return button
@@ -60,6 +92,8 @@ class MainWindow(QWidget):
         self.user_list = QListWidget()
         self.user_list.setFont(app_font)
         main_layout.addWidget(self.user_list, stretch=1)
+        
+        self.user_list.setVisible(self.config.get("ui", "userlist_visible"))
 
         # Signals
         self.toggle_userlist_button.clicked.connect(self.toggle_user_list)
@@ -67,7 +101,9 @@ class MainWindow(QWidget):
         self.show()
     
     def toggle_user_list(self):
-        self.user_list.setVisible(not self.user_list.isVisible())
+        visible = not self.user_list.isVisible()
+        self.user_list.setVisible(visible)
+        self.config.set("ui", "userlist_visible", value=visible)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
