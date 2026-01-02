@@ -40,13 +40,21 @@ class MainWindow(QWidget):
         self.input_field.setStyleSheet("padding: 0 10px;")
         input_layout.addWidget(self.input_field, stretch=1)
 
-        # Send button with SVG icon from icons folder
+        # Send message button
         self.send_button = QPushButton()
-        icon_path = Path(__file__).parent / "icons" / "send-message.svg"
+        icon_path = Path(__file__).parent / "icons" / "send.svg"
         self.send_button.setIcon(QIcon(str(icon_path)))
-        self.send_button.setIconSize(QSize(32, 32))
+        self.send_button.setIconSize(QSize(30, 30))
         self.send_button.setFixedSize(48, 48)
         input_layout.addWidget(self.send_button)
+
+        # Toggle user list button
+        self.toggle_userlist_button = QPushButton()
+        toggle_icon_path = Path(__file__).parent / "icons" / "user.svg"
+        self.toggle_userlist_button.setIcon(QIcon(str(toggle_icon_path)))
+        self.toggle_userlist_button.setIconSize(QSize(30, 30))
+        self.toggle_userlist_button.setFixedSize(48, 48)
+        input_layout.addWidget(self.toggle_userlist_button)
 
         # Right: full height user list (empty)
         self.user_list = QListWidget()
