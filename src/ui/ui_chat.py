@@ -1,23 +1,25 @@
 import sys
-import json
 from pathlib import Path
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout,
     QLineEdit, QPushButton, QListWidget
 )
-from PyQt6.QtGui import QFont, QIcon
-from PyQt6.QtCore import Qt, QSize
+from PyQt6.QtGui import QFont
+from PyQt6.QtCore import Qt
 
 from helpers.config import Config
+from helpers.create import create_icon_button
 
 
-class MainWindow(QWidget):
-    def __init__(self):
+class ChatWindow(QWidget):
+    def __init__(self, account=None):
         super().__init__()
         
+        self.account = account
+        
         # Paths
-        self.config_path = Path(__file__).parent / "settings" / "config.json"
-        self.icons_path = Path(__file__).parent / "icons"
+        self.config_path = Path(__file__).parent.parent / "settings" / "config.json"
+        self.icons_path = Path(__file__).parent.parent / "icons"
         
         # Load configuration
         self.config = Config(self.config_path)
@@ -25,14 +27,10 @@ class MainWindow(QWidget):
         # Initialize UI
         self.initializeUI()
     
-    def create_icon_button(self, icon_name, tooltip="", icon_size=30, button_size=48):
-        button = QPushButton()
-        button.setIcon(QIcon(str(self.icons_path / icon_name)))
-        button.setIconSize(QSize(icon_size, icon_size))
-        button.setFixedSize(button_size, button_size)
-        if tooltip:
-            button.setToolTip(tooltip)
-        return button
+    def set_account(self, account):
+        self.account = account
+        if account:
+            self.setWindowTitle(f"Chat - {account['login']}")
 
     def toggle_user_list(self):
         visible = not self.user_list.isVisible()
@@ -46,7 +44,8 @@ class MainWindow(QWidget):
         userlist_visible = self.config.get("ui", "userlist_visible")
         
         # Window setup
-        self.setWindowTitle("Chat")
+        window_title = f"Chat - {self.account['login']}" if self.account else "Chat"
+        self.setWindowTitle(window_title)
         self.resize(1500, 800)
         app_font = QFont(font_family, font_size)
         self.setFont(app_font)
@@ -74,11 +73,11 @@ class MainWindow(QWidget):
         input_layout.addWidget(self.input_field, stretch=1)
 
         # Send message button
-        self.send_button = self.create_icon_button("send.svg", tooltip="Send Message")
+        self.send_button = create_icon_button(self.icons_path, "send.svg", tooltip="Send Message")
         input_layout.addWidget(self.send_button)
 
         # Toggle user list button
-        self.toggle_userlist_button = self.create_icon_button("user.svg", tooltip="Toggle User List")
+        self.toggle_userlist_button = create_icon_button(self.icons_path, "user.svg", tooltip="Toggle User List")
         input_layout.addWidget(self.toggle_userlist_button)
 
         # Right layout: user list
@@ -96,5 +95,5 @@ class MainWindow(QWidget):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    window = MainWindow()
+    window = ChatWindow()
     sys.exit(app.exec())
