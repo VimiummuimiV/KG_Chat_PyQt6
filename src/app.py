@@ -11,6 +11,14 @@ class MainWindow(QWidget):
     def __init__(self):
         super().__init__()
         self.initializeUI()
+    
+    def create_icon_button(self, icon_name, icon_size=30, button_size=48):
+        button = QPushButton()
+        icon_path = Path(__file__).parent / "icons" / icon_name
+        button.setIcon(QIcon(str(icon_path)))
+        button.setIconSize(QSize(icon_size, icon_size))
+        button.setFixedSize(button_size, button_size)
+        return button
 
     def initializeUI(self):
         self.setWindowTitle("KG General Chat")
@@ -25,12 +33,12 @@ class MainWindow(QWidget):
         left_layout = QVBoxLayout()
         main_layout.addLayout(left_layout, stretch=3)
 
-        # Messages (now using QListWidget, same as userlist)
+        # Messages
         self.messages_area = QListWidget()
         self.messages_area.setFont(app_font)
         left_layout.addWidget(self.messages_area, stretch=1)
 
-        # Input layout
+        # Input
         input_layout = QHBoxLayout()
         left_layout.addLayout(input_layout)
 
@@ -41,38 +49,22 @@ class MainWindow(QWidget):
         input_layout.addWidget(self.input_field, stretch=1)
 
         # Send message button
-        self.send_button = QPushButton()
-        icon_path = Path(__file__).parent / "icons" / "send.svg"
-        self.send_button.setIcon(QIcon(str(icon_path)))
-        self.send_button.setIconSize(QSize(30, 30))
-        self.send_button.setFixedSize(48, 48)
+        self.send_button = self.create_icon_button("send.svg")
         input_layout.addWidget(self.send_button)
 
         # Toggle user list button
-        self.toggle_userlist_button = QPushButton()
-        toggle_icon_path = Path(__file__).parent / "icons" / "user.svg"
-        self.toggle_userlist_button.setIcon(QIcon(str(toggle_icon_path)))
-        self.toggle_userlist_button.setIconSize(QSize(30, 30))
-        self.toggle_userlist_button.setFixedSize(48, 48)
+        self.toggle_userlist_button = self.create_icon_button("user.svg")
         input_layout.addWidget(self.toggle_userlist_button)
 
-        # Right: full height user list (empty)
+        # Right layout: user list
         self.user_list = QListWidget()
         self.user_list.setFont(app_font)
         main_layout.addWidget(self.user_list, stretch=1)
 
         # Signals
-        self.send_button.clicked.connect(self.send_message)
-        self.input_field.returnPressed.connect(self.send_message)
+        # ... 
 
         self.show()
-
-    def send_message(self):
-        text = self.input_field.text().strip()
-        if text:
-            self.messages_area.addItem(f"You: {text}")
-            self.input_field.clear()
-            self.messages_area.scrollToBottom()
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
