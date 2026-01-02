@@ -22,7 +22,7 @@ class MainWindow(QWidget):
 
     def initializeUI(self):
         self.setWindowTitle("KG General Chat")
-        self.setGeometry(100, 100, 800, 600)
+        self.resize(1500, 800)
         app_font = QFont("Montserrat", 16)
         self.setFont(app_font)
 
