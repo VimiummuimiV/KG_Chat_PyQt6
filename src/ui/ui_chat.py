@@ -4,11 +4,12 @@ from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout,
     QLineEdit, QPushButton, QListWidget
 )
-from PyQt6.QtGui import QFont
-from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QFont, QIcon
+from PyQt6.QtCore import Qt, QSize
 
 from helpers.config import Config
 from helpers.create import create_icon_button
+from themes.theme import ThemeManager
 
 
 class ChatWindow(QWidget):
@@ -23,6 +24,10 @@ class ChatWindow(QWidget):
         
         # Load configuration
         self.config = Config(self.config_path)
+        
+        # Initialize theme manager
+        self.theme_manager = ThemeManager(self.config)
+        self.theme_manager.apply_theme()
 
         # Initialize UI
         self.initializeUI()
@@ -36,6 +41,18 @@ class ChatWindow(QWidget):
         visible = not self.user_list.isVisible()
         self.user_list.setVisible(visible)
         self.config.set("ui", "userlist_visible", value=visible)
+    
+    def toggle_theme(self):
+        """Toggle between dark and light theme"""
+        new_theme = self.theme_manager.toggle_theme()
+        
+        # Update theme button icon
+        if self.theme_manager.is_dark():
+            self.theme_button.setIcon(QIcon(str(self.icons_path / "sun.svg")))
+            self.theme_button.setToolTip("Switch to Light Mode")
+        else:
+            self.theme_button.setIcon(QIcon(str(self.icons_path / "moon.svg")))
+            self.theme_button.setToolTip("Switch to Dark Mode")
 
     def initializeUI(self):
         # Load all config values
@@ -79,8 +96,16 @@ class ChatWindow(QWidget):
         self.send_button = create_icon_button(self.icons_path, "send.svg", tooltip="Send Message")
         input_layout.addWidget(self.send_button)
 
+        # Theme toggle button
+        theme_icon = "sun.svg" if self.theme_manager.is_dark() else "moon.svg"
+        theme_tooltip = "Switch to Light Mode" if self.theme_manager.is_dark() else "Switch to Dark Mode"
+        self.theme_button = create_icon_button(self.icons_path, theme_icon, tooltip=theme_tooltip)
+        self.theme_button.clicked.connect(self.toggle_theme)
+        input_layout.addWidget(self.theme_button)
+
         # Toggle user list button
         self.toggle_userlist_button = create_icon_button(self.icons_path, "user.svg", tooltip="Toggle User List")
+        self.toggle_userlist_button.clicked.connect(self.toggle_user_list)
         input_layout.addWidget(self.toggle_userlist_button)
 
         # Right layout: user list
@@ -89,9 +114,6 @@ class ChatWindow(QWidget):
         main_layout.addWidget(self.user_list, stretch=1)
         
         self.user_list.setVisible(userlist_visible)
-
-        # Signals
-        self.toggle_userlist_button.clicked.connect(self.toggle_user_list)
         
         self.show()
 

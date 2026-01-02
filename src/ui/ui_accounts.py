@@ -9,7 +9,9 @@ from PyQt6.QtCore import Qt, pyqtSignal, QSize
 
 from helpers.create import create_icon_button
 from helpers.load import load_avatar_by_id, make_rounded_pixmap
+from helpers.config import Config
 from core.accounts import AccountManager
+from themes.theme import ThemeManager
 
 
 class AccountWindow(QWidget):
@@ -23,6 +25,11 @@ class AccountWindow(QWidget):
         self.config_path = Path(__file__).parent.parent / "settings" / "config.json"
         self.icons_path = Path(__file__).parent.parent / "icons"
         
+        # Config and theme
+        self.config = Config(str(self.config_path))
+        self.theme_manager = ThemeManager(self.config)
+        self.theme_manager.apply_theme()
+        
         # Account manager
         self.account_manager = AccountManager(str(self.config_path))
         
@@ -34,8 +41,8 @@ class AccountWindow(QWidget):
         # Window setup
         self.setWindowTitle("Account Manager")
         self.setFixedWidth(550)
-        self.setMinimumHeight(200)
-        self.setMaximumHeight(200)
+        self.setMinimumHeight(220)
+        self.setMaximumHeight(220)
         
         # Font
         app_font = QFont("Montserrat", 12)
@@ -43,6 +50,8 @@ class AccountWindow(QWidget):
         
         # Main layout
         main_layout = QVBoxLayout()
+        main_layout.setSpacing(10)
+        main_layout.setContentsMargins(15, 15, 15, 15)
         self.setLayout(main_layout)
         
         # ===== CONNECT SECTION =====
@@ -52,16 +61,19 @@ class AccountWindow(QWidget):
         
         # Connect row: Avatar + Dropdown + Connect + Remove
         connect_row = QHBoxLayout()
+        connect_row.setSpacing(8)
         
         # Avatar
         self.account_avatar = create_icon_button(self.icons_path, "user.svg", tooltip="Account")
         self.account_avatar.setEnabled(False)
+        self.account_avatar.setStyleSheet("QPushButton { background: transparent; border: none; }")
         connect_row.addWidget(self.account_avatar)
         
         # Account dropdown - uses stretch to fill available space
         self.account_dropdown = QComboBox()
         self.account_dropdown.setFont(app_font)
-        self.account_dropdown.setMinimumHeight(46)
+        self.account_dropdown.setMinimumHeight(48)
+        self.account_dropdown.setMaximumHeight(48)
         self.account_dropdown.currentIndexChanged.connect(self.update_avatar)
         connect_row.addWidget(self.account_dropdown, stretch=1)
         
@@ -84,25 +96,31 @@ class AccountWindow(QWidget):
         
         # Create row: User ID + Username + Password + Save
         create_row = QHBoxLayout()
-        create_row.setSpacing(10)
+        create_row.setSpacing(8)
         
         # User ID field - smaller stretch factor
         self.userid_input = QLineEdit()
         self.userid_input.setPlaceholderText("Id")
-        self.userid_input.setMinimumHeight(46)
+        self.userid_input.setMinimumHeight(48)
+        self.userid_input.setMaximumHeight(48)
+        self.userid_input.setFont(app_font)
         create_row.addWidget(self.userid_input, stretch=1)
         
         # Username field - larger stretch factor
         self.username_input = QLineEdit()
         self.username_input.setPlaceholderText("Username")
-        self.username_input.setMinimumHeight(46)
+        self.username_input.setMinimumHeight(48)
+        self.username_input.setMaximumHeight(48)
+        self.username_input.setFont(app_font)
         create_row.addWidget(self.username_input, stretch=2)
         
         # Password field - larger stretch factor
         self.password_input = QLineEdit()
         self.password_input.setPlaceholderText("Password")
         self.password_input.setEchoMode(QLineEdit.EchoMode.Password)
-        self.password_input.setMinimumHeight(46)
+        self.password_input.setMinimumHeight(48)
+        self.password_input.setMaximumHeight(48)
+        self.password_input.setFont(app_font)
         create_row.addWidget(self.password_input, stretch=2)
         
         # Create button (icon-based)
@@ -144,20 +162,22 @@ class AccountWindow(QWidget):
         if not account or not account.get('user_id'):
             self.account_avatar.setIcon(QIcon(str(self.icons_path / "user.svg")))
             self.account_avatar.setIconSize(QSize(30, 30))
+            self.account_avatar.setStyleSheet("QPushButton { background: transparent; border: none; }")
             self.account_avatar.setEnabled(False)
             return
         
         pixmap = load_avatar_by_id(account['user_id'])
         if pixmap:
-            rounded = make_rounded_pixmap(pixmap, 100, radius=20)
-            rounded.setDevicePixelRatio(2.0)
+            # Make rounded pixmap with 48x48 size to match button
+            rounded = make_rounded_pixmap(pixmap, 48, radius=8)
             self.account_avatar.setIcon(QIcon(rounded))
-            self.account_avatar.setIconSize(QSize(44, 44))
-            self.account_avatar.setStyleSheet("background: transparent;")
+            self.account_avatar.setIconSize(QSize(48, 48))
+            self.account_avatar.setStyleSheet("QPushButton { background: transparent; border: none; padding: 0; }")
             self.account_avatar.setEnabled(True)
         else:
             self.account_avatar.setIcon(QIcon(str(self.icons_path / "user.svg")))
             self.account_avatar.setIconSize(QSize(30, 30))
+            self.account_avatar.setStyleSheet("QPushButton { background: transparent; border: none; }")
             self.account_avatar.setEnabled(False)
     
     def on_connect(self):
