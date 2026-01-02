@@ -1,0 +1,15 @@
+/* ========================================
+   Notifications system
+   ======================================== */
+
+#popup_notification {
+    background-color: #000000;
+    padding: 16px 20px;
+    color: #778899;
+    font-family: "Montserrat", "Roboto", "Ubuntu", "Tahoma", "Consolas", sans-serif;
+}
+
+#popup_title,
+#popup_message {
+    font-size: 18px;
+}
