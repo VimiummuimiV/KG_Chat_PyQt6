@@ -8,7 +8,7 @@ from PyQt6.QtGui import QFont, QIcon
 from PyQt6.QtCore import Qt, QSize
 
 from helpers.config import Config
-from helpers.create import create_icon_button
+from helpers.create import create_icon_button, update_icon_button
 from themes.theme import ThemeManager
 
 
@@ -48,11 +48,9 @@ class ChatWindow(QWidget):
         
         # Update theme button icon
         if self.theme_manager.is_dark():
-            self.theme_button.setIcon(QIcon(str(self.icons_path / "sun.svg")))
-            self.theme_button.setToolTip("Switch to Light Mode")
+            update_icon_button(self.theme_button, self.icons_path, "sun.svg", "Switch to Light Mode")
         else:
-            self.theme_button.setIcon(QIcon(str(self.icons_path / "moon.svg")))
-            self.theme_button.setToolTip("Switch to Dark Mode")
+            update_icon_button(self.theme_button, self.icons_path, "moon.svg", "Switch to Dark Mode")
 
     def initializeUI(self):
         # Load all config values
