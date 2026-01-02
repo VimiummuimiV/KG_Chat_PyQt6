@@ -29,9 +29,15 @@ class MainWindow(QWidget):
         return button
 
     def initializeUI(self):
+        # Load all config values
+        font_family = self.config.get("ui", "font_family")
+        font_size = self.config.get("ui", "font_size")
+        userlist_visible = self.config.get("ui", "userlist_visible")
+        
+        # Window setup
         self.setWindowTitle("Chat")
         self.resize(1500, 800)
-        app_font = QFont("Montserrat", 16)
+        app_font = QFont(font_family, font_size)
         self.setFont(app_font)
 
         main_layout = QHBoxLayout()
@@ -69,7 +75,7 @@ class MainWindow(QWidget):
         self.user_list.setFont(app_font)
         main_layout.addWidget(self.user_list, stretch=1)
         
-        self.user_list.setVisible(self.config.get("ui", "userlist_visible"))
+        self.user_list.setVisible(userlist_visible)
 
         # Signals
         self.toggle_userlist_button.clicked.connect(self.toggle_user_list)
