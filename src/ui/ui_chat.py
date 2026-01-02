@@ -47,9 +47,12 @@ class ChatWindow(QWidget):
         window_title = f"Chat - {self.account['login']}" if self.account else "Chat"
         self.setWindowTitle(window_title)
         self.resize(1500, 800)
+
+        # Font from config
         app_font = QFont(font_family, font_size)
         self.setFont(app_font)
 
+        # Main layout
         main_layout = QHBoxLayout()
         self.setLayout(main_layout)
 

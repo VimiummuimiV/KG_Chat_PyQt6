@@ -12,6 +12,9 @@ from core.accounts import AccountManager
 
 
 class AccountWindow(QWidget):
+    # Signal emitted when account is successfully connected
+    account_connected = pyqtSignal(dict)
+
     def __init__(self):
         super().__init__()
         
@@ -46,18 +49,18 @@ class AccountWindow(QWidget):
         connect_label.setFont(QFont("Montserrat", 14, QFont.Weight.Bold))
         main_layout.addWidget(connect_label)
         
-        # Connect row: Icon + Dropdown + Connect + Remove (all in one line)
+        # Connect row: Avatar + Dropdown + Connect + Remove
         connect_row = QHBoxLayout()
         
-        # Account icon button (left side)
-        self.account_icon_button = create_icon_button(self.icons_path, "user.svg", tooltip="Account")
-        self.account_icon_button.setEnabled(False)  # Decorative only
-        connect_row.addWidget(self.account_icon_button)
+        # Avatar
+        self.account_avatar = create_icon_button(self.icons_path, "user.svg", tooltip="Account")
+        self.account_avatar.setEnabled(False)
+        connect_row.addWidget(self.account_avatar)
         
         # Account dropdown - uses stretch to fill available space
         self.account_dropdown = QComboBox()
         self.account_dropdown.setFont(app_font)
-        self.account_dropdown.setMinimumHeight(40)
+        self.account_dropdown.setMinimumHeight(46)
         connect_row.addWidget(self.account_dropdown, stretch=1)
         
         # Connect button (icon-based)
@@ -77,27 +80,27 @@ class AccountWindow(QWidget):
         create_label.setFont(QFont("Montserrat", 14, QFont.Weight.Bold))
         main_layout.addWidget(create_label)
         
-        # Create row: User ID + Username + Password + Save (all in one line)
+        # Create row: User ID + Username + Password + Save
         create_row = QHBoxLayout()
         create_row.setSpacing(10)
         
         # User ID field - smaller stretch factor
         self.userid_input = QLineEdit()
         self.userid_input.setPlaceholderText("Id")
-        self.userid_input.setMinimumHeight(40)
+        self.userid_input.setMinimumHeight(46)
         create_row.addWidget(self.userid_input, stretch=1)
         
         # Username field - larger stretch factor
         self.username_input = QLineEdit()
         self.username_input.setPlaceholderText("Username")
-        self.username_input.setMinimumHeight(40)
+        self.username_input.setMinimumHeight(46)
         create_row.addWidget(self.username_input, stretch=2)
         
         # Password field - larger stretch factor
         self.password_input = QLineEdit()
         self.password_input.setPlaceholderText("Password")
         self.password_input.setEchoMode(QLineEdit.EchoMode.Password)
-        self.password_input.setMinimumHeight(40)
+        self.password_input.setMinimumHeight(46)
         create_row.addWidget(self.password_input, stretch=2)
         
         # Create button (icon-based)
