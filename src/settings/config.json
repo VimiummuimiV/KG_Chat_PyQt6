@@ -20,6 +20,7 @@
     "lang": "en"
   },
   "ui": {
+    "font_size": 16,
     "userlist_visible": true
   }
 }

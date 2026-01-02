@@ -29,7 +29,7 @@ class MainWindow(QWidget):
         return button
 
     def initializeUI(self):
-        self.setWindowTitle("KG General Chat")
+        self.setWindowTitle("Chat")
         self.resize(1500, 800)
         app_font = QFont("Montserrat", 16)
         self.setFont(app_font)
