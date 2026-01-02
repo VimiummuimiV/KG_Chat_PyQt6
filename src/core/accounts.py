@@ -9,7 +9,7 @@ from typing import Optional, Dict, List
 class AccountManager:
     """Manage multiple XMPP accounts using local SQLite database"""
     
-    def __init__(self, config_path: str = 'config.json'):
+    def __init__(self, config_path: str = 'settings/config.json'):
         self.config_path = config_path
         self.db_path = self._get_db_path()
         self.config = self._load_config()

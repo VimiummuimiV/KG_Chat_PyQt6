@@ -17,7 +17,7 @@ class XMPPClient:
     
     def __init__(self, config_path: str = None):
         if config_path is None:
-            config_path = Path(__file__).parent / ".." / "config.json"
+            config_path = Path(__file__).parent / ".." / "settings/config.json"
         
         self.account_manager = AccountManager(str(config_path))
         self.rid = int(random.random() * 1e10)
