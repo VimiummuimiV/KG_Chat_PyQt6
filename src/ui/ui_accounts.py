@@ -170,7 +170,6 @@ class AccountWindow(QWidget):
         if account:
             # Emit signal with account data
             self.account_connected.emit(account)
-            print(f"✅ Selected account: {account['login']}")
     
     def on_remove_account(self):
         if self.account_dropdown.count() == 0 or self.account_dropdown.currentText() == "No accounts available":
