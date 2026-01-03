@@ -8,7 +8,7 @@ from PyQt6.QtGui import QFont, QIcon
 from PyQt6.QtCore import Qt, QSize
 
 from helpers.config import Config
-from helpers.create import create_icon_button, update_icon_button
+from helpers.create import create_icon_button, update_all_icons, set_theme
 from themes.theme import ThemeManager
 
 
@@ -44,24 +44,28 @@ class ChatWindow(QWidget):
     
     def toggle_theme(self):
         """Toggle between dark and light theme"""
-        new_theme = self.theme_manager.toggle_theme()
+        self.theme_manager.toggle_theme()
         is_dark = self.theme_manager.is_dark()
         
-        # Update ALL icon buttons with proper colorization for new theme
-        if is_dark:
-            update_icon_button(self.theme_button, self.icons_path, "sun.svg", "Switch to Light Mode", is_dark_theme=is_dark)
-        else:
-            update_icon_button(self.theme_button, self.icons_path, "moon.svg", "Switch to Dark Mode", is_dark_theme=is_dark)
+        # Update global theme state for icons
+        set_theme(is_dark)
         
-        # Re-colorize other buttons for the new theme
-        update_icon_button(self.send_button, self.icons_path, "send.svg", "Send Message", is_dark_theme=is_dark)
-        update_icon_button(self.toggle_userlist_button, self.icons_path, "user.svg", "Toggle User List", is_dark_theme=is_dark)
+        # Update theme button icon
+        theme_icon = "sun.svg" if is_dark else "moon.svg"
+        self.theme_button._icon_name = theme_icon
+        self.theme_button.setToolTip("Switch to Light Mode" if is_dark else "Switch to Dark Mode")
+        
+        # Update all icons
+        update_all_icons()
 
     def initializeUI(self):
         # Load all config values
         font_family = self.config.get("ui", "font_family")
         font_size = self.config.get("ui", "font_size")
         userlist_visible = self.config.get("ui", "userlist_visible")
+        
+        # Set initial theme state for icons
+        set_theme(self.theme_manager.is_dark())
         
         # Window setup
         window_title = f"Chat - {self.account['login']}" if self.account else "Chat"
@@ -96,19 +100,31 @@ class ChatWindow(QWidget):
         input_layout.addWidget(self.input_field, stretch=1)
 
         # Send message button
-        is_dark = self.theme_manager.is_dark()
-        self.send_button = create_icon_button(self.icons_path, "send.svg", tooltip="Send Message", is_dark_theme=is_dark)
+        self.send_button = create_icon_button(
+            self.icons_path, 
+            "send.svg", 
+            tooltip="Send Message"
+        )
         input_layout.addWidget(self.send_button)
 
         # Theme toggle button
+        is_dark = self.theme_manager.is_dark()
         theme_icon = "sun.svg" if is_dark else "moon.svg"
         theme_tooltip = "Switch to Light Mode" if is_dark else "Switch to Dark Mode"
-        self.theme_button = create_icon_button(self.icons_path, theme_icon, tooltip=theme_tooltip, is_dark_theme=is_dark)
+        self.theme_button = create_icon_button(
+            self.icons_path, 
+            theme_icon, 
+            tooltip=theme_tooltip
+        )
         self.theme_button.clicked.connect(self.toggle_theme)
         input_layout.addWidget(self.theme_button)
 
         # Toggle user list button
-        self.toggle_userlist_button = create_icon_button(self.icons_path, "user.svg", tooltip="Toggle User List", is_dark_theme=is_dark)
+        self.toggle_userlist_button = create_icon_button(
+            self.icons_path, 
+            "user.svg", 
+            tooltip="Toggle User List"
+        )
         self.toggle_userlist_button.clicked.connect(self.toggle_user_list)
         input_layout.addWidget(self.toggle_userlist_button)
 

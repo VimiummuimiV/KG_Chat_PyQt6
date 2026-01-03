@@ -7,7 +7,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtGui import QFont, QIcon
 from PyQt6.QtCore import Qt, pyqtSignal, QSize
 
-from helpers.create import create_icon_button, update_icon_button
+from helpers.create import create_icon_button, set_theme, _render_svg_icon
 from helpers.load import load_avatar_by_id, make_rounded_pixmap
 from helpers.config import Config
 from core.accounts import AccountManager
@@ -44,6 +44,9 @@ class AccountWindow(QWidget):
         self.setMinimumHeight(220)
         self.setMaximumHeight(220)
         
+        # Set initial theme state for icons
+        set_theme(self.theme_manager.is_dark())
+        
         # Font
         app_font = QFont("Montserrat", 12)
         self.setFont(app_font)
@@ -64,13 +67,16 @@ class AccountWindow(QWidget):
         connect_row.setSpacing(8)
         
         # Avatar
-        is_dark = self.theme_manager.is_dark()
-        self.account_avatar = create_icon_button(self.icons_path, "user.svg", tooltip="Account", is_dark_theme=is_dark)
+        self.account_avatar = create_icon_button(
+            self.icons_path, 
+            "user.svg", 
+            tooltip="Account"
+        )
         self.account_avatar.setEnabled(False)
         self.account_avatar.setStyleSheet("QPushButton { background: transparent; border: none; }")
         connect_row.addWidget(self.account_avatar)
         
-        # Account dropdown - uses stretch to fill available space
+        # Account dropdown
         self.account_dropdown = QComboBox()
         self.account_dropdown.setFont(app_font)
         self.account_dropdown.setMinimumHeight(48)
@@ -78,13 +84,21 @@ class AccountWindow(QWidget):
         self.account_dropdown.currentIndexChanged.connect(self.update_avatar)
         connect_row.addWidget(self.account_dropdown, stretch=1)
         
-        # Connect button (icon-based)
-        self.connect_button = create_icon_button(self.icons_path, "login.svg", tooltip="Connect to chat", is_dark_theme=is_dark)
+        # Connect button
+        self.connect_button = create_icon_button(
+            self.icons_path, 
+            "login.svg", 
+            tooltip="Connect to chat"
+        )
         self.connect_button.clicked.connect(self.on_connect)
         connect_row.addWidget(self.connect_button)
         
-        # Remove button (icon-based)
-        self.remove_button = create_icon_button(self.icons_path, "trash.svg", tooltip="Remove account", is_dark_theme=is_dark)
+        # Remove button
+        self.remove_button = create_icon_button(
+            self.icons_path, 
+            "trash.svg", 
+            tooltip="Remove account"
+        )
         self.remove_button.clicked.connect(self.on_remove_account)
         connect_row.addWidget(self.remove_button)
         
@@ -99,7 +113,7 @@ class AccountWindow(QWidget):
         create_row = QHBoxLayout()
         create_row.setSpacing(8)
         
-        # User ID field - smaller stretch factor
+        # User ID field
         self.userid_input = QLineEdit()
         self.userid_input.setPlaceholderText("Id")
         self.userid_input.setMinimumHeight(48)
@@ -107,7 +121,7 @@ class AccountWindow(QWidget):
         self.userid_input.setFont(app_font)
         create_row.addWidget(self.userid_input, stretch=1)
         
-        # Username field - larger stretch factor
+        # Username field
         self.username_input = QLineEdit()
         self.username_input.setPlaceholderText("Username")
         self.username_input.setMinimumHeight(48)
@@ -115,7 +129,7 @@ class AccountWindow(QWidget):
         self.username_input.setFont(app_font)
         create_row.addWidget(self.username_input, stretch=2)
         
-        # Password field - larger stretch factor
+        # Password field
         self.password_input = QLineEdit()
         self.password_input.setPlaceholderText("Password")
         self.password_input.setEchoMode(QLineEdit.EchoMode.Password)
@@ -124,8 +138,12 @@ class AccountWindow(QWidget):
         self.password_input.setFont(app_font)
         create_row.addWidget(self.password_input, stretch=2)
         
-        # Create button (icon-based)
-        self.create_button = create_icon_button(self.icons_path, "save.svg", tooltip="Create account", is_dark_theme=is_dark)
+        # Create button
+        self.create_button = create_icon_button(
+            self.icons_path, 
+            "save.svg", 
+            tooltip="Create account"
+        )
         self.create_button.clicked.connect(self.on_create_account)
         create_row.addWidget(self.create_button)
         
@@ -161,8 +179,9 @@ class AccountWindow(QWidget):
     def update_avatar(self):
         account = self.account_dropdown.currentData()
         if not account or not account.get('user_id'):
-            is_dark = self.theme_manager.is_dark()
-            update_icon_button(self.account_avatar, self.icons_path, "user.svg", "Account", is_dark_theme=is_dark)
+            # Reset to default user icon
+            icon = _render_svg_icon(self.icons_path / "user.svg", 30)
+            self.account_avatar.setIcon(icon)
             self.account_avatar.setIconSize(QSize(30, 30))
             self.account_avatar.setStyleSheet("QPushButton { background: transparent; border: none; }")
             self.account_avatar.setEnabled(False)
@@ -177,8 +196,9 @@ class AccountWindow(QWidget):
             self.account_avatar.setStyleSheet("QPushButton { background: transparent; border: none; padding: 0; }")
             self.account_avatar.setEnabled(True)
         else:
-            is_dark = self.theme_manager.is_dark()
-            update_icon_button(self.account_avatar, self.icons_path, "user.svg", "Account", is_dark_theme=is_dark)
+            # Fallback to default icon
+            icon = _render_svg_icon(self.icons_path / "user.svg", 30)
+            self.account_avatar.setIcon(icon)
             self.account_avatar.setIconSize(QSize(30, 30))
             self.account_avatar.setStyleSheet("QPushButton { background: transparent; border: none; }")
             self.account_avatar.setEnabled(False)
@@ -235,7 +255,7 @@ class AccountWindow(QWidget):
             user_id=user_id,
             login=username,
             password=password,
-            set_active=True  # Make new account active
+            set_active=True
         )
         
         if success:
