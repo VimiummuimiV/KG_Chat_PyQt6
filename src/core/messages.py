@@ -197,16 +197,3 @@ class MessageParser:
         """Format message for display"""
         sender = msg.login if msg.login else msg.from_jid.split('/')[-1]
         return f"💬 [{sender}]: {msg.body}"
-   
-    @staticmethod
-    def format_presence(pres: Presence) -> str:
-        """Format presence for display"""
-        user = pres.login if pres.login else pres.from_jid.split('/')[-1]
-       
-        if pres.presence_type == 'unavailable':
-            return f"👋 {user} left"
-        elif pres.presence_type == 'available':
-            game = f" (game #{pres.game_id})" if pres.game_id else ""
-            return f"👋 {user} joined{game}"
-        else:
-            return f"👤 {user} is {pres.presence_type}"
