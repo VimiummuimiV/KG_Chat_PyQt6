@@ -2,9 +2,9 @@
 import threading
 from pathlib import Path
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QScrollArea
+    QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QScrollArea, QLabel
 )
-from PyQt6.QtCore import Qt, pyqtSignal, QObject
+from PyQt6.QtCore import Qt, pyqtSignal, QObject, QTimer
 
 from helpers.config import Config
 from helpers.create import create_icon_button, update_all_icons, set_theme
@@ -48,6 +48,9 @@ class ChatWindow(QWidget):
         
         # Connect XMPP
         if account:
+            # Show user in status bar and start connection asynchronously
+            self.user_label.setText(f"User: {account['login']}")
+            self.set_connection_status('connecting')
             self.connect_xmpp()
     
     def initializeUI(self):
@@ -57,17 +60,22 @@ class ChatWindow(QWidget):
         self.setWindowTitle(window_title)
         self.resize(1500, 800)
         
-        # Main layout
-        main_layout = QHBoxLayout()
-        main_layout.setContentsMargins(10, 10, 10, 10)
-        main_layout.setSpacing(10)
-        self.setLayout(main_layout)
-        
+        # Top content layout (messages + user list) inside a vertical main layout
+        main_vlayout = QVBoxLayout()
+        main_vlayout.setContentsMargins(10, 10, 10, 10)
+        main_vlayout.setSpacing(6)
+        self.setLayout(main_vlayout)
+
+        # Content area: left (messages) + right (users)
+        content_layout = QHBoxLayout()
+        content_layout.setSpacing(10)
+        main_vlayout.addLayout(content_layout, stretch=1)
+
         # Left side: messages + input
         left_layout = QVBoxLayout()
         left_layout.setSpacing(8)
-        main_layout.addLayout(left_layout, stretch=3)
-        
+        content_layout.addLayout(left_layout, stretch=3)
+
         # Messages widget
         self.messages_widget = MessagesWidget(self.config)
         left_layout.addWidget(self.messages_widget, stretch=1)
@@ -116,36 +124,86 @@ class ChatWindow(QWidget):
         userlist_visible = self.config.get("ui", "userlist_visible")
         if userlist_visible is not None:
             self.user_list_widget.setVisible(userlist_visible)
-        main_layout.addWidget(self.user_list_widget, stretch=1)
+        content_layout.addWidget(self.user_list_widget, stretch=1)
+
+        # ===== Status bar at the bottom =====
+        status_layout = QHBoxLayout()
+        status_layout.setSpacing(10)
+
+        # Connection indicator (dot) and text
+        self.status_indicator = QLabel()
+        self.status_indicator.setFixedSize(12, 12)
+        self.status_indicator.setStyleSheet("background-color: #e74c3c; border-radius: 6px;")  # red = disconnected
+        status_layout.addWidget(self.status_indicator)
+
+        self.status_text = QLabel("Disconnected")
+        self.status_text.setStyleSheet("color: #888888;")
+        status_layout.addWidget(self.status_text)
+
+        # Spacer
+        status_layout.addStretch()
+
+        # Current user label
+        user_text = f"User: {self.account['login']}" if self.account else "User: -"
+        self.user_label = QLabel(user_text)
+        self.user_label.setStyleSheet("color: #888888;")
+        status_layout.addWidget(self.user_label)
+
+        # Room label
+        self.room_label = QLabel("Room: -")
+        self.room_label.setStyleSheet("color: #888888;")
+        status_layout.addWidget(self.room_label)
+
+        # Users count
+        self.users_count_label = QLabel("Users: 0")
+        self.users_count_label.setStyleSheet("color: #888888;")
+        status_layout.addWidget(self.users_count_label)
+
+        main_vlayout.addLayout(status_layout)
     
     def connect_xmpp(self):
-        """Connect to XMPP server"""
-        try:
-            self.xmpp_client = XMPPClient(str(self.config_path))
-            
-            if not self.xmpp_client.connect(self.account):
-                show_notification("Connection Failed", "Could not connect to XMPP server")
-                return
-            
-            # Set callbacks
-            self.xmpp_client.set_message_callback(self.message_callback)
-            self.xmpp_client.set_presence_callback(self.presence_callback)
-            
-            # Join rooms
-            rooms = self.xmpp_client.account_manager.get_rooms()
-            for room in rooms:
-                if room.get('auto_join'):
-                    self.xmpp_client.join_room(room['jid'])
-            
-            # Start listening in background thread
-            listen_thread = threading.Thread(
-                target=self.xmpp_client.listen,
-                daemon=True
-            )
-            listen_thread.start()
-            
-        except Exception as e:
-            show_notification("Error", f"Connection error: {e}")
+        """Connect to XMPP server asynchronously to avoid blocking UI"""
+        def _worker():
+            try:
+                self.xmpp_client = XMPPClient(str(self.config_path))
+
+                if not self.xmpp_client.connect(self.account):
+                    # Notify user in main thread
+                    QTimer.singleShot(0, lambda: show_notification("Connection Failed", "Could not connect to XMPP server"))
+                    return
+
+                # Set callbacks (these will be called from XMPP listen thread)
+                self.xmpp_client.set_message_callback(self.message_callback)
+                self.xmpp_client.set_presence_callback(self.presence_callback)
+
+                # Join rooms (this may populate initial roster synchronously)
+                rooms = self.xmpp_client.account_manager.get_rooms()
+                for room in rooms:
+                    if room.get('auto_join'):
+                        try:
+                            self.xmpp_client.join_room(room['jid'])
+                        except Exception:
+                            pass
+
+                # Emit presence update on main thread so UI can read the populated roster
+                QTimer.singleShot(0, lambda: self.signal_emitter.presence_received.emit(None))
+
+                # Update connected state on main thread
+                QTimer.singleShot(0, lambda: self.set_connection_status('connected'))
+
+                # Start listening (blocking) in a dedicated background thread (daemon)
+                listen_thread = threading.Thread(
+                    target=self.xmpp_client.listen,
+                    daemon=True
+                )
+                listen_thread.start()
+
+            except Exception as e:
+                QTimer.singleShot(0, lambda: show_notification("Error", f"Connection error: {e}"))
+                QTimer.singleShot(0, lambda: self.set_connection_status('disconnected'))
+
+        # Run worker in a separate thread to keep UI responsive
+        threading.Thread(target=_worker, daemon=True).start()
     
     def message_callback(self, msg):
         """Thread-safe message callback from XMPP"""
@@ -177,6 +235,15 @@ class ChatWindow(QWidget):
         if self.xmpp_client:
             users = self.xmpp_client.user_list.get_all()
             self.user_list_widget.update_users(users)
+            # Update users count and room label
+            self.set_users_count(len(users))
+            # Attempt to show the first auto-joined room name
+            try:
+                rooms = self.xmpp_client.account_manager.get_rooms()
+                room_name = rooms[0].get('name') if rooms else '-'
+                self.set_current_room(room_name)
+            except Exception:
+                pass
     
     def send_message(self):
         """Send message to XMPP"""
@@ -184,6 +251,28 @@ class ChatWindow(QWidget):
         if text and self.xmpp_client:
             self.xmpp_client.send_message(text)
             self.input_field.clear()
+
+    # -------------------------------
+    # Status helpers
+    # -------------------------------
+    def set_connection_status(self, status: str):
+        """Set connection status: 'connecting', 'connected', 'disconnected'"""
+        status = (status or '').lower()
+        if status == 'connecting':
+            color, text = '#f39c12', 'Connecting…'
+        elif status == 'connected':
+            color, text = '#2ecc71', 'Connected'
+        else:
+            color, text = '#e74c3c', 'Disconnected'
+
+        self.status_indicator.setStyleSheet(f"background-color: {color}; border-radius: 6px;")
+        self.status_text.setText(text)
+
+    def set_users_count(self, count: int):
+        self.users_count_label.setText(f"Users: {count}")
+
+    def set_current_room(self, name: str):
+        self.room_label.setText(f"Room: {name}")
     
     def toggle_user_list(self):
         """Toggle user list visibility"""
@@ -212,5 +301,9 @@ class ChatWindow(QWidget):
     def closeEvent(self, event):
         """Clean up on window close"""
         if self.xmpp_client:
-            self.xmpp_client.disconnect()
+            try:
+                self.xmpp_client.disconnect()
+            except Exception:
+                pass
+        self.set_connection_status('disconnected')
         event.accept()

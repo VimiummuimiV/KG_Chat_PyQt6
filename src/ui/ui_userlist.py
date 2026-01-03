@@ -1,6 +1,7 @@
 """User list display widget"""
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QScrollArea
 from PyQt6.QtCore import Qt, QTimer
+import threading
 from PyQt6.QtGui import QFont, QPixmap
 
 from helpers.color_contrast import optimize_color_contrast
@@ -43,7 +44,7 @@ class UserWidget(QWidget):
         # Display name with game counter if in game
         display_name = self.user.login
         if getattr(self.user, 'game_id', None):
-            display_name = f"{self.user.login} 🚦"
+            display_name = f"{self.user.login}"
         
         self.username_label = QLabel(display_name)
         self.username_label.setStyleSheet(f"color: {bg_color}; font-weight: bold;")
@@ -51,21 +52,23 @@ class UserWidget(QWidget):
         layout.addWidget(self.username_label, stretch=1)
     
     def load_avatar(self):
-        """Load user avatar asynchronously"""
+        """Load user avatar asynchronously in a worker thread to avoid blocking UI"""
         if hasattr(self.user, 'user_id') and self.user.user_id:
-            # Use QTimer to load avatar without blocking
-            QTimer.singleShot(0, lambda: self._load_avatar_delayed())
+            threading.Thread(target=self._load_avatar_thread, daemon=True).start()
         else:
             self._set_default_avatar()
-    
-    def _load_avatar_delayed(self):
-        """Load avatar in delayed callback"""
-        pixmap = load_avatar_by_id(self.user.user_id, timeout=2)
-        if pixmap:
-            rounded = make_rounded_pixmap(pixmap, 24, radius=4)
-            self.avatar_label.setPixmap(rounded)
-        else:
-            self._set_default_avatar()
+
+    def _load_avatar_thread(self):
+        """Background avatar fetch; result applied on main thread"""
+        try:
+            pixmap = load_avatar_by_id(self.user.user_id, timeout=2)
+            if pixmap:
+                rounded = make_rounded_pixmap(pixmap, 24, radius=4)
+                QTimer.singleShot(0, lambda: self.avatar_label.setPixmap(rounded))
+            else:
+                QTimer.singleShot(0, self._set_default_avatar)
+        except Exception:
+            QTimer.singleShot(0, self._set_default_avatar)
     
     def _set_default_avatar(self):
         """Set default avatar icon"""
