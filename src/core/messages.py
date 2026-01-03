@@ -14,6 +14,7 @@ class Message:
     avatar: Optional[str] = None
     background: Optional[str] = None
     timestamp: Optional[datetime] = None
+    initial: bool = False
    
     def get_avatar_url(self) -> Optional[str]:
         if self.avatar:
