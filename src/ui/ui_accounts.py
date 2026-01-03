@@ -72,7 +72,6 @@ class AccountWindow(QWidget):
             "user.svg", 
             tooltip="Account"
         )
-        self.account_avatar.setEnabled(False)
         self.account_avatar.setStyleSheet("QPushButton { background: transparent; border: none; }")
         connect_row.addWidget(self.account_avatar)
         
@@ -184,7 +183,6 @@ class AccountWindow(QWidget):
             self.account_avatar.setIcon(icon)
             self.account_avatar.setIconSize(QSize(30, 30))
             self.account_avatar.setStyleSheet("QPushButton { background: transparent; border: none; }")
-            self.account_avatar.setEnabled(False)
             return
         
         pixmap = load_avatar_by_id(account['user_id'])
@@ -194,14 +192,12 @@ class AccountWindow(QWidget):
             self.account_avatar.setIcon(QIcon(rounded))
             self.account_avatar.setIconSize(QSize(48, 48))
             self.account_avatar.setStyleSheet("QPushButton { background: transparent; border: none; padding: 0; }")
-            self.account_avatar.setEnabled(True)
         else:
             # Fallback to default icon
             icon = _render_svg_icon(self.icons_path / "user.svg", 30)
             self.account_avatar.setIcon(icon)
             self.account_avatar.setIconSize(QSize(30, 30))
             self.account_avatar.setStyleSheet("QPushButton { background: transparent; border: none; }")
-            self.account_avatar.setEnabled(False)
     
     def on_connect(self):
         if self.account_dropdown.count() == 0 or self.account_dropdown.currentText() == "No accounts available":
