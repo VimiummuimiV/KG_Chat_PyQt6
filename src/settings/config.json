@@ -22,7 +22,7 @@
   "ui": {
     "font_size": 16,
     "font_family": "Montserrat",
-    "userlist_visible": false,
+    "userlist_visible": true,
     "theme": "dark"
   }
 }

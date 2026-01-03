@@ -26,9 +26,6 @@ class Application:
         self.account_window = None
         self.chat_window = None
         
-        # XMPP client (to be initialized later)
-        self.xmpp_client = None
-        
     def run(self):
         # Run the application - start with account window
         self.show_account_window()
@@ -50,23 +47,8 @@ class Application:
         self.show_chat_window(account)
     
     def show_chat_window(self, account):
-        # Create chat window with account
         self.chat_window = ChatWindow(account=account)
         self.chat_window.show()
-        
-    # Initialize XMPP client here ...
-    
-    
-    def on_message_received(self, message):
-        if self.chat_window:
-            # Add message to chat window
-            display_text = f"{message.login}: {message.body}"
-            self.chat_window.messages_area.addItem(display_text)
-    
-    def on_presence_update(self, presence):
-        if self.chat_window:
-            # Update user list
-            pass
 
 
 def main():
