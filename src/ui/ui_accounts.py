@@ -7,7 +7,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtGui import QFont, QIcon
 from PyQt6.QtCore import Qt, pyqtSignal, QSize
 
-from helpers.create import create_icon_button
+from helpers.create import create_icon_button, update_icon_button
 from helpers.load import load_avatar_by_id, make_rounded_pixmap
 from helpers.config import Config
 from core.accounts import AccountManager
@@ -64,7 +64,8 @@ class AccountWindow(QWidget):
         connect_row.setSpacing(8)
         
         # Avatar
-        self.account_avatar = create_icon_button(self.icons_path, "user.svg", tooltip="Account")
+        is_dark = self.theme_manager.is_dark()
+        self.account_avatar = create_icon_button(self.icons_path, "user.svg", tooltip="Account", is_dark_theme=is_dark)
         self.account_avatar.setEnabled(False)
         self.account_avatar.setStyleSheet("QPushButton { background: transparent; border: none; }")
         connect_row.addWidget(self.account_avatar)
@@ -78,12 +79,12 @@ class AccountWindow(QWidget):
         connect_row.addWidget(self.account_dropdown, stretch=1)
         
         # Connect button (icon-based)
-        self.connect_button = create_icon_button(self.icons_path, "login.svg", tooltip="Connect to chat")
+        self.connect_button = create_icon_button(self.icons_path, "login.svg", tooltip="Connect to chat", is_dark_theme=is_dark)
         self.connect_button.clicked.connect(self.on_connect)
         connect_row.addWidget(self.connect_button)
         
         # Remove button (icon-based)
-        self.remove_button = create_icon_button(self.icons_path, "trash.svg", tooltip="Remove account")
+        self.remove_button = create_icon_button(self.icons_path, "trash.svg", tooltip="Remove account", is_dark_theme=is_dark)
         self.remove_button.clicked.connect(self.on_remove_account)
         connect_row.addWidget(self.remove_button)
         
@@ -124,7 +125,7 @@ class AccountWindow(QWidget):
         create_row.addWidget(self.password_input, stretch=2)
         
         # Create button (icon-based)
-        self.create_button = create_icon_button(self.icons_path, "save.svg", tooltip="Create account")
+        self.create_button = create_icon_button(self.icons_path, "save.svg", tooltip="Create account", is_dark_theme=is_dark)
         self.create_button.clicked.connect(self.on_create_account)
         create_row.addWidget(self.create_button)
         
@@ -160,7 +161,8 @@ class AccountWindow(QWidget):
     def update_avatar(self):
         account = self.account_dropdown.currentData()
         if not account or not account.get('user_id'):
-            self.account_avatar.setIcon(QIcon(str(self.icons_path / "user.svg")))
+            is_dark = self.theme_manager.is_dark()
+            update_icon_button(self.account_avatar, self.icons_path, "user.svg", "Account", is_dark_theme=is_dark)
             self.account_avatar.setIconSize(QSize(30, 30))
             self.account_avatar.setStyleSheet("QPushButton { background: transparent; border: none; }")
             self.account_avatar.setEnabled(False)
@@ -175,7 +177,8 @@ class AccountWindow(QWidget):
             self.account_avatar.setStyleSheet("QPushButton { background: transparent; border: none; padding: 0; }")
             self.account_avatar.setEnabled(True)
         else:
-            self.account_avatar.setIcon(QIcon(str(self.icons_path / "user.svg")))
+            is_dark = self.theme_manager.is_dark()
+            update_icon_button(self.account_avatar, self.icons_path, "user.svg", "Account", is_dark_theme=is_dark)
             self.account_avatar.setIconSize(QSize(30, 30))
             self.account_avatar.setStyleSheet("QPushButton { background: transparent; border: none; }")
             self.account_avatar.setEnabled(False)

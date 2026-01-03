@@ -45,12 +45,17 @@ class ChatWindow(QWidget):
     def toggle_theme(self):
         """Toggle between dark and light theme"""
         new_theme = self.theme_manager.toggle_theme()
+        is_dark = self.theme_manager.is_dark()
         
-        # Update theme button icon
-        if self.theme_manager.is_dark():
-            update_icon_button(self.theme_button, self.icons_path, "sun.svg", "Switch to Light Mode")
+        # Update ALL icon buttons with proper colorization for new theme
+        if is_dark:
+            update_icon_button(self.theme_button, self.icons_path, "sun.svg", "Switch to Light Mode", is_dark_theme=is_dark)
         else:
-            update_icon_button(self.theme_button, self.icons_path, "moon.svg", "Switch to Dark Mode")
+            update_icon_button(self.theme_button, self.icons_path, "moon.svg", "Switch to Dark Mode", is_dark_theme=is_dark)
+        
+        # Re-colorize other buttons for the new theme
+        update_icon_button(self.send_button, self.icons_path, "send.svg", "Send Message", is_dark_theme=is_dark)
+        update_icon_button(self.toggle_userlist_button, self.icons_path, "user.svg", "Toggle User List", is_dark_theme=is_dark)
 
     def initializeUI(self):
         # Load all config values
@@ -91,18 +96,19 @@ class ChatWindow(QWidget):
         input_layout.addWidget(self.input_field, stretch=1)
 
         # Send message button
-        self.send_button = create_icon_button(self.icons_path, "send.svg", tooltip="Send Message")
+        is_dark = self.theme_manager.is_dark()
+        self.send_button = create_icon_button(self.icons_path, "send.svg", tooltip="Send Message", is_dark_theme=is_dark)
         input_layout.addWidget(self.send_button)
 
         # Theme toggle button
-        theme_icon = "sun.svg" if self.theme_manager.is_dark() else "moon.svg"
-        theme_tooltip = "Switch to Light Mode" if self.theme_manager.is_dark() else "Switch to Dark Mode"
-        self.theme_button = create_icon_button(self.icons_path, theme_icon, tooltip=theme_tooltip)
+        theme_icon = "sun.svg" if is_dark else "moon.svg"
+        theme_tooltip = "Switch to Light Mode" if is_dark else "Switch to Dark Mode"
+        self.theme_button = create_icon_button(self.icons_path, theme_icon, tooltip=theme_tooltip, is_dark_theme=is_dark)
         self.theme_button.clicked.connect(self.toggle_theme)
         input_layout.addWidget(self.theme_button)
 
         # Toggle user list button
-        self.toggle_userlist_button = create_icon_button(self.icons_path, "user.svg", tooltip="Toggle User List")
+        self.toggle_userlist_button = create_icon_button(self.icons_path, "user.svg", tooltip="Toggle User List", is_dark_theme=is_dark)
         self.toggle_userlist_button.clicked.connect(self.toggle_user_list)
         input_layout.addWidget(self.toggle_userlist_button)
 
