@@ -258,7 +258,6 @@ class XMPPClient:
                     jid=pres.from_jid,
                     login=pres.login,
                     user_id=pres.user_id,
-                    avatar=pres.avatar,
                     background=pres.background,
                     game_id=pres.game_id,
                     affiliation=pres.affiliation,

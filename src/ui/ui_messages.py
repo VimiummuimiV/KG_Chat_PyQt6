@@ -62,12 +62,17 @@ class MessagesWidget(QWidget):
         self.input_field = None  # Will be set later
         self.messages = []
         self.max_messages = 100
+        self.color_cache = {}  # will be set from ChatWindow
         
         # Get background color from config
         self.bg_color = config.get("ui", "theme")
         self.bg_hex = "#1E1E1E" if self.bg_color == "dark" else "#FFFFFF"
         
         self.setup_ui()
+
+    def set_color_cache(self, cache: dict):
+        """Set a shared color cache dict (shared with userlist)"""
+        self.color_cache = cache
     
     def set_input_field(self, input_field):
         """Set the input field for username clicking"""
@@ -102,15 +107,15 @@ class MessagesWidget(QWidget):
         timestamp = getattr(msg, 'timestamp', None) or datetime.now()
         time_str = timestamp.strftime("%H:%M:%S")
         
-        # Get login and color
+        # Get login and color (use shared cache)
         login = msg.login if msg.login else "Unknown"
-        bg_color = getattr(msg, 'background', None)
-        
-        # Optimize color for contrast
-        if bg_color:
-            bg_color = optimize_color_contrast(bg_color, self.bg_hex, target_ratio=4.5)
-        else:
-            bg_color = "#AAAAAA"
+        if login not in self.color_cache:
+            bg_color = getattr(msg, 'background', None)
+            if bg_color:
+                self.color_cache[login] = optimize_color_contrast(bg_color, self.bg_hex, target_ratio=4.5)
+            else:
+                self.color_cache[login] = "#AAAAAA"
+        bg_color = self.color_cache[login]
         
         # Format message HTML
         html = f'''

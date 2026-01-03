@@ -1,25 +1,23 @@
 """User list display widget"""
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QScrollArea
 from PyQt6.QtCore import Qt, QTimer
-import threading
-from PyQt6.QtGui import QFont, QPixmap
+from PyQt6.QtGui import QFont
 
 from helpers.color_contrast import optimize_color_contrast
-from helpers.load import load_avatar_by_id, make_rounded_pixmap
 
 
 class UserWidget(QWidget):
     """Widget for displaying a single user"""
     
-    def __init__(self, user, bg_hex, config):
+    def __init__(self, user, bg_hex, config, color_cache=None, counter: int = None):
         super().__init__()
         self.user = user
         self.bg_hex = bg_hex
         self.config = config
-        self.avatar_pixmap = None
+        self.color_cache = color_cache or {}
+        self.counter = counter
         
         self.setup_ui()
-        self.load_avatar()
     
     def setup_ui(self):
         """Setup the UI"""
@@ -28,54 +26,36 @@ class UserWidget(QWidget):
         layout.setSpacing(6)
         self.setLayout(layout)
         
-        # Avatar placeholder
-        self.avatar_label = QLabel()
-        self.avatar_label.setFixedSize(24, 24)
-        self.avatar_label.setScaledContents(True)
-        layout.addWidget(self.avatar_label)
-        
-        # Username with color
-        bg_color = getattr(self.user, 'background', None)
-        if bg_color:
-            bg_color = optimize_color_contrast(bg_color, self.bg_hex, target_ratio=4.5)
+        # Username with color (prefer cached color)
+        login = getattr(self.user, 'login', None)
+        if login and login in self.color_cache:
+            bg_color = self.color_cache[login]
         else:
-            bg_color = "#AAAAAA"
+            bg_color_src = getattr(self.user, 'background', None)
+            if bg_color_src:
+                bg_color = optimize_color_contrast(bg_color_src, self.bg_hex, target_ratio=4.5)
+                if login:
+                    self.color_cache[login] = bg_color
+            else:
+                bg_color = "#AAAAAA"
         
-        # Display name with game counter if in game
+        # Display name
         display_name = self.user.login
-        if getattr(self.user, 'game_id', None):
-            display_name = f"{self.user.login}"
-        
         self.username_label = QLabel(display_name)
         self.username_label.setStyleSheet(f"color: {bg_color}; font-weight: bold;")
         self.username_label.setFont(QFont(self.config.get("ui", "font_family"), 11))
         layout.addWidget(self.username_label, stretch=1)
-    
-    def load_avatar(self):
-        """Load user avatar asynchronously in a worker thread to avoid blocking UI"""
-        if hasattr(self.user, 'user_id') and self.user.user_id:
-            threading.Thread(target=self._load_avatar_thread, daemon=True).start()
-        else:
-            self._set_default_avatar()
 
-    def _load_avatar_thread(self):
-        """Background avatar fetch; result applied on main thread"""
-        try:
-            pixmap = load_avatar_by_id(self.user.user_id, timeout=2)
-            if pixmap:
-                rounded = make_rounded_pixmap(pixmap, 24, radius=4)
-                QTimer.singleShot(0, lambda: self.avatar_label.setPixmap(rounded))
-            else:
-                QTimer.singleShot(0, self._set_default_avatar)
-        except Exception:
-            QTimer.singleShot(0, self._set_default_avatar)
-    
-    def _set_default_avatar(self):
-        """Set default avatar icon"""
-        # Create simple colored square as fallback
-        pixmap = QPixmap(24, 24)
-        pixmap.fill(Qt.GlobalColor.gray)
-        self.avatar_label.setPixmap(pixmap)
+        # Optional counter badge (separate element)
+        self.counter_label = QLabel("")
+        self.counter_label.setFont(QFont(self.config.get("ui", "font_family"), 10))
+        self.counter_label.setStyleSheet("color: #FFFFFF; background-color: #444444; border-radius: 8px; padding: 2px 6px;")
+        if self.counter and int(self.counter) > 0:
+            self.counter_label.setText(str(self.counter))
+            self.counter_label.setVisible(True)
+        else:
+            self.counter_label.setVisible(False)
+        layout.addWidget(self.counter_label)    
 
 
 class UserListWidget(QWidget):
@@ -87,6 +67,7 @@ class UserListWidget(QWidget):
         self.input_field = input_field
         self.user_widgets = []
         self.user_game_state = {}  # Track game counters
+        self.color_cache = {}  # Allows external code to set shared cache
         
         # Get background color
         self.bg_color = config.get("ui", "theme")
@@ -164,7 +145,15 @@ class UserListWidget(QWidget):
             self.user_widgets.append(chat_label)
             
             for user in in_chat:
-                user_widget = UserWidget(user, self.bg_hex, self.config)
+                # Ensure color cached for this login
+                if user.login and user.login not in self.color_cache:
+                    bg_color = getattr(user, 'background', None)
+                    if bg_color:
+                        self.color_cache[user.login] = optimize_color_contrast(bg_color, self.bg_hex, target_ratio=4.5)
+                    else:
+                        self.color_cache[user.login] = "#AAAAAA"
+
+                user_widget = UserWidget(user, self.bg_hex, self.config, color_cache=self.color_cache)
                 self.users_layout.insertWidget(self.users_layout.count() - 1, user_widget)
                 self.user_widgets.append(user_widget)
         
@@ -184,17 +173,20 @@ class UserListWidget(QWidget):
             self.user_widgets.append(game_label)
             
             for user in in_game:
-                # Modify user display name to include counter
+                # Determine counter for display
                 counter = self.user_game_state.get(user.login, {}).get('counter', 1)
-                original_login = user.login
-                user.login = f"{original_login} 🚦{counter}"
-                
-                user_widget = UserWidget(user, self.bg_hex, self.config)
+
+                # Ensure color cached for this login
+                if user.login and user.login not in self.color_cache:
+                    bg_color = getattr(user, 'background', None)
+                    if bg_color:
+                        self.color_cache[user.login] = optimize_color_contrast(bg_color, self.bg_hex, target_ratio=4.5)
+                    else:
+                        self.color_cache[user.login] = "#AAAAAA"
+
+                user_widget = UserWidget(user, self.bg_hex, self.config, color_cache=self.color_cache, counter=counter)
                 self.users_layout.insertWidget(self.users_layout.count() - 1, user_widget)
                 self.user_widgets.append(user_widget)
-                
-                # Restore original login
-                user.login = original_login
     
     def update_theme(self):
         """Update theme colors"""

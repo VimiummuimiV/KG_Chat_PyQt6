@@ -11,7 +11,6 @@ class ChatUser:
     user_id: str
     login: str
     jid: str
-    avatar: Optional[str] = None
     background: Optional[str] = None
     game_id: Optional[str] = None
     affiliation: str = 'none'
@@ -23,20 +22,7 @@ class ChatUser:
         if self.last_seen is None:
             self.last_seen = datetime.now()
     
-    def get_avatar_url(self) -> str:
-        """Get full avatar URL with _big suffix"""
-        if self.avatar:
-            # Convert: /storage/avatars/748754.png?updated=123
-            # To: https://klavogonki.ru/storage/avatars/748754_big.png?updated=123
-            
-            # Split path and query params
-            parts = self.avatar.split('?')
-            avatar_path = parts[0].replace('.png', '')
-            query = f"?{parts[1]}" if len(parts) > 1 else ""
-            
-            # Add _big.png with query params
-            return f"https://klavogonki.ru{avatar_path}_big.png{query}"
-        return None
+
 
 
 class UserList:
@@ -46,8 +32,7 @@ class UserList:
         self.users: Dict[str, ChatUser] = {}
     
     def add_or_update(self, jid: str, login: str, user_id: str = None, 
-                      avatar: str = None, background: str = None,
-                      game_id: str = None, affiliation: str = 'none',
+                      background: str = None, game_id: str = None, affiliation: str = 'none',
                       role: str = 'participant') -> ChatUser:
         """Add or update user"""
         
@@ -59,8 +44,6 @@ class UserList:
             user.login = login
             if user_id:
                 user.user_id = user_id
-            if avatar:
-                user.avatar = avatar
             if background:
                 user.background = background
             # Always set/clear game_id based on presence update so UI reflects current state
@@ -74,7 +57,6 @@ class UserList:
                 user_id=user_id or '',
                 login=login,
                 jid=jid,
-                avatar=avatar,
                 background=background,
                 game_id=game_id,
                 affiliation=affiliation,
@@ -113,10 +95,9 @@ class UserList:
         result = f"👥 Users ({len(users)}):\n" + "═" * 40 + "\n"
         for user in sorted(users, key=lambda u: u.login.lower()):
             emoji = "🟢" if user.status == 'available' else "⚫"
-            avatar = " 🖼️" if user.avatar else ""
             game = f"\n   └─ 🎮 Game #{user.game_id}" if user.game_id else ""
             bg = f" [{user.background}]" if user.background else ""
-            result += f"{emoji} {user.login}{avatar}{bg}{game}\n"
+            result += f"{emoji} {user.login}{bg}{game}\n"
         result += "═" * 40
         return result
     

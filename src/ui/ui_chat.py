@@ -28,6 +28,8 @@ class ChatWindow(QWidget):
         self.account = account
         self.xmpp_client = None
         self.signal_emitter = SignalEmitter()
+        # Shared color cache for optimized username colors
+        self.color_cache = {}
         
         # Paths
         self.config_path = Path(__file__).parent.parent / "settings" / "config.json"
@@ -78,6 +80,8 @@ class ChatWindow(QWidget):
 
         # Messages widget
         self.messages_widget = MessagesWidget(self.config)
+        # Share color cache with messages widget
+        self.messages_widget.set_color_cache(self.color_cache)
         left_layout.addWidget(self.messages_widget, stretch=1)
         
         # Input row
@@ -121,6 +125,8 @@ class ChatWindow(QWidget):
         
         # Right side: user list
         self.user_list_widget = UserListWidget(self.config, self.input_field)
+        # Link userlist color cache to shared cache
+        self.user_list_widget.color_cache = self.color_cache
         userlist_visible = self.config.get("ui", "userlist_visible")
         if userlist_visible is not None:
             self.user_list_widget.setVisible(userlist_visible)
