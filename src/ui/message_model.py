@@ -1,0 +1,62 @@
+"""Message data model for virtual scrolling"""
+from datetime import datetime
+from typing import List, Optional
+from dataclasses import dataclass
+from PyQt6.QtCore import QAbstractListModel, Qt, QModelIndex
+
+
+@dataclass
+class MessageData:
+    """Lightweight message data structure"""
+    timestamp: datetime
+    username: str
+    body: str
+    background_color: Optional[str] = None
+    login: Optional[str] = None
+    
+    def get_time_str(self) -> str:
+        return self.timestamp.strftime("%H:%M:%S")
+
+
+class MessageListModel(QAbstractListModel):
+    """Model for storing messages - handles data only, no rendering"""
+    
+    def __init__(self, max_messages: int = 10000):
+        super().__init__()
+        self._messages: List[MessageData] = []
+        self.max_messages = max_messages
+    
+    def rowCount(self, parent=QModelIndex()) -> int:
+        if parent.isValid():
+            return 0
+        return len(self._messages)
+    
+    def data(self, index: QModelIndex, role=Qt.ItemDataRole.DisplayRole):
+        if not index.isValid() or index.row() >= len(self._messages):
+            return None
+        
+        if role == Qt.ItemDataRole.DisplayRole:
+            return self._messages[index.row()]
+        
+        return None
+    
+    def add_message(self, msg: MessageData):
+        """Add a new message"""
+        if len(self._messages) >= self.max_messages:
+            self.beginRemoveRows(QModelIndex(), 0, 0)
+            self._messages.pop(0)
+            self.endRemoveRows()
+        
+        row = len(self._messages)
+        self.beginInsertRows(QModelIndex(), row, row)
+        self._messages.append(msg)
+        self.endInsertRows()
+    
+    def clear(self):
+        if self._messages:
+            self.beginResetModel()
+            self._messages.clear()
+            self.endResetModel()
+    
+    def get_all_messages(self) -> List[MessageData]:
+        return self._messages.copy()

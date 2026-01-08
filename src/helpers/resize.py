@@ -1,0 +1,122 @@
+"""Centralized resize event handling for chat window"""
+from PyQt6.QtCore import QTimer
+
+
+def recalculate_layout(chat_window):
+    """
+    Force layout recalculation after userlist visibility change.
+    Ensures messages recalculate when available width changes.
+    """
+    current_view = chat_window.stacked_widget.currentWidget()
+    
+    if current_view == chat_window.messages_widget:
+        chat_window.messages_widget._force_recalculate()
+        QTimer.singleShot(50, lambda: chat_window.messages_widget._force_recalculate())
+    elif current_view == chat_window.chatlog_widget and chat_window.chatlog_widget:
+        chat_window.chatlog_widget._force_recalculate()
+        QTimer.singleShot(50, lambda: chat_window.chatlog_widget._force_recalculate())
+
+
+def handle_chat_resize(chat_window, width: int):
+    """
+    Handle all resize logic for ChatWindow
+    
+    Args:
+        chat_window: ChatWindow instance
+        width: Current window width
+    """
+    # Move buttons based on width (< 500px)
+    if width < 500 and not chat_window.buttons_on_bottom:
+        for btn in chat_window.movable_buttons:
+            chat_window.input_top_layout.removeWidget(btn)
+        for btn in chat_window.movable_buttons:
+            chat_window.input_bottom_layout.addWidget(btn)
+        chat_window.input_bottom_layout.addStretch()
+        chat_window.buttons_on_bottom = True
+    elif width >= 500 and chat_window.buttons_on_bottom:
+        for btn in chat_window.movable_buttons:
+            chat_window.input_bottom_layout.removeWidget(btn)
+        while chat_window.input_bottom_layout.count():
+            item = chat_window.input_bottom_layout.takeAt(0)
+            if item.widget() is None:
+                del item
+        for btn in chat_window.movable_buttons:
+            chat_window.input_top_layout.addWidget(btn)
+        chat_window.buttons_on_bottom = False
+    
+    # Determine current view and corresponding widgets/settings
+    current_view = chat_window.stacked_widget.currentWidget()
+    is_chatlog_view = (current_view == chat_window.chatlog_widget)
+    
+    if is_chatlog_view:
+        userlist_widget = chat_window.chatlog_userlist_widget
+        config_key = "chatlog_userlist_visible"
+        auto_hide_attr = "auto_hide_chatlog_userlist"
+    else:
+        userlist_widget = chat_window.user_list_widget
+        config_key = "messages_userlist_visible"
+        auto_hide_attr = "auto_hide_messages_userlist"
+    
+    # Check compact mode transition (1000px threshold)
+    was_compact = chat_window.messages_widget.delegate.compact_mode
+    is_compact = width <= 1000
+    
+    # Re-enable auto-hide when crossing the 1000px threshold
+    if was_compact != is_compact:
+        setattr(chat_window, auto_hide_attr, True)
+    
+    # Get userlist visibility config
+    userlist_visible_config = chat_window.config.get("ui", config_key)
+    if userlist_visible_config is None:
+        userlist_visible_config = True
+    
+    # Apply auto-hide logic for userlists
+    auto_hide = getattr(chat_window, auto_hide_attr)
+    
+    # Below 500px: toggle between content and userlist (mutually exclusive)
+    if width < 500 and userlist_widget:
+        if userlist_widget.isVisible():
+            # Showing userlist: hide stacked widget (messages/chatlog) and narrow hideable widgets
+            if chat_window.stacked_widget.isVisible():
+                chat_window.stacked_widget.setVisible(False)
+            if hasattr(chat_window, 'narrow_hideable_widgets'):
+                for widget in chat_window.narrow_hideable_widgets:
+                    if widget.isVisible():
+                        widget.setVisible(False)
+        else:
+            # Showing content: show stacked widget and all narrow hideable widgets
+            if not chat_window.stacked_widget.isVisible():
+                chat_window.stacked_widget.setVisible(True)
+            if hasattr(chat_window, 'narrow_hideable_widgets'):
+                for widget in chat_window.narrow_hideable_widgets:
+                    if not widget.isVisible():
+                        widget.setVisible(True)
+    
+    # Above 500px: normal behavior
+    if width >= 500:
+        # Ensure stacked widget always visible
+        if not chat_window.stacked_widget.isVisible():
+            chat_window.stacked_widget.setVisible(True)
+        
+        # Ensure all narrow hideable widgets always visible
+        if hasattr(chat_window, 'narrow_hideable_widgets'):
+            for widget in chat_window.narrow_hideable_widgets:
+                if not widget.isVisible():
+                    widget.setVisible(True)
+        
+        # Auto-hide userlist based on compact mode
+        if auto_hide and userlist_widget:
+            if is_compact and userlist_widget.isVisible():
+                userlist_widget.setVisible(False)
+            elif not is_compact and userlist_visible_config and not userlist_widget.isVisible():
+                userlist_widget.setVisible(True)
+    
+    # Update compact mode for all widgets
+    if was_compact != is_compact:
+        chat_window.messages_widget.set_compact_mode(is_compact)
+        if chat_window.chatlog_widget:
+            chat_window.chatlog_widget.set_compact_mode(is_compact)
+            chat_window.chatlog_widget.set_compact_layout(is_compact)
+        QTimer.singleShot(150, chat_window._complete_resize_recalculation)
+    else:
+        QTimer.singleShot(50, chat_window._complete_resize_recalculation)

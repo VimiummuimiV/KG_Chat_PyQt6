@@ -1,0 +1,382 @@
+from pathlib import Path
+import threading
+from concurrent.futures import ThreadPoolExecutor
+from PyQt6.QtWidgets import (
+    QWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QLabel,
+    QScrollArea,
+    QApplication
+)
+from PyQt6.QtCore import Qt, QTimer, QSize, pyqtSignal, QObject
+from PyQt6.QtGui import QFont, QIcon, QPixmap
+from helpers.color_contrast import optimize_color_contrast
+from helpers.load import load_avatar_by_id, make_rounded_pixmap
+from helpers.create import _render_svg_icon
+from core.userlist import ChatUser
+
+
+class AvatarLoader(QObject):
+    """Signal emitter for async avatar loading"""
+    avatar_loaded = pyqtSignal(str, QPixmap)
+
+
+class UserWidget(QWidget):
+    """Widget for a single user display"""
+    AVATAR_SIZE = 36
+    SVG_AVATAR_SIZE = 24
+    
+    def __init__(self, user, bg_hex, config, color_cache, icons_path, is_dark_theme, avatar_cache, executor, counter=None):
+        super().__init__()
+        self.user = user
+        self.avatar_cache = avatar_cache
+        
+        layout = QHBoxLayout()
+        layout.setContentsMargins(2, 0, 2, 0)
+        layout.setSpacing(6)
+        self.setLayout(layout)
+        
+        # Avatar
+        self.avatar_label = QLabel()
+        self.avatar_label.setFixedSize(self.AVATAR_SIZE, self.AVATAR_SIZE)
+        self.avatar_label.setStyleSheet("background: transparent; border: none; padding: 0; margin: 0;")
+        self.avatar_label.setScaledContents(False)
+        self.avatar_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        
+        # Load avatar (cached or network)
+        if user.user_id and user.user_id in avatar_cache:
+            self.avatar_label.setPixmap(make_rounded_pixmap(avatar_cache[user.user_id], self.AVATAR_SIZE, 8))
+        else:
+            self.avatar_label.setPixmap(_render_svg_icon(icons_path / "user.svg", self.SVG_AVATAR_SIZE).pixmap(QSize(self.SVG_AVATAR_SIZE, self.SVG_AVATAR_SIZE)))
+            if user.user_id:
+                loader = AvatarLoader()
+                loader.avatar_loaded.connect(lambda uid, pix: self._set_avatar(uid, pix) if uid == user.user_id else None)
+                executor.submit(self._load_avatar, user.user_id, loader)
+        
+        layout.addWidget(self.avatar_label)
+        
+        # Username
+        text_color = color_cache.get(user.login) or optimize_color_contrast(user.background, bg_hex, 4.5) if user.background else "#AAAAAA"
+        if user.login not in color_cache:
+            color_cache[user.login] = text_color
+        
+        self.username_label = QLabel(user.login)
+        self.username_label.setStyleSheet(f"color: {text_color};")
+        self.username_label.setFont(QFont(config.get("ui", "font_family"), config.get("ui", "font_size")))
+        layout.addWidget(self.username_label, stretch=1)
+        
+        # Counter
+        self.counter_label = None
+        if counter and counter > 0:
+            self.counter_label = QLabel(f"{counter}")
+            self.counter_label.setFont(QFont(config.get("ui", "font_family"), config.get("ui", "font_size")))
+            self.counter_label.setStyleSheet(f"color: {text_color};")
+            layout.addWidget(self.counter_label)
+    
+    def update_color(self, color: str):
+        """Update colors without rebuilding widget"""
+        self.username_label.setStyleSheet(f"color: {color};")
+        if self.counter_label:
+            self.counter_label.setStyleSheet(f"color: {color};")
+    
+    def _load_avatar(self, user_id, loader):
+        pixmap = load_avatar_by_id(user_id, timeout=2)
+        if pixmap:
+            loader.avatar_loaded.emit(user_id, pixmap)
+    
+    def _set_avatar(self, user_id, pixmap):
+        """Update avatar when loaded - with safety check"""
+        try:
+            if not self.avatar_label or not hasattr(self, 'avatar_label'):
+                return
+            self.avatar_cache[user_id] = pixmap
+            self.avatar_label.setPixmap(make_rounded_pixmap(pixmap, self.AVATAR_SIZE, 8))
+        except RuntimeError:
+            pass
+
+
+class UserListWidget(QWidget):
+    """Widget for displaying sorted user list with dynamic sections"""
+    
+    def __init__(self, config, input_field=None):
+        super().__init__()
+        self.config = config
+        self.input_field = input_field
+        self.user_widgets = {}
+        self.user_game_state = {}
+        self.color_cache = {}
+        self.avatar_cache = {}
+        self.bg_hex = "#1E1E1E" if config.get("ui", "theme") == "dark" else "#FFFFFF"
+        self.is_dark_theme = config.get("ui", "theme") == "dark"
+        
+        self.avatar_executor = ThreadPoolExecutor(thread_name_prefix="avatar_loader")
+        self.icons_path = Path(__file__).parent.parent / "icons"
+        
+        # Use config for spacing and margins
+        widget_margin = config.get("ui", "margins", "widget") or 5
+        widget_spacing = config.get("ui", "spacing", "widget_elements") or 6
+        list_spacing = config.get("ui", "spacing", "list_items") or 2
+        section_gap = config.get("ui", "spacing", "section_gap") or 12
+        
+        layout = QVBoxLayout()
+        layout.setContentsMargins(widget_margin, widget_margin, widget_margin, widget_margin)
+        layout.setSpacing(widget_spacing)
+        self.setLayout(layout)
+        self.setMinimumWidth(350)
+        self.setMaximumWidth(350)
+        
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        layout.addWidget(scroll)
+        
+        container = QWidget()
+        self.main_layout = QVBoxLayout()
+        self.main_layout.setContentsMargins(5, 5, 5, 5)
+        self.main_layout.setSpacing(widget_spacing)
+        container.setLayout(self.main_layout)
+        scroll.setWidget(container)
+        
+        # Create section widgets
+        header_font = QFont(config.get("ui", "font_family"), config.get("ui", "font_size"))
+        header_font.setBold(True)
+        
+        # Chat section
+        self.chat_label = QLabel("🗯️ Chat")
+        self.chat_label.setFont(header_font)
+        self.chat_label.setStyleSheet("color: #888;")
+        self.chat_label.setVisible(False)
+        self.main_layout.addWidget(self.chat_label)
+        
+        self.chat_container = QVBoxLayout()
+        self.chat_container.setSpacing(list_spacing)
+        self.main_layout.addLayout(self.chat_container)
+        
+        # Spacer between sections
+        self.section_spacer = QWidget()
+        self.section_spacer.setFixedHeight(section_gap)
+        self.section_spacer.setVisible(False)
+        self.main_layout.addWidget(self.section_spacer)
+        
+        # Game section
+        self.game_label = QLabel("🏁 Game")
+        self.game_label.setFont(header_font)
+        self.game_label.setStyleSheet("color: #888;")
+        self.game_label.setVisible(False)
+        self.main_layout.addWidget(self.game_label)
+        
+        self.game_container = QVBoxLayout()
+        self.game_container.setSpacing(list_spacing)
+        self.main_layout.addLayout(self.game_container)
+        
+        self.main_layout.addStretch()
+    
+    def _update_section_visibility(self):
+        """Update visibility of section headers based on whether they have users"""
+        has_chat_users = self.chat_container.count() > 0
+        has_game_users = self.game_container.count() > 0
+        
+        # Show/hide chat section
+        self.chat_label.setVisible(has_chat_users)
+        
+        # Show/hide game section
+        self.game_label.setVisible(has_game_users)
+        
+        # Show spacer only if both sections have users
+        self.section_spacer.setVisible(has_chat_users and has_game_users)
+    
+    def _update_counter(self, user):
+        """Update and return counter for user"""
+        if user.game_id:
+            state = self.user_game_state.get(user.login)
+            if not state:
+                counter = 1
+            elif state.get('last_game_id') != user.game_id:
+                counter = state.get('counter', 1) + 1
+            else:
+                counter = state.get('counter', 1)
+            self.user_game_state[user.login] = {'last_game_id': user.game_id, 'counter': counter}
+            return counter
+        else:
+            if user.login in self.user_game_state:
+                self.user_game_state.pop(user.login, None)
+            return None
+    
+    def _clear_container(self, container):
+        """Safely clear a container layout"""
+        widgets_to_delete = []
+        while container.count() > 0:
+            item = container.takeAt(0)
+            if item.widget():
+                widgets_to_delete.append(item.widget())
+        
+        # Delete widgets after removing from layout
+        for widget in widgets_to_delete:
+            try:
+                widget.deleteLater()
+            except Exception:
+                pass
+    
+    def add_users(self, users=None, presence=None, bulk=False):
+        """Add user(s) to appropriate section with sorting"""
+        if presence:
+            users = [ChatUser(
+                user_id=presence.user_id or '',
+                login=presence.login,
+                jid=presence.from_jid,
+                background=presence.background,
+                game_id=presence.game_id,
+                affiliation=presence.affiliation,
+                role=presence.role,
+                status='available'
+            )]
+        
+        if not users:
+            return
+        
+        # Update counters for all
+        for user in users:
+            self._update_counter(user)
+        
+        if bulk:
+            # Clear all widgets safely
+            for widget in list(self.user_widgets.values()):
+                try:
+                    widget.deleteLater()
+                except Exception:
+                    pass
+            self.user_widgets.clear()
+            
+            # Clear containers
+            self._clear_container(self.chat_container)
+            self._clear_container(self.game_container)
+            
+            # Process deletions
+            QApplication.processEvents()
+            
+            # Separate and sort
+            in_chat = sorted([u for u in users if not u.game_id], key=lambda u: u.login.lower())
+            in_game = sorted([u for u in users if u.game_id], 
+                           key=lambda u: (-self.user_game_state.get(u.login, {}).get('counter', 1), u.login.lower()))
+            
+            # Add to chat
+            for user in in_chat:
+                try:
+                    widget = UserWidget(user, self.bg_hex, self.config, self.color_cache, 
+                                      self.icons_path, self.is_dark_theme, self.avatar_cache, self.avatar_executor)
+                    self.chat_container.addWidget(widget)
+                    self.user_widgets[user.jid] = widget
+                except Exception as e:
+                    print(f"❌ Error creating user widget: {e}")
+            
+            # Add to game
+            for user in in_game:
+                try:
+                    counter = self.user_game_state.get(user.login, {}).get('counter', 1)
+                    widget = UserWidget(user, self.bg_hex, self.config, self.color_cache, 
+                                      self.icons_path, self.is_dark_theme, self.avatar_cache, self.avatar_executor, counter)
+                    self.game_container.addWidget(widget)
+                    self.user_widgets[user.jid] = widget
+                except Exception as e:
+                    print(f"❌ Error creating user widget: {e}")
+            
+            # Update section visibility after bulk load
+            self._update_section_visibility()
+        else:
+            # Single user update
+            user = users[0]
+            
+            # Remove old if exists
+            if user.jid in self.user_widgets:
+                try:
+                    self.user_widgets[user.jid].deleteLater()
+                    del self.user_widgets[user.jid]
+                except Exception:
+                    pass
+            
+            # Determine section and counter
+            is_game = bool(user.game_id)
+            counter = self.user_game_state.get(user.login, {}).get('counter', 1) if is_game else None
+            container = self.game_container if is_game else self.chat_container
+            
+            # Create widget
+            try:
+                widget = UserWidget(user, self.bg_hex, self.config, self.color_cache, 
+                                  self.icons_path, self.is_dark_theme, self.avatar_cache, self.avatar_executor, counter)
+                self.user_widgets[user.jid] = widget
+                
+                # Find sorted position and insert
+                inserted = False
+                for i in range(container.count()):
+                    item = container.itemAt(i)
+                    if not item or not isinstance(item.widget(), UserWidget):
+                        continue
+                    existing = item.widget()
+                    
+                    if is_game:
+                        # Sort by counter desc, then name asc
+                        my_counter = counter or 1
+                        their_counter = self.user_game_state.get(existing.user.login, {}).get('counter', 1)
+                        if my_counter > their_counter or (my_counter == their_counter and user.login.lower() < existing.user.login.lower()):
+                            container.insertWidget(i, widget)
+                            inserted = True
+                            break
+                    else:
+                        # Sort alphabetically
+                        if user.login.lower() < existing.user.login.lower():
+                            container.insertWidget(i, widget)
+                            inserted = True
+                            break
+                
+                if not inserted:
+                    container.addWidget(widget)
+                
+                # Update section visibility after adding user
+                self._update_section_visibility()
+                
+            except Exception as e:
+                print(f"❌ Error adding user widget: {e}")
+    
+    def remove_users(self, jids=None, presence=None):
+        """Remove user(s)"""
+        if presence:
+            jids = [presence.from_jid]
+        
+        if not jids:
+            return
+        
+        for jid in jids:
+            if jid in self.user_widgets:
+                try:
+                    self.user_widgets[jid].deleteLater()
+                    del self.user_widgets[jid]
+                except Exception:
+                    pass
+        
+        # Update section visibility after removing users
+        QTimer.singleShot(10, self._update_section_visibility)
+    
+    def update_theme(self):
+        """Update theme colors - optimized to avoid full rebuild"""
+        theme = self.config.get("ui", "theme")
+        self.bg_hex = "#1E1E1E" if theme == "dark" else "#FFFFFF"
+        self.is_dark_theme = theme == "dark"
+        
+        self.setUpdatesEnabled(False)
+        for jid, widget in list(self.user_widgets.items()):
+            try:
+                username = widget.user.login
+                background = widget.user.background
+                new_color = optimize_color_contrast(background, self.bg_hex, 4.5) if background else "#AAAAAA"
+                self.color_cache[username] = new_color
+                widget.update_color(new_color)
+            except (RuntimeError, AttributeError):
+                pass
+        self.setUpdatesEnabled(True)
+    
+    def closeEvent(self, event):
+        """Clean up thread pool on close"""
+        if hasattr(self, 'avatar_executor'):
+            self.avatar_executor.shutdown(wait=False)
+        event.accept()

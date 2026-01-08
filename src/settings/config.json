@@ -1,0 +1,62 @@
+{
+  "server": {
+    "url": "https://klavogonki.ru/xmpp-httpbind/",
+    "domain": "jabber.klavogonki.ru",
+    "resource": "web"
+  },
+  "rooms": [
+    {
+      "jid": "general@conference.jabber.klavogonki.ru",
+      "name": "General",
+      "auto_join": true
+    }
+  ],
+  "connection": {
+    "wait": "60",
+    "hold": "1",
+    "content_type": "text/xml; charset=utf-8",
+    "version": "1.6",
+    "xmpp_version": "1.0",
+    "lang": "en"
+  },
+  "ui": {
+    "font_size": 16,
+    "font_family": "Montserrat",
+    "messages_userlist_visible": true,
+    "chatlog_userlist_visible": true,
+    "chatlog_search_visible": false,
+    "theme": "dark",
+    "notification_width": 500,
+    "notification_position": "right",
+    "emoticon_max_size": 140,
+    "buttons": {
+      "large_button": {
+        "icon_size": 30,
+        "button_size": 48
+      },
+      "small_button": {
+        "icon_size": 20,
+        "button_size": 32
+      },
+      "spacing": 8
+    },
+    "spacing": {
+      "window_content": 10,
+      "widget_content": 6,
+      "widget_elements": 6,
+      "list_items": 2,
+      "section_gap": 12
+    },
+    "margins": {
+      "window": 10,
+      "widget": 5,
+      "list": 2,
+      "notification": 8
+    },
+    "message": {
+      "padding": 2,
+      "vertical_spacing": 2,
+      "element_spacing": 10
+    }
+  }
+}
