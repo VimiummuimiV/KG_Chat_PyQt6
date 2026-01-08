@@ -57,8 +57,8 @@ def get_private_message_colors(config, is_dark_theme: bool) -> dict:
         # Light theme: dark text on light backgrounds
         lightness_values = {
             "text": 35,          # Dark & readable text
-            "input_bg": 97,      # Light background
-            "input_border": 70   # Medium contrast border
+            "input_bg": 85,      # Light background
+            "input_border": 55   # Medium contrast border
         }
     
     # Generate all colors

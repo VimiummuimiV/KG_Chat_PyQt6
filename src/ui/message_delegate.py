@@ -240,14 +240,6 @@ class MessageDelegate(QStyledItemDelegate):
         painter.save()
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         
-        # Draw subtle background for private messages
-        if getattr(msg, 'is_private', False):
-            if self.is_dark_theme:
-                bg_color = QColor(70, 40, 40, 40)  # Very subtle dark red tint
-            else:
-                bg_color = QColor(255, 240, 240, 80)  # Very subtle light red tint
-            painter.fillRect(option.rect, bg_color)
-        
         if self.compact_mode:
             self._paint_compact(painter, option.rect, msg, row)
         else:

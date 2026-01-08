@@ -214,6 +214,9 @@ class ChatWindow(QWidget):
         self.private_chat_jid = jid
         self.private_chat_username = username
         self.private_chat_user_id = user_id
+
+        # Clear input field
+        self.input_field.clear()
         
         # Create exit button if it doesn't exist
         if self.exit_private_button is None:
@@ -234,6 +237,9 @@ class ChatWindow(QWidget):
         
         # Update UI
         self._update_input_style()
+
+        # Focus input for immediate typing
+        self.input_field.setFocus()
         
         # Update window title
         base = f"Chat - {self.account['login']}" if self.account else "Chat"
