@@ -29,6 +29,23 @@
     "notification_width": 500,
     "notification_position": "right",
     "emoticon_max_size": 140,
+    "private_message_color": {
+      "hue": 0,
+      "dark_theme": {
+        "saturation": 75,
+        "lightness": 80,
+        "input_bg_lightness": 18,
+        "input_text_lightness": 70,
+        "input_border_lightness": 35
+      },
+      "light_theme": {
+        "saturation": 75,
+        "lightness": 30,
+        "input_bg_lightness": 97,
+        "input_text_lightness": 35,
+        "input_border_lightness": 80
+      }
+    },
     "buttons": {
       "large_button": {
         "icon_size": 30,

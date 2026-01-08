@@ -10,6 +10,7 @@ from PyQt6.QtGui import QPainter, QFontMetrics, QFont, QColor, QPixmap, QMovie, 
 
 from helpers.color_contrast import optimize_color_contrast
 from helpers.emoticons import EmoticonManager
+from helpers.color_utils import get_private_message_colors
 
 
 class MessageDelegate(QStyledItemDelegate):
@@ -33,6 +34,9 @@ class MessageDelegate(QStyledItemDelegate):
         theme = config.get("ui", "theme") or "dark"
         self.is_dark_theme = (theme == "dark")
         self.bg_hex = "#1E1E1E" if self.is_dark_theme else "#FFFFFF"
+        
+        # Load private message colors from config
+        self.private_colors = get_private_message_colors(config, self.is_dark_theme)
         
         font_family = config.get("ui", "font_family") or "Montserrat"
         font_size = config.get("ui", "font_size") or 16
@@ -73,6 +77,10 @@ class MessageDelegate(QStyledItemDelegate):
         theme = self.config.get("ui", "theme") or "dark"
         self.is_dark_theme = (theme == "dark")
         self.bg_hex = "#1E1E1E" if theme == "dark" else "#FFFFFF"
+        
+        # Reload private message colors for new theme
+        self.private_colors = get_private_message_colors(self.config, self.is_dark_theme)
+        
         self._emoticon_cache.clear()
         self.color_cache.clear()
     
@@ -316,10 +324,7 @@ class MessageDelegate(QStyledItemDelegate):
         
         # Determine text color based on private status
         if is_private:
-            if self.is_dark_theme:
-                text_color = "#FFCCCC"  # Light pink text
-            else:
-                text_color = "#CC0000"  # Red text
+            text_color = self.private_colors["text"]
         else:
             text_color = "#FFFFFF" if self.is_dark_theme else "#000000"
         

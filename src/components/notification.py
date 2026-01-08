@@ -8,6 +8,7 @@ from dataclasses import dataclass
 import threading
 
 from helpers.create import create_icon_button
+from helpers.color_utils import get_private_message_colors
 
 
 @dataclass
@@ -60,6 +61,13 @@ class PopupNotification(QWidget):
         # Determine theme and colors
         is_dark = data.config.get("ui", "theme") == "dark" if data.config else True
         
+        # Load private message colors from config
+        if data.is_private and data.config:
+            private_colors = get_private_message_colors(data.config, is_dark)
+            message_color = private_colors["text"]
+        else:
+            message_color = None  # Will use theme default
+        
         # Main layout
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(margin, margin, margin, margin)
@@ -73,21 +81,8 @@ class PopupNotification(QWidget):
         message_layout = QVBoxLayout()
         message_layout.setSpacing(spacing)
         
-        # Username always uses cached color (from background)
+        # Username label (use cached color)
         username_color = data.color_cache.get(data.title, "#AAAAAA") if data.color_cache else "#AAAAAA"
-        
-        # Message color depends on private status
-        if data.is_private:
-            # Private message body color
-            if is_dark:
-                message_color = "#FFCCCC"  # Light pink
-            else:
-                message_color = "#CC0000"  # Red
-        else:
-            # Normal message body color
-            message_color = "#FFFFFF" if is_dark else "#000000"
-        
-        # Username label
         self.username_label = QLabel(f"<b>{data.title}</b>")
         self.username_label.setStyleSheet(f"color: {username_color};")
         self.username_label.setFont(QFont(font_family, font_size))
@@ -96,7 +91,13 @@ class PopupNotification(QWidget):
         
         # Message label
         self.message_label = QLabel(data.message)
-        self.message_label.setStyleSheet(f"color: {message_color};")
+        self.message_label.setWordWrap(True)
+        self.message_label.setFont(QFont(font_family, font_size))
+        self.message_label.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        
+        # Only set color for private messages
+        if message_color:
+            self.message_label.setStyleSheet(f"color: {message_color};")
         self.message_label.setWordWrap(True)
         self.message_label.setFont(QFont(font_family, font_size))
         self.message_label.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)

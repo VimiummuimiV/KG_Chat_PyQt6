@@ -12,6 +12,7 @@ from playsound3 import playsound
 from helpers.config import Config
 from helpers.create import create_icon_button, update_all_icons, set_theme
 from helpers.resize import handle_chat_resize, recalculate_layout
+from helpers.color_utils import get_private_message_colors
 from themes.theme import ThemeManager
 from core.xmpp import XMPPClient
 from core.messages import Message
@@ -166,11 +167,8 @@ class ChatWindow(QWidget):
         self.send_button.clicked.connect(self.send_message)
         self.input_top_layout.addWidget(self.send_button)
         
-        # Exit private mode button (initially hidden)
-        self.exit_private_button = create_icon_button(self.icons_path, "close.svg", "Exit Private Chat", config=self.config)
-        self.exit_private_button.clicked.connect(self.exit_private_mode)
-        self.exit_private_button.setVisible(False)
-        self.input_top_layout.addWidget(self.exit_private_button)
+        # Exit private mode button reference (created dynamically when needed)
+        self.exit_private_button = None
         
         self.toggle_userlist_button = create_icon_button(self.icons_path, "user.svg", "Toggle User List", config=self.config)
         self.toggle_userlist_button.clicked.connect(self.toggle_user_list)
@@ -187,8 +185,8 @@ class ChatWindow(QWidget):
         self.buttons_on_bottom = False
         self.movable_buttons = [self.toggle_userlist_button, self.theme_button]
         
-        # Widgets to hide at < 500px (all except userlist toggle)
-        self.narrow_hideable_widgets = [self.input_field, self.send_button, self.exit_private_button, self.theme_button]
+        # Widgets to hide at < 500px (exit_private_button managed dynamically)
+        self.narrow_hideable_widgets = [self.input_field, self.send_button, self.theme_button]
         
         # Messages userlist with private mode callback
         self.user_list_widget = UserListWidget(self.config, self.input_field)
@@ -217,8 +215,24 @@ class ChatWindow(QWidget):
         self.private_chat_username = username
         self.private_chat_user_id = user_id
         
+        # Create exit button if it doesn't exist
+        if self.exit_private_button is None:
+            self.exit_private_button = create_icon_button(
+                self.icons_path, "close.svg", "Exit Private Chat", config=self.config
+            )
+            self.exit_private_button.clicked.connect(self.exit_private_mode)
+            
+            # Insert button after send button (before toggle_userlist_button)
+            send_button_index = self.input_top_layout.indexOf(self.send_button)
+            self.input_top_layout.insertWidget(send_button_index + 1, self.exit_private_button)
+            
+            # Add to narrow hideable widgets
+            if self.exit_private_button not in self.narrow_hideable_widgets:
+                self.narrow_hideable_widgets.append(self.exit_private_button)
+        else:
+            self.exit_private_button.setVisible(True)
+        
         # Update UI
-        self.exit_private_button.setVisible(True)
         self._update_input_style()
         
         # Update window title
@@ -241,8 +255,18 @@ class ChatWindow(QWidget):
         self.private_chat_username = None
         self.private_chat_user_id = None
         
+        # Remove and destroy exit button
+        if self.exit_private_button is not None:
+            # Remove from narrow hideable widgets
+            if self.exit_private_button in self.narrow_hideable_widgets:
+                self.narrow_hideable_widgets.remove(self.exit_private_button)
+            
+            # Remove from layout and destroy
+            self.input_top_layout.removeWidget(self.exit_private_button)
+            self.exit_private_button.deleteLater()
+            self.exit_private_button = None
+        
         # Update UI
-        self.exit_private_button.setVisible(False)
         self._update_input_style()
         
         # Restore window title
@@ -266,21 +290,14 @@ class ChatWindow(QWidget):
         is_dark = self.theme_manager.is_dark()
         
         if self.private_mode:
-            # Private mode colors - subtle red tint
-            if is_dark:
-                bg_color = "#2A1F1F"  # Dark red tint
-                text_color = "#FFCCCC"  # Light pink text
-                border_color = "#8B4545"  # Darker red border
-            else:
-                bg_color = "#FFF5F5"  # Very light red
-                text_color = "#CC0000"  # Red text
-                border_color = "#FFCCCC"  # Light red border
+            # Get private message colors from config
+            colors = get_private_message_colors(self.config, is_dark)
             
             self.input_field.setStyleSheet(f"""
                 QLineEdit {{
-                    background-color: {bg_color};
-                    color: {text_color};
-                    border: 2px solid {border_color};
+                    background-color: {colors["input_bg"]};
+                    color: {colors["input_text"]};
+                    border: 2px solid {colors["input_border"]};
                     border-radius: 4px;
                     padding: 8px;
                 }}
