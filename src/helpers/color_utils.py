@@ -26,59 +26,43 @@ def hsl_to_hex(h: float, s: float, l: float) -> str:
 
 
 def get_private_message_colors(config, is_dark_theme: bool) -> dict:
-    """Generate all private message colors from config
+    """Generate all private message colors from hue and saturation only
     
-    The config should have this structure:
-    {
-      "hue": 0,
-      "dark_theme": {
-        "saturation": 80,
-        "lightness": 65,
-        "input_bg_lightness": 18,
-        "input_text_lightness": 70,
-        "input_border_lightness": 35
-      },
-      "light_theme": { ... }
-    }
-    
-    All colors use the same hue and saturation, only lightness varies.
+    Lightness values are derived based on theme and design principles.
+    Only hue and saturation are read from config.
     
     Args:
-        config: Config object or dict with private_message_color settings
+        config: Config object with private_message_color settings
         is_dark_theme: Whether using dark theme
     
     Returns:
-        Dict with all color values for private messages
+        Dict with all color values for private messages:
+        - text: Message text color
+        - input_bg: Input field background
+        - input_border: Input field border
     """
-    # Get base hue
-    if hasattr(config, 'get'):
-        base_hue = config.get("ui", "private_message_color", "hue") or 0
-        theme_key = "dark_theme" if is_dark_theme else "light_theme"
-        
-        # Get base saturation and lightness (text color)
-        saturation = config.get("ui", "private_message_color", theme_key, "saturation") or 80
-        text_lightness = config.get("ui", "private_message_color", theme_key, "lightness") or 65
-        
-        # Get lightness values for other elements
-        input_bg_lightness = config.get("ui", "private_message_color", theme_key, "input_bg_lightness") or 18
-        input_text_lightness = config.get("ui", "private_message_color", theme_key, "input_text_lightness") or 70
-        input_border_lightness = config.get("ui", "private_message_color", theme_key, "input_border_lightness") or 35
-    else:
-        # Fallback for dict access
-        base_hue = config.get("hue", 0)
-        theme_key = "dark_theme" if is_dark_theme else "light_theme"
-        theme_config = config.get(theme_key, {})
-        
-        saturation = theme_config.get("saturation", 80)
-        text_lightness = theme_config.get("lightness", 65)
-        input_bg_lightness = theme_config.get("input_bg_lightness", 18)
-        input_text_lightness = theme_config.get("input_text_lightness", 70)
-        input_border_lightness = theme_config.get("input_border_lightness", 35)
+    # Read only hue and saturation from config
+    hue = config.get("ui", "private_message_color", "hue") or 0
+    saturation = config.get("ui", "private_message_color", "saturation") or 75
     
-    # Generate all colors using same hue and saturation, different lightness
+    # Derive lightness values based on theme
+    if is_dark_theme:
+        # Dark theme: light text on dark backgrounds
+        lightness_values = {
+            "text": 75,          # Light & readable text
+            "input_bg": 15,      # Dark background
+            "input_border": 35   # Medium contrast border
+        }
+    else:
+        # Light theme: dark text on light backgrounds
+        lightness_values = {
+            "text": 35,          # Dark & readable text
+            "input_bg": 97,      # Light background
+            "input_border": 70   # Medium contrast border
+        }
+    
+    # Generate all colors
     return {
-        "text": hsl_to_hex(base_hue, saturation, text_lightness),
-        "input_bg": hsl_to_hex(base_hue, saturation, input_bg_lightness),
-        "input_text": hsl_to_hex(base_hue, saturation, input_text_lightness),
-        "input_border": hsl_to_hex(base_hue, saturation, input_border_lightness),
+        key: hsl_to_hex(hue, saturation, lightness)
+        for key, lightness in lightness_values.items()
     }

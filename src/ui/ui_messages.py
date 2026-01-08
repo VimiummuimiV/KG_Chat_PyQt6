@@ -102,10 +102,15 @@ class MessagesWidget(QWidget):
             msg.login if msg.login else "Unknown",
             msg.body,
             getattr(msg, 'background', None),
-            msg.login
+            msg.login,
+            getattr(msg, 'is_private', False)
         )
         self.model.add_message(msg_data)
         QTimer.singleShot(0, lambda: scroll(self.list_view, mode="bottom", delay=100))
+    
+    def clear_private_messages(self):
+        """Clear all private messages"""
+        self.model.clear_private_messages()
     
     def rebuild_messages(self):
         self.delegate.update_theme()

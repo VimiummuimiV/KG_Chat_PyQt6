@@ -276,14 +276,7 @@ class ChatWindow(QWidget):
     
     def _clear_private_messages(self):
         """Clear all private messages from the messages widget"""
-        if hasattr(self.messages_widget, 'clear_private_messages'):
-            self.messages_widget.clear_private_messages()
-        else:
-            # Fallback: clear messages by filtering out private ones
-            if hasattr(self.messages_widget, 'messages'):
-                self.messages_widget.messages = [msg for msg in self.messages_widget.messages if not getattr(msg, 'is_private', False)]
-                if hasattr(self.messages_widget, 'rebuild_messages'):
-                    self.messages_widget.rebuild_messages()
+        self.messages_widget.clear_private_messages()
     
     def _update_input_style(self):
         """Update input field styling based on private mode"""
@@ -296,7 +289,7 @@ class ChatWindow(QWidget):
             self.input_field.setStyleSheet(f"""
                 QLineEdit {{
                     background-color: {colors["input_bg"]};
-                    color: {colors["input_text"]};
+                    color: {colors["text"]};
                     border: 2px solid {colors["input_border"]};
                     border-radius: 4px;
                     padding: 8px;

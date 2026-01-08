@@ -13,6 +13,7 @@ class MessageData:
     body: str
     background_color: Optional[str] = None
     login: Optional[str] = None
+    is_private: bool = False
     
     def get_time_str(self) -> str:
         return self.timestamp.strftime("%H:%M:%S")
@@ -57,6 +58,23 @@ class MessageListModel(QAbstractListModel):
             self.beginResetModel()
             self._messages.clear()
             self.endResetModel()
+    
+    def clear_private_messages(self):
+        """Remove all private messages from the model"""
+        if not self._messages:
+            return
+        
+        # Find indices of private messages
+        private_indices = [i for i, msg in enumerate(self._messages) if msg.is_private]
+        
+        if not private_indices:
+            return
+        
+        # Remove in reverse order to maintain indices
+        for index in reversed(private_indices):
+            self.beginRemoveRows(QModelIndex(), index, index)
+            self._messages.pop(index)
+            self.endRemoveRows()
     
     def get_all_messages(self) -> List[MessageData]:
         return self._messages.copy()
