@@ -57,6 +57,8 @@ class Application:
             ("Show", self.show_window),
             ("Hide", self.hide_window),
             (None, None),
+            ("Switch Account", self.show_account_switcher),
+            (None, None),
             ("Exit", self.exit_application)
         ]
         for label, handler in menu_items:
@@ -105,6 +107,22 @@ class Application:
                 window.hide()
                 break
     
+    def show_account_switcher(self):
+        """Show account switcher window"""
+        # Close chat window if open
+        if self.chat_window:
+            try:
+                if self.chat_window.xmpp_client:
+                    self.chat_window.xmpp_client.disconnect()
+            except Exception:
+                pass
+            self.chat_window.close()
+            self.chat_window.deleteLater()
+            self.chat_window = None
+        
+        # Show account window
+        self.show_account_window()
+    
     def exit_application(self):
         """Exit the application completely"""
         if self.chat_window and self.chat_window.xmpp_client:
@@ -141,7 +159,7 @@ class Application:
     
     def show_chat_window(self, account):
         """Open chat window with tray support"""
-        self.chat_window = ChatWindow(account=account)
+        self.chat_window = ChatWindow(account=account, app_controller=self)
         self.chat_window.set_tray_mode(True)
         self.chat_window.show()
 

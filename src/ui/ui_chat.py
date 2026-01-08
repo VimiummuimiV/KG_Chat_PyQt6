@@ -4,7 +4,7 @@ import re
 from pathlib import Path
 from datetime import datetime
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QApplication, QStackedWidget
-from PyQt6.QtCore import Qt, pyqtSignal, QObject, QTimer
+from PyQt6.QtCore import Qt, pyqtSignal, QObject, QTimer, QEvent
 from PyQt6.QtGui import QFont
 
 from playsound3 import playsound
@@ -32,9 +32,10 @@ class SignalEmitter(QObject):
 
 
 class ChatWindow(QWidget):
-    def __init__(self, account=None):
+    def __init__(self, account=None, app_controller=None):
         super().__init__()
         
+        self.app_controller = app_controller
         self.tray_mode = False
         self.really_close = False
         self.account = account
@@ -45,6 +46,7 @@ class ChatWindow(QWidget):
         self.initial_roster_loading = False
         self.auto_hide_messages_userlist = True
         self.auto_hide_chatlog_userlist = True
+        self.is_connecting = False
         
         # Private messaging state
         self.private_mode = False
@@ -170,7 +172,15 @@ class ChatWindow(QWidget):
         # Exit private mode button reference (created dynamically when needed)
         self.exit_private_button = None
         
-        self.toggle_userlist_button = create_icon_button(self.icons_path, "user.svg", "Toggle User List", config=self.config)
+        # Toggle userlist button with Ctrl+Click for account switcher
+        self.toggle_userlist_button = create_icon_button(
+            self.icons_path, 
+            "user.svg", 
+            "Toggle User List (Ctrl+Click to Switch Account)", 
+            config=self.config
+        )
+        # Install event filter to catch Ctrl+Click
+        self.toggle_userlist_button.installEventFilter(self)
         self.toggle_userlist_button.clicked.connect(self.toggle_user_list)
         self.input_top_layout.addWidget(self.toggle_userlist_button)
         
@@ -203,7 +213,54 @@ class ChatWindow(QWidget):
         self.messages_widget.timestamp_clicked.connect(self.show_chatlog_view)
         
         self._update_input_style()
-
+    
+    def eventFilter(self, obj, event):
+        """Event filter to catch Ctrl+Click on toggle userlist button"""
+        if obj == self.toggle_userlist_button and event.type() == QEvent.Type.MouseButtonPress:
+            if event.button() == Qt.MouseButton.LeftButton:
+                modifiers = QApplication.keyboardModifiers()
+                if modifiers & Qt.KeyboardModifier.ControlModifier:
+                    # Ctrl+Click detected - show account switcher
+                    self._show_account_switcher()
+                    return True  # Consume event
+        return super().eventFilter(obj, event)
+    
+    def _show_account_switcher(self):
+        """Show account switcher window"""
+        if self.app_controller:
+            self.app_controller.show_account_switcher()
+        else:
+            print("⚠️ Account switching not available (no app_controller)")
+    
+    def changeEvent(self, event):
+        """Handle window state changes for auto-reconnect"""
+        super().changeEvent(event)
+        
+        if event.type() == QEvent.Type.ActivationChange:
+            if self.isActiveWindow():
+                self._check_and_reconnect()
+    
+    def showEvent(self, event):
+        """Handle window show events for auto-reconnect"""
+        super().showEvent(event)
+        self._check_and_reconnect()
+    
+    def _check_and_reconnect(self):
+        """Check connection status and reconnect if needed"""
+        # Only reconnect if not currently connecting and no active connection
+        if (not self.is_connecting and 
+            not self._is_connected() and 
+            self.account and 
+            self.isVisible()):
+            
+            print("🔄 Window activated - attempting reconnection...")
+            self.set_connection_status('connecting')
+            self.connect_xmpp()
+    
+    def _is_connected(self):
+        """Check if XMPP client is connected"""
+        return self.xmpp_client and hasattr(self.xmpp_client, 'sid') and self.xmpp_client.sid
+    
     def enter_private_mode(self, jid: str, username: str, user_id: str):
         """Enter private chat mode with a user"""
         # If switching to a different user, clear previous private messages
@@ -420,6 +477,7 @@ class ChatWindow(QWidget):
     
     def connect_xmpp(self):
         def _worker():
+            self.is_connecting = True
             try:
                 self.xmpp_client = XMPPClient(str(self.config_path))
                 if not self.xmpp_client.connect(self.account):
@@ -446,11 +504,14 @@ class ChatWindow(QWidget):
 
                 self.initial_roster_loading = False
                 QTimer.singleShot(0, lambda: self.signal_emitter.bulk_update_complete.emit())
+                
                 self.signal_emitter.connection_changed.emit('online')
 
                 listen_thread = threading.Thread(target=self.xmpp_client.listen, daemon=True)
                 listen_thread.start()
                 listen_thread.join()
+                
+                # Connection ended
                 self.signal_emitter.connection_changed.emit('offline')
             except Exception as e:
                 QTimer.singleShot(0, lambda: show_notification(
@@ -460,6 +521,8 @@ class ChatWindow(QWidget):
                     account=self.account
                 ))
                 self.signal_emitter.connection_changed.emit('offline')
+            finally:
+                self.is_connecting = False
 
         threading.Thread(target=_worker, daemon=True).start()
     
