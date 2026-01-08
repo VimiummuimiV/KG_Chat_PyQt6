@@ -46,7 +46,10 @@ class ChatWindow(QWidget):
         self.initial_roster_loading = False
         self.auto_hide_messages_userlist = True
         self.auto_hide_chatlog_userlist = True
-        self.is_connecting = False
+        
+        # Simple connection state tracking
+        self.is_connecting = False # True when attempting to connect
+        self.allow_reconnect = True  # Disable when switching accounts
         
         # Private messaging state
         self.private_mode = False
@@ -247,8 +250,9 @@ class ChatWindow(QWidget):
     
     def _check_and_reconnect(self):
         """Check connection status and reconnect if needed"""
-        # Only reconnect if not currently connecting and no active connection
-        if (not self.is_connecting and 
+        # Only reconnect if allowed and not currently connecting and no active connection
+        if (self.allow_reconnect and
+            not self.is_connecting and 
             not self._is_connected() and 
             self.account and 
             self.isVisible()):
@@ -256,6 +260,10 @@ class ChatWindow(QWidget):
             print("🔄 Window activated - attempting reconnection...")
             self.set_connection_status('connecting')
             self.connect_xmpp()
+    
+    def disable_reconnect(self):
+        """Disable auto-reconnect (called when switching accounts)"""
+        self.allow_reconnect = False
     
     def _is_connected(self):
         """Check if XMPP client is connected"""

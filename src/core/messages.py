@@ -191,9 +191,4 @@ class MessageParser:
             ))
        
         return presence_list
-   
-    @staticmethod
-    def format_message(msg: Message) -> str:
-        """Format message for display"""
-        sender = msg.login if msg.login else msg.from_jid.split('/')[-1]
-        return f"💬 [{sender}]: {msg.body}"
+

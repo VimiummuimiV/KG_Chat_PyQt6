@@ -112,6 +112,9 @@ class Application:
         # Close chat window if open
         if self.chat_window:
             try:
+                # Disable auto-reconnect before closing
+                self.chat_window.disable_reconnect()
+                
                 if self.chat_window.xmpp_client:
                     self.chat_window.xmpp_client.disconnect()
             except Exception:
