@@ -55,7 +55,6 @@ class XMPPClient:
             'Connection': 'keep-alive'
         }
         
-        # OPTIMIZATION: Use persistent session for connection reuse
         self.session = requests.Session()
         self.session.headers.update(self.headers)
     
@@ -88,7 +87,6 @@ class XMPPClient:
         if verbose:
             print(f"\n📤 {payload[:100]}...")
         
-        # Use session for connection reuse
         response = self.session.post(self.url, data=payload, timeout=timeout)
         response.raise_for_status()
         
@@ -122,7 +120,7 @@ class XMPPClient:
         password = account['password']
         
         try:
-            # Initialize session - short timeout OK
+            # Initialize session
             payload = self.build_body(to=self.domain, **self.conn_params)
             root = self.parse_xml(self.send_request(payload, verbose=False, timeout=10))
             if root is not None:
@@ -210,7 +208,6 @@ class XMPPClient:
         ET.SubElement(user, 'login').text = account['login']
         
         try:
-            # Join can take a bit longer due to roster
             response = self.send_request(self.build_body(children=[presence]), verbose=False, timeout=15)
             
             self.initial_roster_received = False
@@ -225,33 +222,62 @@ class XMPPClient:
         except Exception as e:
             print(f"❌ Join error: {e}")
     
-    def send_message(self, body: str, room_jid: str = None):
-        """Send message"""
+    def send_message(self, body: str, to_jid: str = None, msg_type: str = 'groupchat'):
+        """Send message - supports both groupchat and private chat
+        
+        Args:
+            body: Message text
+            to_jid: Recipient JID (if None, uses default auto-join room for groupchat)
+            msg_type: 'groupchat' for MUC, 'chat' for private messages
+        """
         if not self.sid or not self.jid:
             return False
         
-        if room_jid is None:
+        # Determine recipient
+        if to_jid is None and msg_type == 'groupchat':
+            # Find default room for group chat
             rooms = self.account_manager.get_rooms()
             for room in rooms:
                 if room.get('auto_join'):
-                    room_jid = room['jid']
+                    to_jid = room['jid']
                     break
         
-        if not room_jid:
+        if not to_jid:
             return False
         
         self.rid += 1
+        
+        # Get account for userdata
+        account = self.account_manager.get_active_account()
+        
+        # Create message element
         message = ET.Element('message', {
             'xmlns': 'jabber:client',
-            'to': room_jid,
-            'type': 'groupchat'
+            'to': to_jid,
+            'type': msg_type,
+            'from': self.jid
         })
         ET.SubElement(message, 'body').text = body
         
+        # Add userdata
+        x_data = ET.SubElement(message, 'x', {'xmlns': 'klavogonki:userdata'})
+        user = ET.SubElement(x_data, 'user')
+        ET.SubElement(user, 'login').text = account['login']
+        
+        # Find user in userlist for avatar/background
+        for u in self.user_list.get_all():
+            if account.get('login') in u.jid or u.login == account.get('login'):
+                if u.background:
+                    ET.SubElement(user, 'background').text = u.background
+                # Note: avatar path would need to be fetched from server
+                break
+        
         try:
             self.send_request(self.build_body(children=[message]), verbose=False, timeout=5)
+            print(f"📨 Sent {msg_type}: {body[:50]}...")
             return True
-        except:
+        except Exception as e:
+            print(f"❌ Send error: {e}")
             return False
     
     def _process_response(self, xml_text: str, is_initial_roster: bool = False):
@@ -333,7 +359,6 @@ class XMPPClient:
         try:
             while True:
                 self.rid += 1
-                # CRITICAL: Long timeout for long-polling (server holds connection open)
                 response = self.send_request(self.build_body(), verbose=False, timeout=70)
                 
                 root = self.parse_xml(response)

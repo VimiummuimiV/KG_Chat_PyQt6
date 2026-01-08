@@ -22,6 +22,7 @@ class NotificationData:
     local_message_callback: Optional[Callable] = None
     account: Optional[dict] = None
     window_show_callback: Optional[Callable] = None
+    is_private: bool = False
 
 
 class PopupNotification(QWidget):
@@ -56,6 +57,9 @@ class PopupNotification(QWidget):
         margin = data.config.get("ui", "margins", "notification") if data.config else 8
         spacing = data.config.get("ui", "spacing", "widget_elements") if data.config else 4
         
+        # Determine theme and colors
+        is_dark = data.config.get("ui", "theme") == "dark" if data.config else True
+        
         # Main layout
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(margin, margin, margin, margin)
@@ -69,16 +73,30 @@ class PopupNotification(QWidget):
         message_layout = QVBoxLayout()
         message_layout.setSpacing(spacing)
         
-        # Username label (use cached color)
-        text_color = data.color_cache.get(data.title, "#AAAAAA") if data.color_cache else "#AAAAAA"
+        # Username always uses cached color (from background)
+        username_color = data.color_cache.get(data.title, "#AAAAAA") if data.color_cache else "#AAAAAA"
+        
+        # Message color depends on private status
+        if data.is_private:
+            # Private message body color
+            if is_dark:
+                message_color = "#FFCCCC"  # Light pink
+            else:
+                message_color = "#CC0000"  # Red
+        else:
+            # Normal message body color
+            message_color = "#FFFFFF" if is_dark else "#000000"
+        
+        # Username label
         self.username_label = QLabel(f"<b>{data.title}</b>")
-        self.username_label.setStyleSheet(f"color: {text_color};")
+        self.username_label.setStyleSheet(f"color: {username_color};")
         self.username_label.setFont(QFont(font_family, font_size))
         self.username_label.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         message_layout.addWidget(self.username_label)
         
         # Message label
         self.message_label = QLabel(data.message)
+        self.message_label.setStyleSheet(f"color: {message_color};")
         self.message_label.setWordWrap(True)
         self.message_label.setFont(QFont(font_family, font_size))
         self.message_label.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
@@ -413,6 +431,7 @@ def show_notification(**kwargs):
         local_message_callback (Callable): Callback to add messages locally
         account (dict): User account dict
         window_show_callback (Callable): Callback to show/focus the chat window
+        is_private (bool): Whether this is a private message (default: False)
     """
     data = NotificationData(**kwargs)
     return popup_manager.show_notification(data)

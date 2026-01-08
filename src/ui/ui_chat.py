@@ -45,6 +45,12 @@ class ChatWindow(QWidget):
         self.auto_hide_messages_userlist = True
         self.auto_hide_chatlog_userlist = True
         
+        # Private messaging state
+        self.private_mode = False
+        self.private_chat_jid = None
+        self.private_chat_username = None
+        self.private_chat_user_id = None
+        
         self.mention_sound_path = None
         self._setup_mention_sound()
         
@@ -160,6 +166,12 @@ class ChatWindow(QWidget):
         self.send_button.clicked.connect(self.send_message)
         self.input_top_layout.addWidget(self.send_button)
         
+        # Exit private mode button (initially hidden)
+        self.exit_private_button = create_icon_button(self.icons_path, "close.svg", "Exit Private Chat", config=self.config)
+        self.exit_private_button.clicked.connect(self.exit_private_mode)
+        self.exit_private_button.setVisible(False)
+        self.input_top_layout.addWidget(self.exit_private_button)
+        
         self.toggle_userlist_button = create_icon_button(self.icons_path, "user.svg", "Toggle User List", config=self.config)
         self.toggle_userlist_button.clicked.connect(self.toggle_user_list)
         self.input_top_layout.addWidget(self.toggle_userlist_button)
@@ -173,23 +185,111 @@ class ChatWindow(QWidget):
         self.input_top_layout.addWidget(self.theme_button)
         
         self.buttons_on_bottom = False
-        self.movable_buttons = [self.toggle_userlist_button, self.theme_button]  # Both move to bottom
+        self.movable_buttons = [self.toggle_userlist_button, self.theme_button]
         
-        # Widgets to hide at < 500px (all except toggle_userlist_button)
-        self.narrow_hideable_widgets = [self.input_field, self.send_button, self.theme_button]
+        # Widgets to hide at < 500px (all except userlist toggle)
+        self.narrow_hideable_widgets = [self.input_field, self.send_button, self.exit_private_button, self.theme_button]
         
-        # Messages userlist
+        # Messages userlist with private mode callback
         self.user_list_widget = UserListWidget(self.config, self.input_field)
         self.user_list_widget.color_cache = self.color_cache
         self.user_list_widget.avatar_cache = self.avatar_cache
+        self.user_list_widget.username_clicked.connect(self.enter_private_mode)
         messages_userlist_visible = self.config.get("ui", "messages_userlist_visible")
         if messages_userlist_visible is not None:
             self.user_list_widget.setVisible(messages_userlist_visible)
         else:
-            self.user_list_widget.setVisible(True)  # Default
+            self.user_list_widget.setVisible(True)
         self.content_layout.addWidget(self.user_list_widget, stretch=1)
 
         self.messages_widget.timestamp_clicked.connect(self.show_chatlog_view)
+        
+        self._update_input_style()
+
+    def enter_private_mode(self, jid: str, username: str, user_id: str):
+        """Enter private chat mode with a user"""
+        # If switching to a different user, clear previous private messages
+        if self.private_mode and self.private_chat_jid != jid:
+            self._clear_private_messages()
+        
+        self.private_mode = True
+        self.private_chat_jid = jid
+        self.private_chat_username = username
+        self.private_chat_user_id = user_id
+        
+        # Update UI
+        self.exit_private_button.setVisible(True)
+        self._update_input_style()
+        
+        # Update window title
+        base = f"Chat - {self.account['login']}" if self.account else "Chat"
+        status = self.windowTitle().split(' - ')[-1] if ' - ' in self.windowTitle() else ""
+        if status in ['Online', 'Offline', 'Connecting']:
+            self.setWindowTitle(f"{base} - Private with {username} - {status}")
+        else:
+            self.setWindowTitle(f"{base} - Private with {username}")
+        
+        print(f"🔒 Entered private mode with {username}")
+    
+    def exit_private_mode(self):
+        """Exit private chat mode"""
+        # Clear all private messages
+        self._clear_private_messages()
+        
+        self.private_mode = False
+        self.private_chat_jid = None
+        self.private_chat_username = None
+        self.private_chat_user_id = None
+        
+        # Update UI
+        self.exit_private_button.setVisible(False)
+        self._update_input_style()
+        
+        # Restore window title
+        self.set_connection_status(self.windowTitle().split(' - ')[-1] if ' - ' in self.windowTitle() else 'Online')
+        
+        print("🔓 Exited private mode")
+    
+    def _clear_private_messages(self):
+        """Clear all private messages from the messages widget"""
+        if hasattr(self.messages_widget, 'clear_private_messages'):
+            self.messages_widget.clear_private_messages()
+        else:
+            # Fallback: clear messages by filtering out private ones
+            if hasattr(self.messages_widget, 'messages'):
+                self.messages_widget.messages = [msg for msg in self.messages_widget.messages if not getattr(msg, 'is_private', False)]
+                if hasattr(self.messages_widget, 'rebuild_messages'):
+                    self.messages_widget.rebuild_messages()
+    
+    def _update_input_style(self):
+        """Update input field styling based on private mode"""
+        is_dark = self.theme_manager.is_dark()
+        
+        if self.private_mode:
+            # Private mode colors - subtle red tint
+            if is_dark:
+                bg_color = "#2A1F1F"  # Dark red tint
+                text_color = "#FFCCCC"  # Light pink text
+                border_color = "#8B4545"  # Darker red border
+            else:
+                bg_color = "#FFF5F5"  # Very light red
+                text_color = "#CC0000"  # Red text
+                border_color = "#FFCCCC"  # Light red border
+            
+            self.input_field.setStyleSheet(f"""
+                QLineEdit {{
+                    background-color: {bg_color};
+                    color: {text_color};
+                    border: 2px solid {border_color};
+                    border-radius: 4px;
+                    padding: 8px;
+                }}
+            """)
+            self.input_field.setPlaceholderText(f"Private message to {self.private_chat_username}...")
+        else:
+            # Normal mode - remove custom styling
+            self.input_field.setStyleSheet("")
+            self.input_field.setPlaceholderText("")
 
     def show_messages_view(self):
         """Switch back to messages and destroy chatlog widgets"""
@@ -357,8 +457,12 @@ class ChatWindow(QWidget):
         self.messages_widget.add_message(msg)
     
     def on_message(self, msg):
+        # Skip own messages (server echoes groupchat messages back)
         if msg.login == self.account.get('login') and not getattr(msg, 'initial', False):
             return
+        
+        # Mark private messages
+        msg.is_private = (msg.msg_type == 'chat')
         
         self.messages_widget.add_message(msg)
         
@@ -375,7 +479,8 @@ class ChatWindow(QWidget):
                     config=self.config,
                     local_message_callback=self.add_local_message,
                     account=self.account,
-                    window_show_callback=self._show_and_focus_window
+                    window_show_callback=self._show_and_focus_window,
+                    is_private=msg.is_private
                 )
             except Exception as e:
                 print(f"Notification error: {e}")
@@ -434,31 +539,53 @@ class ChatWindow(QWidget):
         
         self.input_field.clear()
         
+        # Determine message type and recipient
+        if self.private_mode and self.private_chat_jid:
+            msg_type = 'chat'
+            recipient_jid = self.private_chat_jid
+        else:
+            msg_type = 'groupchat'
+            recipient_jid = None
+        
+        # Get own user data
         own_user = None
         for user in self.xmpp_client.user_list.get_all():
             if self.account.get('login') in user.jid or user.login == self.account.get('login'):
                 own_user = user
                 break
         
+        # Create local message
         own_msg = Message(
             from_jid=self.xmpp_client.jid,
             body=text,
-            msg_type='groupchat',
+            msg_type=msg_type,
             login=self.account.get('login'),
             avatar=None,
             background=own_user.background if own_user else None,
             timestamp=datetime.now(),
             initial=False
         )
+        own_msg.is_private = (msg_type == 'chat')
         
         self.messages_widget.add_message(own_msg)
-        threading.Thread(target=self.xmpp_client.send_message, args=(text,), daemon=True).start()
+        
+        # Send to server
+        threading.Thread(
+            target=self.xmpp_client.send_message, 
+            args=(text, recipient_jid, msg_type), 
+            daemon=True
+        ).start()
 
     def set_connection_status(self, status: str):
         status = (status or '').lower()
         text = {'connecting': 'Connecting', 'online': 'Online'}.get(status, 'Offline')
         base = f"Chat - {self.account['login']}" if self.account else "Chat"
-        self.setWindowTitle(f"{base} - {text}")
+        
+        # Preserve private mode in title
+        if self.private_mode and self.private_chat_username:
+            self.setWindowTitle(f"{base} - Private with {self.private_chat_username} - {text}")
+        else:
+            self.setWindowTitle(f"{base} - {text}")
 
     def toggle_user_list(self):
         """Toggle userlist based on current view with proper recalculation"""
@@ -511,6 +638,9 @@ class ChatWindow(QWidget):
             
             # Clear cache so colors get recalculated
             self.color_cache.clear()
+            
+            # Update input styling for theme
+            self._update_input_style()
             
             update_all_icons()
             self.messages_widget.update_theme()

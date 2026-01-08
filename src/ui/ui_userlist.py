@@ -10,7 +10,7 @@ from PyQt6.QtWidgets import (
     QApplication
 )
 from PyQt6.QtCore import Qt, QTimer, QSize, pyqtSignal, QObject
-from PyQt6.QtGui import QFont, QIcon, QPixmap
+from PyQt6.QtGui import QFont, QIcon, QPixmap, QCursor
 from helpers.color_contrast import optimize_color_contrast
 from helpers.load import load_avatar_by_id, make_rounded_pixmap
 from helpers.create import _render_svg_icon
@@ -27,10 +27,15 @@ class UserWidget(QWidget):
     AVATAR_SIZE = 36
     SVG_AVATAR_SIZE = 24
     
+    clicked = pyqtSignal(str, str, str)  # jid, username, user_id
+    
     def __init__(self, user, bg_hex, config, color_cache, icons_path, is_dark_theme, avatar_cache, executor, counter=None):
         super().__init__()
         self.user = user
         self.avatar_cache = avatar_cache
+        
+        # Make widget clickable
+        self.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
         
         layout = QHBoxLayout()
         layout.setContentsMargins(2, 0, 2, 0)
@@ -94,10 +99,18 @@ class UserWidget(QWidget):
             self.avatar_label.setPixmap(make_rounded_pixmap(pixmap, self.AVATAR_SIZE, 8))
         except RuntimeError:
             pass
+    
+    def mousePressEvent(self, event):
+        """Emit click signal with user info"""
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.clicked.emit(self.user.jid, self.user.login, self.user.user_id)
+        super().mousePressEvent(event)
 
 
 class UserListWidget(QWidget):
     """Widget for displaying sorted user list with dynamic sections"""
+    
+    username_clicked = pyqtSignal(str, str, str)  # jid, username, user_id
     
     def __init__(self, config, input_field=None):
         super().__init__()
@@ -265,6 +278,7 @@ class UserListWidget(QWidget):
                 try:
                     widget = UserWidget(user, self.bg_hex, self.config, self.color_cache, 
                                       self.icons_path, self.is_dark_theme, self.avatar_cache, self.avatar_executor)
+                    widget.clicked.connect(self.username_clicked.emit)
                     self.chat_container.addWidget(widget)
                     self.user_widgets[user.jid] = widget
                 except Exception as e:
@@ -276,6 +290,7 @@ class UserListWidget(QWidget):
                     counter = self.user_game_state.get(user.login, {}).get('counter', 1)
                     widget = UserWidget(user, self.bg_hex, self.config, self.color_cache, 
                                       self.icons_path, self.is_dark_theme, self.avatar_cache, self.avatar_executor, counter)
+                    widget.clicked.connect(self.username_clicked.emit)
                     self.game_container.addWidget(widget)
                     self.user_widgets[user.jid] = widget
                 except Exception as e:
@@ -304,6 +319,7 @@ class UserListWidget(QWidget):
             try:
                 widget = UserWidget(user, self.bg_hex, self.config, self.color_cache, 
                                   self.icons_path, self.is_dark_theme, self.avatar_cache, self.avatar_executor, counter)
+                widget.clicked.connect(self.username_clicked.emit)
                 self.user_widgets[user.jid] = widget
                 
                 # Find sorted position and insert

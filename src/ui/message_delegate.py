@@ -3,7 +3,6 @@ from typing import Dict, Optional, List
 from pathlib import Path
 import re
 import webbrowser
-import time
 
 from PyQt6.QtWidgets import QStyledItemDelegate, QStyleOptionViewItem, QApplication
 from PyQt6.QtCore import Qt, QSize, QRect, QModelIndex, pyqtSignal, QTimer, QEvent
@@ -50,7 +49,7 @@ class MessageDelegate(QStyledItemDelegate):
         self.click_rects: Dict[int, Dict] = {}
         self.input_field = None
         
-        # Animation support - optimized for smooth GIF playback
+        # Animation support
         self.list_view = None
         self.animated_rows = set()
         self.animation_frames = {}
@@ -73,7 +72,7 @@ class MessageDelegate(QStyledItemDelegate):
     def update_theme(self):
         theme = self.config.get("ui", "theme") or "dark"
         self.is_dark_theme = (theme == "dark")
-        self.bg_hex = "#1E1E1E" if self.is_dark_theme else "#FFFFFF"
+        self.bg_hex = "#1E1E1E" if theme == "dark" else "#FFFFFF"
         self._emoticon_cache.clear()
         self.color_cache.clear()
     
@@ -103,6 +102,7 @@ class MessageDelegate(QStyledItemDelegate):
         time_str = msg.get_time_str()
         timestamp_width = fm_ts.horizontalAdvance(time_str) + self.spacing
         username_width = fm.horizontalAdvance(msg.username) + self.spacing
+        
         content_width = max(width - timestamp_width - username_width - 2 * self.padding, 200)
         
         content_height = self._calculate_content_height(msg.body, content_width, fm)
@@ -232,6 +232,14 @@ class MessageDelegate(QStyledItemDelegate):
         painter.save()
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         
+        # Draw subtle background for private messages
+        if getattr(msg, 'is_private', False):
+            if self.is_dark_theme:
+                bg_color = QColor(70, 40, 40, 40)  # Very subtle dark red tint
+            else:
+                bg_color = QColor(255, 240, 240, 80)  # Very subtle light red tint
+            painter.fillRect(option.rect, bg_color)
+        
         if self.compact_mode:
             self._paint_compact(painter, option.rect, msg, row)
         else:
@@ -255,8 +263,10 @@ class MessageDelegate(QStyledItemDelegate):
         # Username
         username_x = x + ts_width + self.spacing
         color = self._get_username_color(msg.username, msg.background_color)
+        
         painter.setFont(self.body_font)
         painter.setPen(QColor(color))
+        
         un_width = QFontMetrics(self.body_font).horizontalAdvance(msg.username)
         un_rect = QRect(username_x, y, un_width, QFontMetrics(self.body_font).height())
         painter.drawText(un_rect, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, msg.username)
@@ -264,7 +274,7 @@ class MessageDelegate(QStyledItemDelegate):
         
         # Content
         content_y = y + max(QFontMetrics(self.body_font).height(), QFontMetrics(self.timestamp_font).height()) + 2
-        self._paint_content(painter, x, content_y, width, msg.body, row)
+        self._paint_content(painter, x, content_y, width, msg.body, row, getattr(msg, 'is_private', False))
 
     def _paint_normal(self, painter: QPainter, rect: QRect, msg, row: int):
         x, y = rect.x() + self.padding, rect.y() + self.padding
@@ -281,8 +291,10 @@ class MessageDelegate(QStyledItemDelegate):
         # Username
         username_x = x + ts_width + self.spacing
         color = self._get_username_color(msg.username, msg.background_color)
+        
         painter.setFont(self.body_font)
         painter.setPen(QColor(color))
+        
         un_width = QFontMetrics(self.body_font).horizontalAdvance(msg.username)
         un_rect = QRect(username_x, y, un_width, QFontMetrics(self.body_font).height())
         painter.drawText(un_rect, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, msg.username)
@@ -291,9 +303,9 @@ class MessageDelegate(QStyledItemDelegate):
         # Content
         content_x = username_x + un_width + self.spacing
         content_width = rect.width() - (content_x - rect.x()) - self.padding
-        self._paint_content(painter, content_x, y, content_width, msg.body, row)
+        self._paint_content(painter, content_x, y, content_width, msg.body, row, getattr(msg, 'is_private', False))
     
-    def _paint_content(self, painter: QPainter, x: int, y: int, width: int, text: str, row: int):
+    def _paint_content(self, painter: QPainter, x: int, y: int, width: int, text: str, row: int, is_private: bool = False):
         segments = self.emoticon_manager.parse_emoticons(text)
         painter.setFont(self.body_font)
         fm = QFontMetrics(self.body_font)
@@ -301,6 +313,15 @@ class MessageDelegate(QStyledItemDelegate):
         current_x, current_y = x, y
         line_height = fm.height()
         url_pattern = re.compile(r'https?://[^\s<>"]+')
+        
+        # Determine text color based on private status
+        if is_private:
+            if self.is_dark_theme:
+                text_color = "#FFCCCC"  # Light pink text
+            else:
+                text_color = "#CC0000"  # Red text
+        else:
+            text_color = "#FFFFFF" if self.is_dark_theme else "#000000"
         
         for seg_type, content in segments:
             if seg_type == 'text':
@@ -321,7 +342,7 @@ class MessageDelegate(QStyledItemDelegate):
                                 current_y += line_height
                                 current_x = x
                             
-                            painter.setPen(QColor("#FFFFFF" if self.is_dark_theme else "#000000"))
+                            painter.setPen(QColor(text_color))
                             painter.drawText(current_x, current_y + fm.ascent(), line)
                             current_x += line_width
                     
@@ -358,7 +379,7 @@ class MessageDelegate(QStyledItemDelegate):
                             current_y += line_height
                             current_x = x
                         
-                        painter.setPen(QColor("#FFFFFF" if self.is_dark_theme else "#000000"))
+                        painter.setPen(QColor(text_color))
                         painter.drawText(current_x, current_y + fm.ascent(), line)
                         current_x += line_width
             
@@ -457,7 +478,7 @@ class MessageDelegate(QStyledItemDelegate):
         return False
     
     def _update_animations(self):
-        """Update animated emoticons - check if widget still exists"""
+        """Update animated emoticons"""
         if not self.list_view or not self.animated_rows:
             return
         
