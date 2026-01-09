@@ -33,27 +33,28 @@ class ChatlogWidget(QWidget):
         self.filtered_usernames = set()
         self.search_text = ""
         self.all_messages = []
-        
+        self.last_parsed_date = None
+       
         self.search_visible = config.get("ui", "chatlog_search_visible")
         if self.search_visible is None:
             self.search_visible = False
-        
+       
         emoticons_path = Path(__file__).resolve().parent.parent / "emoticons"
         self.emoticon_manager = EmoticonManager(emoticons_path)
-        
+       
         self.model = MessageListModel(max_messages=50000)
         self.delegate = MessageDelegate(config, self.emoticon_manager, self.color_cache)
-        
+       
         # Parser state
         self.parser_worker = None
         self.parser_visible = False
-        
+       
         self._setup_ui()
 
     def _setup_ui(self):
         margin = self.config.get("ui", "margins", "widget") or 5
         spacing = self.config.get("ui", "spacing", "widget_elements") or 6
-        
+       
         layout = QVBoxLayout()
         layout.setContentsMargins(margin, margin, margin, margin)
         layout.setSpacing(spacing)
@@ -64,7 +65,7 @@ class ChatlogWidget(QWidget):
         self.nav_bar.setSpacing(self.config.get("ui", "buttons", "spacing") or 8)
         layout.addLayout(self.nav_bar)
 
-        self.back_btn = create_icon_button(self.icons_path, "go-back.svg", "Back to chat", 
+        self.back_btn = create_icon_button(self.icons_path, "go-back.svg", "Back to chat",
                                           size_type="large", config=self.config)
         self.back_btn.clicked.connect(self.back_requested.emit)
         self.nav_bar.addWidget(self.back_btn)
@@ -115,7 +116,7 @@ class ChatlogWidget(QWidget):
         self.info_label.setStyleSheet("color: #666666;")
         self.info_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.info_label)
-        
+       
         self.compact_layout = False
 
         # Search bar (initially hidden)
@@ -124,22 +125,22 @@ class ChatlogWidget(QWidget):
         search_layout.setContentsMargins(0, 0, 0, 0)
         search_layout.setSpacing(self.config.get("ui", "buttons", "spacing") or 8)
         self.search_container.setLayout(search_layout)
-        
+       
         self.search_field = QLineEdit()
         self.search_field.setPlaceholderText("Search: 'text' or 'U:Bob' or 'U:Bob,Alice' or 'M:hello' or 'U:Bob M:hello'")
         self.search_field.setFont(QFont(self.config.get("ui", "font_family"), self.config.get("ui", "font_size")))
-        self.search_field.setFixedHeight(48)
+        self.search_field.setFixedHeight(self.config.get("ui", "input_height") or 48)
         self.search_field.textChanged.connect(self._on_search_changed)
         search_layout.addWidget(self.search_field, stretch=1)
-        
+       
         self.clear_search_btn = create_icon_button(self.icons_path, "trash.svg", "Clear search",
                                                   size_type="large", config=self.config)
         self.clear_search_btn.clicked.connect(self._clear_search)
         search_layout.addWidget(self.clear_search_btn)
-        
+       
         self.search_container.setVisible(False)
         layout.addWidget(self.search_container)
-        
+       
         if self.search_visible:
             self.search_container.setVisible(True)
 
@@ -152,18 +153,18 @@ class ChatlogWidget(QWidget):
         self.list_view.setModel(self.model)
         self.list_view.setItemDelegate(self.delegate)
         self.delegate.set_list_view(self.list_view)
-        
+       
         self.list_view.setVerticalScrollMode(QListView.ScrollMode.ScrollPerPixel)
         self.list_view.setUniformItemSizes(False)
         self.list_view.setSpacing(0)
-        
+       
         self.list_view.setFrameShape(QListView.Shape.NoFrame)
         self.list_view.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.list_view.setSelectionMode(QListView.SelectionMode.NoSelection)
         self.list_view.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.list_view.setMouseTracking(True)
         self.list_view.viewport().setMouseTracking(True)
-        
+       
         self.stacked.addWidget(self.list_view)
 
         # Parser config page
@@ -177,7 +178,7 @@ class ChatlogWidget(QWidget):
 
         self._update_date_display()
         self._error_occurred.connect(self._handle_error)
-    
+   
     def _toggle_parser(self):
         """Toggle between normal view and parser config"""
         if self.parser_visible:
@@ -192,27 +193,36 @@ class ChatlogWidget(QWidget):
             self.stacked.setCurrentWidget(self.parser_widget)
             self.parse_btn.setIcon(create_icon_button(self.icons_path, "go-back.svg", "Back to chat logs", config=self.config).icon())
             self.parse_btn.setToolTip("Back to chat logs")
-    
+   
     def _on_parse_started(self, config: ParseConfig):
         """Start parsing with given config"""
         self.model.clear()
         self.all_messages = []
-        
+        self.last_parsed_date = None
+       
         self.parser_worker = ParserWorker(config)
         self.parser_worker.progress.connect(self.parser_widget.update_progress)
         self.parser_worker.messages_found.connect(self._on_parsed_messages)
         self.parser_worker.finished.connect(self._on_parse_finished)
         self.parser_worker.error.connect(self._on_parse_error)
         self.parser_worker.start()
-    
+   
     def _on_parse_cancelled(self):
         """Cancel parsing"""
         if self.parser_worker:
             self.parser_worker.stop()
             self.parser_worker = None
-    
+   
     def _on_parsed_messages(self, messages, date: str):
         """Handle incrementally parsed messages"""
+        if date != self.last_parsed_date:
+            if self.last_parsed_date is not None:
+                # Add separator only if not first
+                separator = MessageData(datetime.now(), "", "", is_separator=True, date_str=date)
+                self.all_messages.append(separator)
+                self.model.add_message(separator)
+            self.last_parsed_date = date
+
         for msg in messages:
             try:
                 timestamp = datetime.strptime(msg.timestamp, "%H:%M:%S")
@@ -221,36 +231,37 @@ class ChatlogWidget(QWidget):
                 self.model.add_message(msg_data)
             except Exception as e:
                 print(f"Error adding message: {e}")
-        
+       
         # Update info
         self.info_label.setText(f"Found {len(self.all_messages)} messages so far...")
         QTimer.singleShot(0, lambda: scroll(self.list_view, mode="bottom", delay=50))
-    
+   
     def _on_parse_finished(self, messages):
         """Handle parse completion"""
         self.parser_worker = None
         self.parser_widget._reset_ui()
-        
+        self.last_parsed_date = None
+       
         if messages:
             self.info_label.setText(f"✅ Found {len(messages)} total messages")
             self.messages_loaded.emit(self.all_messages)
         else:
             self.info_label.setText("No messages found")
-    
+   
     def _on_parse_error(self, error_msg: str):
         """Handle parse error"""
         self.parser_worker = None
         self.parser_widget._reset_ui()
         self.info_label.setText(f"❌ Error: {error_msg}")
-    
+   
     def _handle_error(self, error_msg: str):
         self.info_label.setText(error_msg)
-    
+   
     def _toggle_search(self):
         self.search_visible = not self.search_visible
         self.search_container.setVisible(self.search_visible)
         self.config.set("ui", "chatlog_search_visible", value=self.search_visible)
-        
+       
         if self.search_visible:
             self.search_field.setFocus()
         else:
@@ -259,24 +270,24 @@ class ChatlogWidget(QWidget):
     def _on_search_changed(self, text: str):
         self.search_text = text.strip()
         self._apply_filter()
-    
+   
     def _parse_search_text(self):
         if not self.search_text:
             return set(), "", False
-        
+       
         import re
-        
+       
         user_filter = set()
         message_filter = ""
-        
+       
         text = self.search_text.strip()
         has_u_prefix = re.search(r'[Uu]:', text)
         has_m_prefix = re.search(r'[Mm]:', text)
         has_prefix = has_u_prefix or has_m_prefix
-        
+       
         if not has_prefix:
             return set(), "", False
-        
+       
         if has_u_prefix:
             u_pattern = r'[Uu]:\s*(.+?)(?:\s+[Mm]:|$)'
             match = re.search(u_pattern, text)
@@ -284,13 +295,13 @@ class ChatlogWidget(QWidget):
                 users_str = match.group(1).strip()
                 users = [u.strip() for u in users_str.split(',') if u.strip()]
                 user_filter.update(users)
-        
+       
         if has_m_prefix:
             m_pattern = r'[Mm]:\s*(.+?)(?:\s+[Uu]:|$)'
             match = re.search(m_pattern, text)
             if match:
                 message_filter = match.group(1).strip().lower()
-        
+       
         return user_filter, message_filter, True
 
     def _clear_search(self):
@@ -301,11 +312,11 @@ class ChatlogWidget(QWidget):
         self.date_label.setText(self.current_date.strftime("%Y-%m-%d (%A)"))
         self.next_btn.setEnabled(self.current_date < datetime.now().date())
         self.prev_btn.setEnabled(self.current_date > self.parser.MIN_DATE)
-    
+   
     def set_compact_layout(self, compact: bool):
         if compact == self.compact_layout:
             return
-        
+       
         if compact:
             self.nav_bar.removeWidget(self.date_label)
             self.date_container.layout().addWidget(self.date_label)
@@ -316,16 +327,16 @@ class ChatlogWidget(QWidget):
             self.nav_bar.insertWidget(2, self.date_label, stretch=1)
             self.date_container.setVisible(False)
             self.compact_layout = False
-    
+   
     def set_compact_mode(self, compact: bool):
         self.delegate.set_compact_mode(compact)
         self._force_recalculate()
-    
+   
     def update_theme(self):
         self.delegate.update_theme()
         self.color_cache.clear()
         self._force_recalculate()
-    
+   
     def _force_recalculate(self):
         self.list_view.setUpdatesEnabled(False)
         self.list_view.reset()
@@ -348,47 +359,47 @@ class ChatlogWidget(QWidget):
         self.filtered_usernames = usernames
         self._apply_filter()
         self.filter_changed.emit(self.filtered_usernames)
-    
+   
     def clear_filter(self):
         self.filtered_usernames = set()
         self._apply_filter()
         self.filter_changed.emit(self.filtered_usernames)
-    
+   
     def _apply_filter(self):
         self.model.clear()
-        
+       
         if not self.all_messages:
             return
-        
+       
         search_users, search_message, is_prefix_mode = self._parse_search_text()
         messages_to_show = self.all_messages
-        
+       
         if is_prefix_mode:
             if search_users:
                 search_users_lower = {u.lower() for u in search_users}
-                messages_to_show = [msg for msg in messages_to_show 
+                messages_to_show = [msg for msg in messages_to_show
                                 if msg.username.lower() in search_users_lower]
-            
+           
             if search_message:
                 messages_to_show = [msg for msg in messages_to_show
                                 if search_message in msg.body.lower()]
         else:
             if self.filtered_usernames:
-                messages_to_show = [msg for msg in messages_to_show 
+                messages_to_show = [msg for msg in messages_to_show
                                 if msg.username in self.filtered_usernames]
-            
+           
             if self.search_text:
                 search_lower = self.search_text.lower()
                 messages_to_show = [msg for msg in messages_to_show
-                                if search_lower in msg.username.lower() or 
+                                if search_lower in msg.username.lower() or
                                     search_lower in msg.body.lower()]
-        
+       
         for msg in messages_to_show:
             self.model.add_message(msg)
-        
+       
         total = len(self.all_messages)
         shown = len(messages_to_show)
-        
+       
         filters = []
         if is_prefix_mode:
             if search_users:
@@ -400,7 +411,7 @@ class ChatlogWidget(QWidget):
                 filters.append(f"users: {', '.join(sorted(self.filtered_usernames))}")
             if self.search_text:
                 filters.append(f"search: '{self.search_text}'")
-        
+       
         if filters:
             filter_text = " | ".join(filters)
             self.info_label.setText(f"Showing {shown}/{total} messages ({filter_text})")
@@ -414,23 +425,23 @@ class ChatlogWidget(QWidget):
                     self.info_label.setText(f"Loaded {total} messages · {size_text}{cache_marker}")
             else:
                 self.info_label.setText(f"Loaded {total} messages")
-        
+       
         QTimer.singleShot(0, lambda: scroll(self.list_view, mode="bottom", delay=100))
 
     def load_current_date(self):
         self.model.clear()
         self.all_messages = []
         self.info_label.setText("Loading...")
-        
+       
         date_str = self.current_date.strftime("%Y-%m-%d")
-        
+       
         def _load():
             try:
                 messages, was_truncated, from_cache = self.parser.get_messages(date_str)
                 html, _, _ = self.parser.fetch_log(date_str)
                 size_kb = len(html.encode('utf-8')) / 1024
                 size_text = f"{size_kb:.1f} KB" if size_kb < 1024 else f"{size_kb/1024:.1f} MB"
-                
+               
                 self._pending_data = (messages, size_text, was_truncated, from_cache)
                 QTimer.singleShot(0, self._display_messages)
             except ChatlogNotFoundError:
@@ -439,23 +450,23 @@ class ChatlogWidget(QWidget):
                 self._error_occurred.emit(str(e))
             except Exception as e:
                 self._error_occurred.emit(f"Error: {e}")
-        
+       
         threading.Thread(target=_load, daemon=True).start()
 
     def _display_messages(self):
         try:
             messages, size_text, was_truncated, from_cache = getattr(self, '_pending_data', ([], '', False, False))
-            
+           
             self.model.clear()
             self.all_messages = []
-            
+           
             cache_marker = " 📁" if from_cache else ""
-            
+           
             if not messages:
                 self.info_label.setText(f"No messages · {size_text}{cache_marker}")
                 self.messages_loaded.emit([])
                 return
-            
+           
             message_data = []
             for msg in messages:
                 try:
@@ -464,17 +475,17 @@ class ChatlogWidget(QWidget):
                     message_data.append(msg_data)
                 except Exception:
                     pass
-            
+           
             self.all_messages = message_data
             self._apply_filter()
-            
+           
             if was_truncated:
                 self.info_label.setText(f"⚠️ Loaded {len(messages)} messages (file truncated at {self.parser.MAX_FILE_SIZE_MB}MB limit) · {size_text}{cache_marker}")
             elif self.filtered_usernames or self.search_text:
                 pass
             else:
                 self.info_label.setText(f"Loaded {len(messages)} messages · {size_text}{cache_marker}")
-            
+           
             self.messages_loaded.emit(message_data)
             QTimer.singleShot(0, lambda: scroll(self.list_view, mode="bottom", delay=100))
         except Exception as e:
@@ -497,13 +508,13 @@ class ChatlogWidget(QWidget):
         calendar.setWindowFlags(Qt.WindowType.Popup)
         calendar.setGridVisible(True)
         calendar.setMaximumDate(QDate.currentDate())
-        
+       
         min_qdate = QDate(self.parser.MIN_DATE.year, self.parser.MIN_DATE.month, self.parser.MIN_DATE.day)
         calendar.setMinimumDate(min_qdate)
-        
+       
         qdate = QDate(self.current_date.year, self.current_date.month, self.current_date.day)
         calendar.setSelectedDate(qdate)
-        
+       
         def on_date_selected(date: QDate):
             new_date = date.toPyDate()
             if new_date != self.current_date:
@@ -511,14 +522,14 @@ class ChatlogWidget(QWidget):
                 self._update_date_display()
                 self.load_current_date()
             calendar.close()
-        
+       
         calendar.clicked.connect(on_date_selected)
         btn_pos = self.calendar_btn.mapToGlobal(self.calendar_btn.rect().bottomRight())
         x = btn_pos.x() - calendar.sizeHint().width()
         y = btn_pos.y() + (self.config.get("ui", "spacing", "widget_elements") or 6)
         calendar.move(x, y)
         calendar.show()
-    
+   
     def cleanup(self):
         if self.delegate:
             self.delegate.cleanup()

@@ -61,6 +61,7 @@
       "padding": 2,
       "vertical_spacing": 2,
       "element_spacing": 10
-    }
+    },
+    "input_height": 48
   }
 }
