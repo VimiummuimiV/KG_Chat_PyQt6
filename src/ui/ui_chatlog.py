@@ -205,6 +205,7 @@ class ChatlogWidget(QWidget):
         # Build text with separators
         text_lines = []
         current_date = None
+        message_count = 0
         
         for msg in self.all_messages:
             if msg.is_separator:
@@ -215,6 +216,7 @@ class ChatlogWidget(QWidget):
             else:
                 timestamp = msg.timestamp.strftime("%H:%M:%S")
                 text_lines.append(f"[{timestamp}] {msg.username}: {msg.body}")
+                message_count += 1
         
         result = '\n'.join(text_lines)
         
@@ -222,7 +224,7 @@ class ChatlogWidget(QWidget):
         clipboard = QApplication.clipboard()
         clipboard.setText(result)
         
-        QMessageBox.information(self, "Copied", f"Copied {len(self.all_messages)} messages to clipboard.")
+        QMessageBox.information(self, "Copied", f"Copied {message_count} messages to clipboard.")
     
     def _on_save_results(self):
         """Save parsed results to file"""
@@ -250,6 +252,7 @@ class ChatlogWidget(QWidget):
             # Build text with separators
             text_lines = []
             current_date = None
+            message_count = 0
             
             for msg in self.all_messages:
                 if msg.is_separator:
@@ -260,6 +263,7 @@ class ChatlogWidget(QWidget):
                 else:
                     timestamp = msg.timestamp.strftime("%H:%M:%S")
                     text_lines.append(f"[{timestamp}] {msg.username}: {msg.body}")
+                    message_count += 1
             
             result = '\n'.join(text_lines)
             
@@ -267,7 +271,7 @@ class ChatlogWidget(QWidget):
             with open(filename, 'w', encoding='utf-8') as f:
                 f.write(result)
             
-            QMessageBox.information(self, "Saved", f"Saved {len(self.all_messages)} messages to:\n{filename}")
+            QMessageBox.information(self, "Saved", f"Saved {message_count} messages to:\n{filename}")
         
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to save file:\n{e}")

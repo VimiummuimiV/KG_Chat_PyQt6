@@ -241,9 +241,9 @@ class MessageDelegate(QStyledItemDelegate):
                 bg_color = QColor("#2A2A2A")
                 text_color = QColor("#AAAAAA")
             else:
-                line_color = QColor("#DDDDDD")
-                bg_color = QColor("#F5F5F5")
-                text_color = QColor("#666666")
+                line_color = QColor("#BBBBBB")
+                bg_color = QColor("#E8E8E8")
+                text_color = QColor("#444444")
             
             rect = option.rect
             mid_y = rect.y() + rect.height() // 2
