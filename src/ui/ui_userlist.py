@@ -373,6 +373,29 @@ class UserListWidget(QWidget):
         # Update section visibility after removing users
         QTimer.singleShot(10, self._update_section_visibility)
     
+    def clear_all(self):
+        """Clear all users and reset state (for reconnection)"""
+        # Clear all widgets
+        for widget in list(self.user_widgets.values()):
+            try:
+                widget.deleteLater()
+            except Exception:
+                pass
+        self.user_widgets.clear()
+        
+        # Clear game state
+        self.user_game_state.clear()
+        
+        # Clear containers
+        self._clear_container(self.chat_container)
+        self._clear_container(self.game_container)
+        
+        # Update visibility
+        self._update_section_visibility()
+        
+        # Process deletions
+        QApplication.processEvents()
+    
     def update_theme(self):
         """Update theme colors - optimized to avoid full rebuild"""
         theme = self.config.get("ui", "theme")

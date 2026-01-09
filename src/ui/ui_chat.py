@@ -250,20 +250,33 @@ class ChatWindow(QWidget):
     
     def _check_and_reconnect(self):
         """Check connection status and reconnect if needed"""
-        # Only reconnect if allowed and not currently connecting and no active connection
         if (self.allow_reconnect and
             not self.is_connecting and 
             not self._is_connected() and 
             self.account and 
             self.isVisible()):
             
-            print("🔄 Window activated - attempting reconnection...")
             self.set_connection_status('connecting')
             self.connect_xmpp()
     
     def disable_reconnect(self):
         """Disable auto-reconnect (called when switching accounts)"""
         self.allow_reconnect = False
+    
+    def _clear_for_reconnect(self):
+        """Clear messages and userlist for fresh reconnection"""
+        # Clear all messages to avoid duplicates (server will send last 20 again)
+        self.messages_widget.clear()
+        
+        # Clear userlist completely (will rebuild from fresh roster)
+        if hasattr(self.user_list_widget, 'clear_all'):
+            self.user_list_widget.clear_all()
+        
+        # Exit private mode if active
+        if self.private_mode:
+            self.exit_private_mode()
+        
+        print("🔄 Cleared state for reconnection")
     
     def _is_connected(self):
         """Check if XMPP client is connected"""
@@ -487,6 +500,9 @@ class ChatWindow(QWidget):
         def _worker():
             self.is_connecting = True
             try:
+                # Clear old state before reconnecting
+                QTimer.singleShot(0, self._clear_for_reconnect)
+                
                 self.xmpp_client = XMPPClient(str(self.config_path))
                 if not self.xmpp_client.connect(self.account):
                     QTimer.singleShot(0, lambda: show_notification(
@@ -519,9 +535,18 @@ class ChatWindow(QWidget):
                 listen_thread.start()
                 listen_thread.join()
                 
-                # Connection ended
+                # Connection ended - clear sid to allow reconnection
+                if self.xmpp_client:
+                    self.xmpp_client.sid = None
+                    self.xmpp_client.jid = None
+                
                 self.signal_emitter.connection_changed.emit('offline')
             except Exception as e:
+                # Clear sid on error too
+                if self.xmpp_client:
+                    self.xmpp_client.sid = None
+                    self.xmpp_client.jid = None
+                
                 QTimer.singleShot(0, lambda: show_notification(
                     title="Error",
                     message=f"Connection error: {e}",
