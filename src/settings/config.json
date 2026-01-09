@@ -23,7 +23,7 @@
     "font_size": 16,
     "font_family": "Montserrat",
     "messages_userlist_visible": true,
-    "chatlog_userlist_visible": true,
+    "chatlog_userlist_visible": false,
     "chatlog_search_visible": false,
     "theme": "dark",
     "notification_width": 500,
