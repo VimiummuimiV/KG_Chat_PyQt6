@@ -26,8 +26,8 @@ class ChatlogsParser:
     BASE_URL = "https://klavogonki.ru/chatlogs"
     MIN_DATE = datetime(2012, 2, 12).date()
     MAX_FILE_SIZE_MB = 10 # Maximum file size in MB
-    NOT_FOUND_PREFIX = "NotFound_" # Prefix for 404 marker files
-    TRUNCATED_PREFIX = "Truncated_" # Prefix for truncated cache files (due to size)
+    NOT_FOUND_SUFFIX = "_NotFound" # Suffix for 404 marker files
+    TRUNCATED_SUFFIX = "_Truncated" # Suffix for truncated cache files (due to size)
    
     def __init__(self, session: Optional[requests.Session] = None):
         self.session = session or requests.Session()
@@ -35,12 +35,12 @@ class ChatlogsParser:
    
     def _get_cache_path(self, date: str, truncated: bool = False) -> Path:
         """Get cache file path for a date"""
-        prefix = self.TRUNCATED_PREFIX if truncated else ""
-        return self.cache_dir / f"{prefix}{date}.html"
+        suffix = self.TRUNCATED_SUFFIX if truncated else ""
+        return self.cache_dir / f"{date}{suffix}.html"
    
     def _get_not_found_path(self, date: str) -> Path:
         """Get not-found marker file path for a date"""
-        return self.cache_dir / f"{self.NOT_FOUND_PREFIX}{date}.txt"
+        return self.cache_dir / f"{date}{self.NOT_FOUND_SUFFIX}.txt"
    
     def _is_cached(self, date: str) -> Tuple[bool, bool]:
         """Check if chatlog is cached

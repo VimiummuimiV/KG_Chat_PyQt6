@@ -40,6 +40,7 @@ class ChatlogWidget(QWidget):
         self.search_text = ""
         self.all_messages = []
         self.last_parsed_date = None
+        self.temp_parsed_messages = [] # Temporary storage for parsed messages
       
         self.search_visible = config.get("ui", "chatlog_search_visible")
         if self.search_visible is None:
@@ -307,6 +308,7 @@ class ChatlogWidget(QWidget):
         """Start parsing with given config"""
         self.model.clear()
         self.all_messages = []
+        self.temp_parsed_messages = [] # Clear temp storage
         self.last_parsed_date = None
       
         self.parser_worker = ParserWorker(config)
@@ -323,40 +325,56 @@ class ChatlogWidget(QWidget):
             self.parser_worker = None
   
     def _on_parsed_messages(self, messages, date: str):
-        """Handle incrementally parsed messages"""
+        """Handle incrementally parsed messages - ONLY update counter, not layout"""
         if date != self.last_parsed_date:
             if self.last_parsed_date is not None:
-                # Add separator only if not first
+                # Add separator to temp storage only
                 separator = MessageData(datetime.now(), "", "", is_separator=True, date_str=date)
-                self.all_messages.append(separator)
-                self.model.add_message(separator)
+                self.temp_parsed_messages.append(separator)
             self.last_parsed_date = date
 
+        # Convert and store in temp storage - DO NOT add to model yet
         for msg in messages:
             try:
                 timestamp = datetime.strptime(msg.timestamp, "%H:%M:%S")
                 msg_data = MessageData(timestamp, msg.username, msg.message, None, msg.username)
-                self.all_messages.append(msg_data)
-                self.model.add_message(msg_data)
+                self.temp_parsed_messages.append(msg_data)
             except Exception as e:
-                print(f"Error adding message: {e}")
+                print(f"Error processing message: {e}")
       
-        # Update info
-        self.info_label.setText(f"Found {len(self.all_messages)} messages so far...")
-        QTimer.singleShot(0, lambda: scroll(self.list_view, mode="bottom", delay=50))
+        # Only update counter - no layout changes
+        self.info_label.setText(f"Found {len(self.temp_parsed_messages)} messages so far...")
   
     def _on_parse_finished(self, messages):
-        """Handle parse completion"""
+        """Handle parse completion - NOW add all messages to layout at once"""
         self.parser_worker = None
         self.parser_widget._reset_ui()
         self.last_parsed_date = None
       
-        if messages:
-            self.info_label.setText(f"✅ Found {len(messages)} total messages")
+        if self.temp_parsed_messages:
+            # Disable updates for batch insertion
+            self.list_view.setUpdatesEnabled(False)
+            
+            # Add ALL messages at once
+            self.all_messages = self.temp_parsed_messages.copy()
+            for msg_data in self.temp_parsed_messages:
+                self.model.add_message(msg_data)
+            
+            # Clear temp storage
+            self.temp_parsed_messages = []
+            
+            # Re-enable updates
+            self.list_view.setUpdatesEnabled(True)
+            
+            # Update UI
+            self.info_label.setText(f"✅ Found {len(self.all_messages)} total messages")
             self.messages_loaded.emit(self.all_messages)
            
             # Show copy/save buttons
             self.parser_widget.show_copy_save_buttons()
+            
+            # Scroll to bottom after everything is loaded
+            QTimer.singleShot(100, lambda: scroll(self.list_view, mode="bottom", delay=50))
         else:
             self.info_label.setText("No messages found")
   
@@ -364,6 +382,7 @@ class ChatlogWidget(QWidget):
         """Handle parse error"""
         self.parser_worker = None
         self.parser_widget._reset_ui()
+        self.temp_parsed_messages = []  # Clear temp on error
         self.info_label.setText(f"❌ Error: {error_msg}")
   
     def _handle_error(self, error_msg: str):
@@ -490,9 +509,13 @@ class ChatlogWidget(QWidget):
         self.filter_changed.emit(self.filtered_usernames)
   
     def _apply_filter(self):
+        # Batch operations for better performance
+        self.list_view.setUpdatesEnabled(False)
+        
         self.model.clear()
       
         if not self.all_messages:
+            self.list_view.setUpdatesEnabled(True)
             return
       
         search_users, search_message, is_prefix_mode = self._parse_search_text()
@@ -518,9 +541,12 @@ class ChatlogWidget(QWidget):
                                 if search_lower in msg.username.lower() or
                                     search_lower in msg.body.lower()]
       
+        # Batch add all filtered messages
         for msg in messages_to_show:
             self.model.add_message(msg)
       
+        self.list_view.setUpdatesEnabled(True)
+        
         total = len(self.all_messages)
         shown = len(messages_to_show)
       
@@ -581,6 +607,9 @@ class ChatlogWidget(QWidget):
         try:
             messages, size_text, was_truncated, from_cache = getattr(self, '_pending_data', ([], '', False, False))
           
+            # Batch operations
+            self.list_view.setUpdatesEnabled(False)
+            
             self.model.clear()
             self.all_messages = []
           
@@ -589,6 +618,7 @@ class ChatlogWidget(QWidget):
             if not messages:
                 self.info_label.setText(f"No messages · {size_text}{cache_marker}")
                 self.messages_loaded.emit([])
+                self.list_view.setUpdatesEnabled(True)
                 return
           
             message_data = []
@@ -603,6 +633,8 @@ class ChatlogWidget(QWidget):
             self.all_messages = message_data
             self._apply_filter()
           
+            self.list_view.setUpdatesEnabled(True)
+            
             if was_truncated:
                 self.info_label.setText(f"⚠️ Loaded {len(messages)} messages (file truncated at {self.parser.MAX_FILE_SIZE_MB}MB limit) · {size_text}{cache_marker}")
             elif self.filtered_usernames or self.search_text:
