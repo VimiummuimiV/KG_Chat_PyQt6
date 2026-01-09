@@ -56,7 +56,6 @@ class ChatlogsParserConfigWidget(QWidget):
         self.icons_path = icons_path
         self.account = account  # Store account to get current username
         self.is_parsing = False
-        self.is_fetching_history = False
         
         self._setup_ui()
     
@@ -171,12 +170,16 @@ class ChatlogsParserConfigWidget(QWidget):
             "comma-separated (leave empty for all users)"
         )
         
+        # Connect to enable/disable fetch button based on input
+        self.username_input.textChanged.connect(self._update_fetch_button_state)
+        
         # Fetch history button
         self.fetch_history_button = create_icon_button(
             self.icons_path, "user-received.svg", "Fetch username history",
             size_type="large", config=self.config
         )
         self.fetch_history_button.clicked.connect(self._on_fetch_history_clicked)
+        self.fetch_history_button.setEnabled(False)  # Initially disabled
         username_layout.addWidget(self.fetch_history_button)
         
         username_container.setLayout(username_layout)
@@ -267,43 +270,47 @@ class ChatlogsParserConfigWidget(QWidget):
         self._on_mode_changed(0)
         self._update_mention_label()
     
+    def _update_fetch_button_state(self):
+        """Enable/disable fetch button based on username input"""
+        has_text = bool(self.username_input.text().strip())
+        self.fetch_history_button.setEnabled(has_text)
+    
     def _on_fetch_history_clicked(self):
         """Fetch username history for usernames in the field"""
-        if self.is_fetching_history:
-            return
-        
         username_text = self.username_input.text().strip()
         if not username_text:
-            QMessageBox.warning(self, "No Username", "Please enter at least one username to fetch history.")
             return
         
         usernames = [u.strip() for u in username_text.split(',') if u.strip()]
         if not usernames:
-            QMessageBox.warning(self, "No Username", "Please enter at least one username to fetch history.")
             return
-        
-        # Disable button during fetch
-        self.is_fetching_history = True
-        self.fetch_history_button.setEnabled(False)
-        self.fetch_history_button.setToolTip("Fetching...")
         
         def _fetch():
             try:
+                # Start with original usernames
                 expanded = set(usernames)
                 not_found = []
                 
                 for username in usernames:
                     try:
+                        # Try to get username history
                         history = get_usernames_history(username)
+                        
+                        # If we got history, add it
                         if history:
                             expanded.update(history)
                         else:
-                            # Check if user exists at all
+                            # If no history returned, check if user exists at all
                             user_id = get_exact_user_id_by_name(username)
                             if not user_id:
+                                # User doesn't exist
                                 not_found.append(username)
-                    except Exception:
+                                # Remove from expanded set since user doesn't exist
+                                expanded.discard(username)
+                    except Exception as e:
+                        # Any exception means user not found or API error
                         not_found.append(username)
+                        expanded.discard(username)
                 
                 # Update UI on main thread
                 QTimer.singleShot(0, lambda: self._on_fetch_complete(sorted(expanded), not_found))
@@ -315,32 +322,37 @@ class ChatlogsParserConfigWidget(QWidget):
     
     def _on_fetch_complete(self, usernames: list, not_found: list):
         """Handle fetch completion"""
-        self.is_fetching_history = False
-        self.fetch_history_button.setEnabled(True)
-        self.fetch_history_button.setToolTip("Fetch username history")
+        # Always update username field with valid usernames (even if empty)
+        if usernames:
+            self.username_input.setText(', '.join(usernames))
+        else:
+            # All users not found - clear the field
+            self.username_input.clear()
         
+        # Show errors if any users weren't found
         if not_found:
             QMessageBox.warning(
                 self, 
-                "Some Users Not Found", 
+                "Users Not Found", 
                 f"The following users were not found:\n{', '.join(not_found)}"
             )
-        
-        # Update username field with all usernames
-        self.username_input.setText(', '.join(usernames))
-        
-        if usernames and not not_found:
+        elif usernames:
+            # Only show success message if we found users and had no errors
             QMessageBox.information(
                 self,
                 "History Fetched",
                 f"Retrieved {len(usernames)} usernames including history."
             )
+        else:
+            # No users found at all
+            QMessageBox.warning(
+                self,
+                "No Users Found",
+                "None of the entered usernames were found."
+            )
     
     def _on_fetch_error(self, error: str):
         """Handle fetch error"""
-        self.is_fetching_history = False
-        self.fetch_history_button.setEnabled(True)
-        self.fetch_history_button.setToolTip("Fetch username history")
         QMessageBox.critical(self, "Error", f"Failed to fetch username history:\n{error}")
     
     def _update_mention_label(self):
