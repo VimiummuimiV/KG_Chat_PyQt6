@@ -79,8 +79,19 @@ class ChatlogsParserConfigWidget(QWidget):
         combo.setFixedHeight(self.input_height)
         return combo
     
-    def _create_input_row(self, label_text: str, placeholder: str = "", object_name: str = "") -> tuple[QHBoxLayout, QLineEdit]:
-        """Create a complete input row with label and input field"""
+    def _create_input_row(self, label_text: str, placeholder: str = "", object_name: str = "", as_widget: bool = False):
+        """Create a complete input row with label and input field
+        
+        Args:
+            label_text: Text for the label
+            placeholder: Placeholder text for input
+            object_name: Object name for input (for findChild)
+            as_widget: If True, return QWidget containing the layout instead of layout itself
+        
+        Returns:
+            If as_widget=False: tuple[QHBoxLayout, QLineEdit]
+            If as_widget=True: tuple[QWidget, QLineEdit]
+        """
         layout = QHBoxLayout()
         layout.setSpacing(self.spacing)
         
@@ -89,6 +100,11 @@ class ChatlogsParserConfigWidget(QWidget):
         
         input_field = self._create_input(placeholder, object_name)
         layout.addWidget(input_field, stretch=1)
+        
+        if as_widget:
+            container = QWidget()
+            container.setLayout(layout)
+            return container, input_field
         
         return layout, input_field
     
@@ -111,6 +127,7 @@ class ChatlogsParserConfigWidget(QWidget):
         layout.addWidget(title)
         
         # Mode selection
+        mode_container = QWidget()
         mode_layout = QHBoxLayout()
         mode_layout.setSpacing(self.spacing)
         mode_label = self._create_label("Mode:")
@@ -126,7 +143,8 @@ class ChatlogsParserConfigWidget(QWidget):
         ])
         self.mode_combo.currentIndexChanged.connect(self._on_mode_changed)
         mode_layout.addWidget(self.mode_combo, stretch=1)
-        layout.addLayout(mode_layout)
+        mode_container.setLayout(mode_layout)
+        layout.addWidget(mode_container)
         
         # Date inputs (dynamic based on mode)
         self.date_container = QWidget()
@@ -137,6 +155,7 @@ class ChatlogsParserConfigWidget(QWidget):
         layout.addWidget(self.date_container)
         
         # Username input
+        username_container = QWidget()
         username_layout, self.username_input = self._create_input_row(
             "Usernames:",
             "comma-separated (leave empty for all users)"
@@ -146,14 +165,17 @@ class ChatlogsParserConfigWidget(QWidget):
         self.fetch_history_checkbox.setToolTip("Automatically fetch previous usernames")
         username_layout.addWidget(self.fetch_history_checkbox)
         
-        layout.addLayout(username_layout)
+        username_container.setLayout(username_layout)
+        layout.addWidget(username_container)
         
         # Search terms input
+        search_container = QWidget()
         search_layout, self.search_input = self._create_input_row(
             "Search:",
             "comma-separated search terms (leave empty for all messages)"
         )
-        layout.addLayout(search_layout)
+        search_container.setLayout(search_layout)
+        layout.addWidget(search_container)
         
         # Mention keywords (only for personal mentions mode)
         self.mention_container = QWidget()
