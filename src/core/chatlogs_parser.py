@@ -57,15 +57,17 @@ class ChatlogsParserEngine:
         from_date = datetime.strptime(config.from_date, '%Y-%m-%d').date()
         to_date = datetime.strptime(config.to_date, '%Y-%m-%d').date()
         
-        current_date = from_date
+        # Calculate total days for progress calculation
         total_days = (to_date - from_date).days + 1
+        
+        current_date = from_date
         
         while current_date <= to_date and not self.stop_requested:
             date_str = current_date.strftime('%Y-%m-%d')
             
-            # Calculate progress
-            days_done = (current_date - from_date).days + 1
-            percent = int((days_done / total_days) * 100)
+            # Calculate progress based on days processed
+            days_processed = (current_date - from_date).days + 1
+            percent = int((days_processed / total_days) * 100)
             
             if progress_callback:
                 progress_callback(config.from_date, date_str, percent)

@@ -26,41 +26,64 @@ class ChatlogsParser:
     BASE_URL = "https://klavogonki.ru/chatlogs"
     MIN_DATE = datetime(2012, 2, 12).date()
     MAX_FILE_SIZE_MB = 10 # Maximum file size in MB
-    NOT_FOUND_PREFIX = "NotFound_"
+    NOT_FOUND_PREFIX = "NotFound_" # Prefix for 404 marker files
+    TRUNCATED_PREFIX = "Truncated_" # Prefix for truncated cache files (due to size)
    
     def __init__(self, session: Optional[requests.Session] = None):
         self.session = session or requests.Session()
         self.cache_dir = get_data_dir("chatlogs")
    
-    def _get_cache_path(self, date: str) -> Path:
+    def _get_cache_path(self, date: str, truncated: bool = False) -> Path:
         """Get cache file path for a date"""
-        return self.cache_dir / f"{date}.html"
+        prefix = self.TRUNCATED_PREFIX if truncated else ""
+        return self.cache_dir / f"{prefix}{date}.html"
    
     def _get_not_found_path(self, date: str) -> Path:
         """Get not-found marker file path for a date"""
         return self.cache_dir / f"{self.NOT_FOUND_PREFIX}{date}.txt"
    
-    def _is_cached(self, date: str) -> bool:
-        """Check if chatlog is cached"""
-        return self._get_cache_path(date).exists()
+    def _is_cached(self, date: str) -> Tuple[bool, bool]:
+        """Check if chatlog is cached
+        
+        Returns:
+            tuple: (is_cached, was_truncated)
+        """
+        # Check for truncated version first
+        if self._get_cache_path(date, truncated=True).exists():
+            return True, True
+        # Check for normal version
+        if self._get_cache_path(date, truncated=False).exists():
+            return True, False
+        return False, False
    
     def _is_not_found(self, date: str) -> bool:
         """Check if chatlog was previously not found (404)"""
         return self._get_not_found_path(date).exists()
    
-    def _load_from_cache(self, date: str) -> str:
-        """Load chatlog from cache"""
-        cache_path = self._get_cache_path(date)
+    def _load_from_cache(self, date: str) -> Tuple[str, bool]:
+        """Load chatlog from cache
+        
+        Returns:
+            tuple: (html_content, was_truncated)
+        """
+        # Try truncated version first
+        truncated_path = self._get_cache_path(date, truncated=True)
+        if truncated_path.exists():
+            with open(truncated_path, 'r', encoding='utf-8') as f:
+                return f.read(), True
+        
+        # Try normal version
+        cache_path = self._get_cache_path(date, truncated=False)
         with open(cache_path, 'r', encoding='utf-8') as f:
-            return f.read()
+            return f.read(), False
    
-    def _save_to_cache(self, date: str, html: str):
+    def _save_to_cache(self, date: str, html: str, truncated: bool = False):
         """Save chatlog to cache (only if not today)"""
         date_obj = datetime.strptime(date, '%Y-%m-%d').date()
         if date_obj >= datetime.now().date():
             return # Don't cache today or future dates
        
-        cache_path = self._get_cache_path(date)
+        cache_path = self._get_cache_path(date, truncated=truncated)
         with open(cache_path, 'w', encoding='utf-8') as f:
             f.write(html)
    
@@ -97,9 +120,10 @@ class ChatlogsParser:
             raise ChatlogNotFoundError(f"Chatlog not found for date {date} (cached 404)")
        
         # Check cache
-        if self._is_cached(date):
-            html = self._load_from_cache(date)
-            return html, False, True # Not truncated, from cache
+        is_cached, was_truncated = self._is_cached(date)
+        if is_cached:
+            html, was_truncated = self._load_from_cache(date)
+            return html, was_truncated, True # From cache
        
         # Fetch from network
         url = f"{self.BASE_URL}/{date}.html"
@@ -136,8 +160,8 @@ class ChatlogsParser:
             response.encoding = 'utf-8'
             html = response.text
            
-            # Save to cache (only if not today)
-            self._save_to_cache(date, html)
+            # Save to cache with truncation flag (only if not today)
+            self._save_to_cache(date, html, truncated=was_truncated)
            
             return html, was_truncated, False # Return from_cache=False
            

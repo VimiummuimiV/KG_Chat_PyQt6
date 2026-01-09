@@ -443,7 +443,7 @@ class ChatlogsParserConfigWidget(QWidget):
             self._add_date_input("Range:", "range_dates", "YYYY-MM-DD YYYY-MM-DD")
         
         elif mode == "From Start":
-            info = QLabel("Will parse from 2012-02-12 to today")
+            info = QLabel("Will parse from 2012-12-02 to today")
             info.setStyleSheet("color: #888;")
             self.date_layout.addWidget(info)
         
@@ -542,7 +542,7 @@ class ChatlogsParserConfigWidget(QWidget):
             self.progress_bar.setVisible(True)
             self.progress_bar.setValue(0)
             self.progress_label.setVisible(True)
-            self.progress_label.setText(f"{config.from_date} - {config.from_date} | 0%") # Initialize
+            self.progress_label.setText(f"📅 {config.from_date} - {config.from_date}")
             
             # Hide copy/save buttons during parsing
             self.copy_button.setVisible(False)
@@ -580,7 +580,7 @@ class ChatlogsParserConfigWidget(QWidget):
     def update_progress(self, start_date: str, current_date: str, percent: int):
         """Update progress display"""
         self.progress_bar.setValue(percent)
-        self.progress_label.setText(f"{start_date} - {current_date} | {percent}%")
+        self.progress_label.setText(f"📅 {start_date} - {current_date}")
     
     def _build_parse_config(self) -> Optional[ParseConfig]:
         """Build ParseConfig from UI inputs"""
@@ -617,7 +617,7 @@ class ChatlogsParserConfigWidget(QWidget):
             from_date, to_date = dates
         
         elif mode == "From Start":
-            from_date = "2012-02-12"
+            from_date = "2012-12-02"
             to_date = datetime.now().strftime('%Y-%m-%d')
         
         elif mode == "From Registered":
@@ -671,7 +671,7 @@ class ChatlogsParserConfigWidget(QWidget):
                 from_date, to_date = dates
             
             elif sub_mode == "From Start":
-                from_date = "2012-02-12"
+                from_date = "2012-12-02"
                 to_date = datetime.now().strftime('%Y-%m-%d')
             
             elif sub_mode == "Last N Days":
