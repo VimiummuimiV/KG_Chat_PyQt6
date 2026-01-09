@@ -2,13 +2,14 @@
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
     QComboBox, QPushButton, QProgressBar, QTextEdit,
-    QCheckBox, QFileDialog, QApplication
+    QCheckBox, QFileDialog, QApplication, QMessageBox
 )
-from PyQt6.QtCore import Qt, pyqtSignal, QThread
+from PyQt6.QtCore import Qt, pyqtSignal, QThread, QTimer
 from PyQt6.QtGui import QFont
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import List, Optional
+import threading
 
 from helpers.create import create_icon_button
 from core.api_data import get_exact_user_id_by_name, get_usernames_history, get_registration_date
@@ -55,6 +56,7 @@ class ChatlogsParserConfigWidget(QWidget):
         self.icons_path = icons_path
         self.account = account  # Store account to get current username
         self.is_parsing = False
+        self.is_fetching_history = False
         
         self._setup_ui()
     
@@ -162,16 +164,20 @@ class ChatlogsParserConfigWidget(QWidget):
         self.date_container.setLayout(self.date_layout)
         layout.addWidget(self.date_container)
         
-        # Username input
+        # Username input with fetch history button
         username_container = QWidget()
         username_layout, self.username_input = self._create_input_row(
             "Usernames:",
             "comma-separated (leave empty for all users)"
         )
         
-        self.fetch_history_checkbox = QCheckBox("Username history")
-        self.fetch_history_checkbox.setToolTip("Automatically fetch previous usernames")
-        username_layout.addWidget(self.fetch_history_checkbox)
+        # Fetch history button
+        self.fetch_history_button = create_icon_button(
+            self.icons_path, "user-received.svg", "Fetch username history",
+            size_type="large", config=self.config
+        )
+        self.fetch_history_button.clicked.connect(self._on_fetch_history_clicked)
+        username_layout.addWidget(self.fetch_history_button)
         
         username_container.setLayout(username_layout)
         layout.addWidget(username_container)
@@ -260,6 +266,82 @@ class ChatlogsParserConfigWidget(QWidget):
         # Initialize with first mode
         self._on_mode_changed(0)
         self._update_mention_label()
+    
+    def _on_fetch_history_clicked(self):
+        """Fetch username history for usernames in the field"""
+        if self.is_fetching_history:
+            return
+        
+        username_text = self.username_input.text().strip()
+        if not username_text:
+            QMessageBox.warning(self, "No Username", "Please enter at least one username to fetch history.")
+            return
+        
+        usernames = [u.strip() for u in username_text.split(',') if u.strip()]
+        if not usernames:
+            QMessageBox.warning(self, "No Username", "Please enter at least one username to fetch history.")
+            return
+        
+        # Disable button during fetch
+        self.is_fetching_history = True
+        self.fetch_history_button.setEnabled(False)
+        self.fetch_history_button.setToolTip("Fetching...")
+        
+        def _fetch():
+            try:
+                expanded = set(usernames)
+                not_found = []
+                
+                for username in usernames:
+                    try:
+                        history = get_usernames_history(username)
+                        if history:
+                            expanded.update(history)
+                        else:
+                            # Check if user exists at all
+                            user_id = get_exact_user_id_by_name(username)
+                            if not user_id:
+                                not_found.append(username)
+                    except Exception:
+                        not_found.append(username)
+                
+                # Update UI on main thread
+                QTimer.singleShot(0, lambda: self._on_fetch_complete(sorted(expanded), not_found))
+            
+            except Exception as e:
+                QTimer.singleShot(0, lambda: self._on_fetch_error(str(e)))
+        
+        threading.Thread(target=_fetch, daemon=True).start()
+    
+    def _on_fetch_complete(self, usernames: list, not_found: list):
+        """Handle fetch completion"""
+        self.is_fetching_history = False
+        self.fetch_history_button.setEnabled(True)
+        self.fetch_history_button.setToolTip("Fetch username history")
+        
+        if not_found:
+            QMessageBox.warning(
+                self, 
+                "Some Users Not Found", 
+                f"The following users were not found:\n{', '.join(not_found)}"
+            )
+        
+        # Update username field with all usernames
+        self.username_input.setText(', '.join(usernames))
+        
+        if usernames and not not_found:
+            QMessageBox.information(
+                self,
+                "History Fetched",
+                f"Retrieved {len(usernames)} usernames including history."
+            )
+    
+    def _on_fetch_error(self, error: str):
+        """Handle fetch error"""
+        self.is_fetching_history = False
+        self.fetch_history_button.setEnabled(True)
+        self.fetch_history_button.setToolTip("Fetch username history")
+        QMessageBox.critical(self, "Error", f"Failed to fetch username history:\n{error}")
     
     def _update_mention_label(self):
         """Update the mention label based on current username and input"""
@@ -469,14 +551,14 @@ class ChatlogsParserConfigWidget(QWidget):
         if mode == "Single Date":
             date_input = self.findChild(QLineEdit, "single_date")
             if not date_input or not date_input.text().strip():
-                print("Please enter a date")
+                QMessageBox.warning(self, "Missing Date", "Please enter a date")
                 return None
             from_date = to_date = date_input.text().strip()
         
         elif mode == "From Date":
             date_input = self.findChild(QLineEdit, "from_date")
             if not date_input or not date_input.text().strip():
-                print("Please enter from date")
+                QMessageBox.warning(self, "Missing Date", "Please enter from date")
                 return None
             from_date = date_input.text().strip()
             to_date = datetime.now().strftime('%Y-%m-%d')
@@ -484,11 +566,11 @@ class ChatlogsParserConfigWidget(QWidget):
         elif mode == "Date Range":
             range_input = self.findChild(QLineEdit, "range_dates")
             if not range_input or not range_input.text().strip():
-                print("Please enter date range in format YYYY-MM-DD YYYY-MM-DD")
+                QMessageBox.warning(self, "Missing Dates", "Please enter date range in format YYYY-MM-DD YYYY-MM-DD")
                 return None
             dates = range_input.text().strip().split()
             if len(dates) != 2:
-                print("Invalid range format - use YYYY-MM-DD YYYY-MM-DD")
+                QMessageBox.warning(self, "Invalid Format", "Invalid range format - use YYYY-MM-DD YYYY-MM-DD")
                 return None
             from_date, to_date = dates
         
@@ -500,7 +582,7 @@ class ChatlogsParserConfigWidget(QWidget):
             # Get registration date from usernames
             usernames = self._get_usernames()
             if not usernames:
-                print("Please enter at least one username")
+                QMessageBox.warning(self, "Missing Username", "Please enter at least one username")
                 return None
             
             # Fetch registration dates (synchronous - might want to make async)
@@ -511,7 +593,7 @@ class ChatlogsParserConfigWidget(QWidget):
                     reg_dates.append(reg_date)
             
             if not reg_dates:
-                print("Could not get registration date")
+                QMessageBox.warning(self, "Error", "Could not get registration date")
                 return None
             
             from_date = min(reg_dates)
@@ -523,14 +605,14 @@ class ChatlogsParserConfigWidget(QWidget):
             if sub_mode == "Single Date":
                 date_input = self.findChild(QLineEdit, "mention_single_date")
                 if not date_input or not date_input.text().strip():
-                    print("Please enter a date")
+                    QMessageBox.warning(self, "Missing Date", "Please enter a date")
                     return None
                 from_date = to_date = date_input.text().strip()
             
             elif sub_mode == "From Date":
                 date_input = self.findChild(QLineEdit, "mention_from_date")
                 if not date_input or not date_input.text().strip():
-                    print("Please enter from date")
+                    QMessageBox.warning(self, "Missing Date", "Please enter from date")
                     return None
                 from_date = date_input.text().strip()
                 to_date = datetime.now().strftime('%Y-%m-%d')
@@ -538,11 +620,11 @@ class ChatlogsParserConfigWidget(QWidget):
             elif sub_mode == "Date Range":
                 range_input = self.findChild(QLineEdit, "mention_range_dates")
                 if not range_input or not range_input.text().strip():
-                    print("Please enter date range in format YYYY-MM-DD YYYY-MM-DD")
+                    QMessageBox.warning(self, "Missing Dates", "Please enter date range in format YYYY-MM-DD YYYY-MM-DD")
                     return None
                 dates = range_input.text().strip().split()
                 if len(dates) != 2:
-                    print("Invalid range format - use YYYY-MM-DD YYYY-MM-DD")
+                    QMessageBox.warning(self, "Invalid Format", "Invalid range format - use YYYY-MM-DD YYYY-MM-DD")
                     return None
                 from_date, to_date = dates
             
@@ -552,19 +634,19 @@ class ChatlogsParserConfigWidget(QWidget):
             
             elif sub_mode == "Last N Days":
                 if not hasattr(self, 'days_input') or not self.days_input.text().strip():
-                    print("Please enter number of days")
+                    QMessageBox.warning(self, "Missing Days", "Please enter number of days")
                     return None
                 try:
                     days = int(self.days_input.text().strip())
                     if days <= 0:
-                        print("Days must be positive")
+                        QMessageBox.warning(self, "Invalid Days", "Days must be positive")
                         return None
                     to_date = datetime.now().date()
                     from_date = to_date - timedelta(days=days-1)
                     from_date = from_date.strftime('%Y-%m-%d')
                     to_date = to_date.strftime('%Y-%m-%d')
                 except ValueError:
-                    print("Invalid number of days")
+                    QMessageBox.warning(self, "Invalid Days", "Invalid number of days")
                     return None
         
         # Get usernames and search terms
@@ -599,22 +681,11 @@ class ChatlogsParserConfigWidget(QWidget):
         return config
     
     def _get_usernames(self) -> List[str]:
-        """Get and optionally expand usernames with history"""
+        """Get usernames from field (no auto-expansion)"""
         text = self.username_input.text().strip()
         if not text:
             return []
-        
-        usernames = [u.strip() for u in text.split(',') if u.strip()]
-        
-        if self.fetch_history_checkbox.isChecked() and usernames:
-            # Fetch history for all usernames
-            expanded = set(usernames)
-            for username in usernames:
-                history = get_usernames_history(username)
-                expanded.update(history)
-            return sorted(expanded)
-        
-        return usernames
+        return [u.strip() for u in text.split(',') if u.strip()]
     
     def _get_search_terms(self) -> List[str]:
         """Get search terms"""

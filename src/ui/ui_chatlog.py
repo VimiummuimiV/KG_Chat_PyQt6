@@ -72,62 +72,74 @@ class ChatlogWidget(QWidget):
         layout.setSpacing(spacing)
         self.setLayout(layout)
 
-        # Navigation bar
-        self.nav_bar = QHBoxLayout()
-        self.nav_bar.setSpacing(self.config.get("ui", "buttons", "spacing") or 8)
-        layout.addLayout(self.nav_bar)
+        # Top bar container for responsive layout
+        self.top_bar_container = QWidget()
+        self.top_bar_layout = QVBoxLayout()
+        self.top_bar_layout.setContentsMargins(0, 0, 0, 0)
+        self.top_bar_layout.setSpacing(spacing)
+        self.top_bar_container.setLayout(self.top_bar_layout)
+        layout.addWidget(self.top_bar_container)
 
-        self.back_btn = create_icon_button(self.icons_path, "go-back.svg", "Back to chat",
-                                          size_type="large", config=self.config)
-        self.back_btn.clicked.connect(self.back_requested.emit)
-        self.nav_bar.addWidget(self.back_btn)
+        # Main horizontal bar (for wide screens)
+        self.main_bar = QHBoxLayout()
+        self.main_bar.setSpacing(spacing)
+        self.top_bar_layout.addLayout(self.main_bar)
 
-        self.prev_btn = create_icon_button(self.icons_path, "arrow-left.svg", "Previous day",
-                                          size_type="large", config=self.config)
-        self.prev_btn.clicked.connect(self._go_previous_day)
-        self.nav_bar.addWidget(self.prev_btn)
-
+        # Left side: Info block (date + status)
+        self.info_block = QVBoxLayout()
+        self.info_block.setSpacing(2)
+        
+        # Date label
         self.date_label = QLabel()
         font = QFont(self.config.get("ui", "font_family"), self.config.get("ui", "font_size") + 2)
         font.setBold(True)
         self.date_label.setFont(font)
-        self.date_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.nav_bar.addWidget(self.date_label, stretch=1)
+        self.date_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        self.info_block.addWidget(self.date_label)
+        
+        # Info label
+        self.info_label = QLabel("Loading...")
+        self.info_label.setStyleSheet("color: #666666;")
+        self.info_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        self.info_block.addWidget(self.info_label)
+        
+        self.main_bar.addLayout(self.info_block, stretch=1)
+
+        # Right side: Navigation buttons
+        self.nav_buttons_layout = QHBoxLayout()
+        self.nav_buttons_layout.setSpacing(self.config.get("ui", "buttons", "spacing") or 8)
+
+        self.back_btn = create_icon_button(self.icons_path, "go-back.svg", "Back to chat",
+                                          size_type="large", config=self.config)
+        self.back_btn.clicked.connect(self.back_requested.emit)
+        self.nav_buttons_layout.addWidget(self.back_btn)
+
+        self.prev_btn = create_icon_button(self.icons_path, "arrow-left.svg", "Previous day",
+                                          size_type="large", config=self.config)
+        self.prev_btn.clicked.connect(self._go_previous_day)
+        self.nav_buttons_layout.addWidget(self.prev_btn)
 
         self.next_btn = create_icon_button(self.icons_path, "arrow-right.svg", "Next day",
                                           size_type="large", config=self.config)
         self.next_btn.clicked.connect(self._go_next_day)
-        self.nav_bar.addWidget(self.next_btn)
+        self.nav_buttons_layout.addWidget(self.next_btn)
 
         self.calendar_btn = create_icon_button(self.icons_path, "calendar.svg", "Select date",
                                               size_type="large", config=self.config)
         self.calendar_btn.clicked.connect(self._show_calendar)
-        self.nav_bar.addWidget(self.calendar_btn)
+        self.nav_buttons_layout.addWidget(self.calendar_btn)
 
         self.search_toggle_btn = create_icon_button(self.icons_path, "search.svg", "Toggle search",
                                                    size_type="large", config=self.config)
         self.search_toggle_btn.clicked.connect(self._toggle_search)
-        self.nav_bar.addWidget(self.search_toggle_btn)
+        self.nav_buttons_layout.addWidget(self.search_toggle_btn)
 
         self.parse_btn = create_icon_button(self.icons_path, "play.svg", "Parse all chatlogs",
                                            size_type="large", config=self.config)
         self.parse_btn.clicked.connect(self._toggle_parser)
-        self.nav_bar.addWidget(self.parse_btn)
-
-        # Separate date label container for narrow mode
-        self.date_container = QWidget()
-        date_container_layout = QVBoxLayout()
-        date_container_layout.setContentsMargins(0, 0, 0, 0)
-        date_container_layout.setSpacing(0)
-        self.date_container.setLayout(date_container_layout)
-        self.date_container.setVisible(False)
-        layout.addWidget(self.date_container)
-
-        # Info label
-        self.info_label = QLabel("Loading...")
-        self.info_label.setStyleSheet("color: #666666;")
-        self.info_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(self.info_label)
+        self.nav_buttons_layout.addWidget(self.parse_btn)
+        
+        self.main_bar.addLayout(self.nav_buttons_layout)
        
         self.compact_layout = False
 
@@ -414,18 +426,41 @@ class ChatlogWidget(QWidget):
         self.prev_btn.setEnabled(self.current_date > self.parser.MIN_DATE)
    
     def set_compact_layout(self, compact: bool):
+        """Handle responsive layout for < 1000px width"""
         if compact == self.compact_layout:
             return
        
         if compact:
-            self.nav_bar.removeWidget(self.date_label)
-            self.date_container.layout().addWidget(self.date_label)
-            self.date_container.setVisible(True)
+            # Move info block below buttons
+            self.main_bar.removeItem(self.info_block)
+            self.main_bar.removeItem(self.nav_buttons_layout)
+            
+            # Add buttons first, then info block
+            buttons_widget = QWidget()
+            buttons_widget.setLayout(self.nav_buttons_layout)
+            self.top_bar_layout.insertWidget(0, buttons_widget)
+            
+            info_widget = QWidget()
+            info_widget.setLayout(self.info_block)
+            self.top_bar_layout.insertWidget(1, info_widget)
+            
+            # Remove main bar
+            while self.main_bar.count():
+                self.main_bar.takeAt(0)
+            
             self.compact_layout = True
         else:
-            self.date_container.layout().removeWidget(self.date_label)
-            self.nav_bar.insertWidget(2, self.date_label, stretch=1)
-            self.date_container.setVisible(False)
+            # Restore horizontal layout
+            # Remove from vertical layout
+            while self.top_bar_layout.count() > 1:
+                item = self.top_bar_layout.takeAt(0)
+                if item.widget():
+                    item.widget().deleteLater()
+            
+            # Re-add to horizontal layout
+            self.main_bar.addLayout(self.info_block, stretch=1)
+            self.main_bar.addLayout(self.nav_buttons_layout)
+            
             self.compact_layout = False
    
     def set_compact_mode(self, compact: bool):

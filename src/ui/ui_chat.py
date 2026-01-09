@@ -441,8 +441,8 @@ class ChatWindow(QWidget):
             self.stacked_widget.addWidget(self.chatlog_widget)
             
             width = self.width()
-            self.chatlog_widget.set_compact_mode(width <= 800)
-            self.chatlog_widget.set_compact_layout(width <= 800)
+            self.chatlog_widget.set_compact_mode(width <= 1000)
+            self.chatlog_widget.set_compact_layout(width <= 1000)
         
         if not self.chatlog_userlist_widget:
             self.chatlog_userlist_widget = ChatlogUserlistWidget(
