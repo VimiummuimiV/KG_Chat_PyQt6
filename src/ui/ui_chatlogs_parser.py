@@ -1,7 +1,8 @@
 """Chatlog parser configuration UI"""
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
-    QComboBox, QPushButton, QProgressBar, QTextEdit, QCheckBox
+    QComboBox, QPushButton, QProgressBar, QTextEdit,
+    QCheckBox, QFileDialog, QApplication
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QThread
 from PyQt6.QtGui import QFont
@@ -12,6 +13,7 @@ from typing import List, Optional
 from helpers.create import create_icon_button
 from core.api_data import get_exact_user_id_by_name, get_usernames_history, get_registration_date
 from core.chatlogs_parser import ParseConfig, ChatlogsParserEngine
+from helpers.data import get_data_dir
 
 
 class ParserWorker(QThread):
@@ -47,13 +49,19 @@ class ChatlogsParserConfigWidget(QWidget):
     parse_started = pyqtSignal(object) # ParseConfig
     parse_cancelled = pyqtSignal()
     
-    def __init__(self, config, icons_path: Path):
+    def __init__(self, config, icons_path: Path, account=None):
         super().__init__()
         self.config = config
         self.icons_path = icons_path
+        self.account = account  # Store account to get current username
         self.is_parsing = False
         
         self._setup_ui()
+    
+    def set_account(self, account):
+        """Set account for auto-populating mention usernames"""
+        self.account = account
+        self._update_mention_label()
     
     def _create_label(self, text: str) -> QLabel:
         """Create a label with consistent height and alignment"""
@@ -179,11 +187,28 @@ class ChatlogsParserConfigWidget(QWidget):
         
         # Mention keywords (only for personal mentions mode)
         self.mention_container = QWidget()
+        mention_main_layout = QVBoxLayout()
+        mention_main_layout.setContentsMargins(0, 0, 0, 0)
+        mention_main_layout.setSpacing(self.spacing)
+        
+        # Mention label (dynamic)
+        self.mention_label = QLabel()
+        self.mention_label.setWordWrap(True)
+        self.mention_label.setStyleSheet("color: #888; padding: 4px;")
+        mention_main_layout.addWidget(self.mention_label)
+        
+        # Mention input
         mention_layout, self.mention_input = self._create_input_row(
-            "Mentions:",
-            "comma-separated keywords to search for"
+            "Additional:",
+            "other usernames or keywords (comma-separated)"
         )
-        self.mention_container.setLayout(mention_layout)
+        self.mention_input.textChanged.connect(self._update_mention_label)
+        
+        mention_input_container = QWidget()
+        mention_input_container.setLayout(mention_layout)
+        mention_main_layout.addWidget(mention_input_container)
+        
+        self.mention_container.setLayout(mention_main_layout)
         self.mention_container.setVisible(False)
         layout.addWidget(self.mention_container)
         
@@ -197,7 +222,7 @@ class ChatlogsParserConfigWidget(QWidget):
         self.progress_label.setVisible(False)
         layout.addWidget(self.progress_label)
         
-        # Buttons
+        # Buttons row
         button_layout = QHBoxLayout()
         button_layout.setSpacing(self.config.get("ui", "buttons", "spacing") or 8)
         
@@ -208,6 +233,24 @@ class ChatlogsParserConfigWidget(QWidget):
         self.parse_button.clicked.connect(self._on_parse_clicked)
         button_layout.addWidget(self.parse_button)
         
+        # Copy button (initially hidden)
+        self.copy_button = create_icon_button(
+            self.icons_path, "clipboard.svg", "Copy results to clipboard",
+            size_type="large", config=self.config
+        )
+        self.copy_button.clicked.connect(self._on_copy_clicked)
+        self.copy_button.setVisible(False)
+        button_layout.addWidget(self.copy_button)
+        
+        # Save button (initially hidden)
+        self.save_button = create_icon_button(
+            self.icons_path, "save.svg", "Save results to file",
+            size_type="large", config=self.config
+        )
+        self.save_button.clicked.connect(self._on_save_clicked)
+        self.save_button.setVisible(False)
+        button_layout.addWidget(self.save_button)
+        
         button_layout.addStretch()
         layout.addLayout(button_layout)
         
@@ -216,6 +259,35 @@ class ChatlogsParserConfigWidget(QWidget):
         
         # Initialize with first mode
         self._on_mode_changed(0)
+        self._update_mention_label()
+    
+    def _update_mention_label(self):
+        """Update the mention label based on current username and input"""
+        if not self.mention_container.isVisible():
+            return
+        
+        # Get current username
+        current_username = self.account.get('login') if self.account else None
+        
+        # Get additional keywords from input
+        additional_text = self.mention_input.text().strip()
+        additional = [k.strip() for k in additional_text.split(',') if k.strip()] if additional_text else []
+        
+        # Remove duplicates of current username
+        if current_username:
+            additional = [k for k in additional if k.lower() != current_username.lower()]
+        
+        # Build label text
+        if current_username and additional:
+            keywords = f"{current_username}, {', '.join(additional)}"
+            self.mention_label.setText(f"🔍 Searching mentions by: {keywords}")
+        elif current_username:
+            self.mention_label.setText(f"🔍 Searching mentions by: {current_username}")
+        elif additional:
+            keywords = ', '.join(additional)
+            self.mention_label.setText(f"🔍 Searching mentions by: {keywords}")
+        else:
+            self.mention_label.setText("⚠️ No username set. Please log in or add keywords.")
     
     def _on_mode_changed(self, index: int):
         """Update UI based on selected mode"""
@@ -228,7 +300,10 @@ class ChatlogsParserConfigWidget(QWidget):
         mode = self.mode_combo.currentText()
         
         # Show/hide mention keywords based on mode
-        self.mention_container.setVisible(mode == "Personal Mentions")
+        is_mention_mode = (mode == "Personal Mentions")
+        self.mention_container.setVisible(is_mention_mode)
+        if is_mention_mode:
+            self._update_mention_label()
         
         # Create date inputs based on mode
         if mode == "Single Date":
@@ -319,6 +394,16 @@ class ChatlogsParserConfigWidget(QWidget):
             # Start parsing
             self._start_parsing()
     
+    def _on_copy_clicked(self):
+        """Copy results to clipboard"""
+        # Signal will be emitted from parent widget (ui_chatlog.py)
+        pass
+    
+    def _on_save_clicked(self):
+        """Save results to file"""
+        # Signal will be emitted from parent widget (ui_chatlog.py)
+        pass
+    
     def _start_parsing(self):
         """Validate inputs and start parsing"""
         try:
@@ -334,6 +419,10 @@ class ChatlogsParserConfigWidget(QWidget):
             self.progress_bar.setValue(0)
             self.progress_label.setVisible(True)
             self.progress_label.setText(f"{config.from_date} - {config.from_date} | 0%") # Initialize
+            
+            # Hide copy/save buttons during parsing
+            self.copy_button.setVisible(False)
+            self.save_button.setVisible(False)
             
             # Emit signal
             self.parse_started.emit(config)
@@ -355,6 +444,14 @@ class ChatlogsParserConfigWidget(QWidget):
         self.progress_bar.setVisible(False)
         self.progress_label.setVisible(False)
         self.progress_label.setText("")
+        
+        # Keep copy/save buttons visible if they were shown
+        # (they'll be shown by the parent when parsing completes)
+    
+    def show_copy_save_buttons(self):
+        """Show copy and save buttons after successful parse"""
+        self.copy_button.setVisible(True)
+        self.save_button.setVisible(True)
     
     def update_progress(self, start_date: str, current_date: str, percent: int):
         """Update progress display"""
@@ -477,9 +574,17 @@ class ChatlogsParserConfigWidget(QWidget):
         # Get mention keywords (for personal mentions mode)
         mention_keywords = []
         if mode == "Personal Mentions":
+            # Always add current username if available
+            if self.account and self.account.get('login'):
+                mention_keywords.append(self.account.get('login'))
+            
+            # Add additional keywords from input (excluding duplicates)
             mention_text = self.mention_input.text().strip()
             if mention_text:
-                mention_keywords = [kw.strip() for kw in mention_text.split(',') if kw.strip()]
+                additional = [kw.strip() for kw in mention_text.split(',') if kw.strip()]
+                for kw in additional:
+                    if kw.lower() not in [k.lower() for k in mention_keywords]:
+                        mention_keywords.append(kw)
         
         # Build config
         config = ParseConfig(

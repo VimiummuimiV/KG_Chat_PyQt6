@@ -433,7 +433,8 @@ class ChatWindow(QWidget):
             self.user_list_widget.setVisible(False)
         
         if not self.chatlog_widget:
-            self.chatlog_widget = ChatlogWidget(self.config, self.icons_path)
+            # Pass account to chatlog widget
+            self.chatlog_widget = ChatlogWidget(self.config, self.icons_path, self.account)
             self.chatlog_widget.back_requested.connect(self.show_messages_view)
             self.chatlog_widget.messages_loaded.connect(self._on_chatlog_messages_loaded)
             self.chatlog_widget.filter_changed.connect(self._on_chatlog_filter_changed)

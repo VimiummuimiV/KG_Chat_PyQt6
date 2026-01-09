@@ -1,5 +1,9 @@
 """Chatlog viewer widget with virtual scrolling, search, and parser"""
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QListView, QCalendarWidget, QLineEdit, QStackedWidget
+from PyQt6.QtWidgets import(
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel,
+    QListView, QCalendarWidget, QLineEdit,
+    QStackedWidget, QFileDialog, QMessageBox, QApplication
+)
 from PyQt6.QtCore import Qt, QDate, QTimer, pyqtSignal
 from PyQt6.QtGui import QFont
 from datetime import datetime, timedelta
@@ -11,6 +15,7 @@ from core.chatlogs_parser import ParseConfig, ChatlogsParserEngine
 from helpers.create import create_icon_button
 from helpers.emoticons import EmoticonManager
 from helpers.scroll import scroll
+from helpers.data import get_data_dir
 from ui.message_model import MessageListModel, MessageData
 from ui.message_delegate import MessageDelegate
 from ui.ui_chatlogs_parser import ChatlogsParserConfigWidget, ParserWorker
@@ -23,10 +28,11 @@ class ChatlogWidget(QWidget):
     filter_changed = pyqtSignal(set)
     _error_occurred = pyqtSignal(str)
 
-    def __init__(self, config, icons_path: Path):
+    def __init__(self, config, icons_path: Path, account=None):
         super().__init__()
         self.config = config
         self.icons_path = icons_path
+        self.account = account
         self.parser = ChatlogsParser()
         self.current_date = datetime.now().date()
         self.color_cache = {}
@@ -50,6 +56,12 @@ class ChatlogWidget(QWidget):
         self.parser_visible = False
        
         self._setup_ui()
+    
+    def set_account(self, account):
+        """Update account for parser widget"""
+        self.account = account
+        if self.parser_widget:
+            self.parser_widget.set_account(account)
 
     def _setup_ui(self):
         margin = self.config.get("ui", "margins", "widget") or 5
@@ -168,9 +180,14 @@ class ChatlogWidget(QWidget):
         self.stacked.addWidget(self.list_view)
 
         # Parser config page
-        self.parser_widget = ChatlogsParserConfigWidget(self.config, self.icons_path)
+        self.parser_widget = ChatlogsParserConfigWidget(self.config, self.icons_path, self.account)
         self.parser_widget.parse_started.connect(self._on_parse_started)
         self.parser_widget.parse_cancelled.connect(self._on_parse_cancelled)
+        
+        # Connect copy/save buttons
+        self.parser_widget.copy_button.clicked.connect(self._on_copy_results)
+        self.parser_widget.save_button.clicked.connect(self._on_save_results)
+        
         self.stacked.addWidget(self.parser_widget)
 
         # Show list view by default
@@ -178,6 +195,82 @@ class ChatlogWidget(QWidget):
 
         self._update_date_display()
         self._error_occurred.connect(self._handle_error)
+   
+    def _on_copy_results(self):
+        """Copy parsed results to clipboard"""
+        if not self.all_messages:
+            QMessageBox.information(self, "No Results", "No messages to copy.")
+            return
+        
+        # Build text with separators
+        text_lines = []
+        current_date = None
+        
+        for msg in self.all_messages:
+            if msg.is_separator:
+                text_lines.append(f"\n{'='*60}")
+                text_lines.append(f"  {msg.date_str}")
+                text_lines.append(f"{'='*60}\n")
+                current_date = msg.date_str
+            else:
+                timestamp = msg.timestamp.strftime("%H:%M:%S")
+                text_lines.append(f"[{timestamp}] {msg.username}: {msg.body}")
+        
+        result = '\n'.join(text_lines)
+        
+        # Copy to clipboard
+        clipboard = QApplication.clipboard()
+        clipboard.setText(result)
+        
+        QMessageBox.information(self, "Copied", f"Copied {len(self.all_messages)} messages to clipboard.")
+    
+    def _on_save_results(self):
+        """Save parsed results to file"""
+        if not self.all_messages:
+            QMessageBox.information(self, "No Results", "No messages to save.")
+            return
+        
+        # Get default filename with timestamp
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        default_dir = get_data_dir("exports")
+        default_filename = default_dir / f"chatlog_export_{timestamp}.txt"
+        
+        # Show save dialog
+        filename, _ = QFileDialog.getSaveFileName(
+            self,
+            "Save Chat Log",
+            str(default_filename),
+            "Text Files (*.txt);;All Files (*)"
+        )
+        
+        if not filename:
+            return
+        
+        try:
+            # Build text with separators
+            text_lines = []
+            current_date = None
+            
+            for msg in self.all_messages:
+                if msg.is_separator:
+                    text_lines.append(f"\n{'='*60}")
+                    text_lines.append(f"  {msg.date_str}")
+                    text_lines.append(f"{'='*60}\n")
+                    current_date = msg.date_str
+                else:
+                    timestamp = msg.timestamp.strftime("%H:%M:%S")
+                    text_lines.append(f"[{timestamp}] {msg.username}: {msg.body}")
+            
+            result = '\n'.join(text_lines)
+            
+            # Write to file
+            with open(filename, 'w', encoding='utf-8') as f:
+                f.write(result)
+            
+            QMessageBox.information(self, "Saved", f"Saved {len(self.all_messages)} messages to:\n{filename}")
+        
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Failed to save file:\n{e}")
    
     def _toggle_parser(self):
         """Toggle between normal view and parser config"""
@@ -245,6 +338,9 @@ class ChatlogWidget(QWidget):
         if messages:
             self.info_label.setText(f"✅ Found {len(messages)} total messages")
             self.messages_loaded.emit(self.all_messages)
+            
+            # Show copy/save buttons
+            self.parser_widget.show_copy_save_buttons()
         else:
             self.info_label.setText("No messages found")
    

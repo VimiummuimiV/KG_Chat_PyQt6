@@ -234,18 +234,46 @@ class MessageDelegate(QStyledItemDelegate):
        
         if getattr(msg, 'is_separator', False):
             painter.save()
-            painter.setPen(QColor("#666666"))  # Gray line
+            
+            # Theme-adaptive colors
+            if self.is_dark_theme:
+                line_color = QColor("#444444")
+                bg_color = QColor("#2A2A2A")
+                text_color = QColor("#AAAAAA")
+            else:
+                line_color = QColor("#DDDDDD")
+                bg_color = QColor("#F5F5F5")
+                text_color = QColor("#666666")
+            
             rect = option.rect
             mid_y = rect.y() + rect.height() // 2
-            painter.drawLine(rect.x(), mid_y, rect.x() + rect.width(), mid_y)  # HR line
             
+            # Draw horizontal line
+            painter.setPen(line_color)
+            painter.drawLine(rect.x() + 20, mid_y, rect.x() + rect.width() - 20, mid_y)
+            
+            # Prepare date text
             date_text = msg.date_str
-            fm = QFontMetrics(self.timestamp_font)
-            text_width = fm.horizontalAdvance(date_text)
-            text_rect = QRect(rect.x() + (rect.width() - text_width) // 2 - 10, mid_y - fm.height() // 2, text_width + 20, fm.height())
-            painter.fillRect(text_rect, QColor(self.bg_hex))  # Background behind text for overlap
             painter.setFont(self.timestamp_font)
+            fm = QFontMetrics(self.timestamp_font)
+            text_width = fm.horizontalAdvance(date_text) + 24  # padding
+            text_height = fm.height() + 8
+            
+            # Calculate text box position (centered)
+            text_x = rect.x() + (rect.width() - text_width) // 2
+            text_y = mid_y - text_height // 2
+            
+            # Draw rounded background box
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(bg_color)
+            painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+            painter.drawRoundedRect(text_x, text_y, text_width, text_height, 4, 4)
+            
+            # Draw date text
+            painter.setPen(text_color)
+            text_rect = QRect(text_x, text_y, text_width, text_height)
             painter.drawText(text_rect, Qt.AlignmentFlag.AlignCenter, date_text)
+            
             painter.restore()
             return  # Skip normal paint
 
