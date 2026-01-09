@@ -12,12 +12,12 @@ class AccountManager:
     
     def __init__(self, config_path: str = 'settings/config.json'):
         self.config_path = config_path
-        self.db_path = self._get_db_path()
+        self.db_path = self._get_accounts_path()
         self.config = self._load_config()
         self._init_database()
         print(f"💾 Database: {self.db_path}")
     
-    def _get_db_path(self) -> str:
+    def _get_accounts_path(self) -> str:
         """Detect OS and return appropriate database path"""
         system = platform.system()
         

@@ -367,11 +367,12 @@ class ChatlogWidget(QWidget):
             # No filters - show total count without filter info
             # Get the file size from the last load
             if hasattr(self, '_pending_data'):
-                _, size_text, was_truncated = self._pending_data
+                _, size_text, was_truncated, from_cache = self._pending_data
+                cache_marker = " 📁" if from_cache else ""
                 if was_truncated:
-                    self.info_label.setText(f"⚠️ Loaded {total} messages (file truncated at {self.parser.MAX_FILE_SIZE_MB}MB limit) · {size_text}")
+                    self.info_label.setText(f"⚠️ Loaded {total} messages (file truncated at {self.parser.MAX_FILE_SIZE_MB}MB limit) · {size_text}{cache_marker}")
                 else:
-                    self.info_label.setText(f"Loaded {total} messages · {size_text}")
+                    self.info_label.setText(f"Loaded {total} messages · {size_text}{cache_marker}")
             else:
                 self.info_label.setText(f"Loaded {total} messages")
         
@@ -386,12 +387,12 @@ class ChatlogWidget(QWidget):
         
         def _load():
             try:
-                messages, was_truncated = self.parser.get_messages(date_str)
-                html, _ = self.parser.fetch_log(date_str)
+                messages, was_truncated, from_cache = self.parser.get_messages(date_str)
+                html, _, _ = self.parser.fetch_log(date_str)
                 size_kb = len(html.encode('utf-8')) / 1024
                 size_text = f"{size_kb:.1f} KB" if size_kb < 1024 else f"{size_kb/1024:.1f} MB"
                 
-                self._pending_data = (messages, size_text, was_truncated)
+                self._pending_data = (messages, size_text, was_truncated, from_cache)
                 QTimer.singleShot(0, self._display_messages)
             except ChatlogNotFoundError:
                 self._error_occurred.emit(f"No chatlog found for {date_str}")
@@ -404,13 +405,15 @@ class ChatlogWidget(QWidget):
 
     def _display_messages(self):
         try:
-            messages, size_text, was_truncated = getattr(self, '_pending_data', ([], '', False))
+            messages, size_text, was_truncated, from_cache = getattr(self, '_pending_data', ([], '', False, False))
             
             self.model.clear()
             self.all_messages = []
             
+            cache_marker = " 📁" if from_cache else ""
+            
             if not messages:
-                self.info_label.setText(f"No messages · {size_text}")
+                self.info_label.setText(f"No messages · {size_text}{cache_marker}")
                 self.messages_loaded.emit([])
                 return
             
@@ -428,12 +431,12 @@ class ChatlogWidget(QWidget):
             
             # Update info label
             if was_truncated:
-                self.info_label.setText(f"⚠️ Loaded {len(messages)} messages (file truncated at {self.parser.MAX_FILE_SIZE_MB}MB limit) · {size_text}")
+                self.info_label.setText(f"⚠️ Loaded {len(messages)} messages (file truncated at {self.parser.MAX_FILE_SIZE_MB}MB limit) · {size_text}{cache_marker}")
             elif self.filtered_usernames or self.search_text:
                 # Already set by _apply_filter
                 pass
             else:
-                self.info_label.setText(f"Loaded {len(messages)} messages · {size_text}")
+                self.info_label.setText(f"Loaded {len(messages)} messages · {size_text}{cache_marker}")
             
             self.messages_loaded.emit(message_data)
             

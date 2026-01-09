@@ -1,7 +1,10 @@
 import requests
+import os
+import platform
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Tuple
 from dataclasses import dataclass
+from pathlib import Path
 from bs4 import BeautifulSoup
 
 
@@ -24,12 +27,78 @@ class ChatlogsParser:
     BASE_URL = "https://klavogonki.ru/chatlogs"
     MIN_DATE = datetime(2012, 2, 12).date()
     MAX_FILE_SIZE_MB = 10  # Maximum file size in MB
+    NOT_FOUND_PREFIX = "NotFound_"
     
     def __init__(self, session: Optional[requests.Session] = None):
         self.session = session or requests.Session()
+        self.cache_dir = self._get_cache_dir()
     
-    def fetch_log(self, date: Optional[str] = None) -> str:
+    def _get_cache_dir(self) -> Path:
+        """Detect OS and return appropriate cache directory"""
+        system = platform.system()
+        
+        if system == "Windows":
+            cache_dir = Path.home() / "Desktop" / "KG_Chat_Data" / "chatlogs"
+        elif system == "Darwin":
+            cache_dir = Path.home() / "Desktop" / "KG_Chat_Data" / "chatlogs"
+        elif system == "Linux":
+            if os.path.exists("/data/data/com.termux"):
+                cache_dir = Path.home() / "storage" / "shared" / "KG_Chat_Data" / "chatlogs"
+            else:
+                cache_dir = Path.home() / "Desktop" / "KG_Chat_Data" / "chatlogs"
+        else:
+            cache_dir = Path.home() / ".KG_Chat_Data" / "chatlogs"
+        
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        return cache_dir
+    
+    def _get_cache_path(self, date: str) -> Path:
+        """Get cache file path for a date"""
+        return self.cache_dir / f"{date}.html"
+    
+    def _get_not_found_path(self, date: str) -> Path:
+        """Get not-found marker file path for a date"""
+        return self.cache_dir / f"{self.NOT_FOUND_PREFIX}{date}.txt"
+    
+    def _is_cached(self, date: str) -> bool:
+        """Check if chatlog is cached"""
+        return self._get_cache_path(date).exists()
+    
+    def _is_not_found(self, date: str) -> bool:
+        """Check if chatlog was previously not found (404)"""
+        return self._get_not_found_path(date).exists()
+    
+    def _load_from_cache(self, date: str) -> str:
+        """Load chatlog from cache"""
+        cache_path = self._get_cache_path(date)
+        with open(cache_path, 'r', encoding='utf-8') as f:
+            return f.read()
+    
+    def _save_to_cache(self, date: str, html: str):
+        """Save chatlog to cache (only if not today)"""
+        date_obj = datetime.strptime(date, '%Y-%m-%d').date()
+        if date_obj >= datetime.now().date():
+            return  # Don't cache today or future dates
+        
+        cache_path = self._get_cache_path(date)
+        with open(cache_path, 'w', encoding='utf-8') as f:
+            f.write(html)
+    
+    def _mark_not_found(self, date: str):
+        """Mark date as not found (only if not today)"""
+        date_obj = datetime.strptime(date, '%Y-%m-%d').date()
+        if date_obj >= datetime.now().date():
+            return  # Don't mark today or future dates
+        
+        not_found_path = self._get_not_found_path(date)
+        with open(not_found_path, 'w') as f:
+            f.write(f"404 - Not found on {datetime.now().isoformat()}")
+    
+    def fetch_log(self, date: Optional[str] = None) -> Tuple[str, bool, bool]:
         """Fetch chatlog HTML for a specific date (YYYY-MM-DD)
+        
+        Returns:
+            tuple: (html_content, was_truncated, from_cache)
         
         Raises:
             ChatlogNotFoundError: If chatlog doesn't exist (404)
@@ -43,6 +112,16 @@ class ChatlogsParser:
         if date_obj < self.MIN_DATE:
             raise ValueError(f"Date cannot be before {self.MIN_DATE.strftime('%Y-%m-%d')}")
         
+        # Check if already marked as not found
+        if self._is_not_found(date):
+            raise ChatlogNotFoundError(f"Chatlog not found for date {date} (cached 404)")
+        
+        # Check cache
+        if self._is_cached(date):
+            html = self._load_from_cache(date)
+            return html, False, True  # Not truncated, from cache
+        
+        # Fetch from network
         url = f"{self.BASE_URL}/{date}.html"
         
         try:
@@ -50,12 +129,15 @@ class ChatlogsParser:
             
             # Check for 404
             if response.status_code == 404:
+                self._mark_not_found(date)
                 raise ChatlogNotFoundError(f"Chatlog not found for date {date}")
             
             response.raise_for_status()
             
             # Check file size before loading
             content_length = response.headers.get('content-length')
+            was_truncated = False
+            
             if content_length:
                 size_mb = int(content_length) / (1024 * 1024)
                 if size_mb > self.MAX_FILE_SIZE_MB:
@@ -69,13 +151,19 @@ class ChatlogsParser:
                             break
                     response._content = content
                     response.encoding = 'utf-8'
-                    return response.text, True  # Return (text, was_truncated)
+                    was_truncated = True
             
             response.encoding = 'utf-8'
-            return response.text, False  # Return (text, was_truncated)
+            html = response.text
+            
+            # Save to cache (only if not today)
+            self._save_to_cache(date, html)
+            
+            return html, was_truncated, False  # Return from_cache=False
             
         except requests.exceptions.RequestException as e:
             if hasattr(e, 'response') and e.response is not None and e.response.status_code == 404:
+                self._mark_not_found(date)
                 raise ChatlogNotFoundError(f"Chatlog not found for date {date}")
             raise
     
@@ -121,19 +209,19 @@ class ChatlogsParser:
         
         return messages
     
-    def get_messages(self, date: Optional[str] = None) -> tuple[List[ChatMessage], bool]:
+    def get_messages(self, date: Optional[str] = None) -> Tuple[List[ChatMessage], bool, bool]:
         """Get all messages for a specific date (YYYY-MM-DD)
         
         Returns:
-            tuple: (messages, was_truncated)
+            tuple: (messages, was_truncated, from_cache)
         
         Raises:
             ChatlogNotFoundError: If chatlog doesn't exist
             ValueError: If date is before minimum date
         """
-        html, was_truncated = self.fetch_log(date)
+        html, was_truncated, from_cache = self.fetch_log(date)
         messages = self.parse_messages(html)
-        return messages, was_truncated
+        return messages, was_truncated, from_cache
 
 
 if __name__ == "__main__":
