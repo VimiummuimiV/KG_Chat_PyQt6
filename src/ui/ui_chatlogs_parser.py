@@ -10,8 +10,9 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import List, Optional
 import threading
+from functools import partial
 
-from helpers.create import create_icon_button
+from helpers.create import create_icon_button, _render_svg_icon
 from core.api_data import get_exact_user_id_by_name, get_usernames_history, get_registration_date
 from core.chatlogs_parser import ParseConfig, ChatlogsParserEngine
 from helpers.data import get_data_dir
@@ -56,6 +57,7 @@ class ChatlogsParserConfigWidget(QWidget):
         self.icons_path = icons_path
         self.account = account  # Store account to get current username
         self.is_parsing = False
+        self.is_fetching = False
         
         self._setup_ui()
     
@@ -273,7 +275,19 @@ class ChatlogsParserConfigWidget(QWidget):
     def _update_fetch_button_state(self):
         """Enable/disable fetch button based on username input"""
         has_text = bool(self.username_input.text().strip())
-        self.fetch_history_button.setEnabled(has_text)
+        self.fetch_history_button.setEnabled(has_text and not self.is_fetching)
+    
+    def _set_fetch_button_loading(self, is_loading: bool):
+        """Change fetch button icon to loader or back to normal"""
+        icon_name = "loader.svg" if is_loading else "user-received.svg"
+        tooltip = "Fetching..." if is_loading else "Fetch username history"
+        
+        icon_size = self.fetch_history_button._icon_size
+        self.fetch_history_button.setIcon(
+            _render_svg_icon(self.icons_path / icon_name, icon_size)
+        )
+        self.fetch_history_button.setToolTip(tooltip)
+        self.fetch_history_button._icon_name = icon_name
     
     def _on_fetch_history_clicked(self):
         """Fetch username history for usernames in the field"""
@@ -285,43 +299,54 @@ class ChatlogsParserConfigWidget(QWidget):
         if not usernames:
             return
         
+        # Set loading state
+        self.is_fetching = True
+        self._set_fetch_button_loading(True)
+        self.fetch_history_button.setEnabled(False)
+        
         def _fetch():
+            expanded = set()
+            not_found = []
+            
             try:
-                # Start with original usernames
-                expanded = set(usernames)
-                not_found = []
-                
                 for username in usernames:
-                    try:
-                        # Try to get username history
-                        history = get_usernames_history(username)
-                        
-                        # If we got history, add it
-                        if history:
-                            expanded.update(history)
-                        else:
-                            # If no history returned, check if user exists at all
-                            user_id = get_exact_user_id_by_name(username)
-                            if not user_id:
-                                # User doesn't exist
-                                not_found.append(username)
-                                # Remove from expanded set since user doesn't exist
-                                expanded.discard(username)
-                    except Exception as e:
-                        # Any exception means user not found or API error
+                    # Check if user exists first
+                    user_id = get_exact_user_id_by_name(username)
+                    
+                    if not user_id:
+                        # User doesn't exist
                         not_found.append(username)
-                        expanded.discard(username)
+                        continue
+                    
+                    # User exists, add original username
+                    expanded.add(username)
+                    
+                    # Try to get username history
+                    history = get_usernames_history(username)
+                    
+                    # If we got history, add it
+                    if history and isinstance(history, list):
+                        expanded.update(history)
                 
-                # Update UI on main thread
-                QTimer.singleShot(0, lambda: self._on_fetch_complete(sorted(expanded), not_found))
+                # Convert to sorted list for consistent ordering
+                expanded_list = sorted(expanded)
+                
+                # Update UI on main thread - using partial to avoid closure issues
+                QTimer.singleShot(0, partial(self._on_fetch_complete, expanded_list, not_found))
             
             except Exception as e:
-                QTimer.singleShot(0, lambda: self._on_fetch_error(str(e)))
+                error_msg = str(e)
+                QTimer.singleShot(0, partial(self._on_fetch_error, error_msg))
         
         threading.Thread(target=_fetch, daemon=True).start()
     
     def _on_fetch_complete(self, usernames: list, not_found: list):
         """Handle fetch completion"""
+        # Reset loading state
+        self.is_fetching = False
+        self._set_fetch_button_loading(False)
+        self._update_fetch_button_state()
+        
         # Always update username field with valid usernames (even if empty)
         if usernames:
             self.username_input.setText(', '.join(usernames))
@@ -353,6 +378,11 @@ class ChatlogsParserConfigWidget(QWidget):
     
     def _on_fetch_error(self, error: str):
         """Handle fetch error"""
+        # Reset loading state
+        self.is_fetching = False
+        self._set_fetch_button_loading(False)
+        self._update_fetch_button_state()
+        
         QMessageBox.critical(self, "Error", f"Failed to fetch username history:\n{error}")
     
     def _update_mention_label(self):

@@ -300,7 +300,7 @@ class ChatlogWidget(QWidget):
             # Show parser, hide list
             self.parser_visible = True
             self.stacked.setCurrentWidget(self.parser_widget)
-            self.parse_btn.setIcon(create_icon_button(self.icons_path, "go-back.svg", "Back to chat logs", config=self.config).icon())
+            self.parse_btn.setIcon(create_icon_button(self.icons_path, "list.svg", "Back to chat logs", config=self.config).icon())
             self.parse_btn.setToolTip("Back to chat logs")
    
     def _on_parse_started(self, config: ParseConfig):
