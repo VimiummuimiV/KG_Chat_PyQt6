@@ -6,36 +6,19 @@ import time
 from pathlib import Path
 from typing import Optional, Dict, List
 
+from helpers.data import get_data_dir
 
 class AccountManager:
     """Manage multiple XMPP accounts using local SQLite database"""
-    
+   
     def __init__(self, config_path: str = 'settings/config.json'):
         self.config_path = config_path
-        self.db_path = self._get_accounts_path()
+        data_dir = get_data_dir("accounts")
+        self.db_path = str(data_dir / "accounts.db")
         self.config = self._load_config()
         self._init_database()
         print(f"💾 Database: {self.db_path}")
-    
-    def _get_accounts_path(self) -> str:
-        """Detect OS and return appropriate database path"""
-        system = platform.system()
-        
-        if system == "Windows":
-            data_dir = Path.home() / "Desktop" / "KG_Chat_Data" / "accounts"
-        elif system == "Darwin":
-            data_dir = Path.home() / "Desktop" / "KG_Chat_Data" / "accounts"
-        elif system == "Linux":
-            if os.path.exists("/data/data/com.termux"):
-                data_dir = Path.home() / "storage" / "shared" / "KG_Chat_Data" / "accounts"
-            else:
-                data_dir = Path.home() / "Desktop" / "KG_Chat_Data" / "accounts"
-        else:
-            data_dir = Path.home() / ".KG_Chat_Data" / "accounts"
-        
-        data_dir.mkdir(parents=True, exist_ok=True)
-        return str(data_dir / "accounts.db")
-    
+   
     def _init_database(self):
         """Initialize SQLite database"""
         conn = sqlite3.connect(self.db_path)
@@ -51,7 +34,7 @@ class AccountManager:
         ''')
         conn.commit()
         conn.close()
-    
+   
     def _load_config(self) -> dict:
         for i in range(3):
             try:
@@ -59,25 +42,25 @@ class AccountManager:
                     content = f.read().strip()
                     if content: return json.loads(content)
                 time.sleep(0.1)
-            except: 
+            except:
                 if i == 2: return {}
                 time.sleep(0.1)
         return {}
-    
+   
     def add_account(self, user_id: str, login: str, password: str, set_active: bool = False) -> bool:
         """Add new account"""
         try:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
-            
+           
             if set_active:
                 cursor.execute('UPDATE accounts SET active = 0')
-            
+           
             cursor.execute('''
                 INSERT INTO accounts (user_id, login, password, active)
                 VALUES (?, ?, ?, ?)
             ''', (user_id, login, password, 1 if set_active else 0))
-            
+           
             conn.commit()
             conn.close()
             return True
@@ -86,7 +69,7 @@ class AccountManager:
         except Exception as e:
             print(f"❌ Error: {e}")
             return False
-    
+   
     def remove_account(self, login: str) -> bool:
         """Remove account by login"""
         try:
@@ -100,7 +83,7 @@ class AccountManager:
         except Exception as e:
             print(f"❌ Error: {e}")
             return False
-    
+   
     def get_active_account(self) -> Optional[Dict]:
         """Get active account"""
         conn = sqlite3.connect(self.db_path)
@@ -108,12 +91,12 @@ class AccountManager:
         cursor.execute('SELECT * FROM accounts WHERE active = 1 LIMIT 1')
         row = cursor.fetchone()
         conn.close()
-        
+       
         if row:
             return self._row_to_dict(row)
-        
+       
         return self.get_account_by_index(0)
-    
+   
     def get_account_by_login(self, login: str) -> Optional[Dict]:
         """Get account by login"""
         conn = sqlite3.connect(self.db_path)
@@ -122,14 +105,14 @@ class AccountManager:
         row = cursor.fetchone()
         conn.close()
         return self._row_to_dict(row) if row else None
-    
+   
     def get_account_by_index(self, index: int) -> Optional[Dict]:
         """Get account by index"""
         accounts = self.list_accounts()
         if 0 <= index < len(accounts):
             return accounts[index]
         return None
-    
+   
     def list_accounts(self) -> List[Dict]:
         """List all accounts"""
         conn = sqlite3.connect(self.db_path)
@@ -138,13 +121,13 @@ class AccountManager:
         rows = cursor.fetchall()
         conn.close()
         return [self._row_to_dict(row) for row in rows]
-    
+   
     def switch_account(self, login: str) -> bool:
         """Switch active account"""
         account = self.get_account_by_login(login)
         if not account:
             return False
-        
+       
         try:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
@@ -156,7 +139,7 @@ class AccountManager:
         except Exception as e:
             print(f"❌ Error: {e}")
             return False
-    
+   
     def _row_to_dict(self, row) -> Dict:
         """Convert row to dict"""
         if not row:
@@ -168,12 +151,12 @@ class AccountManager:
             'password': row[3],
             'active': bool(row[4])
         }
-    
+   
     def get_server_config(self) -> Dict:
         return self.config.get('server', {})
-    
+   
     def get_rooms(self) -> List[Dict]:
         return self.config.get('rooms', [])
-    
+   
     def get_connection_config(self) -> Dict:
         return self.config.get('connection', {})
