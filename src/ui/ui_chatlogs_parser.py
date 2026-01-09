@@ -55,10 +55,48 @@ class ChatlogsParserConfigWidget(QWidget):
         
         self._setup_ui()
     
+    def _create_label(self, text: str) -> QLabel:
+        """Create a label with consistent height and alignment"""
+        label = QLabel(text)
+        label.setFixedHeight(self.input_height)
+        label.setAlignment(Qt.AlignmentFlag.AlignVCenter)
+        return label
+    
+    def _create_input(self, placeholder: str = "", object_name: str = "") -> QLineEdit:
+        """Create an input field with consistent height"""
+        input_field = QLineEdit()
+        if placeholder:
+            input_field.setPlaceholderText(placeholder)
+        if object_name:
+            input_field.setObjectName(object_name)
+        input_field.setFixedHeight(self.input_height)
+        return input_field
+    
+    def _create_combo(self, items: list) -> QComboBox:
+        """Create a combo box with consistent height"""
+        combo = QComboBox()
+        combo.addItems(items)
+        combo.setFixedHeight(self.input_height)
+        return combo
+    
+    def _create_input_row(self, label_text: str, placeholder: str = "", object_name: str = "") -> tuple[QHBoxLayout, QLineEdit]:
+        """Create a complete input row with label and input field"""
+        layout = QHBoxLayout()
+        layout.setSpacing(self.spacing)
+        
+        label = self._create_label(label_text)
+        layout.addWidget(label)
+        
+        input_field = self._create_input(placeholder, object_name)
+        layout.addWidget(input_field, stretch=1)
+        
+        return layout, input_field
+    
     def _setup_ui(self):
         margin = self.config.get("ui", "margins", "widget") or 5
         spacing = self.config.get("ui", "spacing", "widget_elements") or 6
         self.spacing = spacing
+        self.input_height = self.config.get("ui", "input_height") or 48
         
         layout = QVBoxLayout()
         layout.setContentsMargins(margin, margin, margin, margin)
@@ -75,11 +113,10 @@ class ChatlogsParserConfigWidget(QWidget):
         # Mode selection
         mode_layout = QHBoxLayout()
         mode_layout.setSpacing(self.spacing)
-        mode_label = QLabel("Mode:")
+        mode_label = self._create_label("Mode:")
         mode_layout.addWidget(mode_label)
         
-        self.mode_combo = QComboBox()
-        self.mode_combo.addItems([
+        self.mode_combo = self._create_combo([
             "Single Date",
             "From Date",
             "Date Range",
@@ -87,7 +124,6 @@ class ChatlogsParserConfigWidget(QWidget):
             "From Registered",
             "Personal Mentions"
         ])
-        self.mode_combo.setFixedHeight(self.config.get("ui", "input_height") or 48)
         self.mode_combo.currentIndexChanged.connect(self._on_mode_changed)
         mode_layout.addWidget(self.mode_combo, stretch=1)
         layout.addLayout(mode_layout)
@@ -101,15 +137,10 @@ class ChatlogsParserConfigWidget(QWidget):
         layout.addWidget(self.date_container)
         
         # Username input
-        username_layout = QHBoxLayout()
-        username_layout.setSpacing(self.spacing)
-        username_label = QLabel("Usernames:")
-        username_layout.addWidget(username_label)
-        
-        self.username_input = QLineEdit()
-        self.username_input.setPlaceholderText("comma-separated (leave empty for all users)")
-        self.username_input.setFixedHeight(self.config.get("ui", "input_height") or 48)
-        username_layout.addWidget(self.username_input, stretch=1)
+        username_layout, self.username_input = self._create_input_row(
+            "Usernames:",
+            "comma-separated (leave empty for all users)"
+        )
         
         self.fetch_history_checkbox = QCheckBox("Username history")
         self.fetch_history_checkbox.setToolTip("Automatically fetch previous usernames")
@@ -118,29 +149,18 @@ class ChatlogsParserConfigWidget(QWidget):
         layout.addLayout(username_layout)
         
         # Search terms input
-        search_layout = QHBoxLayout()
-        search_layout.setSpacing(self.spacing)
-        search_label = QLabel("Search:")
-        search_layout.addWidget(search_label)
-        
-        self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("comma-separated search terms (leave empty for all messages)")
-        self.search_input.setFixedHeight(self.config.get("ui", "input_height") or 48)
-        search_layout.addWidget(self.search_input, stretch=1)
+        search_layout, self.search_input = self._create_input_row(
+            "Search:",
+            "comma-separated search terms (leave empty for all messages)"
+        )
         layout.addLayout(search_layout)
         
         # Mention keywords (only for personal mentions mode)
         self.mention_container = QWidget()
-        mention_layout = QHBoxLayout()
-        mention_layout.setContentsMargins(0, 0, 0, 0)
-        mention_layout.setSpacing(self.spacing)
-        mention_label = QLabel("Mentions:")
-        mention_layout.addWidget(mention_label)
-        
-        self.mention_input = QLineEdit()
-        self.mention_input.setPlaceholderText("comma-separated keywords to search for")
-        self.mention_input.setFixedHeight(self.config.get("ui", "input_height") or 48)
-        mention_layout.addWidget(self.mention_input, stretch=1)
+        mention_layout, self.mention_input = self._create_input_row(
+            "Mentions:",
+            "comma-separated keywords to search for"
+        )
         self.mention_container.setLayout(mention_layout)
         self.mention_container.setVisible(False)
         layout.addWidget(self.mention_container)
@@ -168,6 +188,9 @@ class ChatlogsParserConfigWidget(QWidget):
         
         button_layout.addStretch()
         layout.addLayout(button_layout)
+        
+        # Add stretch to push everything to the top
+        layout.addStretch()
         
         # Initialize with first mode
         self._on_mode_changed(0)
@@ -211,18 +234,16 @@ class ChatlogsParserConfigWidget(QWidget):
         elif mode == "Personal Mentions":
             sub_mode_layout = QHBoxLayout()
             sub_mode_layout.setSpacing(self.spacing)
-            sub_mode_label = QLabel("Date Mode:")
+            sub_mode_label = self._create_label("Date Mode:")
             sub_mode_layout.addWidget(sub_mode_label)
             
-            self.mention_date_combo = QComboBox()
-            self.mention_date_combo.addItems([
+            self.mention_date_combo = self._create_combo([
                 "Single Date",
                 "From Date",
                 "Date Range",
                 "From Start",
                 "Last N Days"
             ])
-            self.mention_date_combo.setFixedHeight(self.config.get("ui", "input_height") or 48)
             self.mention_date_combo.currentIndexChanged.connect(self._on_mention_date_mode_changed)
             sub_mode_layout.addWidget(self.mention_date_combo, stretch=1)
             
@@ -252,16 +273,8 @@ class ChatlogsParserConfigWidget(QWidget):
         elif sub_mode == "From Start":
             pass # No input needed
         elif sub_mode == "Last N Days":
-            days_layout = QHBoxLayout()
-            days_layout.setSpacing(self.spacing)
-            days_label = QLabel("Days:")
-            days_layout.addWidget(days_label)
-            
-            self.days_input = QLineEdit()
-            self.days_input.setPlaceholderText("7")
+            days_layout, self.days_input = self._create_input_row("Days:", "7")
             self.days_input.setText("7")
-            self.days_input.setFixedHeight(self.config.get("ui", "input_height") or 48)
-            days_layout.addWidget(self.days_input, stretch=1)
             
             container = QWidget()
             container.setLayout(days_layout)
@@ -269,16 +282,7 @@ class ChatlogsParserConfigWidget(QWidget):
     
     def _add_date_input(self, label_text: str, obj_name: str, placeholder: str = "YYYY-MM-DD"):
         """Add a date input field"""
-        layout = QHBoxLayout()
-        layout.setSpacing(self.spacing)
-        label = QLabel(label_text)
-        layout.addWidget(label)
-        
-        line_edit = QLineEdit()
-        line_edit.setPlaceholderText(placeholder)
-        line_edit.setObjectName(obj_name)
-        line_edit.setFixedHeight(self.config.get("ui", "input_height") or 48)
-        layout.addWidget(line_edit, stretch=1)
+        layout, line_edit = self._create_input_row(label_text, placeholder, obj_name)
         
         container = QWidget()
         container.setLayout(layout)
