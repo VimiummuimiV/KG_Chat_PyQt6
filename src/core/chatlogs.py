@@ -107,23 +107,20 @@ class ChatlogsParser:
             response.raise_for_status()
             response.encoding = 'utf-8'
            
-            # Handle large files
+            # Always enforce size limit by streaming (handles gzip decompression)
+            max_bytes = int(self.MAX_FILE_SIZE_MB * 1024 * 1024)
             was_truncated = False
-            content_length = response.headers.get('content-length')
+            content = b''
             
-            if content_length and int(content_length) / (1024 * 1024) > self.MAX_FILE_SIZE_MB:
-                max_bytes = int(self.MAX_FILE_SIZE_MB * 1024 * 1024)
-                content = b''
-                for chunk in response.iter_content(8192):
-                    content += chunk
-                    if len(content) >= max_bytes:
-                        content = content[:max_bytes]
-                        break
-                html = content.decode('utf-8', errors='ignore')
-                was_truncated = True
-            else:
-                html = response.text
+            for chunk in response.iter_content(8192):
+                content += chunk
+                if len(content) >= max_bytes:
+                    content = content[:max_bytes]
+                    was_truncated = True
+                    response.close()
+                    break
            
+            html = content.decode('utf-8', errors='ignore')
             self._save_to_cache(date, html, truncated=was_truncated)
             return html, was_truncated, False
            
@@ -139,7 +136,8 @@ class ChatlogsParser:
         Structure: <a class="ts" name="HH:MM:SS"/>
                    <font class="mn">&lt;user&gt;</font>text<br/>
         """
-        parser = etree.HTMLParser(encoding='utf-8')
+        # Use recover=True to handle truncated/malformed HTML
+        parser = etree.HTMLParser(encoding='utf-8', recover=True)
         tree = etree.fromstring(html.encode('utf-8'), parser)
         messages = []
         
