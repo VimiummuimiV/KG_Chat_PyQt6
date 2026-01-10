@@ -103,7 +103,7 @@ class MessageDelegate(QStyledItemDelegate):
             return QSize(200, 50)
        
         if getattr(msg, 'is_separator', False):
-            return QSize(option.rect.width(), 30)  # Fixed separator height
+            return QSize(option.rect.width(), 30)
 
         width = option.rect.width() if option.rect.width() > 0 else 800
         height = self._calculate_compact_height(msg, width) if self.compact_mode else self._calculate_normal_height(msg, width)
@@ -168,8 +168,9 @@ class MessageDelegate(QStyledItemDelegate):
         return max(total_height, fm.height())
    
     def _wrap_text(self, text: str, width: int, fm: QFontMetrics) -> List[str]:
-        if not text:
-            return []
+        """Wrap text to fit within width, handling long words"""
+        if not text or width <= 0:
+            return [text] if text else []
        
         lines = []
         for para in text.split('\n'):
@@ -177,24 +178,48 @@ class MessageDelegate(QStyledItemDelegate):
                 lines.append('')
                 continue
            
-            words = para.split(' ')
-            current_line = []
-            current_width = 0
-           
-            for word in words:
+            current_line, current_width = [], 0
+            for word in para.split(' '):
                 word_width = fm.horizontalAdvance(word + ' ')
-                if current_width + word_width <= width or not current_line:
+               
+                if current_width + word_width <= width:
                     current_line.append(word)
                     current_width += word_width
+                elif fm.horizontalAdvance(word) > width:
+                    if current_line:
+                        lines.append(' '.join(current_line))
+                        current_line, current_width = [], 0
+                   
+                    # Split long word across lines
+                    while word:
+                        chunk = self._fit(word, width, fm)
+                        lines.append(chunk)
+                        word = word[len(chunk):]
                 else:
-                    lines.append(' '.join(current_line))
+                    if current_line:
+                        lines.append(' '.join(current_line))
                     current_line = [word]
-                    current_width = fm.horizontalAdvance(word + ' ')
+                    current_width = word_width
            
             if current_line:
                 lines.append(' '.join(current_line))
        
         return lines
+
+    def _fit(self, text: str, max_pixels: int, fm: QFontMetrics) -> str:
+        """Binary search to fit maximum characters within pixel width"""
+        if not text or max_pixels <= 0:
+            return text[:1] if text else ''
+       
+        lo, hi, best = 1, len(text), 1
+        while lo <= hi:
+            mid = (lo + hi) // 2
+            if fm.horizontalAdvance(text[:mid]) <= max_pixels:
+                best = mid
+                lo = mid + 1
+            else:
+                hi = mid - 1
+        return text[:best]
    
     def _get_emoticon_pixmap(self, name: str) -> Optional[QPixmap]:
         path = self.emoticon_manager.get_emoticon_path(name)
@@ -265,7 +290,7 @@ class MessageDelegate(QStyledItemDelegate):
             date_text = msg.date_str
             painter.setFont(self.timestamp_font)
             fm = QFontMetrics(self.timestamp_font)
-            text_width = fm.horizontalAdvance(date_text) + 24  # padding
+            text_width = fm.horizontalAdvance(date_text) + 24
             text_height = fm.height() + 8
             
             # Calculate text box position (centered)
@@ -284,7 +309,7 @@ class MessageDelegate(QStyledItemDelegate):
             painter.drawText(text_rect, Qt.AlignmentFlag.AlignCenter, date_text)
             
             painter.restore()
-            return  # Skip normal paint
+            return
 
         row = index.row()
         if self._has_animated_emoticons(msg.body):
@@ -312,9 +337,14 @@ class MessageDelegate(QStyledItemDelegate):
         # Timestamp
         painter.setFont(self.timestamp_font)
         painter.setPen(QColor("#999999"))
-        ts_width = QFontMetrics(self.timestamp_font).horizontalAdvance(time_str)
-        ts_rect = QRect(x, y, ts_width, QFontMetrics(self.timestamp_font).height())
-        painter.drawText(ts_rect, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, time_str)
+        ts_fm = QFontMetrics(self.timestamp_font)
+        ts_width = ts_fm.horizontalAdvance(time_str)
+        ts_rect = QRect(x, y, ts_width, ts_fm.height())
+        painter.drawText(
+            ts_rect, 
+            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, 
+            time_str
+        )
         self.click_rects[row]['timestamp'] = ts_rect
        
         # Username
@@ -324,14 +354,24 @@ class MessageDelegate(QStyledItemDelegate):
         painter.setFont(self.body_font)
         painter.setPen(QColor(color))
        
-        un_width = QFontMetrics(self.body_font).horizontalAdvance(msg.username)
-        un_rect = QRect(username_x, y, un_width, QFontMetrics(self.body_font).height())
-        painter.drawText(un_rect, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, msg.username)
+        body_fm = QFontMetrics(self.body_font)
+        un_width = body_fm.horizontalAdvance(msg.username)
+        un_rect = QRect(username_x, y, un_width, body_fm.height())
+        painter.drawText(
+            un_rect, 
+            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, 
+            msg.username
+        )
         self.click_rects[row]['username'] = un_rect
        
         # Content
-        content_y = y + max(QFontMetrics(self.body_font).height(), QFontMetrics(self.timestamp_font).height()) + 2
-        self._paint_content(painter, x, content_y, width, msg.body, row, getattr(msg, 'is_private', False))
+        body_fm = QFontMetrics(self.body_font)
+        ts_fm = QFontMetrics(self.timestamp_font)
+        content_y = y + max(body_fm.height(), ts_fm.height()) + 2
+        self._paint_content(
+            painter, x, content_y, width, msg.body, row, 
+            getattr(msg, 'is_private', False)
+        )
 
     def _paint_normal(self, painter: QPainter, rect: QRect, msg, row: int):
         x, y = rect.x() + self.padding, rect.y() + self.padding
@@ -360,92 +400,95 @@ class MessageDelegate(QStyledItemDelegate):
         # Content
         content_x = username_x + un_width + self.spacing
         content_width = rect.width() - (content_x - rect.x()) - self.padding
-        self._paint_content(painter, content_x, y, content_width, msg.body, row, getattr(msg, 'is_private', False))
+        self._paint_content(
+            painter, content_x, y, content_width, msg.body, row, 
+            getattr(msg, 'is_private', False)
+        )
    
-    def _paint_content(self, painter: QPainter, x: int, y: int, width: int, text: str, row: int, is_private: bool = False):
+    def _paint_content(self, painter: QPainter, x: int, y: int, width: int, 
+                       text: str, row: int, is_private: bool = False):
+        """Paint content with text, links, and emoticons"""
         segments = self.emoticon_manager.parse_emoticons(text)
         painter.setFont(self.body_font)
         fm = QFontMetrics(self.body_font)
-    
+        
         current_x, current_y = x, y
         line_height = fm.height()
         url_pattern = re.compile(r'https?://[^\s<>"]+')
-    
-        # Determine text color based on private status
+        
         if is_private:
             text_color = self.private_colors["text"]
         else:
             text_color = "#FFFFFF" if self.is_dark_theme else "#000000"
-    
+        link_color = "#4DA6FF" if self.is_dark_theme else "#0066CC"
+        
+        def new_line():
+            nonlocal current_x, current_y, line_height
+            current_y += line_height
+            current_x = x
+            line_height = fm.height()
+        
+        def draw_text_chunk(content: str, color: str):
+            nonlocal current_x
+            lines = self._wrap_text(content, width - (current_x - x), fm)
+            for line in lines:
+                if not line:
+                    new_line()
+                    continue
+                
+                line_width = fm.horizontalAdvance(line)
+                if current_x > x and current_x + line_width > x + width:
+                    new_line()
+                
+                painter.setPen(QColor(color))
+                painter.drawText(current_x, current_y + fm.ascent(), line)
+                current_x += line_width
+        
+        def draw_link(url: str):
+            nonlocal current_x, line_height
+            link_text = self._get_link_text(url, row)
+            painter.setPen(QColor(link_color))
+            
+            remaining = link_text
+            while remaining:
+                avail = x + width - current_x
+                if avail <= 0:
+                    new_line()
+                    avail = width
+                
+                chunk = self._fit(remaining, avail, fm) or remaining[0]
+                chunk_width = fm.horizontalAdvance(chunk)
+                
+                if current_x > x and current_x + chunk_width > x + width:
+                    new_line()
+                    continue
+                
+                painter.drawText(current_x, current_y + fm.ascent(), chunk)
+                link_rect = QRect(current_x, current_y, chunk_width, fm.height())
+                self.click_rects[row]['links'].append((link_rect, url))
+                current_x += chunk_width
+                remaining = remaining[len(chunk):]
+        
         for seg_type, content in segments:
             if seg_type == 'text':
                 last_pos = 0
                 for match in url_pattern.finditer(content):
-                    # Paint text before link
                     if match.start() > last_pos:
-                        before_text = content[last_pos:match.start()]
-                        lines = self._wrap_text(before_text, width - (current_x - x), fm)
-                        for line in lines:
-                            if not line:
-                                current_y += line_height
-                                current_x = x
-                                continue
-                        
-                            line_width = fm.horizontalAdvance(line)
-                            if current_x > x and current_x + line_width > x + width:
-                                current_y += line_height
-                                current_x = x
-                        
-                            painter.setPen(QColor(text_color))
-                            painter.drawText(current_x, current_y + fm.ascent(), line)
-                            current_x += line_width
-                
-                    # Process link
-                    url = match.group(0)
-                    link_text = self._get_link_text(url, row)
-                    
-                    link_width = fm.horizontalAdvance(link_text)
-                
-                    if current_x > x and current_x + link_width > x + width:
-                        current_y += line_height
-                        current_x = x
-                
-                    link_color = "#4DA6FF" if self.is_dark_theme else "#0066CC"
-                    painter.setPen(QColor(link_color))
-                    painter.drawText(current_x, current_y + fm.ascent(), link_text)
-                
-                    self.click_rects[row]['links'].append((QRect(current_x, current_y, link_width, fm.height()), url))
-                    current_x += link_width
+                        draw_text_chunk(content[last_pos:match.start()], text_color)
+                    draw_link(match.group(0))
                     last_pos = match.end()
-            
-                # Remaining text
+                
                 if last_pos < len(content):
-                    remaining_text = content[last_pos:]
-                    lines = self._wrap_text(remaining_text, width - (current_x - x), fm)
-                    for line in lines:
-                        if not line:
-                            current_y += line_height
-                            current_x = x
-                            continue
-                    
-                        line_width = fm.horizontalAdvance(line)
-                        if current_x > x and current_x + line_width > x + width:
-                            current_y += line_height
-                            current_x = x
-                    
-                        painter.setPen(QColor(text_color))
-                        painter.drawText(current_x, current_y + fm.ascent(), line)
-                        current_x += line_width
-    
-            else: # emoticon
+                    draw_text_chunk(content[last_pos:], text_color)
+            
+            else:  # emoticon
                 pixmap = self._get_emoticon_pixmap(content)
                 if pixmap:
                     w, h = pixmap.width(), pixmap.height()
                     if current_x > x and current_x + w > x + width:
-                        current_y += line_height
-                        current_x = x
+                        new_line()
                         line_height = h
-                
+                    
                     painter.drawPixmap(current_x, current_y, pixmap)
                     current_x += w
                     line_height = max(line_height, h)
@@ -460,7 +503,6 @@ class MessageDelegate(QStyledItemDelegate):
             formatted_text, is_cached = cached
             if is_cached:
                 return formatted_text
-            # Not cached - fetch in background
             fetch_async(url, lambda result: self._refresh_row(row))
         
         return url
@@ -477,16 +519,15 @@ class MessageDelegate(QStyledItemDelegate):
         try:
             model = self.list_view.model()
             if 0 <= row < model.rowCount():
-                # Update the entire viewport
                 self.list_view.viewport().update()
         except RuntimeError:
-            # Widget was deleted
             pass
    
-    def editorEvent(self, event: QEvent, model, option: QStyleOptionViewItem, index: QModelIndex) -> bool:
+    def editorEvent(self, event: QEvent, model, option: QStyleOptionViewItem, 
+                    index: QModelIndex) -> bool:
         msg = index.data(Qt.ItemDataRole.DisplayRole)
         if getattr(msg, 'is_separator', False):
-            return False  # No interactions on separators
+            return False
 
         if event.type() == QEvent.Type.MouseButtonRelease:
             pos = event.pos()
@@ -541,12 +582,17 @@ class MessageDelegate(QStyledItemDelegate):
            
             if row in self.click_rects:
                 rects = self.click_rects[row]
-                is_over_clickable = (rects['timestamp'].contains(pos) or
-                                rects['username'].contains(pos) or
-                                any(link_rect.contains(pos) for link_rect, _ in rects['links']))
+                is_over_clickable = (
+                    rects['timestamp'].contains(pos) or
+                    rects['username'].contains(pos) or
+                    any(link_rect.contains(pos) for link_rect, _ in rects['links'])
+                )
                
                 if self.list_view:
-                    self.list_view.setCursor(QCursor(Qt.CursorShape.PointingHandCursor if is_over_clickable else Qt.CursorShape.ArrowCursor))
+                    cursor = (Qt.CursorShape.PointingHandCursor 
+                             if is_over_clickable 
+                             else Qt.CursorShape.ArrowCursor)
+                    self.list_view.setCursor(QCursor(cursor))
        
         return super().editorEvent(event, model, option, index)
    
@@ -624,6 +670,7 @@ class MessageDelegate(QStyledItemDelegate):
             return set()
        
         start_row = max(0, first_index.row() - 3)
-        end_row = (last_index.row() if last_index.isValid() else start_row + 20) + 3
+        end_row_base = last_index.row() if last_index.isValid() else start_row + 20
+        end_row = end_row_base + 3
        
         return set(range(start_row, end_row + 1))
