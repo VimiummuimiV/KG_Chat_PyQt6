@@ -326,6 +326,10 @@ class ChatlogWidget(QWidget):
   
     def _on_parsed_messages(self, messages, date: str):
         """Handle incrementally parsed messages - ONLY update counter, not layout"""
+        # Only add separator and messages if we actually have messages
+        if not messages:
+            return  # Skip empty dates entirely
+        
         if date != self.last_parsed_date:
             if self.last_parsed_date is not None:
                 # Add separator to temp storage only
@@ -341,16 +345,17 @@ class ChatlogWidget(QWidget):
                 self.temp_parsed_messages.append(msg_data)
             except Exception as e:
                 print(f"Error processing message: {e}")
-      
-        # Only update counter - no layout changes
-        self.info_label.setText(f"Found {len(self.temp_parsed_messages)} messages so far...")
+    
+        # Only update counter - count only actual messages (not separators)
+        message_count = sum(1 for m in self.temp_parsed_messages if not m.is_separator)
+        self.info_label.setText(f"Found {message_count} messages so far...")
   
     def _on_parse_finished(self, messages):
         """Handle parse completion - NOW add all messages to layout at once"""
         self.parser_worker = None
         self.parser_widget._reset_ui()
         self.last_parsed_date = None
-      
+    
         if self.temp_parsed_messages:
             # Disable updates for batch insertion
             self.list_view.setUpdatesEnabled(False)
@@ -366,10 +371,16 @@ class ChatlogWidget(QWidget):
             # Re-enable updates
             self.list_view.setUpdatesEnabled(True)
             
+            # Count only actual messages (not separators)
+            message_count = sum(1 for m in self.all_messages if not m.is_separator)
+            
             # Update UI
-            self.info_label.setText(f"✅ Found {len(self.all_messages)} total messages")
-            self.messages_loaded.emit(self.all_messages)
-           
+            self.info_label.setText(f"✅ Found {message_count} total messages")
+            
+            # Emit only non-separator messages for userlist
+            non_separator_messages = [m for m in self.all_messages if not m.is_separator]
+            self.messages_loaded.emit(non_separator_messages)
+        
             # Show copy/save buttons
             self.parser_widget.show_copy_save_buttons()
             
