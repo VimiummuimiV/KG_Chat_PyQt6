@@ -371,12 +371,6 @@ class ChatlogWidget(QWidget):
             # Re-enable updates
             self.list_view.setUpdatesEnabled(True)
             
-            # Count only actual messages (not separators)
-            message_count = sum(1 for m in self.all_messages if not m.is_separator)
-            
-            # Update UI
-            self.info_label.setText(f"✅ Found {message_count} total messages")
-            
             # Emit only non-separator messages for userlist
             non_separator_messages = [m for m in self.all_messages if not m.is_separator]
             self.messages_loaded.emit(non_separator_messages)
