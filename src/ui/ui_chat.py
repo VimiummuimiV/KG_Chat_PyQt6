@@ -289,7 +289,24 @@ class ChatWindow(QWidget):
             self._clear_private_messages()
         
         self.private_mode = True
-        self.private_chat_jid = jid
+        # Prefer explicit private recipient JID (user_id#username@domain/web) for private messages
+        private_recipient_jid = jid
+        if user_id and username:
+            domain = None
+            # Prefer XMPP client configured domain if available
+            if hasattr(self, 'xmpp_client') and self.xmpp_client and getattr(self.xmpp_client, 'domain', None):
+                domain = self.xmpp_client.domain
+            else:
+                # Fallback: try to extract domain from the provided jid
+                if '@' in jid:
+                    try:
+                        domain = jid.split('@', 1)[1].split('/')[0]
+                    except Exception:
+                        domain = None
+            if domain:
+                private_recipient_jid = f"{user_id}#{username}@{domain}/web"
+
+        self.private_chat_jid = private_recipient_jid
         self.private_chat_username = username
         self.private_chat_user_id = user_id
 

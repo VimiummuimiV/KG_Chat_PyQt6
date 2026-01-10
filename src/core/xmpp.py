@@ -274,7 +274,8 @@ class XMPPClient:
             ET.SubElement(user, 'background').text = own_background
        
         try:
-            self.send_request(self.build_body(children=[message]), verbose=False, timeout=5)
+            payload = self.build_body(children=[message])
+            response = self.send_request(payload, verbose=False, timeout=5)
             return True
         except Exception as e:
             print(f"❌ Send error: {e}")
