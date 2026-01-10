@@ -20,6 +20,7 @@ class MessageDelegate(QStyledItemDelegate):
    
     timestamp_clicked = pyqtSignal(str)
     username_clicked = pyqtSignal(str, bool)
+    row_needs_refresh = pyqtSignal(int)
    
     def __init__(
         self,
@@ -65,6 +66,9 @@ class MessageDelegate(QStyledItemDelegate):
         
         # YouTube support
         self.youtube_enabled = config.get("ui", "youtube", "enabled") or True
+        
+        # Connect the refresh signal
+        self.row_needs_refresh.connect(self._do_refresh_row)
    
     def set_list_view(self, list_view):
         self.list_view = list_view
@@ -462,16 +466,22 @@ class MessageDelegate(QStyledItemDelegate):
         return url
     
     def _refresh_row(self, row: int):
-        """Refresh a specific row"""
+        """Request refresh from background thread - emit signal to main thread"""
+        self.row_needs_refresh.emit(row)
+    
+    def _do_refresh_row(self, row: int):
+        """Actually refresh the row - called in main thread"""
         if not self.list_view or not self.list_view.model():
             return
         
-        model = self.list_view.model()
-        if 0 <= row < model.rowCount():
-            index = model.index(row, 0)
-            rect = self.list_view.visualRect(index)
-            if rect.isValid():
-                QTimer.singleShot(0, lambda: self.list_view.viewport().update(rect))
+        try:
+            model = self.list_view.model()
+            if 0 <= row < model.rowCount():
+                # Update the entire viewport
+                self.list_view.viewport().update()
+        except RuntimeError:
+            # Widget was deleted
+            pass
    
     def editorEvent(self, event: QEvent, model, option: QStyleOptionViewItem, index: QModelIndex) -> bool:
         msg = index.data(Qt.ItemDataRole.DisplayRole)
