@@ -1,11 +1,9 @@
 import requests
-import os
-import platform
 from datetime import datetime
 from typing import List, Optional, Tuple
 from dataclasses import dataclass
 from pathlib import Path
-from bs4 import BeautifulSoup
+from lxml import etree
 
 from helpers.data import get_data_dir
 
@@ -39,76 +37,48 @@ class ChatlogsParser:
         return self.cache_dir / f"{date}{suffix}.html"
    
     def _get_not_found_path(self, date: str) -> Path:
-        """Get not-found marker file path for a date"""
+        """Get not-found marker file path"""
         return self.cache_dir / f"{date}{self.NOT_FOUND_SUFFIX}.txt"
    
     def _is_cached(self, date: str) -> Tuple[bool, bool]:
-        """Check if chatlog is cached
-        
-        Returns:
-            tuple: (is_cached, was_truncated)
-        """
-        # Check for truncated version first
+        """Check cache, returns (is_cached, was_truncated)"""
         if self._get_cache_path(date, truncated=True).exists():
             return True, True
-        # Check for normal version
         if self._get_cache_path(date, truncated=False).exists():
             return True, False
         return False, False
    
     def _is_not_found(self, date: str) -> bool:
-        """Check if chatlog was previously not found (404)"""
+        """Check if previously marked as 404"""
         return self._get_not_found_path(date).exists()
    
     def _load_from_cache(self, date: str) -> Tuple[str, bool]:
-        """Load chatlog from cache
-        
-        Returns:
-            tuple: (html_content, was_truncated)
-        """
-        # Try truncated version first
-        truncated_path = self._get_cache_path(date, truncated=True)
-        if truncated_path.exists():
-            with open(truncated_path, 'r', encoding='utf-8') as f:
-                return f.read(), True
-        
-        # Try normal version
-        cache_path = self._get_cache_path(date, truncated=False)
-        with open(cache_path, 'r', encoding='utf-8') as f:
-            return f.read(), False
+        """Load from cache, returns (html, was_truncated)"""
+        for truncated in (True, False):
+            path = self._get_cache_path(date, truncated)
+            if path.exists():
+                return path.read_text(encoding='utf-8'), truncated
+        return "", False
    
     def _save_to_cache(self, date: str, html: str, truncated: bool = False):
-        """Save chatlog to cache (only if not today)"""
-        date_obj = datetime.strptime(date, '%Y-%m-%d').date()
-        if date_obj >= datetime.now().date():
-            return # Don't cache today or future dates
-       
-        cache_path = self._get_cache_path(date, truncated=truncated)
-        with open(cache_path, 'w', encoding='utf-8') as f:
-            f.write(html)
+        """Save to cache (skip if today)"""
+        if datetime.strptime(date, '%Y-%m-%d').date() >= datetime.now().date():
+            return
+        self._get_cache_path(date, truncated).write_text(html, encoding='utf-8')
    
     def _mark_not_found(self, date: str):
-        """Mark date as not found (only if not today)"""
-        date_obj = datetime.strptime(date, '%Y-%m-%d').date()
-        if date_obj >= datetime.now().date():
-            return # Don't mark today or future dates
-       
-        not_found_path = self._get_not_found_path(date)
-        with open(not_found_path, 'w') as f:
-            f.write(f"404 - Not found on {datetime.now().isoformat()}")
+        """Mark as 404 (skip if today)"""
+        if datetime.strptime(date, '%Y-%m-%d').date() >= datetime.now().date():
+            return
+        self._get_not_found_path(date).write_text(f"404 - Not found on {datetime.now().isoformat()}")
    
     def fetch_log(self, date: Optional[str] = None) -> Tuple[str, bool, bool]:
-        """Fetch chatlog HTML for a specific date (YYYY-MM-DD)
-       
-        Returns:
-            tuple: (html_content, was_truncated, from_cache)
-       
-        Raises:
-            ChatlogNotFoundError: If chatlog doesn't exist (404)
-            ValueError: If date is before minimum date
+        """Fetch chatlog HTML for date (YYYY-MM-DD)
+        
+        Returns: (html, was_truncated, from_cache)
+        Raises: ChatlogNotFoundError, ValueError
         """
-        if date is None:
-            date = datetime.now().strftime('%Y-%m-%d')
+        date = date or datetime.now().strftime('%Y-%m-%d')
        
         # Check minimum date
         date_obj = datetime.strptime(date, '%Y-%m-%d').date()
@@ -119,113 +89,100 @@ class ChatlogsParser:
         if self._is_not_found(date):
             raise ChatlogNotFoundError(f"Chatlog not found for date {date} (cached 404)")
        
-        # Check cache
+        # Check file cache
         is_cached, was_truncated = self._is_cached(date)
         if is_cached:
             html, was_truncated = self._load_from_cache(date)
-            return html, was_truncated, True # From cache
+            return html, was_truncated, True
        
         # Fetch from network
         url = f"{self.BASE_URL}/{date}.html"
-       
         try:
             response = self.session.get(url, timeout=10, stream=True)
            
-            # Check for 404
             if response.status_code == 404:
                 self._mark_not_found(date)
                 raise ChatlogNotFoundError(f"Chatlog not found for date {date}")
            
             response.raise_for_status()
-           
-            # Check file size before loading
-            content_length = response.headers.get('content-length')
-            was_truncated = False
-           
-            if content_length:
-                size_mb = int(content_length) / (1024 * 1024)
-                if size_mb > self.MAX_FILE_SIZE_MB:
-                    # Read only up to limit
-                    max_bytes = self.MAX_FILE_SIZE_MB * 1024 * 1024
-                    content = b''
-                    for chunk in response.iter_content(chunk_size=8192):
-                        content += chunk
-                        if len(content) >= max_bytes:
-                            content = content[:max_bytes]
-                            break
-                    response._content = content
-                    response.encoding = 'utf-8'
-                    was_truncated = True
-           
             response.encoding = 'utf-8'
-            html = response.text
            
-            # Save to cache with truncation flag (only if not today)
+            # Handle large files
+            was_truncated = False
+            content_length = response.headers.get('content-length')
+            
+            if content_length and int(content_length) / (1024 * 1024) > self.MAX_FILE_SIZE_MB:
+                max_bytes = int(self.MAX_FILE_SIZE_MB * 1024 * 1024)
+                content = b''
+                for chunk in response.iter_content(8192):
+                    content += chunk
+                    if len(content) >= max_bytes:
+                        content = content[:max_bytes]
+                        break
+                html = content.decode('utf-8', errors='ignore')
+                was_truncated = True
+            else:
+                html = response.text
+           
             self._save_to_cache(date, html, truncated=was_truncated)
-           
-            return html, was_truncated, False # Return from_cache=False
+            return html, was_truncated, False
            
         except requests.exceptions.RequestException as e:
-            if hasattr(e, 'response') and e.response is not None and e.response.status_code == 404:
+            if hasattr(e, 'response') and e.response and e.response.status_code == 404:
                 self._mark_not_found(date)
                 raise ChatlogNotFoundError(f"Chatlog not found for date {date}")
             raise
    
     def parse_messages(self, html: str) -> List[ChatMessage]:
-        """Parse messages from chatlog HTML"""
-        soup = BeautifulSoup(html, 'html.parser')
+        """Parse messages from HTML using lxml
+        
+        Structure: <a class="ts" name="HH:MM:SS"/>
+                   <font class="mn">&lt;user&gt;</font>text<br/>
+        """
+        parser = etree.HTMLParser(encoding='utf-8')
+        tree = etree.fromstring(html.encode('utf-8'), parser)
         messages = []
-       
-        for ts_tag in soup.find_all('a', class_='ts'):
-            # Get timestamp
-            timestamp = ts_tag.get('name')
+        
+        for ts_elem in tree.xpath('//a[@class="ts"]'):
+            timestamp = ts_elem.get('name')
             if not timestamp:
                 continue
-           
-            timestamp = timestamp.strip('[] ') # Remove [], spaces
-           
-            # Get username
-            font_tag = ts_tag.find_next('font', class_='mn')
-            if not font_tag:
+            
+            font_elems = ts_elem.xpath('following-sibling::font[@class="mn"][1]')
+            if not font_elems:
                 continue
-           
-            username = font_tag.get_text().strip('<> ') # Remove <>, spaces
-           
-            # Get message text and URLs
-            message = ''
-            for sibling in font_tag.next_siblings:
-                if sibling.name == 'br':
+            
+            font_elem = font_elems[0]
+            username = (font_elem.text or '').strip('<> ')
+            if not username:
+                continue
+            
+            # Collect message parts
+            parts = [font_elem.tail] if font_elem.tail else []
+            for sibling in font_elem.itersiblings():
+                if sibling.tag == 'br':
                     break
-                if isinstance(sibling, str):
-                    message += sibling
-                elif sibling.name == 'a':
-                    # Extract URL from anchor tag
-                    href = sibling.get('href', '')
-                    if href:
-                        message += href
-                    else:
-                        # Fallback to anchor text if no href
-                        message += sibling.get_text()
-           
-            message = message.strip()
+                if sibling.tag == 'a':
+                    parts.append(sibling.get('href', sibling.text or ''))
+                elif sibling.text:
+                    parts.append(sibling.text)
+                if sibling.tail:
+                    parts.append(sibling.tail)
+            
+            message = ''.join(parts).strip()
             if message:
                 messages.append(ChatMessage(timestamp, username, message))
-       
+        
         return messages
    
     def get_messages(self, date: Optional[str] = None) -> Tuple[List[ChatMessage], bool, bool]:
-        """Get all messages for a specific date (YYYY-MM-DD)
-       
-        Returns:
-            tuple: (messages, was_truncated, from_cache)
-       
-        Raises:
-            ChatlogNotFoundError: If chatlog doesn't exist
-            ValueError: If date is before minimum date
+        """Get parsed messages for date
+        
+        Returns: (messages, was_truncated, from_cache)
+        Raises: ChatlogNotFoundError, ValueError
         """
         html, was_truncated, from_cache = self.fetch_log(date)
-        messages = self.parse_messages(html)
-        return messages, was_truncated, from_cache
+        return self.parse_messages(html), was_truncated, from_cache
 
 
 if __name__ == "__main__":
