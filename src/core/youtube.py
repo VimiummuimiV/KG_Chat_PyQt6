@@ -93,7 +93,11 @@ class YouTubeProcessor:
             
         except Exception as e:
             print(f"Error fetching YouTube metadata for {video_id}: {e}")
-            return {'title': 'Error fetching title', 'channel': 'Error fetching channel'}
+            # Cache the error to prevent retry loops
+            error_result = {'title': 'Video unavailable', 'channel': 'YouTube'}
+            with self._lock:
+                self._cache[video_id] = error_result
+            return error_result
     
     def get_cached_metadata(self, video_id: str) -> Optional[Dict[str, str]]:
         """Get metadata from cache only"""
