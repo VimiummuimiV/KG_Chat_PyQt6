@@ -7,6 +7,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
 
 from core.chatlogs import ChatlogsParser, ChatlogNotFoundError, ChatMessage
+from helpers.workers_calculator import WorkerCalculator
 
 
 @dataclass
@@ -22,9 +23,17 @@ class ParseConfig:
 
 class ChatlogsParserEngine:
     """Engine for parsing chatlogs with various modes and filters using multithreading"""
-    def __init__(self, max_workers: int = 20):
+    def __init__(self, max_workers: Optional[int] = None):
         self.parser = ChatlogsParser()
         self.stop_requested = False
+        
+        # Calculate optimal workers if not provided
+        if max_workers is None:
+            max_workers, info = WorkerCalculator.calculate_optimal_workers()
+            print(f"🔧 Auto-configured workers: {info}")
+        else:
+            print(f"🔧 Using {max_workers} workers")
+        
         self.max_workers = max_workers
         self._lock = threading.Lock()
     
