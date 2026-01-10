@@ -3,6 +3,7 @@ from typing import Dict, Optional, List
 from pathlib import Path
 import re
 import webbrowser
+import threading
 
 from PyQt6.QtWidgets import QStyledItemDelegate, QStyleOptionViewItem, QApplication
 from PyQt6.QtCore import Qt, QSize, QRect, QModelIndex, pyqtSignal, QTimer, QEvent
@@ -11,6 +12,7 @@ from PyQt6.QtGui import QPainter, QFontMetrics, QFont, QColor, QPixmap, QMovie, 
 from helpers.color_contrast import optimize_color_contrast
 from helpers.emoticons import EmoticonManager
 from helpers.color_utils import get_private_message_colors
+from core.youtube import is_youtube_url, get_cached_info, fetch_async
 
 
 class MessageDelegate(QStyledItemDelegate):
@@ -60,6 +62,9 @@ class MessageDelegate(QStyledItemDelegate):
         self.animation_timer = QTimer()
         self.animation_timer.timeout.connect(self._update_animations)
         self.animation_timer.start(33) # 30 FPS
+        
+        # YouTube support
+        self.youtube_enabled = config.get("ui", "youtube", "enabled") or True
    
     def set_list_view(self, list_view):
         self.list_view = list_view
@@ -357,17 +362,17 @@ class MessageDelegate(QStyledItemDelegate):
         segments = self.emoticon_manager.parse_emoticons(text)
         painter.setFont(self.body_font)
         fm = QFontMetrics(self.body_font)
-       
+    
         current_x, current_y = x, y
         line_height = fm.height()
         url_pattern = re.compile(r'https?://[^\s<>"]+')
-       
+    
         # Determine text color based on private status
         if is_private:
             text_color = self.private_colors["text"]
         else:
             text_color = "#FFFFFF" if self.is_dark_theme else "#000000"
-       
+    
         for seg_type, content in segments:
             if seg_type == 'text':
                 last_pos = 0
@@ -381,34 +386,34 @@ class MessageDelegate(QStyledItemDelegate):
                                 current_y += line_height
                                 current_x = x
                                 continue
-                           
+                        
                             line_width = fm.horizontalAdvance(line)
                             if current_x > x and current_x + line_width > x + width:
                                 current_y += line_height
                                 current_x = x
-                           
+                        
                             painter.setPen(QColor(text_color))
                             painter.drawText(current_x, current_y + fm.ascent(), line)
                             current_x += line_width
-                   
-                    # Paint link
-                    link_text = match.group(0)
+                
+                    # Process link
+                    url = match.group(0)
+                    link_text = self._get_link_text(url, row)
+                    
                     link_width = fm.horizontalAdvance(link_text)
-                   
+                
                     if current_x > x and current_x + link_width > x + width:
                         current_y += line_height
                         current_x = x
-                   
+                
                     link_color = "#4DA6FF" if self.is_dark_theme else "#0066CC"
                     painter.setPen(QColor(link_color))
                     painter.drawText(current_x, current_y + fm.ascent(), link_text)
-                    painter.drawLine(current_x, current_y + fm.ascent() + 2,
-                                   current_x + link_width, current_y + fm.ascent() + 2)
-                   
-                    self.click_rects[row]['links'].append((QRect(current_x, current_y, link_width, fm.height()), link_text))
+                
+                    self.click_rects[row]['links'].append((QRect(current_x, current_y, link_width, fm.height()), url))
                     current_x += link_width
                     last_pos = match.end()
-               
+            
                 # Remaining text
                 if last_pos < len(content):
                     remaining_text = content[last_pos:]
@@ -418,16 +423,16 @@ class MessageDelegate(QStyledItemDelegate):
                             current_y += line_height
                             current_x = x
                             continue
-                       
+                    
                         line_width = fm.horizontalAdvance(line)
                         if current_x > x and current_x + line_width > x + width:
                             current_y += line_height
                             current_x = x
-                       
+                    
                         painter.setPen(QColor(text_color))
                         painter.drawText(current_x, current_y + fm.ascent(), line)
                         current_x += line_width
-           
+    
             else: # emoticon
                 pixmap = self._get_emoticon_pixmap(content)
                 if pixmap:
@@ -436,10 +441,37 @@ class MessageDelegate(QStyledItemDelegate):
                         current_y += line_height
                         current_x = x
                         line_height = h
-                   
+                
                     painter.drawPixmap(current_x, current_y, pixmap)
                     current_x += w
                     line_height = max(line_height, h)
+   
+    def _get_link_text(self, url: str, row: int) -> str:
+        """Get display text for link (process YouTube if applicable)"""
+        if not self.youtube_enabled or not is_youtube_url(url):
+            return url
+        
+        cached = get_cached_info(url, use_emojis=True)
+        if cached:
+            formatted_text, is_cached = cached
+            if is_cached:
+                return formatted_text
+            # Not cached - fetch in background
+            fetch_async(url, lambda result: self._refresh_row(row))
+        
+        return url
+    
+    def _refresh_row(self, row: int):
+        """Refresh a specific row"""
+        if not self.list_view or not self.list_view.model():
+            return
+        
+        model = self.list_view.model()
+        if 0 <= row < model.rowCount():
+            index = model.index(row, 0)
+            rect = self.list_view.visualRect(index)
+            if rect.isValid():
+                QTimer.singleShot(0, lambda: self.list_view.viewport().update(rect))
    
     def editorEvent(self, event: QEvent, model, option: QStyleOptionViewItem, index: QModelIndex) -> bool:
         msg = index.data(Qt.ItemDataRole.DisplayRole)

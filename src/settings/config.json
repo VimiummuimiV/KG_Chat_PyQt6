@@ -33,6 +33,9 @@
       "hue": 0,
       "saturation": 75
     },
+    "youtube": {
+      "enabled": true
+    },
     "buttons": {
       "large_button": {
         "icon_size": 30,
