@@ -77,9 +77,6 @@ class MessageDelegate(QStyledItemDelegate):
         self.input_field = input_field
    
     def cleanup(self):
-        """Stop animation timer to prevent accessing deleted widgets"""
-        if self.animation_timer.isActive():
-            self.animation_timer.stop()
         self.list_view = None
    
     def update_theme(self):
@@ -231,6 +228,12 @@ class MessageDelegate(QStyledItemDelegate):
             key = str(path)
             if key not in self._movie_cache:
                 movie = QMovie(str(path))
+                # Parent to application to survive view cleanup and avoid
+                # being GC'd/stopped when views are hidden.
+                try:
+                    movie.setParent(QApplication.instance())
+                except Exception:
+                    pass
                 movie.setCacheMode(QMovie.CacheMode.CacheAll)
                 first_frame = movie.currentPixmap()
                 if not first_frame.isNull():
@@ -615,45 +618,48 @@ class MessageDelegate(QStyledItemDelegate):
         return False
    
     def _update_animations(self):
-        """Update animated emoticons"""
-        if not self.list_view or not self.animated_rows:
+        if not self.animated_rows:
             return
-       
-        # Safety check - widget might be deleted
-        try:
-            if not self.list_view.isVisible():
-                return
-            viewport_rect = self.list_view.viewport().rect()
-        except RuntimeError:
-            # Widget has been deleted, stop timer
-            self.animation_timer.stop()
-            return
-       
-        visible_rows = self._get_visible_rows()
-        if not visible_rows:
-            return
-       
-        rows_to_update = self.animated_rows & visible_rows
-        if not rows_to_update:
-            return
-       
-        # Check for frame changes
+
+        # Poll frames for all movies
         has_changes = False
-        for key, movie in self._movie_cache.items():
-            current_frame = movie.currentFrameNumber()
+        for key, movie in list(self._movie_cache.items()):
+            try:
+                current_frame = movie.currentFrameNumber()
+            except Exception:
+                # Movie may have been invalidated; skip it
+                continue
             if self.animation_frames.get(key, -1) != current_frame:
                 self.animation_frames[key] = current_frame
                 has_changes = True
-       
-        # Only update if frames changed
-        if has_changes and self.list_view.model():
-            model = self.list_view.model()
-            for row in rows_to_update:
-                if row < model.rowCount():
-                    index = model.index(row, 0)
-                    rect = self.list_view.visualRect(index)
-                    if rect.isValid():
-                        self.list_view.viewport().update(rect)
+
+        if not has_changes:
+            return
+
+        # Only repaint when view is visible
+        try:
+            viewport_visible = bool(self.list_view and self.list_view.isVisible())
+        except RuntimeError:
+            viewport_visible = False
+
+        if not viewport_visible or not self.list_view or not self.list_view.model():
+            return
+
+        visible_rows = self._get_visible_rows()
+        if not visible_rows:
+            return
+
+        rows_to_update = self.animated_rows & visible_rows
+        if not rows_to_update:
+            return
+
+        model = self.list_view.model()
+        for row in rows_to_update:
+            if row < model.rowCount():
+                index = model.index(row, 0)
+                rect = self.list_view.visualRect(index)
+                if rect.isValid():
+                    self.list_view.viewport().update(rect)
    
     def _get_visible_rows(self) -> set:
         if not self.list_view:

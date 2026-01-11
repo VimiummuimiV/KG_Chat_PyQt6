@@ -247,6 +247,22 @@ class ChatWindow(QWidget):
         """Handle window show events for auto-reconnect"""
         super().showEvent(event)
         self._check_and_reconnect()
+
+        # Restore delegate references and restart animations when showing
+        try:
+            if self.messages_widget and getattr(self.messages_widget, 'delegate', None):
+                self.messages_widget.delegate.set_list_view(self.messages_widget.list_view)
+                # Ensure timer is running
+                if not self.messages_widget.delegate.animation_timer.isActive():
+                    self.messages_widget.delegate.animation_timer.start(33)
+                # Restart any QMovie instances
+                for movie in self.messages_widget.delegate._movie_cache.values():
+                    try:
+                        movie.start()
+                    except Exception:
+                        pass
+        except Exception as e:
+            print(f"ShowEvent resume animations error: {e}")
     
     def _check_and_reconnect(self):
         """Check connection status and reconnect if needed"""
@@ -838,20 +854,24 @@ class ChatWindow(QWidget):
             self.theme_button.setEnabled(True)
     
     def closeEvent(self, event):
-        # Cleanup widgets
+        # If hiding to tray, do not perform full cleanup so animations and
+        # delegate state remain intact. Full cleanup happens only when the
+        # app is actually closing.
+        if self.tray_mode and not self.really_close:
+            event.ignore()
+            self.hide()
+            return
+
+        # Proceed with full cleanup when actually closing
         if self.messages_widget:
             self.messages_widget.cleanup()
         if self.chatlog_widget:
             self.chatlog_widget.cleanup()
-        
-        if self.tray_mode and not self.really_close:
-            event.ignore()
-            self.hide()
-        else:
-            if self.xmpp_client:
-                try:
-                    self.xmpp_client.disconnect()
-                except:
-                    pass
-            self.set_connection_status('offline')
-            event.accept()
+
+        if self.xmpp_client:
+            try:
+                self.xmpp_client.disconnect()
+            except:
+                pass
+        self.set_connection_status('offline')
+        event.accept()
