@@ -44,10 +44,20 @@ def authenticate(username: str, password: str) -> dict | None:
         data = json.loads(match.group(1))
         user = data.get("user", {})
         
+        # Get avatar and clean up escaped slashes
+        avatar = user.get("avatar", "")
+        if avatar:
+            avatar = avatar.replace("\\/", "/")
+        
+        # Get background color or default #808080 if not set
+        background = user.get("background", "#808080")
+        
         return {
             "id": user.get("id"),
             "login": user.get("login"),
-            "pass": data.get("pass")
+            "pass": data.get("pass"),
+            "avatar": avatar,
+            "background": background
         }
         
     except Exception:

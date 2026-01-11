@@ -17,7 +17,6 @@ class AccountManager:
         self.db_path = str(data_dir / "accounts.db")
         self.config = self._load_config()
         self._init_database()
-        print(f"💾 Database: {self.db_path}")
    
     def _init_database(self):
         """Initialize SQLite database"""
@@ -29,6 +28,8 @@ class AccountManager:
                 user_id TEXT NOT NULL,
                 login TEXT UNIQUE NOT NULL,
                 password TEXT NOT NULL,
+                avatar TEXT,
+                background TEXT,
                 active INTEGER DEFAULT 0
             )
         ''')
@@ -47,7 +48,9 @@ class AccountManager:
                 time.sleep(0.1)
         return {}
    
-    def add_account(self, user_id: str, login: str, password: str, set_active: bool = False) -> bool:
+    def add_account(self, user_id: str, login: str, password: str, 
+                    avatar: str = None, background: str = None, 
+                    set_active: bool = False) -> bool:
         """Add new account"""
         try:
             conn = sqlite3.connect(self.db_path)
@@ -57,9 +60,9 @@ class AccountManager:
                 cursor.execute('UPDATE accounts SET active = 0')
            
             cursor.execute('''
-                INSERT INTO accounts (user_id, login, password, active)
-                VALUES (?, ?, ?, ?)
-            ''', (user_id, login, password, 1 if set_active else 0))
+                INSERT INTO accounts (user_id, login, password, avatar, background, active)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', (user_id, login, password, avatar, background, 1 if set_active else 0))
            
             conn.commit()
             conn.close()
@@ -149,7 +152,9 @@ class AccountManager:
             'user_id': row[1],
             'login': row[2],
             'password': row[3],
-            'active': bool(row[4])
+            'avatar': row[4],
+            'background': row[5],
+            'active': bool(row[6])
         }
    
     def get_server_config(self) -> Dict:

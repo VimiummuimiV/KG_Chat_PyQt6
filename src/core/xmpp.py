@@ -209,9 +209,18 @@ class XMPPClient:
         })
         ET.SubElement(presence, 'x', {'xmlns': 'http://jabber.org/protocol/muc'})
        
+        # Add user data with avatar and background
         x_data = ET.SubElement(presence, 'x', {'xmlns': 'klavogonki:userdata'})
         user = ET.SubElement(x_data, 'user')
         ET.SubElement(user, 'login').text = self.connected_account['login']
+        
+        # Add avatar if available
+        if self.connected_account.get('avatar'):
+            ET.SubElement(user, 'avatar').text = self.connected_account['avatar']
+        
+        # Add background if available
+        if self.connected_account.get('background'):
+            ET.SubElement(user, 'background').text = self.connected_account['background']
        
         try:
             response = self.send_request(self.build_body(children=[presence]), verbose=False, timeout=15)
@@ -263,15 +272,13 @@ class XMPPClient:
         user = ET.SubElement(x_data, 'user')
         ET.SubElement(user, 'login').text = self.connected_account['login']
        
-        # Find own user in userlist for background
-        own_background = None
-        for u in self.user_list.get_all():
-            if u.login == self.connected_account['login']:
-                own_background = u.background
-                break
-       
-        if own_background:
-            ET.SubElement(user, 'background').text = own_background
+        # Add avatar if available
+        if self.connected_account.get('avatar'):
+            ET.SubElement(user, 'avatar').text = self.connected_account['avatar']
+        
+        # Add background if available
+        if self.connected_account.get('background'):
+            ET.SubElement(user, 'background').text = self.connected_account['background']
        
         try:
             payload = self.build_body(children=[message])

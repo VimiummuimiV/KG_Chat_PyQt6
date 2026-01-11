@@ -328,6 +328,8 @@ class AccountWindow(QWidget):
             user_id=str(user_data['id']),
             login=user_data['login'],
             password=user_data['pass'],
+            avatar=user_data.get('avatar'),
+            background=user_data.get('background'),
             set_active=True
         )
         
