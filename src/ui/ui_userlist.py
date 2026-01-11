@@ -1,25 +1,14 @@
 from pathlib import Path
-import threading
-from concurrent.futures import ThreadPoolExecutor
 from PyQt6.QtWidgets import (
-    QWidget,
-    QVBoxLayout,
-    QHBoxLayout,
-    QLabel,
-    QScrollArea,
-    QApplication
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
+    QScrollArea, QApplication
 )
-from PyQt6.QtCore import Qt, QTimer, QSize, pyqtSignal, QObject
-from PyQt6.QtGui import QFont, QIcon, QPixmap, QCursor
-from helpers.color_contrast import optimize_color_contrast
-from helpers.load import load_avatar_by_id, make_rounded_pixmap
+from PyQt6.QtCore import Qt, QSize, pyqtSignal
+from PyQt6.QtGui import QFont, QCursor, QPixmap
+from helpers.load import make_rounded_pixmap
 from helpers.create import _render_svg_icon
+from helpers.cache import get_cache
 from core.userlist import ChatUser
-
-
-class AvatarLoader(QObject):
-    """Signal emitter for async avatar loading"""
-    avatar_loaded = pyqtSignal(str, QPixmap)
 
 
 class UserWidget(QWidget):
@@ -27,15 +16,14 @@ class UserWidget(QWidget):
     AVATAR_SIZE = 36
     SVG_AVATAR_SIZE = 24
     
-    profile_requested = pyqtSignal(str, str, str)  # jid, username, user_id (Normal click)
-    private_chat_requested = pyqtSignal(str, str, str)  # jid, username, user_id (Ctrl+click)
+    profile_requested = pyqtSignal(str, str, str)  # jid, username, user_id
+    private_chat_requested = pyqtSignal(str, str, str)  # jid, username, user_id
     
-    def __init__(self, user, bg_hex, config, color_cache, icons_path, is_dark_theme, avatar_cache, executor, counter=None):
+    def __init__(self, user, bg_hex, config, icons_path, is_dark_theme, counter=None):
         super().__init__()
         self.user = user
-        self.avatar_cache = avatar_cache
+        self.cache = get_cache()
         
-        # Make widget clickable
         self.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
         
         layout = QHBoxLayout()
@@ -50,22 +38,21 @@ class UserWidget(QWidget):
         self.avatar_label.setScaledContents(False)
         self.avatar_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         
-        # Load avatar (cached or network)
-        if user.user_id and user.user_id in avatar_cache:
-            self.avatar_label.setPixmap(make_rounded_pixmap(avatar_cache[user.user_id], self.AVATAR_SIZE, 8))
+        # Load avatar from cache
+        if user.user_id:
+            cached_avatar = self.cache.get_avatar(user.user_id)
+            if cached_avatar:
+                self.avatar_label.setPixmap(make_rounded_pixmap(cached_avatar, self.AVATAR_SIZE, 8))
+            else:
+                self.avatar_label.setPixmap(_render_svg_icon(icons_path / "user.svg", self.SVG_AVATAR_SIZE).pixmap(QSize(self.SVG_AVATAR_SIZE, self.SVG_AVATAR_SIZE)))
+                self.cache.load_avatar_async(user.user_id, self._on_avatar_loaded)
         else:
             self.avatar_label.setPixmap(_render_svg_icon(icons_path / "user.svg", self.SVG_AVATAR_SIZE).pixmap(QSize(self.SVG_AVATAR_SIZE, self.SVG_AVATAR_SIZE)))
-            if user.user_id:
-                loader = AvatarLoader()
-                loader.avatar_loaded.connect(lambda uid, pix: self._set_avatar(uid, pix) if uid == user.user_id else None)
-                executor.submit(self._load_avatar, user.user_id, loader)
         
         layout.addWidget(self.avatar_label)
         
-        # Username
-        text_color = color_cache.get(user.login) or optimize_color_contrast(user.background, bg_hex, 4.5) if user.background else "#AAAAAA"
-        if user.login not in color_cache:
-            color_cache[user.login] = text_color
+        # Username with cached color
+        text_color = self.cache.get_or_calculate_color(user.login, user.background, bg_hex, 4.5)
         
         self.username_label = QLabel(user.login)
         self.username_label.setStyleSheet(f"color: {text_color};")
@@ -80,36 +67,27 @@ class UserWidget(QWidget):
             self.counter_label.setStyleSheet(f"color: {text_color};")
             layout.addWidget(self.counter_label)
     
+    def _on_avatar_loaded(self, user_id: str, pixmap: QPixmap):
+        """Callback when avatar is loaded from cache"""
+        try:
+            if user_id == self.user.user_id and self.avatar_label:
+                self.avatar_label.setPixmap(make_rounded_pixmap(pixmap, self.AVATAR_SIZE, 8))
+        except RuntimeError:
+            pass
+    
     def update_color(self, color: str):
         """Update colors without rebuilding widget"""
         self.username_label.setStyleSheet(f"color: {color};")
         if self.counter_label:
             self.counter_label.setStyleSheet(f"color: {color};")
     
-    def _load_avatar(self, user_id, loader):
-        pixmap = load_avatar_by_id(user_id, timeout=2)
-        if pixmap:
-            loader.avatar_loaded.emit(user_id, pixmap)
-    
-    def _set_avatar(self, user_id, pixmap):
-        """Update avatar when loaded - with safety check"""
-        try:
-            if not self.avatar_label or not hasattr(self, 'avatar_label'):
-                return
-            self.avatar_cache[user_id] = pixmap
-            self.avatar_label.setPixmap(make_rounded_pixmap(pixmap, self.AVATAR_SIZE, 8))
-        except RuntimeError:
-            pass
-    
     def mousePressEvent(self, event):
-        """Handle click events - normal click for profile, Ctrl+click for private chat"""
+        """Handle click events"""
         if event.button() == Qt.MouseButton.LeftButton:
             modifiers = QApplication.keyboardModifiers()
             if modifiers & Qt.KeyboardModifier.ControlModifier:
-                # Ctrl+Click - open private chat
                 self.private_chat_requested.emit(self.user.jid, self.user.login, self.user.user_id)
             else:
-                # Normal click - open profile
                 self.profile_requested.emit(self.user.jid, self.user.login, self.user.user_id)
         super().mousePressEvent(event)
 
@@ -117,8 +95,8 @@ class UserWidget(QWidget):
 class UserListWidget(QWidget):
     """Widget for displaying sorted user list with dynamic sections"""
     
-    profile_requested = pyqtSignal(str, str, str)  # jid, username, user_id (normal click)
-    private_chat_requested = pyqtSignal(str, str, str)  # jid, username, user_id (Ctrl+click)
+    profile_requested = pyqtSignal(str, str, str)
+    private_chat_requested = pyqtSignal(str, str, str)
     
     def __init__(self, config, input_field=None):
         super().__init__()
@@ -126,15 +104,12 @@ class UserListWidget(QWidget):
         self.input_field = input_field
         self.user_widgets = {}
         self.user_game_state = {}
-        self.color_cache = {}
-        self.avatar_cache = {}
+        self.cache = get_cache()
         self.bg_hex = "#1E1E1E" if config.get("ui", "theme") == "dark" else "#FFFFFF"
         self.is_dark_theme = config.get("ui", "theme") == "dark"
         
-        self.avatar_executor = ThreadPoolExecutor(thread_name_prefix="avatar_loader")
         self.icons_path = Path(__file__).parent.parent / "icons"
         
-        # Use config for spacing and margins
         widget_margin = config.get("ui", "margins", "widget") or 5
         widget_spacing = config.get("ui", "spacing", "widget_elements") or 6
         list_spacing = config.get("ui", "spacing", "list_items") or 2
@@ -159,7 +134,6 @@ class UserListWidget(QWidget):
         container.setLayout(self.main_layout)
         scroll.setWidget(container)
         
-        # Create section widgets
         header_font = QFont(config.get("ui", "font_family"), config.get("ui", "font_size"))
         header_font.setBold(True)
         
@@ -174,7 +148,6 @@ class UserListWidget(QWidget):
         self.chat_container.setSpacing(list_spacing)
         self.main_layout.addLayout(self.chat_container)
         
-        # Spacer between sections
         self.section_spacer = QWidget()
         self.section_spacer.setFixedHeight(section_gap)
         self.section_spacer.setVisible(False)
@@ -194,17 +167,12 @@ class UserListWidget(QWidget):
         self.main_layout.addStretch()
     
     def _update_section_visibility(self):
-        """Update visibility of section headers based on whether they have users"""
+        """Update visibility of section headers"""
         has_chat_users = self.chat_container.count() > 0
         has_game_users = self.game_container.count() > 0
         
-        # Show/hide chat section
         self.chat_label.setVisible(has_chat_users)
-        
-        # Show/hide game section
         self.game_label.setVisible(has_game_users)
-        
-        # Show spacer only if both sections have users
         self.section_spacer.setVisible(has_chat_users and has_game_users)
     
     def _update_counter(self, user):
@@ -284,8 +252,7 @@ class UserListWidget(QWidget):
             # Add to chat
             for user in in_chat:
                 try:
-                    widget = UserWidget(user, self.bg_hex, self.config, self.color_cache, 
-                                      self.icons_path, self.is_dark_theme, self.avatar_cache, self.avatar_executor)
+                    widget = UserWidget(user, self.bg_hex, self.config, self.icons_path, self.is_dark_theme)
                     widget.profile_requested.connect(self.profile_requested.emit)
                     widget.private_chat_requested.connect(self.private_chat_requested.emit)
                     self.chat_container.addWidget(widget)
@@ -297,8 +264,7 @@ class UserListWidget(QWidget):
             for user in in_game:
                 try:
                     counter = self.user_game_state.get(user.login, {}).get('counter', 1)
-                    widget = UserWidget(user, self.bg_hex, self.config, self.color_cache, 
-                                      self.icons_path, self.is_dark_theme, self.avatar_cache, self.avatar_executor, counter)
+                    widget = UserWidget(user, self.bg_hex, self.config, self.icons_path, self.is_dark_theme, counter)
                     widget.profile_requested.connect(self.profile_requested.emit)
                     widget.private_chat_requested.connect(self.private_chat_requested.emit)
                     self.game_container.addWidget(widget)
@@ -327,8 +293,7 @@ class UserListWidget(QWidget):
             
             # Create widget
             try:
-                widget = UserWidget(user, self.bg_hex, self.config, self.color_cache, 
-                                  self.icons_path, self.is_dark_theme, self.avatar_cache, self.avatar_executor, counter)
+                widget = UserWidget(user, self.bg_hex, self.config, self.icons_path, self.is_dark_theme, counter)
                 widget.profile_requested.connect(self.profile_requested.emit)
                 widget.private_chat_requested.connect(self.private_chat_requested.emit)
                 self.user_widgets[user.jid] = widget
@@ -361,7 +326,7 @@ class UserListWidget(QWidget):
                 
                 # Update section visibility after adding user
                 self._update_section_visibility()
-                
+
             except Exception as e:
                 print(f"❌ Error adding user widget: {e}")
     
@@ -373,6 +338,7 @@ class UserListWidget(QWidget):
         if not jids:
             return
         
+        from PyQt6.QtCore import QTimer
         for jid in jids:
             if jid in self.user_widgets:
                 try:
@@ -385,8 +351,7 @@ class UserListWidget(QWidget):
         QTimer.singleShot(10, self._update_section_visibility)
     
     def clear_all(self):
-        """Clear all users and reset state (for reconnection)"""
-        # Clear all widgets
+        """Clear all users and reset state"""
         for widget in list(self.user_widgets.values()):
             try:
                 widget.deleteLater()
@@ -408,25 +373,21 @@ class UserListWidget(QWidget):
         QApplication.processEvents()
     
     def update_theme(self):
-        """Update theme colors - optimized to avoid full rebuild"""
+        """Update theme colors"""
         theme = self.config.get("ui", "theme")
         self.bg_hex = "#1E1E1E" if theme == "dark" else "#FFFFFF"
         self.is_dark_theme = theme == "dark"
+        
+        # Clear color cache on theme change
+        self.cache.clear_colors()
         
         self.setUpdatesEnabled(False)
         for jid, widget in list(self.user_widgets.items()):
             try:
                 username = widget.user.login
                 background = widget.user.background
-                new_color = optimize_color_contrast(background, self.bg_hex, 4.5) if background else "#AAAAAA"
-                self.color_cache[username] = new_color
+                new_color = self.cache.get_or_calculate_color(username, background, self.bg_hex, 4.5)
                 widget.update_color(new_color)
             except (RuntimeError, AttributeError):
                 pass
         self.setUpdatesEnabled(True)
-    
-    def closeEvent(self, event):
-        """Clean up thread pool on close"""
-        if hasattr(self, 'avatar_executor'):
-            self.avatar_executor.shutdown(wait=False)
-        event.accept()

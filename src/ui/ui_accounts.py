@@ -2,21 +2,23 @@ import sys
 from pathlib import Path
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-    QComboBox, QLineEdit, QFrame, QMessageBox, QApplication, QStackedWidget
+    QComboBox, QLineEdit, QMessageBox, QApplication, QStackedWidget
 )
 from PyQt6.QtGui import QFont, QIcon
-from PyQt6.QtCore import Qt, pyqtSignal, QSize
+from PyQt6.QtCore import Qt, pyqtSignal, QSize, pyqtSlot
+from PyQt6.QtGui import QPixmap
 
 from helpers.create import create_icon_button, set_theme, _render_svg_icon
-from helpers.load import load_avatar_by_id, make_rounded_pixmap
+from helpers.load import make_rounded_pixmap
+from helpers.cache import get_cache
 from helpers.config import Config
 from core.accounts import AccountManager
 from themes.theme import ThemeManager
 
 
 class AccountWindow(QWidget):
-    # Signal emitted when account is successfully connected
     account_connected = pyqtSignal(dict)
+    _avatar_loaded = pyqtSignal(str, QPixmap)
 
     def __init__(self):
         super().__init__()
@@ -32,6 +34,9 @@ class AccountWindow(QWidget):
         
         # Account manager
         self.account_manager = AccountManager(str(self.config_path))
+        self.cache = get_cache()
+        
+        self._avatar_loaded.connect(self._set_avatar)
         
         # Initialize UI
         self.initializeUI()
@@ -93,9 +98,7 @@ class AccountWindow(QWidget):
         
         # Avatar
         self.account_avatar = create_icon_button(
-            self.icons_path, 
-            "user.svg", 
-            tooltip="Account"
+            self.icons_path, "user.svg", tooltip="Account"
         )
         self.account_avatar.setStyleSheet("QPushButton { background: transparent; border: none; }")
         connect_row.addWidget(self.account_avatar)
@@ -110,33 +113,27 @@ class AccountWindow(QWidget):
         
         # Connect button
         self.connect_button = create_icon_button(
-            self.icons_path, 
-            "login.svg", 
-            tooltip="Connect to chat"
+            self.icons_path, "login.svg", tooltip="Connect to chat"
         )
         self.connect_button.clicked.connect(self.on_connect)
         connect_row.addWidget(self.connect_button)
         
         # Remove button
         self.remove_button = create_icon_button(
-            self.icons_path, 
-            "trash.svg", 
-            tooltip="Remove account"
+            self.icons_path, "trash.svg", tooltip="Remove account"
         )
         self.remove_button.clicked.connect(self.on_remove_account)
         connect_row.addWidget(self.remove_button)
         
         # Add user button
         self.add_user_button = create_icon_button(
-            self.icons_path, 
-            "add-user.svg", 
-            tooltip="Create new account"
+            self.icons_path, "add-user.svg", tooltip="Create new account"
         )
         self.add_user_button.clicked.connect(self.show_create_page)
         connect_row.addWidget(self.add_user_button)
         
         layout.addLayout(connect_row)
-        
+
         return page
     
     def create_create_page(self):
@@ -158,9 +155,7 @@ class AccountWindow(QWidget):
         
         # Go back button
         self.go_back_button = create_icon_button(
-            self.icons_path, 
-            "go-back.svg", 
-            tooltip="Go back to Connect"
+            self.icons_path, "go-back.svg", tooltip="Go back to Connect"
         )
         self.go_back_button.clicked.connect(self.show_connect_page)
         create_row.addWidget(self.go_back_button)
@@ -184,15 +179,12 @@ class AccountWindow(QWidget):
         
         # Create/Save button
         self.create_button = create_icon_button(
-            self.icons_path, 
-            "save.svg", 
-            tooltip="Create account"
+            self.icons_path, "save.svg", tooltip="Create account"
         )
         self.create_button.clicked.connect(self.on_create_account)
         create_row.addWidget(self.create_button)
         
         layout.addLayout(create_row)
-        
         return page
     
     def show_connect_page(self):
@@ -237,9 +229,29 @@ class AccountWindow(QWidget):
             self.account_avatar.setStyleSheet("QPushButton { background: transparent; border: none; }")
             return
         
-        pixmap = load_avatar_by_id(account['user_id'])
-        if pixmap:
-            # Make rounded pixmap with 48x48 size to match button
+        # Try to get from cache first
+        user_id = account['user_id']
+        cached_avatar = self.cache.get_avatar(user_id)
+        
+        if cached_avatar:
+            self._set_avatar(user_id, cached_avatar)
+        else:
+            # Set placeholder first
+            icon = _render_svg_icon(self.icons_path / "user.svg", 30)
+            self.account_avatar.setIcon(icon)
+            self.account_avatar.setIconSize(QSize(30, 30))
+            
+            # Load async
+            def avatar_callback(uid: str, pixmap: QPixmap):
+                if uid == user_id:
+                    self._avatar_loaded.emit(uid, pixmap)
+            
+            self.cache.load_avatar_async(user_id, avatar_callback, timeout=3)
+    
+    @pyqtSlot(str, QPixmap)
+    def _set_avatar(self, user_id: str, pixmap: QPixmap):
+        """Set avatar from cache"""
+        if pixmap and not pixmap.isNull():
             rounded = make_rounded_pixmap(pixmap, 48, radius=8)
             self.account_avatar.setIcon(QIcon(rounded))
             self.account_avatar.setIconSize(QSize(48, 48))
@@ -298,7 +310,7 @@ class AccountWindow(QWidget):
         
         # Show progress
         self.create_button.setEnabled(False)
-        QApplication.processEvents()  # Update UI
+        QApplication.processEvents()
         
         # Authenticate and get user data
         user_data = authenticate(username, password)
@@ -321,12 +333,9 @@ class AccountWindow(QWidget):
         
         if success:
             QMessageBox.information(self, "Success", f"Account '{username}' connected successfully!")
-            # Clear input fields
             self.username_input.clear()
             self.password_input.clear()
-            # Reload accounts
             self.load_accounts()
-            # Navigate back to connect page
             self.show_connect_page()
         else:
             QMessageBox.critical(self, "Error", "Failed to save account. Account may already exist.")
