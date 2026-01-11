@@ -25,10 +25,10 @@ class ProfileIcons:
     ACHIEVEMENTS = "🏆"
     TOTAL_RACES = "🏁"
     BEST_SPEED = "⚡"
-    RATING = "📊"
+    RATING = "🎯"
     FRIENDS = "👥"
     VOCABULARIES = "📚"
-    CARS = "🚗"
+    CARS = "🚖"
     AVATAR_PLACEHOLDER = "👤"
 
 
