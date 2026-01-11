@@ -60,6 +60,7 @@ class PopupNotification(QWidget):
        
         # Determine theme and colors
         is_dark = data.config.get("ui", "theme") == "dark" if data.config else True
+        bg_hex = "#1E1E1E" if is_dark else "#FFFFFF"
        
         # Load private message colors from config
         if data.is_private and data.config:
@@ -81,8 +82,12 @@ class PopupNotification(QWidget):
         message_layout = QVBoxLayout()
         message_layout.setSpacing(spacing)
        
-        # Username label (use cached color)
-        username_color = data.cache.get_color(data.title, "#AAAAAA") if data.cache else "#AAAAAA"
+        # Username label
+        if data.cache:
+            username_color = data.cache.get_or_calculate_color(data.title, None, bg_hex, 4.5)
+        else:
+            username_color = "#AAAAAA"
+        
         self.username_label = QLabel(f"<b>{data.title}</b>")
         self.username_label.setStyleSheet(f"color: {username_color};")
         self.username_label.setFont(QFont(font_family, font_size))
@@ -98,9 +103,6 @@ class PopupNotification(QWidget):
         # Only set color for private messages
         if message_color:
             self.message_label.setStyleSheet(f"color: {message_color};")
-        self.message_label.setWordWrap(True)
-        self.message_label.setFont(QFont(font_family, font_size))
-        self.message_label.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         message_layout.addWidget(self.message_label)
        
         top_row.addLayout(message_layout, stretch=1)
