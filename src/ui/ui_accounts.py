@@ -1,10 +1,10 @@
 import sys
 from pathlib import Path
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-    QComboBox, QLineEdit, QMessageBox, QApplication, QStackedWidget
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QComboBox,
+    QLineEdit, QMessageBox, QApplication, QStackedWidget, QColorDialog
 )
-from PyQt6.QtGui import QFont, QIcon
+from PyQt6.QtGui import QFont, QIcon, QColor
 from PyQt6.QtCore import Qt, pyqtSignal, QSize, pyqtSlot
 from PyQt6.QtGui import QPixmap
 
@@ -45,7 +45,7 @@ class AccountWindow(QWidget):
     def initializeUI(self):
         # Window setup
         self.setWindowTitle("Account Manager")
-        self.setFixedWidth(550)
+        self.setFixedWidth(600)
         self.setMinimumHeight(120)
         self.setMaximumHeight(120)
         
@@ -92,7 +92,7 @@ class AccountWindow(QWidget):
         connect_label.setFont(QFont("Montserrat", 14, QFont.Weight.Bold))
         layout.addWidget(connect_label)
         
-        # Connect row: Avatar + Dropdown + Connect + Remove + Add User
+        # Connect row: Avatar + Dropdown + Color Picker + Connect + Remove + Add User
         connect_row = QHBoxLayout()
         connect_row.setSpacing(8)
         
@@ -117,6 +117,13 @@ class AccountWindow(QWidget):
         )
         self.connect_button.clicked.connect(self.on_connect)
         connect_row.addWidget(self.connect_button)
+        
+        # Color picker button
+        self.color_button = create_icon_button(
+            self.icons_path, "palette.svg", tooltip="Change username color"
+        )
+        self.color_button.clicked.connect(self.on_color_picker)
+        connect_row.addWidget(self.color_button)
         
         # Remove button
         self.remove_button = create_icon_button(
@@ -195,6 +202,32 @@ class AccountWindow(QWidget):
         """Navigate to Create page"""
         self.stacked_widget.setCurrentIndex(1)
     
+    def on_color_picker(self):
+        """Open color picker for selected account"""
+        account = self.account_dropdown.currentData()
+        if not account:
+            QMessageBox.warning(self, "No Account", "Please select an account first.")
+            return
+        
+        # Get current color or use default
+        current_color = QColor(account.get('background', '#808080'))
+        
+        # Open color dialog
+        color = QColorDialog.getColor(current_color, self, "Choose Username Color")
+        
+        if color.isValid():
+            # Update account with new color
+            hex_color = color.name()
+            success = self.account_manager.update_account_color(account['login'], hex_color)
+            
+            if success:
+                QMessageBox.information(self, "Success", f"Color updated to {hex_color}")
+                self.load_accounts()
+                # Clear cache so new color is used
+                self.cache.clear_colors()
+            else:
+                QMessageBox.critical(self, "Error", "Failed to update color.")
+    
     def load_accounts(self):
         self.account_dropdown.clear()
         accounts = self.account_manager.list_accounts()
@@ -203,10 +236,12 @@ class AccountWindow(QWidget):
             self.account_dropdown.addItem("No accounts available")
             self.connect_button.setEnabled(False)
             self.remove_button.setEnabled(False)
+            self.color_button.setEnabled(False)
             return
         
         self.connect_button.setEnabled(True)
         self.remove_button.setEnabled(True)
+        self.color_button.setEnabled(True)
         
         # Find active account index
         active_index = 0

@@ -479,7 +479,7 @@ class ChatWindow(QWidget):
             self.chatlog_userlist_widget = ChatlogUserlistWidget(
                 self.config,
                 self.icons_path,
-                self.color_cache
+                self.cache._color_cache
             )
             self.chatlog_userlist_widget.filter_requested.connect(self._on_filter_requested)
             self.content_layout.addWidget(self.chatlog_userlist_widget, stretch=1)

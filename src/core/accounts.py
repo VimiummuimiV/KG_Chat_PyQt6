@@ -142,6 +142,20 @@ class AccountManager:
         except Exception as e:
             print(f"❌ Error: {e}")
             return False
+    
+    def update_account_color(self, login: str, background: str) -> bool:
+        """Update account background color"""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            cursor.execute('UPDATE accounts SET background = ? WHERE login = ?', (background, login))
+            updated = cursor.rowcount > 0
+            conn.commit()
+            conn.close()
+            return updated
+        except Exception as e:
+            print(f"❌ Error: {e}")
+            return False
    
     def _row_to_dict(self, row) -> Dict:
         """Convert row to dict"""
