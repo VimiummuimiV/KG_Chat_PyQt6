@@ -5,33 +5,56 @@ import re
 
 
 class EmoticonManager:
-    """Manage emoticons from multiple directories"""
+    """Manage emoticons from multiple directories with theme support"""
     
-    def __init__(self, emoticons_base_path: Path):
+    def __init__(self, emoticons_base_path: Path, is_dark_theme: bool = True):
         self.emoticons_base_path = emoticons_base_path
+        self.is_dark_theme = is_dark_theme
         self.emoticon_map: Dict[str, Path] = {}
-        self._load_emoticons()
+        self._load_emoticons(verbose=True)
     
-    def _load_emoticons(self):
-        """Scan all emoticon directories and build name -> path mapping"""
+    def set_theme(self, is_dark: bool):
+        """Update theme and reload emoticons"""
+        if self.is_dark_theme != is_dark:
+            self.is_dark_theme = is_dark
+            self._load_emoticons(verbose=False)
+    
+    def _load_emoticons(self, verbose: bool = False):
+        """Scan all emoticon directories and build name -> path mapping with theme support"""
+        self.emoticon_map.clear()
+        
         if not self.emoticons_base_path.exists():
-            print(f"⚠️ Emoticons directory not found: {self.emoticons_base_path}")
+            if verbose:
+                print(f"⚠️ Emoticons directory not found: {self.emoticons_base_path}")
             return
         
-        # Scan all subdirectories (Army, Boys, Christmas, Girls, Halloween, Inlove, etc.)
-        for group_dir in self.emoticons_base_path.iterdir():
-            if not group_dir.is_dir():
-                continue
-            
-            # Scan all GIF files in this group
-            for emoticon_file in group_dir.glob("*.gif"):
-                # Use filename without extension as emoticon name
-                emoticon_name = emoticon_file.stem.lower()
-                
-                # Store path (overwrites if duplicate names exist across groups)
-                self.emoticon_map[emoticon_name] = emoticon_file
+        theme_folder = "dark" if self.is_dark_theme else "light"
         
-        print(f"📦 Loaded {len(self.emoticon_map)} emoticons from {self.emoticons_base_path}")
+        def load_from_dir(directory: Path):
+            """Load emoticons from a directory, checking for theme folders first"""
+            theme_dir = directory / theme_folder
+            has_themes = (directory / "dark").exists() and (directory / "light").exists()
+            
+            if has_themes:
+                # Load theme-specific emoticons
+                for f in theme_dir.glob("*.gif"):
+                    self.emoticon_map[f.stem.lower()] = f
+            else:
+                # Load universal emoticons
+                for f in directory.glob("*.gif"):
+                    self.emoticon_map[f.stem.lower()] = f
+                # Recursively check subdirectories
+                for subdir in directory.iterdir():
+                    if subdir.is_dir():
+                        load_from_dir(subdir)
+        
+        # Scan all group directories
+        for group_dir in self.emoticons_base_path.iterdir():
+            if group_dir.is_dir():
+                load_from_dir(group_dir)
+        
+        if verbose:
+            print(f"📦 Loaded {len(self.emoticon_map)} emoticons for {'dark' if self.is_dark_theme else 'light'} theme")
     
     def get_emoticon_path(self, name: str) -> Optional[Path]:
         """Get path for emoticon by name (case-insensitive)"""

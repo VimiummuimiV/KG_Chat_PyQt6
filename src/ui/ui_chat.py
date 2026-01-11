@@ -834,21 +834,28 @@ class ChatWindow(QWidget):
             self.theme_manager.toggle_theme()
             is_dark = self.theme_manager.is_dark()
             set_theme(is_dark)
-           
+            
             self.theme_button._icon_name = "moon.svg" if is_dark else "sun.svg"
             self.theme_button.setToolTip("Switch to Light Mode" if is_dark else "Switch to Dark Mode")
-           
+            
             # Clear cache so colors get recalculated
             self.cache.clear_colors()
-           
+            
             # Update input styling for theme
             self._update_input_style()
-           
+            
             update_all_icons()
+            
+            # Update messages emoticon manager theme
+            self.messages_widget.emoticon_manager.set_theme(is_dark)
+            
+            # Update widgets
             self.messages_widget.update_theme()
             self.user_list_widget.update_theme()
-           
+            
             if self.chatlog_widget:
+                # Update chatlog emoticon manager theme
+                self.chatlog_widget.emoticon_manager.set_theme(is_dark)
                 self.chatlog_widget.update_theme()
             
             if self.chatlog_userlist_widget:
@@ -856,12 +863,12 @@ class ChatWindow(QWidget):
             
             if hasattr(self, 'profile_widget') and self.profile_widget:
                 self.profile_widget.update_theme()
-           
+            
             self.messages_widget.rebuild_messages()
-           
+            
             if self.chatlog_widget and self.stacked_widget.currentWidget() == self.chatlog_widget:
                 self.chatlog_widget._force_recalculate()
-           
+            
             QApplication.processEvents()
         except Exception as e:
             print(f"Theme toggle error: {e}")
