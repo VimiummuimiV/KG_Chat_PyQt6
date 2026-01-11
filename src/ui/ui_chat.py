@@ -20,6 +20,7 @@ from ui.ui_messages import MessagesWidget
 from ui.ui_userlist import UserListWidget
 from ui.ui_chatlog import ChatlogWidget
 from ui.ui_chatlog_userlist import ChatlogUserlistWidget
+from ui.ui_profile import ProfileWidget
 from components.notification import show_notification
 from helpers.scroll import scroll
 
@@ -818,7 +819,20 @@ class ChatWindow(QWidget):
         # Force recalculation after visibility change (only needed when messages visible)
         if width >= 500 or not visible:
             QTimer.singleShot(20, lambda: recalculate_layout(self))
-    
+        
+    def show_profile_view(self, jid: str, username: str, user_id: str):
+        """Show profile view for a user"""
+        if not user_id:
+            return
+
+        if not hasattr(self, 'profile_widget') or not self.profile_widget:
+            self.profile_widget = ProfileWidget(self.config, self.icons_path)
+            self.profile_widget.back_requested.connect(self.show_messages_view)
+            self.stacked_widget.addWidget(self.profile_widget)
+
+        self.profile_widget.load_profile(int(user_id), username)
+        self.stacked_widget.setCurrentWidget(self.profile_widget)
+        
     def toggle_theme(self):
         self.theme_button.setEnabled(False)
         try:
