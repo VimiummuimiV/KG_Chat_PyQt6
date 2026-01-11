@@ -27,7 +27,8 @@ class UserWidget(QWidget):
     AVATAR_SIZE = 36
     SVG_AVATAR_SIZE = 24
     
-    clicked = pyqtSignal(str, str, str)  # jid, username, user_id
+    profile_requested = pyqtSignal(str, str, str)  # jid, username, user_id (Normal click)
+    private_chat_requested = pyqtSignal(str, str, str)  # jid, username, user_id (Ctrl+click)
     
     def __init__(self, user, bg_hex, config, color_cache, icons_path, is_dark_theme, avatar_cache, executor, counter=None):
         super().__init__()
@@ -101,16 +102,23 @@ class UserWidget(QWidget):
             pass
     
     def mousePressEvent(self, event):
-        """Emit click signal with user info"""
+        """Handle click events - normal click for profile, Ctrl+click for private chat"""
         if event.button() == Qt.MouseButton.LeftButton:
-            self.clicked.emit(self.user.jid, self.user.login, self.user.user_id)
+            modifiers = QApplication.keyboardModifiers()
+            if modifiers & Qt.KeyboardModifier.ControlModifier:
+                # Ctrl+Click - open private chat
+                self.private_chat_requested.emit(self.user.jid, self.user.login, self.user.user_id)
+            else:
+                # Normal click - open profile
+                self.profile_requested.emit(self.user.jid, self.user.login, self.user.user_id)
         super().mousePressEvent(event)
 
 
 class UserListWidget(QWidget):
     """Widget for displaying sorted user list with dynamic sections"""
     
-    username_clicked = pyqtSignal(str, str, str)  # jid, username, user_id
+    profile_requested = pyqtSignal(str, str, str)  # jid, username, user_id (normal click)
+    private_chat_requested = pyqtSignal(str, str, str)  # jid, username, user_id (Ctrl+click)
     
     def __init__(self, config, input_field=None):
         super().__init__()
@@ -278,7 +286,8 @@ class UserListWidget(QWidget):
                 try:
                     widget = UserWidget(user, self.bg_hex, self.config, self.color_cache, 
                                       self.icons_path, self.is_dark_theme, self.avatar_cache, self.avatar_executor)
-                    widget.clicked.connect(self.username_clicked.emit)
+                    widget.profile_requested.connect(self.profile_requested.emit)
+                    widget.private_chat_requested.connect(self.private_chat_requested.emit)
                     self.chat_container.addWidget(widget)
                     self.user_widgets[user.jid] = widget
                 except Exception as e:
@@ -290,7 +299,8 @@ class UserListWidget(QWidget):
                     counter = self.user_game_state.get(user.login, {}).get('counter', 1)
                     widget = UserWidget(user, self.bg_hex, self.config, self.color_cache, 
                                       self.icons_path, self.is_dark_theme, self.avatar_cache, self.avatar_executor, counter)
-                    widget.clicked.connect(self.username_clicked.emit)
+                    widget.profile_requested.connect(self.profile_requested.emit)
+                    widget.private_chat_requested.connect(self.private_chat_requested.emit)
                     self.game_container.addWidget(widget)
                     self.user_widgets[user.jid] = widget
                 except Exception as e:
@@ -319,7 +329,8 @@ class UserListWidget(QWidget):
             try:
                 widget = UserWidget(user, self.bg_hex, self.config, self.color_cache, 
                                   self.icons_path, self.is_dark_theme, self.avatar_cache, self.avatar_executor, counter)
-                widget.clicked.connect(self.username_clicked.emit)
+                widget.profile_requested.connect(self.profile_requested.emit)
+                widget.private_chat_requested.connect(self.private_chat_requested.emit)
                 self.user_widgets[user.jid] = widget
                 
                 # Find sorted position and insert

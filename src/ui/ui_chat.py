@@ -205,7 +205,9 @@ class ChatWindow(QWidget):
         self.user_list_widget = UserListWidget(self.config, self.input_field)
         self.user_list_widget.color_cache = self.color_cache
         self.user_list_widget.avatar_cache = self.avatar_cache
-        self.user_list_widget.username_clicked.connect(self.enter_private_mode)
+        self.user_list_widget.profile_requested.connect(self.show_profile_view)
+        self.user_list_widget.private_chat_requested.connect(self.enter_private_mode)
+
         messages_userlist_visible = self.config.get("ui", "messages_userlist_visible")
         if messages_userlist_visible is not None:
             self.user_list_widget.setVisible(messages_userlist_visible)
