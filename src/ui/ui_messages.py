@@ -7,6 +7,7 @@ from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 
 from helpers.emoticons import EmoticonManager
 from helpers.scroll import scroll
+from helpers.cache import get_cache
 from ui.message_model import MessageListModel, MessageData
 from ui.message_delegate import MessageDelegate
 
@@ -19,13 +20,14 @@ class MessagesWidget(QWidget):
         super().__init__()
         self.config = config
         self.input_field = None
-        self.color_cache = {}
+        self.cache = get_cache()
         
         emoticons_path = Path(__file__).resolve().parent.parent / "emoticons"
         self.emoticon_manager = EmoticonManager(emoticons_path)
         
         self.model = MessageListModel(max_messages=10000)
-        self.delegate = MessageDelegate(config, self.emoticon_manager, self.color_cache)
+        # Pass the cache's color dictionary directly to delegate
+        self.delegate = MessageDelegate(config, self.emoticon_manager, self.cache._color_cache)
         
         self.delegate.timestamp_clicked.connect(self.timestamp_clicked.emit)
         self.delegate.username_clicked.connect(self._handle_username_click)
@@ -33,7 +35,7 @@ class MessagesWidget(QWidget):
         self._setup_ui()
 
     def set_color_cache(self, cache: dict):
-        self.color_cache = cache
+        """Update delegate's color cache reference"""
         self.delegate.color_cache = cache
     
     def set_input_field(self, input_field):
@@ -97,6 +99,14 @@ class MessagesWidget(QWidget):
         layout.addWidget(self.list_view)
     
     def add_message(self, msg):
+        # Update centralized color cache if background color is available
+        if msg.login and getattr(msg, 'background', None):
+            # Get current theme
+            theme = self.config.get("ui", "theme")
+            bg_hex = "#1E1E1E" if theme == "dark" else "#FFFFFF"
+            # Calculate optimized color and store it
+            optimized_color = self.cache.get_or_calculate_color(msg.login, msg.background, bg_hex, 4.5)
+        
         msg_data = MessageData(
             getattr(msg, 'timestamp', None) or datetime.now(),
             msg.login if msg.login else "Unknown",
