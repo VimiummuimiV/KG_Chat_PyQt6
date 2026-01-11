@@ -15,21 +15,17 @@ from core.api_data import get_user_summary_by_id, get_user_index_data_by_id, for
 
 class StatCard(QFrame):
     """Styled card for displaying a stat"""
-    def __init__(self, icon: str, label: str, value: str, config):
+    def __init__(self, icon: str, label: str, value: str, config, is_dark: bool):
         super().__init__()
+        self.config = config
+        self.is_dark = is_dark
+        
         self.setFrameShape(QFrame.Shape.StyledPanel)
         self.setMinimumWidth(200)
         self.setMaximumWidth(300)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         
-        self.setStyleSheet("""
-            QFrame {
-                background-color: rgba(255, 255, 255, 0.05);
-                border: 1px solid rgba(255, 255, 255, 0.1);
-                border-radius: 8px;
-                padding: 12px;
-            }
-        """)
+        self._update_card_style()
         
         layout = QVBoxLayout()
         layout.setContentsMargins(8, 8, 8, 8)
@@ -40,25 +36,59 @@ class StatCard(QFrame):
         header = QHBoxLayout()
         header.setSpacing(6)
         
-        icon_label = QLabel(icon)
+        self.icon_label = QLabel(icon)
         icon_font = QFont(config.get("ui", "font_family"), config.get("ui", "font_size") + 2)
-        icon_label.setFont(icon_font)
-        header.addWidget(icon_label)
+        self.icon_label.setFont(icon_font)
+        header.addWidget(self.icon_label)
         
-        label_widget = QLabel(label)
+        self.label_widget = QLabel(label)
         label_font = QFont(config.get("ui", "font_family"), config.get("ui", "font_size") - 1)
-        label_widget.setFont(label_font)
-        label_widget.setStyleSheet("color: rgba(255, 255, 255, 0.6);")
-        header.addWidget(label_widget, stretch=1)
+        self.label_widget.setFont(label_font)
+        self._update_label_style()
+        header.addWidget(self.label_widget, stretch=1)
         
         layout.addLayout(header)
         
         # Value
-        value_label = QLabel(value)
+        self.value_label = QLabel(value)
         value_font = QFont(config.get("ui", "font_family"), config.get("ui", "font_size") + 3)
         value_font.setBold(True)
-        value_label.setFont(value_font)
-        layout.addWidget(value_label)
+        self.value_label.setFont(value_font)
+        layout.addWidget(self.value_label)
+    
+    def _update_card_style(self):
+        """Update card styling based on theme"""
+        if self.is_dark:
+            self.setStyleSheet("""
+                QFrame {
+                    background-color: rgba(255, 255, 255, 0.05);
+                    border: 1px solid rgba(255, 255, 255, 0.1);
+                    border-radius: 8px;
+                    padding: 12px;
+                }
+            """)
+        else:
+            self.setStyleSheet("""
+                QFrame {
+                    background-color: rgba(0, 0, 0, 0.03);
+                    border: 1px solid rgba(0, 0, 0, 0.1);
+                    border-radius: 8px;
+                    padding: 12px;
+                }
+            """)
+    
+    def _update_label_style(self):
+        """Update label text color based on theme"""
+        if self.is_dark:
+            self.label_widget.setStyleSheet("color: rgba(255, 255, 255, 0.6);")
+        else:
+            self.label_widget.setStyleSheet("color: rgba(0, 0, 0, 0.5);")
+    
+    def update_theme(self, is_dark: bool):
+        """Update theme for this card"""
+        self.is_dark = is_dark
+        self._update_card_style()
+        self._update_label_style()
 
 
 class ProfileWidget(QWidget):
@@ -74,6 +104,8 @@ class ProfileWidget(QWidget):
         self.current_user_id = None
         self.current_username = None
         self.cache = get_cache()
+        self.is_dark = config.get("ui", "theme") == "dark"
+        self.card_widgets = []  # Track all stat cards for theme updates
         
         self._avatar_loaded.connect(self._set_avatar)
         self._init_ui()
@@ -134,13 +166,7 @@ class ProfileWidget(QWidget):
         self.avatar_placeholder.setFixedSize(120, 120)
         self.avatar_placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.avatar_placeholder.setScaledContents(False)
-        self.avatar_placeholder.setStyleSheet("""
-            QLabel {
-                background-color: rgba(255, 255, 255, 0.05);
-                border: 2px solid rgba(255, 255, 255, 0.1);
-                border-radius: 15px;
-            }
-        """)
+        self._update_avatar_placeholder_style()
         self.avatar_placeholder.setText("👤")
         placeholder_font = QFont(self.config.get("ui", "font_family"), 48)
         self.avatar_placeholder.setFont(placeholder_font)
@@ -176,6 +202,25 @@ class ProfileWidget(QWidget):
         
         self.content_layout.addStretch()
     
+    def _update_avatar_placeholder_style(self):
+        """Update avatar placeholder style based on theme"""
+        if self.is_dark:
+            self.avatar_placeholder.setStyleSheet("""
+                QLabel {
+                    background-color: rgba(255, 255, 255, 0.05);
+                    border: 2px solid rgba(255, 255, 255, 0.1);
+                    border-radius: 15px;
+                }
+            """)
+        else:
+            self.avatar_placeholder.setStyleSheet("""
+                QLabel {
+                    background-color: rgba(0, 0, 0, 0.03);
+                    border: 2px solid rgba(0, 0, 0, 0.1);
+                    border-radius: 15px;
+                }
+            """)
+    
     def load_profile(self, user_id: int, username: str):
         """Load and display user profile data"""
         self.current_user_id = user_id
@@ -185,6 +230,7 @@ class ProfileWidget(QWidget):
         self.title_label.setText(username)
         self._load_avatar(str(user_id))
         
+        # Fetch data in background thread
         QTimer.singleShot(0, lambda: self._fetch_and_display_data(user_id))
     
     def _load_avatar(self, user_id: str):
@@ -217,9 +263,12 @@ class ProfileWidget(QWidget):
                 summary = get_user_summary_by_id(user_id)
                 index_data = get_user_index_data_by_id(user_id)
                 
+                # Schedule UI update on main thread
                 QTimer.singleShot(0, lambda: self._display_data(summary, index_data))
             except Exception as e:
-                print(f"Error fetching profile data: {e}")
+                print(f"❌ Error fetching profile data: {e}")
+                import traceback
+                traceback.print_exc()
         
         import threading
         threading.Thread(target=_worker, daemon=True).start()
@@ -227,6 +276,7 @@ class ProfileWidget(QWidget):
     def _display_data(self, summary: dict, index_data: dict):
         """Display fetched data in UI"""
         if not summary or not index_data:
+            print("⚠️ Missing summary or index data")
             return
         
         user_data = summary.get('user', {})
@@ -287,6 +337,7 @@ class ProfileWidget(QWidget):
             return
         
         # Clear existing cards
+        self.card_widgets.clear()
         while self.cards_layout.count():
             item = self.cards_layout.takeAt(0)
             if item.widget():
@@ -302,12 +353,20 @@ class ProfileWidget(QWidget):
         for idx, (icon, label, value) in enumerate(self._cards_data):
             row = idx // cols
             col = idx % cols
-            card = StatCard(icon, label, value, self.config)
+            card = StatCard(icon, label, value, self.config, self.is_dark)
+            self.card_widgets.append(card)
             self.cards_layout.addWidget(card, row, col)
     
     def update_theme(self):
         """Update widget styling for theme changes"""
-        pass
+        self.is_dark = self.config.get("ui", "theme") == "dark"
+        
+        # Update avatar placeholder
+        self._update_avatar_placeholder_style()
+        
+        # Update all stat cards
+        for card in self.card_widgets:
+            card.update_theme(self.is_dark)
     
     def resizeEvent(self, event):
         """Handle resize to adjust card grid columns"""
