@@ -13,6 +13,25 @@ from helpers.cache import get_cache
 from core.api_data import get_user_summary_by_id, get_user_index_data_by_id, format_registered_date
 
 
+class ProfileIcons:
+    """Centralized profile card icons"""
+    USER_ID = "🆔"
+    LEVEL = "⭐"
+    STATUS_ONLINE = "🟢"
+    STATUS_OFFLINE = "🔴"
+    ACCOUNT_ACTIVE = "✅"
+    ACCOUNT_BANNED = "❌"
+    REGISTERED = "📅"
+    ACHIEVEMENTS = "🏆"
+    TOTAL_RACES = "🏁"
+    BEST_SPEED = "⚡"
+    RATING = "📊"
+    FRIENDS = "👥"
+    VOCABULARIES = "📚"
+    CARS = "🚗"
+    AVATAR_PLACEHOLDER = "👤"
+
+
 class StatCard(QFrame):
     """Styled card for displaying a stat"""
     def __init__(self, icon: str, label: str, value: str, config, is_dark: bool):
@@ -96,6 +115,7 @@ class ProfileWidget(QWidget):
     
     back_requested = pyqtSignal()
     _avatar_loaded = pyqtSignal(str, QPixmap)
+    _data_fetched = pyqtSignal(dict, dict)
     
     def __init__(self, config, icons_path):
         super().__init__()
@@ -105,9 +125,10 @@ class ProfileWidget(QWidget):
         self.current_username = None
         self.cache = get_cache()
         self.is_dark = config.get("ui", "theme") == "dark"
-        self.card_widgets = []  # Track all stat cards for theme updates
+        self.card_widgets = []
         
         self._avatar_loaded.connect(self._set_avatar)
+        self._data_fetched.connect(self._display_data)
         self._init_ui()
     
     def _init_ui(self):
@@ -167,7 +188,7 @@ class ProfileWidget(QWidget):
         self.avatar_placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.avatar_placeholder.setScaledContents(False)
         self._update_avatar_placeholder_style()
-        self.avatar_placeholder.setText("👤")
+        self.avatar_placeholder.setText(ProfileIcons.AVATAR_PLACEHOLDER)
         placeholder_font = QFont(self.config.get("ui", "font_family"), 48)
         self.avatar_placeholder.setFont(placeholder_font)
         
@@ -230,7 +251,6 @@ class ProfileWidget(QWidget):
         self.title_label.setText(username)
         self._load_avatar(str(user_id))
         
-        # Fetch data in background thread
         QTimer.singleShot(0, lambda: self._fetch_and_display_data(user_id))
     
     def _load_avatar(self, user_id: str):
@@ -262,21 +282,17 @@ class ProfileWidget(QWidget):
             try:
                 summary = get_user_summary_by_id(user_id)
                 index_data = get_user_index_data_by_id(user_id)
-                
-                # Schedule UI update on main thread
-                QTimer.singleShot(0, lambda: self._display_data(summary, index_data))
+                self._data_fetched.emit(summary, index_data)
             except Exception as e:
-                print(f"❌ Error fetching profile data: {e}")
-                import traceback
-                traceback.print_exc()
+                print(f"Error fetching profile data: {e}")
         
         import threading
         threading.Thread(target=_worker, daemon=True).start()
     
+    @pyqtSlot(dict, dict)
     def _display_data(self, summary: dict, index_data: dict):
         """Display fetched data in UI"""
         if not summary or not index_data:
-            print("⚠️ Missing summary or index data")
             return
         
         user_data = summary.get('user', {})
@@ -305,19 +321,25 @@ class ProfileWidget(QWidget):
         user_data = summary.get('user', {})
         stats = index_data.get('stats', {})
         
+        is_online = summary.get('is_online')
+        is_blocked = user_data.get('blocked')
+        
         self._cards_data = [
-            ("🆔", "User ID", str(user_data.get('id', 'N/A'))),
-            ("⭐", "Level", str(summary.get('level', 'N/A'))),
-            ("🟢" if summary.get('is_online') else "🔴", "Status", "Online" if summary.get('is_online') else "Offline"),
-            ("✅" if not user_data.get('blocked') else "❌", "Account", "Active" if not user_data.get('blocked') else "Banned"),
-            ("📅", "Registered", format_registered_date(stats.get('registered')) or 'N/A'),
-            ("🏆", "Achievements", str(stats.get('achieves_cnt', 'N/A'))),
-            ("🏁", "Total Races", str(stats.get('total_num_races', 'N/A'))),
-            ("⚡", "Best Speed", f"{stats.get('best_speed', 'N/A')} зн/мин" if stats.get('best_speed') else 'N/A'),
-            ("📊", "Rating", str(stats.get('rating_level', 'N/A'))),
-            ("👥", "Friends", str(stats.get('friends_cnt', 'N/A'))),
-            ("📚", "Vocabularies", str(stats.get('vocs_cnt', 'N/A'))),
-            ("🚗", "Cars", str(stats.get('cars_cnt', 'N/A'))),
+            (ProfileIcons.USER_ID, "User ID", str(user_data.get('id', 'N/A'))),
+            (ProfileIcons.LEVEL, "Level", str(summary.get('level', 'N/A'))),
+            (ProfileIcons.STATUS_ONLINE if is_online else ProfileIcons.STATUS_OFFLINE, 
+             "Status", "Online" if is_online else "Offline"),
+            (ProfileIcons.ACCOUNT_ACTIVE if not is_blocked else ProfileIcons.ACCOUNT_BANNED, 
+             "Account", "Active" if not is_blocked else "Banned"),
+            (ProfileIcons.REGISTERED, "Registered", format_registered_date(stats.get('registered')) or 'N/A'),
+            (ProfileIcons.ACHIEVEMENTS, "Achievements", str(stats.get('achieves_cnt', 'N/A'))),
+            (ProfileIcons.TOTAL_RACES, "Total Races", str(stats.get('total_num_races', 'N/A'))),
+            (ProfileIcons.BEST_SPEED, "Best Speed", 
+             f"{stats.get('best_speed', 'N/A')} зн/мин" if stats.get('best_speed') else 'N/A'),
+            (ProfileIcons.RATING, "Rating", str(stats.get('rating_level', 'N/A'))),
+            (ProfileIcons.FRIENDS, "Friends", str(stats.get('friends_cnt', 'N/A'))),
+            (ProfileIcons.VOCABULARIES, "Vocabularies", str(stats.get('vocs_cnt', 'N/A'))),
+            (ProfileIcons.CARS, "Cars", str(stats.get('cars_cnt', 'N/A'))),
         ]
         
         width = self.width()
@@ -360,11 +382,8 @@ class ProfileWidget(QWidget):
     def update_theme(self):
         """Update widget styling for theme changes"""
         self.is_dark = self.config.get("ui", "theme") == "dark"
-        
-        # Update avatar placeholder
         self._update_avatar_placeholder_style()
         
-        # Update all stat cards
         for card in self.card_widgets:
             card.update_theme(self.is_dark)
     

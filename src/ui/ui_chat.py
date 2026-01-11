@@ -850,8 +850,12 @@ class ChatWindow(QWidget):
            
             if self.chatlog_widget:
                 self.chatlog_widget.update_theme()
+            
             if self.chatlog_userlist_widget:
                 self.chatlog_userlist_widget.update_theme()
+            
+            if hasattr(self, 'profile_widget') and self.profile_widget:
+                self.profile_widget.update_theme()
            
             self.messages_widget.rebuild_messages()
            
