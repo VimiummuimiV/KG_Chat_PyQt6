@@ -70,7 +70,7 @@ class AccountWindow(QWidget):
     def initializeUI(self):
         # Window setup
         self.setWindowTitle("Account Manager")
-        self.setFixedWidth(380)
+        self.setFixedWidth(280)
         
         # Set initial theme state for icons
         set_theme(self.theme_manager.is_dark())
@@ -312,7 +312,7 @@ class AccountWindow(QWidget):
         # Find active account index
         active_index = 0
         for i, account in enumerate(accounts):
-            display_text = f"{account['login']} (ID: {account['user_id']})"
+            display_text = account['login']
             self.account_dropdown.addItem(display_text, account)
             if account.get('active'):
                 active_index = i
