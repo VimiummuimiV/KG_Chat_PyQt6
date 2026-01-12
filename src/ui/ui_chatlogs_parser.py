@@ -82,7 +82,7 @@ class ChatlogsParserConfigWidget(QWidget):
         if object_name:
             input_field.setObjectName(object_name)
         input_field.setFixedHeight(self.input_height)
-        input_field.setFont(get_font(FontType.TEXT))
+        input_field.setFont(get_font(FontType.UI))
         return input_field
     
     def _create_combo(self, items: list) -> QComboBox:
