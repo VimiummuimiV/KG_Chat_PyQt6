@@ -83,7 +83,7 @@ class StatCard(QFrame):
                     background-color: rgba(255, 255, 255, 0.05);
                     border: 1px solid rgba(255, 255, 255, 0.1);
                     border-radius: 8px;
-                    padding: 12px;
+                    padding: 4px;
                 }
             """)
         else:
@@ -92,7 +92,7 @@ class StatCard(QFrame):
                     background-color: rgba(0, 0, 0, 0.03);
                     border: 1px solid rgba(0, 0, 0, 0.1);
                     border-radius: 8px;
-                    padding: 12px;
+                    padding: 4px;
                 }
             """)
     

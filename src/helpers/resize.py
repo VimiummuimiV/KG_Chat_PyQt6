@@ -111,6 +111,10 @@ def handle_chat_resize(chat_window, width: int):
             elif not is_compact and userlist_visible_config and not userlist_widget.isVisible():
                 userlist_widget.setVisible(True)
     
+    # Reposition emoticon selector if visible
+    if hasattr(chat_window, 'emoticon_selector') and chat_window.emoticon_selector.isVisible():
+        QTimer.singleShot(10, chat_window._position_emoticon_selector)
+    
     # Update compact mode for all widgets
     if was_compact != is_compact:
         chat_window.messages_widget.set_compact_mode(is_compact)

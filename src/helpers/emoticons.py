@@ -1,6 +1,6 @@
 """Emoticon manager for loading and managing animated emoticons"""
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 import re
 
 
@@ -11,6 +11,7 @@ class EmoticonManager:
         self.emoticons_base_path = emoticons_base_path
         self.is_dark_theme = is_dark_theme
         self.emoticon_map: Dict[str, Path] = {}
+        self.groups: Dict[str, List[tuple]] = {}
         self._load_emoticons(verbose=True)
     
     def set_theme(self, is_dark: bool):
@@ -22,6 +23,7 @@ class EmoticonManager:
     def _load_emoticons(self, verbose: bool = False):
         """Scan all emoticon directories and build name -> path mapping with theme support"""
         self.emoticon_map.clear()
+        self.groups.clear()
         
         if not self.emoticons_base_path.exists():
             if verbose:
@@ -30,31 +32,51 @@ class EmoticonManager:
         
         theme_folder = "dark" if self.is_dark_theme else "light"
         
-        def load_from_dir(directory: Path):
+        def load_from_dir(directory: Path, parent_group: str = None):
             """Load emoticons from a directory, checking for theme folders first"""
-            theme_dir = directory / theme_folder
-            has_themes = (directory / "dark").exists() and (directory / "light").exists()
+            # Check if this directory has theme subfolders
+            dark_dir = directory / "dark"
+            light_dir = directory / "light"
+            has_themes = dark_dir.exists() and light_dir.exists()
             
             if has_themes:
-                # Load theme-specific emoticons
+                # This is a themed emoticon - load from appropriate theme folder
+                theme_dir = directory / theme_folder
                 for f in theme_dir.glob("*.gif"):
-                    self.emoticon_map[f.stem.lower()] = f
+                    emoticon_name = f.stem.lower()
+                    self.emoticon_map[emoticon_name] = f
+                    
+                    # Add to group if we have a parent group
+                    if parent_group:
+                        if parent_group not in self.groups:
+                            self.groups[parent_group] = []
+                        self.groups[parent_group].append((emoticon_name, f))
             else:
-                # Load universal emoticons
+                # Check for direct GIF files (non-themed emoticons)
                 for f in directory.glob("*.gif"):
-                    self.emoticon_map[f.stem.lower()] = f
+                    emoticon_name = f.stem.lower()
+                    self.emoticon_map[emoticon_name] = f
+                    
+                    # Add to group if we have a parent group
+                    if parent_group:
+                        if parent_group not in self.groups:
+                            self.groups[parent_group] = []
+                        self.groups[parent_group].append((emoticon_name, f))
+                
                 # Recursively check subdirectories
                 for subdir in directory.iterdir():
-                    if subdir.is_dir():
-                        load_from_dir(subdir)
+                    if subdir.is_dir() and subdir.name not in ['dark', 'light']:
+                        load_from_dir(subdir, parent_group)
         
         # Scan all group directories
         for group_dir in self.emoticons_base_path.iterdir():
             if group_dir.is_dir():
-                load_from_dir(group_dir)
+                group_name = group_dir.name
+                load_from_dir(group_dir, group_name)
         
         if verbose:
-            print(f"📦 Loaded {len(self.emoticon_map)} emoticons for {'dark' if self.is_dark_theme else 'light'} theme")
+            theme_name = 'dark' if self.is_dark_theme else 'light'
+            print(f"📦 Loaded {len(self.emoticon_map)} emoticons for {theme_name} theme from {self.emoticons_base_path}")
     
     def get_emoticon_path(self, name: str) -> Optional[Path]:
         """Get path for emoticon by name (case-insensitive)"""
@@ -63,6 +85,10 @@ class EmoticonManager:
     def has_emoticon(self, name: str) -> bool:
         """Check if emoticon exists"""
         return name.lower() in self.emoticon_map
+    
+    def get_groups(self) -> Dict[str, List[tuple]]:
+        """Get all emoticon groups"""
+        return self.groups
     
     def parse_emoticons(self, text: str) -> list:
         """

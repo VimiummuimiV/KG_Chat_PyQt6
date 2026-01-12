@@ -22,7 +22,7 @@
   "ui": {
     "font_size": 16,
     "font_family": "Montserrat",
-    "messages_userlist_visible": true,
+    "messages_userlist_visible": false,
     "chatlog_userlist_visible": true,
     "chatlog_search_visible": false,
     "theme": "dark",
@@ -65,6 +65,15 @@
       "vertical_spacing": 2,
       "element_spacing": 10
     },
-    "input_height": 48
+    "input_height": 48,
+    "emoticon_selector_visible": false,
+    "recent_emoticons": [
+      "serenade",
+      "snowgirlwave",
+      "snowhand",
+      "wine",
+      "pogranflowers",
+      "firework"
+    ]
   }
 }

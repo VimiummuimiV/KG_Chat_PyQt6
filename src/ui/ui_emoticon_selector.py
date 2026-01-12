@@ -1,0 +1,546 @@
+"""Emoticon selector widget for choosing emoticons"""
+from pathlib import Path
+from typing import List
+from PyQt6.QtWidgets import (
+    QWidget, QVBoxLayout, QHBoxLayout, QPushButton, 
+    QScrollArea, QGridLayout, QLabel, QStackedWidget, QApplication
+)
+from PyQt6.QtCore import Qt, QSize, pyqtSignal, QEvent
+from PyQt6.QtGui import QMovie, QCursor, QIcon
+
+from helpers.emoticons import EmoticonManager
+
+
+class EmoticonButton(QPushButton):
+    """Button displaying an animated emoticon"""
+    emoticon_clicked = pyqtSignal(str, bool)  # Signal: Emoticon name, Ctrl pressed
+    
+    def __init__(self, emoticon_path: Path, emoticon_name: str):
+        super().__init__()
+        self.emoticon_name = emoticon_name
+        self.emoticon_path = emoticon_path
+        self.movie = None
+        
+        self.setFixedSize(QSize(60, 60))
+        self.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+        self.setToolTip(f":{emoticon_name}:")
+        self.setStyleSheet("""
+            QPushButton {
+                background: transparent;
+                border: none;
+                padding: 2px;
+            }
+            QPushButton:hover {
+                background: rgba(255, 255, 255, 0.1);
+                border-radius: 4px;
+            }
+        """)
+        
+        # Load and animate emoticon
+        self._load_emoticon()
+    
+    def _load_emoticon(self):
+        """Load and animate the emoticon GIF"""
+        if not self.emoticon_path.exists():
+            return
+        
+        # Create QMovie and parent to QApplication to prevent garbage collection
+        self.movie = QMovie(str(self.emoticon_path))
+        try:
+            # Parent to QApplication instance to keep alive
+            self.movie.setParent(QApplication.instance())
+        except:
+            # Fallback to button if QApplication not available
+            self.movie.setParent(self)
+        
+        # Set cache mode first for better performance
+        self.movie.setCacheMode(QMovie.CacheMode.CacheAll)
+        
+        # Set speed to 100% (default)
+        self.movie.setSpeed(100)
+        
+        # Get first frame to set icon size
+        if self.movie.jumpToFrame(0):
+            pixmap = self.movie.currentPixmap()
+            if not pixmap.isNull():
+                self.setIcon(QIcon(pixmap))
+                self.setIconSize(pixmap.size())
+        
+        # Connect frame updates
+        self.movie.frameChanged.connect(self._on_frame_changed)
+        
+        # Start animation
+        self.movie.start()
+        
+        # Verify it's running
+        if self.movie.state() != QMovie.MovieState.Running:
+            # Try starting again if it didn't start
+            self.movie.jumpToFrame(0)
+            self.movie.start()
+    
+    def _on_frame_changed(self, frame_number):
+        """Update button icon when movie frame changes"""
+        if self.movie:
+            pixmap = self.movie.currentPixmap()
+            if not pixmap.isNull():
+                self.setIcon(QIcon(pixmap))
+    
+    def mousePressEvent(self, event):
+        """Handle click with Ctrl detection"""
+        if event.button() == Qt.MouseButton.LeftButton:
+            ctrl_pressed = event.modifiers() & Qt.KeyboardModifier.ControlModifier
+            self.emoticon_clicked.emit(self.emoticon_name, bool(ctrl_pressed))
+        super().mousePressEvent(event)
+    
+    def cleanup(self):
+        """Clean up movie resources"""
+        if self.movie:
+            self.movie.stop()
+            self.movie.deleteLater()
+            self.movie = None
+
+
+class EmoticonGroup(QWidget):
+    """Widget for displaying a group of emoticons"""
+    emoticon_clicked = pyqtSignal(str, bool)
+    
+    def __init__(self, group_name: str, emoticons: List[tuple]):
+        super().__init__()
+        self.group_name = group_name
+        self.buttons = []
+        
+        layout = QVBoxLayout()
+        layout.setContentsMargins(8, 8, 8, 8)
+        layout.setSpacing(8)
+        self.setLayout(layout)
+        
+        # Scroll area
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        scroll.setStyleSheet("QScrollArea { border: none; background: transparent; }")
+        layout.addWidget(scroll)
+        
+        # Container with grid
+        container = QWidget()
+        container_layout = QVBoxLayout()
+        container_layout.setContentsMargins(0, 0, 0, 0)
+        container_layout.setSpacing(0)
+        container_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        container.setLayout(container_layout)
+        scroll.setWidget(container)
+        
+        grid = QGridLayout()
+        grid.setSpacing(6)
+        grid.setContentsMargins(0, 0, 0, 0)
+        grid.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
+        container_layout.addLayout(grid)
+        container_layout.addStretch()
+        
+        # Add emoticons (6 per row)
+        cols = 6
+        for idx, (name, path) in enumerate(emoticons):
+            if not self._is_valid(path):
+                continue
+                
+            row, col = idx // cols, idx % cols
+            btn = EmoticonButton(path, name)
+            btn.emoticon_clicked.connect(self.emoticon_clicked.emit)
+            self.buttons.append(btn)
+            grid.addWidget(btn, row, col, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
+    
+    def _is_valid(self, path: Path) -> bool:
+        """Quick validation"""
+        try:
+            return path.exists() and path.stat().st_size > 100
+        except:
+            return False
+    
+    def cleanup(self):
+        """Clean up all buttons"""
+        for btn in self.buttons:
+            btn.cleanup()
+
+
+class EmoticonSelectorWidget(QWidget):
+    """Widget for selecting emoticons with icon-based navigation"""
+    emoticon_selected = pyqtSignal(str)
+    
+    def __init__(self, config, emoticon_manager: EmoticonManager, icons_path: Path):
+        super().__init__()
+        self.config = config
+        self.emoticon_manager = emoticon_manager
+        self.icons_path = icons_path
+        
+        self.recent_emoticons = config.get("ui", "recent_emoticons") or []
+        self.group_indices = {}
+        self.nav_buttons = {}
+        self.recent_buttons = []
+        self.group_widgets = []
+        
+        self._init_ui()
+        
+        # Restore visibility
+        visible = config.get("ui", "emoticon_selector_visible")
+        self.setVisible(visible if visible is not None else False)
+    
+    def _init_ui(self):
+        """Initialize the UI"""
+        layout = QVBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        self.setLayout(layout)
+        
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        
+        # Get theme colors
+        theme = self.config.get("ui", "theme")
+        self.is_dark_theme = (theme == "dark")
+        
+        bg_color = "#2D2D2D" if self.is_dark_theme else "#FFFFFF"
+        border_color = "#404040" if self.is_dark_theme else "#D0D0D0"
+        content_bg = "#252525" if self.is_dark_theme else "#F8F8F8"
+        
+        self.setStyleSheet(f"""
+            EmoticonSelectorWidget {{
+                background: {bg_color};
+                border: 2px solid {border_color};
+                border-radius: 10px;
+            }}
+        """)
+        
+        # Navigation bar
+        self.nav_container = QWidget()
+        self.nav_container.setStyleSheet(f"""
+            QWidget {{
+                background: {bg_color};
+                border: none;
+                border-bottom: 1px solid {border_color};
+                border-top-left-radius: 10px;
+                border-top-right-radius: 10px;
+            }}
+        """)
+        nav_layout = QHBoxLayout()
+        nav_layout.setContentsMargins(10, 10, 10, 10)
+        nav_layout.setSpacing(6)
+        self.nav_container.setLayout(nav_layout)
+        layout.addWidget(self.nav_container)
+        
+        # Install event filter for wheel navigation
+        self.nav_container.installEventFilter(self)
+        
+        # Create nav buttons
+        self._create_nav_button("⭐", "recent", "Recent", nav_layout, active=True)
+        
+        for group_name, (emoji, key) in {
+            'Army': ('🪖', 'army'),
+            'Boys': ('👦', 'boys'),
+            'Christmas': ('🎄', 'christmas'),
+            'Girls': ('👧', 'girls'),
+            'Halloween': ('🎃', 'halloween'),
+            'Inlove': ('❤️', 'inlove')
+        }.items():
+            self._create_nav_button(emoji, key, group_name, nav_layout)
+        
+        nav_layout.addStretch()
+        
+        # Content area
+        content_container = QWidget()
+        content_container.setStyleSheet(f"""
+            QWidget {{
+                background: {content_bg};
+                border: none;
+                border-bottom-left-radius: 10px;
+                border-bottom-right-radius: 10px;
+            }}
+        """)
+        content_layout = QVBoxLayout()
+        content_layout.setContentsMargins(0, 0, 0, 0)
+        content_layout.setSpacing(0)
+        content_container.setLayout(content_layout)
+        layout.addWidget(content_container, stretch=1)
+        
+        # Stacked widget
+        self.stacked_content = QStackedWidget()
+        self.stacked_content.setStyleSheet("QStackedWidget { background: transparent; border: none; }")
+        content_layout.addWidget(self.stacked_content, stretch=1)
+        
+        # Add content
+        self._create_recent_content()
+        self._create_group_contents()
+    
+    def _create_nav_button(self, emoji: str, key: str, tooltip: str, layout: QHBoxLayout, active: bool = False):
+        """Create a navigation button"""
+        btn = QPushButton(emoji)
+        btn.setFixedSize(48, 48)
+        btn.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+        btn.setToolTip(tooltip)
+        
+        accent = "#e28743" if self.is_dark_theme else "#154c79"
+        active_bg = "#3D3D3D" if self.is_dark_theme else "#E8F4FF"
+        inactive_bg = "#2D2D2D" if self.is_dark_theme else "#F0F0F0"
+        hover_bg = "#4D4D4D" if self.is_dark_theme else "#D8E8FF"
+        hover_border = "#555" if self.is_dark_theme else "#999"
+        
+        style = f"""
+            QPushButton {{
+                background: {active_bg if active else inactive_bg};
+                border: 2px solid {accent if active else 'transparent'};
+                border-radius: 8px;
+                font-size: 22px;
+            }}
+            QPushButton:hover {{
+                background: {hover_bg};
+                {'' if active else f'border: 2px solid {hover_border};'}
+            }}
+        """
+        btn.setStyleSheet(style)
+        btn.clicked.connect(lambda: self._switch_to_group(key))
+        self.nav_buttons[key] = btn
+        layout.addWidget(btn)
+    
+    def _create_recent_content(self):
+        """Create recent emoticons content"""
+        self.recent_widget = QWidget()
+        recent_layout = QVBoxLayout()
+        recent_layout.setContentsMargins(8, 8, 8, 8)
+        recent_layout.setSpacing(8)
+        self.recent_widget.setLayout(recent_layout)
+        
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        scroll.setStyleSheet("QScrollArea { border: none; background: transparent; }")
+        recent_layout.addWidget(scroll)
+        
+        self.recent_container = QWidget()
+        self.recent_layout = QVBoxLayout()
+        self.recent_layout.setContentsMargins(0, 0, 0, 0)
+        self.recent_layout.setSpacing(0)
+        self.recent_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        self.recent_container.setLayout(self.recent_layout)
+        scroll.setWidget(self.recent_container)
+        
+        self.recent_grid = QGridLayout()
+        self.recent_grid.setSpacing(6)
+        self.recent_grid.setContentsMargins(0, 0, 0, 0)
+        self.recent_grid.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
+        self.recent_layout.addLayout(self.recent_grid)
+        self.recent_layout.addStretch()
+        
+        self._populate_recent_emoticons()
+        
+        self.group_indices['recent'] = self.stacked_content.count()
+        self.stacked_content.addWidget(self.recent_widget)
+    
+    def _populate_recent_emoticons(self):
+        """Populate recent emoticons grid"""
+        # Clean up old buttons
+        for btn in self.recent_buttons:
+            btn.cleanup()
+        self.recent_buttons.clear()
+        
+        # Clear existing widgets
+        while self.recent_grid.count():
+            item = self.recent_grid.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+        
+        # Add recent (6 per row)
+        cols = 6
+        for idx, name in enumerate(self.recent_emoticons):
+            path = self.emoticon_manager.get_emoticon_path(name)
+            if not path:
+                continue
+            
+            row, col = idx // cols, idx % cols
+            btn = EmoticonButton(path, name)
+            btn.emoticon_clicked.connect(self._on_emoticon_clicked)
+            self.recent_buttons.append(btn)
+            self.recent_grid.addWidget(btn, row, col, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
+        
+        # Placeholder if empty
+        if not self.recent_emoticons:
+            placeholder = QLabel("No recent emoticons yet")
+            placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            placeholder.setStyleSheet("color: #888; padding: 20px;")
+            self.recent_grid.addWidget(placeholder, 0, 0, 1, 6)
+    
+    def _create_group_contents(self):
+        """Create content for each emoticon group"""
+        groups = self.emoticon_manager.get_groups()
+        
+        for group_name in ['Army', 'Boys', 'Christmas', 'Girls', 'Halloween', 'Inlove']:
+            if group_name not in groups:
+                continue
+                
+            group_widget = EmoticonGroup(group_name, groups[group_name])
+            group_widget.emoticon_clicked.connect(self._on_emoticon_clicked)
+            self.group_widgets.append(group_widget)
+            
+            key = group_name.lower()
+            self.group_indices[key] = self.stacked_content.count()
+            self.stacked_content.addWidget(group_widget)
+    
+    def _switch_to_group(self, key: str):
+        """Switch to a different group"""
+        accent = "#e28743" if self.is_dark_theme else "#154c79"
+        active_bg = "#3D3D3D" if self.is_dark_theme else "#E8F4FF"
+        inactive_bg = "#2D2D2D" if self.is_dark_theme else "#F0F0F0"
+        hover_bg = "#4D4D4D" if self.is_dark_theme else "#D8E8FF"
+        hover_border = "#555" if self.is_dark_theme else "#999"
+        
+        # Update button styles
+        for btn_key, btn in self.nav_buttons.items():
+            is_active = (btn_key == key)
+            style = f"""
+                QPushButton {{
+                    background: {active_bg if is_active else inactive_bg};
+                    border: 2px solid {accent if is_active else 'transparent'};
+                    border-radius: 8px;
+                    font-size: 22px;
+                }}
+                QPushButton:hover {{
+                    background: {hover_bg};
+                    {'' if is_active else f'border: 2px solid {hover_border};'}
+                }}
+            """
+            btn.setStyleSheet(style)
+        
+        # Switch content
+        if key in self.group_indices:
+            self.stacked_content.setCurrentIndex(self.group_indices[key])
+    
+    def eventFilter(self, obj, event):
+        """Handle mouse wheel events on navigation container"""
+        if obj == self.nav_container and event.type() == QEvent.Type.Wheel:
+            delta = event.angleDelta().y()
+            current_idx = self.stacked_content.currentIndex()
+            total = self.stacked_content.count()
+            
+            new_idx = (current_idx - 1) % total if delta > 0 else (current_idx + 1) % total
+            
+            for key, idx in self.group_indices.items():
+                if idx == new_idx:
+                    self._switch_to_group(key)
+                    break
+            
+            return True
+        
+        return super().eventFilter(obj, event)
+    
+    def _on_emoticon_clicked(self, emoticon_name: str, ctrl_pressed: bool):
+        """Handle emoticon button click"""
+        self._add_to_recent(emoticon_name)
+        self.emoticon_selected.emit(emoticon_name)
+        
+        if ctrl_pressed:
+            self.setVisible(False)
+            self.config.set("ui", "emoticon_selector_visible", value=False)
+    
+    def _add_to_recent(self, emoticon_name: str):
+        """Add emoticon to recent list"""
+        if emoticon_name in self.recent_emoticons:
+            self.recent_emoticons.remove(emoticon_name)
+        
+        self.recent_emoticons.insert(0, emoticon_name)
+        self.recent_emoticons = self.recent_emoticons[:20]
+        
+        self.config.set("ui", "recent_emoticons", value=self.recent_emoticons)
+        self._populate_recent_emoticons()
+    
+    def update_theme(self):
+        """Update theme colors"""
+        theme = self.config.get("ui", "theme")
+        self.is_dark_theme = (theme == "dark")
+        
+        # Update emoticon manager theme
+        self.emoticon_manager.set_theme(self.is_dark_theme)
+        
+        # Update colors
+        bg_color = "#2D2D2D" if self.is_dark_theme else "#FFFFFF"
+        border_color = "#404040" if self.is_dark_theme else "#D0D0D0"
+        content_bg = "#252525" if self.is_dark_theme else "#F8F8F8"
+        
+        self.setStyleSheet(f"""
+            EmoticonSelectorWidget {{
+                background: {bg_color};
+                border: 2px solid {border_color};
+                border-radius: 10px;
+            }}
+        """)
+        
+        if hasattr(self, 'nav_container'):
+            self.nav_container.setStyleSheet(f"""
+                QWidget {{
+                    background: {bg_color};
+                    border: none;
+                    border-bottom: 1px solid {border_color};
+                    border-top-left-radius: 10px;
+                    border-top-right-radius: 10px;
+                }}
+            """)
+        
+        # Update nav buttons
+        current_idx = self.stacked_content.currentIndex()
+        for key, btn in self.nav_buttons.items():
+            is_active = (self.group_indices.get(key) == current_idx)
+            
+            accent = "#e28743" if self.is_dark_theme else "#154c79"
+            active_bg = "#3D3D3D" if self.is_dark_theme else "#E8F4FF"
+            inactive_bg = "#2D2D2D" if self.is_dark_theme else "#F0F0F0"
+            hover_bg = "#4D4D4D" if self.is_dark_theme else "#D8E8FF"
+            hover_border = "#555" if self.is_dark_theme else "#999"
+            
+            style = f"""
+                QPushButton {{
+                    background: {active_bg if is_active else inactive_bg};
+                    border: 2px solid {accent if is_active else 'transparent'};
+                    border-radius: 8px;
+                    font-size: 22px;
+                }}
+                QPushButton:hover {{
+                    background: {hover_bg};
+                    {'' if is_active else f'border: 2px solid {hover_border};'}
+                }}
+            """
+            btn.setStyleSheet(style)
+        
+        # Rebuild groups with new theme emoticons
+        for widget in self.group_widgets:
+            widget.cleanup()
+        self.group_widgets.clear()
+        
+        for key, idx in list(self.group_indices.items()):
+            if key != 'recent':
+                widget = self.stacked_content.widget(idx)
+                self.stacked_content.removeWidget(widget)
+                if widget:
+                    widget.deleteLater()
+        
+        # Clear group indices except recent
+        recent_idx = self.group_indices.get('recent')
+        self.group_indices = {'recent': recent_idx} if recent_idx is not None else {}
+        
+        # Recreate groups
+        self._create_group_contents()
+        self._populate_recent_emoticons()
+        
+        # Switch to recent
+        if 'recent' in self.group_indices:
+            self._switch_to_group('recent')
+    
+    def toggle_visibility(self):
+        """Toggle visibility and save state"""
+        new_visible = not self.isVisible()
+        self.setVisible(new_visible)
+        self.config.set("ui", "emoticon_selector_visible", value=new_visible)
+    
+    def cleanup(self):
+        """Clean up all emoticon buttons"""
+        for btn in self.recent_buttons:
+            btn.cleanup()
+        for widget in self.group_widgets:
+            widget.cleanup()

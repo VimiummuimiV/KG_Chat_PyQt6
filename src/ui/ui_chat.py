@@ -10,7 +10,7 @@ from PyQt6.QtGui import QFont
 from playsound3 import playsound
 
 from helpers.config import Config
-from helpers.create import create_icon_button, update_all_icons, set_theme
+from helpers.create import create_icon_button, update_all_icons, set_theme, HoverIconButton
 from helpers.resize import handle_chat_resize, recalculate_layout
 from helpers.color_utils import get_private_message_colors
 from themes.theme import ThemeManager
@@ -21,6 +21,7 @@ from ui.ui_userlist import UserListWidget
 from ui.ui_chatlog import ChatlogWidget
 from ui.ui_chatlog_userlist import ChatlogUserlistWidget
 from ui.ui_profile import ProfileWidget
+from ui.ui_emoticon_selector import EmoticonSelectorWidget
 from components.notification import show_notification
 from helpers.scroll import scroll
 from helpers.cache import get_cache
@@ -98,6 +99,8 @@ class ChatWindow(QWidget):
             self.config.set("ui", "chatlog_userlist_visible", value=True)
         if self.config.get("ui", "chatlog_search_visible") is None:
             self.config.set("ui", "chatlog_search_visible", value=False)
+        if self.config.get("ui", "emoticon_selector_visible") is None:
+            self.config.set("ui", "emoticon_selector_visible", value=False)
    
     def set_tray_mode(self, enabled: bool):
         self.tray_mode = enabled
@@ -186,6 +189,16 @@ class ChatWindow(QWidget):
         self.toggle_userlist_button.clicked.connect(self.toggle_user_list)
         self.input_top_layout.addWidget(self.toggle_userlist_button)
        
+        # Emoticon button with hover icons
+        self.emoticon_button = HoverIconButton(
+            self.icons_path,
+            "emotion-normal.svg",
+            "emotion-happy.svg",
+            "Toggle Emoticon Selector"
+        )
+        self.emoticon_button.clicked.connect(self._toggle_emoticon_selector)
+        self.input_top_layout.addWidget(self.emoticon_button)
+       
         is_dark = self.theme_manager.is_dark()
         theme_icon = "moon.svg" if is_dark else "sun.svg"
         self.theme_button = create_icon_button(self.icons_path, theme_icon,
@@ -197,8 +210,8 @@ class ChatWindow(QWidget):
         self.buttons_on_bottom = False
         self.movable_buttons = [self.toggle_userlist_button, self.theme_button]
        
-        # Widgets to hide at < 500px (exit_private_button managed dynamically)
-        self.narrow_hideable_widgets = [self.input_field, self.send_button, self.theme_button]
+        # Widgets to hide at < 500px width (for narrow mode)
+        self.narrow_hideable_widgets = [self.input_field, self.send_button, self.emoticon_button, self.theme_button]
        
         # Messages userlist with private mode callback
         self.user_list_widget = UserListWidget(self.config, self.input_field)
@@ -211,9 +224,107 @@ class ChatWindow(QWidget):
         else:
             self.user_list_widget.setVisible(True)
         self.content_layout.addWidget(self.user_list_widget, stretch=1)
+        
+        # Emoticon selector widget (overlay - positioned absolutely)
+        # Create AFTER userlist so positioning works correctly
+        # Share emoticon_manager from messages_widget to avoid loading emoticons twice
+        self.emoticon_selector = EmoticonSelectorWidget(
+            self.config, 
+            self.messages_widget.emoticon_manager,  # Reuse from MessagesWidget
+            self.icons_path
+        )
+        self.emoticon_selector.emoticon_selected.connect(self._on_emoticon_selected)
+        self.emoticon_selector.setParent(self)  # Make it float above other widgets
+        
+        # Install event filter on main window to detect clicks outside selector
+        self.installEventFilter(self)
+        
+        # Position will be set in showEvent
+        QTimer.singleShot(50, self._position_emoticon_selector)
+        
         self.messages_widget.timestamp_clicked.connect(self.show_chatlog_view)
        
         self._update_input_style()
+    
+    def _toggle_emoticon_selector(self):
+        """Toggle emoticon selector visibility"""
+        if hasattr(self, 'emoticon_selector'):
+            self.emoticon_selector.toggle_visibility()
+            self._position_emoticon_selector()
+    
+    def _on_emoticon_selected(self, emoticon_name: str):
+        """Handle emoticon selection"""
+        # Insert emoticon code at cursor position
+        cursor_pos = self.input_field.cursorPosition()
+        current_text = self.input_field.text()
+        emoticon_code = f":{emoticon_name}:"
+        
+        new_text = current_text[:cursor_pos] + emoticon_code + current_text[cursor_pos:]
+        self.input_field.setText(new_text)
+        
+        # Move cursor after inserted emoticon
+        self.input_field.setCursorPosition(cursor_pos + len(emoticon_code))
+        
+        # Focus input field
+        self.input_field.setFocus()
+    
+    def _position_emoticon_selector(self):
+        """Position emoticon selector as overlay near userlist"""
+        if not hasattr(self, 'emoticon_selector'):
+            return
+        
+        # Calculate position: right side, floating above input area
+        window_width = self.width()
+        window_height = self.height()
+        
+        # Get input container height and position
+        input_height = self.input_container.height()
+        
+        # Define consistent margins
+        top_margin = 20  # Margin from top
+        bottom_margin = 20  # Gap between selector bottom and input area top
+        side_margin = 30  # Side margins
+        
+        # Calculate available height for selector
+        # Total space = window_height - input_height - top_margin - bottom_margin
+        available_height = window_height - input_height - top_margin - bottom_margin
+        
+        # Set reasonable height bounds
+        min_height = 250
+        max_height = 650
+        selector_height = max(min_height, min(max_height, available_height))
+        
+        # If calculated height would make it go off screen, reduce it
+        if selector_height > available_height:
+            selector_height = max(min_height, available_height)
+        
+        selector_width = 420
+        
+        # Set size
+        self.emoticon_selector.setFixedSize(selector_width, selector_height)
+        
+        # Calculate horizontal position
+        userlist_visible = self.user_list_widget.isVisible()
+        
+        if userlist_visible and window_width > 800:
+            # Position to the left of userlist
+            x_pos = window_width - self.user_list_widget.width() - selector_width - side_margin
+        else:
+            # Position on the right side
+            x_pos = window_width - selector_width - side_margin
+        
+        # Ensure it doesn't go off screen horizontally
+        x_pos = max(20, min(x_pos, window_width - selector_width - 20))
+        
+        # Calculate vertical position - position from bottom up
+        # y_pos = window_height - input_height - bottom_margin - selector_height
+        y_pos = window_height - input_height - bottom_margin - selector_height
+        
+        # Ensure minimum top margin
+        y_pos = max(top_margin, y_pos)
+        
+        self.emoticon_selector.move(x_pos, y_pos)
+        self.emoticon_selector.raise_()
    
     def eventFilter(self, obj, event):
         """Event filter to catch Ctrl+Click on toggle userlist button"""
@@ -224,6 +335,24 @@ class ChatWindow(QWidget):
                     # Ctrl+Click detected - show account switcher
                     self._show_account_switcher()
                     return True # Consume event
+        
+        # Handle clicks outside emoticon selector
+        if obj == self and event.type() == QEvent.Type.MouseButtonPress:
+            if hasattr(self, 'emoticon_selector') and self.emoticon_selector.isVisible():
+                # Check if click is outside both selector and emoticon button
+                click_pos = event.pos()
+                
+                # Get global positions
+                selector_rect = self.emoticon_selector.geometry()
+                button_rect = self.emoticon_button.geometry()
+                button_global = self.emoticon_button.mapTo(self, button_rect.topLeft())
+                button_rect.moveTo(button_global)
+                
+                # If click is outside both, hide selector
+                if not selector_rect.contains(click_pos) and not button_rect.contains(click_pos):
+                    self.emoticon_selector.setVisible(False)
+                    self.config.set("ui", "emoticon_selector_visible", value=False)
+        
         return super().eventFilter(obj, event)
    
     def _show_account_switcher(self):
@@ -245,6 +374,10 @@ class ChatWindow(QWidget):
         """Handle window show events for auto-reconnect"""
         super().showEvent(event)
         self._check_and_reconnect()
+
+        # Position emoticon selector when showing
+        if hasattr(self, 'emoticon_selector'):
+            QTimer.singleShot(50, self._position_emoticon_selector)
 
         # Restore delegate references and restart animations when showing
         try:
@@ -334,9 +467,9 @@ class ChatWindow(QWidget):
             )
             self.exit_private_button.clicked.connect(self.exit_private_mode)
            
-            # Insert button after send button (before toggle_userlist_button)
-            send_button_index = self.input_top_layout.indexOf(self.send_button)
-            self.input_top_layout.insertWidget(send_button_index + 1, self.exit_private_button)
+            # Insert button after emoticon button (before theme button)
+            emoticon_button_index = self.input_top_layout.indexOf(self.emoticon_button)
+            self.input_top_layout.insertWidget(emoticon_button_index + 1, self.exit_private_button)
            
             # Add to narrow hideable widgets
             if self.exit_private_button not in self.narrow_hideable_widgets:
@@ -864,6 +997,10 @@ class ChatWindow(QWidget):
             if hasattr(self, 'profile_widget') and self.profile_widget:
                 self.profile_widget.update_theme()
             
+            # Update emoticon selector theme
+            if hasattr(self, 'emoticon_selector'):
+                self.emoticon_selector.update_theme()
+            
             self.messages_widget.rebuild_messages()
             
             if self.chatlog_widget and self.stacked_widget.currentWidget() == self.chatlog_widget:
@@ -876,6 +1013,10 @@ class ChatWindow(QWidget):
             self.theme_button.setEnabled(True)
    
     def closeEvent(self, event):
+        # Cleanup emoticon selector
+        if hasattr(self, 'emoticon_selector'):
+            self.emoticon_selector.cleanup()
+        
         # If hiding to tray, do not perform full cleanup so animations and
         # delegate state remain intact. Full cleanup happens only when the
         # app is actually closing.
