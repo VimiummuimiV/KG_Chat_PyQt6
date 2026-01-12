@@ -4,7 +4,9 @@ from collections import Counter
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QScrollArea, QApplication
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QFont, QCursor
+
 from helpers.create import create_icon_button
+from helpers.fonts import get_font, FontType
 
 
 class ChatlogUserWidget(QWidget):
@@ -29,12 +31,12 @@ class ChatlogUserWidget(QWidget):
         text_color = "#CCCCCC" if is_dark else "#666666"
         self.username_label = QLabel(username)
         self.username_label.setStyleSheet(f"color: {text_color};")
-        self.username_label.setFont(QFont(config.get("ui", "font_family"), config.get("ui", "font_size")))
+        self.username_label.setFont(get_font(FontType.TEXT))
         layout.addWidget(self.username_label, stretch=1)
         
         # Message count
         self.count_label = QLabel(f"{msg_count}")
-        self.count_label.setFont(QFont(config.get("ui", "font_family"), config.get("ui", "font_size")))
+        self.count_label.setFont(get_font(FontType.TEXT))
         self.count_label.setStyleSheet(f"color: {text_color};")
         layout.addWidget(self.count_label)
     

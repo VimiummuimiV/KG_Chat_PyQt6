@@ -12,10 +12,11 @@ from typing import List, Optional
 import threading
 from functools import partial
 
-from helpers.create import create_icon_button, _render_svg_icon
 from core.api_data import get_exact_user_id_by_name, get_usernames_history, get_registration_date
 from core.chatlogs_parser import ParseConfig, ChatlogsParserEngine
+from helpers.create import create_icon_button, _render_svg_icon
 from helpers.data import get_data_dir
+from helpers.fonts import get_font, FontType
 
 
 class ParserWorker(QThread):
@@ -81,6 +82,7 @@ class ChatlogsParserConfigWidget(QWidget):
         if object_name:
             input_field.setObjectName(object_name)
         input_field.setFixedHeight(self.input_height)
+        input_field.setFont(get_font(FontType.TEXT))
         return input_field
     
     def _create_combo(self, items: list) -> QComboBox:
@@ -88,6 +90,7 @@ class ChatlogsParserConfigWidget(QWidget):
         combo = QComboBox()
         combo.addItems(items)
         combo.setFixedHeight(self.input_height)
+        combo.setFont(get_font(FontType.UI))
         return combo
     
     def _create_input_row(self, label_text: str, placeholder: str = "", object_name: str = "", as_widget: bool = False):
@@ -132,9 +135,7 @@ class ChatlogsParserConfigWidget(QWidget):
         
         # Title
         title = QLabel("Parse Chat Logs")
-        title_font = QFont(self.config.get("ui", "font_family"), self.config.get("ui", "font_size") + 4)
-        title_font.setBold(True)
-        title.setFont(title_font)
+        title.setFont(get_font(FontType.HEADER))
         layout.addWidget(title)
         
         # Mode selection

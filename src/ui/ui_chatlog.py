@@ -16,6 +16,7 @@ from helpers.create import create_icon_button
 from helpers.emoticons import EmoticonManager
 from helpers.scroll import scroll
 from helpers.data import get_data_dir
+from helpers.fonts import get_font, FontType
 from ui.message_model import MessageListModel, MessageData
 from ui.message_delegate import MessageDelegate
 from ui.ui_chatlogs_parser import ChatlogsParserConfigWidget, ParserWorker
@@ -92,9 +93,7 @@ class ChatlogWidget(QWidget):
        
         # Date label
         self.date_label = QLabel()
-        font = QFont(self.config.get("ui", "font_family"), self.config.get("ui", "font_size") + 2)
-        font.setBold(True)
-        self.date_label.setFont(font)
+        self.date_label.setFont(get_font(FontType.HEADER))
         self.date_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         self.info_block.addWidget(self.date_label)
        
@@ -153,7 +152,7 @@ class ChatlogWidget(QWidget):
       
         self.search_field = QLineEdit()
         self.search_field.setPlaceholderText("Search: 'text' or 'U:Bob' or 'U:Bob,Alice' or 'M:hello' or 'U:Bob M:hello'")
-        self.search_field.setFont(QFont(self.config.get("ui", "font_family"), self.config.get("ui", "font_size")))
+        self.search_field.setFont(get_font(FontType.TEXT))
         self.search_field.setFixedHeight(self.config.get("ui", "input_height") or 48)
         self.search_field.textChanged.connect(self._on_search_changed)
         search_layout.addWidget(self.search_field, stretch=1)

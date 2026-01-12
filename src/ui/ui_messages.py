@@ -10,6 +10,7 @@ from helpers.scroll import scroll
 from helpers.cache import get_cache
 from ui.message_model import MessageListModel, MessageData
 from ui.message_delegate import MessageDelegate
+from helpers.fonts import get_font, FontType
 
 
 class MessagesWidget(QWidget):
