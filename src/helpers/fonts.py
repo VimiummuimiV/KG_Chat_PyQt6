@@ -1,14 +1,14 @@
-"""Font manager for loading custom fonts and setting up font families"""
+"""Font manager for loading custom fonts"""
 from pathlib import Path
 from PyQt6.QtGui import QFontDatabase, QFont
 from PyQt6.QtWidgets import QApplication
+import platform
 
 
 class FontManager:
     """Centralized font manager for custom fonts"""
     
     _instance = None
-    _initialized = False
     
     def __new__(cls):
         if cls._instance is None:
@@ -16,36 +16,67 @@ class FontManager:
         return cls._instance
     
     def __init__(self):
-        if self._initialized:
-            return
-        
+        # Initialize paths
         self.fonts_dir = Path(__file__).parent.parent / "fonts"
-        self.montserrat_loaded = False
-        self.emoji_loaded = False
-        self._initialized = True
+        self.config_path = Path(__file__).parent.parent / "settings" / "config.json"
+        self.config = None
+        self.loaded = False
+    
+    def _load_config(self):
+        """Load config if not already loaded"""
+        if self.config is None:
+            try:
+                from helpers.config import Config
+                self.config = Config(str(self.config_path))
+            except ImportError:
+                print("⚠️ Could not load config")
+                # Create a default config
+                self.config = type('SimpleConfig', (), {
+                    'get': lambda self, *args: args[-1] if args else None
+                })()
     
     def load_fonts(self):
         """Load custom fonts from fonts directory"""
+        if self.loaded:
+            return True
+            
+        self._load_config()
+        
+        # Get font families and sizes from config
+        text_family = self.config.get("ui", "text_font_family") or "Montserrat"
+        emoji_family = self.config.get("ui", "emoji_font_family") or "Noto Color Emoji"
+        ui_font_size = self.config.get("ui", "ui_font_size") or 12
+        text_font_size = self.config.get("ui", "text_font_size") or 16
+        header_font_size = self.config.get("ui", "header_font_size") or 18
+        
+        print(f"📝 Font settings:")
+        print(f"   Text family: {text_family}, Emoji family: {emoji_family}")
+        print(f"   UI size: {ui_font_size}, Text size: {text_font_size}, Header size: {header_font_size}")
+        
         if not self.fonts_dir.exists():
             print(f"⚠️ Fonts directory not found: {self.fonts_dir}")
+            self.loaded = True
             return False
         
-        # Load Montserrat (variable font is preferred)
+        # Load Montserrat for text (including Medium and Bold for headers)
         montserrat_files = [
             self.fonts_dir / "Montserrat" / "Montserrat-VariableFont_wght.ttf",
             self.fonts_dir / "Montserrat" / "static" / "Montserrat-Regular.ttf",
-            self.fonts_dir / "Montserrat" / "static" / "Montserrat-Bold.ttf",
             self.fonts_dir / "Montserrat" / "static" / "Montserrat-Medium.ttf",
+            self.fonts_dir / "Montserrat" / "static" / "Montserrat-Bold.ttf",
         ]
         
+        loaded_any = False
         for font_file in montserrat_files:
             if font_file.exists():
                 font_id = QFontDatabase.addApplicationFont(str(font_file))
                 if font_id != -1:
                     families = QFontDatabase.applicationFontFamilies(font_id)
                     if families:
-                        self.montserrat_loaded = True
-                        print(f"✅ Loaded font: {font_file.name} ({families[0]})")
+                        loaded_any = True
+        
+        if loaded_any:
+            print(f"✅ Loaded text font: {text_family}")
         
         # Load Noto Color Emoji
         emoji_file = self.fonts_dir / "Noto_Color_Emoji" / "NotoColorEmoji-Regular.ttf"
@@ -54,117 +85,119 @@ class FontManager:
             if font_id != -1:
                 families = QFontDatabase.applicationFontFamilies(font_id)
                 if families:
-                    self.emoji_loaded = True
-                    print(f"✅ Loaded emoji font: {emoji_file.name} ({families[0]})")
+                    print(f"✅ Loaded emoji font: {emoji_family}")
         
-        success = self.montserrat_loaded and self.emoji_loaded
-        if success:
-            print("✅ All fonts loaded successfully")
-        else:
-            if not self.montserrat_loaded:
-                print("⚠️ Montserrat font not loaded - using system fallback")
-            if not self.emoji_loaded:
-                print("⚠️ Emoji font not loaded - using system fallback")
-        
-        return success
+        self.loaded = True
+        return True
     
-    def get_font(self, size: int = 12, weight: QFont.Weight = QFont.Weight.Normal, 
-                 italic: bool = False) -> QFont:
-        """Get a font with Montserrat for text and Noto Color Emoji for emojis
+    def get_ui_font(self, weight: QFont.Weight = QFont.Weight.Normal, 
+                    italic: bool = False) -> QFont:
+        """Get UI font (buttons, inputs, account window)"""
+        if not self.loaded:
+            self._load_config()
         
-        Args:
-            size: Font size in points
-            weight: Font weight (Normal, Bold, etc.)
-            italic: Whether font should be italic
+        text_family = self.config.get("ui", "text_font_family") or "Montserrat"
+        emoji_family = self.config.get("ui", "emoji_font_family") or "Noto Color Emoji"
+        font_size = self.config.get("ui", "ui_font_size") or 12
         
-        Returns:
-            QFont configured with proper fallback chain
-        """
-        # Create font with Montserrat as primary
-        font = QFont("Montserrat", size, weight)
+        font = QFont(text_family, font_size, weight)
         font.setItalic(italic)
-        
-        # Set fallback families for emoji support
-        # Qt will use these in order if the primary font doesn't have a character
-        fallback_families = ["Noto Color Emoji"]
-        
-        # Add system emoji fonts as additional fallbacks
-        import platform
-        system = platform.system()
-        if system == "Windows":
-            fallback_families.append("Segoe UI Emoji")
-        elif system == "Darwin":  # macOS
-            fallback_families.append("Apple Color Emoji")
-        else:  # Linux
-            fallback_families.extend(["Noto Emoji", "Symbola"])
-        
-        font.setFamilies(["Montserrat"] + fallback_families)
+        font.setFamilies([text_family, emoji_family])
         
         return font
     
-    def set_application_font(self, app: QApplication, size: int = 12):
-        """Set application-wide default font
+    def get_text_font(self, weight: QFont.Weight = QFont.Weight.Normal, 
+                      italic: bool = False) -> QFont:
+        """Get text font (messages, usernames, chat content)"""
+        if not self.loaded:
+            self._load_config()
         
-        Args:
-            app: QApplication instance
-            size: Default font size
-        """
-        default_font = self.get_font(size)
+        text_family = self.config.get("ui", "text_font_family") or "Montserrat"
+        emoji_family = self.config.get("ui", "emoji_font_family") or "Noto Color Emoji"
+        font_size = self.config.get("ui", "text_font_size") or 16
+        
+        font = QFont(text_family, font_size, weight)
+        font.setItalic(italic)
+        font.setFamilies([text_family, emoji_family])
+        
+        return font
+    
+    def get_header_font(self, weight: QFont.Weight = QFont.Weight.Bold,
+                        italic: bool = False) -> QFont:
+        """Get header font (titles, section headers)"""
+        if not self.loaded:
+            self._load_config()
+        
+        text_family = self.config.get("ui", "text_font_family") or "Montserrat"
+        emoji_family = self.config.get("ui", "emoji_font_family") or "Noto Color Emoji"
+        font_size = self.config.get("ui", "header_font_size") or 18
+        
+        font = QFont(text_family, font_size, weight)
+        font.setItalic(italic)
+        font.setFamilies([text_family, emoji_family])
+        
+        return font
+    
+    def get_custom_font(self, size: int, weight: QFont.Weight = QFont.Weight.Normal,
+                        italic: bool = False) -> QFont:
+        """Get custom font with specific size"""
+        if not self.loaded:
+            self._load_config()
+        
+        text_family = self.config.get("ui", "text_font_family") or "Montserrat"
+        emoji_family = self.config.get("ui", "emoji_font_family") or "Noto Color Emoji"
+        
+        font = QFont(text_family, size, weight)
+        font.setItalic(italic)
+        font.setFamilies([text_family, emoji_family])
+        
+        return font
+    
+    def set_application_font(self, app: QApplication):
+        """Set application-wide default font (uses UI font size)"""
+        if not self.loaded:
+            self._load_config()
+        
+        default_font = self.get_ui_font()
         app.setFont(default_font)
-        print(f"✅ Application font set: Montserrat {size}pt with emoji fallback")
-    
-    def get_bold_font(self, size: int = 12) -> QFont:
-        """Get bold font"""
-        return self.get_font(size, QFont.Weight.Bold)
-    
-    def get_italic_font(self, size: int = 12) -> QFont:
-        """Get italic font"""
-        return self.get_font(size, italic=True)
-    
-    def is_loaded(self) -> bool:
-        """Check if fonts are loaded"""
-        return self.montserrat_loaded and self.emoji_loaded
+        
+        text_family = self.config.get("ui", "text_font_family") or "Montserrat"
+        emoji_family = self.config.get("ui", "emoji_font_family") or "Noto Color Emoji"
+        ui_font_size = self.config.get("ui", "ui_font_size") or 12
+        
+        print(f"✅ Application font set: {text_family} {ui_font_size}pt with {emoji_family} for emoji")
 
 
 # Global instance
 _font_manager = FontManager()
 
 
-def get_font_manager() -> FontManager:
-    """Get global font manager instance"""
-    return _font_manager
-
-
 def load_fonts() -> bool:
-    """Load custom fonts (convenience function)"""
-    return get_font_manager().load_fonts()
+    """Load custom fonts"""
+    return _font_manager.load_fonts()
 
 
-def get_font(size: int = 12, weight: QFont.Weight = QFont.Weight.Normal, 
-             italic: bool = False) -> QFont:
-    """Get font with emoji support (convenience function)"""
-    return get_font_manager().get_font(size, weight, italic)
+def get_ui_font(weight: QFont.Weight = QFont.Weight.Normal, italic: bool = False) -> QFont:
+    """Get UI font (buttons, inputs, account window)"""
+    return _font_manager.get_ui_font(weight, italic)
 
 
-def get_font_from_config(config, size_offset: int = 0, bold: bool = False, 
-                        italic: bool = False) -> QFont:
-    """Get font using config settings with emoji support
-    
-    Args:
-        config: Config object with font settings
-        size_offset: Offset to add to config font size (e.g., +2 for headers)
-        bold: Whether font should be bold
-        italic: Whether font should be italic
-    
-    Returns:
-        QFont with proper emoji fallback
-    """
-    base_size = config.get("ui", "font_size") or 12
-    size = base_size + size_offset
-    weight = QFont.Weight.Bold if bold else QFont.Weight.Normal
-    return get_font(size, weight, italic)
+def get_text_font(weight: QFont.Weight = QFont.Weight.Normal, italic: bool = False) -> QFont:
+    """Get text font (messages, usernames, chat content)"""
+    return _font_manager.get_text_font(weight, italic)
 
 
-def set_application_font(app: QApplication, size: int = 12):
-    """Set application-wide font (convenience function)"""
-    get_font_manager().set_application_font(app, size)
+def get_header_font(weight: QFont.Weight = QFont.Weight.Bold, italic: bool = False) -> QFont:
+    """Get header font (titles, section headers)"""
+    return _font_manager.get_header_font(weight, italic)
+
+
+def get_custom_font(size: int, weight: QFont.Weight = QFont.Weight.Normal,
+                    italic: bool = False) -> QFont:
+    """Get custom font with specific size"""
+    return _font_manager.get_custom_font(size, weight, italic)
+
+
+def set_application_font(app: QApplication):
+    """Set application-wide font"""
+    _font_manager.set_application_font(app)
