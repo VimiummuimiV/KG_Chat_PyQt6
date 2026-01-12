@@ -40,18 +40,37 @@ class AccountWindow(QWidget):
         # Track current avatar loading to avoid race conditions
         self.current_loading_user_id = None
         
+        # Get standard input height from config
+        self.input_height = self._get_config('input_height', 48)
+        
         self._avatar_loaded.connect(self._set_avatar)
         
         # Initialize UI
         self.initializeUI()
         self.load_accounts()
+        
+        # Set initial window height for Connect page
+        self._adjust_window_height()
+    
+    def _get_config(self, key, default):
+        """Safely get config value with default fallback"""
+        if hasattr(self.config, 'data') and self.config.data:
+            return self.config.data.get(key, default)
+        return default
+    
+    def _set_input_height(self, widget):
+        """Set standard height for input widgets"""
+        widget.setFixedHeight(self.input_height)
+        # Only customize QLineEdit styling, let QComboBox keep native style
+        if isinstance(widget, QLineEdit):
+            existing = widget.styleSheet()
+            style = f"height: {self.input_height}px !important; padding: 0px 8px;"
+            widget.setStyleSheet(f"{existing} {style}")
     
     def initializeUI(self):
         # Window setup
         self.setWindowTitle("Account Manager")
-        self.setFixedWidth(620)
-        self.setMinimumHeight(125)
-        self.setMaximumHeight(125)
+        self.setFixedWidth(380)
         
         # Set initial theme state for icons
         set_theme(self.theme_manager.is_dark())
@@ -59,10 +78,14 @@ class AccountWindow(QWidget):
         # Set font
         self.setFont(get_font(FontType.UI))
         
+        # Get layout spacing from config
+        spacing = self._get_config('spacing', 10)
+        margin = self._get_config('margin', 15)
+        
         # Main layout
         main_layout = QVBoxLayout()
-        main_layout.setSpacing(10)
-        main_layout.setContentsMargins(15, 15, 15, 15)
+        main_layout.setSpacing(spacing)
+        main_layout.setContentsMargins(margin, margin, margin, margin)
         self.setLayout(main_layout)
         
         # Stacked widget to switch between Connect and Create sections
@@ -86,7 +109,7 @@ class AccountWindow(QWidget):
         """Create the Connect section page"""
         page = QWidget()
         layout = QVBoxLayout()
-        layout.setSpacing(10)
+        layout.setSpacing(self._get_config('spacing', 10))
         layout.setContentsMargins(0, 0, 0, 0)
         page.setLayout(layout)
         
@@ -95,54 +118,69 @@ class AccountWindow(QWidget):
         connect_label.setFont(get_font(FontType.HEADER))
         layout.addWidget(connect_label)
         
-        # Connect row: Avatar + Dropdown + Color Picker + Connect + Remove + Add User
-        connect_row = QHBoxLayout()
-        connect_row.setSpacing(8)
+        # Account selection row
+        account_row = QHBoxLayout()
+        account_row.setSpacing(self._get_config('spacing', 8))
         
         # Avatar
         self.account_avatar = create_icon_button(
             self.icons_path, "user.svg", tooltip="Account"
         )
         self.account_avatar.setStyleSheet("QPushButton { background: transparent; border: none; }")
-        connect_row.addWidget(self.account_avatar)
+        account_row.addWidget(self.account_avatar)
         
         # Account dropdown
         self.account_dropdown = QComboBox()
         self.account_dropdown.setFont(get_font(FontType.UI))
-        self.account_dropdown.setMinimumHeight(48)
-        self.account_dropdown.setMaximumHeight(48)
+        self._set_input_height(self.account_dropdown)
         self.account_dropdown.currentIndexChanged.connect(self.update_avatar)
-        connect_row.addWidget(self.account_dropdown, stretch=1)
+
+        # Offset dropdown popup to not cover the border
+        original_show_popup = self.account_dropdown.showPopup
+        def offset_popup():
+            original_show_popup()
+            popup = self.account_dropdown.view().window()
+            if popup:
+                pos = popup.pos()
+                popup.move(pos.x(), pos.y() + 3)
+        self.account_dropdown.showPopup = offset_popup
+        account_row.addWidget(self.account_dropdown, stretch=1)
+        
+        layout.addLayout(account_row)
+        
+        # Actions row
+        actions_row = QHBoxLayout()
+        actions_row.setSpacing(self._get_config('spacing', 8))
         
         # Connect button
         self.connect_button = create_icon_button(
             self.icons_path, "login.svg", tooltip="Connect to chat"
         )
         self.connect_button.clicked.connect(self.on_connect)
-        connect_row.addWidget(self.connect_button)
+        actions_row.addWidget(self.connect_button)
         
         # Color picker button
         self.color_button = create_icon_button(
             self.icons_path, "palette.svg", tooltip="Change username color"
         )
         self.color_button.clicked.connect(self.on_color_picker)
-        connect_row.addWidget(self.color_button)
+        actions_row.addWidget(self.color_button)
         
         # Remove button
         self.remove_button = create_icon_button(
             self.icons_path, "trash.svg", tooltip="Remove account"
         )
         self.remove_button.clicked.connect(self.on_remove_account)
-        connect_row.addWidget(self.remove_button)
+        actions_row.addWidget(self.remove_button)
         
         # Add user button
         self.add_user_button = create_icon_button(
             self.icons_path, "add-user.svg", tooltip="Create new account"
         )
         self.add_user_button.clicked.connect(self.show_create_page)
-        connect_row.addWidget(self.add_user_button)
+        actions_row.addWidget(self.add_user_button)
         
-        layout.addLayout(connect_row)
+        layout.addLayout(actions_row)
 
         return page
     
@@ -150,7 +188,7 @@ class AccountWindow(QWidget):
         """Create the Create Account section page"""
         page = QWidget()
         layout = QVBoxLayout()
-        layout.setSpacing(10)
+        layout.setSpacing(self._get_config('spacing', 10))
         layout.setContentsMargins(0, 0, 0, 0)
         page.setLayout(layout)
         
@@ -159,51 +197,76 @@ class AccountWindow(QWidget):
         create_label.setFont(get_font(FontType.HEADER))
         layout.addWidget(create_label)
         
-        # Create row: Go Back + Username + Password + Save
-        create_row = QHBoxLayout()
-        create_row.setSpacing(8)
+        # Credentials fields in column
+        credentials_layout = QVBoxLayout()
+        credentials_layout.setSpacing(self._get_config('credentials_spacing', 6))
+        
+        # Username field
+        self.username_input = QLineEdit()
+        self.username_input.setPlaceholderText("Username")
+        self._set_input_height(self.username_input)
+        self.username_input.setFont(get_font(FontType.UI))
+        credentials_layout.addWidget(self.username_input)
+        
+        # Password field
+        self.password_input = QLineEdit()
+        self.password_input.setPlaceholderText("Password")
+        self.password_input.setEchoMode(QLineEdit.EchoMode.Password)
+        self._set_input_height(self.password_input)
+        self.password_input.setFont(get_font(FontType.UI))
+        credentials_layout.addWidget(self.password_input)
+        
+        layout.addLayout(credentials_layout)
+        
+        # Actions row
+        actions_row = QHBoxLayout()
+        actions_row.setSpacing(self._get_config('spacing', 8))
         
         # Go back button
         self.go_back_button = create_icon_button(
             self.icons_path, "go-back.svg", tooltip="Go back to Connect"
         )
         self.go_back_button.clicked.connect(self.show_connect_page)
-        create_row.addWidget(self.go_back_button)
-        
-        # Username field
-        self.username_input = QLineEdit()
-        self.username_input.setPlaceholderText("Username")
-        self.username_input.setMinimumHeight(48)
-        self.username_input.setMaximumHeight(48)
-        self.username_input.setFont(get_font(FontType.UI))
-        create_row.addWidget(self.username_input, stretch=1)
-        
-        # Password field
-        self.password_input = QLineEdit()
-        self.password_input.setPlaceholderText("Password")
-        self.password_input.setEchoMode(QLineEdit.EchoMode.Password)
-        self.password_input.setMinimumHeight(48)
-        self.password_input.setMaximumHeight(48)
-        self.password_input.setFont(get_font(FontType.UI))
-        create_row.addWidget(self.password_input, stretch=1)
+        actions_row.addWidget(self.go_back_button)
         
         # Create/Save button
         self.create_button = create_icon_button(
             self.icons_path, "save.svg", tooltip="Create account"
         )
         self.create_button.clicked.connect(self.on_create_account)
-        create_row.addWidget(self.create_button)
+        actions_row.addWidget(self.create_button)
         
-        layout.addLayout(create_row)
+        layout.addLayout(actions_row)
+        
         return page
     
     def show_connect_page(self):
         """Navigate to Connect page"""
         self.stacked_widget.setCurrentIndex(0)
+        self._adjust_window_height()
     
     def show_create_page(self):
         """Navigate to Create page"""
         self.stacked_widget.setCurrentIndex(1)
+        self._adjust_window_height()
+    
+    def _adjust_window_height(self):
+        """Calculate and set the appropriate window height based on current page"""
+        # Get layout values from config
+        margins = self._get_config('margin', 30)
+        label_height = self._get_config('label_height', 35)
+        main_spacing = self._get_config('spacing', 10)
+        button_padding = self._get_config('button_padding', 10)
+        
+        if self.stacked_widget.currentIndex() == 0:  # Connect page
+            # Label + account row + actions row
+            total_height = margins + label_height + main_spacing + self.input_height + main_spacing + self.input_height + button_padding
+        else:  # Create page
+            # Label + username + password + actions row
+            credentials_spacing = self._get_config('credentials_spacing', 6)
+            total_height = margins + label_height + main_spacing + self.input_height + credentials_spacing + self.input_height + main_spacing + self.input_height + button_padding
+        
+        self.setFixedHeight(total_height)
     
     def on_color_picker(self):
         """Open color picker for selected account"""
