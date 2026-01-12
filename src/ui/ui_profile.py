@@ -5,30 +5,31 @@ from PyQt6.QtWidgets import (
     QScrollArea, QGridLayout, QFrame, QSizePolicy
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QTimer, pyqtSlot
-from PyQt6.QtGui import QFont, QPixmap
+from PyQt6.QtGui import QPixmap, QFont
 
 from helpers.create import create_icon_button
 from helpers.load import make_rounded_pixmap
 from helpers.cache import get_cache
+from helpers.fonts import get_font, FontType
 from core.api_data import get_user_summary_by_id, get_user_index_data_by_id, format_registered_date
 
 
 class ProfileIcons:
     """Centralized profile card icons"""
     USER_ID = "🆔"
-    LEVEL = "⭐"
+    LEVEL = "🏅"
     STATUS_ONLINE = "🟢"
     STATUS_OFFLINE = "🔴"
-    ACCOUNT_ACTIVE = "✅"
-    ACCOUNT_BANNED = "❌"
-    REGISTERED = "📅"
+    ACCOUNT_ACTIVE = "⚡️"
+    ACCOUNT_BANNED = "🔒"
+    REGISTERED = "🗓️"
     ACHIEVEMENTS = "🏆"
     TOTAL_RACES = "🏁"
-    BEST_SPEED = "⚡"
+    BEST_SPEED = "🚀"
     RATING = "🎯"
-    FRIENDS = "👥"
-    VOCABULARIES = "📚"
-    CARS = "🚖"
+    FRIENDS = "🤝"
+    VOCABULARIES = "📖"
+    CARS = "🚘"
     AVATAR_PLACEHOLDER = "👤"
 
 
@@ -56,13 +57,11 @@ class StatCard(QFrame):
         header.setSpacing(6)
         
         self.icon_label = QLabel(icon)
-        icon_font = QFont(config.get("ui", "font_family"), config.get("ui", "font_size") + 2)
-        self.icon_label.setFont(icon_font)
+        self.icon_label.setFont(get_font(FontType.TEXT, size=20))
         header.addWidget(self.icon_label)
         
         self.label_widget = QLabel(label)
-        label_font = QFont(config.get("ui", "font_family"), config.get("ui", "font_size") - 1)
-        self.label_widget.setFont(label_font)
+        self.label_widget.setFont(get_font(FontType.TEXT))
         self._update_label_style()
         header.addWidget(self.label_widget, stretch=1)
         
@@ -70,9 +69,7 @@ class StatCard(QFrame):
         
         # Value
         self.value_label = QLabel(value)
-        value_font = QFont(config.get("ui", "font_family"), config.get("ui", "font_size") + 3)
-        value_font.setBold(True)
-        self.value_label.setFont(value_font)
+        self.value_label.setFont(get_font(FontType.TEXT, weight=QFont.Weight.Bold))
         layout.addWidget(self.value_label)
     
     def _update_card_style(self):
@@ -152,10 +149,7 @@ class ProfileWidget(QWidget):
         top_bar.addWidget(self.back_button)
         
         self.title_label = QLabel()
-        title_font = QFont(self.config.get("ui", "font_family"), 
-                          self.config.get("ui", "font_size") + 2)
-        title_font.setBold(True)
-        self.title_label.setFont(title_font)
+        self.title_label.setFont(get_font(FontType.HEADER))
         top_bar.addWidget(self.title_label, stretch=1)
         
         layout.addLayout(top_bar)
@@ -189,8 +183,7 @@ class ProfileWidget(QWidget):
         self.avatar_placeholder.setScaledContents(False)
         self._update_avatar_placeholder_style()
         self.avatar_placeholder.setText(ProfileIcons.AVATAR_PLACEHOLDER)
-        placeholder_font = QFont(self.config.get("ui", "font_family"), 48)
-        self.avatar_placeholder.setFont(placeholder_font)
+        self.avatar_placeholder.setFont(get_font(FontType.HEADER, size=48))
         
         # Actual avatar image
         self.avatar_label = QLabel()

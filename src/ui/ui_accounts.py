@@ -48,7 +48,7 @@ class AccountWindow(QWidget):
     def initializeUI(self):
         # Window setup
         self.setWindowTitle("Account Manager")
-        self.setFixedWidth(600)
+        self.setFixedWidth(620)
         self.setMinimumHeight(120)
         self.setMaximumHeight(120)
         
