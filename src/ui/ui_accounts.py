@@ -91,7 +91,7 @@ class AccountWindow(QWidget):
         page.setLayout(layout)
         
         # ===== CONNECT SECTION =====
-        connect_label = QLabel("🔓 Connect")
+        connect_label = QLabel("🔑 Connect")
         connect_label.setFont(get_font(FontType.HEADER))
         layout.addWidget(connect_label)
         
