@@ -36,6 +36,9 @@ class AccountWindow(QWidget):
         self.account_manager = AccountManager(str(self.config_path))
         self.cache = get_cache()
         
+        # Track current avatar loading to avoid race conditions
+        self.current_loading_user_id = None
+        
         self._avatar_loaded.connect(self._set_avatar)
         
         # Initialize UI
@@ -255,37 +258,50 @@ class AccountWindow(QWidget):
         self.account_dropdown.setCurrentIndex(active_index)
     
     def update_avatar(self):
+        """Update avatar for currently selected account"""
         account = self.account_dropdown.currentData()
         if not account or not account.get('user_id'):
             # Reset to default user icon
+            self.current_loading_user_id = None
             icon = _render_svg_icon(self.icons_path / "user.svg", 30)
             self.account_avatar.setIcon(icon)
             self.account_avatar.setIconSize(QSize(30, 30))
             self.account_avatar.setStyleSheet("QPushButton { background: transparent; border: none; }")
             return
         
-        # Try to get from cache first
         user_id = account['user_id']
+        
+        # Set this as the current loading user - prevents race conditions
+        self.current_loading_user_id = user_id
+        
+        # Try to get from cache first
         cached_avatar = self.cache.get_avatar(user_id)
         
         if cached_avatar:
-            self._set_avatar(user_id, cached_avatar)
+            # Only set if this is still the current user
+            if self.current_loading_user_id == user_id:
+                self._set_avatar(user_id, cached_avatar)
         else:
             # Set placeholder first
             icon = _render_svg_icon(self.icons_path / "user.svg", 30)
             self.account_avatar.setIcon(icon)
             self.account_avatar.setIconSize(QSize(30, 30))
             
-            # Load async
+            # Load async with race condition check
             def avatar_callback(uid: str, pixmap: QPixmap):
-                if uid == user_id:
+                # Only emit signal if this is still the current user being viewed
+                if uid == self.current_loading_user_id:
                     self._avatar_loaded.emit(uid, pixmap)
             
             self.cache.load_avatar_async(user_id, avatar_callback, timeout=3)
     
     @pyqtSlot(str, QPixmap)
     def _set_avatar(self, user_id: str, pixmap: QPixmap):
-        """Set avatar from cache"""
+        """Set avatar from cache - only if still viewing this user"""
+        # Double check we're still on the same user
+        if user_id != self.current_loading_user_id:
+            return
+        
         if pixmap and not pixmap.isNull():
             rounded = make_rounded_pixmap(pixmap, 48, radius=8)
             self.account_avatar.setIcon(QIcon(rounded))

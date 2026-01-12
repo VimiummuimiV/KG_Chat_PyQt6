@@ -66,8 +66,9 @@
       "element_spacing": 10
     },
     "input_height": 48,
-    "emoticon_selector_visible": false,
+    "emoticon_selector_visible": true,
     "recent_emoticons": [
+      "boystroking",
       "serenade",
       "snowgirlwave",
       "snowhand",
