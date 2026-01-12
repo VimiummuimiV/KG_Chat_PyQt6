@@ -140,7 +140,7 @@ class UserListWidget(QWidget):
         section_label = get_font(FontType.TEXT, weight=QFont.Weight.Bold)
 
         # Chat section
-        self.chat_label = QLabel("🗯️ Chat")
+        self.chat_label = QLabel("Chat")
         self.chat_label.setFont(section_label)
         self.chat_label.setStyleSheet("color: #888;")
         self.chat_label.setVisible(False)
@@ -156,7 +156,7 @@ class UserListWidget(QWidget):
         self.main_layout.addWidget(self.section_spacer)
 
         # Game section
-        self.game_label = QLabel("🏁 Game")
+        self.game_label = QLabel("Game")
         self.game_label.setFont(section_label)
         self.game_label.setStyleSheet("color: #888;")
         self.game_label.setVisible(False)

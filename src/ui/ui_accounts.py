@@ -12,6 +12,7 @@ from helpers.create import create_icon_button, set_theme, _render_svg_icon
 from helpers.load import make_rounded_pixmap
 from helpers.cache import get_cache
 from helpers.config import Config
+from helpers.fonts import get_font, FontType
 from core.accounts import AccountManager
 from themes.theme import ThemeManager
 
@@ -49,15 +50,14 @@ class AccountWindow(QWidget):
         # Window setup
         self.setWindowTitle("Account Manager")
         self.setFixedWidth(620)
-        self.setMinimumHeight(120)
-        self.setMaximumHeight(120)
+        self.setMinimumHeight(125)
+        self.setMaximumHeight(125)
         
         # Set initial theme state for icons
         set_theme(self.theme_manager.is_dark())
         
-        # Font
-        app_font = QFont("Montserrat", 12)
-        self.setFont(app_font)
+        # Set font
+        self.setFont(get_font(FontType.UI))
         
         # Main layout
         main_layout = QVBoxLayout()
@@ -92,7 +92,7 @@ class AccountWindow(QWidget):
         
         # ===== CONNECT SECTION =====
         connect_label = QLabel("🔓 Connect")
-        connect_label.setFont(QFont("Montserrat", 14, QFont.Weight.Bold))
+        connect_label.setFont(get_font(FontType.HEADER))
         layout.addWidget(connect_label)
         
         # Connect row: Avatar + Dropdown + Color Picker + Connect + Remove + Add User
@@ -108,7 +108,7 @@ class AccountWindow(QWidget):
         
         # Account dropdown
         self.account_dropdown = QComboBox()
-        self.account_dropdown.setFont(QFont("Montserrat", 12))
+        self.account_dropdown.setFont(get_font(FontType.UI))
         self.account_dropdown.setMinimumHeight(48)
         self.account_dropdown.setMaximumHeight(48)
         self.account_dropdown.currentIndexChanged.connect(self.update_avatar)
@@ -156,7 +156,7 @@ class AccountWindow(QWidget):
         
         # ===== CREATE SECTION =====
         create_label = QLabel("➕ Create")
-        create_label.setFont(QFont("Montserrat", 14, QFont.Weight.Bold))
+        create_label.setFont(get_font(FontType.HEADER))
         layout.addWidget(create_label)
         
         # Create row: Go Back + Username + Password + Save
@@ -175,7 +175,7 @@ class AccountWindow(QWidget):
         self.username_input.setPlaceholderText("Username")
         self.username_input.setMinimumHeight(48)
         self.username_input.setMaximumHeight(48)
-        self.username_input.setFont(QFont("Montserrat", 12))
+        self.username_input.setFont(get_font(FontType.UI))
         create_row.addWidget(self.username_input, stretch=1)
         
         # Password field
@@ -184,7 +184,7 @@ class AccountWindow(QWidget):
         self.password_input.setEchoMode(QLineEdit.EchoMode.Password)
         self.password_input.setMinimumHeight(48)
         self.password_input.setMaximumHeight(48)
-        self.password_input.setFont(QFont("Montserrat", 12))
+        self.password_input.setFont(get_font(FontType.UI))
         create_row.addWidget(self.password_input, stretch=1)
         
         # Create/Save button
