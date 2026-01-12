@@ -69,7 +69,7 @@
       "element_spacing": 10
     },
     "input_height": 48,
-    "emoticon_selector_visible": true,
+    "emoticon_selector_visible": false,
     "recent_emoticons": [
       "moose",
       "confuse",

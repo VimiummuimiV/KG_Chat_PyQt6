@@ -461,10 +461,10 @@ class EmoticonSelectorWidget(QWidget):
         """Update theme colors"""
         theme = self.config.get("ui", "theme")
         self.is_dark_theme = (theme == "dark")
-       
+    
         # Update emoticon manager theme
         self.emoticon_manager.set_theme(self.is_dark_theme)
-       
+    
         # Update colors
         if self.is_dark_theme:
             bg_color = "#1b1b1b"
@@ -474,7 +474,7 @@ class EmoticonSelectorWidget(QWidget):
             bg_color = "#EEEEEE"
             border_color = "#CCCCCC"
             content_bg = "#EEEEEE"
-       
+    
         self.setStyleSheet(f"""
             EmoticonSelectorWidget {{
                 background: {bg_color};
@@ -482,7 +482,7 @@ class EmoticonSelectorWidget(QWidget):
                 border-radius: 10px;
             }}
         """)
-       
+    
         if hasattr(self, 'nav_container'):
             self.nav_container.setStyleSheet(f"""
                 QWidget {{
@@ -502,18 +502,18 @@ class EmoticonSelectorWidget(QWidget):
                     border-bottom-right-radius: 10px;
                 }}
             """)
-       
+    
         # Update nav buttons
         current_idx = self.stacked_content.currentIndex()
         for key, btn in self.nav_buttons.items():
             is_active = (self.group_indices.get(key) == current_idx)
-           
+        
             accent = "#e28743" if self.is_dark_theme else "#154c79"
             active_bg = "#303134" if self.is_dark_theme else "#E0E0E0"
             inactive_bg = "#1b1b1b" if self.is_dark_theme else "#EEEEEE"
             hover_bg = "#3A3B3F" if self.is_dark_theme else "#D0D0D0"
             hover_border = "#555" if self.is_dark_theme else "#999"
-           
+        
             style = f"""
                 QPushButton {{
                     background: {active_bg if is_active else inactive_bg};
@@ -527,27 +527,33 @@ class EmoticonSelectorWidget(QWidget):
                 }}
             """
             btn.setStyleSheet(style)
-       
+    
         # Rebuild groups with new theme emoticons
-        for widget in self.group_widgets:
-            widget.cleanup()
+        for btn in self.group_widgets:
+            btn.cleanup()
         self.group_widgets.clear()
-       
+    
+        # Collect widgets to remove first
+        widgets_to_remove = []
         for key, idx in list(self.group_indices.items()):
             if key != 'recent':
                 widget = self.stacked_content.widget(idx)
                 if widget:
-                    self.stacked_content.removeWidget(widget)
-                    widget.deleteLater()
-       
+                    widgets_to_remove.append(widget)
+    
+        # Now safely remove them
+        for widget in widgets_to_remove:
+            self.stacked_content.removeWidget(widget)
+            widget.deleteLater()
+    
         # Clear group indices except recent
         recent_idx = self.group_indices.get('recent')
         self.group_indices = {'recent': recent_idx} if recent_idx is not None else {}
-       
+    
         # Recreate groups
         self._create_group_contents()
         self._populate_recent_emoticons()
-       
+    
         # Switch to recent
         if 'recent' in self.group_indices:
             self._switch_to_group('recent')
