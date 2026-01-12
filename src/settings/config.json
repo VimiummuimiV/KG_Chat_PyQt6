@@ -28,7 +28,7 @@
     "messages_userlist_visible": true,
     "chatlog_userlist_visible": true,
     "chatlog_search_visible": false,
-    "theme": "light",
+    "theme": "dark",
     "notification_width": 500,
     "notification_position": "right",
     "emoticon_max_size": 140,
