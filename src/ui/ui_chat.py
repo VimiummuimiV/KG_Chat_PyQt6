@@ -112,7 +112,9 @@ class ChatWindow(QWidget):
     def _init_ui(self):
         window_title = f"Chat - {self.account['login']}" if self.account else "Chat"
         self.setWindowTitle(window_title)
-        self.resize(1500, 800)
+        geo = QApplication.primaryScreen().availableGeometry()
+        self.resize(1500, geo.height() - 32)
+        self.move(geo.x() + (geo.width() - 1500) // 2, geo.y())
         self.setMinimumSize(400, 400)
 
         # Use config for margins and spacing
