@@ -22,7 +22,7 @@
   "ui": {
     "font_size": 16,
     "font_family": "Montserrat",
-    "messages_userlist_visible": false,
+    "messages_userlist_visible": true,
     "chatlog_userlist_visible": true,
     "chatlog_search_visible": false,
     "theme": "dark",
@@ -66,7 +66,7 @@
       "element_spacing": 10
     },
     "input_height": 48,
-    "emoticon_selector_visible": true,
+    "emoticon_selector_visible": false,
     "recent_emoticons": [
       "boystroking",
       "serenade",

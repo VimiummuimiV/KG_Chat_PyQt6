@@ -259,7 +259,11 @@ class AccountWindow(QWidget):
     
     def update_avatar(self):
         """Update avatar for currently selected account"""
+        # First, set the selected account as active
         account = self.account_dropdown.currentData()
+        if account and account.get('login'):
+            self.account_manager.switch_account(account['login'])
+        
         if not account or not account.get('user_id'):
             # Reset to default user icon
             self.current_loading_user_id = None
