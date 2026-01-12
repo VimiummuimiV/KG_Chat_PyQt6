@@ -7,11 +7,12 @@ import threading
 
 from PyQt6.QtWidgets import QStyledItemDelegate, QStyleOptionViewItem, QApplication
 from PyQt6.QtCore import Qt, QSize, QRect, QModelIndex, pyqtSignal, QTimer, QEvent
-from PyQt6.QtGui import QPainter, QFontMetrics, QFont, QColor, QPixmap, QMovie, QCursor
+from PyQt6.QtGui import QPainter, QFontMetrics, QColor, QPixmap, QMovie, QCursor
 
 from helpers.color_contrast import optimize_color_contrast
 from helpers.emoticons import EmoticonManager
 from helpers.color_utils import get_private_message_colors
+from helpers.fonts import get_font, FontType
 from core.youtube import is_youtube_url, get_cached_info, fetch_async
 
 
@@ -40,11 +41,9 @@ class MessageDelegate(QStyledItemDelegate):
        
         # Load private message colors from config
         self.private_colors = get_private_message_colors(config, self.is_dark_theme)
-       
-        font_family = config.get("ui", "font_family") or "Montserrat"
-        font_size = config.get("ui", "font_size") or 16
-        self.body_font = QFont(font_family, font_size)
-        self.timestamp_font = QFont(font_family, max(8, font_size - 2))
+
+        self.body_font = get_font(FontType.TEXT)
+        self.timestamp_font = get_font(FontType.TEXT)
        
         self.compact_mode = False
         self.padding = config.get("ui", "message", "padding") or 2

@@ -1,6 +1,6 @@
 from PyQt6.QtWidgets import QWidget, QLabel, QVBoxLayout, QHBoxLayout, QLineEdit
 from PyQt6.QtCore import Qt, QTimer, QPropertyAnimation
-from PyQt6.QtGui import QCursor, QPainter, QPainterPath, QFont
+from PyQt6.QtGui import QCursor, QPainter, QPainterPath
 from typing import List, Callable, Optional, Any
 from pathlib import Path
 from datetime import datetime
@@ -9,6 +9,7 @@ import threading
 
 from helpers.create import create_icon_button
 from helpers.color_utils import get_private_message_colors
+from helpers.fonts import get_font, FontType
 
 
 @dataclass
@@ -50,9 +51,6 @@ class PopupNotification(QWidget):
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setMouseTracking(True)
        
-        # Get font settings
-        font_family = data.config.get("ui", "font_family") if data.config else "Montserrat"
-        font_size = data.config.get("ui", "font_size") if data.config else 12
        
         # Get spacing/margin from config
         margin = data.config.get("ui", "margins", "notification") if data.config else 8
@@ -90,14 +88,14 @@ class PopupNotification(QWidget):
         
         self.username_label = QLabel(f"<b>{data.title}</b>")
         self.username_label.setStyleSheet(f"color: {username_color};")
-        self.username_label.setFont(QFont(font_family, font_size))
+        self.username_label.setFont(get_font(FontType.TEXT))
         self.username_label.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         message_layout.addWidget(self.username_label)
        
         # Message label
         self.message_label = QLabel(data.message)
         self.message_label.setWordWrap(True)
-        self.message_label.setFont(QFont(font_family, font_size))
+        self.message_label.setFont(get_font(FontType.TEXT))
         self.message_label.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
        
         # Only set color for private messages
@@ -142,7 +140,7 @@ class PopupNotification(QWidget):
         send_button_size = data.config.get("ui", "buttons", "large_button", "button_size") if data.config else 48
        
         self.reply_field = QLineEdit()
-        self.reply_field.setFont(QFont(font_family, font_size))
+        self.reply_field.setFont(get_font(FontType.TEXT))
         self.reply_field.setFixedHeight(send_button_size)
         self.reply_field.returnPressed.connect(self._on_send_reply)
         reply_layout.addWidget(self.reply_field, stretch=1)

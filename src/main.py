@@ -14,6 +14,7 @@ else:
 
 from ui.ui_accounts import AccountWindow
 from ui.ui_chat import ChatWindow
+from helpers.fonts import load_fonts, set_application_font
 
 
 class Application:
@@ -30,7 +31,8 @@ class Application:
             )
             sys.exit(0)
         
-        self.app.setFont(QFont("Montserrat", 12))
+        load_fonts()
+        set_application_font(self.app)
         
         # Set global application icon
         self.icons_path = Path(__file__).parent / "icons"

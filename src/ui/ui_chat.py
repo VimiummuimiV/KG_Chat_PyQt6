@@ -5,7 +5,6 @@ from pathlib import Path
 from datetime import datetime
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QApplication, QStackedWidget
 from PyQt6.QtCore import Qt, pyqtSignal, QObject, QTimer, QEvent
-from PyQt6.QtGui import QFont
 
 from playsound3 import playsound
 
@@ -13,6 +12,9 @@ from helpers.config import Config
 from helpers.create import create_icon_button, update_all_icons, set_theme, HoverIconButton
 from helpers.resize import handle_chat_resize, recalculate_layout
 from helpers.color_utils import get_private_message_colors
+from helpers.scroll import scroll
+from helpers.cache import get_cache
+from helpers.fonts import get_font, FontType
 from themes.theme import ThemeManager
 from core.xmpp import XMPPClient
 from core.messages import Message
@@ -23,8 +25,6 @@ from ui.ui_chatlog_userlist import ChatlogUserlistWidget
 from ui.ui_profile import ProfileWidget
 from ui.ui_emoticon_selector import EmoticonSelectorWidget
 from components.notification import show_notification
-from helpers.scroll import scroll
-from helpers.cache import get_cache
 
 
 class SignalEmitter(QObject):
@@ -163,7 +163,7 @@ class ChatWindow(QWidget):
         input_main_layout.addLayout(self.input_bottom_layout)
        
         self.input_field = QLineEdit()
-        self.input_field.setFont(QFont(self.config.get("ui", "font_family"), self.config.get("ui", "font_size")))
+        self.input_field.setFont(get_font(FontType.TEXT))
         self.input_field.setFixedHeight(48)
         self.input_field.returnPressed.connect(self.send_message)
         self.input_top_layout.addWidget(self.input_field, stretch=1)

@@ -4,10 +4,13 @@ from PyQt6.QtWidgets import (
     QScrollArea, QApplication
 )
 from PyQt6.QtCore import Qt, QSize, pyqtSignal
-from PyQt6.QtGui import QFont, QCursor, QPixmap
+from PyQt6.QtGui import QCursor, QPixmap, QFont
+
+
 from helpers.load import make_rounded_pixmap
 from helpers.create import _render_svg_icon
 from helpers.cache import get_cache
+from helpers.fonts import get_font, FontType
 from core.userlist import ChatUser
 
 
@@ -56,14 +59,14 @@ class UserWidget(QWidget):
         
         self.username_label = QLabel(user.login)
         self.username_label.setStyleSheet(f"color: {text_color};")
-        self.username_label.setFont(QFont(config.get("ui", "font_family"), config.get("ui", "font_size")))
+        self.username_label.setFont(get_font(FontType.TEXT))
         layout.addWidget(self.username_label, stretch=1)
         
         # Counter
         self.counter_label = None
         if counter and counter > 0:
             self.counter_label = QLabel(f"{counter}")
-            self.counter_label.setFont(QFont(config.get("ui", "font_family"), config.get("ui", "font_size")))
+            self.counter_label.setFont(get_font(FontType.TEXT))
             self.counter_label.setStyleSheet(f"color: {text_color};")
             layout.addWidget(self.counter_label)
     
@@ -134,28 +137,27 @@ class UserListWidget(QWidget):
         container.setLayout(self.main_layout)
         scroll.setWidget(container)
         
-        header_font = QFont(config.get("ui", "font_family"), config.get("ui", "font_size"))
-        header_font.setBold(True)
-        
+        section_label = get_font(FontType.TEXT, weight=QFont.Weight.Bold)
+
         # Chat section
         self.chat_label = QLabel("🗯️ Chat")
-        self.chat_label.setFont(header_font)
+        self.chat_label.setFont(section_label)
         self.chat_label.setStyleSheet("color: #888;")
         self.chat_label.setVisible(False)
         self.main_layout.addWidget(self.chat_label)
-        
+
         self.chat_container = QVBoxLayout()
         self.chat_container.setSpacing(list_spacing)
         self.main_layout.addLayout(self.chat_container)
-        
+
         self.section_spacer = QWidget()
         self.section_spacer.setFixedHeight(section_gap)
         self.section_spacer.setVisible(False)
         self.main_layout.addWidget(self.section_spacer)
-        
+
         # Game section
         self.game_label = QLabel("🏁 Game")
-        self.game_label.setFont(header_font)
+        self.game_label.setFont(section_label)
         self.game_label.setStyleSheet("color: #888;")
         self.game_label.setVisible(False)
         self.main_layout.addWidget(self.game_label)
