@@ -44,6 +44,45 @@ class FontManager:
                     'get': lambda self, *args: args[-1] if args else None
                 })()
     
+    def _load_font_family(self, family_name: str) -> bool:
+        """
+        Load a font family by name from fonts directory
+        
+        Args:
+            family_name: Name of font family (e.g., "Roboto", "Montserrat")
+            
+        Returns:
+            True if at least one font file was loaded
+        """
+        family_dir = self.fonts_dir / family_name
+        if not family_dir.exists():
+            return False
+        
+        # Try variable fonts first
+        variable_fonts = list(family_dir.glob("*-VariableFont*.ttf"))
+        
+        # Try static fonts
+        static_dir = family_dir / "static"
+        static_fonts = []
+        if static_dir.exists():
+            static_fonts = [
+                static_dir / f"{family_name}-Regular.ttf",
+                static_dir / f"{family_name}-Medium.ttf",
+                static_dir / f"{family_name}-Bold.ttf",
+            ]
+        
+        # Combine all font files
+        font_files = variable_fonts + static_fonts
+        
+        loaded_any = False
+        for font_file in font_files:
+            if font_file.exists():
+                font_id = QFontDatabase.addApplicationFont(str(font_file))
+                if font_id != -1:
+                    loaded_any = True
+        
+        return loaded_any
+    
     def load_fonts(self):
         """Load custom fonts from fonts directory"""
         if self.loaded:
@@ -51,7 +90,7 @@ class FontManager:
         
         self._load_config()
         
-        text_family = self.config.get("ui", "text_font_family") or "Montserrat"
+        text_family = self.config.get("ui", "text_font_family") or "Roboto"
         emoji_family = self.config.get("ui", "emoji_font_family") or "Noto Color Emoji"
         
         if not self.fonts_dir.exists():
@@ -59,30 +98,20 @@ class FontManager:
             self.loaded = True
             return False
         
-        # Load Montserrat variants
-        montserrat_files = [
-            self.fonts_dir / "Montserrat" / "Montserrat-VariableFont_wght.ttf",
-            self.fonts_dir / "Montserrat" / "static" / "Montserrat-Regular.ttf",
-            self.fonts_dir / "Montserrat" / "static" / "Montserrat-Medium.ttf",
-            self.fonts_dir / "Montserrat" / "static" / "Montserrat-Bold.ttf",
-        ]
-        
-        loaded_any = False
-        for font_file in montserrat_files:
-            if font_file.exists():
-                font_id = QFontDatabase.addApplicationFont(str(font_file))
-                if font_id != -1:
-                    loaded_any = True
-        
-        if loaded_any:
+        # Load text font family
+        if self._load_font_family(text_family):
             print(f"✅ Loaded text font: {text_family}")
+        else:
+            print(f"⚠️ Could not load text font: {text_family}")
         
-        # Load Noto Color Emoji
+        # Load Noto Color Emoji (special handling for emoji)
         emoji_file = self.fonts_dir / "Noto_Color_Emoji" / "NotoColorEmoji-Regular.ttf"
         if emoji_file.exists():
             font_id = QFontDatabase.addApplicationFont(str(emoji_file))
             if font_id != -1:
                 print(f"✅ Loaded emoji font: {emoji_family}")
+        else:
+            print(f"⚠️ Could not load emoji font: {emoji_family}")
         
         self.loaded = True
         return True
@@ -106,7 +135,7 @@ class FontManager:
         if not self.loaded:
             self._load_config()
         
-        text_family = self.config.get("ui", "text_font_family") or "Montserrat"
+        text_family = self.config.get("ui", "text_font_family") or "Roboto"
         emoji_family = self.config.get("ui", "emoji_font_family") or "Noto Color Emoji"
         
         # Get size from config based on type if not provided
@@ -136,7 +165,7 @@ class FontManager:
         default_font = self.get_font(FontType.UI)
         app.setFont(default_font)
         
-        text_family = self.config.get("ui", "text_font_family") or "Montserrat"
+        text_family = self.config.get("ui", "text_font_family") or "Roboto"
         emoji_family = self.config.get("ui", "emoji_font_family") or "Noto Color Emoji"
         ui_font_size = self.config.get("ui", "ui_font_size") or 12
         
