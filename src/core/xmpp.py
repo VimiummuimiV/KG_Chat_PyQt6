@@ -218,9 +218,10 @@ class XMPPClient:
         if self.connected_account.get('avatar'):
             ET.SubElement(user, 'avatar').text = self.connected_account['avatar']
         
-        # Add background if available
-        if self.connected_account.get('background'):
-            ET.SubElement(user, 'background').text = self.connected_account['background']
+        # Use custom_background if set, otherwise use server background
+        effective_bg = self.connected_account.get('custom_background') or self.connected_account.get('background')
+        if effective_bg:
+            ET.SubElement(user, 'background').text = effective_bg
        
         try:
             response = self.send_request(self.build_body(children=[presence]), verbose=False, timeout=15)
@@ -276,9 +277,10 @@ class XMPPClient:
         if self.connected_account.get('avatar'):
             ET.SubElement(user, 'avatar').text = self.connected_account['avatar']
         
-        # Add background if available
-        if self.connected_account.get('background'):
-            ET.SubElement(user, 'background').text = self.connected_account['background']
+        # Use custom_background if set, otherwise use server background
+        effective_bg = self.connected_account.get('custom_background') or self.connected_account.get('background')
+        if effective_bg:
+            ET.SubElement(user, 'background').text = effective_bg
        
         try:
             payload = self.build_body(children=[message])

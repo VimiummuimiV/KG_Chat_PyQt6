@@ -282,21 +282,17 @@ class PopupNotification(QWidget):
                 # Import here to avoid circular imports
                 from core.messages import Message
                
-                # Get user background color from xmpp client's user list
-                own_user = None
-                for user in self.data.xmpp_client.user_list.get_all():
-                    if self.data.account.get('login') in user.jid or user.login == self.data.account.get('login'):
-                        own_user = user
-                        break
+                # Get effective background color (custom_background or server background)
+                effective_bg = self.data.account.get('custom_background') or self.data.account.get('background')
                
                 # Create local message object
                 own_msg = Message(
                     from_jid=self.data.xmpp_client.jid,
                     body=text,
                     msg_type='groupchat',
-                    login=self.data.account.get('login'),
-                    avatar=None,
-                    background=own_user.background if own_user else None,
+                    login=self.data.account.get('chat_username'),
+                    avatar=self.data.account.get('avatar'),
+                    background=effective_bg,
                     timestamp=datetime.now(),
                     initial=False
                 )
