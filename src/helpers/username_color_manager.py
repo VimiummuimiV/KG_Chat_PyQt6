@@ -50,9 +50,15 @@ def set_color(account_manager: AccountManager, chat_username: str, color: Option
             
         elif mode == 'update_server':
             # Use profile credentials for web authentication
-            new_data = authenticate(account['profile_username'], account['profile_password'])
+            profile_user = account.get('profile_username')
+            profile_pass = account.get('profile_password')
+            
+            if not profile_user or not profile_pass:
+                return False, "Profile credentials not found in account. Please re-add this account."
+            
+            new_data = authenticate(profile_user, profile_pass)
             if not new_data:
-                return False, "Authentication failed - invalid profile credentials"
+                return False, f"Authentication failed for user '{profile_user}'. Please verify your profile password is correct."
             
             new_bg = new_data.get('background', '#808080')
             new_avatar = new_data.get('avatar')
@@ -82,7 +88,6 @@ def set_color(account_manager: AccountManager, chat_username: str, color: Option
         return updated, msg if updated else "No changes made"
         
     except Exception as e:
-        print(f"❌ Error in set_color({mode}): {e}")
         return False, f"Operation failed: {str(e)}"
 
 

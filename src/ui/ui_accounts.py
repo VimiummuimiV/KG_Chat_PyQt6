@@ -426,7 +426,7 @@ class AccountWindow(QWidget):
         reply = QMessageBox.question(
             self,
             "Confirm Removal",
-            f"Are you sure you want to remove account '{account['login']}'?",
+            f"Are you sure you want to remove account '{account['chat_username']}'?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
         )
 
@@ -467,8 +467,8 @@ class AccountWindow(QWidget):
 
         # Add account with extracted data
         success = self.account_manager.add_account(
-            profile_username=user_data['login'],
-            profile_password=user_data['pass'],
+            profile_username=username,
+            profile_password=password,
             user_id=str(user_data['id']),
             chat_username=user_data['login'],
             chat_password=user_data['pass'],
