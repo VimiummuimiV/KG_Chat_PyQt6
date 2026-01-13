@@ -110,7 +110,7 @@ class ChatWindow(QWidget):
         self.mention_sound_path = str(sound_path) if sound_path.exists() else None
   
     def _init_ui(self):
-        window_title = f"Chat - {self.account['login']}" if self.account else "Chat"
+        window_title = f"Chat - {self.account['chat_username']}" if self.account else "Chat"
         self.setWindowTitle(window_title)
         geo = QApplication.primaryScreen().availableGeometry()
         
@@ -497,7 +497,7 @@ class ChatWindow(QWidget):
         self.input_field.setFocus()
       
         # Update window title
-        base = f"Chat - {self.account['login']}" if self.account else "Chat"
+        base = f"Chat - {self.account['chat_username']}" if self.account else "Chat"
         status = self.windowTitle().split(' - ')[-1] if ' - ' in self.windowTitle() else ""
         if status in ['Online', 'Offline', 'Connecting']:
             self.setWindowTitle(f"{base} - Private with {username} - {status}")
@@ -748,7 +748,7 @@ class ChatWindow(QWidget):
   
     def on_message(self, msg):
         # Skip own messages (server echoes groupchat messages back)
-        if msg.login == self.account.get('login') and not getattr(msg, 'initial', False):
+        if msg.login == self.account.get('chat_username') and not getattr(msg, 'initial', False):
             return
       
         # Mark private messages
@@ -785,7 +785,7 @@ class ChatWindow(QWidget):
     def _message_mentions_me(self, msg):
         if not self.account or not msg.body:
             return False
-        my_username = self.account.get('login', '').lower()
+        my_username = self.account.get('chat_username', '').lower()
         if not my_username:
             return False
         pattern = r'\b' + re.escape(my_username) + r'\b'
@@ -840,7 +840,7 @@ class ChatWindow(QWidget):
         # Get own user data
         own_user = None
         for user in self.xmpp_client.user_list.get_all():
-            if self.account.get('login') in user.jid or user.login == self.account.get('login'):
+            if self.account.get('chat_username') in user.jid or user.login == self.account.get('chat_username'):
                 own_user = user
                 break
       
@@ -854,7 +854,7 @@ class ChatWindow(QWidget):
                 from_jid=self.xmpp_client.jid,
                 body=chunk,
                 msg_type=msg_type,
-                login=self.account.get('login'),
+                login=self.account.get('chat_username'),
                 avatar=None,
                 background=own_user.background if own_user else None,
                 timestamp=datetime.now(),
@@ -914,7 +914,7 @@ class ChatWindow(QWidget):
     def set_connection_status(self, status: str):
         status = (status or '').lower()
         text = {'connecting': 'Connecting', 'online': 'Online'}.get(status, 'Offline')
-        base = f"Chat - {self.account['login']}" if self.account else "Chat"
+        base = f"Chat - {self.account['chat_username']}" if self.account else "Chat"
       
         # Preserve private mode in title
         if self.private_mode and self.private_chat_username:

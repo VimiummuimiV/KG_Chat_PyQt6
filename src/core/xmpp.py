@@ -108,7 +108,7 @@ class XMPPClient:
         if account is None:
             account = self.account_manager.get_active_account()
         elif isinstance(account, str):
-            account = self.account_manager.get_account_by_login(account)
+            account = self.account_manager.get_account_by_chat_username(account)
        
         if not account:
             print("❌ No account")
@@ -116,11 +116,11 @@ class XMPPClient:
        
         self.connected_account = account
        
-        print(f"🔑 Connecting: {account['login']}")
+        print(f"🔑 Connecting: {account['chat_username']}")
        
         user_id = account['user_id']
-        login = account['login']
-        password = account['password']
+        chat_username = account['chat_username']
+        chat_password = account['chat_password']
        
         try:
             # Initialize session
@@ -135,8 +135,8 @@ class XMPPClient:
            
             # Auth
             self.rid += 1
-            authcid = f'{user_id}#{login}'
-            auth_str = f'\0{authcid}\0{password}'
+            authcid = f'{user_id}#{chat_username}'
+            auth_str = f'\0{authcid}\0{chat_password}'
             auth_b64 = base64.b64encode(auth_str.encode('utf-8')).decode('ascii')
            
             auth_elem = ET.Element('auth', {
@@ -200,7 +200,7 @@ class XMPPClient:
             return
        
         if nickname is None:
-            nickname = f"{self.connected_account['user_id']}#{self.connected_account['login']}"
+            nickname = f"{self.connected_account['user_id']}#{self.connected_account['chat_username']}"
        
         self.rid += 1
         presence = ET.Element('presence', {
@@ -212,7 +212,7 @@ class XMPPClient:
         # Add user data with avatar and background
         x_data = ET.SubElement(presence, 'x', {'xmlns': 'klavogonki:userdata'})
         user = ET.SubElement(x_data, 'user')
-        ET.SubElement(user, 'login').text = self.connected_account['login']
+        ET.SubElement(user, 'login').text = self.connected_account['chat_username']
         
         # Add avatar if available
         if self.connected_account.get('avatar'):
@@ -270,7 +270,7 @@ class XMPPClient:
         # Add userdata
         x_data = ET.SubElement(message, 'x', {'xmlns': 'klavogonki:userdata'})
         user = ET.SubElement(x_data, 'user')
-        ET.SubElement(user, 'login').text = self.connected_account['login']
+        ET.SubElement(user, 'login').text = self.connected_account['chat_username']
        
         # Add avatar if available
         if self.connected_account.get('avatar'):

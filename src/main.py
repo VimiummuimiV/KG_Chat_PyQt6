@@ -1,7 +1,7 @@
 import sys
 from pathlib import Path
 from PyQt6.QtWidgets import QApplication, QSystemTrayIcon, QMenu, QMessageBox
-from PyQt6.QtGui import QFont, QIcon, QAction, QPixmap, QPainter
+from PyQt6.QtGui import QFont, QIcon, QAction, QPixmap, QPainter, QColor
 from PyQt6.QtCore import Qt, QLockFile, QDir
 from PyQt6.QtSvg import QSvgRenderer
 
@@ -15,12 +15,18 @@ else:
 from ui.ui_accounts import AccountWindow
 from ui.ui_chat import ChatWindow
 from helpers.fonts import load_fonts, set_application_font
+from helpers.username_color_manager import(
+    change_username_color,
+    reset_username_color,
+    update_from_server
+)
+from core.accounts import AccountManager
 
 
 class Application:
     def __init__(self):
         self.app = QApplication(sys.argv)
-        
+
         # Single instance lock
         self.lock_file = QLockFile(QDir.tempPath() + "/xmpp_chat.lock")
         if not self.lock_file.tryLock(100):
@@ -30,60 +36,92 @@ class Application:
                 "KG Chat is already running.\nCheck your system tray."
             )
             sys.exit(0)
-        
+
         load_fonts()
         set_application_font(self.app)
-        
+
         # Set global application icon
         self.icons_path = Path(__file__).parent / "icons"
         self.app.setWindowIcon(self._get_icon())
-        
+
+        # Initialize account manager
+        self.config_path = Path(__file__).parent / "settings" / "config.json"
+        self.account_manager = AccountManager(str(self.config_path))
+
         self.account_window = None
         self.chat_window = None
         self.tray_icon = None
+        self.color_menu = None
+        self.reset_color_action = None
         self.setup_system_tray()
-        
+
     def setup_system_tray(self):
         """Setup system tray icon and menu"""
         if not QSystemTrayIcon.isSystemTrayAvailable():
             print("⚠️ System tray not available")
             return
-        
+
         self.tray_icon = QSystemTrayIcon(self._get_icon(), self.app)
         self.tray_icon.setToolTip("KG Chat")
         self.tray_icon.activated.connect(lambda r: self.show_window() if r == QSystemTrayIcon.ActivationReason.DoubleClick else None)
-        
-        # Create menu
+
+        # Create the main menu
         menu = QMenu()
-        menu_items = [
-            ("Show", self.show_window),
-            ("Hide", self.hide_window),
-            (None, None),
-            ("Switch Account", self.show_account_switcher),
-            (None, None),
-            ("Exit", self.exit_application)
-        ]
-        for label, handler in menu_items:
-            if label:
-                action = QAction(label, self.app)
-                action.triggered.connect(handler)
-                menu.addAction(action)
-            else:
-                menu.addSeparator()
         
+        # Add regular menu items
+        menu.addAction(QAction("Show", self.app, triggered=self.show_window))
+        menu.addAction(QAction("Hide", self.app, triggered=self.hide_window))
+        menu.addSeparator()
+        menu.addAction(QAction("Switch Account", self.app, triggered=self.show_account_switcher))
+        menu.addSeparator()
+        
+        # Create Color Management submenu
+        self.color_menu = menu.addMenu("Color Management")
+        
+        # Create actions for the submenu
+        change_color_action = QAction("Change Username Color", self.app)
+        change_color_action.triggered.connect(self.handle_change_username_color)
+        self.color_menu.addAction(change_color_action)
+        
+        # Reset action - will be shown/hidden dynamically
+        self.reset_color_action = QAction("Reset to Original", self.app)
+        self.reset_color_action.triggered.connect(self.handle_reset_username_color)
+        self.color_menu.addAction(self.reset_color_action)
+        
+        update_color_action = QAction("Update from Server", self.app)
+        update_color_action.triggered.connect(self.handle_update_from_server)
+        self.color_menu.addAction(update_color_action)
+        
+        # Connect to aboutToShow to update menu visibility
+        self.color_menu.aboutToShow.connect(self.update_color_menu)
+        
+        menu.addSeparator()
+        menu.addAction(QAction("Exit", self.app, triggered=self.exit_application))
+
         self.tray_icon.setContextMenu(menu)
         self.tray_icon.show()
-    
+
+    def update_color_menu(self):
+        """Update the color menu to show/hide Reset option based on custom_background"""
+        if not self.chat_window or not self.chat_window.account:
+            # No account connected - hide reset option
+            self.reset_color_action.setVisible(False)
+            return
+        
+        # Show reset only if custom_background exists
+        has_custom_bg = bool(self.chat_window.account.get('custom_background'))
+        self.reset_color_action.setVisible(has_custom_bg)
+
     def _get_icon(self):
         """Get orange chat icon for windows and tray"""
         icon_file = self.icons_path / "chat.svg"
         if not icon_file.exists():
             return self.app.style().standardIcon(self.app.style().StandardPixmap.SP_ComputerIcon)
-        
+
         # Render SVG with orange color
         with open(icon_file, 'r') as f:
             svg = f.read().replace('fill="currentColor"', 'fill="#e28743"')
-        
+
         renderer = QSvgRenderer()
         renderer.load(svg.encode('utf-8'))
         pixmap = QPixmap(256, 256)
@@ -91,9 +129,9 @@ class Application:
         painter = QPainter(pixmap)
         renderer.render(painter)
         painter.end()
-        
+
         return QIcon(pixmap)
-    
+
     def show_window(self):
         """Show the active window"""
         window = self.chat_window if self.chat_window and not self.chat_window.isVisible() else self.account_window
@@ -101,14 +139,14 @@ class Application:
             window.show()
             window.activateWindow()
             window.raise_()
-    
+
     def hide_window(self):
         """Hide the active window"""
         for window in [self.chat_window, self.account_window]:
             if window and window.isVisible():
                 window.hide()
                 break
-    
+
     def show_account_switcher(self):
         """Show account switcher window"""
         # Close chat window if open
@@ -116,7 +154,7 @@ class Application:
             try:
                 # Disable auto-reconnect before closing
                 self.chat_window.disable_reconnect()
-                
+
                 if self.chat_window.xmpp_client:
                     self.chat_window.xmpp_client.disconnect()
             except Exception:
@@ -124,10 +162,10 @@ class Application:
             self.chat_window.close()
             self.chat_window.deleteLater()
             self.chat_window = None
-        
+
         # Show account window
         self.show_account_window()
-    
+
     def exit_application(self):
         """Exit the application completely"""
         if self.chat_window and self.chat_window.xmpp_client:
@@ -137,36 +175,99 @@ class Application:
                 pass
         if self.tray_icon:
             self.tray_icon.hide()
-        
+
         # Release lock file
         if hasattr(self, 'lock_file'):
             self.lock_file.unlock()
-        
+
         self.app.quit()
-        
+
     def run(self):
         """Run the application - start with account window"""
         self.show_account_window()
         return self.app.exec()
-    
+
     def show_account_window(self):
         """Show account selection window"""
         self.account_window = AccountWindow()
         self.account_window.account_connected.connect(self.on_account_connected)
         self.account_window.show()
-    
+
     def on_account_connected(self, account):
         """Close account window and open chat"""
         if self.account_window:
             self.account_window.close()
             self.account_window = None
         self.show_chat_window(account)
-    
+
     def show_chat_window(self, account):
         """Open chat window with tray support"""
         self.chat_window = ChatWindow(account=account, app_controller=self)
         self.chat_window.set_tray_mode(True)
         self.chat_window.show()
+
+    def handle_change_username_color(self):
+        """Handle Change Username Color from tray menu."""
+        if not self.chat_window or not self.chat_window.account:
+            QMessageBox.warning(None, "No Account", "Please connect to an account first.")
+            return
+        
+        success = change_username_color(
+            None,  # No parent for tray
+            self.account_manager,
+            self.chat_window.account,
+            self.chat_window.cache
+        )
+        
+        if success:
+            # Refresh account data to update custom_background state
+            updated_account = self.account_manager.get_account_by_chat_username(
+                self.chat_window.account['chat_username']
+            )
+            if updated_account:
+                self.chat_window.account.update(updated_account)
+
+    def handle_reset_username_color(self):
+        """Handle Reset to Original from tray menu."""
+        if not self.chat_window or not self.chat_window.account:
+            QMessageBox.warning(None, "No Account", "Please connect to an account first.")
+            return
+        
+        success = reset_username_color(
+            None,  # No parent for tray
+            self.account_manager,
+            self.chat_window.account,
+            self.chat_window.cache
+        )
+        
+        if success:
+            # Refresh account data to update custom_background state
+            updated_account = self.account_manager.get_account_by_chat_username(
+                self.chat_window.account['chat_username']
+            )
+            if updated_account:
+                self.chat_window.account.update(updated_account)
+
+    def handle_update_from_server(self):
+        """Handle Update from Server from tray menu."""
+        if not self.chat_window or not self.chat_window.account:
+            QMessageBox.warning(None, "No Account", "Please connect to an account first.")
+            return
+        
+        success = update_from_server(
+            None,  # No parent for tray
+            self.account_manager,
+            self.chat_window.account,
+            self.chat_window.cache
+        )
+        
+        if success:
+            # Refresh account data to update avatar/background
+            updated_account = self.account_manager.get_account_by_chat_username(
+                self.chat_window.account['chat_username']
+            )
+            if updated_account:
+                self.chat_window.account.update(updated_account)
 
 
 def main():
