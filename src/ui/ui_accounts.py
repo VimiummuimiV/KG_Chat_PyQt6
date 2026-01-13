@@ -348,8 +348,8 @@ class AccountWindow(QWidget):
         """Update avatar for currently selected account"""
         # First, set the selected account as active
         account = self.account_dropdown.currentData()
-        if account and account.get('login'):
-            self.account_manager.switch_account(account['login'])
+        if account and account.get('chat_username'):
+            self.account_manager.switch_account(account['chat_username'])
 
         if not account or not account.get('user_id'):
             # Reset to default user icon
@@ -432,7 +432,7 @@ class AccountWindow(QWidget):
 
         if reply == QMessageBox.StandardButton.Yes:
             # Remove account
-            if self.account_manager.remove_account(account['login']):
+            if self.account_manager.remove_account(account['chat_username']):
                 QMessageBox.information(self, "Success", "Account removed successfully.")
                 self.load_accounts()
             else:
@@ -467,14 +467,14 @@ class AccountWindow(QWidget):
 
         # Add account with extracted data
         success = self.account_manager.add_account(
-            profile_username  = user_data['login'],
-            profile_password  = user_data['pass'],
-            user_id           = str(user_data['id']),
-            chat_username     = user_data['login'],
-            chat_password     = user_data['pass'],
-            avatar            = user_data.get('avatar'),
-            background        = user_data.get('background'),
-            set_active        = True
+            profile_username=user_data['login'],
+            profile_password=user_data['pass'],
+            user_id=str(user_data['id']),
+            chat_username=user_data['login'],
+            chat_password=user_data['pass'],
+            avatar=user_data.get('avatar'),
+            background=user_data.get('background'),
+            set_active=True
         )
 
         if success:
