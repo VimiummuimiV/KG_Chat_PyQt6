@@ -66,6 +66,12 @@ class XMPPClient:
     def set_presence_callback(self, callback: Callable):
         """Set presence callback"""
         self.presence_callback = callback
+
+    def _get_effective_background(self) -> Optional[str]:
+        """Get effective background: custom if exists, otherwise server background"""
+        if self.connected_account is None:
+            return None
+        return self.connected_account.get('custom_background') or self.connected_account.get('background')
    
     def build_body(self, children=None, **attrs):
         """Build BOSH body"""
@@ -218,10 +224,10 @@ class XMPPClient:
         if self.connected_account.get('avatar'):
             ET.SubElement(user, 'avatar').text = self.connected_account['avatar']
         
-        # Use custom_background if set, otherwise use server background
-        effective_bg = self.connected_account.get('custom_background') or self.connected_account.get('background')
-        if effective_bg:
-            ET.SubElement(user, 'background').text = effective_bg
+        # Use effective background (custom if exists, otherwise server)
+        bg = self._get_effective_background()
+        if bg:
+            ET.SubElement(user, 'background').text = bg
        
         try:
             response = self.send_request(self.build_body(children=[presence]), verbose=False, timeout=15)
@@ -277,10 +283,10 @@ class XMPPClient:
         if self.connected_account.get('avatar'):
             ET.SubElement(user, 'avatar').text = self.connected_account['avatar']
         
-        # Use custom_background if set, otherwise use server background
-        effective_bg = self.connected_account.get('custom_background') or self.connected_account.get('background')
-        if effective_bg:
-            ET.SubElement(user, 'background').text = effective_bg
+        # Use effective background (custom if exists, otherwise server)
+        bg = self._get_effective_background()
+        if bg:
+            ET.SubElement(user, 'background').text = bg
        
         try:
             payload = self.build_body(children=[message])
