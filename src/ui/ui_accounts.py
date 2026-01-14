@@ -181,7 +181,7 @@ class AccountWindow(QWidget):
 
         # Add user button
         self.add_user_button = create_icon_button(
-            self.icons_path, "add-user.svg", tooltip="Create new account"
+            self.icons_path, "add-user.svg", tooltip="Add account"
         )
         self.add_user_button.clicked.connect(self.show_create_page)
         actions_row.addWidget(self.add_user_button)
@@ -237,7 +237,7 @@ class AccountWindow(QWidget):
 
         # Create/Save button
         self.create_button = create_icon_button(
-            self.icons_path, "save.svg", tooltip="Create account"
+            self.icons_path, "save.svg", tooltip="Save account"
         )
         self.create_button.clicked.connect(self.on_create_account)
         actions_row.addWidget(self.create_button)
