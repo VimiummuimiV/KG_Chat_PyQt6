@@ -68,10 +68,7 @@ class Application:
         # Create the main menu
         menu = QMenu()
         
-        # Add regular menu items
-        menu.addAction(QAction("Show", self.app, triggered=self.show_window))
-        menu.addAction(QAction("Hide", self.app, triggered=self.hide_window))
-        menu.addSeparator()
+        # Add menu items
         menu.addAction(QAction("Switch Account", self.app, triggered=self.show_account_switcher))
         menu.addSeparator()
         
@@ -139,13 +136,6 @@ class Application:
             window.show()
             window.activateWindow()
             window.raise_()
-
-    def hide_window(self):
-        """Hide the active window"""
-        for window in [self.chat_window, self.account_window]:
-            if window and window.isVisible():
-                window.hide()
-                break
 
     def show_account_switcher(self):
         """Show account switcher window"""
