@@ -299,6 +299,16 @@ class XMPPClient:
     def _process_response(self, xml_text: str, is_initial_roster: bool = False):
         """Process response"""
         messages, presence_updates = MessageParser.parse(xml_text)
+        
+        # Override own background in received messages and presence
+        effective_bg = self._get_effective_background()
+        own_username = self.connected_account.get('chat_username') if self.connected_account else None
+        
+        if own_username and effective_bg:
+            for collection in (messages, presence_updates):
+                for item in collection:
+                    if item.login == own_username:
+                        item.background = effective_bg
        
         for msg in messages:
             try:

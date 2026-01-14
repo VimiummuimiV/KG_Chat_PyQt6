@@ -206,69 +206,78 @@ class Application:
         self.chat_window.set_tray_mode(True)
         self.chat_window.show()
 
-    def handle_change_username_color(self):
-        """Handle Change Username Color from tray menu."""
+    def _refresh_own_username_color(self, operation_func):
+        """Execute operation and refresh own username color in UI if successful."""
         if not self.chat_window or not self.chat_window.account:
             QMessageBox.warning(None, "No Account", "Please connect to an account first.")
             return
         
-        success = change_username_color(
+        success = operation_func(
             None,  # No parent for tray
             self.account_manager,
             self.chat_window.account,
             self.chat_window.cache
         )
         
-        if success:
-            # Refresh account data to update custom_background state
-            updated_account = self.account_manager.get_account_by_chat_username(
-                self.chat_window.account['chat_username']
-            )
-            if updated_account:
-                self.chat_window.account.update(updated_account)
+        if not success:
+            return
+        
+        # Refresh account data to update custom_background/avatar state
+        updated_account = self.account_manager.get_account_by_chat_username(
+            self.chat_window.account['chat_username']
+        )
+        
+        if not updated_account:
+            return
+        
+        previous_avatar = self.chat_window.account.get('avatar')
+        self.chat_window.account.update(updated_account)
+        
+        effective_bg = updated_account.get('custom_background') or updated_account.get('background')
+        own_login = updated_account['chat_username']
+        own_id = updated_account['user_id']
+        
+        # Clear color cache
+        self.chat_window.cache.clear_colors()
+        
+        # Clear avatar cache if changed
+        if updated_account.get('avatar') != previous_avatar:
+            self.chat_window.cache._avatar_cache.pop(own_id, None)
+        
+        # Update userlist own user
+        own_user = next(
+            (u for u in self.chat_window.xmpp_client.user_list.users.values() 
+            if u.login == own_login), 
+            None
+        )
+        if own_user:
+            own_user.background = effective_bg
+            self.chat_window.user_list_widget.add_users(users=[own_user])
+        
+        # Update messages
+        own_messages_updated = False
+        for msg_data in self.chat_window.messages_widget.model._messages:
+            if msg_data.username == own_login:
+                msg_data.background_color = effective_bg
+                own_messages_updated = True
+        
+        if own_messages_updated:
+            self.chat_window.messages_widget._force_recalculate()
+
+
+    def handle_change_username_color(self):
+        """Handle Change Username Color from tray menu."""
+        self._refresh_own_username_color(change_username_color)
+
 
     def handle_reset_username_color(self):
         """Handle Reset to Original from tray menu."""
-        if not self.chat_window or not self.chat_window.account:
-            QMessageBox.warning(None, "No Account", "Please connect to an account first.")
-            return
-        
-        success = reset_username_color(
-            None,  # No parent for tray
-            self.account_manager,
-            self.chat_window.account,
-            self.chat_window.cache
-        )
-        
-        if success:
-            # Refresh account data to update custom_background state
-            updated_account = self.account_manager.get_account_by_chat_username(
-                self.chat_window.account['chat_username']
-            )
-            if updated_account:
-                self.chat_window.account.update(updated_account)
+        self._refresh_own_username_color(reset_username_color)
+
 
     def handle_update_from_server(self):
         """Handle Update from Server from tray menu."""
-        if not self.chat_window or not self.chat_window.account:
-            QMessageBox.warning(None, "No Account", "Please connect to an account first.")
-            return
-        
-        success = update_from_server(
-            None,  # No parent for tray
-            self.account_manager,
-            self.chat_window.account,
-            self.chat_window.cache
-        )
-        
-        if success:
-            # Refresh account data to update avatar/background
-            updated_account = self.account_manager.get_account_by_chat_username(
-                self.chat_window.account['chat_username']
-            )
-            if updated_account:
-                self.chat_window.account.update(updated_account)
-
+        self._refresh_own_username_color(update_from_server)
 
 def main():
     """Application entry point"""
