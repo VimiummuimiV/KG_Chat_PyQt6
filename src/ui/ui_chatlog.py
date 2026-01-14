@@ -85,11 +85,13 @@ class ChatlogWidget(QWidget):
         # Main horizontal bar (for wide screens)
         self.main_bar = QHBoxLayout()
         self.main_bar.setSpacing(spacing)
+        self.main_bar.setAlignment(Qt.AlignmentFlag.AlignTop)
         self.top_bar_layout.addLayout(self.main_bar)
 
         # Left side: Info block (date + status)
         self.info_block = QVBoxLayout()
-        self.info_block.setSpacing(2)
+        self.info_block.setSpacing(spacing)
+        self.info_block.setAlignment(Qt.AlignmentFlag.AlignTop)
        
         # Date label
         self.date_label = QLabel()
@@ -108,6 +110,7 @@ class ChatlogWidget(QWidget):
         # Right side: Navigation buttons
         self.nav_buttons_layout = QHBoxLayout()
         self.nav_buttons_layout.setSpacing(self.config.get("ui", "buttons", "spacing") or 8)
+        self.nav_buttons_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
         self.back_btn = create_icon_button(self.icons_path, "go-back.svg", "Back to chat",
                                           size_type="large", config=self.config)
