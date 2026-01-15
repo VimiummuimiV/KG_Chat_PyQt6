@@ -25,6 +25,7 @@ class NotificationData:
     account: Optional[dict] = None
     window_show_callback: Optional[Callable] = None
     is_private: bool = False
+    recipient_jid: Optional[str] = None
 
 
 class PopupNotification(QWidget):
@@ -276,6 +277,16 @@ class PopupNotification(QWidget):
        
         self.reply_field.clear()
        
+        # Determine message type and recipient based on notification data
+        if self.data.is_private and self.data.recipient_jid:
+            # Private message - reply to sender directly
+            msg_type = 'chat'
+            to_jid = self.data.recipient_jid
+        else:
+            # Groupchat message - reply in room
+            msg_type = 'groupchat'
+            to_jid = None  # Will use default room
+       
         # Add message locally to UI before sending to server
         if self.data.local_message_callback and self.data.account:
             try:
@@ -289,13 +300,16 @@ class PopupNotification(QWidget):
                 own_msg = Message(
                     from_jid=self.data.xmpp_client.jid,
                     body=text,
-                    msg_type='groupchat',
+                    msg_type=msg_type,
                     login=self.data.account.get('chat_username'),
                     avatar=self.data.account.get('avatar'),
                     background=effective_bg,
                     timestamp=datetime.now(),
                     initial=False
                 )
+                
+                # Mark as private if replying to private message
+                own_msg.is_private = (msg_type == 'chat')
                
                 # Add to UI locally
                 self.data.local_message_callback(own_msg)
@@ -304,7 +318,8 @@ class PopupNotification(QWidget):
        
         def _send():
             try:
-                result = self.data.xmpp_client.send_message(text)
+                # Send with appropriate message type and recipient
+                result = self.data.xmpp_client.send_message(text, to_jid, msg_type)
                 if not result:
                     print(f"❌ Failed to send reply: {text}")
             except Exception as e:
@@ -429,6 +444,7 @@ def show_notification(**kwargs):
         account (dict): User account dict
         window_show_callback (Callable): Callback to show/focus the chat window
         is_private (bool): Whether this is a private message (default: False)
+        recipient_jid (str): JID to send reply to (for private messages)
     """
     data = NotificationData(**kwargs)
     return popup_manager.show_notification(data)

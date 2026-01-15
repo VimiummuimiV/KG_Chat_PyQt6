@@ -770,7 +770,8 @@ class ChatWindow(QWidget):
                     local_message_callback=self.add_local_message,
                     account=self.account,
                     window_show_callback=self._show_and_focus_window,
-                    is_private=msg.is_private
+                    is_private=msg.is_private,
+                    recipient_jid=msg.from_jid if msg.is_private else None
                 )
             except Exception as e:
                 print(f"Notification error: {e}")
