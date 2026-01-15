@@ -1,7 +1,6 @@
 """Chat window with XMPP integration"""
 import threading
 import re
-import webbrowser
 from pathlib import Path
 from datetime import datetime
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QApplication, QStackedWidget
@@ -25,7 +24,6 @@ from ui.ui_chatlog import ChatlogWidget
 from ui.ui_chatlog_userlist import ChatlogUserlistWidget
 from ui.ui_profile import ProfileWidget
 from ui.ui_emoticon_selector import EmoticonSelectorWidget
-from ui.ui_webview import WebViewWidget
 from components.notification import show_notification
 
 
@@ -74,10 +72,6 @@ class ChatWindow(QWidget):
       
         # Migrate old config if needed
         self._migrate_userlist_config()
-        
-        # Ensure browser setting exists
-        if self.config.get("ui", "use_internal_browser") is None:
-            self.config.set("ui", "use_internal_browser", value=True)
       
         self._init_ui()
       
@@ -152,21 +146,14 @@ class ChatWindow(QWidget):
         left_layout.setSpacing(self.config.get("ui", "spacing", "widget_elements") or 6)
         self.content_layout.addLayout(left_layout, stretch=3)
 
-        # Stacked widget for Messages/Chatlog
+        # Stacked widget for Messages/Chatlog views
         self.stacked_widget = QStackedWidget()
         left_layout.addWidget(self.stacked_widget, stretch=1)
 
         self.messages_widget = MessagesWidget(self.config)
         self.stacked_widget.addWidget(self.messages_widget)
-        
-        # Connect link clicks to handler
-        self.messages_widget.delegate.link_clicked.connect(self._handle_link_click)
-        
         self.chatlog_widget = None
         self.chatlog_userlist_widget = None
-        
-        # WebView widget as full-window overlay
-        self.webview_widget = None
 
         # Input area
         self.input_container = QWidget()
@@ -269,20 +256,6 @@ class ChatWindow(QWidget):
         self.messages_widget.timestamp_clicked.connect(self.show_chatlog_view)
       
         self._update_input_style()
-   
-    def _handle_link_click(self, url: str):
-        """Handle link clicks based on browser setting"""
-        use_internal = self.config.get("ui", "use_internal_browser")
-        if use_internal is None:
-            use_internal = True
-        
-        if use_internal:
-            self.show_webview(url)
-        else:
-            try:
-                webbrowser.open(url)
-            except Exception as e:
-                print(f"Failed to open URL in external browser: {e}")
    
     def _toggle_emoticon_selector(self):
         """Toggle emoticon selector visibility"""
@@ -590,20 +563,9 @@ class ChatWindow(QWidget):
             self.input_field.setPlaceholderText("")
 
     def show_messages_view(self):
-        """Switch back to messages"""
-        # Cleanup webview widget - all cleanup logic is in webview itself
-        if self.webview_widget:
-            try:
-                self.webview_widget.back_requested.disconnect()
-                self.webview_widget.cleanup()  # This handles everything
-                self.webview_widget.deleteLater()
-                self.webview_widget = None
-            except Exception as e:
-                print(f"WebView cleanup error: {e}")
-        
-        # Cleanup and destroy chatlog widget only if we're actually leaving chatlog view
-        current_widget = self.stacked_widget.currentWidget()
-        if current_widget == self.chatlog_widget and self.chatlog_widget:
+        """Switch back to messages and destroy chatlog widgets"""
+        # Cleanup and destroy chatlog widget
+        if self.chatlog_widget:
             try:
                 self.chatlog_widget.back_requested.disconnect()
                 self.chatlog_widget.messages_loaded.disconnect()
@@ -653,10 +615,6 @@ class ChatWindow(QWidget):
             self.chatlog_widget.back_requested.connect(self.show_messages_view)
             self.chatlog_widget.messages_loaded.connect(self._on_chatlog_messages_loaded)
             self.chatlog_widget.filter_changed.connect(self._on_chatlog_filter_changed)
-            
-            # Connect link clicks in chatlog to handler
-            self.chatlog_widget.delegate.link_clicked.connect(self._handle_link_click)
-            
             self.stacked_widget.addWidget(self.chatlog_widget)
           
             width = self.width()
@@ -702,75 +660,9 @@ class ChatWindow(QWidget):
         """Handle filter change from chatlog widget"""
         pass
 
-    def show_webview(self, url: str):
-        """Show web view as full-window overlay"""
-        # Clean up old webview if exists - webview handles its own cleanup
-        if self.webview_widget:
-            try:
-                self.webview_widget.back_requested.disconnect()
-                self.webview_widget.cleanup()  # This handles everything
-                self.webview_widget.deleteLater()
-                self.webview_widget = None
-            except Exception as e:
-                print(f"WebView cleanup error: {e}")
-        
-        # Determine current view
-        current_view = self.stacked_widget.currentWidget()
-        is_chatlog = (current_view == self.chatlog_widget)
-        return_view = "chatlog" if is_chatlog else "messages"
-        
-        # Create webview as full-window overlay with return view info
-        self.webview_widget = WebViewWidget(self.config, self.icons_path, return_view)
-        self.webview_widget.back_requested.connect(self._return_from_webview)
-        self.webview_widget.setParent(self)
-        
-        # Start hidden to prevent flash
-        self.webview_widget.setVisible(False)
-        
-        # Make it cover the entire window
-        self.webview_widget.setGeometry(self.rect())
-        
-        # Use timer for smooth reveal after widget is laid out
-        def show_after_layout():
-            if self.webview_widget:  # Check it still exists
-                self.webview_widget.raise_()
-                self.webview_widget.setVisible(True)
-                # Load URL after visibility is set
-                QTimer.singleShot(50, lambda: self.webview_widget.load_url(url) if self.webview_widget else None)
-        
-        QTimer.singleShot(10, show_after_layout)
-    
-    def _return_from_webview(self):
-        """Return to the view that opened the webview"""
-        if not self.webview_widget:
-            return
-        
-        return_view = self.webview_widget.return_view
-        
-        # Cleanup webview
-        try:
-            self.webview_widget.back_requested.disconnect()
-            self.webview_widget.cleanup()
-            self.webview_widget.deleteLater()
-            self.webview_widget = None
-        except Exception as e:
-            print(f"WebView cleanup error: {e}")
-        
-        # Return to appropriate view
-        if return_view == "chatlog":
-            # Already in chatlog, just make sure it's visible
-            self.stacked_widget.setCurrentWidget(self.chatlog_widget)
-        else:
-            # Return to messages
-            self.show_messages_view()
-
     def resizeEvent(self, event):
         super().resizeEvent(event)
         handle_chat_resize(self, self.width())
-        
-        # Resize webview overlay if visible
-        if self.webview_widget and self.webview_widget.isVisible():
-            self.webview_widget.setGeometry(self.rect())
   
     def _complete_resize_recalculation(self):
         """Complete resize with aggressive recalculation"""
@@ -1152,9 +1044,6 @@ class ChatWindow(QWidget):
             self.messages_widget.cleanup()
         if self.chatlog_widget:
             self.chatlog_widget.cleanup()
-        if self.webview_widget:
-            self.webview_widget.cleanup()  # Webview handles its own cleanup
-            self.webview_widget = None
 
         if self.xmpp_client:
             try:
