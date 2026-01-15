@@ -1,7 +1,7 @@
 """Web view widget for displaying URLs within the chat"""
 from pathlib import Path
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QMessageBox
-from PyQt6.QtCore import Qt, QUrl, pyqtSignal
+from PyQt6.QtCore import Qt, QUrl, pyqtSignal, QTimer
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtWebEngineCore import QWebEngineSettings, QWebEnginePage, QWebEngineProfile
 
@@ -16,24 +16,14 @@ class CustomWebEnginePage(QWebEnginePage):
     crash_detected = pyqtSignal()
     
     def javaScriptConsoleMessage(self, level, message, lineNumber, sourceID):
-        # Filter out known harmless warnings
-        ignored_messages = [
-            "ResizeObserver",
-            "preloaded using link preload",
-            "requestStorageAccessFor",
-            "Canvas2D:",
-            "Google Deploy",
-            "iframe which has both allow-scripts",
-            "Access to XMLHttpRequest",
-            "[GPT]",
-            "resync all bidders",
-            "Failed to fetch"
-        ]
+        # Temporarily show all messages for debugging
+        level_name = {
+            QWebEnginePage.JavaScriptConsoleMessageLevel.InfoMessageLevel: "INFO",
+            QWebEnginePage.JavaScriptConsoleMessageLevel.WarningMessageLevel: "WARN",
+            QWebEnginePage.JavaScriptConsoleMessageLevel.ErrorMessageLevel: "ERROR"
+        }.get(level, "LOG")
         
-        # Only log actual errors that aren't in our ignore list
-        if level == QWebEnginePage.JavaScriptConsoleMessageLevel.ErrorMessageLevel:
-            if not any(ignored in message for ignored in ignored_messages):
-                print(f"JS Error: {message}")
+        print(f"JS [{level_name}] {message} (line {lineNumber})")
     
     def acceptNavigationRequest(self, url, nav_type, is_main_frame):
         # Allow all navigation (including redirects for YouTube)
@@ -45,10 +35,11 @@ class WebViewWidget(QWidget):
     
     back_requested = pyqtSignal()
     
-    def __init__(self, config, icons_path: Path):
+    def __init__(self, config, icons_path: Path, return_view: str = "messages"):
         super().__init__()
         self.config = config
         self.icons_path = icons_path
+        self.return_view = return_view  # Track where to return: "messages" or "chatlog"
         self.web_view = None
         self.profile = None
         self.ad_blocker = None
@@ -57,7 +48,9 @@ class WebViewWidget(QWidget):
         self._init_ui()
     
     def cleanup(self):
-        """Cleanup webview to stop playback and free memory"""
+        """Cleanup webview to stop playback and free memory - fully self-contained"""
+        print("🧹 Starting WebView cleanup...")
+        
         if self.web_view:
             try:
                 # Stop any ongoing loads
@@ -65,6 +58,10 @@ class WebViewWidget(QWidget):
                 
                 # Load blank page to stop media playback
                 self.web_view.setUrl(QUrl("about:blank"))
+                
+                # Process events to ensure page unloads
+                from PyQt6.QtWidgets import QApplication
+                QApplication.processEvents()
                 
                 # Disconnect signals
                 try:
@@ -79,24 +76,63 @@ class WebViewWidget(QWidget):
                 self.web_view.deleteLater()
                 self.web_view = None
             except Exception as e:
-                print(f"Cleanup error: {e}")
+                print(f"Web view cleanup error: {e}")
         
-        # Clear profile
-        self.profile = None
+        # Clear profile and ad blocker
+        if self.profile:
+            # Clear HTTP cache
+            try:
+                self.profile.clearHttpCache()
+            except:
+                pass
+            self.profile = None
+        
+        self.ad_blocker = None
+        
+        # Remove from parent if still attached
+        try:
+            self.setParent(None)
+        except:
+            pass
+        
+        # Force garbage collection to free memory immediately
+        import gc
+        gc.collect()
+        
+        print("✅ WebView cleanup complete")
     
     def _init_ui(self):
         """Initialize UI"""
         margin = self.config.get("ui", "margins", "widget") or 5
         spacing = self.config.get("ui", "spacing", "widget_elements") or 6
         
+        # Set background color on the main widget to prevent transparency
+        from themes.theme import ThemeManager
+        theme_manager = ThemeManager(self.config)
+        is_dark = theme_manager.is_dark()
+        
+        bg_color = "#1e1e1e" if is_dark else "#ffffff"
+        
+        self.setStyleSheet(f"""
+            WebViewWidget {{
+                background-color: {bg_color};
+            }}
+        """)
+        
         layout = QVBoxLayout()
-        layout.setContentsMargins(margin, margin, margin, margin)
-        layout.setSpacing(spacing)
+        layout.setContentsMargins(0, 0, 0, 0)  # No margins
+        layout.setSpacing(0)  # No spacing between nav and webview
+        layout.setAlignment(Qt.AlignmentFlag.AlignTop)  # Align content to top
         self.setLayout(layout)
         
-        # Navigation bar
+        # Create navigation bar container
+        nav_container = QWidget()
+        nav_container.setObjectName("webview_nav_container")
+        
+        # Navigation bar layout inside container
         nav_bar = QHBoxLayout()
         nav_bar.setSpacing(self.config.get("ui", "buttons", "spacing") or 8)
+        nav_container.setLayout(nav_bar)
         
         # Back to chat button
         self.back_button = create_icon_button(
@@ -146,7 +182,7 @@ class WebViewWidget(QWidget):
         self.open_external_button.clicked.connect(self._open_external)
         nav_bar.addWidget(self.open_external_button)
         
-        layout.addLayout(nav_bar)
+        layout.addWidget(nav_container, stretch=0)  # No stretch - fixed height at top
         
         # Create custom profile with memory limits
         self.profile = QWebEngineProfile.defaultProfile()
@@ -154,8 +190,8 @@ class WebViewWidget(QWidget):
             QWebEngineProfile.PersistentCookiesPolicy.AllowPersistentCookies
         )
         
-        # Limit cache size to prevent memory issues (50MB instead of 100MB)
-        self.profile.setHttpCacheMaximumSize(50 * 1024 * 1024)
+        # Keep reasonable cache size
+        self.profile.setHttpCacheMaximumSize(100 * 1024 * 1024)  # 100MB cache
         
         # Install ad blocker
         self.ad_blocker = AdBlocker(self.profile)
@@ -174,7 +210,7 @@ class WebViewWidget(QWidget):
         )
         self.profile.setHttpUserAgent(user_agent)
         
-        # Configure settings - balance features with stability
+        # Configure settings - keep features enabled but stable
         settings = self.web_view.settings()
         
         # Core JavaScript features
@@ -182,7 +218,7 @@ class WebViewWidget(QWidget):
         settings.setAttribute(QWebEngineSettings.WebAttribute.JavascriptCanOpenWindows, False)
         settings.setAttribute(QWebEngineSettings.WebAttribute.JavascriptCanAccessClipboard, False)
         
-        # Storage - limit to reduce memory usage
+        # Storage
         settings.setAttribute(QWebEngineSettings.WebAttribute.LocalStorageEnabled, True)
         settings.setAttribute(QWebEngineSettings.WebAttribute.LocalContentCanAccessRemoteUrls, False)
         
@@ -191,10 +227,10 @@ class WebViewWidget(QWidget):
         
         # Visual features
         settings.setAttribute(QWebEngineSettings.WebAttribute.AutoLoadImages, True)
-        settings.setAttribute(QWebEngineSettings.WebAttribute.AutoLoadIconsForPage, False)  # Save memory
+        settings.setAttribute(QWebEngineSettings.WebAttribute.AutoLoadIconsForPage, True)
         
-        # Advanced features - disable some to prevent crashes
-        settings.setAttribute(QWebEngineSettings.WebAttribute.PluginsEnabled, False)  # Disable plugins
+        # Advanced features - keep most enabled for compatibility
+        settings.setAttribute(QWebEngineSettings.WebAttribute.PluginsEnabled, False)
         settings.setAttribute(QWebEngineSettings.WebAttribute.FullScreenSupportEnabled, True)
         settings.setAttribute(QWebEngineSettings.WebAttribute.WebGLEnabled, True)
         settings.setAttribute(QWebEngineSettings.WebAttribute.Accelerated2dCanvasEnabled, True)
@@ -206,10 +242,6 @@ class WebViewWidget(QWidget):
         # Disable features that cause issues
         settings.setAttribute(QWebEngineSettings.WebAttribute.PdfViewerEnabled, False)
         settings.setAttribute(QWebEngineSettings.WebAttribute.AllowWindowActivationFromJavaScript, False)
-        settings.setAttribute(QWebEngineSettings.WebAttribute.ScreenCaptureEnabled, False)  # Disable to save resources
-        
-        # Disable DNS prefetching to reduce network load
-        settings.setAttribute(QWebEngineSettings.WebAttribute.DnsPrefetchEnabled, False)
         
         # Connect signals with error handling
         self.web_view.urlChanged.connect(self._on_url_changed)
@@ -217,7 +249,9 @@ class WebViewWidget(QWidget):
         self.web_view.loadFinished.connect(self._on_load_finished)
         self.web_view.renderProcessTerminated.connect(self._on_render_process_terminated)
         
-        layout.addWidget(self.web_view, stretch=1)
+        # Start visible immediately at top position to prevent centering
+        self.web_view.setVisible(True)
+        layout.addWidget(self.web_view, stretch=1)  # Stretch=1 to take all remaining space
         
         # Initially disable navigation buttons
         self._update_navigation_buttons()
@@ -232,15 +266,33 @@ class WebViewWidget(QWidget):
         self.back_requested.emit()
     
     def _on_render_process_terminated(self, termination_status, exit_code):
-        """Handle renderer process crashes"""
-        print(f"⚠️ WebView process terminated: {termination_status}, exit code: {exit_code}")
+        """Handle renderer process crashes gracefully"""
+        status_names = {
+            0: "Normal termination",
+            1: "Abnormal termination", 
+            2: "Crashed",
+            3: "Killed"
+        }
+        status_text = status_names.get(termination_status, f"Unknown ({termination_status})")
+        
+        print(f"⚠️ WebView process terminated: {status_text}, exit code: {exit_code}")
+        
+        # Get current URL for debugging
+        current_url = "unknown"
+        if self.web_view:
+            try:
+                current_url = self.web_view.url().toString()
+            except:
+                pass
+        
+        print(f"   URL: {current_url}")
         
         # Show error message
         msg = QMessageBox(self)
         msg.setIcon(QMessageBox.Icon.Warning)
-        msg.setWindowTitle("Page Load Error")
-        msg.setText("The page crashed or failed to load.")
-        msg.setInformativeText("This page may be too complex. Try opening it in your external browser instead.")
+        msg.setWindowTitle("Page Crashed")
+        msg.setText(f"The page crashed ({status_text}).")
+        msg.setInformativeText(f"This page may be too complex or resource-intensive.\n\nURL: {current_url}\n\nTry opening it in your external browser instead.")
         msg.setStandardButtons(QMessageBox.StandardButton.Ok)
         msg.exec()
         
@@ -248,7 +300,7 @@ class WebViewWidget(QWidget):
         self.back_requested.emit()
     
     def load_url(self, url: str):
-        """Load a URL in the web view with safety checks"""
+        """Load a URL in the web view"""
         if not self.web_view:
             print("⚠️ WebView not initialized")
             return
@@ -256,30 +308,6 @@ class WebViewWidget(QWidget):
         # Normalize URL
         if not url.startswith(('http://', 'https://')):
             url = 'https://' + url
-        
-        # Warn about potentially heavy pages
-        heavy_sites = ['reddit.com', 'facebook.com', 'twitter.com', 'instagram.com']
-        if any(site in url.lower() for site in heavy_sites):
-            print(f"⚠️ Loading {url} - complex page may cause high memory usage")
-        
-        # For YouTube live streams, suggest external browser
-        if 'youtube.com' in url or 'youtu.be' in url:
-            if '/live/' in url or 'live_stream' in url:
-                msg = QMessageBox(self)
-                msg.setIcon(QMessageBox.Icon.Information)
-                msg.setWindowTitle("YouTube Live Stream")
-                msg.setText("YouTube live streams work best in an external browser.")
-                msg.setInformativeText("Would you like to open this in your default browser instead?")
-                msg.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
-                
-                if msg.exec() == QMessageBox.StandardButton.Yes:
-                    import webbrowser
-                    try:
-                        webbrowser.open(url)
-                        self.back_requested.emit()
-                        return
-                    except Exception as e:
-                        print(f"Failed to open external browser: {e}")
         
         try:
             self.web_view.setUrl(QUrl(url))
@@ -363,8 +391,12 @@ class WebViewWidget(QWidget):
             
             # Show blocked ads count if any
             if self.ad_blocker:
-                stats = self.ad_blocker.get_stats()
-                print(f"🛡️ Ad Blocker: {stats}")
+                try:
+                    stats = self.ad_blocker.get_stats()
+                    if stats and isinstance(stats, dict) and stats.get('blocked', 0) > 0:
+                        print(f"🛡️ Blocked {stats.get('blocked', 0)} ads/trackers")
+                except Exception as e:
+                    print(f"Ad blocker stats error: {e}")
             
             if not success:
                 print(f"⚠️ Failed to load page")
@@ -374,7 +406,7 @@ class WebViewWidget(QWidget):
                 msg.setIcon(QMessageBox.Icon.Warning)
                 msg.setWindowTitle("Page Load Failed")
                 msg.setText("Failed to load the page.")
-                msg.setInformativeText("The page may be too heavy or unavailable. Try opening it in your external browser.")
+                msg.setInformativeText("The page may be unavailable. Try opening it in your external browser.")
                 msg.setStandardButtons(QMessageBox.StandardButton.Ok)
                 msg.exec()
             

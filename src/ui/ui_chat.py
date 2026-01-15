@@ -591,25 +591,19 @@ class ChatWindow(QWidget):
 
     def show_messages_view(self):
         """Switch back to messages"""
-        # Cleanup and destroy webview widget with proper memory cleanup
+        # Cleanup webview widget - all cleanup logic is in webview itself
         if self.webview_widget:
             try:
                 self.webview_widget.back_requested.disconnect()
-                self.webview_widget.cleanup()
-                
-                # Force garbage collection of webview
-                import gc
-                self.webview_widget.setParent(None)
+                self.webview_widget.cleanup()  # This handles everything
                 self.webview_widget.deleteLater()
                 self.webview_widget = None
-                gc.collect()
-                
-                print("🧹 WebView cleaned up")
             except Exception as e:
                 print(f"WebView cleanup error: {e}")
         
-        # Cleanup and destroy chatlog widget
-        if self.chatlog_widget:
+        # Cleanup and destroy chatlog widget only if we're actually leaving chatlog view
+        current_widget = self.stacked_widget.currentWidget()
+        if current_widget == self.chatlog_widget and self.chatlog_widget:
             try:
                 self.chatlog_widget.back_requested.disconnect()
                 self.chatlog_widget.messages_loaded.disconnect()
@@ -710,33 +704,65 @@ class ChatWindow(QWidget):
 
     def show_webview(self, url: str):
         """Show web view as full-window overlay"""
-        # Always recreate webview to ensure clean state
+        # Clean up old webview if exists - webview handles its own cleanup
         if self.webview_widget:
             try:
                 self.webview_widget.back_requested.disconnect()
-                self.webview_widget.cleanup()
-                
-                # Force garbage collection
-                import gc
-                self.webview_widget.setParent(None)
+                self.webview_widget.cleanup()  # This handles everything
                 self.webview_widget.deleteLater()
                 self.webview_widget = None
-                gc.collect()
             except Exception as e:
                 print(f"WebView cleanup error: {e}")
         
-        # Create webview as full-window overlay (parent to main window, not stacked_widget)
-        self.webview_widget = WebViewWidget(self.config, self.icons_path)
-        self.webview_widget.back_requested.connect(self.show_messages_view)
+        # Determine current view
+        current_view = self.stacked_widget.currentWidget()
+        is_chatlog = (current_view == self.chatlog_widget)
+        return_view = "chatlog" if is_chatlog else "messages"
+        
+        # Create webview as full-window overlay with return view info
+        self.webview_widget = WebViewWidget(self.config, self.icons_path, return_view)
+        self.webview_widget.back_requested.connect(self._return_from_webview)
         self.webview_widget.setParent(self)
+        
+        # Start hidden to prevent flash
+        self.webview_widget.setVisible(False)
         
         # Make it cover the entire window
         self.webview_widget.setGeometry(self.rect())
-        self.webview_widget.raise_()
-        self.webview_widget.show()
         
-        # Load URL
-        self.webview_widget.load_url(url)
+        # Use timer for smooth reveal after widget is laid out
+        def show_after_layout():
+            if self.webview_widget:  # Check it still exists
+                self.webview_widget.raise_()
+                self.webview_widget.setVisible(True)
+                # Load URL after visibility is set
+                QTimer.singleShot(50, lambda: self.webview_widget.load_url(url) if self.webview_widget else None)
+        
+        QTimer.singleShot(10, show_after_layout)
+    
+    def _return_from_webview(self):
+        """Return to the view that opened the webview"""
+        if not self.webview_widget:
+            return
+        
+        return_view = self.webview_widget.return_view
+        
+        # Cleanup webview
+        try:
+            self.webview_widget.back_requested.disconnect()
+            self.webview_widget.cleanup()
+            self.webview_widget.deleteLater()
+            self.webview_widget = None
+        except Exception as e:
+            print(f"WebView cleanup error: {e}")
+        
+        # Return to appropriate view
+        if return_view == "chatlog":
+            # Already in chatlog, just make sure it's visible
+            self.stacked_widget.setCurrentWidget(self.chatlog_widget)
+        else:
+            # Return to messages
+            self.show_messages_view()
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
@@ -1127,10 +1153,8 @@ class ChatWindow(QWidget):
         if self.chatlog_widget:
             self.chatlog_widget.cleanup()
         if self.webview_widget:
-            self.webview_widget.cleanup()
-            # Force garbage collection
-            import gc
-            gc.collect()
+            self.webview_widget.cleanup()  # Webview handles its own cleanup
+            self.webview_widget = None
 
         if self.xmpp_client:
             try:
