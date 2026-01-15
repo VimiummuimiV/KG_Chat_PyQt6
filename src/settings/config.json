@@ -32,6 +32,7 @@
     "notification_width": 500,
     "notification_position": "right",
     "emoticon_max_size": 140,
+    "use_internal_browser": true,
     "private_message_color": {
       "hue": 0,
       "saturation": 75

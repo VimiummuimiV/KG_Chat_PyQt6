@@ -53,6 +53,7 @@ class Application:
         self.tray_icon = None
         self.color_menu = None
         self.reset_color_action = None
+        self.browser_toggle_action = None
         self.setup_system_tray()
 
     def setup_system_tray(self):
@@ -93,10 +94,46 @@ class Application:
         self.color_menu.aboutToShow.connect(self.update_color_menu)
         
         menu.addSeparator()
+        
+        # Browser toggle action
+        self.browser_toggle_action = QAction("", self.app)
+        self.browser_toggle_action.triggered.connect(self.toggle_browser_mode)
+        menu.addAction(self.browser_toggle_action)
+        
+        # Update browser toggle text initially
+        self._update_browser_toggle_text()
+        
+        menu.addSeparator()
         menu.addAction(QAction("Exit", self.app, triggered=self.exit_application))
 
         self.tray_icon.setContextMenu(menu)
         self.tray_icon.show()
+
+    def _update_browser_toggle_text(self):
+        """Update browser toggle menu text based on current setting"""
+        config = self.chat_window.config if self.chat_window else self.account_manager.config
+        use_internal = config.get("ui", "use_internal_browser")
+        if use_internal is None:
+            use_internal = True
+        
+        text = "Open Links in External Browser" if use_internal else "Open Links in Internal Browser"
+        self.browser_toggle_action.setText(text)
+
+    def toggle_browser_mode(self):
+        """Toggle between internal and external browser"""
+        if not self.chat_window or not hasattr(self.chat_window, 'config'):
+            QMessageBox.warning(None, "No Chat Window", "Please open a chat window first.")
+            return
+        
+        current = self.chat_window.config.get("ui", "use_internal_browser")
+        if current is None:
+            current = True
+        
+        new_value = not current
+        self.chat_window.config.set("ui", "use_internal_browser", value=new_value)
+        
+        # Update menu text
+        self._update_browser_toggle_text()
 
     def update_color_menu(self):
         """Update the color menu to show/hide Reset option based on custom_background"""
