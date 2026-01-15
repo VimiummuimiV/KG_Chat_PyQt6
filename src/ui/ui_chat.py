@@ -24,6 +24,7 @@ from ui.ui_chatlog import ChatlogWidget
 from ui.ui_chatlog_userlist import ChatlogUserlistWidget
 from ui.ui_profile import ProfileWidget
 from ui.ui_emoticon_selector import EmoticonSelectorWidget
+from ui.ui_webview import WebViewWidget
 from components.notification import show_notification
 
 
@@ -146,12 +147,19 @@ class ChatWindow(QWidget):
         left_layout.setSpacing(self.config.get("ui", "spacing", "widget_elements") or 6)
         self.content_layout.addLayout(left_layout, stretch=3)
 
-        # Stacked widget for Messages/Chatlog views
+        # Stacked widget for Messages/Chatlog/WebView views
         self.stacked_widget = QStackedWidget()
         left_layout.addWidget(self.stacked_widget, stretch=1)
 
         self.messages_widget = MessagesWidget(self.config)
         self.stacked_widget.addWidget(self.messages_widget)
+        
+        # WebView widget (created on demand)
+        self.webview_widget = None
+        
+        # Connect link clicks to webview
+        self.messages_widget.delegate.link_clicked.connect(self.show_webview)
+        
         self.chatlog_widget = None
         self.chatlog_userlist_widget = None
 
@@ -563,7 +571,18 @@ class ChatWindow(QWidget):
             self.input_field.setPlaceholderText("")
 
     def show_messages_view(self):
-        """Switch back to messages and destroy chatlog widgets"""
+        """Switch back to messages"""
+        # Cleanup and destroy webview widget
+        if self.webview_widget:
+            try:
+                self.webview_widget.back_requested.disconnect()
+                self.webview_widget.cleanup()
+            except:
+                pass
+            self.stacked_widget.removeWidget(self.webview_widget)
+            self.webview_widget.deleteLater()
+            self.webview_widget = None
+        
         # Cleanup and destroy chatlog widget
         if self.chatlog_widget:
             try:
@@ -659,6 +678,32 @@ class ChatWindow(QWidget):
     def _on_chatlog_filter_changed(self, usernames: set):
         """Handle filter change from chatlog widget"""
         pass
+
+    def show_webview(self, url: str):
+        """Show web view with the given URL"""
+        # Hide messages userlist
+        if self.user_list_widget.isVisible():
+            self.user_list_widget.setVisible(False)
+    
+        # Always recreate webview to ensure clean state
+        if self.webview_widget:
+            try:
+                self.webview_widget.back_requested.disconnect()
+                self.webview_widget.cleanup()
+            except:
+                pass
+            self.stacked_widget.removeWidget(self.webview_widget)
+            self.webview_widget.deleteLater()
+            self.webview_widget = None
+        
+        # Create fresh webview widget
+        self.webview_widget = WebViewWidget(self.config, self.icons_path)
+        self.webview_widget.back_requested.connect(self.show_messages_view)
+        self.stacked_widget.addWidget(self.webview_widget)
+    
+        # Load URL and show
+        self.webview_widget.load_url(url)
+        self.stacked_widget.setCurrentWidget(self.webview_widget)
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
@@ -1044,6 +1089,8 @@ class ChatWindow(QWidget):
             self.messages_widget.cleanup()
         if self.chatlog_widget:
             self.chatlog_widget.cleanup()
+        if self.webview_widget:
+            self.webview_widget.cleanup()
 
         if self.xmpp_client:
             try:

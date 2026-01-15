@@ -2,7 +2,6 @@
 from typing import Dict, Optional, List
 from pathlib import Path
 import re
-import webbrowser
 import threading
 
 from PyQt6.QtWidgets import QStyledItemDelegate, QStyleOptionViewItem, QApplication
@@ -22,6 +21,7 @@ class MessageDelegate(QStyledItemDelegate):
     timestamp_clicked = pyqtSignal(str)
     username_clicked = pyqtSignal(str, bool)
     row_needs_refresh = pyqtSignal(int)
+    link_clicked = pyqtSignal(str)
    
     def __init__(
         self,
@@ -554,13 +554,10 @@ class MessageDelegate(QStyledItemDelegate):
                     self.username_clicked.emit(msg.username, False)
                 return True
            
-            # Link clicks
+            # Link clicks - emit signal instead of opening in browser
             for link_rect, url in rects['links']:
                 if link_rect.contains(pos):
-                    try:
-                        webbrowser.open(url)
-                    except Exception as e:
-                        print(f"Failed to open URL: {e}")
+                    self.link_clicked.emit(url)
                     return True
        
         elif event.type() == QEvent.Type.MouseButtonDblClick:
