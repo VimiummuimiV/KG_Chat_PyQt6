@@ -40,12 +40,12 @@ def format_youtube_display(video_type: str, channel: str, title: str, use_emojis
         title = title[:max_length - 3] + "..."
     
     if use_emojis:
-        # Format: ▶️ [ YouTube Type ] Channel - Title
+        # Format: ▶️ [ Type ] Channel - Title
         type_labels = {
-            'Shorts': 'YouTube Shorts',
-            'Live': 'YouTube Live',
-            'Share': 'YouTube Share',
-            'Video': 'YouTube Video',
+            'Shorts': 'Shorts',
+            'Live': 'Live',
+            'Share': 'Share',
+            'Video': 'Video',
         }
         type_label = type_labels.get(video_type, 'YouTube')
         return f"▶️ [ {type_label} ] {channel} - {title}"

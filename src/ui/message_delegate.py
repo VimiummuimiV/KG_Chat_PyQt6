@@ -407,29 +407,34 @@ class MessageDelegate(QStyledItemDelegate):
             getattr(msg, 'is_private', False)
         )
    
-    def _paint_content(self, painter: QPainter, x: int, y: int, width: int, 
+    def _paint_content(self, painter: QPainter, x: int, y: int, width: int,
                        text: str, row: int, is_private: bool = False):
         """Paint content with text, links, and emoticons"""
-        segments = self.emoticon_manager.parse_emoticons(text)
+        url_pattern = re.compile(r'https?://[^\s<>"]+')
+        urls = []
+        def replace_url(match):
+            urls.append(match.group(0))
+            return f"[URL{len(urls)-1}]"
+        processed_text = url_pattern.sub(replace_url, text)
+        segments = self.emoticon_manager.parse_emoticons(processed_text)
         painter.setFont(self.body_font)
         fm = QFontMetrics(self.body_font)
-        
+
         current_x, current_y = x, y
         line_height = fm.height()
-        url_pattern = re.compile(r'https?://[^\s<>"]+')
-        
+
         if is_private:
             text_color = self.private_colors["text"]
         else:
             text_color = "#FFFFFF" if self.is_dark_theme else "#000000"
         link_color = "#4DA6FF" if self.is_dark_theme else "#0066CC"
-        
+
         def new_line():
             nonlocal current_x, current_y, line_height
             current_y += line_height
             current_x = x
             line_height = fm.height()
-        
+
         def draw_text_chunk(content: str, color: str):
             nonlocal current_x
             lines = self._wrap_text(content, width - (current_x - x), fm)
@@ -437,60 +442,62 @@ class MessageDelegate(QStyledItemDelegate):
                 if not line:
                     new_line()
                     continue
-                
+
                 line_width = fm.horizontalAdvance(line)
                 if current_x > x and current_x + line_width > x + width:
                     new_line()
-                
+
                 painter.setPen(QColor(color))
                 painter.drawText(current_x, current_y + fm.ascent(), line)
                 current_x += line_width
-        
+
         def draw_link(url: str):
             nonlocal current_x, line_height
             link_text = self._get_link_text(url, row)
             painter.setPen(QColor(link_color))
-            
+
             remaining = link_text
             while remaining:
                 avail = x + width - current_x
                 if avail <= 0:
                     new_line()
                     avail = width
-                
+
                 chunk = self._fit(remaining, avail, fm) or remaining[0]
                 chunk_width = fm.horizontalAdvance(chunk)
-                
+
                 if current_x > x and current_x + chunk_width > x + width:
                     new_line()
                     continue
-                
+
                 painter.drawText(current_x, current_y + fm.ascent(), chunk)
                 link_rect = QRect(current_x, current_y, chunk_width, fm.height())
                 self.click_rects[row]['links'].append((link_rect, url))
                 current_x += chunk_width
                 remaining = remaining[len(chunk):]
-        
+        placeholder_pattern = re.compile(r'\[URL(\d+)\]')
+
         for seg_type, content in segments:
             if seg_type == 'text':
                 last_pos = 0
-                for match in url_pattern.finditer(content):
+                for match in placeholder_pattern.finditer(content):
                     if match.start() > last_pos:
                         draw_text_chunk(content[last_pos:match.start()], text_color)
-                    draw_link(match.group(0))
+                    url_index = int(match.group(1))
+                    draw_link(urls[url_index])
                     last_pos = match.end()
-                
+
                 if last_pos < len(content):
                     draw_text_chunk(content[last_pos:], text_color)
-            
-            else:  # emoticon
+
+            else: # emoticon
                 pixmap = self._get_emoticon_pixmap(content)
                 if pixmap:
                     w, h = pixmap.width(), pixmap.height()
                     if current_x > x and current_x + w > x + width:
                         new_line()
                         line_height = h
-                    
+
                     painter.drawPixmap(current_x, current_y, pixmap)
                     current_x += w
                     line_height = max(line_height, h)
