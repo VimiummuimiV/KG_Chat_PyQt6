@@ -8,6 +8,7 @@ from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 from helpers.emoticons import EmoticonManager
 from helpers.scroll import scroll
 from helpers.cache import get_cache
+from helpers.auto_scroll import AutoScroller
 from ui.message_model import MessageListModel, MessageData
 from ui.message_delegate import MessageDelegate
 from helpers.fonts import get_font, FontType
@@ -34,6 +35,9 @@ class MessagesWidget(QWidget):
         self.delegate.username_clicked.connect(self._handle_username_click)
        
         self._setup_ui()
+        
+        # Initialize auto-scroller after UI is set up
+        self.auto_scroller = AutoScroller(self.list_view)
 
     def set_color_cache(self, cache: dict):
         """Update delegate's color cache reference"""
@@ -166,6 +170,8 @@ class MessagesWidget(QWidget):
             self.delegate.cleanup()
         if hasattr(self, 'scroll_button'):
             self.scroll_button.cleanup()
+        if hasattr(self, 'auto_scroller'):
+            self.auto_scroller.cleanup()
    
     def clear(self):
         self.model.clear()

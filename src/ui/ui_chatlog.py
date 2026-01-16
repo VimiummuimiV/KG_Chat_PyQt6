@@ -18,6 +18,7 @@ from helpers.scroll import scroll
 from helpers.data import get_data_dir
 from helpers.fonts import get_font, FontType
 from helpers.scroll_button import ScrollToBottomButton
+from helpers.auto_scroll import AutoScroller
 from ui.message_model import MessageListModel, MessageData
 from ui.message_delegate import MessageDelegate
 from ui.ui_chatlogs_parser import ChatlogsParserConfigWidget, ParserWorker
@@ -59,6 +60,9 @@ class ChatlogWidget(QWidget):
         self.parser_visible = False
      
         self._setup_ui()
+        
+        # Initialize auto-scroller after UI is set up
+        self.auto_scroller = AutoScroller(self.list_view)
   
     def set_account(self, account):
         """Update account for parser widget"""
@@ -702,3 +706,5 @@ class ChatlogWidget(QWidget):
             self.delegate.cleanup()
         if hasattr(self, 'scroll_button'):
             self.scroll_button.cleanup()
+        if hasattr(self, 'auto_scroller'):
+            self.auto_scroller.cleanup()
