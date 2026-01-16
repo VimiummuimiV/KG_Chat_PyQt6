@@ -579,7 +579,7 @@ class ChatWindow(QWidget):
             self.content_layout.removeWidget(self.chatlog_userlist_widget)
             self.chatlog_userlist_widget.deleteLater()
             self.chatlog_userlist_widget = None
-     
+
         # For chatlog widget, destroy only if not parsing
         if self.chatlog_widget:
             if self.chatlog_widget.parser_widget.is_parsing:
@@ -596,21 +596,25 @@ class ChatWindow(QWidget):
                 self.stacked_widget.removeWidget(self.chatlog_widget)
                 self.chatlog_widget.deleteLater()
                 self.chatlog_widget = None
-     
+
         self.stacked_widget.setCurrentWidget(self.messages_widget)
-     
+
         # Restore messages userlist based on width
         width = self.width()
         messages_userlist_visible = self.config.get("ui", "messages_userlist_visible")
         if messages_userlist_visible is None:
             messages_userlist_visible = True
-     
+
         if width > 800 and messages_userlist_visible:
             self.user_list_widget.setVisible(True)
         elif width <= 800:
             self.user_list_widget.setVisible(False)
-     
+
         QTimer.singleShot(50, lambda: scroll(self.messages_widget.scroll_area, mode="bottom"))
+
+        # If parsing ongoing, show status widget
+        if self.chatlog_widget and self.chatlog_widget.parser_widget.is_parsing:
+            self.start_parse_status()
 
     def show_chatlog_view(self, timestamp: str = None):
         """Open chatlog for today"""
@@ -661,6 +665,8 @@ class ChatWindow(QWidget):
         self.show_chatlog_view()
         if self.chatlog_widget and not self.chatlog_widget.parser_visible:
             self.chatlog_widget._toggle_parser()
+        if self.parse_status_widget:
+            self.parse_status_widget.setVisible(False)
 
     def _create_parse_status_widget(self):
         """Create the parse status widget dynamically"""
@@ -673,6 +679,10 @@ class ChatWindow(QWidget):
 
         parse_current_label = QLabel("")
         parse_status_layout.addWidget(parse_current_label)
+
+        stop_parse_btn = create_icon_button(self.icons_path, "stop.svg", "Stop Parsing", config=self.config)
+        stop_parse_btn.clicked.connect(lambda: self.chatlog_widget._on_parse_cancelled() if self.chatlog_widget else None)
+        parse_status_layout.addWidget(stop_parse_btn)
 
         view_parser_btn = create_icon_button(self.icons_path, "list.svg", "View Parser", config=self.config)
         view_parser_btn.clicked.connect(self.show_parser_view)

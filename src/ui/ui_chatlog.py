@@ -321,7 +321,7 @@ class ChatlogWidget(QWidget):
         self.all_messages = []
         self.temp_parsed_messages = [] # Clear temp storage
         self.last_parsed_date = None
-    
+
         self.parser_worker = ParserWorker(config)
         self.parser_worker.progress.connect(self.parser_widget.update_progress)
         self.parser_worker.messages_found.connect(self._on_parsed_messages)
@@ -329,7 +329,7 @@ class ChatlogWidget(QWidget):
         self.parser_worker.error.connect(self._on_parse_error)
 
         if self.parent_window:
-            self.parent_window.start_parse_status()
+
             self.parser_worker.progress.connect(self.parent_window.update_parse_progress)
             self.parser_worker.finished.connect(lambda m: self.parent_window.on_parse_finished())
             self.parser_worker.error.connect(lambda e: self.parent_window.on_parse_error(e))
