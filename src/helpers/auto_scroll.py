@@ -80,7 +80,7 @@ class AutoScroller(QObject):
     - Any QAbstractScrollArea subclass
     """
     
-    def __init__(self, widget, scroll_speed=1.5, max_scroll_speed=40, dead_zone=5):
+    def __init__(self, widget, scroll_speed=2.0, max_scroll_speed=60, dead_zone=5):
         """
         Initialize auto-scroller.
         
@@ -250,11 +250,11 @@ class AutoScroller(QObject):
         
         # Progressive multiplier: grows with distance
         # At dead_zone edge: 1.0x
-        # At 50px: ~1.5x
-        # At 100px: ~2.0x
-        # At 200px: ~3.0x
-        # This creates smooth acceleration
-        distance_factor = 1.0 + (distance - self.dead_zone) / 100.0
+        # At 80px: ~1.5x
+        # At 155px: ~2.0x
+        # At 305px: ~3.0x
+        # This creates smooth acceleration with more travel distance
+        distance_factor = 1.0 + (distance - self.dead_zone) / 150.0
         
         # Apply progressive scaling
         scroll_amount = base_scroll * distance_factor
