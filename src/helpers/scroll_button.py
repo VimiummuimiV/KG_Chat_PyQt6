@@ -4,6 +4,7 @@ from PyQt6.QtWidgets import QListView
 from PyQt6.QtCore import QObject, QTimer, pyqtSignal
 from helpers.config import Config
 from helpers.create import create_icon_button
+from helpers.scroll import scroll
 
 class ScrollToBottomButton(QObject):
     """Floating scroll-to-bottom icon button for QListView."""
@@ -67,19 +68,21 @@ class ScrollToBottomButton(QObject):
         try:
             padding = 10 
             viewport = self.list_view.viewport()
+            
             # Right aligned
             x = viewport.width() - self.button.width() - padding
-            # Center vertically
+            
+            # Center vertically in viewport (not considering offsets)
             y = (viewport.height() - self.button.height()) // 2
-            list_global = self.list_view.mapToGlobal(
-                self.list_view.rect().topLeft()
-            )
-            viewport_global = viewport.mapToGlobal(
-                viewport.rect().topLeft()
-            )
-            offset_x = viewport_global.x() - list_global.x()
-            offset_y = viewport_global.y() - list_global.y()
-            self.button.move(offset_x + x, offset_y + y)
+            
+            # Map viewport position to list_view coordinates
+            viewport_pos = viewport.mapTo(self.list_view, viewport.rect().topLeft())
+            
+            # Apply the viewport offset to both x and y
+            final_x = viewport_pos.x() + x
+            final_y = viewport_pos.y() + y
+            
+            self.button.move(final_x, final_y)
         except RuntimeError:
             pass
     
@@ -87,7 +90,6 @@ class ScrollToBottomButton(QObject):
         """Scroll the list view to bottom"""
         if not self.list_view:
             return
-        from helpers.scroll import scroll
         scroll(self.list_view, mode="bottom", delay=0)
         self.clicked_scroll.emit()
     
