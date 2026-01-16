@@ -25,12 +25,12 @@ class ParserWorker(QThread):
     messages_found = pyqtSignal(list, str) # messages, date
     finished = pyqtSignal(list) # all messages
     error = pyqtSignal(str)
-    
+   
     def __init__(self, config: ParseConfig):
         super().__init__()
         self.config = config
         self.engine = ChatlogsParserEngine()
-    
+   
     def run(self):
         try:
             messages = self.engine.parse(
@@ -41,40 +41,40 @@ class ParserWorker(QThread):
             self.finished.emit(messages)
         except Exception as e:
             self.error.emit(str(e))
-    
+   
     def stop(self):
         self.engine.stop()
 
 
 class ChatlogsParserConfigWidget(QWidget):
     """Configuration widget for chatlog parser"""
-    
+   
     parse_started = pyqtSignal(object) # ParseConfig
     parse_cancelled = pyqtSignal()
-    
+   
     def __init__(self, config, icons_path: Path, account=None):
         super().__init__()
         self.config = config
         self.icons_path = icons_path
-        self.account = account  # Store account to get current username
+        self.account = account # Store account to get current username
         self.is_parsing = False
         self.is_fetching = False
         self.original_usernames = []
-        
+       
         self._setup_ui()
-    
+   
     def set_account(self, account):
         """Set account for auto-populating mention usernames"""
         self.account = account
         self._update_mention_label()
-    
+   
     def _create_label(self, text: str) -> QLabel:
         """Create a label with consistent height and alignment"""
         label = QLabel(text)
         label.setFixedHeight(self.input_height)
         label.setAlignment(Qt.AlignmentFlag.AlignVCenter)
         return label
-    
+   
     def _create_input(self, placeholder: str = "", object_name: str = "") -> QLineEdit:
         """Create an input field with consistent height"""
         input_field = QLineEdit()
@@ -85,7 +85,7 @@ class ChatlogsParserConfigWidget(QWidget):
         input_field.setFixedHeight(self.input_height)
         input_field.setFont(get_font(FontType.UI))
         return input_field
-    
+   
     def _create_combo(self, items: list) -> QComboBox:
         """Create a combo box with consistent height"""
         combo = QComboBox()
@@ -93,59 +93,59 @@ class ChatlogsParserConfigWidget(QWidget):
         combo.setFixedHeight(self.input_height)
         combo.setFont(get_font(FontType.UI))
         return combo
-    
+   
     def _create_input_row(self, label_text: str, placeholder: str = "", object_name: str = "", as_widget: bool = False):
         """Create a complete input row with label and input field
-        
+       
         Args:
             label_text: Text for the label
             placeholder: Placeholder text for input
             object_name: Object name for input (for findChild)
             as_widget: If True, return QWidget containing the layout instead of layout itself
-        
+       
         Returns:
             If as_widget=False: tuple[QHBoxLayout, QLineEdit]
             If as_widget=True: tuple[QWidget, QLineEdit]
         """
         layout = QHBoxLayout()
         layout.setSpacing(self.spacing)
-        
+       
         label = self._create_label(label_text)
         layout.addWidget(label)
-        
+       
         input_field = self._create_input(placeholder, object_name)
         layout.addWidget(input_field, stretch=1)
-        
+       
         if as_widget:
             container = QWidget()
             container.setLayout(layout)
             return container, input_field
-        
+       
         return layout, input_field
-    
+   
     def _setup_ui(self):
         margin = self.config.get("ui", "margins", "widget") or 5
         spacing = self.config.get("ui", "spacing", "widget_elements") or 6
         self.spacing = spacing
         self.input_height = self.config.get("ui", "input_height") or 48
-        
+       
         layout = QVBoxLayout()
         layout.setContentsMargins(margin, margin, margin, margin)
         layout.setSpacing(self.spacing)
         self.setLayout(layout)
-        
+       
         # Title
         title = QLabel("Parse Chat Logs")
         title.setFont(get_font(FontType.HEADER))
         layout.addWidget(title)
-        
+       
         # Mode selection
         mode_container = QWidget()
         mode_layout = QHBoxLayout()
         mode_layout.setSpacing(self.spacing)
         mode_label = self._create_label("Mode:")
         mode_layout.addWidget(mode_label)
-        
+       
         self.mode_combo = self._create_combo([
             "Single Date",
             "From Date",
@@ -158,7 +158,7 @@ class ChatlogsParserConfigWidget(QWidget):
         mode_layout.addWidget(self.mode_combo, stretch=1)
         mode_container.setLayout(mode_layout)
         layout.addWidget(mode_container)
-        
+       
         # Date inputs (dynamic based on mode)
         self.date_container = QWidget()
         self.date_layout = QVBoxLayout()
@@ -166,29 +166,29 @@ class ChatlogsParserConfigWidget(QWidget):
         self.date_layout.setSpacing(self.spacing)
         self.date_container.setLayout(self.date_layout)
         layout.addWidget(self.date_container)
-        
+       
         # Username input with fetch history button
         username_container = QWidget()
         username_layout, self.username_input = self._create_input_row(
             "Usernames:",
             "comma-separated (leave empty for all users)"
         )
-        
+       
         # Connect to enable/disable fetch button based on input
         self.username_input.textChanged.connect(self._update_fetch_button_state)
-        
+       
         # Fetch history button
         self.fetch_history_button = create_icon_button(
             self.icons_path, "user-received.svg", "Fetch username history",
             size_type="large", config=self.config
         )
         self.fetch_history_button.clicked.connect(self._on_fetch_history_clicked)
-        self.fetch_history_button.setEnabled(False)  # Initially disabled
+        self.fetch_history_button.setEnabled(False) # Initially disabled
         username_layout.addWidget(self.fetch_history_button)
-        
+       
         username_container.setLayout(username_layout)
         layout.addWidget(username_container)
-        
+       
         # Search terms input
         search_container = QWidget()
         search_layout, self.search_input = self._create_input_row(
@@ -197,55 +197,55 @@ class ChatlogsParserConfigWidget(QWidget):
         )
         search_container.setLayout(search_layout)
         layout.addWidget(search_container)
-        
+       
         # Mention keywords (only for personal mentions mode)
         self.mention_container = QWidget()
         mention_main_layout = QVBoxLayout()
         mention_main_layout.setContentsMargins(0, 0, 0, 0)
         mention_main_layout.setSpacing(self.spacing)
-        
+       
         # Mention label (dynamic)
         self.mention_label = QLabel()
         self.mention_label.setWordWrap(True)
         self.mention_label.setStyleSheet("color: #888; padding: 4px;")
         mention_main_layout.addWidget(self.mention_label)
-        
+       
         # Mention input
         mention_layout, self.mention_input = self._create_input_row(
             "Additional:",
             "other usernames or keywords (comma-separated)"
         )
         self.mention_input.textChanged.connect(self._update_mention_label)
-        
+       
         mention_input_container = QWidget()
         mention_input_container.setLayout(mention_layout)
         mention_main_layout.addWidget(mention_input_container)
-        
+       
         self.mention_container.setLayout(mention_main_layout)
         self.mention_container.setVisible(False)
         layout.addWidget(self.mention_container)
-        
+       
         # Progress bar
         self.progress_bar = QProgressBar()
         self.progress_bar.setVisible(False)
         layout.addWidget(self.progress_bar)
-        
+       
         # Progress label
         self.progress_label = QLabel("")
         self.progress_label.setVisible(False)
         layout.addWidget(self.progress_label)
-        
+       
         # Buttons row
         button_layout = QHBoxLayout()
         button_layout.setSpacing(self.config.get("ui", "buttons", "spacing") or 8)
-        
+       
         self.parse_button = create_icon_button(
             self.icons_path, "play.svg", "Start parsing",
             size_type="large", config=self.config
         )
         self.parse_button.clicked.connect(self._on_parse_clicked)
         button_layout.addWidget(self.parse_button)
-        
+       
         # Copy button (initially hidden)
         self.copy_button = create_icon_button(
             self.icons_path, "clipboard.svg", "Copy results to clipboard",
@@ -254,7 +254,7 @@ class ChatlogsParserConfigWidget(QWidget):
         self.copy_button.clicked.connect(self._on_copy_clicked)
         self.copy_button.setVisible(False)
         button_layout.addWidget(self.copy_button)
-        
+       
         # Save button (initially hidden)
         self.save_button = create_icon_button(
             self.icons_path, "save.svg", "Save results to file",
@@ -263,107 +263,107 @@ class ChatlogsParserConfigWidget(QWidget):
         self.save_button.clicked.connect(self._on_save_clicked)
         self.save_button.setVisible(False)
         button_layout.addWidget(self.save_button)
-        
+       
         button_layout.addStretch()
         layout.addLayout(button_layout)
-        
+       
         # Add stretch to push everything to the top
         layout.addStretch()
-        
+       
         # Initialize with first mode
         self._on_mode_changed(0)
         self._update_mention_label()
-    
+   
     def _update_fetch_button_state(self):
         """Enable/disable fetch button based on username input"""
         has_text = bool(self.username_input.text().strip())
         self.fetch_history_button.setEnabled(has_text and not self.is_fetching)
-    
+   
     def _set_fetch_button_loading(self, is_loading: bool):
         """Change fetch button icon to loader or back to normal"""
         icon_name = "loader.svg" if is_loading else "user-received.svg"
         tooltip = "Fetching..." if is_loading else "Fetch username history"
-        
+       
         icon_size = self.fetch_history_button._icon_size
         self.fetch_history_button.setIcon(
             _render_svg_icon(self.icons_path / icon_name, icon_size)
         )
         self.fetch_history_button.setToolTip(tooltip)
         self.fetch_history_button._icon_name = icon_name
-    
+   
     def _on_fetch_history_clicked(self):
         """Fetch username history for usernames in the field"""
         username_text = self.username_input.text().strip()
         if not username_text:
             return
-        
+       
         usernames = [u.strip() for u in username_text.split(',') if u.strip()]
         if not usernames:
             return
 
         # Store original usernames before expansion
         self.original_usernames = usernames.copy()
-        
+       
         # Set loading state
         self.is_fetching = True
         self._set_fetch_button_loading(True)
         self.fetch_history_button.setEnabled(False)
-        
+       
         def _fetch():
             expanded = set()
             not_found = []
-            
+           
             try:
                 for username in usernames:
                     # Check if user exists first
                     user_id = get_exact_user_id_by_name(username)
-                    
+                   
                     if not user_id:
                         # User doesn't exist
                         not_found.append(username)
                         continue
-                    
+                   
                     # User exists, add original username
                     expanded.add(username)
-                    
+                   
                     # Try to get username history
                     history = get_usernames_history(username)
-                    
+                   
                     # If we got history, add it
                     if history and isinstance(history, list):
                         expanded.update(history)
-                
+               
                 # Convert to sorted list for consistent ordering
                 expanded_list = sorted(expanded)
-                
+               
                 # Update UI on main thread - using partial to avoid closure issues
                 QTimer.singleShot(0, partial(self._on_fetch_complete, expanded_list, not_found))
-            
+           
             except Exception as e:
                 error_msg = str(e)
                 QTimer.singleShot(0, partial(self._on_fetch_error, error_msg))
-        
+       
         threading.Thread(target=_fetch, daemon=True).start()
-    
+   
     def _on_fetch_complete(self, usernames: list, not_found: list):
         """Handle fetch completion"""
         # Reset loading state
         self.is_fetching = False
         self._set_fetch_button_loading(False)
         self._update_fetch_button_state()
-        
+       
         # Always update username field with valid usernames (even if empty)
         if usernames:
             self.username_input.setText(', '.join(usernames))
         else:
             # All users not found - clear the field
             self.username_input.clear()
-        
+       
         # Show errors if any users weren't found
         if not_found:
             QMessageBox.warning(
-                self, 
-                "Users Not Found", 
+                self,
+                "Users Not Found",
                 f"The following users were not found:\n{', '.join(not_found)}"
             )
         elif usernames:
@@ -380,32 +380,32 @@ class ChatlogsParserConfigWidget(QWidget):
                 "No Users Found",
                 "None of the entered usernames were found."
             )
-    
+   
     def _on_fetch_error(self, error: str):
         """Handle fetch error"""
         # Reset loading state
         self.is_fetching = False
         self._set_fetch_button_loading(False)
         self._update_fetch_button_state()
-        
+       
         QMessageBox.critical(self, "Error", f"Failed to fetch username history:\n{error}")
-    
+   
     def _update_mention_label(self):
         """Update the mention label based on current username and input"""
         if not self.mention_container.isVisible():
             return
-        
+       
         # Get current username
         current_username = self.account.get('login') if self.account else None
-        
+       
         # Get additional keywords from input
         additional_text = self.mention_input.text().strip()
         additional = [k.strip() for k in additional_text.split(',') if k.strip()] if additional_text else []
-        
+       
         # Remove duplicates of current username
         if current_username:
             additional = [k for k in additional if k.lower() != current_username.lower()]
-        
+       
         # Build label text
         if current_username and additional:
             keywords = f"{current_username}, {', '.join(additional)}"
@@ -417,7 +417,7 @@ class ChatlogsParserConfigWidget(QWidget):
             self.mention_label.setText(f"🔍 Searching mentions by: {keywords}")
         else:
             self.mention_label.setText("⚠️ No username set. Please log in or add keywords.")
-    
+   
     def _on_mode_changed(self, index: int):
         """Update UI based on selected mode"""
         # Clear existing date inputs
@@ -425,44 +425,44 @@ class ChatlogsParserConfigWidget(QWidget):
             item = self.date_layout.takeAt(0)
             if item.widget():
                 item.widget().deleteLater()
-        
+       
         mode = self.mode_combo.currentText()
-        
+       
         # Show/hide mention keywords based on mode
         is_mention_mode = (mode == "Personal Mentions")
         self.mention_container.setVisible(is_mention_mode)
         if is_mention_mode:
             self._update_mention_label()
-        
+       
         # Create date inputs based on mode
         if mode == "Single Date":
             self._add_date_input("Date:", "single_date", "YYYY-MM-DD")
-        
+       
         elif mode == "From Date":
             self._add_date_input("From:", "from_date", "YYYY-MM-DD")
             info = QLabel("(to today)")
             info.setStyleSheet("color: #888;")
             self.date_layout.addWidget(info)
-        
+       
         elif mode == "Date Range":
             self._add_date_input("Range:", "range_dates", "YYYY-MM-DD YYYY-MM-DD")
-        
+       
         elif mode == "From Start":
             info = QLabel("Will parse from 2012-12-02 to today")
             info.setStyleSheet("color: #888;")
             self.date_layout.addWidget(info)
-        
+       
         elif mode == "From Registered":
             info = QLabel("Will use registration date of entered user(s)")
             info.setStyleSheet("color: #888;")
             self.date_layout.addWidget(info)
-        
+       
         elif mode == "Personal Mentions":
             sub_mode_layout = QHBoxLayout()
             sub_mode_layout.setSpacing(self.spacing)
             sub_mode_label = self._create_label("Date Mode:")
             sub_mode_layout.addWidget(sub_mode_label)
-            
+           
             self.mention_date_combo = self._create_combo([
                 "Single Date",
                 "From Date",
@@ -472,14 +472,14 @@ class ChatlogsParserConfigWidget(QWidget):
             ])
             self.mention_date_combo.currentIndexChanged.connect(self._on_mention_date_mode_changed)
             sub_mode_layout.addWidget(self.mention_date_combo, stretch=1)
-            
+           
             container = QWidget()
             container.setLayout(sub_mode_layout)
             self.date_layout.addWidget(container)
-            
+           
             # Initialize with first sub-mode
             self._on_mention_date_mode_changed(0)
-    
+   
     def _on_mention_date_mode_changed(self, index: int):
         """Update date inputs for personal mentions sub-mode"""
         # Remove existing inputs (except the sub-mode selector)
@@ -487,9 +487,9 @@ class ChatlogsParserConfigWidget(QWidget):
             item = self.date_layout.takeAt(1)
             if item.widget():
                 item.widget().deleteLater()
-        
+       
         sub_mode = self.mention_date_combo.currentText()
-        
+       
         if sub_mode == "Single Date":
             self._add_date_input("Date:", "mention_single_date", "YYYY-MM-DD")
         elif sub_mode == "From Date":
@@ -501,19 +501,19 @@ class ChatlogsParserConfigWidget(QWidget):
         elif sub_mode == "Last N Days":
             days_layout, self.days_input = self._create_input_row("Days:", "7")
             self.days_input.setText("7")
-            
+           
             container = QWidget()
             container.setLayout(days_layout)
             self.date_layout.addWidget(container)
-    
+   
     def _add_date_input(self, label_text: str, obj_name: str, placeholder: str = "YYYY-MM-DD"):
         """Add a date input field"""
         layout, line_edit = self._create_input_row(label_text, placeholder, obj_name)
-        
+       
         container = QWidget()
         container.setLayout(layout)
         self.date_layout.addWidget(container)
-    
+   
     def _on_parse_clicked(self):
         """Handle parse button click"""
         if self.is_parsing:
@@ -522,24 +522,24 @@ class ChatlogsParserConfigWidget(QWidget):
         else:
             # Start parsing
             self._start_parsing()
-    
+   
     def _on_copy_clicked(self):
         """Copy results to clipboard"""
         # Signal will be emitted from parent widget (ui_chatlog.py)
         pass
-    
+   
     def _on_save_clicked(self):
         """Save results to file"""
         # Signal will be emitted from parent widget (ui_chatlog.py)
         pass
-    
+   
     def _start_parsing(self):
         """Validate inputs and start parsing"""
         try:
             config = self._build_parse_config()
             if not config:
                 return
-            
+           
             # Update UI for parsing state
             self.is_parsing = True
             self.parse_button.setIcon(create_icon_button(self.icons_path, "stop.svg", "Stop parsing", config=self.config).icon())
@@ -548,23 +548,23 @@ class ChatlogsParserConfigWidget(QWidget):
             self.progress_bar.setValue(0)
             self.progress_label.setVisible(True)
             self.progress_label.setText(f"{config.from_date} - {config.from_date}")
-            
+           
             # Hide copy/save buttons during parsing
             self.copy_button.setVisible(False)
             self.save_button.setVisible(False)
-            
+           
             # Emit signal
             self.parse_started.emit(config)
-            
+           
         except Exception as e:
             print(f"Error starting parse: {e}")
             self._reset_ui()
-    
+   
     def _cancel_parsing(self):
         """Cancel parsing"""
         self.parse_cancelled.emit()
         self._reset_ui()
-    
+   
     def _reset_ui(self):
         """Reset UI to non-parsing state"""
         self.is_parsing = False
@@ -573,38 +573,38 @@ class ChatlogsParserConfigWidget(QWidget):
         self.progress_bar.setVisible(False)
         self.progress_label.setVisible(False)
         self.progress_label.setText("")
-        
+       
         # Keep copy/save buttons visible if they were shown
         # (they'll be shown by the parent when parsing completes)
-    
+   
     def show_copy_save_buttons(self):
         """Show copy and save buttons after successful parse"""
         self.copy_button.setVisible(True)
         self.save_button.setVisible(True)
-    
+   
     def update_progress(self, start_date: str, current_date: str, percent: int):
         """Update progress display"""
         self.progress_bar.setValue(percent)
         self.progress_label.setText(f"{start_date} - {current_date}")
-    
+   
     def _build_parse_config(self) -> Optional[ParseConfig]:
         """Build ParseConfig from UI inputs"""
         mode = self.mode_combo.currentText()
-        
+       
         # Earliest allowed date
         EARLIEST_ALLOWED_DATE = "2012-12-02"
-        
+       
         # Get dates based on mode
         from_date = None
         to_date = None
-        
+       
         if mode == "Single Date":
             date_input = self.findChild(QLineEdit, "single_date")
             if not date_input or not date_input.text().strip():
                 QMessageBox.warning(self, "Missing Date", "Please enter a date")
                 return None
             from_date = to_date = date_input.text().strip()
-        
+       
         elif mode == "From Date":
             date_input = self.findChild(QLineEdit, "from_date")
             if not date_input or not date_input.text().strip():
@@ -612,7 +612,7 @@ class ChatlogsParserConfigWidget(QWidget):
                 return None
             from_date = date_input.text().strip()
             to_date = datetime.now().strftime('%Y-%m-%d')
-        
+       
         elif mode == "Date Range":
             range_input = self.findChild(QLineEdit, "range_dates")
             if not range_input or not range_input.text().strip():
@@ -623,11 +623,11 @@ class ChatlogsParserConfigWidget(QWidget):
                 QMessageBox.warning(self, "Invalid Format", "Invalid range format - use YYYY-MM-DD YYYY-MM-DD")
                 return None
             from_date, to_date = dates
-        
+       
         elif mode == "From Start":
             from_date = EARLIEST_ALLOWED_DATE
             to_date = datetime.now().strftime('%Y-%m-%d')
-        
+       
         elif mode == "From Registered":
             # Use original typed usernames if fetch history was used, otherwise parse from field
             if self.original_usernames:
@@ -640,27 +640,27 @@ class ChatlogsParserConfigWidget(QWidget):
                     QMessageBox.warning(self, "Missing Username", "Please enter at least one username")
                     return None
                 usernames_to_check = [u.strip() for u in original_usernames_text.split(',') if u.strip()]
-            
+           
             if not usernames_to_check:
                 QMessageBox.warning(self, "Missing Username", "Please enter at least one username")
                 return None
-            
+           
             # Fetch registration dates only for originally typed usernames
             reg_dates = []
             for username in usernames_to_check:
                 reg_date = get_registration_date(username)
                 if reg_date:
                     reg_dates.append(reg_date)
-            
+           
             if not reg_dates:
                 QMessageBox.warning(self, "Error", "Could not get registration date for specified username(s)")
                 return None
-            
+           
             # Get earliest registration date, but clamp to earliest allowed date
             earliest_reg = min(reg_dates)
             from_date = max(earliest_reg, EARLIEST_ALLOWED_DATE)
             to_date = datetime.now().strftime('%Y-%m-%d')
-            
+           
             # Optionally inform user if date was clamped
             if earliest_reg < EARLIEST_ALLOWED_DATE:
                 QMessageBox.information(
@@ -669,17 +669,17 @@ class ChatlogsParserConfigWidget(QWidget):
                     f"Registration date ({earliest_reg}) is before earliest available logs.\n"
                     f"Starting from {EARLIEST_ALLOWED_DATE} instead."
                 )
-        
+       
         elif mode == "Personal Mentions":
             sub_mode = self.mention_date_combo.currentText()
-            
+           
             if sub_mode == "Single Date":
                 date_input = self.findChild(QLineEdit, "mention_single_date")
                 if not date_input or not date_input.text().strip():
                     QMessageBox.warning(self, "Missing Date", "Please enter a date")
                     return None
                 from_date = to_date = date_input.text().strip()
-            
+           
             elif sub_mode == "From Date":
                 date_input = self.findChild(QLineEdit, "mention_from_date")
                 if not date_input or not date_input.text().strip():
@@ -687,7 +687,7 @@ class ChatlogsParserConfigWidget(QWidget):
                     return None
                 from_date = date_input.text().strip()
                 to_date = datetime.now().strftime('%Y-%m-%d')
-            
+           
             elif sub_mode == "Date Range":
                 range_input = self.findChild(QLineEdit, "mention_range_dates")
                 if not range_input or not range_input.text().strip():
@@ -698,11 +698,11 @@ class ChatlogsParserConfigWidget(QWidget):
                     QMessageBox.warning(self, "Invalid Format", "Invalid range format - use YYYY-MM-DD YYYY-MM-DD")
                     return None
                 from_date, to_date = dates
-            
+           
             elif sub_mode == "From Start":
                 from_date = EARLIEST_ALLOWED_DATE
                 to_date = datetime.now().strftime('%Y-%m-%d')
-            
+           
             elif sub_mode == "Last N Days":
                 if not hasattr(self, 'days_input') or not self.days_input.text().strip():
                     QMessageBox.warning(self, "Missing Days", "Please enter number of days")
