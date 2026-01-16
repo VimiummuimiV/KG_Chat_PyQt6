@@ -67,31 +67,31 @@ class Application:
 
         # Create the main menu
         menu = QMenu()
-        
+       
         # Add menu items
         menu.addAction(QAction("Switch Account", self.app, triggered=self.show_account_switcher))
         menu.addSeparator()
-        
+       
         # Create Color Management submenu
         self.color_menu = menu.addMenu("Color Management")
-        
+       
         # Create actions for the submenu
         change_color_action = QAction("Change Username Color", self.app)
         change_color_action.triggered.connect(self.handle_change_username_color)
         self.color_menu.addAction(change_color_action)
-        
+       
         # Reset action - will be shown/hidden dynamically
         self.reset_color_action = QAction("Reset to Original", self.app)
         self.reset_color_action.triggered.connect(self.handle_reset_username_color)
         self.color_menu.addAction(self.reset_color_action)
-        
+       
         update_color_action = QAction("Update from Server", self.app)
         update_color_action.triggered.connect(self.handle_update_from_server)
         self.color_menu.addAction(update_color_action)
-        
+       
         # Connect to aboutToShow to update menu visibility
         self.color_menu.aboutToShow.connect(self.update_color_menu)
-        
+       
         menu.addSeparator()
         menu.addAction(QAction("Exit", self.app, triggered=self.exit_application))
 
@@ -104,7 +104,7 @@ class Application:
             # No account connected - hide reset option
             self.reset_color_action.setVisible(False)
             return
-        
+       
         # Show reset only if custom_background exists
         has_custom_bg = bool(self.chat_window.account.get('custom_background'))
         self.reset_color_action.setVisible(has_custom_bg)
@@ -163,6 +163,9 @@ class Application:
                 self.chat_window.xmpp_client.disconnect()
             except Exception:
                 pass
+        if self.chat_window:
+            self.chat_window.really_close = True
+            self.chat_window.close()
         if self.tray_icon:
             self.tray_icon.hide()
 
@@ -201,56 +204,56 @@ class Application:
         if not self.chat_window or not self.chat_window.account:
             QMessageBox.warning(None, "No Account", "Please connect to an account first.")
             return
-        
+       
         success = operation_func(
-            None,  # No parent for tray
+            None, # No parent for tray
             self.account_manager,
             self.chat_window.account,
             self.chat_window.cache
         )
-        
+       
         if not success:
             return
-        
+       
         # Refresh account data to update custom_background/avatar state
         updated_account = self.account_manager.get_account_by_chat_username(
             self.chat_window.account['chat_username']
         )
-        
+       
         if not updated_account:
             return
-        
+       
         previous_avatar = self.chat_window.account.get('avatar')
         self.chat_window.account.update(updated_account)
-        
+       
         effective_bg = updated_account.get('custom_background') or updated_account.get('background')
         own_login = updated_account['chat_username']
         own_id = updated_account['user_id']
-        
+       
         # Clear color cache
         self.chat_window.cache.clear_colors()
-        
+       
         # Clear avatar cache if changed
         if updated_account.get('avatar') != previous_avatar:
             self.chat_window.cache._avatar_cache.pop(own_id, None)
-        
+       
         # Update userlist own user
         own_user = next(
-            (u for u in self.chat_window.xmpp_client.user_list.users.values() 
-            if u.login == own_login), 
+            (u for u in self.chat_window.xmpp_client.user_list.users.values()
+            if u.login == own_login),
             None
         )
         if own_user:
             own_user.background = effective_bg
             self.chat_window.user_list_widget.add_users(users=[own_user])
-        
+       
         # Update messages
         own_messages_updated = False
         for msg_data in self.chat_window.messages_widget.model._messages:
             if msg_data.username == own_login:
                 msg_data.background_color = effective_bg
                 own_messages_updated = True
-        
+       
         if own_messages_updated:
             self.chat_window.messages_widget._force_recalculate()
 
