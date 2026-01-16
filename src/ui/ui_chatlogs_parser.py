@@ -543,7 +543,7 @@ class ChatlogsParserConfigWidget(QWidget):
             self.progress_bar.setVisible(True)
             self.progress_bar.setValue(0)
             self.progress_label.setVisible(True)
-            self.progress_label.setText(f"📅 {config.from_date} - {config.from_date}")
+            self.progress_label.setText(f"{config.from_date} - {config.from_date}")
             
             # Hide copy/save buttons during parsing
             self.copy_button.setVisible(False)
@@ -581,7 +581,7 @@ class ChatlogsParserConfigWidget(QWidget):
     def update_progress(self, start_date: str, current_date: str, percent: int):
         """Update progress display"""
         self.progress_bar.setValue(percent)
-        self.progress_label.setText(f"📅 {start_date} - {current_date}")
+        self.progress_label.setText(f"{start_date} - {current_date}")
     
     def _build_parse_config(self) -> Optional[ParseConfig]:
         """Build ParseConfig from UI inputs"""
