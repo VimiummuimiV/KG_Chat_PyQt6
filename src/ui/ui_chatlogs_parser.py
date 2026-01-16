@@ -59,6 +59,7 @@ class ChatlogsParserConfigWidget(QWidget):
         self.account = account  # Store account to get current username
         self.is_parsing = False
         self.is_fetching = False
+        self.original_usernames = []
         
         self._setup_ui()
     
@@ -299,6 +300,9 @@ class ChatlogsParserConfigWidget(QWidget):
         usernames = [u.strip() for u in username_text.split(',') if u.strip()]
         if not usernames:
             return
+
+        # Store original usernames before expansion
+        self.original_usernames = usernames.copy()
         
         # Set loading state
         self.is_fetching = True
@@ -625,21 +629,31 @@ class ChatlogsParserConfigWidget(QWidget):
             to_date = datetime.now().strftime('%Y-%m-%d')
         
         elif mode == "From Registered":
-            # Get registration date from usernames
-            usernames = self._get_usernames()
-            if not usernames:
+            # Use original typed usernames if fetch history was used, otherwise parse from field
+            if self.original_usernames:
+                # Use stored original usernames (before fetch history expanded them)
+                usernames_to_check = self.original_usernames
+            else:
+                # Parse directly from field (fetch history was not used)
+                original_usernames_text = self.username_input.text().strip()
+                if not original_usernames_text:
+                    QMessageBox.warning(self, "Missing Username", "Please enter at least one username")
+                    return None
+                usernames_to_check = [u.strip() for u in original_usernames_text.split(',') if u.strip()]
+            
+            if not usernames_to_check:
                 QMessageBox.warning(self, "Missing Username", "Please enter at least one username")
                 return None
             
-            # Fetch registration dates (synchronous - might want to make async)
+            # Fetch registration dates only for originally typed usernames
             reg_dates = []
-            for username in usernames:
+            for username in usernames_to_check:
                 reg_date = get_registration_date(username)
                 if reg_date:
                     reg_dates.append(reg_date)
             
             if not reg_dates:
-                QMessageBox.warning(self, "Error", "Could not get registration date")
+                QMessageBox.warning(self, "Error", "Could not get registration date for specified username(s)")
                 return None
             
             # Get earliest registration date, but clamp to earliest allowed date
