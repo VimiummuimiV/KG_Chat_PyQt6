@@ -587,6 +587,9 @@ class ChatlogsParserConfigWidget(QWidget):
         """Build ParseConfig from UI inputs"""
         mode = self.mode_combo.currentText()
         
+        # Earliest allowed date
+        EARLIEST_ALLOWED_DATE = "2012-12-02"
+        
         # Get dates based on mode
         from_date = None
         to_date = None
@@ -618,7 +621,7 @@ class ChatlogsParserConfigWidget(QWidget):
             from_date, to_date = dates
         
         elif mode == "From Start":
-            from_date = "2012-12-02"
+            from_date = EARLIEST_ALLOWED_DATE
             to_date = datetime.now().strftime('%Y-%m-%d')
         
         elif mode == "From Registered":
@@ -639,8 +642,19 @@ class ChatlogsParserConfigWidget(QWidget):
                 QMessageBox.warning(self, "Error", "Could not get registration date")
                 return None
             
-            from_date = min(reg_dates)
+            # Get earliest registration date, but clamp to earliest allowed date
+            earliest_reg = min(reg_dates)
+            from_date = max(earliest_reg, EARLIEST_ALLOWED_DATE)
             to_date = datetime.now().strftime('%Y-%m-%d')
+            
+            # Optionally inform user if date was clamped
+            if earliest_reg < EARLIEST_ALLOWED_DATE:
+                QMessageBox.information(
+                    self,
+                    "Date Adjusted",
+                    f"Registration date ({earliest_reg}) is before earliest available logs.\n"
+                    f"Starting from {EARLIEST_ALLOWED_DATE} instead."
+                )
         
         elif mode == "Personal Mentions":
             sub_mode = self.mention_date_combo.currentText()
@@ -672,7 +686,7 @@ class ChatlogsParserConfigWidget(QWidget):
                 from_date, to_date = dates
             
             elif sub_mode == "From Start":
-                from_date = "2012-12-02"
+                from_date = EARLIEST_ALLOWED_DATE
                 to_date = datetime.now().strftime('%Y-%m-%d')
             
             elif sub_mode == "Last N Days":
