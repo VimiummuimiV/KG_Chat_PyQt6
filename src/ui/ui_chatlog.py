@@ -11,6 +11,7 @@ import threading
 from pathlib import Path
 
 from core.chatlogs import ChatlogsParser, ChatlogNotFoundError
+from core.chatlogs_db import ChatMessage
 from core.chatlogs_parser import ParseConfig, ChatlogsParserEngine
 from helpers.create import create_icon_button
 from helpers.emoticons import EmoticonManager
@@ -376,7 +377,7 @@ class ChatlogWidget(QWidget):
                 self.temp_parsed_messages.append(separator)
             self.last_parsed_date = date
 
-        # Convert and store in temp storage - DO NOT add to model yet
+        # Convert ChatMessage to MessageData - msg already has all fields
         for msg in messages:
             try:
                 timestamp = datetime.strptime(msg.timestamp, "%H:%M:%S")
@@ -641,8 +642,10 @@ class ChatlogWidget(QWidget):
         def _load():
             try:
                 messages, was_truncated, from_cache = self.parser.get_messages(date_str)
-                html, _, _ = self.parser.fetch_log(date_str)
-                size_kb = len(html.encode('utf-8')) / 1024
+                
+                # Estimate size (no HTML to measure anymore)
+                estimated_bytes = len(messages) * 100  # ~100 bytes per message average
+                size_kb = estimated_bytes / 1024
                 size_text = f"{size_kb:.1f} KB" if size_kb < 1024 else f"{size_kb/1024:.1f} MB"
             
                 self._pending_data = (messages, size_text, was_truncated, from_cache)
@@ -678,6 +681,7 @@ class ChatlogWidget(QWidget):
             for msg in messages:
                 try:
                     timestamp = datetime.strptime(msg.timestamp, "%H:%M:%S")
+                    # Note: msg.message instead of msg.body (ChatMessage from database)
                     msg_data = MessageData(timestamp, msg.username, msg.message, None, msg.username)
                     message_data.append(msg_data)
                 except:
@@ -746,3 +750,5 @@ class ChatlogWidget(QWidget):
             self.scroll_button.cleanup()
         if hasattr(self, 'auto_scroller'):
             self.auto_scroller.cleanup()
+        if hasattr(self.parser, 'db'):
+            self.parser.db.close()

@@ -1,77 +1,26 @@
+"""Chatlog fetcher and parser with SQLite database storage"""
 import requests
 from datetime import datetime
 from typing import List, Optional, Tuple
-from dataclasses import dataclass
-from pathlib import Path
 from lxml import etree
 
-from helpers.data import get_data_dir
+from core.chatlogs_db import ChatlogDB, ChatMessage
 
-@dataclass
-class ChatMessage:
-    timestamp: str
-    username: str
-    message: str
-   
-    def __repr__(self):
-        return f"{self.timestamp} {self.username}: {self.message}"
 
 class ChatlogNotFoundError(Exception):
     """Raised when chatlog is not found (404)"""
     pass
 
+
 class ChatlogsParser:
     BASE_URL = "https://klavogonki.ru/chatlogs"
     MIN_DATE = datetime(2012, 2, 12).date()
-    MAX_FILE_SIZE_MB = 10 # Maximum file size in MB
-    NOT_FOUND_SUFFIX = "_NotFound" # Suffix for 404 marker files
-    TRUNCATED_SUFFIX = "_Truncated" # Suffix for truncated cache files (due to size)
-   
-    def __init__(self, session: Optional[requests.Session] = None):
+    MAX_FILE_SIZE_MB = 10  # Maximum file size in MB
+    
+    def __init__(self, session: Optional[requests.Session] = None, db: Optional[ChatlogDB] = None):
         self.session = session or requests.Session()
-        self.cache_dir = get_data_dir("chatlogs")
-   
-    def _get_cache_path(self, date: str, truncated: bool = False) -> Path:
-        """Get cache file path for a date"""
-        suffix = self.TRUNCATED_SUFFIX if truncated else ""
-        return self.cache_dir / f"{date}{suffix}.html"
-   
-    def _get_not_found_path(self, date: str) -> Path:
-        """Get not-found marker file path"""
-        return self.cache_dir / f"{date}{self.NOT_FOUND_SUFFIX}.txt"
-   
-    def _is_cached(self, date: str) -> Tuple[bool, bool]:
-        """Check cache, returns (is_cached, was_truncated)"""
-        if self._get_cache_path(date, truncated=True).exists():
-            return True, True
-        if self._get_cache_path(date, truncated=False).exists():
-            return True, False
-        return False, False
-   
-    def _is_not_found(self, date: str) -> bool:
-        """Check if previously marked as 404"""
-        return self._get_not_found_path(date).exists()
-   
-    def _load_from_cache(self, date: str) -> Tuple[str, bool]:
-        """Load from cache, returns (html, was_truncated)"""
-        for truncated in (True, False):
-            path = self._get_cache_path(date, truncated)
-            if path.exists():
-                return path.read_text(encoding='utf-8'), truncated
-        return "", False
-   
-    def _save_to_cache(self, date: str, html: str, truncated: bool = False):
-        """Save to cache (skip if today)"""
-        if datetime.strptime(date, '%Y-%m-%d').date() >= datetime.now().date():
-            return
-        self._get_cache_path(date, truncated).write_text(html, encoding='utf-8')
-   
-    def _mark_not_found(self, date: str):
-        """Mark as 404 (skip if today)"""
-        if datetime.strptime(date, '%Y-%m-%d').date() >= datetime.now().date():
-            return
-        self._get_not_found_path(date).write_text(f"404 - Not found on {datetime.now().isoformat()}")
-   
+        self.db = db or ChatlogDB()
+    
     def fetch_log(self, date: Optional[str] = None) -> Tuple[str, bool, bool]:
         """Fetch chatlog HTML for date (YYYY-MM-DD)
         
@@ -79,35 +28,35 @@ class ChatlogsParser:
         Raises: ChatlogNotFoundError, ValueError
         """
         date = date or datetime.now().strftime('%Y-%m-%d')
-       
+        
         # Check minimum date
         date_obj = datetime.strptime(date, '%Y-%m-%d').date()
         if date_obj < self.MIN_DATE:
             raise ValueError(f"Date cannot be before {self.MIN_DATE.strftime('%Y-%m-%d')}")
-       
-        # Check if already marked as not found
-        if self._is_not_found(date):
+        
+        # Check database status
+        is_cached, was_truncated, is_404 = self.db.is_date_cached(date)
+        
+        if is_404:
             raise ChatlogNotFoundError(f"Chatlog not found for date {date} (cached 404)")
-       
-        # Check file cache
-        is_cached, was_truncated = self._is_cached(date)
+        
         if is_cached:
-            html, was_truncated = self._load_from_cache(date)
-            return html, was_truncated, True
-       
+            # Return empty string since we don't need HTML when using DB
+            return "", was_truncated, True
+        
         # Fetch from network
         url = f"{self.BASE_URL}/{date}.html"
         try:
             response = self.session.get(url, timeout=10, stream=True)
-           
+            
             if response.status_code == 404:
-                self._mark_not_found(date)
+                self.db.mark_date_not_found(date)
                 raise ChatlogNotFoundError(f"Chatlog not found for date {date}")
-           
+            
             response.raise_for_status()
             response.encoding = 'utf-8'
-           
-            # Always enforce size limit by streaming (handles gzip decompression)
+            
+            # Enforce size limit by streaming
             max_bytes = int(self.MAX_FILE_SIZE_MB * 1024 * 1024)
             was_truncated = False
             content = b''
@@ -119,24 +68,22 @@ class ChatlogsParser:
                     was_truncated = True
                     response.close()
                     break
-           
+            
             html = content.decode('utf-8', errors='ignore')
-            self._save_to_cache(date, html, truncated=was_truncated)
             return html, was_truncated, False
-           
+            
         except requests.exceptions.RequestException as e:
             if hasattr(e, 'response') and e.response and e.response.status_code == 404:
-                self._mark_not_found(date)
+                self.db.mark_date_not_found(date)
                 raise ChatlogNotFoundError(f"Chatlog not found for date {date}")
             raise
-   
-    def parse_messages(self, html: str) -> List[ChatMessage]:
+    
+    def parse_messages(self, html: str, date: str) -> List[ChatMessage]:
         """Parse messages from HTML using lxml
         
         Structure: <a class="ts" name="HH:MM:SS"/>
                    <font class="mn">&lt;user&gt;</font>text<br/>
         """
-        # Use recover=True to handle truncated/malformed HTML
         parser = etree.HTMLParser(encoding='utf-8', recover=True)
         tree = etree.fromstring(html.encode('utf-8'), parser)
         messages = []
@@ -169,19 +116,76 @@ class ChatlogsParser:
             
             message = ''.join(parts).strip()
             if message:
-                messages.append(ChatMessage(timestamp, username, message))
+                messages.append(ChatMessage(timestamp, username, message, date))
         
         return messages
-   
-    def get_messages(self, date: Optional[str] = None) -> Tuple[List[ChatMessage], bool, bool]:
-        """Get parsed messages for date
+    
+    def get_messages(
+        self,
+        date: Optional[str] = None,
+        usernames: Optional[List[str]] = None,
+        search_terms: Optional[List[str]] = None,
+        mention_keywords: Optional[List[str]] = None
+    ) -> Tuple[List[ChatMessage], bool, bool]:
+        """Get parsed messages for date with optional filters
         
         Returns: (messages, was_truncated, from_cache)
         Raises: ChatlogNotFoundError, ValueError
         """
-        html, was_truncated, from_cache = self.fetch_log(date)
-        return self.parse_messages(html), was_truncated, from_cache
-
-
-if __name__ == "__main__":
-    parser = ChatlogsParser()
+        date = date or datetime.now().strftime('%Y-%m-%d')
+        
+        # Check if we have this date in DB
+        is_cached, was_truncated, is_404 = self.db.is_date_cached(date)
+        
+        if is_404:
+            raise ChatlogNotFoundError(f"Chatlog not found for date {date}")
+        
+        if is_cached:
+            # Get from database with filters
+            messages = self.db.get_messages(date, usernames, search_terms, mention_keywords)
+            return messages, was_truncated, True
+        
+        # Fetch from network
+        html, was_truncated, _ = self.fetch_log(date)
+        
+        # Parse messages
+        messages = self.parse_messages(html, date)
+        
+        # Save to database
+        self.db.save_messages(date, messages, was_truncated)
+        
+        # Apply filters if any
+        if usernames or search_terms or mention_keywords:
+            messages = self.db.get_messages(date, usernames, search_terms, mention_keywords)
+        
+        return messages, was_truncated, False
+    
+    def get_messages_range(
+        self,
+        from_date: str,
+        to_date: str,
+        usernames: Optional[List[str]] = None,
+        search_terms: Optional[List[str]] = None,
+        mention_keywords: Optional[List[str]] = None
+    ) -> List[ChatMessage]:
+        """Get messages for a date range with optional filters
+        
+        This is optimized for database queries when data is cached.
+        """
+        # Get missing dates that need to be fetched
+        missing_dates = self.db.get_missing_dates(from_date, to_date)
+        
+        # Fetch missing dates (if any)
+        for date in missing_dates:
+            try:
+                html, was_truncated, _ = self.fetch_log(date)
+                messages = self.parse_messages(html, date)
+                self.db.save_messages(date, messages, was_truncated)
+            except ChatlogNotFoundError:
+                # Already marked as 404 in fetch_log
+                pass
+            except Exception as e:
+                print(f"Error fetching {date}: {e}")
+        
+        # Now get all messages from DB with filters
+        return self.db.get_messages_range(from_date, to_date, usernames, search_terms, mention_keywords)
