@@ -425,7 +425,7 @@ class ChatlogWidget(QWidget):
         else:
             self.info_label.setText("No messages found")
         if self.parent_window:
-            self.parent_window.stop_parse_status()
+            self.parent_window.handle_parse_finished()
 
     def _on_parse_error(self, error_msg: str):
         """Handle parse error"""

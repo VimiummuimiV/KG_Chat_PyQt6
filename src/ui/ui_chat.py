@@ -683,6 +683,7 @@ class ChatWindow(QWidget):
         parse_status_layout.addWidget(parse_current_label)
 
         stop_parse_btn = create_icon_button(self.icons_path, "stop.svg", "Stop Parsing", config=self.config)
+        stop_parse_btn.setObjectName("stop_parse_btn")
         stop_parse_btn.clicked.connect(lambda: self.chatlog_widget._on_parse_cancelled() if self.chatlog_widget else None)
         parse_status_layout.addWidget(stop_parse_btn)
 
@@ -720,7 +721,17 @@ class ChatWindow(QWidget):
             self.parse_current_label.setText(f"{start_date} - {current_date}")
 
     def on_parse_finished(self):
-        self.stop_parse_status()
+        self.handle_parse_finished()
+
+    def handle_parse_finished(self):
+        """Keep parse status visible but update to finished state"""
+        if self.parse_status_widget:
+            # Hide stop button
+            stop_btn = self.parse_status_widget.findChild(QPushButton, "stop_parse_btn")
+            if stop_btn:
+                stop_btn.setVisible(False)
+            # Update label
+            self.parse_current_label.setText("Parsing finished")
 
     def on_parse_error(self, error_msg: str):
         self.stop_parse_status()
