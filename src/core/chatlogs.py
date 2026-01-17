@@ -122,18 +122,48 @@ class ChatlogsParser:
     
     def get_messages(
         self,
-        date: Optional[str] = None,
+        from_date: Optional[str] = None,
+        to_date: Optional[str] = None,
         usernames: Optional[List[str]] = None,
         search_terms: Optional[List[str]] = None,
         mention_keywords: Optional[List[str]] = None
     ) -> Tuple[List[ChatMessage], bool, bool]:
-        """Get parsed messages for date with optional filters
+        """Get messages for a single date or date range with optional filters
         
-        Returns: (messages, was_truncated, from_cache)
-        Raises: ChatlogNotFoundError, ValueError
+        Args:
+            from_date: Start date (YYYY-MM-DD). If None, uses today
+            to_date: End date (YYYY-MM-DD). If None, treated as single date query
+            usernames: List of usernames to filter by
+            search_terms: Search terms for message content
+            mention_keywords: Keywords for mentions
+        
+        Returns:
+            Tuple of (messages, was_truncated, from_cache)
+            - For single date: was_truncated and from_cache apply to that date
+            - For date range: was_truncated is True if ANY date was truncated,
+              from_cache is True if ALL dates were cached
+        
+        Raises:
+            ChatlogNotFoundError: If date/range not found
+            ValueError: If date is invalid
         """
-        date = date or datetime.now().strftime('%Y-%m-%d')
+        from_date = from_date or datetime.now().strftime('%Y-%m-%d')
         
+        # Single date query
+        if to_date is None:
+            return self._get_single_date(from_date, usernames, search_terms, mention_keywords)
+        
+        # Date range query
+        return self._get_date_range(from_date, to_date, usernames, search_terms, mention_keywords)
+    
+    def _get_single_date(
+        self,
+        date: str,
+        usernames: Optional[List[str]] = None,
+        search_terms: Optional[List[str]] = None,
+        mention_keywords: Optional[List[str]] = None
+    ) -> Tuple[List[ChatMessage], bool, bool]:
+        """Get messages for a single date"""
         # Check if we have this date in DB
         is_cached, was_truncated, is_404 = self.db.is_date_cached(date)
         
@@ -142,7 +172,7 @@ class ChatlogsParser:
         
         if is_cached:
             # Get from database with filters
-            messages = self.db.get_messages(date, usernames, search_terms, mention_keywords)
+            messages = self.db.get_messages(date, None, usernames, search_terms, mention_keywords)
             return messages, was_truncated, True
         
         # Fetch from network
@@ -156,24 +186,28 @@ class ChatlogsParser:
         
         # Apply filters if any
         if usernames or search_terms or mention_keywords:
-            messages = self.db.get_messages(date, usernames, search_terms, mention_keywords)
+            messages = self.db.get_messages(date, None, usernames, search_terms, mention_keywords)
         
         return messages, was_truncated, False
     
-    def get_messages_range(
+    def _get_date_range(
         self,
         from_date: str,
         to_date: str,
         usernames: Optional[List[str]] = None,
         search_terms: Optional[List[str]] = None,
         mention_keywords: Optional[List[str]] = None
-    ) -> List[ChatMessage]:
-        """Get messages for a date range with optional filters
+    ) -> Tuple[List[ChatMessage], bool, bool]:
+        """Get messages for a date range
         
         This is optimized for database queries when data is cached.
         """
         # Get missing dates that need to be fetched
         missing_dates = self.db.get_missing_dates(from_date, to_date)
+        
+        # Track if any date was truncated
+        any_truncated = False
+        all_cached = len(missing_dates) == 0
         
         # Fetch missing dates (if any)
         for date in missing_dates:
@@ -181,11 +215,27 @@ class ChatlogsParser:
                 html, was_truncated, _ = self.fetch_log(date)
                 messages = self.parse_messages(html, date)
                 self.db.save_messages(date, messages, was_truncated)
+                
+                if was_truncated:
+                    any_truncated = True
+                    
             except ChatlogNotFoundError:
                 # Already marked as 404 in fetch_log
                 pass
             except Exception as e:
                 print(f"Error fetching {date}: {e}")
         
+        # Check if any cached date was truncated
+        if not any_truncated:
+            # Need to check all dates in range for truncation
+            cached_dates = self.db.get_cached_dates(from_date, to_date)
+            for date in cached_dates:
+                _, was_truncated, _ = self.db.is_date_cached(date)
+                if was_truncated:
+                    any_truncated = True
+                    break
+        
         # Now get all messages from DB with filters
-        return self.db.get_messages_range(from_date, to_date, usernames, search_terms, mention_keywords)
+        messages = self.db.get_messages(from_date, to_date, usernames, search_terms, mention_keywords)
+        
+        return messages, any_truncated, all_cached

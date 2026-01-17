@@ -93,7 +93,7 @@ class ChatlogsParserEngine:
             
             if self.stop_requested:
                 # Return partial results from DB
-                return self.parser.db.get_messages_range(
+                return self.parser.db.get_messages(
                     config.from_date,
                     config.to_date,
                     config.usernames or None,
@@ -102,7 +102,7 @@ class ChatlogsParserEngine:
                 )
         
         # Now all dates are cached - use optimized DB query
-        messages = self.parser.db.get_messages_range(
+        messages = self.parser.db.get_messages(
             config.from_date,
             config.to_date,
             config.usernames or None,

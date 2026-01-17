@@ -1,6 +1,6 @@
 """SQLite database manager for chatlogs"""
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Optional, Tuple, Set
 from dataclasses import dataclass
 from pathlib import Path
@@ -175,11 +175,23 @@ class ChatlogDB:
         search_terms: Optional[List[str]] = None,
         mention_keywords: Optional[List[str]] = None
     ) -> List[ChatMessage]:
-        """Get messages for a date or date range with optional filters
+        """Get messages for a single date or date range with optional filters
         
-        If to_date is None, only gets messages for from_date (single date query).
-        All filters are case-insensitive and applied as AND conditions.
+        Args:
+            from_date: Start date (YYYY-MM-DD)
+            to_date: End date (YYYY-MM-DD). If None, only gets messages for from_date
+            usernames: List of usernames to filter by (case-insensitive)
+            search_terms: Search terms for message content (OR condition, case-insensitive)
+            mention_keywords: Keywords for mentions (OR condition, case-insensitive)
+        
+        Returns:
+            List of ChatMessage objects
+        
+        Note:
+            All filters are case-insensitive and applied as AND conditions between
+            filter types, but OR within each filter type.
         """
+        # If no to_date specified, treat as single date query
         if to_date is None:
             to_date = from_date
         
@@ -188,27 +200,21 @@ class ChatlogDB:
         
         # Username filter - case-insensitive for Cyrillic support
         if usernames:
-            username_conditions = []
-            for username in usernames:
-                username_conditions.append("username = ? COLLATE NOCASE")
-                params.append(username)
+            username_conditions = ["username = ? COLLATE NOCASE" for _ in usernames]
             query += f" AND ({' OR '.join(username_conditions)})"
+            params.extend(usernames)
         
         # Search terms filter (any term matches) - case-insensitive
         if search_terms:
-            term_conditions = []
-            for term in search_terms:
-                term_conditions.append("message LIKE ? COLLATE NOCASE")
-                params.append(f"%{term}%")
+            term_conditions = ["message LIKE ? COLLATE NOCASE" for _ in search_terms]
             query += f" AND ({' OR '.join(term_conditions)})"
+            params.extend([f"%{term}%" for term in search_terms])
         
         # Mention keywords filter (any keyword matches) - case-insensitive
         if mention_keywords:
-            keyword_conditions = []
-            for keyword in mention_keywords:
-                keyword_conditions.append("message LIKE ? COLLATE NOCASE")
-                params.append(f"%{keyword}%")
+            keyword_conditions = ["message LIKE ? COLLATE NOCASE" for _ in mention_keywords]
             query += f" AND ({' OR '.join(keyword_conditions)})"
+            params.extend([f"%{keyword}%" for keyword in mention_keywords])
         
         query += " ORDER BY date, timestamp"
         
@@ -218,21 +224,6 @@ class ChatlogDB:
                 ChatMessage(timestamp=row[1], username=row[2], message=row[3], date=row[0])
                 for row in cursor.fetchall()
             ]
-    
-    def get_messages_range(
-        self,
-        from_date: str,
-        to_date: str,
-        usernames: Optional[List[str]] = None,
-        search_terms: Optional[List[str]] = None,
-        mention_keywords: Optional[List[str]] = None
-    ) -> List[ChatMessage]:
-        """Get messages for a date range with optional filters
-        
-        DEPRECATED: Use get_messages(from_date, to_date, ...) instead.
-        This method is kept for backward compatibility.
-        """
-        return self.get_messages(from_date, to_date, usernames, search_terms, mention_keywords)
     
     def get_cached_dates(self, from_date: str, to_date: str) -> Set[str]:
         """Get set of dates that are cached in the given range"""
@@ -245,8 +236,6 @@ class ChatlogDB:
     
     def get_missing_dates(self, from_date: str, to_date: str) -> List[str]:
         """Get list of dates that need to be fetched"""
-        from datetime import timedelta
-        
         # Generate all dates in range
         start = datetime.strptime(from_date, '%Y-%m-%d').date()
         end = datetime.strptime(to_date, '%Y-%m-%d').date()
@@ -265,9 +254,8 @@ class ChatlogDB:
             """, (from_date, to_date))
             cached = {row[0] for row in cursor.fetchall()}
         
-        # Return missing dates
-        missing = sorted(all_dates - cached)
-        return missing
+        # Return missing dates sorted
+        return sorted(all_dates - cached)
     
     def get_database_stats(self) -> dict:
         """Get database statistics"""
