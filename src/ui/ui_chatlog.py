@@ -45,23 +45,24 @@ class ChatlogWidget(QWidget):
         self.all_messages = []
         self.last_parsed_date = None
         self.temp_parsed_messages = [] # Temporary storage for parsed messages
-    
+
         self.search_visible = config.get("ui", "chatlog_search_visible")
         if self.search_visible is None:
             self.search_visible = False
-    
+
         emoticons_path = Path(__file__).resolve().parent.parent / "emoticons"
         self.emoticon_manager = EmoticonManager(emoticons_path)
-    
+
         self.model = MessageListModel(max_messages=50000)
         self.delegate = MessageDelegate(config, self.emoticon_manager, self.color_cache)
-    
+
         # Parser state
         self.parser_worker = None
         self.parser_visible = False
-    
+        self.parser_cancelled = False
+
         self._setup_ui()
-       
+    
         # Initialize auto-scroller after UI is set up
         self.auto_scroller = AutoScroller(self.list_view)
 
@@ -341,6 +342,24 @@ class ChatlogWidget(QWidget):
         if self.parser_worker:
             self.parser_worker.stop()
             self.parser_worker = None
+        self.parser_cancelled = True
+        self.parser_widget._reset_ui()
+        # Add partial messages if any
+        if self.temp_parsed_messages:
+            self.list_view.setUpdatesEnabled(False)
+            self.all_messages = self.temp_parsed_messages.copy()
+            for msg_data in self.temp_parsed_messages:
+                self.model.add_message(msg_data)
+            self.temp_parsed_messages = []
+            self.list_view.setUpdatesEnabled(True)
+            non_separator_messages = [m for m in self.all_messages if not m.is_separator]
+            self.messages_loaded.emit(non_separator_messages)
+            self.parser_widget.show_copy_save_buttons()
+            QTimer.singleShot(100, lambda: scroll(self.list_view, mode="bottom", delay=50))
+            message_count = sum(1 for m in self.all_messages if not m.is_separator)
+            self.info_label.setText(f"Found {message_count} messages (partial)")
+        else:
+            self.info_label.setText("Parsing cancelled")
         if self.parent_window:
             self.parent_window.stop_parse_status()
 
@@ -372,32 +391,35 @@ class ChatlogWidget(QWidget):
 
     def _on_parse_finished(self, messages):
         """Handle parse completion - NOW add all messages to layout at once"""
+        if self.parser_cancelled:
+            self.parser_cancelled = False
+            return
         self.parser_worker = None
         self.parser_widget._reset_ui()
         self.last_parsed_date = None
-  
+
         if self.temp_parsed_messages:
             # Disable updates for batch insertion
             self.list_view.setUpdatesEnabled(False)
-          
+        
             # Add ALL messages at once
             self.all_messages = self.temp_parsed_messages.copy()
             for msg_data in self.temp_parsed_messages:
                 self.model.add_message(msg_data)
-          
+        
             # Clear temp storage
             self.temp_parsed_messages = []
-          
+        
             # Re-enable updates
             self.list_view.setUpdatesEnabled(True)
-          
+        
             # Emit only non-separator messages for userlist
             non_separator_messages = [m for m in self.all_messages if not m.is_separator]
             self.messages_loaded.emit(non_separator_messages)
-      
+
             # Show copy/save buttons
             self.parser_widget.show_copy_save_buttons()
-          
+        
             # Scroll to bottom after everything is loaded
             QTimer.singleShot(100, lambda: scroll(self.list_view, mode="bottom", delay=50))
         else:
@@ -407,6 +429,8 @@ class ChatlogWidget(QWidget):
 
     def _on_parse_error(self, error_msg: str):
         """Handle parse error"""
+        if self.parser_cancelled:
+            return
         self.parser_worker = None
         self.parser_widget._reset_ui()
         self.temp_parsed_messages = [] # Clear temp on error

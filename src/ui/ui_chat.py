@@ -621,7 +621,7 @@ class ChatWindow(QWidget):
         # Hide messages userlist
         if self.user_list_widget.isVisible():
             self.user_list_widget.setVisible(False)
-     
+        
         if not self.chatlog_widget:
             # Pass parent_window=self for modal dialogs
             self.chatlog_widget = ChatlogWidget(self.config, self.icons_path, self.account, parent_window=self)
@@ -629,11 +629,11 @@ class ChatWindow(QWidget):
             self.chatlog_widget.messages_loaded.connect(self._on_chatlog_messages_loaded)
             self.chatlog_widget.filter_changed.connect(self._on_chatlog_filter_changed)
             self.stacked_widget.addWidget(self.chatlog_widget)
-         
+            
             width = self.width()
             self.chatlog_widget.set_compact_mode(width <= 1000)
             self.chatlog_widget.set_compact_layout(width <= 1000)
-     
+        
         if not self.chatlog_userlist_widget:
             self.chatlog_userlist_widget = ChatlogUserlistWidget(
                 self.config,
@@ -642,22 +642,24 @@ class ChatWindow(QWidget):
             )
             self.chatlog_userlist_widget.filter_requested.connect(self._on_filter_requested)
             self.content_layout.addWidget(self.chatlog_userlist_widget, stretch=1)
-     
+        
         # Show chatlog userlist based on config and width
         width = self.width()
         chatlog_userlist_visible = self.config.get("ui", "chatlog_userlist_visible")
         if chatlog_userlist_visible is None:
             chatlog_userlist_visible = True
-     
+        
         if width > 800 and chatlog_userlist_visible:
             self.chatlog_userlist_widget.setVisible(True)
         else:
             self.chatlog_userlist_widget.setVisible(False)
-     
-        self.chatlog_widget.current_date = datetime.now().date()
-        self.chatlog_widget._update_date_display()
-        self.chatlog_widget.load_current_date()
-     
+        
+        # Only load daily chatlog if not in parser mode
+        if not self.chatlog_widget.parser_visible:
+            self.chatlog_widget.current_date = datetime.now().date()
+            self.chatlog_widget._update_date_display()
+            self.chatlog_widget.load_current_date()
+        
         self.stacked_widget.setCurrentWidget(self.chatlog_widget)
 
     def show_parser_view(self):
