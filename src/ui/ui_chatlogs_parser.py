@@ -2,9 +2,9 @@
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
     QComboBox, QPushButton, QProgressBar, QTextEdit,
-    QCheckBox, QFileDialog, QApplication, QMessageBox
+    QCheckBox, QFileDialog, QApplication, QMessageBox, QCalendarWidget
 )
-from PyQt6.QtCore import Qt, pyqtSignal, QThread, QTimer
+from PyQt6.QtCore import Qt, pyqtSignal, QThread, QTimer, QDate
 from PyQt6.QtGui import QFont
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -122,6 +122,50 @@ class ChatlogsParserConfigWidget(QWidget):
             return container, input_field
        
         return layout, input_field
+   
+    def _parse_short_date(self, date_str: str):
+        """Convert YYMMDD to YYYY-MM-DD"""
+        clean = date_str.replace('-', '').replace('/', '').replace('.', '').strip()
+        if len(clean) == 6 and clean.isdigit():
+            try:
+                yy, mm, dd = int(clean[0:2]), int(clean[2:4]), int(clean[4:6])
+                return datetime(2000 + yy, mm, dd).strftime('%Y-%m-%d')
+            except ValueError:
+                pass
+        return date_str
+
+    def _auto_format_date(self, input_field):
+        """Auto-format dates on blur"""
+        text = input_field.text().strip()
+        if not text:
+            return
+        parts = [self._parse_short_date(p) for p in text.split()]
+        if parts:
+            input_field.setText(' '.join(parts))
+
+    def _show_date_picker(self, input_field):
+        """Show calendar picker"""
+        calendar = QCalendarWidget()
+        calendar.setWindowFlags(Qt.WindowType.Popup)
+        calendar.setGridVisible(True)
+        calendar.setMaximumDate(QDate.currentDate())
+        calendar.setMinimumDate(QDate(2012, 12, 2))
+        
+        try:
+            date_str = input_field.text().split()[0]
+            date = datetime.strptime(date_str, '%Y-%m-%d').date()
+            calendar.setSelectedDate(QDate(date.year, date.month, date.day))
+        except:
+            calendar.setSelectedDate(QDate.currentDate())
+        
+        calendar.clicked.connect(lambda d: (
+            input_field.setText(d.toPyDate().strftime('%Y-%m-%d')),
+            calendar.close()
+        ))
+        
+        pos = input_field.mapToGlobal(input_field.rect().bottomLeft())
+        calendar.move(pos.x(), pos.y() + 6)
+        calendar.show()
    
     def _setup_ui(self):
         margin = self.config.get("ui", "margins", "widget") or 5
@@ -507,9 +551,20 @@ class ChatlogsParserConfigWidget(QWidget):
             self.date_layout.addWidget(container)
    
     def _add_date_input(self, label_text: str, obj_name: str, placeholder: str = "YYYY-MM-DD"):
-        """Add a date input field"""
+        """Add a date input field with calendar picker"""
         layout, line_edit = self._create_input_row(label_text, placeholder, obj_name)
-       
+        
+        # Add auto-format on blur
+        line_edit.editingFinished.connect(lambda: self._auto_format_date(line_edit))
+        
+        # Add calendar button
+        calendar_btn = create_icon_button(
+            self.icons_path, "calendar.svg", "Select date",
+            size_type="large", config=self.config
+        )
+        calendar_btn.clicked.connect(lambda: self._show_date_picker(line_edit))
+        layout.addWidget(calendar_btn)
+        
         container = QWidget()
         container.setLayout(layout)
         self.date_layout.addWidget(container)
