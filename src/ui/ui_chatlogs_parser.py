@@ -143,7 +143,7 @@ class ChatlogsParserConfigWidget(QWidget):
         if parts:
             input_field.setText(' '.join(parts))
 
-    def _show_date_picker(self, input_field):
+    def _show_date_picker(self, input_field, calendar_btn):
         """Show calendar picker"""
         calendar = QCalendarWidget()
         calendar.setWindowFlags(Qt.WindowType.Popup)
@@ -163,8 +163,11 @@ class ChatlogsParserConfigWidget(QWidget):
             calendar.close()
         ))
         
-        pos = input_field.mapToGlobal(input_field.rect().bottomLeft())
-        calendar.move(pos.x(), pos.y() + 6)
+        # Position calendar relative to button
+        btn_pos = calendar_btn.mapToGlobal(calendar_btn.rect().bottomRight())
+        x = btn_pos.x() - calendar.sizeHint().width()
+        y = btn_pos.y() + (self.config.get("ui", "spacing", "widget_elements") or 6)
+        calendar.move(x, y)
         calendar.show()
    
     def _setup_ui(self):
@@ -562,7 +565,7 @@ class ChatlogsParserConfigWidget(QWidget):
             self.icons_path, "calendar.svg", "Select date",
             size_type="large", config=self.config
         )
-        calendar_btn.clicked.connect(lambda: self._show_date_picker(line_edit))
+        calendar_btn.clicked.connect(lambda: self._show_date_picker(line_edit, calendar_btn))
         layout.addWidget(calendar_btn)
         
         container = QWidget()
