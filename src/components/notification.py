@@ -1,4 +1,7 @@
-from PyQt6.QtWidgets import QWidget, QLabel, QVBoxLayout, QHBoxLayout, QLineEdit
+from PyQt6.QtWidgets import(
+    QWidget, QLabel, QVBoxLayout, QHBoxLayout,
+    QLineEdit, QApplication
+)
 from PyQt6.QtCore import Qt, QTimer, QPropertyAnimation
 from PyQt6.QtGui import QCursor, QPainter, QPainterPath
 from typing import List, Callable, Optional, Any
@@ -30,13 +33,13 @@ class NotificationData:
 
 class PopupNotification(QWidget):
    
-    def __init__(self, data: NotificationData, manager):
+    def __init__(self, data: NotificationData, manager, width: int):
         super().__init__()
         self.data = data
         self.manager = manager
         self.is_hovered = False
         self.cursor_moved = False
-        self.initial_cursor_pos = None
+        self.initial_cursor_pos = QCursor.pos()
         self.hide_timer = None
         self.cursor_check_timer = None
         self.reply_field_visible = False
@@ -52,7 +55,6 @@ class PopupNotification(QWidget):
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setMouseTracking(True)
        
-       
         # Get spacing/margin from config
         margin = data.config.get("ui", "margins", "notification") if data.config else 8
         spacing = data.config.get("ui", "spacing", "widget_elements") if data.config else 4
@@ -62,11 +64,10 @@ class PopupNotification(QWidget):
         bg_hex = "#1E1E1E" if is_dark else "#FFFFFF"
        
         # Load private message colors from config
+        message_color = None
         if data.is_private and data.config:
             private_colors = get_private_message_colors(data.config, is_dark)
             message_color = private_colors["text"]
-        else:
-            message_color = None # Will use theme default
        
         # Main layout
         main_layout = QVBoxLayout(self)
@@ -82,11 +83,7 @@ class PopupNotification(QWidget):
         message_layout.setSpacing(spacing)
        
         # Username label
-        if data.cache:
-            username_color = data.cache.get_or_calculate_color(data.title, None, bg_hex, 4.5)
-        else:
-            username_color = "#AAAAAA"
-        
+        username_color = data.cache.get_or_calculate_color(data.title, None, bg_hex, 4.5) if data.cache else "#AAAAAA"
         self.username_label = QLabel(f"<b>{data.title}</b>")
         self.username_label.setStyleSheet(f"color: {username_color};")
         self.username_label.setFont(get_font(FontType.TEXT))
@@ -98,8 +95,6 @@ class PopupNotification(QWidget):
         self.message_label.setWordWrap(True)
         self.message_label.setFont(get_font(FontType.TEXT))
         self.message_label.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-       
-        # Only set color for private messages
         if message_color:
             self.message_label.setStyleSheet(f"color: {message_color};")
         message_layout.addWidget(self.message_label)
@@ -156,11 +151,14 @@ class PopupNotification(QWidget):
         self.reply_container.setVisible(False)
         main_layout.addWidget(self.reply_container)
        
-        # Initialize
+        # Set fixed width early for accurate sizeHint with wrapping
+        self.setFixedWidth(width)
+        self.adjustSize()
+       
+        # Initialize opacity and show
         self.setWindowOpacity(0.0)
         self.show()
         QTimer.singleShot(0, self._animate_in)
-        self.initial_cursor_pos = QCursor.pos()
         self._start_cursor_monitoring()
    
     def paintEvent(self, event):
@@ -177,10 +175,8 @@ class PopupNotification(QWidget):
         """Click on notification body to show chat window and close notification"""
         if event.button() == Qt.MouseButton.LeftButton:
             # Check if click is on a button (don't trigger on button clicks)
-            clicked_widget = self.childAt(event.pos())
-            if clicked_widget in [self.answer_button, self.close_button, self.send_button]:
-                super().mousePressEvent(event)
-                return
+            if self.childAt(event.pos()) in [self.answer_button, self.close_button, self.send_button]:
+                return super().mousePressEvent(event)
            
             # Show chat window if callback exists
             if self.data.window_show_callback:
@@ -189,7 +185,6 @@ class PopupNotification(QWidget):
                 except Exception as e:
                     print(f"❌ Error showing window: {e}")
            
-            # Close notification
             self._on_close()
         else:
             super().mousePressEvent(event)
@@ -205,13 +200,10 @@ class PopupNotification(QWidget):
         if self.cursor_moved or self.reply_field_visible:
             return
        
-        current_pos = QCursor.pos()
-        if self.initial_cursor_pos:
-            distance = (current_pos - self.initial_cursor_pos).manhattanLength()
-            if distance > 50:
-                self.cursor_moved = True
-                self.cursor_check_timer.stop()
-                self._start_hide_timer()
+        if (QCursor.pos() - self.initial_cursor_pos).manhattanLength() > 50:
+            self.cursor_moved = True
+            self.cursor_check_timer.stop()
+            self._start_hide_timer()
    
     def _start_hide_timer(self):
         """Start auto-hide timer"""
@@ -263,34 +255,25 @@ class PopupNotification(QWidget):
         if self.cursor_check_timer and self.cursor_check_timer.isActive():
             self.cursor_check_timer.stop()
        
-        self.manager._reposition_all()
+        # Recalculate size with reply field visible
+        self.adjustSize()
+        self.manager._position_and_cleanup()
    
     def _on_send_reply(self):
         """Send reply message"""
         text = self.reply_field.text().strip()
-        if not text:
-            return
-       
-        if not self.data.xmpp_client:
-            print("❌ No XMPP client - cannot send reply")
+        if not text or not self.data.xmpp_client:
             return
        
         self.reply_field.clear()
        
         # Determine message type and recipient based on notification data
-        if self.data.is_private and self.data.recipient_jid:
-            # Private message - reply to sender directly
-            msg_type = 'chat'
-            to_jid = self.data.recipient_jid
-        else:
-            # Groupchat message - reply in room
-            msg_type = 'groupchat'
-            to_jid = None  # Will use default room
+        msg_type = 'chat' if self.data.is_private and self.data.recipient_jid else 'groupchat'
+        to_jid = self.data.recipient_jid if msg_type == 'chat' else None
        
         # Add message locally to UI before sending to server
         if self.data.local_message_callback and self.data.account:
             try:
-                # Import here to avoid circular imports
                 from core.messages import Message
                
                 # Get effective background color (custom_background or server background)
@@ -318,9 +301,7 @@ class PopupNotification(QWidget):
        
         def _send():
             try:
-                # Send with appropriate message type and recipient
-                result = self.data.xmpp_client.send_message(text, to_jid, msg_type)
-                if not result:
+                if not self.data.xmpp_client.send_message(text, to_jid, msg_type):
                     print(f"❌ Failed to send reply: {text}")
             except Exception as e:
                 print(f"❌ Error sending reply: {e}")
@@ -360,17 +341,22 @@ class PopupManager:
     def show_notification(self, data: NotificationData):
         """Create and show notification"""
         self.config = data.config
-        popup = PopupNotification(data, self)
+       
+        # Calculate width before creating popup (max 50% of screen)
+        screen = QApplication.primaryScreen().availableGeometry()
+        notification_width = self.config.get("ui", "notification_width") if self.config else 500
+        width = min(int(screen.width() * 0.50), notification_width or 500)
+       
+        popup = PopupNotification(data, self, width)
         self.popups.append(popup)
-        self._cleanup_overflow()
-        self._reposition_all()
+        self._position_and_cleanup()
         return popup
    
     def remove_popup(self, popup: PopupNotification):
         """Remove popup and reposition"""
         if popup in self.popups:
             self.popups.remove(popup)
-            self._reposition_all()
+            self._position_and_cleanup()
    
     def close_all(self):
         """Close all notifications"""
@@ -378,51 +364,41 @@ class PopupManager:
             popup.close()
         self.popups.clear()
    
-    def _cleanup_overflow(self):
-        """Remove oldest notifications if they don't fit"""
+    def _position_and_cleanup(self):
+        """Combined positioning and overflow cleanup with accurate sizing"""
         if not self.popups:
             return
        
         screen = self.popups[0].screen().availableGeometry()
-        available_height = screen.height() - 40
-       
-        total_height = sum(p.sizeHint().height() + self.gap for p in self.popups)
-       
-        while total_height > available_height and len(self.popups) > 1:
-            oldest = self.popups[0]
-            total_height -= (oldest.sizeHint().height() + self.gap)
-            oldest.close()
-            self.popups.remove(oldest)
-   
-    def _reposition_all(self):
-        """Stack all popups vertically with configurable position"""
-        if not self.popups:
-            return
-       
-        screen = self.popups[0].screen().availableGeometry()
-       
-        # Get notification width from config (default 500, max 50% of screen)
-        notification_width = self.config.get("ui", "notification_width") if self.config else 500
-        width = min(int(screen.width() * 0.50), notification_width or 500)
        
         # Get notification position from config (default "center")
         position = self.config.get("ui", "notification_position") if self.config else "center"
         position = (position or "center").lower()
        
         # Calculate x position based on setting
+        popup_width = self.popups[0].width()
         if position == "left":
             x = screen.x() + 20
         elif position == "right":
-            x = screen.x() + screen.width() - width - 20
-        else: # center (default)
-            x = screen.x() + (screen.width() - width) // 2
+            x = screen.x() + screen.width() - popup_width - 20
+        else:  # center (default)
+            x = screen.x() + (screen.width() - popup_width) // 2
        
+        # Calculate total height and cleanup overflow
+        heights = [p.height() for p in self.popups]
+        total_height = sum(heights) + self.gap * max(0, len(heights) - 1)
+        available_height = screen.height() - 40
+       
+        while total_height > available_height and len(self.popups) > 1:
+            oldest = self.popups.pop(0)
+            oldest.close()
+            total_height -= (heights.pop(0) + self.gap)
+       
+        # Position remaining popups
         current_y = screen.y() + 20
-       
         for popup in self.popups:
-            height = popup.sizeHint().height()
-            popup.setGeometry(x, current_y, width, height)
-            current_y += height + self.gap
+            popup.move(x, current_y)
+            current_y += popup.height() + self.gap
 
 
 # Global manager
