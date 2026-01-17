@@ -319,19 +319,29 @@ class ChatlogWidget(QWidget):
 
     def _on_parse_started(self, config: ParseConfig):
         """Start parsing with given config"""
-        self.model.clear()
-        self.all_messages = []
-        self.temp_parsed_messages = [] # Clear temp storage
-        self.last_parsed_date = None
+        # Only clear UI for non-sync modes
+        if config.mode != 'syncdatabase':
+            self.model.clear()
+            self.all_messages = []
+            self.temp_parsed_messages = []
+            self.last_parsed_date = None
+        else:
+            self.info_label.setText("Syncing database...")
 
         self.parser_worker = ParserWorker(config)
         self.parser_worker.progress.connect(self.parser_widget.update_progress)
-        self.parser_worker.messages_found.connect(self._on_parsed_messages)
+        
+        # Only connect messages_found for non-sync modes
+        if config.mode != 'syncdatabase':
+            self.parser_worker.messages_found.connect(self._on_parsed_messages)
+        
+        # Connect sync_stats signal
+        self.parser_worker.sync_stats.connect(self._on_sync_complete)
+        
         self.parser_worker.finished.connect(self._on_parse_finished)
         self.parser_worker.error.connect(self._on_parse_error)
 
         if self.parent_window:
-
             self.parser_worker.progress.connect(self.parent_window.update_parse_progress)
             self.parser_worker.finished.connect(lambda m: self.parent_window.on_parse_finished())
             self.parser_worker.error.connect(lambda e: self.parent_window.on_parse_error(e))
@@ -345,22 +355,30 @@ class ChatlogWidget(QWidget):
             self.parser_worker = None
         self.parser_cancelled = True
         self.parser_widget._reset_ui()
-        # Add partial messages if any
-        if self.temp_parsed_messages:
-            self.list_view.setUpdatesEnabled(False)
-            self.all_messages = self.temp_parsed_messages.copy()
-            for msg_data in self.temp_parsed_messages:
-                self.model.add_message(msg_data)
-            self.temp_parsed_messages = []
-            self.list_view.setUpdatesEnabled(True)
-            non_separator_messages = [m for m in self.all_messages if not m.is_separator]
-            self.messages_loaded.emit(non_separator_messages)
-            self.parser_widget.show_copy_save_buttons()
-            QTimer.singleShot(100, lambda: scroll(self.list_view, mode="bottom", delay=50))
-            message_count = sum(1 for m in self.all_messages if not m.is_separator)
-            self.info_label.setText(f"Found {message_count} messages (partial)")
+        
+        # Check if in sync mode
+        is_sync = hasattr(self.parser_widget, 'is_sync_mode') and self.parser_widget.is_sync_mode
+        
+        if is_sync:
+            self.info_label.setText("Database sync cancelled")
         else:
-            self.info_label.setText("Parsing cancelled")
+            # Normal mode - add partial messages if any
+            if self.temp_parsed_messages:
+                self.list_view.setUpdatesEnabled(False)
+                self.all_messages = self.temp_parsed_messages.copy()
+                for msg_data in self.temp_parsed_messages:
+                    self.model.add_message(msg_data)
+                self.temp_parsed_messages = []
+                self.list_view.setUpdatesEnabled(True)
+                non_separator_messages = [m for m in self.all_messages if not m.is_separator]
+                self.messages_loaded.emit(non_separator_messages)
+                self.parser_widget.show_copy_save_buttons()
+                QTimer.singleShot(100, lambda: scroll(self.list_view, mode="bottom", delay=50))
+                message_count = sum(1 for m in self.all_messages if not m.is_separator)
+                self.info_label.setText(f"Found {message_count} messages (partial)")
+            else:
+                self.info_label.setText("Parsing cancelled")
+        
         if self.parent_window:
             self.parent_window.stop_parse_status()
 
@@ -395,12 +413,19 @@ class ChatlogWidget(QWidget):
         if self.parser_cancelled:
             self.parser_cancelled = False
             return
+        
         self.parser_worker = None
         self.parser_widget._reset_ui()
         self.last_parsed_date = None
-
-        if self.temp_parsed_messages:
-            # Disable updates for batch insertion
+        
+        # Check if this was a sync operation
+        is_sync = hasattr(self.parser_widget, 'is_sync_mode') and self.parser_widget.is_sync_mode
+        
+        if is_sync:
+            # Sync mode complete - info already updated in _on_sync_complete
+            pass
+        elif self.temp_parsed_messages:
+            # Normal parse mode - display messages
             self.list_view.setUpdatesEnabled(False)
         
             # Add ALL messages at once
@@ -425,8 +450,27 @@ class ChatlogWidget(QWidget):
             QTimer.singleShot(100, lambda: scroll(self.list_view, mode="bottom", delay=50))
         else:
             self.info_label.setText("No messages found")
+        
         if self.parent_window:
             self.parent_window.handle_parse_finished()
+            
+    def _on_sync_complete(self, fetched_count: int, db_stats: dict):
+        """Handle sync database completion"""
+        if fetched_count == 0:
+            self.info_label.setText("✅ Database is already up to date")
+        else:
+            self.info_label.setText(f"✅ Synced {fetched_count} dates to database")
+        
+        # Show database stats
+        QMessageBox.information(
+            self,
+            "Database Synced",
+            f"Successfully synced database!\n\n"
+            f"Fetched: {fetched_count} dates\n"
+            f"Total messages: {db_stats['total_messages']:,}\n"
+            f"Cached dates: {db_stats['cached_dates']}\n"
+            f"Database size: {db_stats['db_size_mb']} MB"
+        )
 
     def _on_parse_error(self, error_msg: str):
         """Handle parse error"""

@@ -25,6 +25,7 @@ class ParserWorker(QThread):
     messages_found = pyqtSignal(list, str) # messages, date
     finished = pyqtSignal(list) # all messages
     error = pyqtSignal(str)
+    sync_stats = pyqtSignal(int, dict) # fetched_count, db_stats
    
     def __init__(self, config: ParseConfig):
         super().__init__()
@@ -33,11 +34,25 @@ class ParserWorker(QThread):
    
     def run(self):
         try:
+            # Get missing dates count before fetching
+            missing_dates = self.engine.parser.db.get_missing_dates(
+                self.config.from_date,
+                self.config.to_date
+            )
+            total_missing = len(missing_dates)
+            
+            # Run parse
             messages = self.engine.parse(
                 self.config,
                 progress_callback=self.progress.emit,
-                message_callback=self.messages_found.emit
+                message_callback=self.messages_found.emit if self.config.mode != 'syncdatabase' else None
             )
+            
+            # For sync mode, emit stats
+            if self.config.mode == 'syncdatabase':
+                db_stats = self.engine.parser.db.get_database_stats()
+                self.sync_stats.emit(total_missing, db_stats)
+            
             self.finished.emit(messages)
         except Exception as e:
             self.error.emit(str(e))
@@ -56,10 +71,11 @@ class ChatlogsParserConfigWidget(QWidget):
         super().__init__()
         self.config = config
         self.icons_path = icons_path
-        self.account = account # Store account to get current username
+        self.account = account
         self.is_parsing = False
         self.is_fetching = False
         self.original_usernames = []
+        self.is_sync_mode = False
        
         self._setup_ui()
    
@@ -95,18 +111,7 @@ class ChatlogsParserConfigWidget(QWidget):
         return combo
    
     def _create_input_row(self, label_text: str, placeholder: str = "", object_name: str = "", as_widget: bool = False):
-        """Create a complete input row with label and input field
-       
-        Args:
-            label_text: Text for the label
-            placeholder: Placeholder text for input
-            object_name: Object name for input (for findChild)
-            as_widget: If True, return QWidget containing the layout instead of layout itself
-       
-        Returns:
-            If as_widget=False: tuple[QHBoxLayout, QLineEdit]
-            If as_widget=True: tuple[QWidget, QLineEdit]
-        """
+        """Create a complete input row with label and input field"""
         layout = QHBoxLayout()
         layout.setSpacing(self.spacing)
        
@@ -199,7 +204,8 @@ class ChatlogsParserConfigWidget(QWidget):
             "Date Range",
             "From Start",
             "From Registered",
-            "Personal Mentions"
+            "Personal Mentions",
+            "Sync Database"
         ])
         self.mode_combo.currentIndexChanged.connect(self._on_mode_changed)
         mode_layout.addWidget(self.mode_combo, stretch=1)
@@ -234,6 +240,7 @@ class ChatlogsParserConfigWidget(QWidget):
         username_layout.addWidget(self.fetch_history_button)
        
         username_container.setLayout(username_layout)
+        self.username_container_widget = username_container
         layout.addWidget(username_container)
        
         # Search terms input
@@ -243,6 +250,7 @@ class ChatlogsParserConfigWidget(QWidget):
             "comma-separated search terms (leave empty for all messages)"
         )
         search_container.setLayout(search_layout)
+        self.search_container_widget = search_container
         layout.addWidget(search_container)
        
         # Mention keywords (only for personal mentions mode)
@@ -474,14 +482,18 @@ class ChatlogsParserConfigWidget(QWidget):
                 item.widget().deleteLater()
        
         mode = self.mode_combo.currentText()
+        self.is_sync_mode = (mode == "Sync Database")
        
         # Show/hide mention keywords based on mode
         is_mention_mode = (mode == "Personal Mentions")
         self.mention_container.setVisible(is_mention_mode)
         if is_mention_mode:
             self._update_mention_label()
+        
+        # Hide username and search inputs for sync mode
+        self.username_container_widget.setVisible(not self.is_sync_mode)
+        self.search_container_widget.setVisible(not self.is_sync_mode)
        
-        # Create date inputs based on mode
         if mode == "Single Date":
             self._add_date_input("Date:", "single_date", "YYYY-MM-DD")
        
@@ -503,6 +515,17 @@ class ChatlogsParserConfigWidget(QWidget):
             info = QLabel("Will use registration date of entered user(s)")
             info.setStyleSheet("color: #888;")
             self.date_layout.addWidget(info)
+       
+        elif mode == "Sync Database":
+            info = QLabel("📁 Sync all missing chatlogs to database")
+            info.setStyleSheet("color: #4CAF50; font-weight: bold; padding: 8px;")
+            self.date_layout.addWidget(info)
+            
+            desc = QLabel("This will fetch all chatlogs from 2012-12-02 to today that are not yet in the database. "
+                         "No messages will be displayed - only database synchronization.")
+            desc.setWordWrap(True)
+            desc.setStyleSheet("color: #888; padding: 4px;")
+            self.date_layout.addWidget(desc)
        
         elif mode == "Personal Mentions":
             sub_mode_layout = QHBoxLayout()
@@ -583,12 +606,10 @@ class ChatlogsParserConfigWidget(QWidget):
    
     def _on_copy_clicked(self):
         """Copy results to clipboard"""
-        # Signal will be emitted from parent widget (ui_chatlog.py)
         pass
    
     def _on_save_clicked(self):
         """Save results to file"""
-        # Signal will be emitted from parent widget (ui_chatlog.py)
         pass
    
     def _start_parsing(self):
@@ -605,7 +626,11 @@ class ChatlogsParserConfigWidget(QWidget):
             self.progress_bar.setVisible(True)
             self.progress_bar.setValue(0)
             self.progress_label.setVisible(True)
-            self.progress_label.setText(f"{config.from_date} - {config.from_date}")
+            
+            if config.mode == 'syncdatabase':
+                self.progress_label.setText("Syncing database...")
+            else:
+                self.progress_label.setText(f"{config.from_date} - {config.from_date}")
            
             # Hide copy/save buttons during parsing
             self.copy_button.setVisible(False)
@@ -631,9 +656,6 @@ class ChatlogsParserConfigWidget(QWidget):
         self.progress_bar.setVisible(False)
         self.progress_label.setVisible(False)
         self.progress_label.setText("")
-       
-        # Keep copy/save buttons visible if they were shown
-        # (they'll be shown by the parent when parsing completes)
    
     def show_copy_save_buttons(self):
         """Show copy and save buttons after successful parse"""
@@ -643,7 +665,10 @@ class ChatlogsParserConfigWidget(QWidget):
     def update_progress(self, start_date: str, current_date: str, percent: int):
         """Update progress display"""
         self.progress_bar.setValue(percent)
-        self.progress_label.setText(f"{start_date} - {current_date}")
+        if self.is_sync_mode:
+            self.progress_label.setText(f"Syncing: {current_date} ({percent}%)")
+        else:
+            self.progress_label.setText(f"{start_date} - {current_date}")
    
     def _build_parse_config(self) -> Optional[ParseConfig]:
         """Build ParseConfig from UI inputs"""
@@ -656,7 +681,11 @@ class ChatlogsParserConfigWidget(QWidget):
         from_date = None
         to_date = None
        
-        if mode == "Single Date":
+        if mode == "Sync Database":
+            from_date = EARLIEST_ALLOWED_DATE
+            to_date = datetime.now().strftime('%Y-%m-%d')
+       
+        elif mode == "Single Date":
             date_input = self.findChild(QLineEdit, "single_date")
             if not date_input or not date_input.text().strip():
                 QMessageBox.warning(self, "Missing Date", "Please enter a date")
@@ -778,9 +807,9 @@ class ChatlogsParserConfigWidget(QWidget):
                     QMessageBox.warning(self, "Invalid Days", "Invalid number of days")
                     return None
         
-        # Get usernames and search terms
-        usernames = self._get_usernames()
-        search_terms = self._get_search_terms()
+        # Get usernames and search terms (skip for sync mode)
+        usernames = [] if mode == "Sync Database" else self._get_usernames()
+        search_terms = [] if mode == "Sync Database" else self._get_search_terms()
         
         # Get mention keywords (for personal mentions mode)
         mention_keywords = []
@@ -810,7 +839,7 @@ class ChatlogsParserConfigWidget(QWidget):
         return config
     
     def _get_usernames(self) -> List[str]:
-        """Get usernames from field (no auto-expansion)"""
+        """Get usernames from field"""
         text = self.username_input.text().strip()
         if not text:
             return []
