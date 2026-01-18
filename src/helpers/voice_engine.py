@@ -88,7 +88,24 @@ class VoiceEngine:
             except:
                 break
    
-    def speak_message(self, username: str, message: str, my_username: str, is_initial: bool = False):
+    def speak_message(self, username: str, message: str, my_username: str, is_initial: bool = False, 
+                     is_private: bool = False, is_ban: bool = False):
+        """Speak a message with appropriate verb based on message type
+        
+        Args:
+            username: Username of the sender
+            message: Message text
+            my_username: Current user's username
+            is_initial: Whether this is an initial/historical message
+            is_private: Whether this is a private message (directed to me)
+            is_ban: Whether this is a ban message from Клавобот
+            
+        Verb selection and announcement logic:
+            - Ban messages: ALWAYS announce with "ультует" (insults)
+            - Private messages: ALWAYS announce with "обращается" (appeals to)
+            - Mentions: ALWAYS announce with "обращается" (appeals to)
+            - Regular messages: announce with "пишет" (writes) only when username changes
+        """
         if not self.enabled or is_initial:
             return
        
@@ -122,15 +139,27 @@ class VoiceEngine:
         if current_chunk:
             chunks.append((' '.join(current_chunk), current_lang))
         
-        # Announce username if it changed or if user is being mentioned
-        if username != self.last_username or is_mention:
-            verb = "обращается" if is_mention else "пишет"
-            # Prepend username announcement to first chunk (in its language)
-            if chunks:
-                first_text, first_lang = chunks[0]
-                chunks[0] = (f"{username} {verb}. {first_text}", first_lang)
-            if not is_mention:
-                self.last_username = username
+        # Determine if we need to announce the username
+        announce_username = False
+        
+        if is_ban:
+            # Ban message: always announce with "ультует"
+            verb = "ультует"
+            announce_username = True
+        elif is_private or is_mention:
+            # Private message or mention: ALWAYS announce with "обращается"
+            verb = "обращается"
+            announce_username = True
+        elif username != self.last_username:
+            # Regular message: announce with "пишет" only when username changes
+            verb = "пишет"
+            announce_username = True
+            self.last_username = username
+        
+        # Prepend username announcement to first chunk if needed
+        if announce_username and chunks:
+            first_text, first_lang = chunks[0]
+            chunks[0] = (f"{username} {verb}. {first_text}", first_lang)
         
         # Queue each chunk separately with its language
         for text, lang in chunks:

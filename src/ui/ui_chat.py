@@ -859,7 +859,9 @@ class ChatWindow(QWidget):
                     username=msg.login,
                     message=msg.body,
                     my_username=my_username,
-                    is_initial=is_initial
+                    is_initial=is_initial,
+                    is_private=msg.is_private,
+                    is_ban=is_ban
                 )
             else:
                 # Ensure voice engine is disabled
