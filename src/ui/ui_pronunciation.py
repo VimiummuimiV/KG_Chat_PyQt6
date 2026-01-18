@@ -86,6 +86,9 @@ class PronunciationItemWidget(QWidget):
         self.pronunciation_input.setFixedWidth(250)
         layout.addWidget(self.pronunciation_input)
         
+        # Set tab order: Username -> Pronunciation
+        self.setTabOrder(self.original_input, self.pronunciation_input)
+        
         # Remove button
         self.remove_button = create_icon_button(
             self.icons_path, "trash.svg", "Remove", 
@@ -216,7 +219,8 @@ class PronunciationWidget(QWidget):
         self.items_layout.setSpacing(items_spacing)
         # Add vertical spacing between rows
         self.items_layout.setVerticalSpacing(items_spacing * 2)
-        self.items_layout.setHorizontalSpacing(items_spacing * 2)
+        # Increase horizontal spacing significantly
+        self.items_layout.setHorizontalSpacing(items_spacing * 4)
         self.items_layout.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
         self.items_container.setLayout(self.items_layout)
         
