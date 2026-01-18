@@ -21,6 +21,7 @@ from helpers.username_color_manager import(
     reset_username_color,
     update_from_server
 )
+from helpers.pronunciation_manager import PronunciationManager
 from core.accounts import AccountManager
 
 
@@ -45,10 +46,16 @@ class Application:
         self.icons_path = Path(__file__).parent / "icons"
         self.app.setWindowIcon(self._get_icon())
 
+        # Initialize settings path
+        self.settings_path = Path(__file__).parent / "settings"
+        
         # Initialize account manager and config
-        self.config_path = Path(__file__).parent / "settings" / "config.json"
+        self.config_path = self.settings_path / "config.json"
         self.account_manager = AccountManager(str(self.config_path))
         self.config = Config(str(self.config_path))
+        
+        # Initialize pronunciation manager
+        self.pronunciation_manager = PronunciationManager(self.settings_path)
 
         self.account_window = None
         self.chat_window = None
@@ -58,6 +65,7 @@ class Application:
         self.sound_menu = None
         self.voice_sound_action = None
         self.mention_beep_action = None
+        self.pronunciation_action = None
         
         self.setup_system_tray()
 
@@ -117,6 +125,9 @@ class Application:
         """Setup sound management submenu"""
         self.sound_menu = parent_menu.addMenu("Sound Management")
         
+        # Add separator at the top
+        self.sound_menu.addSeparator()
+        
         # Voice sound (TTS) toggle action
         self.voice_sound_action = QAction("Voice Sound", self.app, checkable=True)
         self.voice_sound_action.triggered.connect(
@@ -130,6 +141,14 @@ class Application:
             lambda: self._on_sound_toggled("mention_sound_enabled", self.mention_beep_action)
         )
         self.sound_menu.addAction(self.mention_beep_action)
+        
+        # Add separator before pronunciation
+        self.sound_menu.addSeparator()
+        
+        # Username Pronunciation action
+        self.pronunciation_action = QAction("Username Pronunciation", self.app)
+        self.pronunciation_action.triggered.connect(self.handle_pronunciation_manager)
+        self.sound_menu.addAction(self.pronunciation_action)
         
         # Connect to aboutToShow to update menu state
         self.sound_menu.aboutToShow.connect(self.update_sound_menu)
@@ -259,7 +278,11 @@ class Application:
 
     def show_chat_window(self, account):
         """Open chat window with tray support"""
-        self.chat_window = ChatWindow(account=account, app_controller=self)
+        self.chat_window = ChatWindow(
+            account=account, 
+            app_controller=self,
+            pronunciation_manager=self.pronunciation_manager
+        )
         self.chat_window.set_tray_mode(True)
         self.chat_window.show()
 
@@ -332,6 +355,19 @@ class Application:
     def handle_update_from_server(self):
         """Handle Update from Server from tray menu."""
         self._refresh_own_username_color(update_from_server)
+    
+    def handle_pronunciation_manager(self):
+        """Handle Username Pronunciation from tray menu"""
+        if not self.chat_window or not self.chat_window.account:
+            QMessageBox.information(
+                None,
+                "Chat Not Open",
+                "Please connect to an account first to manage username pronunciations."
+            )
+            return
+        
+        # Open pronunciation manager in chat window
+        self.chat_window.show_pronunciation_view()
 
 def main():
     """Application entry point"""

@@ -39,6 +39,7 @@ class VoiceEngine:
         self.queue = Queue()
         self.last_username = None
         self.worker = None
+        self.pronunciation_manager = None
        
     def set_enabled(self, enabled: bool):
         self.enabled = enabled
@@ -47,6 +48,10 @@ class VoiceEngine:
             self.worker.start()
         elif not enabled:
             self._clear_queue()
+    
+    def set_pronunciation_manager(self, pronunciation_manager):
+        """Set the pronunciation manager for username replacements"""
+        self.pronunciation_manager = pronunciation_manager
    
     def _process_queue(self):
         while True:
@@ -111,6 +116,11 @@ class VoiceEngine:
        
         is_mention = my_username.lower() in message.lower()
        
+        # Get pronunciation for username if manager is available
+        spoken_username = username
+        if self.pronunciation_manager:
+            spoken_username = self.pronunciation_manager.get_pronunciation(username)
+       
         # Clean the message for natural TTS reading
         cleaned_message = clean_text_for_tts(message)
         
@@ -159,7 +169,7 @@ class VoiceEngine:
         # Prepend username announcement to first chunk if needed
         if announce_username and chunks:
             first_text, first_lang = chunks[0]
-            chunks[0] = (f"{username} {verb}. {first_text}", first_lang)
+            chunks[0] = (f"{spoken_username} {verb}. {first_text}", first_lang)
         
         # Queue each chunk separately with its language
         for text, lang in chunks:

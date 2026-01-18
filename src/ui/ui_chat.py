@@ -23,6 +23,7 @@ from ui.ui_chatlog import ChatlogWidget
 from ui.ui_chatlog_userlist import ChatlogUserlistWidget
 from ui.ui_profile import ProfileWidget
 from ui.ui_emoticon_selector import EmoticonSelectorWidget
+from ui.ui_pronunciation import PronunciationWidget
 from components.notification import show_notification
 
 
@@ -33,10 +34,11 @@ class SignalEmitter(QObject):
     connection_changed = pyqtSignal(str)
 
 class ChatWindow(QWidget):
-    def __init__(self, account=None, app_controller=None):
+    def __init__(self, account=None, app_controller=None, pronunciation_manager=None):
         super().__init__()
 
         self.app_controller = app_controller
+        self.pronunciation_manager = pronunciation_manager
         self.tray_mode = False
         self.really_close = False
         self.account = account
@@ -68,6 +70,9 @@ class ChatWindow(QWidget):
 
         # Initialize voice engine
         self.voice_engine = get_voice_engine()
+        # Pass pronunciation manager to voice engine
+        if self.pronunciation_manager:
+            self.voice_engine.set_pronunciation_manager(self.pronunciation_manager)
         self.mention_sound_path = None
         self.ban_sound_path = None
         self._setup_sounds()
@@ -1110,6 +1115,19 @@ class ChatWindow(QWidget):
 
         self.profile_widget.load_profile(int(user_id), username)
         self.stacked_widget.setCurrentWidget(self.profile_widget)
+    
+    def show_pronunciation_view(self):
+        """Show pronunciation management view"""
+        if not hasattr(self, 'pronunciation_widget') or not self.pronunciation_widget:
+            self.pronunciation_widget = PronunciationWidget(
+                self.config, 
+                self.icons_path,
+                self.pronunciation_manager
+            )
+            self.pronunciation_widget.back_requested.connect(self.show_messages_view)
+            self.stacked_widget.addWidget(self.pronunciation_widget)
+        
+        self.stacked_widget.setCurrentWidget(self.pronunciation_widget)
     
     def toggle_theme(self):
         self.theme_button.setEnabled(False)
