@@ -131,7 +131,16 @@ class VoiceEngine:
         
         for word in cleaned_message.split():
             # Detect language of this word
-            word_lang = 'ru' if any('\u0400' <= c <= '\u04FF' for c in word) else 'en'
+            is_cyrillic = any('\u0400' <= c <= '\u04FF' for c in word)
+            is_digit_only = word.isdigit() or all(c.isdigit() or c == '.' or c == ',' for c in word)
+            
+            # Digits are ALWAYS pronounced in Russian
+            if is_digit_only:
+                word_lang = 'ru'
+            elif is_cyrillic:
+                word_lang = 'ru'
+            else:
+                word_lang = 'en'
             
             if current_lang is None:
                 current_lang = word_lang
