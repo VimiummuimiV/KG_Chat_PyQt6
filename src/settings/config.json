@@ -33,7 +33,6 @@
     "notification_position": "right",
     "emoticon_max_size": 140,
     "scroll_button_threshold": 100,
-    "use_internal_browser": true,
     "private_message_color": {
       "hue": 0,
       "saturation": 75
@@ -87,5 +86,10 @@
       "wine",
       "pogranflowers"
     ]
+  },
+  "sound": {
+    "tts_enabled": true,
+    "tts_volume": 1.0,
+    "notification_volume": 1.0
   }
 }

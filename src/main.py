@@ -15,6 +15,7 @@ else:
 from ui.ui_accounts import AccountWindow
 from ui.ui_chat import ChatWindow
 from helpers.fonts import load_fonts, set_application_font
+from helpers.config import Config
 from helpers.username_color_manager import(
     change_username_color,
     reset_username_color,
@@ -44,15 +45,18 @@ class Application:
         self.icons_path = Path(__file__).parent / "icons"
         self.app.setWindowIcon(self._get_icon())
 
-        # Initialize account manager
+        # Initialize account manager and config
         self.config_path = Path(__file__).parent / "settings" / "config.json"
         self.account_manager = AccountManager(str(self.config_path))
+        self.config = Config(str(self.config_path))
 
         self.account_window = None
         self.chat_window = None
         self.tray_icon = None
         self.color_menu = None
         self.reset_color_action = None
+        self.tts_action = None
+        
         self.setup_system_tray()
 
     def setup_system_tray(self):
@@ -93,10 +97,44 @@ class Application:
         self.color_menu.aboutToShow.connect(self.update_color_menu)
        
         menu.addSeparator()
+        
+        # Add TTS toggle (without icon)
+        self.tts_action = QAction("Enable gTTS", self.app, checkable=True)
+        self.tts_action.triggered.connect(self.toggle_tts)
+        menu.addAction(self.tts_action)
+        
+        # Load TTS state from config
+        try:
+            tts_enabled = self.config.get("sound", "tts_enabled")
+            if tts_enabled is None:
+                tts_enabled = False
+            self.tts_action.setChecked(tts_enabled)
+            # Update text based on current state
+            self.tts_action.setText("Disable gTTS" if tts_enabled else "Enable gTTS")
+        except Exception as e:
+            print(f"Error loading TTS state: {e}")
+            self.tts_action.setChecked(False)
+            self.tts_action.setText("Enable gTTS")
+        
+        menu.addSeparator()
         menu.addAction(QAction("Exit", self.app, triggered=self.exit_application))
 
         self.tray_icon.setContextMenu(menu)
         self.tray_icon.show()
+
+    def toggle_tts(self):
+        """Toggle TTS on/off in config"""
+        enabled = self.tts_action.isChecked()
+        
+        # Update menu text
+        self.tts_action.setText("Disable gTTS" if enabled else "Enable gTTS")
+        
+        # Save to config using Config class
+        self.config.set("sound", "tts_enabled", value=enabled)
+        
+        # Update chat window if it exists
+        if self.chat_window:
+            self.chat_window.update_tts_from_config()
 
     def update_color_menu(self):
         """Update the color menu to show/hide Reset option based on custom_background"""
