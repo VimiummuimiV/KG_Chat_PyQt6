@@ -69,7 +69,8 @@ class ChatWindow(QWidget):
         # Initialize voice engine
         self.voice_engine = get_voice_engine()
         self.mention_sound_path = None
-        self._setup_mention_sound()
+        self.ban_sound_path = None
+        self._setup_sounds()
 
         self._init_ui()
 
@@ -90,9 +91,17 @@ class ChatWindow(QWidget):
     def set_tray_mode(self, enabled: bool):
         self.tray_mode = enabled
 
-    def _setup_mention_sound(self):
-        sound_path = Path(__file__).parent.parent / "sounds" / "mention.mp3"
-        self.mention_sound_path = str(sound_path) if sound_path.exists() else None
+    def _setup_sounds(self):
+        """Setup mention and ban sound paths"""
+        sounds_dir = Path(__file__).parent.parent / "sounds"
+        
+        # Setup mention sound
+        mention_sound_path = sounds_dir / "mention.mp3"
+        self.mention_sound_path = str(mention_sound_path) if mention_sound_path.exists() else None
+        
+        # Setup ban sound
+        ban_sound_path = sounds_dir / "banned.mp3"
+        self.ban_sound_path = str(ban_sound_path) if ban_sound_path.exists() else None
 
     def _init_ui(self):
         window_title = f"Chat - {self.account['chat_username']}" if self.account else "Chat"
@@ -816,6 +825,12 @@ class ChatWindow(QWidget):
     def add_local_message(self, msg):
         self.messages_widget.add_message(msg)
 
+    def _is_ban_message(self, msg):
+        """Detect if a message is a ban message from Клавобот"""
+        if not msg.body or not msg.login:
+            return False
+        return msg.login == 'Клавобот' and all(word in msg.body for word in ['Пользователь', 'заблокирован'])
+
     def on_message(self, msg):
         # Skip own messages (server echoes groupchat messages back)
         if msg.login == self.account.get('chat_username') and not getattr(msg, 'initial', False):
@@ -845,9 +860,13 @@ class ChatWindow(QWidget):
                 # Ensure voice engine is disabled
                 self.voice_engine.set_enabled(False)
 
-        # Only show notifications and play mention beep if not initial load and window not active
+        # Only show notifications and play sounds if not initial load and window not active
         if not is_initial and not self.isActiveWindow():
-            if self._message_mentions_me(msg):
+            # Check for ban message first
+            if self._is_ban_message(msg):
+                self._play_ban_sound()
+            # Then check for mention
+            elif self._message_mentions_me(msg):
                 self._play_mention_sound()
         
             try:
@@ -883,7 +902,7 @@ class ChatWindow(QWidget):
         return bool(re.search(pattern, msg.body.lower()))
 
     def _play_mention_sound(self):
-        """Play mention sound if enabled in config - checks config in real-time"""
+        """Play mention sound"""
         mention_sound_enabled = self.config.get("sound", "mention_sound_enabled")
         if mention_sound_enabled is None:
             mention_sound_enabled = True  # Default to enabled
@@ -903,7 +922,17 @@ class ChatWindow(QWidget):
             try:
                 play_sound(self.mention_sound_path)
             except Exception as e:
-                print(f"Sound playback error: {e}")
+                print(f"Mention sound playback error: {e}")
+        
+        threading.Thread(target=_play, daemon=True).start()
+
+    def _play_ban_sound(self):
+        """Play ban sound"""
+        def _play():
+            try:
+                play_sound(self.ban_sound_path)
+            except Exception as e:
+                print(f"Ban sound playback error: {e}")
         
         threading.Thread(target=_play, daemon=True).start()
 

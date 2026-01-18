@@ -155,7 +155,7 @@ class Application:
         if voice_enabled is None:
             voice_enabled = False
         self.voice_sound_action.setChecked(voice_enabled)
-        
+       
         # Update mention beep state
         mention_enabled = self.config.get("sound", "mention_sound_enabled")
         if mention_enabled is None:
