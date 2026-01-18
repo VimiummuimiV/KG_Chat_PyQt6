@@ -1,4 +1,5 @@
 """Voice Engine for TTS (Text-to-Speech)"""
+import re
 import threading
 from queue import Queue
 from typing import Optional
@@ -8,6 +9,26 @@ import time
 
 from playsound3 import playsound
 from gtts import gTTS
+
+def clean_text_for_tts(text: str) -> str:
+    """Clean text for TTS by removing symbols, URLs, and punctuation"""
+    # Extract domain from URLs (e.g., "https://mail.google.com/path" -> "mail.google.com")
+    text = re.sub(
+        r'https?://(?:www\.)?([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})(?:/[^\s]*)?',
+        r'\1',
+        text
+    )
+    
+    # Convert hyphens, minus signs, and underscores to spaces for natural pauses
+    text = re.sub(r'[-−_]', ' ', text)
+    
+    # Remove special characters/symbols but KEEP periods and commas for natural pauses
+    text = re.sub(r'[?!:;@"#$%&\'()*+/<=>[\\\]^`{|}~]', '', text)
+    
+    # Collapse multiple spaces into one and remove leading/trailing spaces
+    text = ' '.join(text.split()).strip()
+    
+    return text
 
 
 class VoiceEngine:
@@ -71,19 +92,49 @@ class VoiceEngine:
         if not self.enabled or is_initial:
             return
        
-        parts = []
         is_mention = my_username.lower() in message.lower()
        
+        # Clean the message for natural TTS reading
+        cleaned_message = clean_text_for_tts(message)
+        
+        # Split message into language chunks (Russian vs English)
+        chunks = []
+        current_chunk = []
+        current_lang = None
+        
+        for word in cleaned_message.split():
+            # Detect language of this word
+            word_lang = 'ru' if any('\u0400' <= c <= '\u04FF' for c in word) else 'en'
+            
+            if current_lang is None:
+                current_lang = word_lang
+            
+            if word_lang == current_lang:
+                current_chunk.append(word)
+            else:
+                # Language changed, save current chunk and start new one
+                if current_chunk:
+                    chunks.append((' '.join(current_chunk), current_lang))
+                current_chunk = [word]
+                current_lang = word_lang
+        
+        # Add last chunk
+        if current_chunk:
+            chunks.append((' '.join(current_chunk), current_lang))
+        
+        # Announce username if it changed or if user is being mentioned
         if username != self.last_username or is_mention:
             verb = "обращается" if is_mention else "пишет"
-            parts.append(f"{username} {verb}")
+            # Prepend username announcement to first chunk (in its language)
+            if chunks:
+                first_text, first_lang = chunks[0]
+                chunks[0] = (f"{username} {verb}. {first_text}", first_lang)
             if not is_mention:
                 self.last_username = username
-       
-        parts.append(message)
-       
-        lang = 'ru' if any('\u0400' <= c <= '\u04FF' for c in message) else 'en'
-        self.queue.put((". ".join(parts), lang))
+        
+        # Queue each chunk separately with its language
+        for text, lang in chunks:
+            self.queue.put((text, lang))
    
     def shutdown(self):
         self.enabled = False

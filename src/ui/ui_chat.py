@@ -828,7 +828,8 @@ class ChatWindow(QWidget):
 
         # TTS for new messages
         is_initial = getattr(msg, 'initial', False)
-        if not is_initial and msg.login:
+        # Only speak if not initial load, has login, and window not active
+        if not is_initial and msg.login and not self.isActiveWindow():
             tts_enabled = self.config.get("sound", "tts_enabled")
             if tts_enabled:
                 # Update voice engine state
@@ -844,6 +845,7 @@ class ChatWindow(QWidget):
                 # Ensure voice engine is disabled
                 self.voice_engine.set_enabled(False)
 
+        # Only show notifications and play mention beep if not initial load and window not active
         if not is_initial and not self.isActiveWindow():
             if self._message_mentions_me(msg):
                 self._play_mention_sound()
