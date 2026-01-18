@@ -23,7 +23,7 @@ def clean_text_for_tts(text: str) -> str:
     text = re.sub(r'[-−_]', ' ', text)
     
     # Remove special characters/symbols but KEEP periods and commas for natural pauses
-    text = re.sub(r'[?!:;@"#$%&\'()*+/<=>[\\\]^`{|}~]', '', text)
+    text = re.sub(r'[:;@"#$%&\'()*+/<=>[\\\]^`{|}~]', '', text)
     
     # Collapse multiple spaces into one and remove leading/trailing spaces
     text = ' '.join(text.split()).strip()
