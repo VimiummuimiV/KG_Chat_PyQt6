@@ -838,7 +838,12 @@ class ChatWindow(QWidget):
 
         # Mark private messages
         msg.is_private = (msg.msg_type == 'chat')
+        
+        # Check if this is a ban message and mark it
+        is_ban = self._is_ban_message(msg)
+        msg.is_ban = is_ban  # Mark the message object itself
 
+        # Now add the message to the widget
         self.messages_widget.add_message(msg)
 
         # TTS for new messages
@@ -863,7 +868,7 @@ class ChatWindow(QWidget):
         # Only show notifications and play sounds if not initial load and window not active
         if not is_initial and not self.isActiveWindow():
             # Check for ban message first
-            if self._is_ban_message(msg):
+            if is_ban:
                 self._play_ban_sound()
             # Then check for mention
             elif self._message_mentions_me(msg):
@@ -880,7 +885,8 @@ class ChatWindow(QWidget):
                     account=self.account,
                     window_show_callback=self._show_and_focus_window,
                     is_private=msg.is_private,
-                    recipient_jid=msg.from_jid if msg.is_private else None
+                    recipient_jid=msg.from_jid if msg.is_private else None,
+                    is_ban=is_ban
                 )
             except Exception as e:
                 print(f"Notification error: {e}")

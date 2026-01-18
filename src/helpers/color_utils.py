@@ -66,3 +66,40 @@ def get_private_message_colors(config, is_dark_theme: bool) -> dict:
         key: hsl_to_hex(hue, saturation, lightness)
         for key, lightness in lightness_values.items()
     }
+
+
+def get_ban_message_colors(config, is_dark_theme: bool) -> dict:
+    """Generate all ban message colors from hue and saturation only
+    
+    Lightness values are derived based on theme and design principles.
+    Only hue and saturation are read from config.
+    
+    Args:
+        config: Config object with ban_message_color settings
+        is_dark_theme: Whether using dark theme
+    
+    Returns:
+        Dict with color values for ban messages:
+        - text: Message text color
+    """
+    # Read only hue and saturation from config
+    hue = config.get("ui", "ban_message_color", "hue") or 170 
+    saturation = config.get("ui", "ban_message_color", "saturation") or 75
+    
+    # Derive lightness values based on theme
+    if is_dark_theme:
+        # Dark theme: light text on dark backgrounds
+        lightness_values = {
+            "text": 75,          # Light & readable text
+        }
+    else:
+        # Light theme: dark text on light backgrounds
+        lightness_values = {
+            "text": 35,          # Dark & readable text
+        }
+    
+    # Generate all colors
+    return {
+        key: hsl_to_hex(hue, saturation, lightness)
+        for key, lightness in lightness_values.items()
+    }

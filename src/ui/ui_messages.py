@@ -121,7 +121,8 @@ class MessagesWidget(QWidget):
             msg.body,
             getattr(msg, 'background', None),
             msg.login,
-            getattr(msg, 'is_private', False)
+            getattr(msg, 'is_private', False),
+            is_ban=getattr(msg, 'is_ban', False)
         )
         self.model.add_message(msg_data)
         QTimer.singleShot(0, lambda: scroll(self.list_view, mode="bottom", delay=100))

@@ -16,6 +16,7 @@ class MessageData:
     is_private: bool = False
     is_separator: bool = False
     date_str: Optional[str] = None  # For separators
+    is_ban: bool = False
    
     def get_time_str(self) -> str:
         return self.timestamp.strftime("%H:%M:%S")

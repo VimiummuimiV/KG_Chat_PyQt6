@@ -11,7 +11,7 @@ from dataclasses import dataclass
 import threading
 
 from helpers.create import create_icon_button
-from helpers.color_utils import get_private_message_colors
+from helpers.color_utils import get_private_message_colors, get_ban_message_colors
 from helpers.fonts import get_font, FontType
 
 
@@ -29,6 +29,7 @@ class NotificationData:
     window_show_callback: Optional[Callable] = None
     is_private: bool = False
     recipient_jid: Optional[str] = None
+    is_ban: bool = False
 
 
 class PopupNotification(QWidget):
@@ -63,9 +64,14 @@ class PopupNotification(QWidget):
         is_dark = data.config.get("ui", "theme") == "dark" if data.config else True
         bg_hex = "#1E1E1E" if is_dark else "#FFFFFF"
        
-        # Load private message colors from config
+        # Load message colors from config based on message type
         message_color = None
-        if data.is_private and data.config:
+        if data.is_ban and data.config:
+            # Ban message colors
+            ban_colors = get_ban_message_colors(data.config, is_dark)
+            message_color = ban_colors["text"]
+        elif data.is_private and data.config:
+            # Private message colors
             private_colors = get_private_message_colors(data.config, is_dark)
             message_color = private_colors["text"]
        
@@ -107,13 +113,16 @@ class PopupNotification(QWidget):
         buttons_layout.setSpacing(button_spacing)
         buttons_layout.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignRight)
        
-        # Answer button (small)
-        self.answer_button = create_icon_button(
-            self.icons_path, "answer.svg", "Reply",
-            size_type="small", config=data.config
-        )
-        self.answer_button.clicked.connect(self._on_answer)
-        buttons_layout.addWidget(self.answer_button)
+        # Answer button (small) - hide for ban messages
+        if not data.is_ban:
+            self.answer_button = create_icon_button(
+                self.icons_path, "answer.svg", "Reply",
+                size_type="small", config=data.config
+            )
+            self.answer_button.clicked.connect(self._on_answer)
+            buttons_layout.addWidget(self.answer_button)
+        else:
+            self.answer_button = None
        
         # Close button (small)
         self.close_button = create_icon_button(
@@ -126,30 +135,35 @@ class PopupNotification(QWidget):
         top_row.addLayout(buttons_layout)
         main_layout.addLayout(top_row)
        
-        # Reply field container (hidden by default)
-        self.reply_container = QWidget()
-        reply_layout = QHBoxLayout(self.reply_container)
-        reply_layout.setContentsMargins(0, 0, 0, 0)
-        reply_layout.setSpacing(button_spacing)
-       
-        # Get button size for reply field height
-        send_button_size = data.config.get("ui", "buttons", "large_button", "button_size") if data.config else 48
-       
-        self.reply_field = QLineEdit()
-        self.reply_field.setFont(get_font(FontType.TEXT))
-        self.reply_field.setFixedHeight(send_button_size)
-        self.reply_field.returnPressed.connect(self._on_send_reply)
-        reply_layout.addWidget(self.reply_field, stretch=1)
-       
-        self.send_button = create_icon_button(
-            self.icons_path, "send.svg", "Send",
-            size_type="large", config=data.config
-        )
-        self.send_button.clicked.connect(self._on_send_reply)
-        reply_layout.addWidget(self.send_button)
-       
-        self.reply_container.setVisible(False)
-        main_layout.addWidget(self.reply_container)
+        # Reply field container (hidden by default) - only for non-ban messages
+        if not data.is_ban:
+            self.reply_container = QWidget()
+            reply_layout = QHBoxLayout(self.reply_container)
+            reply_layout.setContentsMargins(0, 0, 0, 0)
+            reply_layout.setSpacing(button_spacing)
+           
+            # Get button size for reply field height
+            send_button_size = data.config.get("ui", "buttons", "large_button", "button_size") if data.config else 48
+           
+            self.reply_field = QLineEdit()
+            self.reply_field.setFont(get_font(FontType.TEXT))
+            self.reply_field.setFixedHeight(send_button_size)
+            self.reply_field.returnPressed.connect(self._on_send_reply)
+            reply_layout.addWidget(self.reply_field, stretch=1)
+           
+            self.send_button = create_icon_button(
+                self.icons_path, "send.svg", "Send",
+                size_type="large", config=data.config
+            )
+            self.send_button.clicked.connect(self._on_send_reply)
+            reply_layout.addWidget(self.send_button)
+           
+            self.reply_container.setVisible(False)
+            main_layout.addWidget(self.reply_container)
+        else:
+            self.reply_container = None
+            self.reply_field = None
+            self.send_button = None
        
         # Set fixed width early for accurate sizeHint with wrapping
         self.setFixedWidth(width)
@@ -175,7 +189,13 @@ class PopupNotification(QWidget):
         """Click on notification body to show chat window and close notification"""
         if event.button() == Qt.MouseButton.LeftButton:
             # Check if click is on a button (don't trigger on button clicks)
-            if self.childAt(event.pos()) in [self.answer_button, self.close_button, self.send_button]:
+            clicked_widgets = [self.close_button]
+            if self.answer_button:
+                clicked_widgets.append(self.answer_button)
+            if self.send_button:
+                clicked_widgets.append(self.send_button)
+            
+            if self.childAt(event.pos()) in clicked_widgets:
                 return super().mousePressEvent(event)
            
             # Show chat window if callback exists
@@ -240,6 +260,9 @@ class PopupNotification(QWidget):
    
     def _on_answer(self):
         """Show reply field"""
+        if not self.reply_container or not self.reply_field:
+            return
+        
         self.reply_field_visible = True
         self.reply_container.setVisible(True)
        
@@ -261,6 +284,9 @@ class PopupNotification(QWidget):
    
     def _on_send_reply(self):
         """Send reply message"""
+        if not self.reply_field:
+            return
+        
         text = self.reply_field.text().strip()
         if not text or not self.data.xmpp_client:
             return
@@ -421,6 +447,7 @@ def show_notification(**kwargs):
         window_show_callback (Callable): Callback to show/focus the chat window
         is_private (bool): Whether this is a private message (default: False)
         recipient_jid (str): JID to send reply to (for private messages)
+        is_ban (bool): Whether this is a ban message (default: False)
     """
     data = NotificationData(**kwargs)
     return popup_manager.show_notification(data)

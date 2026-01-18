@@ -37,6 +37,10 @@
       "hue": 0,
       "saturation": 75
     },
+    "ban_message_color": {
+      "hue": 170,
+      "saturation": 75
+    },
     "youtube": {
       "enabled": true
     },
