@@ -66,10 +66,8 @@ class ChatWindow(QWidget):
         self.theme_manager.apply_theme()
         set_theme(self.theme_manager.is_dark())
 
-        # Initialize TTS
+        # Initialize voice engine
         self.voice_engine = get_voice_engine()
-        self.apply_tts_config()
-
         self.mention_sound_path = None
         self._setup_mention_sound()
 
@@ -828,16 +826,23 @@ class ChatWindow(QWidget):
     
         self.messages_widget.add_message(msg)
     
-        # TTS for new messages (not initial roster)
+        # TTS for new messages
         is_initial = getattr(msg, 'initial', False)
-        if self.tts_enabled and not is_initial and msg.login:
-            my_username = self.account.get('chat_username', '')
-            self.voice_engine.speak_message(
-                username=msg.login,
-                message=msg.body,
-                my_username=my_username,
-                is_initial=is_initial
-            )
+        if not is_initial and msg.login:
+            tts_enabled = self.config.get("sound", "tts_enabled")
+            if tts_enabled:
+                # Update voice engine state
+                self.voice_engine.set_enabled(True)
+                my_username = self.account.get('chat_username', '')
+                self.voice_engine.speak_message(
+                    username=msg.login,
+                    message=msg.body,
+                    my_username=my_username,
+                    is_initial=is_initial
+                )
+            else:
+                # Ensure voice engine is disabled
+                self.voice_engine.set_enabled(False)
     
         if not is_initial and not self.isActiveWindow():
             if self._message_mentions_me(msg):
@@ -876,20 +881,29 @@ class ChatWindow(QWidget):
         return bool(re.search(pattern, msg.body.lower()))
 
     def _play_mention_sound(self):
-            if not self.mention_sound_path:
-                try:
-                    QApplication.instance().beep()
-                except Exception as e:
-                    print(f"System beep error: {e}")
-                return
+        """Play mention sound if enabled in config - checks config in real-time"""
+        mention_sound_enabled = self.config.get("sound", "mention_sound_enabled")
+        if mention_sound_enabled is None:
+            mention_sound_enabled = True  # Default to enabled
         
-            def _play():
-                try:
-                    play_sound(self.mention_sound_path)
-                except Exception as e:
-                    print(f"Sound playback error: {e}")
+        if not mention_sound_enabled:
+            print("🔇 Mention sound disabled")
+            return
         
-            threading.Thread(target=_play, daemon=True).start()
+        if not self.mention_sound_path:
+            try:
+                QApplication.instance().beep()
+            except Exception as e:
+                print(f"System beep error: {e}")
+            return
+        
+        def _play():
+            try:
+                play_sound(self.mention_sound_path)
+            except Exception as e:
+                print(f"Sound playback error: {e}")
+        
+        threading.Thread(target=_play, daemon=True).start()
 
     def on_presence(self, pres):
         if not self.xmpp_client or self.initial_roster_loading:
@@ -1057,12 +1071,6 @@ class ChatWindow(QWidget):
 
         self.profile_widget.load_profile(int(user_id), username)
         self.stacked_widget.setCurrentWidget(self.profile_widget)
-
-    def apply_tts_config(self):
-        """Apply TTS settings from config to voice engine"""
-        tts_enabled_val = self.config.get("sound", "tts_enabled")
-        self.tts_enabled = bool(tts_enabled_val) if tts_enabled_val is not None else False
-        self.voice_engine.set_enabled(self.tts_enabled)
     
     def toggle_theme(self):
         self.theme_button.setEnabled(False)

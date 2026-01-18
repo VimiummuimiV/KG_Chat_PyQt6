@@ -55,7 +55,9 @@ class Application:
         self.tray_icon = None
         self.color_menu = None
         self.reset_color_action = None
-        self.tts_action = None
+        self.sound_menu = None
+        self.voice_sound_action = None
+        self.mention_beep_action = None
         
         self.setup_system_tray()
 
@@ -81,8 +83,8 @@ class Application:
        
         menu.addSeparator()
         
-        # Add TTS toggle
-        self._setup_tts_toggle(menu)
+        # Create Sound Management submenu
+        self._setup_sound_menu(menu)
         
         menu.addSeparator()
         menu.addAction(QAction("Exit", self.app, triggered=self.exit_application))
@@ -111,37 +113,29 @@ class Application:
         # Connect to aboutToShow to update menu visibility
         self.color_menu.aboutToShow.connect(self.update_color_menu)
 
-    def _setup_tts_toggle(self, parent_menu: QMenu):
-        """Setup TTS toggle action with proper state from config"""
-        self.tts_action = QAction("Enable gTTS", self.app, checkable=True)
-        self.tts_action.triggered.connect(self._on_tts_toggled)
-        parent_menu.addAction(self.tts_action)
+    def _setup_sound_menu(self, parent_menu: QMenu):
+        """Setup sound management submenu"""
+        self.sound_menu = parent_menu.addMenu("Sound Management")
         
-        # Load TTS state from config
-        tts_enabled = self.config.get("sound", "tts_enabled")
-        if tts_enabled is None:
-            tts_enabled = False
-            
-        self.tts_action.setChecked(tts_enabled)
-        self._update_tts_menu_text(tts_enabled)
-
-    def _update_tts_menu_text(self, enabled: bool):
-        """Update TTS menu action text based on state"""
-        self.tts_action.setText("Disable gTTS" if enabled else "Enable gTTS")
-
-    def _on_tts_toggled(self):
-        """Handle TTS toggle from tray menu"""
-        enabled = self.tts_action.isChecked()
+        # Voice sound (TTS) toggle action
+        self.voice_sound_action = QAction("Voice Sound", self.app, checkable=True)
+        self.voice_sound_action.triggered.connect(
+            lambda: self._on_sound_toggled("tts_enabled", self.voice_sound_action)
+        )
+        self.sound_menu.addAction(self.voice_sound_action)
         
-        # Update menu text
-        self._update_tts_menu_text(enabled)
+        # Mention beep toggle action
+        self.mention_beep_action = QAction("Mention Beep", self.app, checkable=True)
+        self.mention_beep_action.triggered.connect(
+            lambda: self._on_sound_toggled("mention_sound_enabled", self.mention_beep_action)
+        )
+        self.sound_menu.addAction(self.mention_beep_action)
         
-        # Save to config
-        self.config.set("sound", "tts_enabled", value=enabled)
+        # Connect to aboutToShow to update menu state
+        self.sound_menu.aboutToShow.connect(self.update_sound_menu)
         
-        # Update chat window if it exists
-        if self.chat_window:
-            self.chat_window.apply_tts_config()
+        # Load initial states
+        self.update_sound_menu()
 
     def update_color_menu(self):
         """Update the color menu to show/hide Reset option based on custom_background"""
@@ -153,6 +147,27 @@ class Application:
         # Show reset only if custom_background exists
         has_custom_bg = bool(self.chat_window.account.get('custom_background'))
         self.reset_color_action.setVisible(has_custom_bg)
+
+    def update_sound_menu(self):
+        """Update sound menu to reflect current config state"""
+        # Update voice sound (TTS) state
+        voice_enabled = self.config.get("sound", "tts_enabled")
+        if voice_enabled is None:
+            voice_enabled = False
+        self.voice_sound_action.setChecked(voice_enabled)
+        
+        # Update mention beep state
+        mention_enabled = self.config.get("sound", "mention_sound_enabled")
+        if mention_enabled is None:
+            mention_enabled = True
+        self.mention_beep_action.setChecked(mention_enabled)
+
+    def _on_sound_toggled(self, config_key: str, action: QAction):
+        """Handle sound toggle from tray menu"""
+        enabled = action.isChecked()
+        
+        # Save to config (chat window will check config in real-time)
+        self.config.set("sound", config_key, value=enabled)
 
     def _get_icon(self):
         """Get orange chat icon for windows and tray"""
