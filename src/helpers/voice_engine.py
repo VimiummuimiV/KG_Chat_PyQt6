@@ -175,10 +175,17 @@ class VoiceEngine:
             announce_username = True
             self.last_username = username
         
-        # Prepend username announcement to first chunk if needed
+        # Prepend username announcement if needed
         if announce_username and chunks:
-            first_text, first_lang = chunks[0]
-            chunks[0] = (f"{spoken_username} {verb}. {first_text}", first_lang)
+            # Username announcement: verb is ALWAYS in Russian
+            # Username is in Russian if it contains Cyrillic, otherwise English
+            if any('\u0400' <= c <= '\u04FF' for c in spoken_username):
+                # Russian username - announce everything in Russian
+                chunks.insert(0, (f"{spoken_username} {verb}.", 'ru'))
+            else:
+                # English username - username in English, verb in Russian
+                chunks.insert(0, (spoken_username, 'en'))
+                chunks.insert(1, (f"{verb}.", 'ru'))
         
         # Queue each chunk separately with its language
         for text, lang in chunks:
