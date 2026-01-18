@@ -77,7 +77,22 @@ class Application:
         menu.addSeparator()
        
         # Create Color Management submenu
-        self.color_menu = menu.addMenu("Color Management")
+        self._setup_color_menu(menu)
+       
+        menu.addSeparator()
+        
+        # Add TTS toggle
+        self._setup_tts_toggle(menu)
+        
+        menu.addSeparator()
+        menu.addAction(QAction("Exit", self.app, triggered=self.exit_application))
+
+        self.tray_icon.setContextMenu(menu)
+        self.tray_icon.show()
+
+    def _setup_color_menu(self, parent_menu: QMenu):
+        """Setup color management submenu"""
+        self.color_menu = parent_menu.addMenu("Color Management")
        
         # Create actions for the submenu
         change_color_action = QAction("Change Username Color", self.app)
@@ -95,46 +110,38 @@ class Application:
        
         # Connect to aboutToShow to update menu visibility
         self.color_menu.aboutToShow.connect(self.update_color_menu)
-       
-        menu.addSeparator()
-        
-        # Add TTS toggle (without icon)
+
+    def _setup_tts_toggle(self, parent_menu: QMenu):
+        """Setup TTS toggle action with proper state from config"""
         self.tts_action = QAction("Enable gTTS", self.app, checkable=True)
-        self.tts_action.triggered.connect(self.toggle_tts)
-        menu.addAction(self.tts_action)
+        self.tts_action.triggered.connect(self._on_tts_toggled)
+        parent_menu.addAction(self.tts_action)
         
         # Load TTS state from config
-        try:
-            tts_enabled = self.config.get("sound", "tts_enabled")
-            if tts_enabled is None:
-                tts_enabled = False
-            self.tts_action.setChecked(tts_enabled)
-            # Update text based on current state
-            self.tts_action.setText("Disable gTTS" if tts_enabled else "Enable gTTS")
-        except Exception as e:
-            print(f"Error loading TTS state: {e}")
-            self.tts_action.setChecked(False)
-            self.tts_action.setText("Enable gTTS")
-        
-        menu.addSeparator()
-        menu.addAction(QAction("Exit", self.app, triggered=self.exit_application))
+        tts_enabled = self.config.get("sound", "tts_enabled")
+        if tts_enabled is None:
+            tts_enabled = False
+            
+        self.tts_action.setChecked(tts_enabled)
+        self._update_tts_menu_text(tts_enabled)
 
-        self.tray_icon.setContextMenu(menu)
-        self.tray_icon.show()
+    def _update_tts_menu_text(self, enabled: bool):
+        """Update TTS menu action text based on state"""
+        self.tts_action.setText("Disable gTTS" if enabled else "Enable gTTS")
 
-    def toggle_tts(self):
-        """Toggle TTS on/off in config"""
+    def _on_tts_toggled(self):
+        """Handle TTS toggle from tray menu"""
         enabled = self.tts_action.isChecked()
         
         # Update menu text
-        self.tts_action.setText("Disable gTTS" if enabled else "Enable gTTS")
+        self._update_tts_menu_text(enabled)
         
-        # Save to config using Config class
+        # Save to config
         self.config.set("sound", "tts_enabled", value=enabled)
         
         # Update chat window if it exists
         if self.chat_window:
-            self.chat_window.update_tts_from_config()
+            self.chat_window.apply_tts_config()
 
     def update_color_menu(self):
         """Update the color menu to show/hide Reset option based on custom_background"""
@@ -295,16 +302,13 @@ class Application:
         if own_messages_updated:
             self.chat_window.messages_widget._force_recalculate()
 
-
     def handle_change_username_color(self):
         """Handle Change Username Color from tray menu."""
         self._refresh_own_username_color(change_username_color)
 
-
     def handle_reset_username_color(self):
         """Handle Reset to Original from tray menu."""
         self._refresh_own_username_color(reset_username_color)
-
 
     def handle_update_from_server(self):
         """Handle Update from Server from tray menu."""

@@ -68,7 +68,7 @@ class ChatWindow(QWidget):
 
         # Initialize TTS
         self.voice_engine = get_voice_engine()
-        self.update_tts_from_config()
+        self.apply_tts_config()
 
         self.mention_sound_path = None
         self._setup_mention_sound()
@@ -876,22 +876,20 @@ class ChatWindow(QWidget):
         return bool(re.search(pattern, msg.body.lower()))
 
     def _play_mention_sound(self):
-        if not self.mention_sound_path:
-            try:
-                QApplication.instance().beep()
-            except Exception as e:
-                print(f"System beep error: {e}")
-            return
-    
-        def _play():
-            try:
-                # Get notification volume from config
-                volume = self.config.get("sound", "notification_volume") or 1.0
-                play_sound(self.mention_sound_path, volume=volume)
-            except Exception as e:
-                print(f"Sound playback error: {e}")
-    
-        threading.Thread(target=_play, daemon=True).start()
+            if not self.mention_sound_path:
+                try:
+                    QApplication.instance().beep()
+                except Exception as e:
+                    print(f"System beep error: {e}")
+                return
+        
+            def _play():
+                try:
+                    play_sound(self.mention_sound_path)
+                except Exception as e:
+                    print(f"Sound playback error: {e}")
+        
+            threading.Thread(target=_play, daemon=True).start()
 
     def on_presence(self, pres):
         if not self.xmpp_client or self.initial_roster_loading:
@@ -1060,21 +1058,10 @@ class ChatWindow(QWidget):
         self.profile_widget.load_profile(int(user_id), username)
         self.stacked_widget.setCurrentWidget(self.profile_widget)
 
-    def update_tts_from_config(self):
-        """Update TTS settings from config (called when tray menu changes)"""
-        # Safely get boolean values from config
+    def apply_tts_config(self):
+        """Apply TTS settings from config to voice engine"""
         tts_enabled_val = self.config.get("sound", "tts_enabled")
         self.tts_enabled = bool(tts_enabled_val) if tts_enabled_val is not None else False
-        
-        # Safely get float values from config
-        tts_volume_val = self.config.get("sound", "tts_volume")
-        tts_volume = float(tts_volume_val) if tts_volume_val is not None else 1.0
-        
-        notification_volume_val = self.config.get("sound", "notification_volume")
-        notification_volume = float(notification_volume_val) if notification_volume_val is not None else 1.0
-        
-        self.voice_engine.set_tts_volume(tts_volume)
-        self.voice_engine.set_notification_volume(notification_volume)
         self.voice_engine.set_enabled(self.tts_enabled)
     
     def toggle_theme(self):

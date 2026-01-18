@@ -3,5 +3,6 @@ lxml
 psutil
 PyQt6
 pyqtdarktheme
-pygame
+playsound3
+pydub
 gTTS

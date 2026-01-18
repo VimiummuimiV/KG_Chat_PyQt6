@@ -88,8 +88,6 @@
     ]
   },
   "sound": {
-    "tts_enabled": true,
-    "tts_volume": 1.0,
-    "notification_volume": 1.0
+    "tts_enabled": true
   }
 }
