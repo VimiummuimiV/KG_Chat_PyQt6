@@ -166,8 +166,12 @@ class Application:
         """Handle sound toggle from tray menu"""
         enabled = action.isChecked()
         
-        # Save to config (chat window will check config in real-time)
+        # Save to config
         self.config.set("sound", config_key, value=enabled)
+        
+        # Update chat window's config instance directly if it exists
+        if self.chat_window:
+            self.chat_window.config.data = self.config.data
 
     def _get_icon(self):
         """Get orange chat icon for windows and tray"""

@@ -820,12 +820,12 @@ class ChatWindow(QWidget):
         # Skip own messages (server echoes groupchat messages back)
         if msg.login == self.account.get('chat_username') and not getattr(msg, 'initial', False):
             return
-    
+
         # Mark private messages
         msg.is_private = (msg.msg_type == 'chat')
-    
+
         self.messages_widget.add_message(msg)
-    
+
         # TTS for new messages
         is_initial = getattr(msg, 'initial', False)
         if not is_initial and msg.login:
@@ -843,7 +843,7 @@ class ChatWindow(QWidget):
             else:
                 # Ensure voice engine is disabled
                 self.voice_engine.set_enabled(False)
-    
+
         if not is_initial and not self.isActiveWindow():
             if self._message_mentions_me(msg):
                 self._play_mention_sound()

@@ -88,7 +88,7 @@
     ]
   },
   "sound": {
-    "tts_enabled": false,
-    "mention_sound_enabled": false
+    "tts_enabled": true,
+    "mention_sound_enabled": true
   }
 }
