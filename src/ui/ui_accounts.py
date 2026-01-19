@@ -201,6 +201,19 @@ class AccountWindow(QWidget):
         
         layout.addWidget(self.auto_login_checkbox)
 
+        # Start minimized to tray checkbox
+        self.start_minimized_checkbox = QCheckBox("Start minimized to tray")
+        self.start_minimized_checkbox.setFont(get_font(FontType.UI))
+        self.start_minimized_checkbox.stateChanged.connect(self.on_start_minimized_changed)
+        
+        # Load current start minimized state (from root level of config)
+        start_minimized = self.config.get("start_minimized")
+        if start_minimized is None:
+            start_minimized = False
+        self.start_minimized_checkbox.setChecked(start_minimized)
+        
+        layout.addWidget(self.start_minimized_checkbox)
+
         return page
 
     def create_create_page(self):
@@ -278,13 +291,35 @@ class AccountWindow(QWidget):
         button_padding = self._get_config('button_padding', 10)
 
         if self.stacked_widget.currentIndex() == 0: # Connect page
-            # Label + account row + actions row + checkbox
-            checkbox_height = 30  # Height for checkbox
-            total_height = margins + label_height + main_spacing + self.input_height + main_spacing + self.input_height + main_spacing + checkbox_height + button_padding
+            # Label + account row + actions row + 2 checkboxes
+            checkbox_height = 15  # Height for each checkbox
+            total_height = (
+                margins +
+                label_height +
+                main_spacing +
+                self.input_height +
+                main_spacing +
+                self.input_height +
+                main_spacing +
+                checkbox_height +
+                main_spacing +
+                checkbox_height +
+                button_padding
+            )
         else: # Create page
             # Label + username + password + actions row
             credentials_spacing = self._get_config('credentials_spacing', 6)
-            total_height = margins + label_height + main_spacing + self.input_height + credentials_spacing + self.input_height + main_spacing + self.input_height + button_padding
+            total_height = (
+                margins +
+                label_height +
+                main_spacing +
+                self.input_height +
+                credentials_spacing +
+                self.input_height +
+                main_spacing +
+                self.input_height +
+                button_padding
+            )
 
         self.setFixedHeight(total_height)
 
@@ -338,6 +373,13 @@ class AccountWindow(QWidget):
         # Save to root level of config (not nested under "ui" or other sections)
         self.config.set("auto_login", value=auto_login)
         print(f"🔑 Auto-login {'enabled' if auto_login else 'disabled'}")
+
+    def on_start_minimized_changed(self, state):
+        """Handle start minimized checkbox state change"""
+        start_minimized = (state == Qt.CheckState.Checked.value)
+        # Save to root level of config (not nested under "ui" or other sections)
+        self.config.set("start_minimized", value=start_minimized)
+        print(f"🪟 Start minimized {'enabled' if start_minimized else 'disabled'}")
 
     def load_accounts(self):
         self.account_dropdown.clear()

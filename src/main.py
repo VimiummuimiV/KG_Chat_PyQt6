@@ -301,7 +301,17 @@ class Application:
             pronunciation_manager=self.pronunciation_manager
         )
         self.chat_window.set_tray_mode(True)
-        self.chat_window.show()
+        
+        # Check if start minimized is enabled
+        start_minimized = self.config.get("start_minimized")
+        
+        if start_minimized:
+            # Don't show the window, just let it stay hidden (tray mode)
+            print("🪟 Starting minimized to tray")
+            # The window exists but is not shown - user can access it via tray icon
+        else:
+            # Normal behavior - show the window
+            self.chat_window.show()
 
     def _refresh_own_username_color(self, operation_func):
         """Execute operation and refresh own username color in UI if successful."""
