@@ -259,8 +259,25 @@ class Application:
         self.app.quit()
 
     def run(self):
-        """Run the application - start with account window"""
-        self.show_account_window()
+        """Run the application - check auto-login or show account window"""
+        # Check if auto-login is enabled (from root level of config)
+        auto_login = self.config.get("auto_login")
+        
+        if auto_login:
+            # Get active account and connect directly
+            active_account = self.account_manager.get_active_account()
+            
+            if active_account:
+                print(f"🔑 Auto-login enabled, connecting to {active_account['chat_username']}")
+                self.show_chat_window(active_account)
+            else:
+                # No active account, show account window
+                print("⚠️ Auto-login enabled but no active account found")
+                self.show_account_window()
+        else:
+            # Normal flow - show account window
+            self.show_account_window()
+        
         return self.app.exec()
 
     def show_account_window(self):

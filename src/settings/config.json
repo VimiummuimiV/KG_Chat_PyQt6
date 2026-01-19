@@ -94,5 +94,6 @@
   "sound": {
     "tts_enabled": false,
     "mention_sound_enabled": true
-  }
+  },
+  "auto_login": true
 }

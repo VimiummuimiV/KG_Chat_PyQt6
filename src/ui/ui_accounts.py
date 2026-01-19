@@ -2,7 +2,7 @@ import sys
 from pathlib import Path
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QComboBox,
-    QLineEdit, QMessageBox, QApplication, QStackedWidget
+    QLineEdit, QMessageBox, QApplication, QStackedWidget, QCheckBox
 )
 from PyQt6.QtGui import QFont, QIcon, QPixmap
 from PyQt6.QtCore import Qt, pyqtSignal, QSize, pyqtSlot, QEvent
@@ -188,6 +188,19 @@ class AccountWindow(QWidget):
 
         layout.addLayout(actions_row)
 
+        # Auto-login checkbox
+        self.auto_login_checkbox = QCheckBox("Auto-login with active account")
+        self.auto_login_checkbox.setFont(get_font(FontType.UI))
+        self.auto_login_checkbox.stateChanged.connect(self.on_auto_login_changed)
+        
+        # Load current auto-login state (from root level of config)
+        auto_login = self.config.get("auto_login")
+        if auto_login is None:
+            auto_login = False
+        self.auto_login_checkbox.setChecked(auto_login)
+        
+        layout.addWidget(self.auto_login_checkbox)
+
         return page
 
     def create_create_page(self):
@@ -265,8 +278,9 @@ class AccountWindow(QWidget):
         button_padding = self._get_config('button_padding', 10)
 
         if self.stacked_widget.currentIndex() == 0: # Connect page
-            # Label + account row + actions row
-            total_height = margins + label_height + main_spacing + self.input_height + main_spacing + self.input_height + button_padding
+            # Label + account row + actions row + checkbox
+            checkbox_height = 30  # Height for checkbox
+            total_height = margins + label_height + main_spacing + self.input_height + main_spacing + self.input_height + main_spacing + checkbox_height + button_padding
         else: # Create page
             # Label + username + password + actions row
             credentials_spacing = self._get_config('credentials_spacing', 6)
@@ -317,6 +331,13 @@ class AccountWindow(QWidget):
         success = update_from_server(self, self.account_manager, account, self.cache)
         if success:
             self.load_accounts()
+
+    def on_auto_login_changed(self, state):
+        """Handle auto-login checkbox state change"""
+        auto_login = (state == Qt.CheckState.Checked.value)
+        # Save to root level of config (not nested under "ui" or other sections)
+        self.config.set("auto_login", value=auto_login)
+        print(f"🔑 Auto-login {'enabled' if auto_login else 'disabled'}")
 
     def load_accounts(self):
         self.account_dropdown.clear()
