@@ -320,7 +320,7 @@ class Application:
             return
        
         success = operation_func(
-            None, # No parent for tray
+            self.chat_window,
             self.account_manager,
             self.chat_window.account,
             self.chat_window.cache
