@@ -4,5 +4,4 @@ psutil
 PyQt6
 pyqtdarktheme
 playsound3
-pydub
 gTTS
