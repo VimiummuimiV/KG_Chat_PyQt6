@@ -1184,7 +1184,7 @@ class ChatWindow(QWidget):
         # Cleanup emoticon selector
         if hasattr(self, 'emoticon_selector'):
             self.emoticon_selector.cleanup()
-     
+    
         # If hiding to tray, do not perform full cleanup so animations and
         # delegate state remain intact. Full cleanup happens only when the
         # app is actually closing.
@@ -1195,6 +1195,11 @@ class ChatWindow(QWidget):
 
         # Proceed with full cleanup when actually closing
         if self.messages_widget:
+            if hasattr(self.messages_widget, 'auto_scroller'):
+                try:
+                    self.messages_widget.auto_scroller.cleanup()
+                except:
+                    pass
             self.messages_widget.cleanup()
         if self.chatlog_widget:
             self.chatlog_widget.cleanup()

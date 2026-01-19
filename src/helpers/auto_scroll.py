@@ -121,10 +121,14 @@ class AutoScroller(QObject):
     def eventFilter(self, obj, event):
         """Filter mouse events to handle middle-click scrolling"""
         # Handle events on viewport or widget
-        viewport = self.widget.viewport() if hasattr(self.widget, 'viewport') else None
+        try:
+            viewport = self.widget.viewport() if hasattr(self.widget, 'viewport') else None
+        except RuntimeError:
+            return False
+            
         if obj != self.widget and obj != viewport:
             return False
-           
+            
         if event.type() == QEvent.Type.MouseButtonPress:
             if event.button() == Qt.MouseButton.MiddleButton:
                 # Convert to global position
@@ -134,7 +138,7 @@ class AutoScroller(QObject):
                     global_pos = event.globalPosition().toPoint()
                 self._start_scrolling(global_pos)
                 return True
-               
+                
         elif event.type() == QEvent.Type.MouseMove:
             if self.is_scrolling:
                 # Convert to global position
@@ -144,12 +148,12 @@ class AutoScroller(QObject):
                     global_pos = event.globalPosition().toPoint()
                 self.current_pos = global_pos
                 return True
-               
+                
         elif event.type() == QEvent.Type.MouseButtonRelease:
             if event.button() == Qt.MouseButton.MiddleButton and self.is_scrolling:
                 self._stop_scrolling()
                 return True
-                   
+                    
         return False
        
     def _get_scrollbar(self):
