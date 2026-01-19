@@ -387,12 +387,12 @@ class ChatlogWidget(QWidget):
         # Only add separator and messages if we actually have messages
         if not messages:
             return # Skip empty dates entirely
-      
-        if date != self.last_parsed_date:
-            if self.last_parsed_date is not None:
-                # Add separator to temp storage only
-                separator = MessageData(datetime.now(), "", "", is_separator=True, date_str=date)
-                self.temp_parsed_messages.append(separator)
+    
+        # ALWAYS add separator when date changes OR when it's the first date
+        if self.last_parsed_date is None or date != self.last_parsed_date:
+            # Add separator to temp storage
+            separator = MessageData(datetime.now(), "", "", is_separator=True, date_str=date)
+            self.temp_parsed_messages.append(separator)
             self.last_parsed_date = date
 
         # Convert ChatMessage to MessageData - msg already has all fields
