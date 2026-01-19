@@ -33,6 +33,7 @@ class Presence:
     game_id: Optional[str] = None
     affiliation: str = 'none'
     role: str = 'participant'
+    moderator: bool = False
    
     def get_avatar_url(self) -> Optional[str]:
         if self.avatar:
@@ -139,20 +140,26 @@ class MessageParser:
             avatar = None
             background = None
             game_id = None
+            moderator = False
            
             userdata = pres.find('.//' + ns + 'user')
             if userdata is not None:
-                login_elem = userdata.find(ns + 'login')  # FIX: Use namespace
+                login_elem = userdata.find(ns + 'login')
                 if login_elem is not None:
                     login = login_elem.text
                
-                avatar_elem = userdata.find(ns + 'avatar')  # FIX: Use namespace
+                avatar_elem = userdata.find(ns + 'avatar')
                 if avatar_elem is not None:
                     avatar = avatar_elem.text
                
-                bg_elem = userdata.find(ns + 'background')  # FIX: Use namespace
+                bg_elem = userdata.find(ns + 'background')
                 if bg_elem is not None:
                     background = bg_elem.text
+                
+                # Parse moderator tag
+                moderator_elem = userdata.find(ns + 'moderator')
+                if moderator_elem is not None:
+                    moderator = moderator_elem.text == '1'
            
             game_elem = pres.find('.//' + ns + 'game_id')
             if game_elem is not None:
@@ -187,8 +194,8 @@ class MessageParser:
                 background=background,
                 game_id=game_id,
                 affiliation=affiliation,
-                role=role
+                role=role,
+                moderator=moderator
             ))
        
         return presence_list
-

@@ -62,13 +62,50 @@ class UserWidget(QWidget):
         self.username_label.setFont(get_font(FontType.TEXT))
         layout.addWidget(self.username_label, stretch=1)
         
-        # Counter
+        # Moderator indicator
+        self.mod_label = None
+        if self._is_moderator(user):
+            self.mod_label = QLabel("⚔️")
+            self.mod_label.setFont(get_font(FontType.TEXT))
+            tooltip = self._build_moderator_tooltip(user)
+            self.mod_label.setToolTip(tooltip)
+            self.mod_label.setStyleSheet(f"color: {text_color};")
+            layout.addWidget(self.mod_label)
+        
+        # Counter indicator
         self.counter_label = None
         if counter and counter > 0:
             self.counter_label = QLabel(f"{counter}")
             self.counter_label.setFont(get_font(FontType.TEXT))
             self.counter_label.setStyleSheet(f"color: {text_color};")
             layout.addWidget(self.counter_label)
+    
+    def _is_moderator(self, user):
+        """Check if user has moderator privileges"""
+        # Show indicator if:
+        # - role is moderator/owner, OR
+        # - has moderator=True flag from custom tag
+        return (user.role in ['moderator', 'owner'] or 
+                user.affiliation == 'owner' or 
+                user.moderator)
+    
+    def _build_moderator_tooltip(self, user):
+        """Build tooltip text for moderator indicator"""
+        parts = []
+        
+        # Add role if not just participant
+        if user.role and user.role != 'participant':
+            parts.append(f"Role: {user.role.capitalize()}")
+        
+        # Add affiliation if not just none
+        if user.affiliation and user.affiliation != 'none':
+            parts.append(f"Affiliation: {user.affiliation.capitalize()}")
+        
+        # Add moderator flag if set
+        if user.moderator:
+            parts.append("Moderator: Yes")
+        
+        return "\n".join(parts) if parts else "Moderator"
     
     def _on_avatar_loaded(self, user_id: str, pixmap: QPixmap):
         """Callback when avatar is loaded from cache"""
@@ -220,6 +257,7 @@ class UserListWidget(QWidget):
                 game_id=presence.game_id,
                 affiliation=presence.affiliation,
                 role=presence.role,
+                moderator=getattr(presence, 'moderator', False),
                 status='available'
             )]
         

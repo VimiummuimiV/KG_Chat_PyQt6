@@ -343,7 +343,8 @@ class XMPPClient:
                     background=pres.background,
                     game_id=pres.game_id,
                     affiliation=pres.affiliation,
-                    role=pres.role
+                    role=pres.role,
+                    moderator=getattr(pres, 'moderator', False)
                 )
                
                 if not is_initial_roster and self.initial_roster_received:

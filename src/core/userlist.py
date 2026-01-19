@@ -1,5 +1,4 @@
 """User list management"""
-
 from typing import Dict, List, Optional
 from dataclasses import dataclass
 from datetime import datetime
@@ -15,6 +14,7 @@ class ChatUser:
     game_id: Optional[str] = None
     affiliation: str = 'none'
     role: str = 'participant'
+    moderator: bool = False
     status: str = 'available'
     last_seen: datetime = None
     
@@ -33,7 +33,7 @@ class UserList:
     
     def add_or_update(self, jid: str, login: str, user_id: str = None, 
                       background: str = None, game_id: str = None, affiliation: str = 'none',
-                      role: str = 'participant') -> ChatUser:
+                      role: str = 'participant', moderator: bool = False) -> ChatUser:
         """Add or update user"""
         
         if not user_id and '#' in jid:
@@ -50,6 +50,7 @@ class UserList:
             user.game_id = game_id
             user.affiliation = affiliation
             user.role = role
+            user.moderator = moderator
             user.status = 'available'
             user.last_seen = datetime.now()
         else:
@@ -60,7 +61,8 @@ class UserList:
                 background=background,
                 game_id=game_id,
                 affiliation=affiliation,
-                role=role
+                role=role,
+                moderator=moderator
             )
             self.users[jid] = user
         
