@@ -1,7 +1,7 @@
 from pathlib import Path
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
-    QScrollArea, QApplication
+    QScrollArea, QApplication, QSizePolicy
 )
 from PyQt6.QtCore import Qt, QSize, pyqtSignal
 from PyQt6.QtGui import QCursor, QPixmap, QFont
@@ -18,6 +18,7 @@ class UserWidget(QWidget):
     """Widget for a single user display"""
     AVATAR_SIZE = 36
     SVG_AVATAR_SIZE = 24
+    MAX_USERNAME_WIDTH = 200 
     
     profile_requested = pyqtSignal(str, str, str)  # jid, username, user_id
     private_chat_requested = pyqtSignal(str, str, str)  # jid, username, user_id
@@ -54,12 +55,23 @@ class UserWidget(QWidget):
         
         layout.addWidget(self.avatar_label)
         
-        # Username with cached color
+        # Username with cached color and elided text
         text_color = self.cache.get_or_calculate_color(user.login, user.background, bg_hex, 4.5)
         
-        self.username_label = QLabel(user.login)
-        self.username_label.setStyleSheet(f"color: {text_color};")
+        self.username_label = QLabel()
         self.username_label.setFont(get_font(FontType.TEXT))
+        
+        # Elide text if too long
+        metrics = self.username_label.fontMetrics()
+        elided_text = metrics.elidedText(user.login, Qt.TextElideMode.ElideRight, self.MAX_USERNAME_WIDTH)
+        self.username_label.setText(elided_text)
+        self.username_label.setStyleSheet(f"color: {text_color};")
+        
+        # Show full username on hover if it was elided
+        if elided_text != user.login:
+            self.username_label.setToolTip(user.login)
+        
+        self.username_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         layout.addWidget(self.username_label, stretch=1)
         
         # Moderator indicator
@@ -159,7 +171,6 @@ class UserListWidget(QWidget):
         layout.setContentsMargins(widget_margin, widget_margin, widget_margin, widget_margin)
         layout.setSpacing(widget_spacing)
         self.setLayout(layout)
-        self.setMinimumWidth(350)
         self.setMaximumWidth(350)
         
         scroll = QScrollArea()
