@@ -2,7 +2,7 @@
 import threading
 import re
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QApplication, QStackedWidget, QStatusBar, QLabel, QProgressBar, QPushButton
 from PyQt6.QtCore import Qt, pyqtSignal, QObject, QTimer, QEvent
 
@@ -994,7 +994,7 @@ class ChatWindow(QWidget):
                 login=self.account.get('chat_username'),
                 avatar=None,
                 background=own_user.background if own_user else None,
-                timestamp=datetime.now(),
+                timestamp=datetime.now(timezone.utc),
                 initial=False
             )
             own_msg.is_private = (msg_type == 'chat')

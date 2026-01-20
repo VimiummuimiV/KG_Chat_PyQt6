@@ -2,7 +2,7 @@
 import xml.etree.ElementTree as ET
 from typing import List, Tuple, Optional
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 
 @dataclass
 class Message:
@@ -111,7 +111,8 @@ class MessageParser:
                         pass
            
             if not timestamp:
-                timestamp = datetime.now()
+                # Use timezone-aware datetime to match parsed timestamps
+                timestamp = datetime.now(timezone.utc)
            
             messages.append(Message(
                 from_jid=from_jid,
