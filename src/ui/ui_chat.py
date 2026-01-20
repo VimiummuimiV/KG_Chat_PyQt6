@@ -3,6 +3,7 @@ import threading
 import re
 from pathlib import Path
 from datetime import datetime, timezone
+from collections import deque
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QApplication, QStackedWidget, QStatusBar, QLabel, QProgressBar, QPushButton
 from PyQt6.QtCore import Qt, pyqtSignal, QObject, QTimer, QEvent
 
@@ -58,6 +59,9 @@ class ChatWindow(QWidget):
         self.private_chat_jid = None
         self.private_chat_username = None
         self.private_chat_user_id = None
+        
+        # Sent message tracking for deduplication (stores last 50 sent message bodies)
+        self.sent_messages = deque(maxlen=50)
 
         # Initialize paths and config
         self.config_path = Path(__file__).parent.parent / "settings" / "config.json"
@@ -812,16 +816,30 @@ class ChatWindow(QWidget):
             return False
         return msg.login == 'Клавобот' and all(word in msg.body for word in ['Пользователь', 'заблокирован'])
 
+    def _is_recently_sent(self, body: str) -> bool:
+        """Check if this message was sent by us through send_message()"""
+        if not body:
+            return False
+        
+        # Check if this exact message body is in our sent messages cache
+        for sent_body, _ in self.sent_messages:
+            if sent_body == body:
+                return True
+        
+        return False
+
     def on_message(self, msg):
         is_initial = getattr(msg, 'initial', False)
         
-        # Skip own messages (server echoes groupchat messages back)
-        if msg.login == self.account.get('chat_username') and not is_initial:
-            return
-        
-        # CHECK FOR DUPLICATES: Skip if message already exists
+        # CHECK FOR DUPLICATES FIRST: Skip if message already exists (for initial roster)
         if is_initial and self._message_exists(msg):
             return
+        
+        # Skip own messages from server echo (both initial and live)
+        if msg.login == self.account.get('chat_username'):
+            # Check if this is a message we sent through send_message()
+            if self._is_recently_sent(msg.body):
+                return
 
         # Mark private messages
         msg.is_private = (msg.msg_type == 'chat')
@@ -879,17 +897,17 @@ class ChatWindow(QWidget):
         # Get all current messages
         existing_messages = self.messages_widget.model.get_all_messages()
         
-        # Check for duplicates based on timestamp, username, and body
-        msg_time = getattr(msg, 'timestamp', None)
-        if not msg_time:
+        # Get message details
+        msg_username = msg.login
+        msg_body = msg.body
+        
+        if not msg_username or not msg_body:
             return False
         
+        # Check for duplicates based on username and body only
         for existing in existing_messages:
-            # Match on timestamp (within 1 second), username, and body
-            time_diff = abs((existing.timestamp - msg_time).total_seconds())
-            if (time_diff < 1.0 and 
-                existing.username == msg.login and 
-                existing.body == msg.body):
+            if (existing.username == msg_username and 
+                existing.body == msg_body):
                 return True
         
         return False
@@ -999,6 +1017,9 @@ class ChatWindow(QWidget):
                 initial=False
             )
             own_msg.is_private = (msg_type == 'chat')
+        
+            # Track sent message for deduplication
+            self.sent_messages.append((chunk, datetime.now(timezone.utc)))
         
             self.messages_widget.add_message(own_msg)
         
