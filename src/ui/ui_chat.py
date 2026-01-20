@@ -372,18 +372,9 @@ class ChatWindow(QWidget):
         else:
             print("⚠️ Account switching not available (no app_controller)")
 
-    def changeEvent(self, event):
-        """Handle window state changes for auto-reconnect"""
-        super().changeEvent(event)
-    
-        if event.type() == QEvent.Type.ActivationChange:
-            if self.isActiveWindow():
-                self._check_and_reconnect()
-
     def showEvent(self, event):
-        """Handle window show events for auto-reconnect"""
+        """Handle window show events - removed auto-reconnect trigger"""
         super().showEvent(event)
-        self._check_and_reconnect()
 
         # Position emoticon selector when showing
         if hasattr(self, 'emoticon_selector'):
@@ -406,17 +397,6 @@ class ChatWindow(QWidget):
                         pass
         except Exception as e:
             print(f"ShowEvent resume animations error: {e}")
-
-    def _check_and_reconnect(self):
-        """Check connection status and reconnect if needed"""
-        if (self.allow_reconnect and
-            not self.is_connecting and
-            not self._is_connected() and
-            self.account and
-            self.isVisible()):
-        
-            self.set_connection_status('connecting')
-            self.connect_xmpp()
 
     def disable_reconnect(self):
         """Disable auto-reconnect (called when switching accounts)"""
@@ -1057,12 +1037,29 @@ class ChatWindow(QWidget):
         status = (status or '').lower()
         text = {'connecting': 'Connecting', 'online': 'Online'}.get(status, 'Offline')
         base = f"Chat - {self.account['chat_username']}" if self.account else "Chat"
-    
+
         # Preserve private mode in title
         if self.private_mode and self.private_chat_username:
             self.setWindowTitle(f"{base} - Private with {self.private_chat_username} - {text}")
         else:
             self.setWindowTitle(f"{base} - {text}")
+        
+        # AUTO-RECONNECT: If connection went offline, immediately attempt to reconnect
+        if status == 'offline' and self.allow_reconnect and not self.is_connecting and self.account:
+            print("🔄 Connection lost - initiating auto-reconnect...")
+            QTimer.singleShot(100, self._auto_reconnect)
+
+    def _auto_reconnect(self):
+        """Automatic reconnection after connection loss"""
+        # Double-check conditions before reconnecting
+        if (self.allow_reconnect and 
+            not self.is_connecting and 
+            not self._is_connected() and 
+            self.account):
+            
+            print("🔌 Auto-reconnecting...")
+            self.set_connection_status('connecting')
+            self.connect_xmpp()
 
     def toggle_user_list(self):
         """Toggle userlist based on current view with proper recalculation"""
