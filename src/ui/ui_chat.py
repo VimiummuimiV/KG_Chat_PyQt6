@@ -2,8 +2,7 @@
 import threading
 import re
 from pathlib import Path
-from datetime import datetime, timezone
-from collections import deque
+from datetime import datetime
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QApplication, QStackedWidget, QStatusBar, QLabel, QProgressBar, QPushButton
 from PyQt6.QtCore import Qt, pyqtSignal, QObject, QTimer, QEvent
 
@@ -59,9 +58,6 @@ class ChatWindow(QWidget):
         self.private_chat_jid = None
         self.private_chat_username = None
         self.private_chat_user_id = None
-        
-        # Sent message tracking for deduplication (stores last 50 sent message bodies)
-        self.sent_messages = deque(maxlen=50)
 
         # Initialize paths and config
         self.config_path = Path(__file__).parent.parent / "settings" / "config.json"
@@ -407,12 +403,14 @@ class ChatWindow(QWidget):
         self.allow_reconnect = False
 
     def _clear_for_reconnect(self):
-        """Clear only userlist for reconnection - preserve messages"""
-        
+        """Clear messages and userlist for fresh reconnection"""
+        # Clear all messages to avoid duplicates (server will send last 20 again)
+        self.messages_widget.clear()
+    
         # Clear userlist completely (will rebuild from fresh roster)
         if hasattr(self.user_list_widget, 'clear_all'):
             self.user_list_widget.clear_all()
-        
+    
         # Exit private mode if active
         if self.private_mode:
             self.exit_private_mode()
@@ -816,30 +814,13 @@ class ChatWindow(QWidget):
             return False
         return msg.login == 'Клавобот' and all(word in msg.body for word in ['Пользователь', 'заблокирован'])
 
-    def _is_recently_sent(self, body: str) -> bool:
-        """Check if this message was sent by us through send_message()"""
-        if not body:
-            return False
-        
-        # Check if this exact message body is in our sent messages cache
-        for sent_body, _ in self.sent_messages:
-            if sent_body == body:
-                return True
-        
-        return False
-
     def on_message(self, msg):
+        # Check if initial load
         is_initial = getattr(msg, 'initial', False)
-        
-        # CHECK FOR DUPLICATES FIRST: Skip if message already exists (for initial roster)
-        if is_initial and self._message_exists(msg):
+
+        # Skip own messages (server echoes groupchat messages back)
+        if msg.login == self.account.get('chat_username') and not is_initial:
             return
-        
-        # Skip own messages from server echo (both initial and live)
-        if msg.login == self.account.get('chat_username'):
-            # Check if this is a message we sent through send_message()
-            if self._is_recently_sent(msg.body):
-                return
 
         # Mark private messages
         msg.is_private = (msg.msg_type == 'chat')
@@ -851,10 +832,11 @@ class ChatWindow(QWidget):
         # Now add the message to the widget
         self.messages_widget.add_message(msg)
 
-        # TTS and notifications only for non-initial messages when window not active
+        # Only speak if not initial load, has login, and window not active
         if not is_initial and msg.login and not self.isActiveWindow():
             tts_enabled = self.config.get("sound", "tts_enabled")
             if tts_enabled:
+                # Update voice engine state
                 self.voice_engine.set_enabled(True)
                 my_username = self.account.get('chat_username', '')
                 self.voice_engine.speak_message(
@@ -866,15 +848,18 @@ class ChatWindow(QWidget):
                     is_ban=is_ban
                 )
             else:
+                # Ensure voice engine is disabled
                 self.voice_engine.set_enabled(False)
 
+        # Only show notifications and play sounds if not initial load and window not active
+        if not is_initial and not self.isActiveWindow():
             # Check for ban message first
             if is_ban:
                 self._play_ban_sound()
             # Then check for mention
             elif self._message_mentions_me(msg):
                 self._play_mention_sound()
-            
+        
             try:
                 show_notification(
                     title=msg.login,
@@ -891,26 +876,6 @@ class ChatWindow(QWidget):
                 )
             except Exception as e:
                 print(f"Notification error: {e}")
-
-    def _message_exists(self, msg) -> bool:
-        """Check if message already exists in the widget"""
-        # Get all current messages
-        existing_messages = self.messages_widget.model.get_all_messages()
-        
-        # Get message details
-        msg_username = msg.login
-        msg_body = msg.body
-        
-        if not msg_username or not msg_body:
-            return False
-        
-        # Check for duplicates based on username and body only
-        for existing in existing_messages:
-            if (existing.username == msg_username and 
-                existing.body == msg_body):
-                return True
-        
-        return False
 
     def _show_and_focus_window(self):
         if not self.isVisible():
@@ -1013,13 +978,10 @@ class ChatWindow(QWidget):
                 login=self.account.get('chat_username'),
                 avatar=None,
                 background=own_user.background if own_user else None,
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(),
                 initial=False
             )
             own_msg.is_private = (msg_type == 'chat')
-        
-            # Track sent message for deduplication
-            self.sent_messages.append((chunk, datetime.now(timezone.utc)))
         
             self.messages_widget.add_message(own_msg)
         

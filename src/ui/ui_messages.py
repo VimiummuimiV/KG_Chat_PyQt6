@@ -1,5 +1,5 @@
 """Messages display widget"""
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QListView
@@ -116,7 +116,7 @@ class MessagesWidget(QWidget):
             optimized_color = self.cache.get_or_calculate_color(msg.login, msg.background, bg_hex, 4.5)
        
         msg_data = MessageData(
-            getattr(msg, 'timestamp', None) or datetime.now(timezone.utc),
+            getattr(msg, 'timestamp', None) or datetime.now(),
             msg.login if msg.login else "Unknown",
             msg.body,
             getattr(msg, 'background', None),
