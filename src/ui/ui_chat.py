@@ -813,14 +813,15 @@ class ChatWindow(QWidget):
         return msg.login == 'Клавобот' and all(word in msg.body for word in ['Пользователь', 'заблокирован'])
 
     def on_message(self, msg):
-        # Skip own messages (server echoes groupchat messages back)
-        if msg.login == self.account.get('chat_username') and not getattr(msg, 'initial', False):
-            return
-
-        # CHECK FOR DUPLICATES: Skip if message already exists
         is_initial = getattr(msg, 'initial', False)
+        
+        # Skip own messages (server echoes groupchat messages back)
+        if msg.login == self.account.get('chat_username') and not is_initial:
+            return
+        
+        # CHECK FOR DUPLICATES: Skip if message already exists
         if is_initial and self._message_exists(msg):
-            return  # Skip duplicate from initial roster
+            return
 
         # Mark private messages
         msg.is_private = (msg.msg_type == 'chat')
