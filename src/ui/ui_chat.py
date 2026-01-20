@@ -403,19 +403,15 @@ class ChatWindow(QWidget):
         self.allow_reconnect = False
 
     def _clear_for_reconnect(self):
-        """Clear messages and userlist for fresh reconnection"""
-        # Clear all messages to avoid duplicates (server will send last 20 again)
-        self.messages_widget.clear()
-    
+        """Clear only userlist for reconnection - preserve messages"""
+        
         # Clear userlist completely (will rebuild from fresh roster)
         if hasattr(self.user_list_widget, 'clear_all'):
             self.user_list_widget.clear_all()
-    
+        
         # Exit private mode if active
         if self.private_mode:
             self.exit_private_mode()
-    
-        print("🔄 Cleared state for reconnection")
 
     def _is_connected(self):
         """Check if XMPP client is connected"""
@@ -821,23 +817,25 @@ class ChatWindow(QWidget):
         if msg.login == self.account.get('chat_username') and not getattr(msg, 'initial', False):
             return
 
+        # CHECK FOR DUPLICATES: Skip if message already exists
+        is_initial = getattr(msg, 'initial', False)
+        if is_initial and self._message_exists(msg):
+            return  # Skip duplicate from initial roster
+
         # Mark private messages
         msg.is_private = (msg.msg_type == 'chat')
         
         # Check if this is a ban message and mark it
         is_ban = self._is_ban_message(msg)
-        msg.is_ban = is_ban  # Mark the message object itself
+        msg.is_ban = is_ban
 
         # Now add the message to the widget
         self.messages_widget.add_message(msg)
 
-        # TTS for new messages
-        is_initial = getattr(msg, 'initial', False)
-        # Only speak if not initial load, has login, and window not active
+        # TTS and notifications only for non-initial messages when window not active
         if not is_initial and msg.login and not self.isActiveWindow():
             tts_enabled = self.config.get("sound", "tts_enabled")
             if tts_enabled:
-                # Update voice engine state
                 self.voice_engine.set_enabled(True)
                 my_username = self.account.get('chat_username', '')
                 self.voice_engine.speak_message(
@@ -849,18 +847,15 @@ class ChatWindow(QWidget):
                     is_ban=is_ban
                 )
             else:
-                # Ensure voice engine is disabled
                 self.voice_engine.set_enabled(False)
 
-        # Only show notifications and play sounds if not initial load and window not active
-        if not is_initial and not self.isActiveWindow():
             # Check for ban message first
             if is_ban:
                 self._play_ban_sound()
             # Then check for mention
             elif self._message_mentions_me(msg):
                 self._play_mention_sound()
-        
+            
             try:
                 show_notification(
                     title=msg.login,
@@ -877,6 +872,26 @@ class ChatWindow(QWidget):
                 )
             except Exception as e:
                 print(f"Notification error: {e}")
+
+    def _message_exists(self, msg) -> bool:
+        """Check if message already exists in the widget"""
+        # Get all current messages
+        existing_messages = self.messages_widget.model.get_all_messages()
+        
+        # Check for duplicates based on timestamp, username, and body
+        msg_time = getattr(msg, 'timestamp', None)
+        if not msg_time:
+            return False
+        
+        for existing in existing_messages:
+            # Match on timestamp (within 1 second), username, and body
+            time_diff = abs((existing.timestamp - msg_time).total_seconds())
+            if (time_diff < 1.0 and 
+                existing.username == msg.login and 
+                existing.body == msg.body):
+                return True
+        
+        return False
 
     def _show_and_focus_window(self):
         if not self.isVisible():
