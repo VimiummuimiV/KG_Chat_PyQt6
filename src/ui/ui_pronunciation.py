@@ -2,7 +2,7 @@
 from pathlib import Path
 from PyQt6.QtWidgets import(
     QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, 
-    QScrollArea, QLabel, QGridLayout, QSizePolicy
+    QScrollArea, QLabel, QGridLayout, QMessageBox
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QTimer, QSize
 from PyQt6.QtGui import QPixmap, QPainter
@@ -192,6 +192,13 @@ class PronunciationWidget(QWidget):
         title_label.setFont(get_font(FontType.HEADER))
         header_layout.addWidget(title_label, stretch=1)
         
+        # Clear All button
+        self.clear_all_button = create_icon_button(
+            self.icons_path, "trash.svg", "Clear All", config=self.config
+        )
+        self.clear_all_button.clicked.connect(self._clear_all)
+        header_layout.addWidget(self.clear_all_button)
+        
         # Add button
         self.add_button = create_icon_button(
             self.icons_path, "add.svg", "Add Mapping", config=self.config
@@ -275,6 +282,32 @@ class PronunciationWidget(QWidget):
             # Only save if both fields filled AND username is valid
             if original and pronunciation and item.is_valid():
                 self.pronunciation_manager.add_mapping(original, pronunciation)
+    
+    def _clear_all(self):
+        """Clear all pronunciation mappings"""
+        if not any(not item.is_empty() for item in self.items):
+            QMessageBox.information(self, "Empty", "Pronunciation list is already empty")
+            return
+        
+        reply = QMessageBox.question(
+            self,
+            "Confirm Clear All",
+            "Remove all pronunciation mappings?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+        
+        if reply == QMessageBox.StandardButton.Yes:
+            # Remove all items
+            for item in list(self.items):
+                self.items_layout.removeWidget(item)
+                item.deleteLater()
+            self.items.clear()
+            
+            # Clear pronunciation manager
+            self.pronunciation_manager.clear_all()
+            
+            # Add one empty item
+            self._add_item("", "")
     
     def _recalculate_layout(self):
         """Recalculate grid layout based on available width"""
