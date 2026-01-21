@@ -18,7 +18,6 @@ class UserWidget(QWidget):
     """Widget for a single user display"""
     AVATAR_SIZE = 36
     SVG_AVATAR_SIZE = 24
-    MAX_USERNAME_WIDTH = 200 
     
     profile_requested = pyqtSignal(str, str, str)  # jid, username, user_id
     private_chat_requested = pyqtSignal(str, str, str)  # jid, username, user_id
@@ -55,42 +54,26 @@ class UserWidget(QWidget):
         
         layout.addWidget(self.avatar_label)
         
-        # Username with cached color and elided text
+        # Username with counter and moderator icon inline
         text_color = self.cache.get_or_calculate_color(user.login, user.background, bg_hex, 4.5)
         
         self.username_label = QLabel()
         self.username_label.setFont(get_font(FontType.TEXT))
         
-        # Elide text if too long
-        metrics = self.username_label.fontMetrics()
-        elided_text = metrics.elidedText(user.login, Qt.TextElideMode.ElideRight, self.MAX_USERNAME_WIDTH)
-        self.username_label.setText(elided_text)
-        self.username_label.setStyleSheet(f"color: {text_color};")
+        # Build username text with counter first, then moderator icon
+        username_text = user.login
         
-        # Show full username on hover if it was elided
-        if elided_text != user.login:
-            self.username_label.setToolTip(user.login)
-        
-        self.username_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-        layout.addWidget(self.username_label, stretch=1)
-        
-        # Moderator indicator
-        self.mod_label = None
-        if self._is_moderator(user):
-            self.mod_label = QLabel("⚔️")
-            self.mod_label.setFont(get_font(FontType.TEXT))
-            tooltip = self._build_moderator_tooltip(user)
-            self.mod_label.setToolTip(tooltip)
-            self.mod_label.setStyleSheet(f"color: {text_color};")
-            layout.addWidget(self.mod_label)
-        
-        # Counter indicator
-        self.counter_label = None
         if counter and counter > 0:
-            self.counter_label = QLabel(f"{counter}")
-            self.counter_label.setFont(get_font(FontType.TEXT))
-            self.counter_label.setStyleSheet(f"color: {text_color};")
-            layout.addWidget(self.counter_label)
+            username_text += f" {counter}"
+        
+        if self._is_moderator(user):
+            username_text += " ⚔️"
+            tooltip = self._build_moderator_tooltip(user)
+            self.username_label.setToolTip(tooltip)
+        
+        self.username_label.setText(username_text)
+        self.username_label.setStyleSheet(f"color: {text_color};")
+        layout.addWidget(self.username_label)
     
     def _is_moderator(self, user):
         """Check if user has moderator privileges"""
@@ -130,8 +113,6 @@ class UserWidget(QWidget):
     def update_color(self, color: str):
         """Update colors without rebuilding widget"""
         self.username_label.setStyleSheet(f"color: {color};")
-        if self.counter_label:
-            self.counter_label.setStyleSheet(f"color: {color};")
     
     def mousePressEvent(self, event):
         """Handle click events"""
@@ -172,7 +153,7 @@ class UserListWidget(QWidget):
         layout.setContentsMargins(widget_margin, widget_margin, widget_margin, widget_margin)
         layout.setSpacing(widget_spacing)
         self.setLayout(layout)
-        self.setMaximumWidth(400)
+        self.setMaximumWidth(380)
         
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
