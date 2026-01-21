@@ -399,30 +399,36 @@ class Application:
         """Handle Update from Server from tray menu."""
         self._refresh_own_username_color(update_from_server)
     
+    def check_chat_ready(self, feature_description):
+        """Check if chat window and account are ready; show error if not."""
+        if not self.chat_window or not self.chat_window.account:
+            QMessageBox.information(
+                None,
+                "Chat Not Open",
+                f"Please connect to an account first to manage {feature_description}."
+            )
+            return False
+        return True
+
+    def focus_chat_window(self):
+        """Show and focus the chat window if hidden."""
+        if not self.chat_window.isVisible():
+            self.chat_window.show()
+            self.chat_window.activateWindow()
+            self.chat_window.raise_()
+
     def handle_pronunciation_manager(self):
         """Handle Username Pronunciation from tray menu"""
-        if not self.chat_window or not self.chat_window.account:
-            QMessageBox.information(
-                None,
-                "Chat Not Open",
-                "Please connect to an account first to manage username pronunciations."
-            )
+        if not self.check_chat_ready("username pronunciations"):
             return
-        
-        # Open pronunciation manager in chat window
+        self.focus_chat_window()
         self.chat_window.show_pronunciation_view()
-    
+
     def handle_ban_list(self):
         """Handle Ban List Management from tray menu"""
-        if not self.chat_window or not self.chat_window.account:
-            QMessageBox.information(
-                None,
-                "Chat Not Open",
-                "Please connect to an account first to manage the ban list."
-            )
+        if not self.check_chat_ready("the ban list"):
             return
-        
-        # Open ban list manager in chat window
+        self.focus_chat_window()
         self.chat_window.show_ban_list_view()
 
 def main():
