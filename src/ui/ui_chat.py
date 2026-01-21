@@ -24,6 +24,7 @@ from ui.ui_chatlog_userlist import ChatlogUserlistWidget
 from ui.ui_profile import ProfileWidget
 from ui.ui_emoticon_selector import EmoticonSelectorWidget
 from ui.ui_pronunciation import PronunciationWidget
+from ui.ui_banlist import BanListWidget
 from components.notification import show_notification
 
 
@@ -34,11 +35,18 @@ class SignalEmitter(QObject):
     connection_changed = pyqtSignal(str)
 
 class ChatWindow(QWidget):
-    def __init__(self, account=None, app_controller=None, pronunciation_manager=None):
+    def __init__(
+        self,
+        account=None,
+        app_controller=None,
+        pronunciation_manager=None,
+        ban_manager=None
+        ):
         super().__init__()
 
         self.app_controller = app_controller
         self.pronunciation_manager = pronunciation_manager
+        self.ban_manager = ban_manager
         self.tray_mode = False
         self.really_close = False
         self.account = account
@@ -224,7 +232,7 @@ class ChatWindow(QWidget):
         self.narrow_hideable_widgets = [self.input_field, self.send_button, self.emoticon_button, self.theme_button]
     
         # Messages userlist with private mode callback
-        self.user_list_widget = UserListWidget(self.config, self.input_field)
+        self.user_list_widget = UserListWidget(self.config, self.input_field, self.ban_manager)
         self.user_list_widget.profile_requested.connect(self.show_profile_view)
         self.user_list_widget.private_chat_requested.connect(self.enter_private_mode)
 
@@ -595,8 +603,14 @@ class ChatWindow(QWidget):
             self.user_list_widget.setVisible(False)
        
         if not self.chatlog_widget:
-            # Pass parent_window=self for modal dialogs
-            self.chatlog_widget = ChatlogWidget(self.config, self.icons_path, self.account, parent_window=self)
+            # Pass parent_window=self for modal dialogs and ban_manager
+            self.chatlog_widget = ChatlogWidget(
+                self.config, 
+                self.icons_path, 
+                self.account, 
+                parent_window=self,
+                ban_manager=self.ban_manager
+            )
             self.chatlog_widget.back_requested.connect(self.show_messages_view)
             self.chatlog_widget.messages_loaded.connect(self._on_chatlog_messages_loaded)
             self.chatlog_widget.filter_changed.connect(self._on_chatlog_filter_changed)
@@ -610,7 +624,8 @@ class ChatWindow(QWidget):
             self.chatlog_userlist_widget = ChatlogUserlistWidget(
                 self.config,
                 self.icons_path,
-                self.cache._color_cache
+                self.cache._color_cache,
+                self.ban_manager
             )
             self.chatlog_userlist_widget.filter_requested.connect(self._on_filter_requested)
             self.content_layout.addWidget(self.chatlog_userlist_widget, stretch=1)
@@ -625,6 +640,10 @@ class ChatWindow(QWidget):
             self.chatlog_userlist_widget.setVisible(True)
         else:
             self.chatlog_userlist_widget.setVisible(False)
+       
+        # Sync userlist ban visibility with chatlog parse mode
+        if self.chatlog_widget and self.chatlog_userlist_widget:
+            self.chatlog_userlist_widget.set_show_banned(self.chatlog_widget.is_parsing)
        
         # Only load daily chatlog if not in parser mode
         if not self.chatlog_widget.parser_visible:
@@ -711,6 +730,10 @@ class ChatWindow(QWidget):
 
     def _on_chatlog_messages_loaded(self, messages):
         if self.chatlog_userlist_widget and messages:
+            # Sync show_banned state with chatlog parse mode
+            if self.chatlog_widget:
+                self.chatlog_userlist_widget.set_show_banned(self.chatlog_widget.is_parsing)
+            
             self.chatlog_userlist_widget.load_from_messages(messages)
 
     def _on_filter_requested(self, usernames: set):
@@ -813,6 +836,37 @@ class ChatWindow(QWidget):
         if not msg.body or not msg.login:
             return False
         return msg.login == 'Клавобот' and all(word in msg.body for word in ['Пользователь', 'заблокирован'])
+    
+    def _extract_user_id_from_message(self, msg):
+        """Extract user ID from message JID"""
+        if not msg.from_jid:
+            return None
+        
+        try:
+            # JID format: room@domain/user_id#username
+            if '#' in msg.from_jid:
+                parts = msg.from_jid.split('/')[-1].split('#')
+                if len(parts) >= 2:
+                    return parts[0]
+        except:
+            pass
+        
+        return None
+    
+    def _is_user_banned(self, user_id: str = None, username: str = None) -> bool:
+        """Check if a user is banned by ID or username"""
+        if not self.ban_manager:
+            return False
+        
+        # Check by user_id (primary)
+        if user_id and self.ban_manager.is_banned_by_id(str(user_id)):
+            return True
+        
+        # Fallback check by username
+        if not user_id and username and self.ban_manager.is_banned_by_username(username):
+            return True
+        
+        return False
 
     def on_message(self, msg):
         # Check if initial load
@@ -821,6 +875,12 @@ class ChatWindow(QWidget):
         # Skip own messages (server echoes groupchat messages back)
         if msg.login == self.account.get('chat_username') and not is_initial:
             return
+
+        # CHECK IF USER IS BANNED - BLOCK IMMEDIATELY
+        if msg.login:
+            user_id = self._extract_user_id_from_message(msg)
+            if self._is_user_banned(user_id, msg.login):
+                return  # Silently drop banned user's messages
 
         # Mark private messages
         msg.is_private = (msg.msg_type == 'chat')
@@ -931,6 +991,11 @@ class ChatWindow(QWidget):
     def on_presence(self, pres):
         if not self.xmpp_client or self.initial_roster_loading:
             return
+    
+        # CHECK IF USER IS BANNED - BLOCK PRESENCE UPDATES
+        if pres and pres.login:
+            if self._is_user_banned(pres.user_id, pres.login):
+                return  # Silently drop banned user's presence
     
         if pres and pres.presence_type == 'available':
             self.user_list_widget.add_users(presence=pres)
@@ -1124,6 +1189,19 @@ class ChatWindow(QWidget):
             self.stacked_widget.addWidget(self.pronunciation_widget)
         
         self.stacked_widget.setCurrentWidget(self.pronunciation_widget)
+    
+    def show_ban_list_view(self):
+        """Show ban list management view"""
+        if not hasattr(self, 'ban_list_widget') or not self.ban_list_widget:
+            self.ban_list_widget = BanListWidget(
+                self.config, 
+                self.icons_path,
+                self.ban_manager
+            )
+            self.ban_list_widget.back_requested.connect(self.show_messages_view)
+            self.stacked_widget.addWidget(self.ban_list_widget)
+        
+        self.stacked_widget.setCurrentWidget(self.ban_list_widget)
     
     def toggle_theme(self):
         self.theme_button.setEnabled(False)

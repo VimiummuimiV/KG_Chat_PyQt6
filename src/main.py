@@ -1,6 +1,9 @@
 import sys
 from pathlib import Path
-from PyQt6.QtWidgets import QApplication, QSystemTrayIcon, QMenu, QMessageBox
+from PyQt6.QtWidgets import(
+    QWidget, QApplication, QSystemTrayIcon,
+    QMenu, QMessageBox
+)
 from PyQt6.QtGui import QFont, QIcon, QAction, QPixmap, QPainter, QColor
 from PyQt6.QtCore import Qt, QLockFile, QDir
 from PyQt6.QtSvg import QSvgRenderer
@@ -22,6 +25,7 @@ from helpers.username_color_manager import(
     update_from_server
 )
 from helpers.pronunciation_manager import PronunciationManager
+from helpers.ban_manager import BanManager
 from core.accounts import AccountManager
 
 
@@ -56,6 +60,9 @@ class Application:
         
         # Initialize pronunciation manager
         self.pronunciation_manager = PronunciationManager(self.settings_path)
+        
+        # Initialize ban manager
+        self.ban_manager = BanManager(self.settings_path)
 
         self.account_window = None
         self.chat_window = None
@@ -66,6 +73,7 @@ class Application:
         self.voice_sound_action = None
         self.mention_beep_action = None
         self.pronunciation_action = None
+        self.ban_list_action = None
         
         self.setup_system_tray()
 
@@ -93,6 +101,13 @@ class Application:
         
         # Create Sound Management submenu
         self._setup_sound_menu(menu)
+        
+        menu.addSeparator()
+        
+        # Add Ban List Management
+        self.ban_list_action = QAction("Ban List Management", self.app)
+        self.ban_list_action.triggered.connect(self.handle_ban_list)
+        menu.addAction(self.ban_list_action)
         
         menu.addSeparator()
         menu.addAction(QAction("Exit", self.app, triggered=self.exit_application))
@@ -298,7 +313,8 @@ class Application:
         self.chat_window = ChatWindow(
             account=account, 
             app_controller=self,
-            pronunciation_manager=self.pronunciation_manager
+            pronunciation_manager=self.pronunciation_manager,
+            ban_manager=self.ban_manager
         )
         self.chat_window.set_tray_mode(True)
         
@@ -395,6 +411,19 @@ class Application:
         
         # Open pronunciation manager in chat window
         self.chat_window.show_pronunciation_view()
+    
+    def handle_ban_list(self):
+        """Handle Ban List Management from tray menu"""
+        if not self.chat_window or not self.chat_window.account:
+            QMessageBox.information(
+                None,
+                "Chat Not Open",
+                "Please connect to an account first to manage the ban list."
+            )
+            return
+        
+        # Open ban list manager in chat window
+        self.chat_window.show_ban_list_view()
 
 def main():
     """Application entry point"""

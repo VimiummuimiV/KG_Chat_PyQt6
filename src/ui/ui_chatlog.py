@@ -32,12 +32,20 @@ class ChatlogWidget(QWidget):
     filter_changed = pyqtSignal(set)
     _error_occurred = pyqtSignal(str)
 
-    def __init__(self, config, icons_path: Path, account=None, parent_window=None):
+    def __init__(
+        self,
+        config,
+        icons_path: Path,
+        account=None,
+        parent_window=None,
+        ban_manager=None
+        ):
         super().__init__()
         self.config = config
         self.icons_path = icons_path
         self.account = account
         self.parent_window = parent_window
+        self.ban_manager = ban_manager
         self.parser = ChatlogsParser()
         self.current_date = datetime.now().date()
         self.color_cache = {}
@@ -45,7 +53,8 @@ class ChatlogWidget(QWidget):
         self.search_text = ""
         self.all_messages = []
         self.last_parsed_date = None
-        self.temp_parsed_messages = [] # Temporary storage for parsed messages
+        self.temp_parsed_messages = [] # Temp storage during parsing
+        self.is_parsing = False  # Track if we're in parse mode
 
         self.search_visible = config.get("ui", "chatlog_search_visible")
         if self.search_visible is None:
@@ -319,6 +328,8 @@ class ChatlogWidget(QWidget):
 
     def _on_parse_started(self, config: ParseConfig):
         """Start parsing with given config"""
+        self.is_parsing = True
+        
         # Only clear UI for non-sync modes
         if config.mode != 'syncdatabase':
             self.model.clear()
@@ -378,6 +389,7 @@ class ChatlogWidget(QWidget):
                 self.info_label.setText(f"Found {message_count} messages (partial)")
             else:
                 self.info_label.setText("Parsing cancelled")
+                self.is_parsing = False
         
         if self.parent_window:
             self.parent_window.stop_parse_status()
@@ -677,6 +689,8 @@ class ChatlogWidget(QWidget):
         QTimer.singleShot(0, lambda: scroll(self.list_view, mode="bottom", delay=100))
 
     def load_current_date(self):
+        """Load single date chatlog - this is NORMAL viewing"""
+        self.is_parsing = False
         self.model.clear()
         self.all_messages = []
         self.info_label.setText("Loading...")
@@ -704,8 +718,29 @@ class ChatlogWidget(QWidget):
         threading.Thread(target=_load, daemon=True).start()
 
     def _display_messages(self):
+        """Display messages with ban filtering (except during parse mode)"""
         try:
             messages, size_text, was_truncated, from_cache = getattr(self, '_pending_data', ([], '', False, False))
+        
+            cache_marker = " 📁" if from_cache else ""
+            filtered_ban_count = 0
+        
+            if not messages:
+                self.info_label.setText(f"No messages · {size_text}{cache_marker}")
+                self.messages_loaded.emit([])
+                self.list_view.setUpdatesEnabled(True)
+                return
+            
+            # FILTER BANNED USERS if NOT in parse mode
+            if self.ban_manager and not self.is_parsing:
+                filtered_messages = []
+                for msg in messages:
+                    if not self.ban_manager.is_banned_by_username(msg.username):
+                        filtered_messages.append(msg)
+                    else:
+                        filtered_ban_count += 1
+                
+                messages = filtered_messages
         
             # Batch operations
             self.list_view.setUpdatesEnabled(False)
@@ -713,10 +748,11 @@ class ChatlogWidget(QWidget):
             self.model.clear()
             self.all_messages = []
         
-            cache_marker = " 📁" if from_cache else ""
-        
             if not messages:
-                self.info_label.setText(f"No messages · {size_text}{cache_marker}")
+                if filtered_ban_count > 0:
+                    self.info_label.setText(f"No messages (all {filtered_ban_count} from banned users) · {size_text}{cache_marker}")
+                else:
+                    self.info_label.setText(f"No messages · {size_text}{cache_marker}")
                 self.messages_loaded.emit([])
                 self.list_view.setUpdatesEnabled(True)
                 return
@@ -725,7 +761,6 @@ class ChatlogWidget(QWidget):
             for msg in messages:
                 try:
                     timestamp = datetime.strptime(msg.timestamp, "%H:%M:%S")
-                    # Note: msg.message instead of msg.body (ChatMessage from database)
                     msg_data = MessageData(timestamp, msg.username, msg.message, None, msg.username)
                     message_data.append(msg_data)
                 except:
@@ -736,12 +771,17 @@ class ChatlogWidget(QWidget):
         
             self.list_view.setUpdatesEnabled(True)
           
+            # Update info label with ban filter info
             if was_truncated:
-                self.info_label.setText(f"⚠️ Loaded {len(messages)} messages (file truncated at {self.parser.MAX_FILE_SIZE_MB}MB limit) · {size_text}{cache_marker}")
-            elif self.filtered_usernames or self.search_text:
-                pass
+                info_text = f"⚠️ Loaded {len(messages)} messages (file truncated at {self.parser.MAX_FILE_SIZE_MB}MB limit) · {size_text}{cache_marker}"
             else:
-                self.info_label.setText(f"Loaded {len(messages)} messages · {size_text}{cache_marker}")
+                info_text = f"Loaded {len(messages)} messages · {size_text}{cache_marker}"
+            
+            if filtered_ban_count > 0:
+                info_text += f" · {filtered_ban_count} banned users hidden"
+            
+            if not (self.filtered_usernames or self.search_text):
+                self.info_label.setText(info_text)
         
             self.messages_loaded.emit(message_data)
             QTimer.singleShot(0, lambda: scroll(self.list_view, mode="bottom", delay=100))

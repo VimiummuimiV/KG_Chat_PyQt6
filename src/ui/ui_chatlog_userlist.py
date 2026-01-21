@@ -29,6 +29,7 @@ class ChatlogUserWidget(QWidget):
         # Username - use theme-dependent color
         is_dark = config.get("ui", "theme") == "dark"
         text_color = "#CCCCCC" if is_dark else "#666666"
+        
         self.username_label = QLabel(username)
         self.username_label.setStyleSheet(f"color: {text_color};")
         self.username_label.setFont(get_font(FontType.TEXT))
@@ -65,11 +66,13 @@ class ChatlogUserlistWidget(QWidget):
     
     filter_requested = pyqtSignal(set)  # Emit set of usernames to filter
     
-    def __init__(self, config, icons_path, color_cache):
+    def __init__(self, config, icons_path, color_cache, ban_manager=None):
         super().__init__()
         self.config = config
         self.icons_path = icons_path
         self.color_cache = color_cache
+        self.ban_manager = ban_manager
+        self.show_banned = False  # Track if we should show banned users
         self.user_widgets = {}  # username -> widget
         self.filtered_usernames = set()
         
@@ -115,6 +118,10 @@ class ChatlogUserlistWidget(QWidget):
         
         self.user_layout.addStretch()
     
+    def set_show_banned(self, show: bool):
+        """Control whether banned users are shown (for parse mode)"""
+        self.show_banned = show
+    
     def _handle_user_click(self, username: str, ctrl_pressed: bool):
         """Handle user click with Ctrl modifier support"""
         if ctrl_pressed:
@@ -150,7 +157,7 @@ class ChatlogUserlistWidget(QWidget):
         self.filter_requested.emit(set())
     
     def load_from_messages(self, messages, user_id_resolver=None):
-        """Load users from chatlog messages"""
+        """Load users from chatlog messages with ban filtering"""
         self._clear_widgets()
         
         if not messages:
@@ -158,9 +165,29 @@ class ChatlogUserlistWidget(QWidget):
         
         # Count messages per user
         counts = Counter(msg.username for msg in messages)
+        
+        # FILTER BANNED USERS - completely hide them unless in parse mode
+        if self.ban_manager and not self.show_banned:
+            # Remove banned users from counts
+            filtered_counts = {}
+            for username, count in counts.items():
+                if not self.ban_manager.is_banned_by_username(username):
+                    filtered_counts[username] = count
+            counts = filtered_counts
+
+        if not counts:
+            # All users were banned or no messages
+            empty_label = QLabel("No users to display")
+            empty_label.setFont(get_font(FontType.TEXT))
+            empty_label.setStyleSheet("color: #888888;")
+            empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            self.user_layout.addWidget(empty_label)
+            self.user_layout.addStretch()
+            return
+
         sorted_users = sorted(counts.items(), key=lambda x: (-x[1], x[0].lower()))
         
-        # Create widgets (no avatars)
+        # Create widgets - all users shown here are NOT banned (or we're in parse mode)
         for username, count in sorted_users:
             try:
                 widget = ChatlogUserWidget(username, count, self.config)

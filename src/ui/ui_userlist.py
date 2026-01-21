@@ -150,10 +150,11 @@ class UserListWidget(QWidget):
     profile_requested = pyqtSignal(str, str, str)
     private_chat_requested = pyqtSignal(str, str, str)
     
-    def __init__(self, config, input_field=None):
+    def __init__(self, config, input_field=None, ban_manager=None):
         super().__init__()
         self.config = config
         self.input_field = input_field
+        self.ban_manager = ban_manager
         self.user_widgets = {}
         self.user_game_state = {}
         self.cache = get_cache()
@@ -258,7 +259,7 @@ class UserListWidget(QWidget):
                 pass
     
     def add_users(self, users=None, presence=None, bulk=False):
-        """Add user(s) to appropriate section with sorting"""
+        """Add user(s) to appropriate section with sorting and ban filtering"""
         if presence:
             users = [ChatUser(
                 user_id=presence.user_id or '',
@@ -274,6 +275,29 @@ class UserListWidget(QWidget):
         
         if not users:
             return
+        
+        # FILTER BANNED USERS
+        if self.ban_manager:
+            filtered_users = []
+            for user in users:
+                user_id = user.user_id
+                
+                # Check by user_id (primary)
+                if user_id and self.ban_manager.is_banned_by_id(str(user_id)):
+                    print(f"🚫 Filtering banned user from userlist: {user.login} (ID: {user_id})")
+                    continue
+                
+                # Fallback check by username
+                if not user_id and self.ban_manager.is_banned_by_username(user.login):
+                    print(f"🚫 Filtering banned user from userlist: {user.login} (no ID)")
+                    continue
+                
+                filtered_users.append(user)
+            
+            users = filtered_users
+            
+            if not users:
+                return  # All users were banned
         
         # Update counters for all
         for user in users:
