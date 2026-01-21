@@ -172,7 +172,7 @@ class UserListWidget(QWidget):
         layout.setContentsMargins(widget_margin, widget_margin, widget_margin, widget_margin)
         layout.setSpacing(widget_spacing)
         self.setLayout(layout)
-        self.setMaximumWidth(350)
+        self.setMaximumWidth(400)
         
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
