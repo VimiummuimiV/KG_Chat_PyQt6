@@ -212,7 +212,7 @@ class BanListWidget(QWidget):
         header_layout.addWidget(self.back_button)
         
         # Title
-        title_label = QLabel("Ban List Management")
+        title_label = QLabel("Ban List")
         title_label.setFont(get_font(FontType.HEADER))
         header_layout.addWidget(title_label, stretch=1)
         

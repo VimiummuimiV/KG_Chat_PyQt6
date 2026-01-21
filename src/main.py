@@ -105,7 +105,7 @@ class Application:
         menu.addSeparator()
         
         # Add Ban List Management
-        self.ban_list_action = QAction("Ban List Management", self.app)
+        self.ban_list_action = QAction("Ban List", self.app)
         self.ban_list_action.triggered.connect(self.handle_ban_list)
         menu.addAction(self.ban_list_action)
         
