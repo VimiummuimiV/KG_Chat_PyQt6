@@ -10,6 +10,7 @@ from PyQt6.QtCore import Qt, QSize, QRect, QModelIndex, pyqtSignal, QTimer, QEve
 from PyQt6.QtGui import QPainter, QFontMetrics, QColor, QPixmap, QMovie, QCursor
 
 from helpers.color_contrast import optimize_color_contrast
+from components.messages_separator import NewMessagesSeparator, ChatlogDateSeparator
 from helpers.emoticons import EmoticonManager
 from helpers.color_utils import get_private_message_colors, get_ban_message_colors
 from helpers.fonts import get_font, FontType
@@ -104,8 +105,13 @@ class MessageDelegate(QStyledItemDelegate):
         if not msg:
             return QSize(200, 50)
        
+        # Chatlog date separator
         if getattr(msg, 'is_separator', False):
-            return QSize(option.rect.width(), 30)
+            return QSize(option.rect.width(), ChatlogDateSeparator.get_height())
+
+        # New messages marker
+        if getattr(msg, 'is_new_messages_marker', False):
+            return QSize(option.rect.width(), NewMessagesSeparator.get_height())
 
         width = option.rect.width() if option.rect.width() > 0 else 800
         height = self._calculate_compact_height(msg, width) if self.compact_mode else self._calculate_normal_height(msg, width)
@@ -274,52 +280,29 @@ class MessageDelegate(QStyledItemDelegate):
         if not msg:
             return
        
+        # Handle chatlog date separator
         if getattr(msg, 'is_separator', False):
-            painter.save()
-            
-            # Theme-adaptive colors
-            if self.is_dark_theme:
-                line_color = QColor("#444444")
-                bg_color = QColor("#2A2A2A")
-                text_color = QColor("#AAAAAA")
-            else:
-                line_color = QColor("#BBBBBB")
-                bg_color = QColor("#E8E8E8")
-                text_color = QColor("#444444")
-            
-            rect = option.rect
-            mid_y = rect.y() + rect.height() // 2
-            
-            # Draw horizontal line
-            painter.setPen(line_color)
-            painter.drawLine(rect.x() + 20, mid_y, rect.x() + rect.width() - 20, mid_y)
-            
-            # Prepare date text
-            date_text = msg.date_str
-            painter.setFont(self.timestamp_font)
-            fm = QFontMetrics(self.timestamp_font)
-            text_width = fm.horizontalAdvance(date_text) + 24
-            text_height = fm.height() + 8
-            
-            # Calculate text box position (centered)
-            text_x = rect.x() + (rect.width() - text_width) // 2
-            text_y = mid_y - text_height // 2
-            
-            # Draw rounded background box
-            painter.setPen(Qt.PenStyle.NoPen)
-            painter.setBrush(bg_color)
-            painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-            painter.drawRoundedRect(text_x, text_y, text_width, text_height, 4, 4)
-            
-            # Draw date text
-            painter.setPen(text_color)
-            text_rect = QRect(text_x, text_y, text_width, text_height)
-            painter.drawText(text_rect, Qt.AlignmentFlag.AlignCenter, date_text)
-            
-            painter.restore()
+            ChatlogDateSeparator.render(
+                painter,
+                option.rect,
+                msg.date_str,
+                self.timestamp_font,
+                self.is_dark_theme
+            )
+            return
+
+        # Handle new messages marker
+        if getattr(msg, 'is_new_messages_marker', False):
+            NewMessagesSeparator.render(
+                painter, 
+                option.rect, 
+                self.timestamp_font, 
+                self.is_dark_theme
+            )
             return
 
         row = index.row()
+
         if self._has_animated_emoticons(msg.body):
             self.animated_rows.add(row)
         else:

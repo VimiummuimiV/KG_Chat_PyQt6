@@ -9,14 +9,15 @@ from PyQt6.QtCore import QAbstractListModel, Qt, QModelIndex
 class MessageData:
     """Lightweight message data structure"""
     timestamp: datetime
-    username: str
-    body: str
+    username: str = ""
+    body: str = ""
     background_color: Optional[str] = None
     login: Optional[str] = None
     is_private: bool = False
     is_separator: bool = False
     date_str: Optional[str] = None  # For separators
     is_ban: bool = False
+    is_new_messages_marker: bool = False
    
     def get_time_str(self) -> str:
         return self.timestamp.strftime("%H:%M:%S")

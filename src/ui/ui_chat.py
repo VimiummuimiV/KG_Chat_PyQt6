@@ -26,6 +26,7 @@ from ui.ui_emoticon_selector import EmoticonSelectorWidget
 from ui.ui_pronunciation import PronunciationWidget
 from ui.ui_banlist import BanListWidget
 from components.notification import show_notification
+from components.messages_separator import NewMessagesSeparator
 
 
 class SignalEmitter(QObject):
@@ -66,6 +67,9 @@ class ChatWindow(QWidget):
         self.private_chat_jid = None
         self.private_chat_username = None
         self.private_chat_user_id = None
+
+        # Track new messages marker
+        self.has_new_messages_marker = False
 
         # Initialize paths and config
         self.config_path = Path(__file__).parent.parent / "settings" / "config.json"
@@ -893,6 +897,10 @@ class ChatWindow(QWidget):
         is_ban = self._is_ban_message(msg)
         msg.is_ban = is_ban
 
+        if not is_initial and not self.isVisible() and not self.has_new_messages_marker:
+            self.messages_widget.model.add_message(NewMessagesSeparator.create_marker())
+            self.has_new_messages_marker = True
+
         # Now add the message to the widget
         self.messages_widget.add_message(msg)
 
@@ -1266,6 +1274,11 @@ class ChatWindow(QWidget):
         # Cleanup emoticon selector
         if hasattr(self, 'emoticon_selector'):
             self.emoticon_selector.cleanup()
+
+        # Remove new messages marker when closing
+        if self.has_new_messages_marker:
+            NewMessagesSeparator.remove_from_model(self.messages_widget.model)
+            self.has_new_messages_marker = False
     
         # If hiding to tray, do not perform full cleanup so animations and
         # delegate state remain intact. Full cleanup happens only when the
