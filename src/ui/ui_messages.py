@@ -27,7 +27,7 @@ class MessagesWidget(QWidget):
         emoticons_path = Path(__file__).resolve().parent.parent / "emoticons"
         self.emoticon_manager = EmoticonManager(emoticons_path)
        
-        self.model = MessageListModel(max_messages=10000)
+        self.model = MessageListModel(max_messages=1000)
         # Pass the cache's color dictionary directly to delegate
         self.delegate = MessageDelegate(config, self.emoticon_manager, self.cache._color_cache)
        

@@ -26,7 +26,7 @@ class MessageData:
 class MessageListModel(QAbstractListModel):
     """Model for storing messages - handles data only, no rendering"""
    
-    def __init__(self, max_messages: int = 10000):
+    def __init__(self, max_messages: int = 50000):
         super().__init__()
         self._messages: List[MessageData] = []
         self.max_messages = max_messages
