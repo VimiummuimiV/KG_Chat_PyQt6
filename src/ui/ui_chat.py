@@ -381,8 +381,12 @@ class ChatWindow(QWidget):
             print("⚠️ Account switching not available (no app_controller)")
 
     def showEvent(self, event):
-        """Handle window show events - removed auto-reconnect trigger"""
+        """Handle window show events"""
         super().showEvent(event)
+        
+        # Reset unread count when window becomes visible
+        if self.app_controller:
+            self.app_controller.reset_unread()
 
         # Position emoticon selector when showing
         if hasattr(self, 'emoticon_selector'):
@@ -892,6 +896,10 @@ class ChatWindow(QWidget):
         # Now add the message to the widget
         self.messages_widget.add_message(msg)
 
+        # Increment unread count if window is hidden and not initial load
+        if not is_initial and not self.isVisible() and self.app_controller:
+            self.app_controller.increment_unread()
+
         # Only speak if not initial load, has login, and window not active
         if not is_initial and msg.login and not self.isActiveWindow():
             tts_enabled = self.config.get("sound", "tts_enabled")
@@ -1266,6 +1274,10 @@ class ChatWindow(QWidget):
             event.ignore()
             self.hide()
             return
+
+        # Reset unread when actually closing
+        if self.app_controller:
+            self.app_controller.reset_unread()
 
         # Proceed with full cleanup when actually closing
         if self.messages_widget:

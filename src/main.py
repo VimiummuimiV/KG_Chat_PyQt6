@@ -27,6 +27,7 @@ from helpers.username_color_manager import(
 from helpers.pronunciation_manager import PronunciationManager
 from helpers.ban_manager import BanManager
 from core.accounts import AccountManager
+from components.tray_badge import TrayIconWithBadge
 
 
 class Application:
@@ -48,6 +49,11 @@ class Application:
 
         # Set global application icon
         self.icons_path = Path(__file__).parent / "icons"
+        
+        # Initialize tray badge manager
+        self.tray_badge = TrayIconWithBadge(self.icons_path)
+        self.unread_count = 0
+        
         self.app.setWindowIcon(self._get_icon())
 
         # Initialize settings path
@@ -83,7 +89,7 @@ class Application:
             print("⚠️ System tray not available")
             return
 
-        self.tray_icon = QSystemTrayIcon(self._get_icon(), self.app)
+        self.tray_icon = QSystemTrayIcon(self._get_icon(self.unread_count), self.app)
         self.tray_icon.setToolTip("KG Chat")
         self.tray_icon.activated.connect(lambda r: self.show_window() if r == QSystemTrayIcon.ActivationReason.DoubleClick else None)
 
@@ -207,25 +213,21 @@ class Application:
         if self.chat_window:
             self.chat_window.config.data = self.config.data
 
-    def _get_icon(self):
-        """Get orange chat icon for windows and tray"""
-        icon_file = self.icons_path / "chat.svg"
-        if not icon_file.exists():
-            return self.app.style().standardIcon(self.app.style().StandardPixmap.SP_ComputerIcon)
+    def _get_icon(self, count: int = 0):
+        """Get chat icon with optional message count badge"""
+        return self.tray_badge.create_icon(count)
 
-        # Render SVG with orange color
-        with open(icon_file, 'r') as f:
-            svg = f.read().replace('fill="currentColor"', 'fill="#e28743"')
-
-        renderer = QSvgRenderer()
-        renderer.load(svg.encode('utf-8'))
-        pixmap = QPixmap(256, 256)
-        pixmap.fill(Qt.GlobalColor.transparent)
-        painter = QPainter(pixmap)
-        renderer.render(painter)
-        painter.end()
-
-        return QIcon(pixmap)
+    def increment_unread(self):
+        """Increment unread message count and update tray icon"""
+        self.unread_count += 1
+        if self.tray_icon:
+            self.tray_icon.setIcon(self._get_icon(self.unread_count))
+    
+    def reset_unread(self):
+        """Reset unread message count and update tray icon"""
+        self.unread_count = 0
+        if self.tray_icon:
+            self.tray_icon.setIcon(self._get_icon(0))
 
     def show_window(self):
         """Show the active window"""
@@ -234,6 +236,10 @@ class Application:
             window.show()
             window.activateWindow()
             window.raise_()
+            
+            # Reset unread count when showing window
+            if window == self.chat_window:
+                self.reset_unread()
 
     def show_account_switcher(self):
         """Show account switcher window"""
