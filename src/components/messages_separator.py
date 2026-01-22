@@ -4,103 +4,120 @@ from PyQt6.QtCore import Qt, QRect, QModelIndex
 from datetime import datetime
 
 
+SEPARATOR_HEIGHT = 40
+
+# Color palette constants
+_COLORS_DARK = {
+    'emphasis_line': "#FF6B6B",
+    'normal_line': "#444444",
+    'bg': "#2A2A2A",
+    'emphasis_text': "#FFB4B4",
+    'normal_text': "#AAAAAA"
+}
+
+_COLORS_LIGHT = {
+    'emphasis_line': "#FF4444",
+    'normal_line': "#BBBBBB",
+    'bg': "#E8E8E8",
+    'emphasis_text': "#CC0000",
+    'normal_text': "#444444"
+}
+
+
+def _get_separator_colors(is_dark_theme: bool, is_emphasis: bool = False):
+    """Get theme-adaptive colors: (line_color, bg_color, text_color)"""
+    palette = _COLORS_DARK if is_dark_theme else _COLORS_LIGHT
+    line_key = 'emphasis_line' if is_emphasis else 'normal_line'
+    text_key = 'emphasis_text' if is_emphasis else 'normal_text'
+    return QColor(palette[line_key]), QColor(palette['bg']), QColor(palette[text_key])
+
+
+def _render_separator(
+    painter: QPainter,
+    rect: QRect,
+    text: str,
+    font,
+    line_color: QColor,
+    bg_color: QColor,
+    text_color: QColor,
+    line_width: int = 2,
+    line_end_offset: int = 20,
+    text_h_padding: int = 20,
+    text_v_padding: int = 6,
+    box_radius: int = 4,
+    text_position: str = "center"
+):
+    """Render separator with configurable styling"""
+    painter.save()
+    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+    
+    mid_y = rect.y() + rect.height() // 2
+    
+    # Draw horizontal line
+    painter.setPen(QPen(line_color, line_width))
+    painter.drawLine(rect.x() + 20, mid_y, rect.x() + rect.width() - line_end_offset, mid_y)
+    
+    # Calculate text dimensions
+    painter.setFont(font)
+    fm = QFontMetrics(font)
+    text_width = fm.horizontalAdvance(text) + text_h_padding
+    text_height = fm.height() + text_v_padding
+    
+    # Position text box
+    if text_position == "right":
+        text_x = rect.x() + rect.width() - text_width - 20
+    else:
+        text_x = rect.x() + (rect.width() - text_width) // 2
+    text_y = mid_y - text_height // 2
+    
+    # Draw background box
+    painter.setPen(Qt.PenStyle.NoPen)
+    painter.setBrush(bg_color)
+    painter.drawRoundedRect(text_x, text_y, text_width, text_height, box_radius, box_radius)
+    
+    # Draw text
+    painter.setPen(text_color)
+    painter.drawText(
+        QRect(text_x, text_y, text_width, text_height),
+        Qt.AlignmentFlag.AlignCenter,
+        text
+    )
+    
+    painter.restore()
+
+
 class NewMessagesSeparator:
-    """Component for rendering and managing 'New Messages' separator"""
+    """Separator for marking new messages with 🔥 emoji"""
     
     @staticmethod
     def create_marker():
-        """Create a new messages marker MessageData instance"""
         from ui.message_model import MessageData
-        return MessageData(
-            timestamp=datetime.now(),
-            is_new_messages_marker=True
-        )
+        return MessageData(timestamp=datetime.now(), is_new_messages_marker=True)
     
     @staticmethod
     def render(painter: QPainter, rect: QRect, font, is_dark_theme: bool):
-        """
-        Render the new messages separator
-        
-        Args:
-            painter: QPainter instance
-            rect: QRect for the rendering area
-            font: QFont for the text
-            is_dark_theme: bool indicating if dark theme is active
-        """
-        painter.save()
-        
-        # Theme-adaptive colors with emphasis
-        if is_dark_theme:
-            line_color = QColor("#FF6B6B")  # Red accent
-            bg_color = QColor("#3A2A2A")    # Dark red tint
-            text_color = QColor("#FFB4B4")  # Light red
-        else:
-            line_color = QColor("#FF4444")
-            bg_color = QColor("#FFE8E8")
-            text_color = QColor("#CC0000")
-        
-        mid_y = rect.y() + rect.height() // 2
-        
-        # Draw horizontal line (slightly thicker than date separator)
-        pen = QPen(line_color)
-        pen.setWidth(2)
-        painter.setPen(pen)
-        painter.drawLine(rect.x() + 20, mid_y, rect.x() + rect.width() - 80, mid_y)
-        
-        # Prepare text with fire emoji
-        marker_text = "🔥 NEW"
-        painter.setFont(font)
-        fm = QFontMetrics(font)
-        text_width = fm.horizontalAdvance(marker_text) + 24
-        text_height = fm.height() + 8
-        
-        # Calculate position (right side)
-        text_x = rect.x() + rect.width() - text_width - 20
-        text_y = mid_y - text_height // 2
-        
-        # Draw rounded background box
-        painter.setPen(Qt.PenStyle.NoPen)
-        painter.setBrush(bg_color)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        painter.drawRoundedRect(text_x, text_y, text_width, text_height, 6, 6)
-        
-        # Draw border around box (adjusted inward to prevent clipping)
-        border_width = 2
-        painter.setPen(QPen(line_color, border_width))
-        painter.setBrush(Qt.BrushStyle.NoBrush)
-        # Adjust rectangle inward by half the border width to prevent clipping
-        adjusted_rect = QRect(
-            text_x + border_width // 2,
-            text_y + border_width // 2,
-            text_width - border_width,
-            text_height - border_width
+        line_color, bg_color, text_color = _get_separator_colors(is_dark_theme, is_emphasis=True)
+        _render_separator(
+            painter,
+            rect,
+            "🔥",
+            font,
+            line_color,
+            bg_color,
+            text_color,
+            line_end_offset=80,
+            text_position="right"
         )
-        painter.drawRoundedRect(adjusted_rect, 6, 6)
-        
-        # Draw text
-        painter.setPen(text_color)
-        text_rect = QRect(text_x, text_y, text_width, text_height)
-        painter.drawText(text_rect, Qt.AlignmentFlag.AlignCenter, marker_text)
-        
-        painter.restore()
     
     @staticmethod
     def get_height() -> int:
-        """Get the recommended height for the separator"""
-        return 35
+        return SEPARATOR_HEIGHT
     
     @staticmethod
     def remove_from_model(model):
-        """
-        Remove all new messages markers from a message model
-        
-        Args:
-            model: MessageListModel instance
-        """
         if not hasattr(model, '_messages') or not model._messages:
             return
         
-        # Find and remove new messages marker
         marker_indices = [i for i, msg in enumerate(model._messages) 
                          if getattr(msg, 'is_new_messages_marker', False)]
         
@@ -111,62 +128,21 @@ class NewMessagesSeparator:
 
 
 class ChatlogDateSeparator:
-    """Component for rendering chatlog date separators"""
+    """Separator for displaying dates in chatlog"""
     
     @staticmethod
     def render(painter: QPainter, rect: QRect, date_str: str, font, is_dark_theme: bool):
-        """
-        Render a chatlog date separator
-        
-        Args:
-            painter: QPainter instance
-            rect: QRect for the rendering area
-            date_str: Date string to display
-            font: QFont for the text
-            is_dark_theme: bool indicating if dark theme is active
-        """
-        painter.save()
-        
-        # Theme-adaptive colors
-        if is_dark_theme:
-            line_color = QColor("#444444")
-            bg_color = QColor("#2A2A2A")
-            text_color = QColor("#AAAAAA")
-        else:
-            line_color = QColor("#BBBBBB")
-            bg_color = QColor("#E8E8E8")
-            text_color = QColor("#444444")
-        
-        mid_y = rect.y() + rect.height() // 2
-        
-        # Draw horizontal line
-        painter.setPen(line_color)
-        painter.drawLine(rect.x() + 20, mid_y, rect.x() + rect.width() - 20, mid_y)
-        
-        # Prepare date text
-        painter.setFont(font)
-        fm = QFontMetrics(font)
-        text_width = fm.horizontalAdvance(date_str) + 24
-        text_height = fm.height() + 8
-        
-        # Calculate text box position (centered)
-        text_x = rect.x() + (rect.width() - text_width) // 2
-        text_y = mid_y - text_height // 2
-        
-        # Draw rounded background box
-        painter.setPen(Qt.PenStyle.NoPen)
-        painter.setBrush(bg_color)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        painter.drawRoundedRect(text_x, text_y, text_width, text_height, 4, 4)
-        
-        # Draw date text
-        painter.setPen(text_color)
-        text_rect = QRect(text_x, text_y, text_width, text_height)
-        painter.drawText(text_rect, Qt.AlignmentFlag.AlignCenter, date_str)
-        
-        painter.restore()
+        line_color, bg_color, text_color = _get_separator_colors(is_dark_theme, is_emphasis=False)
+        _render_separator(
+            painter,
+            rect,
+            date_str,
+            font,
+            line_color,
+            bg_color,
+            text_color
+        )
     
     @staticmethod
     def get_height() -> int:
-        """Get the recommended height for the separator"""
-        return 30
+        return SEPARATOR_HEIGHT
