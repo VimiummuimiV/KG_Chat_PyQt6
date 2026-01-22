@@ -55,6 +55,7 @@ class ChatlogWidget(QWidget):
         self.last_parsed_date = None
         self.temp_parsed_messages = [] # Temp storage during parsing
         self.is_parsing = False  # Track if we're in parse mode
+        self.exceeded_max_messages = False
 
         self.search_visible = config.get("ui", "chatlog_search_visible")
         if self.search_visible is None:
@@ -329,6 +330,7 @@ class ChatlogWidget(QWidget):
     def _on_parse_started(self, config: ParseConfig):
         """Start parsing with given config"""
         self.is_parsing = True
+        self.exceeded_max_messages = False
         
         # Only clear UI for non-sync modes
         if config.mode != 'syncdatabase':
@@ -415,10 +417,14 @@ class ChatlogWidget(QWidget):
                 self.temp_parsed_messages.append(msg_data)
             except Exception as e:
                 print(f"Error processing message: {e}")
-  
-        # Only update counter - count only actual messages (not separators)
+    
+        # Check if exceeded limit
         message_count = sum(1 for m in self.temp_parsed_messages if not m.is_separator)
-        self.info_label.setText(f"Found {message_count} messages so far...")
+        if message_count > self.model.max_messages and not self.exceeded_max_messages:
+            self.exceeded_max_messages = True
+            self.info_label.setText(f"⚠️ Exceeded {self.model.max_messages:,} message limit - rendering disabled. Use Copy/Save buttons.")
+        elif not self.exceeded_max_messages:
+            self.info_label.setText(f"Found {message_count:,} messages so far...")
 
     def _on_parse_finished(self, messages):
         """Handle parse completion - NOW add all messages to layout at once"""
@@ -437,35 +443,32 @@ class ChatlogWidget(QWidget):
             # Sync mode complete - info already updated in _on_sync_complete
             pass
         elif self.temp_parsed_messages:
-            # Normal parse mode - display messages
-            self.list_view.setUpdatesEnabled(False)
-        
-            # Add ALL messages at once
+            message_count = sum(1 for m in self.temp_parsed_messages if not m.is_separator)
             self.all_messages = self.temp_parsed_messages.copy()
-            for msg_data in self.temp_parsed_messages:
-                self.model.add_message(msg_data)
-        
-            # Clear temp storage
             self.temp_parsed_messages = []
-        
-            # Re-enable updates
-            self.list_view.setUpdatesEnabled(True)
-        
-            # Emit only non-separator messages for userlist
-            non_separator_messages = [m for m in self.all_messages if not m.is_separator]
-            self.messages_loaded.emit(non_separator_messages)
-
-            # Show copy/save buttons
+            
+            # Skip rendering if exceeded limit
+            if self.exceeded_max_messages:
+                self.info_label.setText(f"⚠️ {message_count:,} messages found (limit: {self.model.max_messages:,}) - rendering disabled. Use Copy/Save buttons.")
+                self.exceeded_max_messages = False
+            else:
+                # Normal rendering
+                self.list_view.setUpdatesEnabled(False)
+                for msg_data in self.all_messages:
+                    self.model.add_message(msg_data)
+                self.list_view.setUpdatesEnabled(True)
+                
+                non_separator_messages = [m for m in self.all_messages if not m.is_separator]
+                self.messages_loaded.emit(non_separator_messages)
+                QTimer.singleShot(100, lambda: scroll(self.list_view, mode="bottom", delay=50))
+            
             self.parser_widget.show_copy_save_buttons()
-        
-            # Scroll to bottom after everything is loaded
-            QTimer.singleShot(100, lambda: scroll(self.list_view, mode="bottom", delay=50))
         else:
             self.info_label.setText("No messages found")
         
         if self.parent_window:
             self.parent_window.handle_parse_finished()
-            
+                
     def _on_sync_complete(self, fetched_count: int, db_stats: dict):
         """Handle sync database completion"""
         if fetched_count == 0:
