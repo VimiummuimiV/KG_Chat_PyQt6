@@ -531,6 +531,16 @@ class MessageDelegate(QStyledItemDelegate):
     def editorEvent(self, event: QEvent, model, option: QStyleOptionViewItem, 
                     index: QModelIndex) -> bool:
         msg = index.data(Qt.ItemDataRole.DisplayRole)
+        
+        # Handle clicking on new messages marker to remove it
+        if getattr(msg, 'is_new_messages_marker', False):
+            if event.type() == QEvent.Type.MouseButtonRelease:
+                from components.messages_separator import NewMessagesSeparator
+                NewMessagesSeparator.remove_from_model(model)
+                return True
+            return False
+        
+        # Ignore clicks on date separators
         if getattr(msg, 'is_separator', False):
             return False
 
