@@ -114,16 +114,17 @@ class MessageDelegate(QStyledItemDelegate):
             return QSize(option.rect.width(), NewMessagesSeparator.get_height())
 
         width = option.rect.width() if option.rect.width() > 0 else 800
-        height = self._calculate_compact_height(msg, width) if self.compact_mode else self._calculate_normal_height(msg, width)
+        row = index.row()
+        height = self._calculate_compact_height(msg, width, row) if self.compact_mode else self._calculate_normal_height(msg, width, row)
         return QSize(width, height)
    
-    def _calculate_compact_height(self, msg, width: int) -> int:
+    def _calculate_compact_height(self, msg, width: int, row: Optional[int] = None) -> int:
         fm = QFontMetrics(self.body_font)
         header_height = max(fm.height(), QFontMetrics(self.timestamp_font).height())
-        content_height = self._calculate_content_height(msg.body, width - 2 * self.padding, fm)
+        content_height = self._calculate_content_height(msg.body, width - 2 * self.padding, fm, row)
         return min(self.padding + header_height + 2 + content_height + self.padding, 500)
    
-    def _calculate_normal_height(self, msg, width: int) -> int:
+    def _calculate_normal_height(self, msg, width: int, row: Optional[int] = None) -> int:
         fm = QFontMetrics(self.body_font)
         fm_ts = QFontMetrics(self.timestamp_font)
        
@@ -133,12 +134,26 @@ class MessageDelegate(QStyledItemDelegate):
        
         content_width = max(width - timestamp_width - username_width - 2 * self.padding, 200)
        
-        content_height = self._calculate_content_height(msg.body, content_width, fm)
+        content_height = self._calculate_content_height(msg.body, content_width, fm, row)
         label_height = max(fm.height(), fm_ts.height())
         return min(max(label_height, content_height) + 2 * self.padding, 500)
    
-    def _calculate_content_height(self, text: str, width: int, fm: QFontMetrics) -> int:
-        segments = self.emoticon_manager.parse_emoticons(text)
+    def _calculate_content_height(self, text: str, width: int, fm: QFontMetrics, row: Optional[int] = None) -> int:
+        url_pattern = re.compile(r'https?://[^\s<>"]+')
+        def repl(m):
+            url = m.group(0)
+            cached = get_cached_info(url, use_emojis=True)
+            if cached and cached[1]:
+                return cached[0]
+            if row is not None and cached:
+                try:
+                    fetch_async(url, lambda _, r=row: self._refresh_row(r))
+                except Exception:
+                    pass
+            return url
+
+        processed_text = url_pattern.sub(repl, text)
+        segments = self.emoticon_manager.parse_emoticons(processed_text)
         current_line_height = fm.height()
         total_height = 0
         current_width = 0
@@ -517,14 +532,22 @@ class MessageDelegate(QStyledItemDelegate):
         self.row_needs_refresh.emit(row)
     
     def _do_refresh_row(self, row: int):
-        """Actually refresh the row - called in main thread"""
-        if not self.list_view or not self.list_view.model():
+        """Refresh row when async metadata arrives - re-evaluate sizeHint"""
+        if not self.list_view or not self.list_view.model() or not (0 <= row < self.list_view.model().rowCount()):
             return
-        
         try:
             model = self.list_view.model()
-            if 0 <= row < model.rowCount():
-                self.list_view.viewport().update()
+            idx = model.index(row, 0)
+            try:
+                model.dataChanged.emit(idx, idx, [Qt.ItemDataRole.DisplayRole])
+            except Exception:
+                pass
+            for attr in ('updateGeometries', 'doItemsLayout'):
+                try:
+                    getattr(self.list_view, attr, lambda: None)()
+                except Exception:
+                    pass
+            self.list_view.viewport().update()
         except RuntimeError:
             pass
    
