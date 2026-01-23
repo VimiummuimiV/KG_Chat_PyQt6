@@ -31,6 +31,7 @@ class ProfileIcons:
     VOCABULARIES = "📖"
     CARS = "🚘"
     AVATAR_PLACEHOLDER = "👤"
+    USERNAME_HISTORY = "📜"
 
 
 class StatCard(QFrame):
@@ -198,6 +199,14 @@ class ProfileWidget(QWidget):
         
         self.content_layout.addWidget(avatar_container, alignment=Qt.AlignmentFlag.AlignHCenter)
         
+        # Username history label
+        self.username_history_label = QLabel()
+        self.username_history_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.username_history_label.setWordWrap(True)
+        self.username_history_label.setFont(get_font(FontType.TEXT))
+        self.content_layout.addWidget(self.username_history_label)
+        self.username_history_label.setVisible(False)
+        
         # Status and title
         self.status_title_label = QLabel()
         self.status_title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -289,6 +298,25 @@ class ProfileWidget(QWidget):
             return
         
         user_data = summary.get('user', {})
+        
+        # Display username history as wrapped text
+        if isinstance(user_data.get('history'), list) and user_data.get('history'):
+            # Current username is in user_data['login'], history contains previous usernames
+            current_username = user_data.get('login', '')
+            previous_usernames = [item.get('login') for item in user_data['history'] if item.get('login')]
+            
+            if current_username:
+                # Highlight current username with theme-adaptive color
+                highlight_color = '#00aaff' if self.is_dark else '#0066cc'
+                colored_current = f'<span style="color: {highlight_color}; font-weight: bold;">{current_username}</span>'
+                usernames_parts = [colored_current] + previous_usernames
+                usernames_text = ', '.join(usernames_parts)
+                self.username_history_label.setText(f"{ProfileIcons.USERNAME_HISTORY} {usernames_text}")
+                self.username_history_label.setVisible(True)
+            else:
+                self.username_history_label.setVisible(False)
+        else:
+            self.username_history_label.setVisible(False)
         
         # Display status and title
         status_parts = []
