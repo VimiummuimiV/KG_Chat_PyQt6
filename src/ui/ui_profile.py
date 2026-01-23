@@ -207,11 +207,6 @@ class ProfileWidget(QWidget):
         self.content_layout.addWidget(self.username_history_label)
         self.username_history_label.setVisible(False)
         
-        # Status and title
-        self.status_title_label = QLabel()
-        self.status_title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.content_layout.addWidget(self.status_title_label)
-        
         # Data cards container
         self.cards_container = QWidget()
         self.cards_layout = QGridLayout()
@@ -249,11 +244,26 @@ class ProfileWidget(QWidget):
         self.current_user_id = user_id
         self.current_username = username
         
-        self._reset_avatar_to_placeholder()
+        # Reset to defaults
+        self._reset_to_defaults()
+        
         self.title_label.setText(username)
         self._load_avatar(str(user_id))
         
         QTimer.singleShot(0, lambda: self._fetch_and_display_data(user_id))
+    
+    def _reset_to_defaults(self):
+        """Reset all profile data to default state"""
+        # Reset avatar
+        self._reset_avatar_to_placeholder()
+        
+        # Hide username history
+        self.username_history_label.setText("")
+        self.username_history_label.setVisible(False)
+        
+        # Reset existing card values to "—"
+        for card in self.card_widgets:
+            card.value_label.setText("—")
     
     def _load_avatar(self, user_id: str):
         """Load and display user avatar using cache"""
@@ -317,23 +327,6 @@ class ProfileWidget(QWidget):
                 self.username_history_label.setVisible(False)
         else:
             self.username_history_label.setVisible(False)
-        
-        # Display status and title
-        status_parts = []
-        if user_data.get('title'):
-            status_parts.append(user_data['title'])
-        
-        status_obj = user_data.get('status')
-        if status_obj and isinstance(status_obj, dict):
-            if status_obj.get('title'):
-                status_parts.append(status_obj['title'])
-        
-        if status_parts:
-            status_text = " • ".join(status_parts)
-            self.status_title_label.setText(status_text)
-            self.status_title_label.setVisible(True)
-        else:
-            self.status_title_label.setVisible(False)
         
         self._populate_cards(summary, index_data)
     
