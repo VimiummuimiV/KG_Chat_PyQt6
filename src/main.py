@@ -28,6 +28,7 @@ from helpers.pronunciation_manager import PronunciationManager
 from helpers.ban_manager import BanManager
 from core.accounts import AccountManager
 from components.tray_badge import TrayIconWithBadge
+from components.notification import popup_manager
 
 
 class Application:
@@ -80,6 +81,7 @@ class Application:
         self.mention_beep_action = None
         self.pronunciation_action = None
         self.ban_list_action = None
+        self.notification_mode_action = None
         
         self.setup_system_tray()
 
@@ -107,6 +109,11 @@ class Application:
         
         # Create Sound Management submenu
         self._setup_sound_menu(menu)
+        
+        menu.addSeparator()
+        
+        # Create Notification Management submenu
+        self._setup_notification_menu(menu)
         
         menu.addSeparator()
         
@@ -177,6 +184,16 @@ class Application:
         # Load initial states
         self.update_sound_menu()
 
+    def _setup_notification_menu(self, parent_menu: QMenu):
+        """Setup notification management submenu"""
+        # Single action that changes text based on current mode
+        self.notification_mode_action = QAction("", self.app)
+        self.notification_mode_action.triggered.connect(self._on_notification_mode_toggled)
+        parent_menu.addAction(self.notification_mode_action)
+        
+        # Load initial state
+        self.update_notification_menu()
+
     def update_color_menu(self):
         """Update the color menu to show/hide Reset option based on custom_background"""
         if not self.chat_window or not self.chat_window.account:
@@ -202,6 +219,19 @@ class Application:
             mention_enabled = True
         self.mention_beep_action.setChecked(mention_enabled)
 
+    def update_notification_menu(self):
+        """Update notification menu to reflect current mode"""
+        # Get current mode from config (default is "stack")
+        current_mode = self.config.get("notification_mode")
+        if current_mode is None:
+            current_mode = "stack"
+        
+        # Update text to show current mode
+        if current_mode == "stack":
+            self.notification_mode_action.setText("Notification Mode: Stack")
+        else:
+            self.notification_mode_action.setText("Notification Mode: Replace")
+
     def _on_sound_toggled(self, config_key: str, action: QAction):
         """Handle sound toggle from tray menu"""
         enabled = action.isChecked()
@@ -212,6 +242,29 @@ class Application:
         # Update chat window's config instance directly if it exists
         if self.chat_window:
             self.chat_window.config.data = self.config.data
+
+    def _on_notification_mode_toggled(self):
+        """Handle notification mode toggle from tray menu"""
+        # Get current mode and toggle it
+        current_mode = self.config.get("notification_mode")
+        if current_mode is None:
+            current_mode = "stack"
+        
+        # Toggle between modes
+        new_mode = "replace" if current_mode == "stack" else "stack"
+        
+        # Save to config
+        self.config.set("notification_mode", value=new_mode)
+        
+        # Update chat window's config instance directly if it exists
+        if self.chat_window:
+            self.chat_window.config.data = self.config.data
+        
+        # Update the popup_manager's mode immediately
+        popup_manager.set_notification_mode(new_mode)
+        
+        # Update menu text
+        self.update_notification_menu()
 
     def _get_icon(self, count: int = 0):
         """Get chat icon with optional message count badge"""
@@ -323,6 +376,11 @@ class Application:
             ban_manager=self.ban_manager
         )
         self.chat_window.set_tray_mode(True)
+        
+        # Initialize popup_manager mode from config
+        notification_mode = self.config.get("notification_mode")
+        if notification_mode:
+            popup_manager.set_notification_mode(notification_mode)
         
         # Check if start minimized is enabled
         start_minimized = self.config.get("start_minimized")

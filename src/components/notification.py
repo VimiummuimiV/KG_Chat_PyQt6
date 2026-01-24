@@ -253,6 +253,14 @@ class PopupNotification(QWidget):
         self.fade_out.finished.connect(self._on_close)
         self.fade_out.start()
    
+    def close_immediately(self):
+        """Close notification immediately without animation"""
+        if self.hide_timer and self.hide_timer.isActive():
+            self.hide_timer.stop()
+        if self.cursor_check_timer and self.cursor_check_timer.isActive():
+            self.cursor_check_timer.stop()
+        self.close()
+   
     def _on_close(self):
         """Close notification"""
         self.manager.remove_popup(self)
@@ -363,10 +371,22 @@ class PopupManager:
         self.popups: List[PopupNotification] = []
         self.gap = 10
         self.config = None
+        self.notification_mode = "stack"  # "stack" or "replace"
+   
+    def set_notification_mode(self, mode: str):
+        """Set notification mode: 'stack' or 'replace'"""
+        if mode in ["stack", "replace"]:
+            self.notification_mode = mode
    
     def show_notification(self, data: NotificationData):
         """Create and show notification"""
         self.config = data.config
+        
+        # In replace mode, close all existing notifications immediately
+        if self.notification_mode == "replace" and self.popups:
+            for popup in list(self.popups):
+                popup.close_immediately()
+            self.popups.clear()
        
         # Calculate width before creating popup (max 50% of screen)
         screen = QApplication.primaryScreen().availableGeometry()
@@ -410,6 +430,13 @@ class PopupManager:
         else:  # center (default)
             x = screen.x() + (screen.width() - popup_width) // 2
        
+        # In replace mode, only position the single popup
+        if self.notification_mode == "replace":
+            if self.popups:
+                self.popups[0].move(x, screen.y() + 20)
+            return
+       
+        # Stack mode - position all popups and handle overflow
         # Calculate total height and cleanup overflow
         heights = [p.height() for p in self.popups]
         total_height = sum(heights) + self.gap * max(0, len(heights) - 1)
