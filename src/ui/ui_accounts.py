@@ -12,6 +12,7 @@ from helpers.load import make_rounded_pixmap
 from helpers.cache import get_cache
 from helpers.config import Config
 from helpers.fonts import get_font, FontType
+from helpers.startup_manager import StartupManager
 from core.accounts import AccountManager
 from themes.theme import ThemeManager
 from helpers.username_color_manager import (
@@ -41,6 +42,9 @@ class AccountWindow(QWidget):
         # Account manager
         self.account_manager = AccountManager(str(self.config_path))
         self.cache = get_cache()
+        
+        # Startup manager
+        self.startup_manager = StartupManager()
 
         # Track current avatar loading to avoid race conditions
         self.current_loading_user_id = None
@@ -189,7 +193,7 @@ class AccountWindow(QWidget):
         layout.addLayout(actions_row)
 
         # Auto-login checkbox
-        self.auto_login_checkbox = QCheckBox("Auto-login with active account")
+        self.auto_login_checkbox = QCheckBox("Auto-login")
         self.auto_login_checkbox.setFont(get_font(FontType.UI))
         self.auto_login_checkbox.stateChanged.connect(self.on_auto_login_changed)
         
@@ -202,7 +206,7 @@ class AccountWindow(QWidget):
         layout.addWidget(self.auto_login_checkbox)
 
         # Start minimized to tray checkbox
-        self.start_minimized_checkbox = QCheckBox("Start minimized to tray")
+        self.start_minimized_checkbox = QCheckBox("Start minimized")
         self.start_minimized_checkbox.setFont(get_font(FontType.UI))
         self.start_minimized_checkbox.stateChanged.connect(self.on_start_minimized_changed)
         
@@ -213,6 +217,17 @@ class AccountWindow(QWidget):
         self.start_minimized_checkbox.setChecked(start_minimized)
         
         layout.addWidget(self.start_minimized_checkbox)
+        
+        # Start with system checkbox
+        self.start_with_system_checkbox = QCheckBox("Start with system")
+        self.start_with_system_checkbox.setFont(get_font(FontType.UI))
+        self.start_with_system_checkbox.stateChanged.connect(self.on_start_with_system_changed)
+        
+        # Load current start with system state
+        start_with_system = self.startup_manager.is_enabled()
+        self.start_with_system_checkbox.setChecked(start_with_system)
+        
+        layout.addWidget(self.start_with_system_checkbox)
 
         return page
 
@@ -291,8 +306,8 @@ class AccountWindow(QWidget):
         button_padding = self._get_config('button_padding', 10)
 
         if self.stacked_widget.currentIndex() == 0: # Connect page
-            # Label + account row + actions row + 2 checkboxes
-            checkbox_height = 15  # Height for each checkbox
+            # Label + account row + actions row + 3 checkboxes
+            checkbox_height = 25  # Height for each checkbox
             total_height = (
                 margins +
                 label_height +
@@ -300,6 +315,8 @@ class AccountWindow(QWidget):
                 self.input_height +
                 main_spacing +
                 self.input_height +
+                main_spacing +
+                checkbox_height +
                 main_spacing +
                 checkbox_height +
                 main_spacing +
@@ -380,6 +397,35 @@ class AccountWindow(QWidget):
         # Save to root level of config (not nested under "ui" or other sections)
         self.config.set("start_minimized", value=start_minimized)
         print(f"🪟 Start minimized {'enabled' if start_minimized else 'disabled'}")
+    
+    def on_start_with_system_changed(self, state):
+        """Handle start with system checkbox state change"""
+        start_with_system = (state == Qt.CheckState.Checked.value)
+        
+        if start_with_system:
+            success = self.startup_manager.enable()
+            if success:
+                print("✅ Start with system enabled")
+            else:
+                QMessageBox.warning(
+                    self,
+                    "Error",
+                    "Failed to enable start with system. Please check permissions."
+                )
+                # Revert checkbox state
+                self.start_with_system_checkbox.setChecked(False)
+        else:
+            success = self.startup_manager.disable()
+            if success:
+                print("❌ Start with system disabled")
+            else:
+                QMessageBox.warning(
+                    self,
+                    "Error",
+                    "Failed to disable start with system. Please check permissions."
+                )
+                # Revert checkbox state
+                self.start_with_system_checkbox.setChecked(True)
 
     def load_accounts(self):
         self.account_dropdown.clear()

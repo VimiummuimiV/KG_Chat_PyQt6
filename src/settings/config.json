@@ -76,6 +76,7 @@
     "input_height": 48,
     "emoticon_selector_visible": false,
     "recent_emoticons": [
+      "wine",
       "firework",
       "vpered",
       "moose",
@@ -87,12 +88,11 @@
       "serenade",
       "snowgirlwave",
       "snowhand",
-      "wine",
       "pogranflowers"
     ]
   },
   "sound": {
-    "tts_enabled": false,
+    "tts_enabled": true,
     "mention_sound_enabled": true
   },
   "auto_login": true,
