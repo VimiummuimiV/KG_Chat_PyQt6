@@ -14,7 +14,7 @@ class StartupManager:
         self.app_name = app_name
         self.app_path = app_path or sys.executable
         self.system = platform.system()
-        self.script_dir = Path(__file__).parent
+        self.script_dir = Path(__file__).parent.parent
         self.main_script = self.script_dir / "main.py"
     
     def is_enabled(self) -> bool:
