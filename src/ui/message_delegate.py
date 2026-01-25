@@ -12,7 +12,11 @@ from PyQt6.QtGui import QPainter, QFontMetrics, QColor, QPixmap, QMovie, QCursor
 from helpers.color_contrast import optimize_color_contrast
 from components.messages_separator import NewMessagesSeparator, ChatlogDateSeparator
 from helpers.emoticons import EmoticonManager
-from helpers.color_utils import get_private_message_colors, get_ban_message_colors
+from helpers.color_utils import(
+    get_private_message_colors,
+    get_ban_message_colors,
+    get_system_message_colors
+)
 from helpers.fonts import get_font, FontType
 from core.youtube import is_youtube_url, get_cached_info, fetch_async
 
@@ -45,6 +49,9 @@ class MessageDelegate(QStyledItemDelegate):
 
         # Load ban message colors from config
         self.ban_colors = get_ban_message_colors(config, self.is_dark_theme)
+
+        # Load system message colors from config
+        self.system_colors = get_system_message_colors(config, self.is_dark_theme)
 
         self.body_font = get_font(FontType.TEXT)
         self.timestamp_font = get_font(FontType.TEXT)
@@ -92,6 +99,9 @@ class MessageDelegate(QStyledItemDelegate):
 
         # Reload ban message colors for new theme
         self.ban_colors = get_ban_message_colors(self.config, self.is_dark_theme)
+
+        # Reload system message colors for new theme
+        self.system_colors = get_system_message_colors(self.config, self.is_dark_theme)
        
         self._emoticon_cache.clear()
         self.color_cache.clear()
@@ -243,7 +253,7 @@ class MessageDelegate(QStyledItemDelegate):
             else:
                 hi = mid - 1
         return text[:best]
-   
+
     def _get_emoticon_pixmap(self, name: str) -> Optional[QPixmap]:
         path = self.emoticon_manager.get_emoticon_path(name)
         if not path:
@@ -377,7 +387,8 @@ class MessageDelegate(QStyledItemDelegate):
         self._paint_content(
             painter, x, content_y, width, msg.body, row, 
             getattr(msg, 'is_private', False),
-            getattr(msg, 'is_ban', False)
+            getattr(msg, 'is_ban', False),
+            getattr(msg, 'is_system', False)
         )
 
     def _paint_normal(self, painter: QPainter, rect: QRect, msg, row: int):
@@ -410,11 +421,12 @@ class MessageDelegate(QStyledItemDelegate):
         self._paint_content(
             painter, content_x, y, content_width, msg.body, row, 
             getattr(msg, 'is_private', False),
-            getattr(msg, 'is_ban', False)
+            getattr(msg, 'is_ban', False),
+            getattr(msg, 'is_system', False)
         )
    
     def _paint_content(self, painter: QPainter, x: int, y: int, width: int,
-                       text: str, row: int, is_private: bool = False, is_ban: bool = False):
+                       text: str, row: int, is_private: bool = False, is_ban: bool = False, is_system: bool = False):
         """Paint content with text, links, and emoticons"""
         url_pattern = re.compile(r'https?://[^\s<>"]+')
         urls = []
@@ -430,7 +442,9 @@ class MessageDelegate(QStyledItemDelegate):
         line_height = fm.height()
 
         # Determine text color based on message type
-        if is_private:
+        if is_system:
+            text_color = self.system_colors["text"]
+        elif is_private:
             text_color = self.private_colors["text"]
         elif is_ban:
             text_color = self.ban_colors["text"]

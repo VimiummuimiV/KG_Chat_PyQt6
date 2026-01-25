@@ -94,7 +94,7 @@ class VoiceEngine:
                 break
    
     def speak_message(self, username: str, message: str, my_username: str, is_initial: bool = False, 
-                     is_private: bool = False, is_ban: bool = False):
+                     is_private: bool = False, is_ban: bool = False, is_system: bool = False):
         """Speak a message with appropriate verb based on message type
         
         Args:
@@ -104,11 +104,13 @@ class VoiceEngine:
             is_initial: Whether this is an initial/historical message
             is_private: Whether this is a private message (directed to me)
             is_ban: Whether this is a ban message from Клавобот
+            is_system: Whether this is a system message (/me command)
             
         Verb selection and announcement logic:
             - Ban messages: ALWAYS announce with "ультует" (insults)
             - Private messages: ALWAYS announce with "обращается" (appeals to)
             - Mentions: ALWAYS announce with "обращается" (appeals to)
+            - System messages: No announcement (message already contains username)
             - Regular messages: announce with "пишет" (writes) only when username changes
         """
         if not self.enabled or is_initial:
@@ -161,7 +163,11 @@ class VoiceEngine:
         # Determine if we need to announce the username
         announce_username = False
         
-        if is_ban:
+        if is_system:
+            # System message (/me): don't announce username, message already contains it
+            # e.g., "* username does something" - just read as-is
+            announce_username = False
+        elif is_ban:
             # Ban message: always announce with "ультует"
             verb = "ультует"
             announce_username = True

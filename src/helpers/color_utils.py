@@ -26,21 +26,6 @@ def hsl_to_hex(h: float, s: float, l: float) -> str:
 
 
 def get_private_message_colors(config, is_dark_theme: bool) -> dict:
-    """Generate all private message colors from hue and saturation only
-    
-    Lightness values are derived based on theme and design principles.
-    Only hue and saturation are read from config.
-    
-    Args:
-        config: Config object with private_message_color settings
-        is_dark_theme: Whether using dark theme
-    
-    Returns:
-        Dict with all color values for private messages:
-        - text: Message text color
-        - input_bg: Input field background
-        - input_border: Input field border
-    """
     # Read only hue and saturation from config
     hue = config.get("ui", "private_message_color", "hue") or 0
     saturation = config.get("ui", "private_message_color", "saturation") or 75
@@ -69,19 +54,6 @@ def get_private_message_colors(config, is_dark_theme: bool) -> dict:
 
 
 def get_ban_message_colors(config, is_dark_theme: bool) -> dict:
-    """Generate all ban message colors from hue and saturation only
-    
-    Lightness values are derived based on theme and design principles.
-    Only hue and saturation are read from config.
-    
-    Args:
-        config: Config object with ban_message_color settings
-        is_dark_theme: Whether using dark theme
-    
-    Returns:
-        Dict with color values for ban messages:
-        - text: Message text color
-    """
     # Read only hue and saturation from config
     hue = config.get("ui", "ban_message_color", "hue") or 170 
     saturation = config.get("ui", "ban_message_color", "saturation") or 75
@@ -96,6 +68,30 @@ def get_ban_message_colors(config, is_dark_theme: bool) -> dict:
         # Light theme: dark text on light backgrounds
         lightness_values = {
             "text": 35,          # Dark & readable text
+        }
+    
+    # Generate all colors
+    return {
+        key: hsl_to_hex(hue, saturation, lightness)
+        for key, lightness in lightness_values.items()
+    }
+
+
+def get_system_message_colors(config, is_dark_theme: bool) -> dict:
+    # Read only hue and saturation from config
+    hue = config.get("ui", "system_message_color", "hue") or 240
+    saturation = config.get("ui", "system_message_color", "saturation") or 0
+    
+    # Derive lightness values based on theme
+    if is_dark_theme:
+        # Dark theme: light gray text
+        lightness_values = {
+            "text": 60,          # Medium-light gray
+        }
+    else:
+        # Light theme: dark gray text
+        lightness_values = {
+            "text": 50,          # Medium gray
         }
     
     # Generate all colors

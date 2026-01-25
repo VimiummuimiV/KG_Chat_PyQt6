@@ -890,6 +890,16 @@ class ChatWindow(QWidget):
             if self._is_user_banned(user_id, msg.login):
                 return  # Silently drop banned user's messages
 
+        # Check if this is a /me system message and process it
+        is_system = False
+        if msg.body and msg.body.strip().startswith('/me '):
+            is_system = True
+            # Remove /me prefix and format as "* username action"
+            action = msg.body.strip()[4:]  # Remove '/me '
+            msg.body = f"* {msg.login} {action}"
+        
+        msg.is_system = is_system
+
         # Mark private messages
         msg.is_private = (msg.msg_type == 'chat')
         
@@ -921,7 +931,8 @@ class ChatWindow(QWidget):
                     my_username=my_username,
                     is_initial=is_initial,
                     is_private=msg.is_private,
-                    is_ban=is_ban
+                    is_ban=is_ban,
+                    is_system=is_system
                 )
             else:
                 # Ensure voice engine is disabled
@@ -948,7 +959,8 @@ class ChatWindow(QWidget):
                     window_show_callback=self._show_and_focus_window,
                     is_private=msg.is_private,
                     recipient_jid=msg.from_jid if msg.is_private else None,
-                    is_ban=is_ban
+                    is_ban=is_ban,
+                    is_system=is_system
                 )
             except Exception as e:
                 print(f"Notification error: {e}")

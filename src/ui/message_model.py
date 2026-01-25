@@ -17,6 +17,7 @@ class MessageData:
     is_separator: bool = False
     date_str: Optional[str] = None  # For separators
     is_ban: bool = False
+    is_system: bool = False
     is_new_messages_marker: bool = False
    
     def get_time_str(self) -> str:

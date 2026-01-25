@@ -11,7 +11,11 @@ from dataclasses import dataclass
 import threading
 
 from helpers.create import create_icon_button
-from helpers.color_utils import get_private_message_colors, get_ban_message_colors
+from helpers.color_utils import(
+    get_private_message_colors,
+    get_ban_message_colors,
+    get_system_message_colors
+)
 from helpers.fonts import get_font, FontType
 
 
@@ -30,6 +34,7 @@ class NotificationData:
     is_private: bool = False
     recipient_jid: Optional[str] = None
     is_ban: bool = False
+    is_system: bool = False
 
 
 class PopupNotification(QWidget):
@@ -66,7 +71,11 @@ class PopupNotification(QWidget):
        
         # Load message colors from config based on message type
         message_color = None
-        if data.is_ban and data.config:
+        if data.is_system and data.config:
+            # System message colors
+            system_colors = get_system_message_colors(data.config, is_dark)
+            message_color = system_colors["text"]
+        elif data.is_ban and data.config:
             # Ban message colors
             ban_colors = get_ban_message_colors(data.config, is_dark)
             message_color = ban_colors["text"]
@@ -113,8 +122,8 @@ class PopupNotification(QWidget):
         buttons_layout.setSpacing(button_spacing)
         buttons_layout.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignRight)
        
-        # Answer button (small) - hide for ban messages
-        if not data.is_ban:
+        # Answer button (small) - hide for ban messages and system messages
+        if not data.is_ban and not data.is_system:
             self.answer_button = create_icon_button(
                 self.icons_path, "answer.svg", "Reply",
                 size_type="small", config=data.config
@@ -135,8 +144,8 @@ class PopupNotification(QWidget):
         top_row.addLayout(buttons_layout)
         main_layout.addLayout(top_row)
        
-        # Reply field container (hidden by default) - only for non-ban messages
-        if not data.is_ban:
+        # Reply field container (hidden by default) - only for non-ban and non-system messages
+        if not data.is_ban and not data.is_system:
             self.reply_container = QWidget()
             reply_layout = QHBoxLayout(self.reply_container)
             reply_layout.setContentsMargins(0, 0, 0, 0)
@@ -289,7 +298,7 @@ class PopupNotification(QWidget):
         # Recalculate size with reply field visible
         self.adjustSize()
         self.manager._position_and_cleanup()
-   
+
     def _on_send_reply(self):
         """Send reply message"""
         if not self.reply_field:
@@ -327,6 +336,7 @@ class PopupNotification(QWidget):
                 
                 # Mark as private if replying to private message
                 own_msg.is_private = (msg_type == 'chat')
+                own_msg.is_system = False  # Replies are never system messages
                
                 # Add to UI locally
                 self.data.local_message_callback(own_msg)
@@ -475,6 +485,7 @@ def show_notification(**kwargs):
         is_private (bool): Whether this is a private message (default: False)
         recipient_jid (str): JID to send reply to (for private messages)
         is_ban (bool): Whether this is a ban message (default: False)
+        is_system (bool): Whether this is a system message (default: False)
     """
     data = NotificationData(**kwargs)
     return popup_manager.show_notification(data)

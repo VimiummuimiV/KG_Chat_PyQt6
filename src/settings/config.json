@@ -41,6 +41,10 @@
       "hue": 170,
       "saturation": 75
     },
+    "system_message_color": {
+      "hue": 240,
+      "saturation": 0
+    },
     "youtube": {
       "enabled": true
     },
