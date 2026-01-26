@@ -163,18 +163,21 @@ class MessageDelegate(QStyledItemDelegate):
         return min(max(label_height, content_height) + 2 * self.padding, 500)
    
     def _calculate_content_height(self, text: str, width: int, fm: QFontMetrics, row: Optional[int] = None) -> int:
+        # Replace newlines with spaces and normalize multiple spaces
+        text = ' '.join(text.split())
+        
         url_pattern = re.compile(r'https?://[^\s<>"]+')
         def repl(m):
             url = m.group(0)
             cached = get_cached_info(url, use_emojis=True)
             if cached and cached[1]:
-                return cached[0]
+                return cached[0] + ' '  # Add space after URL
             if row is not None and cached:
                 try:
                     fetch_async(url, lambda _, r=row: self._refresh_row(r))
                 except Exception:
                     pass
-            return url
+            return url + ' '  # Add space after URL
 
         processed_text = url_pattern.sub(repl, text)
         segments = self.emoticon_manager.parse_emoticons(processed_text)
@@ -431,11 +434,15 @@ class MessageDelegate(QStyledItemDelegate):
     def _paint_content(self, painter: QPainter, x: int, y: int, width: int,
                        text: str, row: int, is_private: bool = False, is_ban: bool = False, is_system: bool = False):
         """Paint content with text, links, and emoticons"""
+        # Replace newlines with spaces and normalize multiple spaces
+        text = ' '.join(text.split())
+        
         url_pattern = re.compile(r'https?://[^\s<>"]+')
         urls = []
         def replace_url(match):
-            urls.append(match.group(0))
-            return f"[URL{len(urls)-1}]"
+            url = match.group(0)
+            urls.append(url)
+            return f"[URL{len(urls)-1}] "  # Add space after placeholder
         processed_text = url_pattern.sub(replace_url, text)
         segments = self.emoticon_manager.parse_emoticons(processed_text)
         painter.setFont(self.body_font)

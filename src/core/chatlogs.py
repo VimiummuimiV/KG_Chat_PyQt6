@@ -116,6 +116,7 @@ class ChatlogsParser:
                         break
                     if sibling.tag == 'a':
                         parts.append(sibling.get('href', sibling.text or ''))
+                        parts.append(' ') # Add space after links
                     if sibling.text:
                         parts.append(sibling.text)
                     if sibling.tail:
