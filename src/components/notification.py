@@ -512,9 +512,21 @@ class PopupManager:
             available_height = screen.height() - 40
           
             while total_height > available_height and len(self.popups) > 1:
-                oldest = self.popups.pop(0)
-                oldest.close()
-                total_height -= (heights.pop(0) + self.gap)
+                # Find the oldest notification that doesn't have an active reply field
+                removed = False
+                for i, popup in enumerate(self.popups):
+                    if not popup.reply_field_visible:
+                        # Remove this notification
+                        self.popups.pop(i)
+                        popup.close()
+                        total_height -= (heights.pop(i) + self.gap)
+                        removed = True
+                        break
+                
+                # If all notifications have active reply fields, stop trying to remove
+                if not removed:
+                    break
+                
                 # Reposition remaining popups
                 current_y = screen.y() + 20
                 for popup in self.popups:
