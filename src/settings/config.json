@@ -101,6 +101,6 @@
   },
   "auto_login": true,
   "start_minimized": true,
-  "notification_mode": "replace",
-  "notification_muted": true
+  "notification_mode": "stack",
+  "notification_muted": false
 }

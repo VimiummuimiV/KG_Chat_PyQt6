@@ -133,6 +133,14 @@ class PopupNotification(QWidget):
         else:
             self.answer_button = None
        
+        # Mute button (small)
+        self.mute_button = create_icon_button(
+            self.icons_path, "shut-down.svg", "Mute Notifications",
+            size_type="small", config=data.config
+        )
+        self.mute_button.clicked.connect(self._on_mute)
+        buttons_layout.addWidget(self.mute_button)
+       
         # Close button (small)
         self.close_button = create_icon_button(
             self.icons_path, "close.svg", "Close",
@@ -198,7 +206,7 @@ class PopupNotification(QWidget):
         """Click on notification body to show chat window and close notification"""
         if event.button() == Qt.MouseButton.LeftButton:
             # Check if click is on a button (don't trigger on button clicks)
-            clicked_widgets = [self.close_button]
+            clicked_widgets = [self.close_button, self.mute_button]
             if self.answer_button:
                 clicked_widgets.append(self.answer_button)
             if self.send_button:
@@ -298,6 +306,20 @@ class PopupNotification(QWidget):
         # Recalculate size with reply field visible
         self.adjustSize()
         self.manager._position_and_cleanup()
+   
+    def _on_mute(self):
+        """Mute notifications and close all popups"""
+        # Set muted state in manager
+        self.manager.set_muted(True)
+        
+        # Save to config if available
+        if self.data.config:
+            self.data.config.set("notification_muted", value=True)
+        
+        # Close all notifications
+        self.manager.close_all()
+        
+        print("🔇 Notifications muted")
 
     def _on_send_reply(self):
         """Send reply message"""
