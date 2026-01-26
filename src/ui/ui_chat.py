@@ -876,6 +876,13 @@ class ChatWindow(QWidget):
         
         return False
 
+    def _format_me_action(self, text: str, username: str) -> tuple[str, bool]:
+        """Convert '/me action' to 'username action'. Returns (formatted_text, is_action)."""
+        if text and text.strip().startswith('/me '):
+            action = text.strip()[4:]
+            return f"{username} {action}", True
+        return text, False
+
     def on_message(self, msg):
         # Check if initial load
         is_initial = getattr(msg, 'initial', False)
@@ -890,15 +897,8 @@ class ChatWindow(QWidget):
             if self._is_user_banned(user_id, msg.login):
                 return  # Silently drop banned user's messages
 
-        # Check if this is a /me system message and process it
-        is_system = False
-        if msg.body and msg.body.strip().startswith('/me '):
-            is_system = True
-            # Remove /me prefix and format as "username action"
-            action = msg.body.strip()[4:]  # Remove '/me '
-            msg.body = f"{msg.login} {action}"
-        
-        msg.is_system = is_system
+        # Process /me action command
+        msg.body, msg.is_system = self._format_me_action(msg.body, msg.login)
 
         # Mark private messages
         msg.is_private = (msg.msg_type == 'chat')
@@ -932,7 +932,7 @@ class ChatWindow(QWidget):
                     is_initial=is_initial,
                     is_private=msg.is_private,
                     is_ban=is_ban,
-                    is_system=is_system
+                    is_system=msg.is_system
                 )
             else:
                 # Ensure voice engine is disabled
@@ -960,7 +960,7 @@ class ChatWindow(QWidget):
                     is_private=msg.is_private,
                     recipient_jid=msg.from_jid if msg.is_private else None,
                     is_ban=is_ban,
-                    is_system=is_system
+                    is_system=msg.is_system
                 )
             except Exception as e:
                 print(f"Notification error: {e}")
@@ -1040,9 +1040,9 @@ class ChatWindow(QWidget):
         text = self.input_field.text().strip()
         if not text or not self.xmpp_client:
             return
-    
+
         self.input_field.clear()
-    
+
         # Determine message type and recipient
         if self.private_mode and self.private_chat_jid:
             msg_type = 'chat'
@@ -1050,23 +1050,26 @@ class ChatWindow(QWidget):
         else:
             msg_type = 'groupchat'
             recipient_jid = None
-    
+
         # Get own user data
         own_user = None
         for user in self.xmpp_client.user_list.get_all():
             if self.account.get('chat_username') in user.jid or user.login == self.account.get('chat_username'):
                 own_user = user
                 break
-    
+
         # Chunk message if over 300 characters
         chunks = self._chunk_message(text, 300)
-    
+
         # Send each chunk
         for i, chunk in enumerate(chunks):
+            # Process chunk for display
+            display_chunk, is_system = self._format_me_action(chunk, self.account.get('chat_username'))
+            
             # Create local message for each chunk
             own_msg = Message(
                 from_jid=self.xmpp_client.jid,
-                body=chunk,
+                body=display_chunk,
                 msg_type=msg_type,
                 login=self.account.get('chat_username'),
                 avatar=None,
@@ -1075,11 +1078,12 @@ class ChatWindow(QWidget):
                 initial=False
             )
             own_msg.is_private = (msg_type == 'chat')
+            own_msg.is_system = is_system
         
             self.messages_widget.add_message(own_msg)
         
-            # Send to server with delay between chunks
-            delay = i * 0.8 # 800ms delay between chunks
+            # Send original chunk to server (with /me prefix intact)
+            delay = i * 0.8  # 800ms delay between chunks
             threading.Timer(
                 delay,
                 self.xmpp_client.send_message,
