@@ -99,3 +99,8 @@ def get_system_message_colors(config, is_dark_theme: bool) -> dict:
         key: hsl_to_hex(hue, saturation, lightness)
         for key, lightness in lightness_values.items()
     }
+
+
+def get_mention_color(is_dark_theme: bool) -> str:
+    """Get mention highlight color based on theme"""
+    return "#00FF00" if is_dark_theme else "#008000"

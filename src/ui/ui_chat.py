@@ -162,7 +162,8 @@ class ChatWindow(QWidget):
         self.stacked_widget = QStackedWidget()
         left_layout.addWidget(self.stacked_widget, stretch=1)
 
-        self.messages_widget = MessagesWidget(self.config)
+        my_username = self.account.get('chat_username') if self.account else None
+        self.messages_widget = MessagesWidget(self.config, my_username=my_username)
         self.stacked_widget.addWidget(self.messages_widget)
         self.chatlog_widget = None
         self.chatlog_userlist_widget = None

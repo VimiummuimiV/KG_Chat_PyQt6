@@ -66,6 +66,10 @@ class ChatlogWidget(QWidget):
 
         self.model = MessageListModel(max_messages=50000)
         self.delegate = MessageDelegate(config, self.emoticon_manager, self.color_cache)
+        
+        # Set username for mention highlighting if account is available
+        if account and account.get('chat_username'):
+            self.delegate.set_my_username(account.get('chat_username'))
 
         # Parser state
         self.parser_worker = None
@@ -82,6 +86,10 @@ class ChatlogWidget(QWidget):
         self.account = account
         if self.parser_widget:
             self.parser_widget.set_account(account)
+        
+        # Update delegate with new username for mention highlighting
+        if account and account.get('chat_username'):
+            self.delegate.set_my_username(account.get('chat_username'))
 
     def _setup_ui(self):
         margin = self.config.get("ui", "margins", "widget") or 5

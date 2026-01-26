@@ -18,7 +18,7 @@ class MessagesWidget(QWidget):
     """Widget for displaying chat messages with virtual scrolling"""
     timestamp_clicked = pyqtSignal(str)
 
-    def __init__(self, config):
+    def __init__(self, config, my_username: str = None):
         super().__init__()
         self.config = config
         self.input_field = None
@@ -30,6 +30,10 @@ class MessagesWidget(QWidget):
         self.model = MessageListModel(max_messages=1000)
         # Pass the cache's color dictionary directly to delegate
         self.delegate = MessageDelegate(config, self.emoticon_manager, self.cache._color_cache)
+        
+        # Set username for mention highlighting if provided
+        if my_username:
+            self.delegate.set_my_username(my_username)
        
         self.delegate.timestamp_clicked.connect(self.timestamp_clicked.emit)
         self.delegate.username_clicked.connect(self._handle_username_click)
@@ -38,6 +42,11 @@ class MessagesWidget(QWidget):
         
         # Initialize auto-scroller after UI is set up
         self.auto_scroller = AutoScroller(self.list_view)
+
+    def set_my_username(self, username: str):
+        """Set the current user's username for mention highlighting"""
+        if self.delegate:
+            self.delegate.set_my_username(username)
 
     def set_color_cache(self, cache: dict):
         """Update delegate's color cache reference"""

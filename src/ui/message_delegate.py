@@ -10,13 +10,14 @@ from PyQt6.QtCore import Qt, QSize, QRect, QModelIndex, pyqtSignal, QTimer, QEve
 from PyQt6.QtGui import QPainter, QFontMetrics, QColor, QPixmap, QMovie, QCursor
 
 from helpers.color_contrast import optimize_color_contrast
-from components.messages_separator import NewMessagesSeparator, ChatlogDateSeparator
-from helpers.emoticons import EmoticonManager
 from helpers.color_utils import(
     get_private_message_colors,
     get_ban_message_colors,
-    get_system_message_colors
+    get_system_message_colors,
+    get_mention_color
 )
+from components.messages_separator import NewMessagesSeparator, ChatlogDateSeparator
+from helpers.emoticons import EmoticonManager
 from helpers.fonts import get_font, FontType
 from helpers.me_action import format_me_action
 from core.youtube import is_youtube_url, get_cached_info, fetch_async
@@ -44,6 +45,10 @@ class MessageDelegate(QStyledItemDelegate):
         theme = config.get("ui", "theme") or "dark"
         self.is_dark_theme = (theme == "dark")
         self.bg_hex = "#1E1E1E" if self.is_dark_theme else "#FFFFFF"
+        
+        # Track own username for mention highlighting
+        self.my_username = None
+        self.mention_color = get_mention_color(self.is_dark_theme)
        
         # Load private message colors from config
         self.private_colors = get_private_message_colors(config, self.is_dark_theme)
@@ -80,6 +85,10 @@ class MessageDelegate(QStyledItemDelegate):
         
         # Connect the refresh signal
         self.row_needs_refresh.connect(self._do_refresh_row)
+    
+    def set_my_username(self, username: str):
+        """Set the current user's username for mention highlighting"""
+        self.my_username = username.lower() if username else None
    
     def set_list_view(self, list_view):
         self.list_view = list_view
@@ -94,6 +103,9 @@ class MessageDelegate(QStyledItemDelegate):
         theme = self.config.get("ui", "theme") or "dark"
         self.is_dark_theme = (theme == "dark")
         self.bg_hex = "#1E1E1E" if theme == "dark" else "#FFFFFF"
+        
+        # Update mention color for new theme
+        self.mention_color = get_mention_color(self.is_dark_theme)
        
         # Reload private message colors for new theme
         self.private_colors = get_private_message_colors(self.config, self.is_dark_theme)
@@ -415,6 +427,35 @@ class MessageDelegate(QStyledItemDelegate):
                 is_system
             )
    
+    def _split_text_with_mentions(self, text: str) -> List[tuple]:
+        """
+        Split text into segments marking mentions of my_username.
+        Returns list of (is_mention: bool, text: str) tuples.
+        """
+        if not self.my_username or not text:
+            return [(False, text)]
+        
+        # Create pattern to match username as whole word (case-insensitive)
+        pattern = r'\b' + re.escape(self.my_username) + r'\b'
+        
+        segments = []
+        last_end = 0
+        
+        for match in re.finditer(pattern, text, re.IGNORECASE):
+            # Add text before mention
+            if match.start() > last_end:
+                segments.append((False, text[last_end:match.start()]))
+            
+            # Add mention
+            segments.append((True, text[match.start():match.end()]))
+            last_end = match.end()
+        
+        # Add remaining text
+        if last_end < len(text):
+            segments.append((False, text[last_end:]))
+        
+        return segments if segments else [(False, text)]
+   
     def _paint_content(self, painter: QPainter, x: int, y: int, width: int,
                        text: str, row: int, is_private: bool = False, is_ban: bool = False, is_system: bool = False):
         """Paint content with text, links, and emoticons"""
@@ -450,20 +491,37 @@ class MessageDelegate(QStyledItemDelegate):
             line_height = fm.height()
 
         def draw_text_chunk(content: str, color: str):
+            """Draw text chunk with mention highlighting (ONLY for non-system messages)"""
             nonlocal current_x
-            lines = self._wrap_text(content, width - (current_x - x), fm)
-            for line in lines:
-                if not line:
-                    new_line()
+            
+            # Only apply mention highlighting for normal messages (not system/private/ban)
+            if not is_system and not is_private and not is_ban:
+                # Split content into mention and non-mention segments
+                mention_segments = self._split_text_with_mentions(content)
+            else:
+                # For system/private/ban messages, treat entire content as non-mention
+                mention_segments = [(False, content)]
+            
+            for is_mention, segment_text in mention_segments:
+                if not segment_text:
                     continue
+                
+                # Use green color for mentions, otherwise use provided color
+                draw_color = self.mention_color if is_mention else color
+                
+                lines = self._wrap_text(segment_text, width - (current_x - x), fm)
+                for line in lines:
+                    if not line:
+                        new_line()
+                        continue
 
-                line_width = fm.horizontalAdvance(line)
-                if current_x > x and current_x + line_width > x + width:
-                    new_line()
+                    line_width = fm.horizontalAdvance(line)
+                    if current_x > x and current_x + line_width > x + width:
+                        new_line()
 
-                painter.setPen(QColor(color))
-                painter.drawText(current_x, current_y + fm.ascent(), line)
-                current_x += line_width
+                    painter.setPen(QColor(draw_color))
+                    painter.drawText(current_x, current_y + fm.ascent(), line)
+                    current_x += line_width
 
         def draw_link(url: str):
             nonlocal current_x, line_height
