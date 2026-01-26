@@ -82,7 +82,9 @@ class ChatlogsParser:
         """Parse messages from HTML using lxml
         
         Structure: <a class="ts" name="HH:MM:SS"/>
-                   <font class="mn">&lt;user&gt;</font>text<br/>
+                <font class="mn"><user></font>text<br/>
+                OR
+                <font class="mne">USERNAME action</font><br/> (for /me actions)
         """
         parser = etree.HTMLParser(encoding='utf-8', recover=True)
         tree = etree.fromstring(html.encode('utf-8'), parser)
@@ -93,33 +95,47 @@ class ChatlogsParser:
             if not timestamp:
                 continue
             
-            font_elems = ts_elem.xpath('following-sibling::font[@class="mn"][1]')
+            font_elems = ts_elem.xpath('following-sibling::font[(@class="mn" or @class="mne")][1]')
             if not font_elems:
                 continue
             
             font_elem = font_elems[0]
-            username = (font_elem.text or '').strip('<> ')
-            if not username:
-                continue
+            cls = font_elem.get('class')
+            text = (font_elem.text or '').strip()
             
-            # Collect message parts
-            parts = [font_elem.tail] if font_elem.tail else []
-            for sibling in font_elem.itersiblings():
-                if sibling.tag == 'br':
-                    break
-                if sibling.tag == 'a':
-                    parts.append(sibling.get('href', sibling.text or ''))
-                elif sibling.text:
-                    parts.append(sibling.text)
-                if sibling.tail:
-                    parts.append(sibling.tail)
+            if cls == 'mn':
+                username = text.strip('<> ')
+                if not username:
+                    continue
+                
+                parts = []
+                if font_elem.tail:
+                    parts.append(font_elem.tail)
+                for sibling in font_elem.itersiblings():
+                    if sibling.tag == 'br':
+                        break
+                    if sibling.tag == 'a':
+                        parts.append(sibling.get('href', sibling.text or ''))
+                    if sibling.text:
+                        parts.append(sibling.text)
+                    if sibling.tail:
+                        parts.append(sibling.tail)
+                
+                message = ''.join(parts).strip()
             
-            message = ''.join(parts).strip()
+            else:  # mne
+                if not text:
+                    continue
+                parts = text.split(None, 1)
+                username = parts[0]
+                action = parts[1] if len(parts) > 1 else text
+                message = f"/me {action}"
+            
             if message:
                 messages.append(ChatMessage(timestamp, username, message, date))
         
         return messages
-    
+
     def get_messages(
         self,
         from_date: Optional[str] = None,

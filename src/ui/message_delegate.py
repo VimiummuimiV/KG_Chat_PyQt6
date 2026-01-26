@@ -18,6 +18,7 @@ from helpers.color_utils import(
     get_system_message_colors
 )
 from helpers.fonts import get_font, FontType
+from helpers.me_action import format_me_action
 from core.youtube import is_youtube_url, get_cached_info, fetch_async
 
 
@@ -363,7 +364,9 @@ class MessageDelegate(QStyledItemDelegate):
         )
         self.click_rects[row]['timestamp'] = ts_rect
         
-        is_system = getattr(msg, 'is_system', False)
+        # Format message body if it's a /me action
+        display_body, is_me_action = format_me_action(msg.body, msg.username)
+        is_system = is_me_action or getattr(msg, 'is_system', False)
         
         # Determine content position based on mode and message type
         if not is_system:
@@ -397,7 +400,7 @@ class MessageDelegate(QStyledItemDelegate):
             content_y = y + max(body_fm.height(), ts_fm.height()) + 2
             content_width = width
             self._paint_content(
-                painter, x, content_y, content_width, msg.body, row,
+                painter, x, content_y, content_width, display_body, row,
                 getattr(msg, 'is_private', False),
                 getattr(msg, 'is_ban', False),
                 is_system
@@ -406,7 +409,7 @@ class MessageDelegate(QStyledItemDelegate):
             # Normal mode: content on same line after username/timestamp
             content_width = rect.width() - (content_x - rect.x()) - self.padding
             self._paint_content(
-                painter, content_x, y, content_width, msg.body, row,
+                painter, content_x, y, content_width, display_body, row,
                 getattr(msg, 'is_private', False),
                 getattr(msg, 'is_ban', False),
                 is_system
