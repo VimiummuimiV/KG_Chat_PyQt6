@@ -314,7 +314,7 @@ class PopupNotification(QWidget):
         
         # Save to config if available
         if self.data.config:
-            self.data.config.set("notification_muted", value=True)
+            self.data.config.set("notification", "muted", value=True)
         
         # Close all notifications
         self.manager.close_all()

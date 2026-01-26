@@ -244,7 +244,7 @@ class Application:
     def update_notification_menu(self):
         """Update notification menu to reflect current state"""
         # Get current mode from config (default is "stack")
-        current_mode = self.config.get("notification_mode")
+        current_mode = self.config.get("notification", "mode")
         if current_mode is None:
             current_mode = "stack"
         
@@ -255,7 +255,7 @@ class Application:
             self.notification_mode_action.setText("Mode: Replace")
         
         # Get muted state from config (default is False)
-        muted = self.config.get("notification_muted")
+        muted = self.config.get("notification", "muted")
         if muted is None:
             muted = False
         self.notification_muted_action.setChecked(muted)
@@ -274,7 +274,7 @@ class Application:
     def _on_notification_mode_toggled(self):
         """Handle notification mode toggle from tray menu"""
         # Get current mode and toggle it
-        current_mode = self.config.get("notification_mode")
+        current_mode = self.config.get("notification", "mode")
         if current_mode is None:
             current_mode = "stack"
         
@@ -282,7 +282,7 @@ class Application:
         new_mode = "replace" if current_mode == "stack" else "stack"
         
         # Save to config
-        self.config.set("notification_mode", value=new_mode)
+        self.config.set("notification", "mode", value=new_mode)
         
         # Update chat window's config instance directly if it exists
         if self.chat_window:
@@ -299,7 +299,7 @@ class Application:
         muted = self.notification_muted_action.isChecked()
         
         # Save to config
-        self.config.set("notification_muted", value=muted)
+        self.config.set("notification", "muted", value=muted)
         
         # Update chat window's config instance directly if it exists
         if self.chat_window:
@@ -420,11 +420,11 @@ class Application:
         self.chat_window.set_tray_mode(True)
         
         # Initialize popup_manager mode and muted state from config
-        notification_mode = self.config.get("notification_mode")
+        notification_mode = self.config.get("notification", "mode")
         if notification_mode:
             popup_manager.set_notification_mode(notification_mode)
         
-        notification_muted = self.config.get("notification_muted")
+        notification_muted = self.config.get("notification", "muted")
         if notification_muted:
             popup_manager.set_muted(notification_muted)
         
