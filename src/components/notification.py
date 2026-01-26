@@ -382,14 +382,23 @@ class PopupManager:
         self.gap = 10
         self.config = None
         self.notification_mode = "stack"  # "stack" or "replace"
+        self.muted = False  # Muted state
    
     def set_notification_mode(self, mode: str):
         """Set notification mode: 'stack' or 'replace'"""
         if mode in ["stack", "replace"]:
             self.notification_mode = mode
    
+    def set_muted(self, muted: bool):
+        """Set muted state - if True, notifications won't be shown"""
+        self.muted = muted
+   
     def show_notification(self, data: NotificationData):
-        """Create and show notification"""
+        """Create and show notification (unless muted)"""
+        # If muted, don't show notification
+        if self.muted:
+            return None
+        
         self.config = data.config
         
         # In replace mode, close all existing notifications immediately

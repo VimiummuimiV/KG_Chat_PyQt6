@@ -74,14 +74,20 @@ class Application:
         self.account_window = None
         self.chat_window = None
         self.tray_icon = None
+
         self.color_menu = None
         self.reset_color_action = None
+
         self.sound_menu = None
         self.voice_sound_action = None
         self.mention_beep_action = None
         self.pronunciation_action = None
-        self.ban_list_action = None
+
+        self.notification_menu = None
         self.notification_mode_action = None
+        self.notification_muted_action = None
+
+        self.ban_list_action = None
         
         self.setup_system_tray()
 
@@ -130,7 +136,7 @@ class Application:
 
     def _setup_color_menu(self, parent_menu: QMenu):
         """Setup color management submenu"""
-        self.color_menu = parent_menu.addMenu("Color Management")
+        self.color_menu = parent_menu.addMenu("Color")
        
         # Create actions for the submenu
         change_color_action = QAction("Change Username Color", self.app)
@@ -151,7 +157,7 @@ class Application:
 
     def _setup_sound_menu(self, parent_menu: QMenu):
         """Setup sound management submenu"""
-        self.sound_menu = parent_menu.addMenu("Sound Management")
+        self.sound_menu = parent_menu.addMenu("Sound")
         
         # Add separator at the top
         self.sound_menu.addSeparator()
@@ -186,10 +192,26 @@ class Application:
 
     def _setup_notification_menu(self, parent_menu: QMenu):
         """Setup notification management submenu"""
-        # Single action that changes text based on current mode
+        self.notification_menu = parent_menu.addMenu("Notification")
+        
+        # Add separator at the top
+        self.notification_menu.addSeparator()
+        
+        # Mode toggle action (changes text based on current mode)
         self.notification_mode_action = QAction("", self.app)
         self.notification_mode_action.triggered.connect(self._on_notification_mode_toggled)
-        parent_menu.addAction(self.notification_mode_action)
+        self.notification_menu.addAction(self.notification_mode_action)
+        
+        # Add separator
+        self.notification_menu.addSeparator()
+        
+        # Muted action
+        self.notification_muted_action = QAction("Muted", self.app, checkable=True)
+        self.notification_muted_action.triggered.connect(self._on_notification_muted_toggled)
+        self.notification_menu.addAction(self.notification_muted_action)
+        
+        # Connect to aboutToShow to update menu state
+        self.notification_menu.aboutToShow.connect(self.update_notification_menu)
         
         # Load initial state
         self.update_notification_menu()
@@ -220,17 +242,23 @@ class Application:
         self.mention_beep_action.setChecked(mention_enabled)
 
     def update_notification_menu(self):
-        """Update notification menu to reflect current mode"""
+        """Update notification menu to reflect current state"""
         # Get current mode from config (default is "stack")
         current_mode = self.config.get("notification_mode")
         if current_mode is None:
             current_mode = "stack"
         
-        # Update text to show current mode
+        # Update mode text
         if current_mode == "stack":
-            self.notification_mode_action.setText("Notification Mode: Stack")
+            self.notification_mode_action.setText("Mode: Stack")
         else:
-            self.notification_mode_action.setText("Notification Mode: Replace")
+            self.notification_mode_action.setText("Mode: Replace")
+        
+        # Get muted state from config (default is False)
+        muted = self.config.get("notification_muted")
+        if muted is None:
+            muted = False
+        self.notification_muted_action.setChecked(muted)
 
     def _on_sound_toggled(self, config_key: str, action: QAction):
         """Handle sound toggle from tray menu"""
@@ -265,6 +293,20 @@ class Application:
         
         # Update menu text
         self.update_notification_menu()
+
+    def _on_notification_muted_toggled(self):
+        """Handle notification muted toggle from tray menu"""
+        muted = self.notification_muted_action.isChecked()
+        
+        # Save to config
+        self.config.set("notification_muted", value=muted)
+        
+        # Update chat window's config instance directly if it exists
+        if self.chat_window:
+            self.chat_window.config.data = self.config.data
+        
+        # Update the popup_manager's muted state immediately
+        popup_manager.set_muted(muted)
 
     def _get_icon(self, count: int = 0):
         """Get chat icon with optional message count badge"""
@@ -377,10 +419,14 @@ class Application:
         )
         self.chat_window.set_tray_mode(True)
         
-        # Initialize popup_manager mode from config
+        # Initialize popup_manager mode and muted state from config
         notification_mode = self.config.get("notification_mode")
         if notification_mode:
             popup_manager.set_notification_mode(notification_mode)
+        
+        notification_muted = self.config.get("notification_muted")
+        if notification_muted:
+            popup_manager.set_muted(notification_muted)
         
         # Check if start minimized is enabled
         start_minimized = self.config.get("start_minimized")
