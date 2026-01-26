@@ -111,16 +111,29 @@ class ChatlogsParser:
                 parts = []
                 if font_elem.tail:
                     parts.append(font_elem.tail)
+                
+                prev_was_br = False
                 for sibling in font_elem.itersiblings():
-                    if sibling.tag == 'br':
+                    if sibling.tag == 'a' and sibling.get('class') == 'ts':
                         break
-                    if sibling.tag == 'a':
-                        parts.append(sibling.get('href', sibling.text or ''))
-                        parts.append(' ') # Add space after links
-                    if sibling.text:
-                        parts.append(sibling.text)
-                    if sibling.tail:
-                        parts.append(sibling.tail)
+                    
+                    if sibling.tag == 'br':
+                        parts.append('\n')
+                        prev_was_br = True
+                        continue
+                    
+                    if sibling.tag == 'a' and sibling.get('href'):
+                        parts.append(sibling.text or sibling.get('href'))
+                        if sibling.tail:
+                            parts.append(sibling.tail)
+                        prev_was_br = False
+                    
+                    else:
+                        if sibling.text:
+                            parts.append(sibling.text)
+                        if sibling.tail:
+                            parts.append(sibling.tail)
+                        prev_was_br = False
                 
                 message = ''.join(parts).strip()
             
