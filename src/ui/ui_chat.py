@@ -891,21 +891,20 @@ class ChatWindow(QWidget):
             if self._is_user_banned(user_id, msg.login):
                 return  # Silently drop banned user's messages
 
-        # Process /me action command
-        msg.body, msg.is_system = format_me_action(msg.body, msg.login)
-
-        # Mark private messages
         msg.is_private = (msg.msg_type == 'chat')
         
         # Check if this is a ban message and mark it
         is_ban = self._is_ban_message(msg)
         msg.is_ban = is_ban
+        
+        # Format message body for display/TTS and detect if it's a /me action
+        display_body, is_system = format_me_action(msg.body, msg.login)
 
         if not is_initial and not self.isVisible() and not self.has_new_messages_marker:
             self.messages_widget.model.add_message(NewMessagesSeparator.create_marker())
             self.has_new_messages_marker = True
 
-        # Now add the message to the widget
+        # Add original message to widget (delegate will format it)
         self.messages_widget.add_message(msg)
 
         # Increment unread count if window is hidden and not initial load
@@ -919,14 +918,15 @@ class ChatWindow(QWidget):
                 # Update voice engine state
                 self.voice_engine.set_enabled(True)
                 my_username = self.account.get('chat_username', '')
+                
                 self.voice_engine.speak_message(
                     username=msg.login,
-                    message=msg.body,
+                    message=display_body,
                     my_username=my_username,
                     is_initial=is_initial,
                     is_private=msg.is_private,
                     is_ban=is_ban,
-                    is_system=msg.is_system
+                    is_system=is_system
                 )
             else:
                 # Ensure voice engine is disabled
@@ -944,7 +944,7 @@ class ChatWindow(QWidget):
             try:
                 show_notification(
                     title=msg.login,
-                    message=msg.body,
+                    message=display_body,
                     xmpp_client=self.xmpp_client,
                     cache=self.cache,
                     config=self.config,
@@ -954,7 +954,7 @@ class ChatWindow(QWidget):
                     is_private=msg.is_private,
                     recipient_jid=msg.from_jid if msg.is_private else None,
                     is_ban=is_ban,
-                    is_system=msg.is_system
+                    is_system=is_system
                 )
             except Exception as e:
                 print(f"Notification error: {e}")
@@ -1057,13 +1057,10 @@ class ChatWindow(QWidget):
 
         # Send each chunk
         for i, chunk in enumerate(chunks):
-            # Process chunk for display
-            display_chunk, is_system = format_me_action(chunk, self.account.get('chat_username'))
-            
-            # Create local message for each chunk
+            # Create and display own message immediately
             own_msg = Message(
                 from_jid=self.xmpp_client.jid,
-                body=display_chunk,
+                body=chunk,
                 msg_type=msg_type,
                 login=self.account.get('chat_username'),
                 avatar=None,
@@ -1072,12 +1069,10 @@ class ChatWindow(QWidget):
                 initial=False
             )
             own_msg.is_private = (msg_type == 'chat')
-            own_msg.is_system = is_system
         
             self.messages_widget.add_message(own_msg)
         
-            # Send original chunk to server (with /me prefix intact)
-            delay = i * 0.8  # 800ms delay between chunks
+            delay = i * 0.8 # 800ms delay between chunks
             threading.Timer(
                 delay,
                 self.xmpp_client.send_message,

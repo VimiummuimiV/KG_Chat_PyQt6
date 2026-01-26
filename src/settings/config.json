@@ -96,11 +96,11 @@
     ]
   },
   "sound": {
-    "tts_enabled": false,
+    "tts_enabled": true,
     "mention_sound_enabled": true
   },
   "notification": {
-    "mode": "stack",
+    "mode": "replace",
     "muted": false
   },
   "startup": {
