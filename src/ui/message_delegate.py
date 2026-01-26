@@ -20,6 +20,7 @@ from components.messages_separator import NewMessagesSeparator, ChatlogDateSepar
 from helpers.emoticons import EmoticonManager
 from helpers.fonts import get_font, FontType
 from helpers.me_action import format_me_action
+from helpers.mention_parser import parse_mentions
 from core.youtube import is_youtube_url, get_cached_info, fetch_async
 
 
@@ -427,35 +428,6 @@ class MessageDelegate(QStyledItemDelegate):
                 is_system
             )
    
-    def _split_text_with_mentions(self, text: str) -> List[tuple]:
-        """
-        Split text into segments marking mentions of my_username.
-        Returns list of (is_mention: bool, text: str) tuples.
-        """
-        if not self.my_username or not text:
-            return [(False, text)]
-        
-        # Create pattern to match username as whole word (case-insensitive)
-        pattern = r'\b' + re.escape(self.my_username) + r'\b'
-        
-        segments = []
-        last_end = 0
-        
-        for match in re.finditer(pattern, text, re.IGNORECASE):
-            # Add text before mention
-            if match.start() > last_end:
-                segments.append((False, text[last_end:match.start()]))
-            
-            # Add mention
-            segments.append((True, text[match.start():match.end()]))
-            last_end = match.end()
-        
-        # Add remaining text
-        if last_end < len(text):
-            segments.append((False, text[last_end:]))
-        
-        return segments if segments else [(False, text)]
-   
     def _paint_content(self, painter: QPainter, x: int, y: int, width: int,
                        text: str, row: int, is_private: bool = False, is_ban: bool = False, is_system: bool = False):
         """Paint content with text, links, and emoticons"""
@@ -497,7 +469,7 @@ class MessageDelegate(QStyledItemDelegate):
             # Only apply mention highlighting for normal messages (not system/private/ban)
             if not is_system and not is_private and not is_ban:
                 # Split content into mention and non-mention segments
-                mention_segments = self._split_text_with_mentions(content)
+                mention_segments = parse_mentions(content, self.my_username)
             else:
                 # For system/private/ban messages, treat entire content as non-mention
                 mention_segments = [(False, content)]
@@ -506,8 +478,18 @@ class MessageDelegate(QStyledItemDelegate):
                 if not segment_text:
                     continue
                 
-                # Use green color for mentions, otherwise use provided color
-                draw_color = self.mention_color if is_mention else color
+                # Use green color AND bold font for mentions
+                if is_mention:
+                    draw_color = self.mention_color
+                    painter.setFont(get_font(FontType.TEXT))  # Reset to ensure we have the font object
+                    bold_font = painter.font()
+                    bold_font.setBold(True)
+                    painter.setFont(bold_font)
+                    fm = QFontMetrics(bold_font)  # Update font metrics for bold text
+                else:
+                    draw_color = color
+                    painter.setFont(self.body_font)  # Use normal font
+                    fm = QFontMetrics(self.body_font)  # Update font metrics for normal text
                 
                 lines = self._wrap_text(segment_text, width - (current_x - x), fm)
                 for line in lines:
@@ -522,6 +504,11 @@ class MessageDelegate(QStyledItemDelegate):
                     painter.setPen(QColor(draw_color))
                     painter.drawText(current_x, current_y + fm.ascent(), line)
                     current_x += line_width
+                
+                # Reset to normal font after mention
+                if is_mention:
+                    painter.setFont(self.body_font)
+                    fm = QFontMetrics(self.body_font)
 
         def draw_link(url: str):
             nonlocal current_x, line_height
