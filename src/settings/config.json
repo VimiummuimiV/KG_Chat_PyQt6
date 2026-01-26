@@ -80,9 +80,9 @@
     "input_height": 48,
     "emoticon_selector_visible": false,
     "recent_emoticons": [
+      "vpered",
       "wine",
       "firework",
-      "vpered",
       "moose",
       "boystroking",
       "heartcake",
@@ -100,7 +100,7 @@
     "mention_sound_enabled": true
   },
   "notification": {
-    "mode": "replace",
+    "mode": "stack",
     "muted": false
   },
   "startup": {

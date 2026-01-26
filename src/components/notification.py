@@ -449,11 +449,13 @@ class PopupManager:
        
         self.config = data.config
        
-        # In replace mode, close all existing notifications immediately
+        # In replace mode, close existing notifications EXCEPT those with active reply fields
         if self.notification_mode == "replace" and self.popups:
             for popup in list(self.popups):
-                popup.close_immediately()
-            self.popups.clear()
+                # Keep notifications with visible reply field
+                if not popup.reply_field_visible:
+                    popup.close_immediately()
+                    self.popups.remove(popup)
       
         # Calculate width before creating popup (max 50% of screen)
         screen = QApplication.primaryScreen().availableGeometry()
@@ -488,7 +490,7 @@ class PopupManager:
         position = self.config.get("ui", "notification_position") if self.config else "center"
         position = (position or "center").lower()
       
-        # Calculate x position based on setting
+        # Calculate x position based on setting (use first popup's width)
         popup_width = self.popups[0].width()
         if position == "left":
             x = screen.x() + 20
@@ -497,28 +499,27 @@ class PopupManager:
         else: # center (default)
             x = screen.x() + (screen.width() - popup_width) // 2
       
-        # In replace mode, only position the single popup
-        if self.notification_mode == "replace":
-            if self.popups:
-                self.popups[0].move(x, screen.y() + 20)
-            return
-      
-        # Stack mode - position all popups and handle overflow
-        # Calculate total height and cleanup overflow
-        heights = [p.height() for p in self.popups]
-        total_height = sum(heights) + self.gap * max(0, len(heights) - 1)
-        available_height = screen.height() - 40
-      
-        while total_height > available_height and len(self.popups) > 1:
-            oldest = self.popups.pop(0)
-            oldest.close()
-            total_height -= (heights.pop(0) + self.gap)
-      
-        # Position remaining popups
+        # Position all popups from top down starting at y=20
         current_y = screen.y() + 20
         for popup in self.popups:
             popup.move(x, current_y)
             current_y += popup.height() + self.gap
+        
+        # Only handle overflow in stack mode
+        if self.notification_mode == "stack":
+            heights = [p.height() for p in self.popups]
+            total_height = sum(heights) + self.gap * max(0, len(heights) - 1)
+            available_height = screen.height() - 40
+          
+            while total_height > available_height and len(self.popups) > 1:
+                oldest = self.popups.pop(0)
+                oldest.close()
+                total_height -= (heights.pop(0) + self.gap)
+                # Reposition remaining popups
+                current_y = screen.y() + 20
+                for popup in self.popups:
+                    popup.move(x, current_y)
+                    current_y += popup.height() + self.gap
 
 
 # Global manager
