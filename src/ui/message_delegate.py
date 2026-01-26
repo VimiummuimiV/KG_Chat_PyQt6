@@ -304,7 +304,7 @@ class MessageDelegate(QStyledItemDelegate):
         msg = index.data(Qt.ItemDataRole.DisplayRole)
         if not msg:
             return
-       
+    
         # Handle chatlog date separator
         if getattr(msg, 'is_separator', False):
             ChatlogDateSeparator.render(
@@ -332,28 +332,28 @@ class MessageDelegate(QStyledItemDelegate):
             self.animated_rows.add(row)
         else:
             self.animated_rows.discard(row)
-       
+    
         self.click_rects[row] = {'timestamp': QRect(), 'username': QRect(), 'links': []}
-       
+    
         painter.save()
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-       
-        if self.compact_mode:
-            self._paint_compact(painter, option.rect, msg, row)
-        else:
-            self._paint_normal(painter, option.rect, msg, row)
-       
+    
+        self._paint_message(painter, option.rect, msg, row, self.compact_mode)
+    
         painter.restore()
    
-    def _paint_compact(self, painter: QPainter, rect: QRect, msg, row: int):
+    def _paint_message(self, painter: QPainter, rect: QRect, msg, row: int, compact: bool):
+        """Paint message in either compact or normal mode"""
         x, y = rect.x() + self.padding, rect.y() + self.padding
         width = rect.width() - 2 * self.padding
         time_str = msg.get_time_str()
-    
-        # Timestamp
+        
+        body_fm = QFontMetrics(self.body_font)
+        ts_fm = QFontMetrics(self.timestamp_font)
+        
+        # Paint timestamp
         painter.setFont(self.timestamp_font)
         painter.setPen(QColor("#999999"))
-        ts_fm = QFontMetrics(self.timestamp_font)
         ts_width = ts_fm.horizontalAdvance(time_str)
         ts_rect = QRect(x, y, ts_width, ts_fm.height())
         painter.drawText(
@@ -362,21 +362,18 @@ class MessageDelegate(QStyledItemDelegate):
             time_str
         )
         self.click_rects[row]['timestamp'] = ts_rect
-    
-        # Username
-        body_fm = QFontMetrics(self.body_font)
-        ts_fm = QFontMetrics(self.timestamp_font)
         
         is_system = getattr(msg, 'is_system', False)
         
+        # Determine content position based on mode and message type
         if not is_system:
             # Normal message - paint username
             username_x = x + ts_width + self.spacing
             color = self._get_username_color(msg.username, msg.background_color)
-        
+            
             painter.setFont(self.body_font)
             painter.setPen(QColor(color))
-        
+            
             un_width = body_fm.horizontalAdvance(msg.username)
             un_rect = QRect(username_x, y, un_width, body_fm.height())
             painter.drawText(
@@ -385,47 +382,7 @@ class MessageDelegate(QStyledItemDelegate):
                 msg.username
             )
             self.click_rects[row]['username'] = un_rect
-        else:
-            # System message - skip username, create empty click rect
-            self.click_rects[row]['username'] = QRect()
-    
-        # Content
-        content_y = y + max(body_fm.height(), ts_fm.height()) + 2
-        self._paint_content(
-            painter, x, content_y, width, msg.body, row, 
-            getattr(msg, 'is_private', False),
-            getattr(msg, 'is_ban', False),
-            is_system
-        )
-
-    def _paint_normal(self, painter: QPainter, rect: QRect, msg, row: int):
-        x, y = rect.x() + self.padding, rect.y() + self.padding
-        time_str = msg.get_time_str()
-    
-        # Timestamp
-        painter.setFont(self.timestamp_font)
-        painter.setPen(QColor("#999999"))
-        ts_width = QFontMetrics(self.timestamp_font).horizontalAdvance(time_str)
-        ts_rect = QRect(x, y, ts_width, QFontMetrics(self.timestamp_font).height())
-        painter.drawText(ts_rect, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, time_str)
-        self.click_rects[row]['timestamp'] = ts_rect
-    
-        # Username
-        is_system = getattr(msg, 'is_system', False)
-        
-        if not is_system:
-            # Normal message - paint username
-            username_x = x + ts_width + self.spacing
-            color = self._get_username_color(msg.username, msg.background_color)
-        
-            painter.setFont(self.body_font)
-            painter.setPen(QColor(color))
-        
-            un_width = QFontMetrics(self.body_font).horizontalAdvance(msg.username)
-            un_rect = QRect(username_x, y, un_width, QFontMetrics(self.body_font).height())
-            painter.drawText(un_rect, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, msg.username)
-            self.click_rects[row]['username'] = un_rect
-        
+            
             # Content position after username
             content_x = username_x + un_width + self.spacing
         else:
@@ -433,15 +390,27 @@ class MessageDelegate(QStyledItemDelegate):
             self.click_rects[row]['username'] = QRect()
             # Content position right after timestamp
             content_x = x + ts_width + self.spacing
-    
-        # Content
-        content_width = rect.width() - (content_x - rect.x()) - self.padding
-        self._paint_content(
-            painter, content_x, y, content_width, msg.body, row, 
-            getattr(msg, 'is_private', False),
-            getattr(msg, 'is_ban', False),
-            is_system
-        )
+        
+        # Calculate content position and dimensions based on mode
+        if compact:
+            # Compact mode: content below header
+            content_y = y + max(body_fm.height(), ts_fm.height()) + 2
+            content_width = width
+            self._paint_content(
+                painter, x, content_y, content_width, msg.body, row,
+                getattr(msg, 'is_private', False),
+                getattr(msg, 'is_ban', False),
+                is_system
+            )
+        else:
+            # Normal mode: content on same line after username/timestamp
+            content_width = rect.width() - (content_x - rect.x()) - self.padding
+            self._paint_content(
+                painter, content_x, y, content_width, msg.body, row,
+                getattr(msg, 'is_private', False),
+                getattr(msg, 'is_ban', False),
+                is_system
+            )
    
     def _paint_content(self, painter: QPainter, x: int, y: int, width: int,
                        text: str, row: int, is_private: bool = False, is_ban: bool = False, is_system: bool = False):
