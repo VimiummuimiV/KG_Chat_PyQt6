@@ -197,8 +197,8 @@ class AccountWindow(QWidget):
         self.auto_login_checkbox.setFont(get_font(FontType.UI))
         self.auto_login_checkbox.stateChanged.connect(self.on_auto_login_changed)
         
-        # Load current auto-login state (from root level of config)
-        auto_login = self.config.get("auto_login")
+        # Load current auto-login state
+        auto_login = self.config.get("startup", "auto_login")
         if auto_login is None:
             auto_login = False
         self.auto_login_checkbox.setChecked(auto_login)
@@ -210,8 +210,8 @@ class AccountWindow(QWidget):
         self.start_minimized_checkbox.setFont(get_font(FontType.UI))
         self.start_minimized_checkbox.stateChanged.connect(self.on_start_minimized_changed)
         
-        # Load current start minimized state (from root level of config)
-        start_minimized = self.config.get("start_minimized")
+        # Load current start minimized state
+        start_minimized = self.config.get("startup", "start_minimized")
         if start_minimized is None:
             start_minimized = False
         self.start_minimized_checkbox.setChecked(start_minimized)
@@ -387,15 +387,15 @@ class AccountWindow(QWidget):
     def on_auto_login_changed(self, state):
         """Handle auto-login checkbox state change"""
         auto_login = (state == Qt.CheckState.Checked.value)
-        # Save to root level of config (not nested under "ui" or other sections)
-        self.config.set("auto_login", value=auto_login)
+        # Save to startup group in config
+        self.config.set("startup", "auto_login", value=auto_login)
         print(f"🔑 Auto-login {'enabled' if auto_login else 'disabled'}")
 
     def on_start_minimized_changed(self, state):
         """Handle start minimized checkbox state change"""
         start_minimized = (state == Qt.CheckState.Checked.value)
-        # Save to root level of config (not nested under "ui" or other sections)
-        self.config.set("start_minimized", value=start_minimized)
+        # Save to startup group in config
+        self.config.set("startup", "start_minimized", value=start_minimized)
         print(f"🪟 Start minimized {'enabled' if start_minimized else 'disabled'}")
     
     def on_start_with_system_changed(self, state):

@@ -103,6 +103,8 @@
     "mode": "stack",
     "muted": false
   },
-  "auto_login": true,
-  "start_minimized": true
+  "startup": {
+    "auto_login": true,
+    "start_minimized": true
+  }
 }

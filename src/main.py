@@ -376,8 +376,8 @@ class Application:
 
     def run(self):
         """Run the application - check auto-login or show account window"""
-        # Check if auto-login is enabled (from root level of config)
-        auto_login = self.config.get("auto_login")
+        # Check if auto-login is enabled
+        auto_login = self.config.get("startup", "auto_login")
         
         if auto_login:
             # Get active account and connect directly
@@ -429,7 +429,7 @@ class Application:
             popup_manager.set_muted(notification_muted)
         
         # Check if start minimized is enabled
-        start_minimized = self.config.get("start_minimized")
+        start_minimized = self.config.get("startup", "start_minimized")
         
         if start_minimized:
             # Don't show the window, just let it stay hidden (tray mode)
