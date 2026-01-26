@@ -349,7 +349,7 @@ class MessageDelegate(QStyledItemDelegate):
         x, y = rect.x() + self.padding, rect.y() + self.padding
         width = rect.width() - 2 * self.padding
         time_str = msg.get_time_str()
-       
+    
         # Timestamp
         painter.setFont(self.timestamp_font)
         painter.setPen(QColor("#999999"))
@@ -362,39 +362,46 @@ class MessageDelegate(QStyledItemDelegate):
             time_str
         )
         self.click_rects[row]['timestamp'] = ts_rect
-       
+    
         # Username
-        username_x = x + ts_width + self.spacing
-        color = self._get_username_color(msg.username, msg.background_color)
-       
-        painter.setFont(self.body_font)
-        painter.setPen(QColor(color))
-       
-        body_fm = QFontMetrics(self.body_font)
-        un_width = body_fm.horizontalAdvance(msg.username)
-        un_rect = QRect(username_x, y, un_width, body_fm.height())
-        painter.drawText(
-            un_rect, 
-            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, 
-            msg.username
-        )
-        self.click_rects[row]['username'] = un_rect
-       
-        # Content
         body_fm = QFontMetrics(self.body_font)
         ts_fm = QFontMetrics(self.timestamp_font)
+        
+        is_system = getattr(msg, 'is_system', False)
+        
+        if not is_system:
+            # Normal message - paint username
+            username_x = x + ts_width + self.spacing
+            color = self._get_username_color(msg.username, msg.background_color)
+        
+            painter.setFont(self.body_font)
+            painter.setPen(QColor(color))
+        
+            un_width = body_fm.horizontalAdvance(msg.username)
+            un_rect = QRect(username_x, y, un_width, body_fm.height())
+            painter.drawText(
+                un_rect, 
+                Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, 
+                msg.username
+            )
+            self.click_rects[row]['username'] = un_rect
+        else:
+            # System message - skip username, create empty click rect
+            self.click_rects[row]['username'] = QRect()
+    
+        # Content
         content_y = y + max(body_fm.height(), ts_fm.height()) + 2
         self._paint_content(
             painter, x, content_y, width, msg.body, row, 
             getattr(msg, 'is_private', False),
             getattr(msg, 'is_ban', False),
-            getattr(msg, 'is_system', False)
+            is_system
         )
 
     def _paint_normal(self, painter: QPainter, rect: QRect, msg, row: int):
         x, y = rect.x() + self.padding, rect.y() + self.padding
         time_str = msg.get_time_str()
-       
+    
         # Timestamp
         painter.setFont(self.timestamp_font)
         painter.setPen(QColor("#999999"))
@@ -402,27 +409,38 @@ class MessageDelegate(QStyledItemDelegate):
         ts_rect = QRect(x, y, ts_width, QFontMetrics(self.timestamp_font).height())
         painter.drawText(ts_rect, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, time_str)
         self.click_rects[row]['timestamp'] = ts_rect
-       
+    
         # Username
-        username_x = x + ts_width + self.spacing
-        color = self._get_username_color(msg.username, msg.background_color)
-       
-        painter.setFont(self.body_font)
-        painter.setPen(QColor(color))
-       
-        un_width = QFontMetrics(self.body_font).horizontalAdvance(msg.username)
-        un_rect = QRect(username_x, y, un_width, QFontMetrics(self.body_font).height())
-        painter.drawText(un_rect, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, msg.username)
-        self.click_rects[row]['username'] = un_rect
-       
+        is_system = getattr(msg, 'is_system', False)
+        
+        if not is_system:
+            # Normal message - paint username
+            username_x = x + ts_width + self.spacing
+            color = self._get_username_color(msg.username, msg.background_color)
+        
+            painter.setFont(self.body_font)
+            painter.setPen(QColor(color))
+        
+            un_width = QFontMetrics(self.body_font).horizontalAdvance(msg.username)
+            un_rect = QRect(username_x, y, un_width, QFontMetrics(self.body_font).height())
+            painter.drawText(un_rect, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, msg.username)
+            self.click_rects[row]['username'] = un_rect
+        
+            # Content position after username
+            content_x = username_x + un_width + self.spacing
+        else:
+            # System message - skip username, create empty click rect
+            self.click_rects[row]['username'] = QRect()
+            # Content position right after timestamp
+            content_x = x + ts_width + self.spacing
+    
         # Content
-        content_x = username_x + un_width + self.spacing
         content_width = rect.width() - (content_x - rect.x()) - self.padding
         self._paint_content(
             painter, content_x, y, content_width, msg.body, row, 
             getattr(msg, 'is_private', False),
             getattr(msg, 'is_ban', False),
-            getattr(msg, 'is_system', False)
+            is_system
         )
    
     def _paint_content(self, painter: QPainter, x: int, y: int, width: int,

@@ -103,7 +103,10 @@ class PopupNotification(QWidget):
         self.username_label.setStyleSheet(f"color: {username_color};")
         self.username_label.setFont(get_font(FontType.TEXT))
         self.username_label.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-        message_layout.addWidget(self.username_label)
+
+        # ONLY add username label for non-system messages
+        if not data.is_system:
+            message_layout.addWidget(self.username_label)
        
         # Message label
         self.message_label = QLabel(data.message)

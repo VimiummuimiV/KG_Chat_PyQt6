@@ -894,9 +894,9 @@ class ChatWindow(QWidget):
         is_system = False
         if msg.body and msg.body.strip().startswith('/me '):
             is_system = True
-            # Remove /me prefix and format as "* username action"
+            # Remove /me prefix and format as "username action"
             action = msg.body.strip()[4:]  # Remove '/me '
-            msg.body = f"* {msg.login} {action}"
+            msg.body = f"{msg.login} {action}"
         
         msg.is_system = is_system
 
