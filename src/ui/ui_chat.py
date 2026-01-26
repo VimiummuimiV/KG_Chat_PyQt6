@@ -14,6 +14,7 @@ from helpers.scroll import scroll
 from helpers.cache import get_cache
 from helpers.fonts import get_font, FontType
 from helpers.voice_engine import get_voice_engine, play_sound
+from helpers.me_action import format_me_action
 from themes.theme import ThemeManager
 from core.xmpp import XMPPClient
 from core.messages import Message
@@ -876,13 +877,6 @@ class ChatWindow(QWidget):
         
         return False
 
-    def _format_me_action(self, text: str, username: str) -> tuple[str, bool]:
-        """Convert '/me action' to 'username action'. Returns (formatted_text, is_action)."""
-        if text and text.strip().startswith('/me '):
-            action = text.strip()[4:]
-            return f"{username} {action}", True
-        return text, False
-
     def on_message(self, msg):
         # Check if initial load
         is_initial = getattr(msg, 'initial', False)
@@ -898,7 +892,7 @@ class ChatWindow(QWidget):
                 return  # Silently drop banned user's messages
 
         # Process /me action command
-        msg.body, msg.is_system = self._format_me_action(msg.body, msg.login)
+        msg.body, msg.is_system = format_me_action(msg.body, msg.login)
 
         # Mark private messages
         msg.is_private = (msg.msg_type == 'chat')
@@ -1064,7 +1058,7 @@ class ChatWindow(QWidget):
         # Send each chunk
         for i, chunk in enumerate(chunks):
             # Process chunk for display
-            display_chunk, is_system = self._format_me_action(chunk, self.account.get('chat_username'))
+            display_chunk, is_system = format_me_action(chunk, self.account.get('chat_username'))
             
             # Create local message for each chunk
             own_msg = Message(
