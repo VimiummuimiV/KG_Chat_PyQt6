@@ -73,7 +73,8 @@ class ChatlogsParserConfigWidget(QWidget):
         self.icons_path = icons_path
         self.account = account
         self.is_parsing = False
-        self.is_fetching = False
+        self.is_fetching_username = False
+        self.is_fetching_search = False
         self.original_usernames = []
         self.is_sync_mode = False
        
@@ -220,65 +221,66 @@ class ChatlogsParserConfigWidget(QWidget):
         self.date_container.setLayout(self.date_layout)
         layout.addWidget(self.date_container)
        
-        # Username input with fetch history button
+        # Username input with fetch history button (label changes in Personal Mentions mode)
         username_container = QWidget()
         username_layout, self.username_input = self._create_input_row(
             "Usernames:",
             "comma-separated (leave empty for all users)"
         )
+        
+        # Get reference to the label that was created
+        self.username_label = username_layout.itemAt(0).widget()
        
         # Connect to enable/disable fetch button based on input
         self.username_input.textChanged.connect(self._update_fetch_button_state)
+        self.username_input.textChanged.connect(self._update_mention_label)
        
         # Fetch history button
         self.fetch_history_button = create_icon_button(
             self.icons_path, "user-received.svg", "Fetch username history",
             size_type="large", config=self.config
         )
-        self.fetch_history_button.clicked.connect(self._on_fetch_history_clicked)
-        self.fetch_history_button.setEnabled(False) # Initially disabled
+        self.fetch_history_button.clicked.connect(lambda: self._fetch_username_history(self.username_input))
+        self.fetch_history_button.setEnabled(False)
         username_layout.addWidget(self.fetch_history_button)
        
         username_container.setLayout(username_layout)
         self.username_container_widget = username_container
         layout.addWidget(username_container)
        
-        # Search terms input
+        # Search terms input (label changes in Personal Mentions mode)
         search_container = QWidget()
         search_layout, self.search_input = self._create_input_row(
             "Search:",
             "comma-separated search terms (leave empty for all messages)"
         )
+        
+        # Get reference to the label that was created
+        self.search_label = search_layout.itemAt(0).widget()
+        
+        # Connect to update mention label and fetch button state
+        self.search_input.textChanged.connect(self._update_mention_label)
+        self.search_input.textChanged.connect(self._update_fetch_button_state)
+        
+        # Fetch history button for search/mentions field
+        self.search_fetch_history_button = create_icon_button(
+            self.icons_path, "user-received.svg", "Fetch username history",
+            size_type="large", config=self.config
+        )
+        self.search_fetch_history_button.clicked.connect(lambda: self._fetch_username_history(self.search_input))
+        self.search_fetch_history_button.setEnabled(False)
+        search_layout.addWidget(self.search_fetch_history_button)
+        
         search_container.setLayout(search_layout)
         self.search_container_widget = search_container
         layout.addWidget(search_container)
        
-        # Mention keywords (only for personal mentions mode)
-        self.mention_container = QWidget()
-        mention_main_layout = QVBoxLayout()
-        mention_main_layout.setContentsMargins(0, 0, 0, 0)
-        mention_main_layout.setSpacing(self.spacing)
-       
-        # Mention label (dynamic)
-        self.mention_label = QLabel()
-        self.mention_label.setWordWrap(True)
-        self.mention_label.setStyleSheet("color: #888; padding: 4px;")
-        mention_main_layout.addWidget(self.mention_label)
-       
-        # Mention input
-        mention_layout, self.mention_input = self._create_input_row(
-            "Additional:",
-            "other usernames or keywords (comma-separated)"
-        )
-        self.mention_input.textChanged.connect(self._update_mention_label)
-       
-        mention_input_container = QWidget()
-        mention_input_container.setLayout(mention_layout)
-        mention_main_layout.addWidget(mention_input_container)
-       
-        self.mention_container.setLayout(mention_main_layout)
-        self.mention_container.setVisible(False)
-        layout.addWidget(self.mention_container)
+        # Mention label (only for personal mentions mode)
+        self.mention_label_widget = QLabel()
+        self.mention_label_widget.setWordWrap(True)
+        self.mention_label_widget.setStyleSheet("color: #888; padding: 4px;")
+        self.mention_label_widget.setVisible(False)
+        layout.addWidget(self.mention_label_widget)
        
         # Progress bar
         self.progress_bar = QProgressBar()
@@ -327,42 +329,52 @@ class ChatlogsParserConfigWidget(QWidget):
        
         # Initialize with first mode
         self._on_mode_changed(0)
-        self._update_mention_label()
    
     def _update_fetch_button_state(self):
-        """Enable/disable fetch button based on username input"""
-        has_text = bool(self.username_input.text().strip())
-        self.fetch_history_button.setEnabled(has_text and not self.is_fetching)
+        """Enable/disable both fetch buttons based on inputs"""
+        has_username = bool(self.username_input.text().strip())
+        has_search = bool(self.search_input.text().strip())
+        self.fetch_history_button.setEnabled(has_username and not self.is_fetching_username)
+        self.search_fetch_history_button.setEnabled(has_search and not self.is_fetching_search)
    
-    def _set_fetch_button_loading(self, is_loading: bool):
-        """Change fetch button icon to loader or back to normal"""
+    def _set_username_fetch_loading(self, is_loading: bool):
+        """Change username fetch button icon to loader or back to normal"""
         icon_name = "loader.svg" if is_loading else "user-received.svg"
         tooltip = "Fetching..." if is_loading else "Fetch username history"
-       
         icon_size = self.fetch_history_button._icon_size
-        self.fetch_history_button.setIcon(
-            _render_svg_icon(self.icons_path / icon_name, icon_size)
-        )
+        self.fetch_history_button.setIcon(_render_svg_icon(self.icons_path / icon_name, icon_size))
         self.fetch_history_button.setToolTip(tooltip)
-        self.fetch_history_button._icon_name = icon_name
    
-    def _on_fetch_history_clicked(self):
-        """Fetch username history for usernames in the field"""
-        username_text = self.username_input.text().strip()
-        if not username_text:
+    def _set_search_fetch_loading(self, is_loading: bool):
+        """Change search fetch button icon to loader or back to normal"""
+        icon_name = "loader.svg" if is_loading else "user-received.svg"
+        tooltip = "Fetching..." if is_loading else "Fetch username history"
+        icon_size = self.search_fetch_history_button._icon_size
+        self.search_fetch_history_button.setIcon(_render_svg_icon(self.icons_path / icon_name, icon_size))
+        self.search_fetch_history_button.setToolTip(tooltip)
+   
+    def _fetch_username_history(self, input_field: QLineEdit):
+        """Generic fetch username history for any input field"""
+        text = input_field.text().strip()
+        if not text:
             return
        
-        usernames = [u.strip() for u in username_text.split(',') if u.strip()]
+        usernames = [u.strip() for u in text.split(',') if u.strip()]
         if not usernames:
             return
 
         # Store original usernames before expansion
         self.original_usernames = usernames.copy()
        
-        # Set loading state
-        self.is_fetching = True
-        self._set_fetch_button_loading(True)
-        self.fetch_history_button.setEnabled(False)
+        # Set loading state for specific field
+        if input_field == self.username_input:
+            self.is_fetching_username = True
+            self._set_username_fetch_loading(True)
+        elif input_field == self.search_input:
+            self.is_fetching_search = True
+            self._set_search_fetch_loading(True)
+       
+        self._update_fetch_button_state()
        
         def _fetch():
             expanded = set()
@@ -392,27 +404,32 @@ class ChatlogsParserConfigWidget(QWidget):
                 expanded_list = sorted(expanded)
                
                 # Update UI on main thread - using partial to avoid closure issues
-                QTimer.singleShot(0, partial(self._on_fetch_complete, expanded_list, not_found))
+                QTimer.singleShot(0, partial(self._on_fetch_complete, input_field, expanded_list, not_found))
            
             except Exception as e:
                 error_msg = str(e)
-                QTimer.singleShot(0, partial(self._on_fetch_error, error_msg))
+                QTimer.singleShot(0, partial(self._on_fetch_error, input_field, error_msg))
        
         threading.Thread(target=_fetch, daemon=True).start()
    
-    def _on_fetch_complete(self, usernames: list, not_found: list):
+    def _on_fetch_complete(self, input_field: QLineEdit, usernames: list, not_found: list):
         """Handle fetch completion"""
         # Reset loading state
-        self.is_fetching = False
-        self._set_fetch_button_loading(False)
+        if input_field == self.username_input:
+            self.is_fetching_username = False
+            self._set_username_fetch_loading(False)
+        elif input_field == self.search_input:
+            self.is_fetching_search = False
+            self._set_search_fetch_loading(False)
+       
         self._update_fetch_button_state()
        
         # Always update username field with valid usernames (even if empty)
         if usernames:
-            self.username_input.setText(', '.join(usernames))
+            input_field.setText(', '.join(usernames))
         else:
             # All users not found - clear the field
-            self.username_input.clear()
+            input_field.clear()
        
         # Show errors if any users weren't found
         if not_found:
@@ -436,42 +453,68 @@ class ChatlogsParserConfigWidget(QWidget):
                 "None of the entered usernames were found."
             )
    
-    def _on_fetch_error(self, error: str):
+    def _on_fetch_error(self, input_field: QLineEdit, error: str):
         """Handle fetch error"""
         # Reset loading state
-        self.is_fetching = False
-        self._set_fetch_button_loading(False)
+        if input_field == self.username_input:
+            self.is_fetching_username = False
+            self._set_username_fetch_loading(False)
+        elif input_field == self.search_input:
+            self.is_fetching_search = False
+            self._set_search_fetch_loading(False)
+       
         self._update_fetch_button_state()
        
         QMessageBox.critical(self, "Error", f"Failed to fetch username history:\n{error}")
    
+    def _get_current_username(self):
+        """Get current username from account - try chat_username first, fall back to login"""
+        if not self.account:
+            return None
+        return self.account.get('chat_username') or self.account.get('login')
+   
     def _update_mention_label(self):
-        """Update the mention label based on current username and input"""
-        if not self.mention_container.isVisible():
+        """Update the mention label based on current mode and inputs"""
+        mode = self.mode_combo.currentText()
+        
+        if mode != "Personal Mentions":
+            self.mention_label_widget.setVisible(False)
             return
+        
+        self.mention_label_widget.setVisible(True)
        
         # Get current username
-        current_username = self.account.get('login') if self.account else None
+        current_username = self._get_current_username()
        
-        # Get additional keywords from input
-        additional_text = self.mention_input.text().strip()
-        additional = [k.strip() for k in additional_text.split(',') if k.strip()] if additional_text else []
+        # Get search terms (mentions to search for)
+        search_text = self.search_input.text().strip()
+        search_terms = [k.strip() for k in search_text.split(',') if k.strip()] if search_text else []
        
-        # Remove duplicates of current username
+        # Add current username if available and not already in list
+        all_mentions = []
         if current_username:
-            additional = [k for k in additional if k.lower() != current_username.lower()]
+            all_mentions.append(current_username)
+        for term in search_terms:
+            if not current_username or term.lower() != current_username.lower():
+                all_mentions.append(term)
+       
+        # Get username filter (which users' messages to search in)
+        username_text = self.username_input.text().strip()
+        username_filter = [u.strip() for u in username_text.split(',') if u.strip()] if username_text else []
        
         # Build label text
-        if current_username and additional:
-            keywords = f"{current_username}, {', '.join(additional)}"
-            self.mention_label.setText(f"🔍 Searching mentions by: {keywords}")
-        elif current_username:
-            self.mention_label.setText(f"🔍 Searching mentions by: {current_username}")
-        elif additional:
-            keywords = ', '.join(additional)
-            self.mention_label.setText(f"🔍 Searching mentions by: {keywords}")
+        if all_mentions and username_filter:
+            mentions_str = ', '.join(all_mentions)
+            users_str = ', '.join(username_filter)
+            self.mention_label_widget.setText(f"🔍 Searching mentions of: {mentions_str} in messages from: {users_str}")
+        elif all_mentions:
+            mentions_str = ', '.join(all_mentions)
+            self.mention_label_widget.setText(f"🔍 Searching mentions of: {mentions_str} in messages from: all users")
+        elif username_filter:
+            users_str = ', '.join(username_filter)
+            self.mention_label_widget.setText(f"⚠️ No mentions specified. Please add keywords in the Mentions field.")
         else:
-            self.mention_label.setText("⚠️ No username set. Please log in or add keywords.")
+            self.mention_label_widget.setText("⚠️ No mentions specified. Please log in or add keywords in the Mentions field.")
    
     def _on_mode_changed(self, index: int):
         """Update UI based on selected mode"""
@@ -483,12 +526,29 @@ class ChatlogsParserConfigWidget(QWidget):
        
         mode = self.mode_combo.currentText()
         self.is_sync_mode = (mode == "Sync Database")
-       
-        # Show/hide mention keywords based on mode
         is_mention_mode = (mode == "Personal Mentions")
-        self.mention_container.setVisible(is_mention_mode)
+       
+        # Update field labels based on mode
         if is_mention_mode:
-            self._update_mention_label()
+            self.username_label.setText("From Users:")
+            self.username_input.setPlaceholderText("comma-separated (leave empty for all users)")
+            self.search_label.setText("Mentions:")
+            self.search_input.setPlaceholderText("keywords or usernames to search for (comma-separated)")
+            
+            # Prefill current username in Mentions field
+            current_username = self._get_current_username()
+            if current_username:
+                current_search = self.search_input.text().strip()
+                if not current_search:
+                    self.search_input.setText(current_username)
+        else:
+            self.username_label.setText("Usernames:")
+            self.username_input.setPlaceholderText("comma-separated (leave empty for all users)")
+            self.search_label.setText("Search:")
+            self.search_input.setPlaceholderText("comma-separated search terms (leave empty for all messages)")
+        
+        # Update mention label
+        self._update_mention_label()
         
         # Hide username and search inputs for sync mode
         self.username_container_widget.setVisible(not self.is_sync_mode)
@@ -810,21 +870,31 @@ class ChatlogsParserConfigWidget(QWidget):
         # Get usernames and search terms (skip for sync mode)
         usernames = [] if mode == "Sync Database" else self._get_usernames()
         search_terms = [] if mode == "Sync Database" else self._get_search_terms()
-        
-        # Get mention keywords (for personal mentions mode)
         mention_keywords = []
+                
+        # Override for Personal Mentions mode
         if mode == "Personal Mentions":
-            # Always add current username if available
-            if self.account and self.account.get('login'):
-                mention_keywords.append(self.account.get('login'))
+            # For Personal Mentions mode:
+            # - usernames = filter which users' messages to search in
+            # - mention_keywords = what to search for in those messages (usernames OR any keywords)
+            usernames = self._get_usernames()
             
-            # Add additional keywords from input (excluding duplicates)
-            mention_text = self.mention_input.text().strip()
-            if mention_text:
-                additional = [kw.strip() for kw in mention_text.split(',') if kw.strip()]
+            # Build mention keywords from current username + search field
+            mention_keywords = []
+            current_username = self._get_current_username()
+            if current_username:
+                mention_keywords.append(current_username)
+            
+            # Add search terms (excluding duplicates)
+            # These can be usernames OR any keywords the user wants to search for
+            search_text = self.search_input.text().strip()
+            if search_text:
+                additional = [kw.strip() for kw in search_text.split(',') if kw.strip()]
                 for kw in additional:
-                    if kw.lower() not in [k.lower() for k in mention_keywords]:
+                    if not current_username or kw.lower() != current_username.lower():
                         mention_keywords.append(kw)
+            
+            search_terms = [] # In Personal Mentions mode, search_terms are moved to mention_keywords
         
         # Build config
         config = ParseConfig(
