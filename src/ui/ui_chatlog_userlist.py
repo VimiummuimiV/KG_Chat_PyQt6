@@ -6,7 +6,7 @@ from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QFont, QCursor
 
 from helpers.create import create_icon_button
-from helpers.fonts import get_font, FontType
+from helpers.fonts import get_font, FontType, get_userlist_width
 
 
 class ChatlogUserWidget(QWidget):
@@ -83,8 +83,7 @@ class ChatlogUserlistWidget(QWidget):
         layout.setContentsMargins(margin, margin, margin, margin)
         layout.setSpacing(spacing)
         self.setLayout(layout)
-        self.setMinimumWidth(350)
-        self.setMaximumWidth(400)
+        self.setMaximumWidth(get_userlist_width())
         
         # Clear filter button (initially hidden)
         button_layout = QHBoxLayout()
@@ -117,6 +116,10 @@ class ChatlogUserlistWidget(QWidget):
         scroll.setWidget(container)
         
         self.user_layout.addStretch()
+    
+    def update_width(self):
+        """Update userlist width based on current font size"""
+        self.setMaximumWidth(get_userlist_width())
     
     def set_show_banned(self, show: bool):
         """Control whether banned users are shown (for parse mode)"""

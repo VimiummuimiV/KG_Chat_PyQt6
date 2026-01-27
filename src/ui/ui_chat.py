@@ -1055,12 +1055,14 @@ class ChatWindow(QWidget):
         if self.user_list_widget:
             for user_widget in self.user_list_widget.user_widgets.values():
                 user_widget.username_label.setFont(new_font)
+            self.user_list_widget.update_width()
             self.user_list_widget.update()
         
         if self.chatlog_userlist_widget:
             for user_widget in self.chatlog_userlist_widget.user_widgets.values():
                 user_widget.username_label.setFont(new_font)
                 user_widget.count_label.setFont(new_font)
+            self.chatlog_userlist_widget.update_width()
             self.chatlog_userlist_widget.update()
         
         # Update profile widget

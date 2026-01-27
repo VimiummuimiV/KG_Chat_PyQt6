@@ -223,3 +223,19 @@ def set_application_font(app: QApplication):
 def set_font_scaler(font_scaler):
     """Set the font scaler for dynamic sizing"""
     _font_manager.set_font_scaler(font_scaler)
+
+
+def get_userlist_width() -> int:
+    """Calculate appropriate userlist width based on current text font size"""
+    text_font = get_font(FontType.TEXT)
+    base_size = 16  # Reference font size
+    base_width = 380  # Reference width at base size
+    
+    current_size = text_font.pointSize()
+    # Scale width proportionally: width = base_width * (current_size / base_size)
+    scaled_width = int(base_width * (current_size / base_size))
+    
+    # Clamp between reasonable bounds
+    min_width = 200 
+    max_width = 600 
+    return max(min_width, min(max_width, scaled_width))
