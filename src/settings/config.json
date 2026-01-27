@@ -22,7 +22,7 @@
   "ui": {
     "ui_font_size": 12,
     "text_font_size": 17,
-    "header_font_size": 19,
+    "header_font_size": 18,
     "text_font_family": "Roboto",
     "emoji_font_family": "Noto Color Emoji",
     "messages_userlist_visible": true,

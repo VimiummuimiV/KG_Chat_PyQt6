@@ -30,7 +30,12 @@ class FontManager:
         self.config_path = Path(__file__).parent.parent / "settings" / "config.json"
         self.config = None
         self.loaded = False
+        self.font_scaler = None
         self._initialized = True
+    
+    def set_font_scaler(self, font_scaler):
+        """Set the font scaler instance for dynamic sizing"""
+        self.font_scaler = font_scaler
     
     def _load_config(self):
         """Load config if not already loaded"""
@@ -143,8 +148,13 @@ class FontManager:
             if font_type == FontType.UI:
                 size = self.config.get("ui", "ui_font_size") or 12
             elif font_type == FontType.TEXT:
-                size = self.config.get("ui", "text_font_size") or 16
+                # Use font scaler if available, otherwise fall back to config
+                if self.font_scaler:
+                    size = self.font_scaler.get_text_size()
+                else:
+                    size = self.config.get("ui", "text_font_size") or 16
             elif font_type == FontType.HEADER:
+                # Header uses config value (not affected by scaler)
                 size = self.config.get("ui", "header_font_size") or 18
                 if weight == QFont.Weight.Normal:
                     weight = QFont.Weight.Bold
@@ -197,7 +207,7 @@ def get_font(font_type: FontType = FontType.TEXT,
     
     Examples:
         get_font(FontType.UI)  # 12pt UI font
-        get_font(FontType.TEXT)  # 16pt text font
+        get_font(FontType.TEXT)  # 16pt text font (or current scaled size)
         get_font(FontType.HEADER)  # 18pt bold header
         get_font(FontType.TEXT, size=14)  # 14pt text font
         get_font(FontType.TEXT, weight=QFont.Weight.Bold)  # Bold text
@@ -208,3 +218,8 @@ def get_font(font_type: FontType = FontType.TEXT,
 def set_application_font(app: QApplication):
     """Set application-wide font"""
     _font_manager.set_application_font(app)
+
+
+def set_font_scaler(font_scaler):
+    """Set the font scaler for dynamic sizing"""
+    _font_manager.set_font_scaler(font_scaler)

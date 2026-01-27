@@ -1031,6 +1031,56 @@ class ChatWindow(QWidget):
         users = self.xmpp_client.user_list.get_online()
         self.user_list_widget.add_users(users=users, bulk=True)
 
+    def on_font_size_changed(self):
+        """Handle font size changes from font scaler - refresh all text"""
+        # Debounce: prevent multiple rapid calls
+        if hasattr(self, '_font_size_timer') and self._font_size_timer.isActive():
+            return
+        
+        new_font = get_font(FontType.TEXT)
+        
+        # Update message delegates
+        for widget in [self.messages_widget, self.chatlog_widget]:
+            if widget:
+                widget.delegate.body_font = new_font
+                widget.delegate.timestamp_font = new_font
+                widget._force_recalculate()
+        
+        # Update userlist widgets
+        if self.user_list_widget:
+            for user_widget in self.user_list_widget.user_widgets.values():
+                user_widget.username_label.setFont(new_font)
+            self.user_list_widget.update()
+        
+        if self.chatlog_userlist_widget:
+            for user_widget in self.chatlog_userlist_widget.user_widgets.values():
+                user_widget.username_label.setFont(new_font)
+                user_widget.count_label.setFont(new_font)
+            self.chatlog_userlist_widget.update()
+        
+        # Update profile widget
+        if hasattr(self, 'profile_widget') and self.profile_widget:
+            self.profile_widget.update()
+        
+        # Update pronunciation widget inputs
+        if hasattr(self, 'pronunciation_widget') and self.pronunciation_widget:
+            for item in self.pronunciation_widget.items:
+                item.original_input.setFont(new_font)
+                item.pronunciation_input.setFont(new_font)
+            self.pronunciation_widget.update()
+        
+        # Update ban list widget inputs
+        if hasattr(self, 'ban_list_widget') and self.ban_list_widget:
+            for item in self.ban_list_widget.items:
+                item.username_input.setFont(new_font)
+                item.user_id_input.setFont(new_font)
+            self.ban_list_widget.update()
+        
+        # Debounce timer
+        self._font_size_timer = QTimer(self)
+        self._font_size_timer.setSingleShot(True)
+        self._font_size_timer.start(100)
+
     def send_message(self):
         text = self.input_field.text().strip()
         if not text or not self.xmpp_client:

@@ -17,7 +17,7 @@ else:
 
 from ui.ui_accounts import AccountWindow
 from ui.ui_chat import ChatWindow
-from helpers.fonts import load_fonts, set_application_font
+from helpers.fonts import load_fonts, set_application_font, set_font_scaler
 from helpers.config import Config
 from helpers.username_color_manager import(
     change_username_color,
@@ -26,6 +26,7 @@ from helpers.username_color_manager import(
 )
 from helpers.pronunciation_manager import PronunciationManager
 from helpers.ban_manager import BanManager
+from helpers.font_scaler import FontScaler, install_font_scaler
 from core.accounts import AccountManager
 from components.tray_badge import TrayIconWithBadge
 from components.notification import popup_manager
@@ -64,6 +65,10 @@ class Application:
         self.config_path = self.settings_path / "config.json"
         self.account_manager = AccountManager(str(self.config_path))
         self.config = Config(str(self.config_path))
+        
+        # Initialize font scaler
+        self.font_scaler = FontScaler(self.config)
+        set_font_scaler(self.font_scaler)
         
         # Initialize pronunciation manager
         self.pronunciation_manager = PronunciationManager(self.settings_path)
@@ -418,6 +423,12 @@ class Application:
             ban_manager=self.ban_manager
         )
         self.chat_window.set_tray_mode(True)
+        
+        # Install font scaler on chat window
+        install_font_scaler(self.chat_window, self.font_scaler)
+        
+        # Connect font size changes to refresh UI
+        self.font_scaler.font_size_changed.connect(self.chat_window.on_font_size_changed)
         
         # Initialize popup_manager mode and muted state from config
         notification_mode = self.config.get("notification", "mode")
