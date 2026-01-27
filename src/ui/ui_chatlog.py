@@ -13,7 +13,8 @@ from pathlib import Path
 from core.chatlogs import ChatlogsParser, ChatlogNotFoundError
 from core.chatlogs_db import ChatMessage
 from core.chatlogs_parser import ParseConfig, ChatlogsParserEngine
-from helpers.create import create_icon_button
+from helpers.mention_parser import parse_mentions
+from helpers.create import create_icon_button, _render_svg_icon
 from helpers.emoticons import EmoticonManager
 from helpers.scroll import scroll
 from helpers.data import get_data_dir
@@ -51,6 +52,7 @@ class ChatlogWidget(QWidget):
         self.color_cache = {}
         self.filtered_usernames = set()
         self.search_text = ""
+        self.filter_mentions = False 
         self.all_messages = []
         self.last_parsed_date = None
         self.temp_parsed_messages = [] # Temp storage during parsing
@@ -162,6 +164,11 @@ class ChatlogWidget(QWidget):
                                                    size_type="large", config=self.config)
         self.search_toggle_btn.clicked.connect(self._toggle_search)
         self.nav_buttons_layout.addWidget(self.search_toggle_btn)
+
+        self.mention_filter_btn = create_icon_button(self.icons_path, "at-line.svg", "Filter mentions",
+                                                    size_type="large", config=self.config)
+        self.mention_filter_btn.clicked.connect(self._toggle_mention_filter)
+        self.nav_buttons_layout.addWidget(self.mention_filter_btn)
 
         self.parse_btn = create_icon_button(self.icons_path, "play.svg", "Parse all chatlogs",
                                            size_type="large", config=self.config)
@@ -519,6 +526,19 @@ class ChatlogWidget(QWidget):
         else:
             self.search_field.clear()
 
+    def _toggle_mention_filter(self):
+        """Toggle mention filter on/off"""
+        self.filter_mentions = not self.filter_mentions
+        
+        # Update icon based on state
+        icon_name = "at-fill.svg" if self.filter_mentions else "at-line.svg"
+        self.mention_filter_btn._icon_name = icon_name  # Update the attribute for theme consistency
+        icon = _render_svg_icon(self.mention_filter_btn._icon_path / icon_name, self.mention_filter_btn._icon_size)
+        self.mention_filter_btn.setIcon(icon)
+        
+        # Reapply filter to show/hide messages
+        self._apply_filter()
+
     def _on_search_changed(self, text: str):
         self.search_text = text.strip()
         self._apply_filter()
@@ -632,22 +652,32 @@ class ChatlogWidget(QWidget):
     def _apply_filter(self):
         # Batch operations for better performance
         self.list_view.setUpdatesEnabled(False)
-      
+        
         self.model.clear()
-    
+
         if not self.all_messages:
             self.list_view.setUpdatesEnabled(True)
             return
-    
+
         search_users, search_message, is_prefix_mode = self._parse_search_text()
         messages_to_show = self.all_messages
-    
+        
+        # APPLY MENTION FILTER FIRST
+        if self.filter_mentions and self.account and self.account.get('chat_username'):
+            my_username = self.account.get('chat_username')
+            messages_to_show = [
+                msg for msg in messages_to_show
+                if not msg.is_separator and any(
+                    is_mention for is_mention, _ in parse_mentions(msg.body, my_username)
+                )
+            ]
+
         if is_prefix_mode:
             if search_users:
                 search_users_lower = {u.lower() for u in search_users}
                 messages_to_show = [msg for msg in messages_to_show
                                 if msg.username.lower() in search_users_lower]
-        
+            
             if search_message:
                 messages_to_show = [msg for msg in messages_to_show
                                 if search_message in msg.body.lower()]
@@ -655,23 +685,28 @@ class ChatlogWidget(QWidget):
             if self.filtered_usernames:
                 messages_to_show = [msg for msg in messages_to_show
                                 if msg.username in self.filtered_usernames]
-        
+            
             if self.search_text:
                 search_lower = self.search_text.lower()
                 messages_to_show = [msg for msg in messages_to_show
                                 if search_lower in msg.username.lower() or
                                     search_lower in msg.body.lower()]
-    
+
         # Batch add all filtered messages
         for msg in messages_to_show:
             self.model.add_message(msg)
-    
+
         self.list_view.setUpdatesEnabled(True)
-      
+        
         total = len(self.all_messages)
         shown = len(messages_to_show)
-    
+
         filters = []
+        
+        # ADD MENTION FILTER TO INFO DISPLAY:
+        if self.filter_mentions:
+            filters.append("mentions only")
+        
         if is_prefix_mode:
             if search_users:
                 filters.append(f"users: {', '.join(sorted(search_users))}")
@@ -682,7 +717,7 @@ class ChatlogWidget(QWidget):
                 filters.append(f"users: {', '.join(sorted(self.filtered_usernames))}")
             if self.search_text:
                 filters.append(f"search: '{self.search_text}'")
-    
+
         if filters:
             filter_text = " | ".join(filters)
             self.info_label.setText(f"Showing {shown}/{total} messages ({filter_text})")
@@ -696,7 +731,7 @@ class ChatlogWidget(QWidget):
                     self.info_label.setText(f"Loaded {total} messages · {size_text}{cache_marker}")
             else:
                 self.info_label.setText(f"Loaded {total} messages")
-    
+
         QTimer.singleShot(0, lambda: scroll(self.list_view, mode="bottom", delay=100))
 
     def load_current_date(self):
