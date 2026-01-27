@@ -43,7 +43,7 @@ class StatCard(QFrame):
         
         self.setFrameShape(QFrame.Shape.StyledPanel)
         self.setMinimumWidth(200)
-        self.setMaximumWidth(300)
+        self.setMaximumWidth(320)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         
         self._update_card_style()

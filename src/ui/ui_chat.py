@@ -1072,6 +1072,11 @@ class ChatWindow(QWidget):
         
         # Update profile widget
         if hasattr(self, 'profile_widget') and self.profile_widget:
+            self.profile_widget.username_history_label.setFont(new_font)
+            for card in self.profile_widget.card_widgets:
+                card.icon_label.setFont(new_font)
+                card.label_widget.setFont(new_font)
+                card.value_label.setFont(new_font)
             self.profile_widget.update()
         
         # Update pronunciation widget inputs
