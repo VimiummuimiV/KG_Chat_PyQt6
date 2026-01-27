@@ -824,7 +824,7 @@ class ChatlogWidget(QWidget):
                 info_text = f"Loaded {len(messages)} messages · {size_text}{cache_marker}"
             
             if filtered_ban_count > 0:
-                info_text += f" · {filtered_ban_count} banned users hidden"
+                info_text += f" · {filtered_ban_count} banned messages hidden"
             
             if not (self.filtered_usernames or self.search_text):
                 self.info_label.setText(info_text)
