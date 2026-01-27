@@ -153,7 +153,7 @@ class UserListWidget(QWidget):
         layout.setContentsMargins(widget_margin, widget_margin, widget_margin, widget_margin)
         layout.setSpacing(widget_spacing)
         self.setLayout(layout)
-        self.setMaximumWidth(get_userlist_width())
+        self.setFixedWidth(get_userlist_width())
         
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
@@ -200,7 +200,7 @@ class UserListWidget(QWidget):
     
     def update_width(self):
         """Update userlist width based on current font size"""
-        self.setMaximumWidth(get_userlist_width())
+        self.setFixedWidth(get_userlist_width())
     
     def _update_section_visibility(self):
         """Update visibility of section headers"""

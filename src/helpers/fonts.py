@@ -237,5 +237,5 @@ def get_userlist_width() -> int:
     
     # Clamp between reasonable bounds
     min_width = 200 
-    max_width = 600 
+    max_width = 500 
     return max(min_width, min(max_width, scaled_width))

@@ -83,7 +83,7 @@ class ChatlogUserlistWidget(QWidget):
         layout.setContentsMargins(margin, margin, margin, margin)
         layout.setSpacing(spacing)
         self.setLayout(layout)
-        self.setMaximumWidth(get_userlist_width())
+        self.setFixedWidth(get_userlist_width())
         
         # Clear filter button (initially hidden)
         button_layout = QHBoxLayout()
@@ -119,7 +119,7 @@ class ChatlogUserlistWidget(QWidget):
     
     def update_width(self):
         """Update userlist width based on current font size"""
-        self.setMaximumWidth(get_userlist_width())
+        self.setFixedWidth(get_userlist_width())
     
     def set_show_banned(self, show: bool):
         """Control whether banned users are shown (for parse mode)"""
