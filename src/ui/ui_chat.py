@@ -1081,9 +1081,17 @@ class ChatWindow(QWidget):
                 item.user_id_input.setFont(new_font)
             self.ban_list_widget.update()
         
-        # Update window title with font size
-        base_title = f"KG Chat - {self.account['chat_username']}"
-        self.setWindowTitle(f"{base_title} - {font_size}")
+        # Show font size in title, restore after 1500ms of no changes
+        if not hasattr(self, '_base_title'):
+            self._base_title = self.windowTitle()
+        self.setWindowTitle(f"{self._base_title} - {font_size}")
+        if hasattr(self, '_title_restore_timer'):
+            self._title_restore_timer.stop()
+        else:
+            self._title_restore_timer = QTimer(self)
+            self._title_restore_timer.setSingleShot(True)
+            self._title_restore_timer.timeout.connect(lambda: self.setWindowTitle(self._base_title))
+        self._title_restore_timer.start(1500)
         
         # Debounce timer
         self._font_size_timer = QTimer(self)
