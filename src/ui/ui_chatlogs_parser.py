@@ -536,16 +536,21 @@ class ChatlogsParserConfigWidget(QWidget):
             self.search_input.setPlaceholderText("keywords or usernames to search for (comma-separated)")
             
             # Prefill current username in Mentions field
-            current_username = self._get_current_username()
-            if current_username:
-                current_search = self.search_input.text().strip()
-                if not current_search:
+            if not self.search_input.text().strip():
+                current_username = self._get_current_username()
+                if current_username:
                     self.search_input.setText(current_username)
         else:
             self.username_label.setText("Usernames:")
             self.username_input.setPlaceholderText("comma-separated (leave empty for all users)")
             self.search_label.setText("Search:")
             self.search_input.setPlaceholderText("comma-separated search terms (leave empty for all messages)")
+            
+            # Clear search input when switching away from Personal Mentions
+            if hasattr(self, '_previous_mode') and self._previous_mode == "Personal Mentions":
+                self.search_input.clear()
+        
+        self._previous_mode = mode
         
         # Update mention label
         self._update_mention_label()
@@ -871,7 +876,7 @@ class ChatlogsParserConfigWidget(QWidget):
         usernames = [] if mode == "Sync Database" else self._get_usernames()
         search_terms = [] if mode == "Sync Database" else self._get_search_terms()
         mention_keywords = []
-                
+        
         # Override for Personal Mentions mode
         if mode == "Personal Mentions":
             # For Personal Mentions mode:
