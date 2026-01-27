@@ -1038,6 +1038,7 @@ class ChatWindow(QWidget):
             return
         
         new_font = get_font(FontType.TEXT)
+        font_size = new_font.pointSize()
         
         # Update message delegates
         for widget in [self.messages_widget, self.chatlog_widget]:
@@ -1045,6 +1046,10 @@ class ChatWindow(QWidget):
                 widget.delegate.body_font = new_font
                 widget.delegate.timestamp_font = new_font
                 widget._force_recalculate()
+        
+        # Update message input field
+        if self.input_field:
+            self.input_field.setFont(new_font)
         
         # Update userlist widgets
         if self.user_list_widget:
@@ -1075,6 +1080,10 @@ class ChatWindow(QWidget):
                 item.username_input.setFont(new_font)
                 item.user_id_input.setFont(new_font)
             self.ban_list_widget.update()
+        
+        # Update window title with font size
+        base_title = f"KG Chat - {self.account['chat_username']}"
+        self.setWindowTitle(f"{base_title} - {font_size}")
         
         # Debounce timer
         self._font_size_timer = QTimer(self)
