@@ -1053,6 +1053,11 @@ class ChatWindow(QWidget):
         
         # Update userlist widgets
         if self.user_list_widget:
+            # Update section labels font size
+            self.user_list_widget.chat_label.setFont(new_font)
+            self.user_list_widget.game_label.setFont(new_font)
+            
+            # Update user widgets
             for user_widget in self.user_list_widget.user_widgets.values():
                 user_widget.username_label.setFont(new_font)
             self.user_list_widget.update_width()
