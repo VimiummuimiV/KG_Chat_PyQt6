@@ -89,64 +89,31 @@ class PopupNotification(QWidget):
         # Main layout
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(margin, margin, margin, margin)
-        main_layout.setSpacing(spacing)
+        main_layout.setSpacing(0)  # No spacing between rows
       
-        # Top row: message + buttons
+        # TOP ROW: Username (left) + Buttons (right)
         top_row = QHBoxLayout()
-        top_row.setSpacing(spacing)
+        top_row.setSpacing(0)
+        top_row.setContentsMargins(0, 0, 0, 0)  # No margins
       
-        # Message container
-        message_layout = QVBoxLayout()
-        message_layout.setSpacing(spacing)
-      
-        # Username label
+        # Username label (left side)
         username_color = data.cache.get_or_calculate_color(data.title, None, bg_hex, 4.5) if data.cache else "#AAAAAA"
         self.username_label = QLabel(f"<b>{data.title}</b>")
         self.username_label.setStyleSheet(f"color: {username_color};")
         self.username_label.setFont(get_font(FontType.TEXT))
         self.username_label.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-
+        
         # ONLY add username label for non-system messages
         if not data.is_system:
-            message_layout.addWidget(self.username_label)
-      
-        # Get mention color
-        self.mention_color = get_mention_color(is_dark)
-
-        # Get my username for mention highlighting
-        my_username = data.account.get('chat_username') if data.account else None
-
-        # Only apply mention highlighting for normal messages (not system/private/ban)
-        if my_username and not data.is_system and not data.is_private and not data.is_ban:
-            segments = parse_mentions(data.message, my_username)
-            html_parts = []
-            for is_mention, segment_text in segments:
-                if is_mention:
-                    html_parts.append(f'<b><span style="color: {self.mention_color};">{segment_text}</span></b>')
-                else:
-                    html_parts.append(segment_text)
-            message_text = ''.join(html_parts)
+            top_row.addWidget(self.username_label, stretch=1)
         else:
-            message_text = data.message
-
-        # Create message label with HTML support for mentions
-        self.message_label = QLabel(message_text)
-        self.message_label.setWordWrap(True)
-        self.message_label.setFont(get_font(FontType.TEXT))
-        self.message_label.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-        self.message_label.setTextFormat(Qt.TextFormat.RichText) # Enable HTML formatting
-
-        if message_color:
-            self.message_label.setStyleSheet(f"color: {message_color};")
-        message_layout.addWidget(self.message_label)
+            top_row.addStretch(1)
       
-        top_row.addLayout(message_layout, stretch=1)
-      
-        # Buttons container
+        # Buttons container (right side)
         button_spacing = data.config.get("ui", "buttons", "spacing") if data.config else 8
         buttons_layout = QHBoxLayout()
         buttons_layout.setSpacing(button_spacing)
-        buttons_layout.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignRight)
+        buttons_layout.setContentsMargins(0, 0, 0, 0)
       
         # Answer button (small) - hide for ban messages and system messages
         if not data.is_ban and not data.is_system:
@@ -178,12 +145,46 @@ class PopupNotification(QWidget):
         top_row.addLayout(buttons_layout)
         main_layout.addLayout(top_row)
       
-        # Reply field container (hidden by default) - only for non-ban and non-system messages
+        # MIDDLE ROW: Message only (no margins, expands to fill space)
+        # Get mention color
+        self.mention_color = get_mention_color(is_dark)
+
+        # Get my username for mention highlighting
+        my_username = data.account.get('chat_username') if data.account else None
+
+        # Only apply mention highlighting for normal messages (not system/private/ban)
+        if my_username and not data.is_system and not data.is_private and not data.is_ban:
+            segments = parse_mentions(data.message, my_username)
+            html_parts = []
+            for is_mention, segment_text in segments:
+                if is_mention:
+                    html_parts.append(f'<b><span style="color: {self.mention_color};">{segment_text}</span></b>')
+                else:
+                    html_parts.append(segment_text)
+            message_text = ''.join(html_parts)
+        else:
+            message_text = data.message
+
+        # Create message label with HTML support for mentions
+        self.message_label = QLabel(message_text)
+        self.message_label.setWordWrap(True)
+        self.message_label.setFont(get_font(FontType.TEXT))
+        self.message_label.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.message_label.setTextFormat(Qt.TextFormat.RichText)
+        self.message_label.setContentsMargins(0, 0, 0, 0)
+
+        if message_color:
+            self.message_label.setStyleSheet(f"color: {message_color};")
+        
+        main_layout.addWidget(self.message_label, stretch=1)
+      
+        # BOTTOM ROW: Reply field + Send button (only for non-ban and non-system messages)
         if not data.is_ban and not data.is_system:
             self.reply_container = QWidget()
+            self.reply_container.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
             reply_layout = QHBoxLayout(self.reply_container)
-            reply_layout.setContentsMargins(0, 0, 0, 0)
-            reply_layout.setSpacing(button_spacing)
+            reply_layout.setContentsMargins(0, 0, 0, 0)  # No margins
+            reply_layout.setSpacing(button_spacing)  # Space between field and send button
           
             # Get button size for reply field height
             send_button_size = data.config.get("ui", "buttons", "large_button", "button_size") if data.config else 48
@@ -202,7 +203,7 @@ class PopupNotification(QWidget):
             reply_layout.addWidget(self.send_button)
           
             self.reply_container.setVisible(False)
-            main_layout.addWidget(self.reply_container)
+            main_layout.addWidget(self.reply_container, stretch=0)
         else:
             self.reply_container = None
             self.reply_field = None
