@@ -231,14 +231,19 @@ class ChatWindow(QWidget):
      
         # Create button panel (right side, vertical scrollable)
         # Add to content_wrapper so it's always on the right
-        self.button_panel = ButtonPanel(
-            self.config, 
-            self.icons_path, 
-            self.theme_manager
-        )
+        self.button_panel = ButtonPanel(self.config, self.icons_path, self.theme_manager)
         self.button_panel.toggle_userlist_requested.connect(self.toggle_user_list)
         self.button_panel.toggle_theme_requested.connect(self.toggle_theme)
+        self.button_panel.switch_account_requested.connect(self._on_switch_account)
         content_wrapper.addWidget(self.button_panel, stretch=0)
+     
+        # Initialize userlist button state
+        messages_userlist_visible = self.config.get("ui", "messages_userlist_visible")
+        if messages_userlist_visible is not None:
+            self.button_panel.set_button_state(self.button_panel.toggle_userlist_button, messages_userlist_visible)
+        else:
+            # Default to visible
+            self.button_panel.set_button_state(self.button_panel.toggle_userlist_button, True)
      
         # Emoticon selector widget (overlay - positioned absolutely)
         # Create AFTER userlist so positioning works correctly
@@ -568,6 +573,13 @@ class ChatWindow(QWidget):
         elif width <= 800:
             self.user_list_widget.setVisible(False)
 
+        # Sync button state for messages userlist
+        if hasattr(self, 'button_panel'):
+            self.button_panel.set_button_state(
+                self.button_panel.toggle_userlist_button,
+                self.user_list_widget.isVisible()
+            )
+
         QTimer.singleShot(50, lambda: scroll(self.messages_widget.scroll_area, mode="bottom"))
 
         # If parsing ongoing, show status widget
@@ -618,6 +630,13 @@ class ChatWindow(QWidget):
             self.chatlog_userlist_widget.setVisible(True)
         else:
             self.chatlog_userlist_widget.setVisible(False)
+
+        # Sync button state for chatlog userlist
+        if hasattr(self, 'button_panel'):
+            self.button_panel.set_button_state(
+                self.button_panel.toggle_userlist_button,
+                self.chatlog_userlist_widget.isVisible()
+            )
        
         # Sync userlist ban visibility with chatlog parse mode
         if self.chatlog_widget and self.chatlog_userlist_widget:
@@ -1214,11 +1233,20 @@ class ChatWindow(QWidget):
             self.config.set("ui", "messages_userlist_visible", value=visible)
             self.auto_hide_messages_userlist = False
     
+        # Update button visual state
+        if hasattr(self, 'button_panel'):
+            self.button_panel.set_button_state(self.button_panel.toggle_userlist_button, visible)
+
         # Force resize handler to sync everything
         QTimer.singleShot(10, lambda: handle_chat_resize(self, width))
     
         # Force recalculation after visibility change
         QTimer.singleShot(20, lambda: recalculate_layout(self))
+    
+    def _on_switch_account(self):
+        """Handle switch account request from button panel"""
+        if self.app_controller:
+            self.app_controller.show_account_switcher()
     
     def show_profile_view(self, jid: str, username: str, user_id: str):
         """Show profile view for a user"""

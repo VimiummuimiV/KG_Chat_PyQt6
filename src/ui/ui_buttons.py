@@ -93,7 +93,7 @@ class ButtonPanel(QWidget):
         
         # Switch account button
         self.switch_account_button = self._create_button(
-            "switch_user.svg",
+            "user-switch.svg",
             "Switch Account",
             self.switch_account_requested.emit
         )
@@ -115,7 +115,7 @@ class ButtonPanel(QWidget):
             button.setGraphicsEffect(None)
         else:
             opacity_effect = QGraphicsOpacityEffect()
-            opacity_effect.setOpacity(0.3)
+            opacity_effect.setOpacity(0.5)
             button.setGraphicsEffect(opacity_effect)
     
     def update_theme_button_icon(self):
