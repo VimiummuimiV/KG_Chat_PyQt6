@@ -54,12 +54,21 @@ def handle_chat_resize(chat_window, width: int):
     # Apply auto-hide logic for userlists
     auto_hide = getattr(chat_window, auto_hide_attr)
     
-    # Auto-hide userlist based on compact mode
-    if auto_hide and userlist_widget:
-        if is_compact and userlist_widget.isVisible():
-            userlist_widget.setVisible(False)
-        elif not is_compact and userlist_visible_config and not userlist_widget.isVisible():
-            userlist_widget.setVisible(True)
+    # Hide button panel at < 500px
+    if width < 500:
+        if hasattr(chat_window, 'button_panel') and chat_window.button_panel.isVisible():
+            chat_window.button_panel.setVisible(False)
+    else:
+        # Show button panel at >= 500px
+        if hasattr(chat_window, 'button_panel') and not chat_window.button_panel.isVisible():
+            chat_window.button_panel.setVisible(True)
+        
+        # Auto-hide userlist based on compact mode
+        if auto_hide and userlist_widget:
+            if is_compact and userlist_widget.isVisible():
+                userlist_widget.setVisible(False)
+            elif not is_compact and userlist_visible_config and not userlist_widget.isVisible():
+                userlist_widget.setVisible(True)
     
     # Reposition emoticon selector if visible
     if hasattr(chat_window, 'emoticon_selector') and chat_window.emoticon_selector.isVisible():

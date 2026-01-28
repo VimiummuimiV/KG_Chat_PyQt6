@@ -1254,7 +1254,6 @@ class ChatWindow(QWidget):
         self.stacked_widget.setCurrentWidget(self.ban_list_widget)
     
     def toggle_theme(self):
-        self.button_panel.theme_button.setEnabled(False)
         try:
             self.theme_manager.toggle_theme()
             is_dark = self.theme_manager.is_dark()
@@ -1305,8 +1304,6 @@ class ChatWindow(QWidget):
             QApplication.processEvents()
         except Exception as e:
             print(f"Theme toggle error: {e}")
-        finally:
-            self.button_panel.theme_button.setEnabled(True)
 
     def closeEvent(self, event):
         # Cleanup emoticon selector
