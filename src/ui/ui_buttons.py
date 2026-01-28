@@ -20,6 +20,7 @@ class ButtonPanel(QWidget):
     switch_account_requested = pyqtSignal()
     toggle_voice_requested = pyqtSignal()
     pronunciation_requested = pyqtSignal()
+    show_banlist_requested = pyqtSignal()
     toggle_mention_requested = pyqtSignal()
     # Color management (change / reset / update from server)
     change_color_requested = pyqtSignal()
@@ -44,6 +45,7 @@ class ButtonPanel(QWidget):
         self.color_button = None
         self.voice_button = None
         self.mention_button = None
+        self.ban_button = None
         
         self._init_ui()
         self._create_buttons()
@@ -109,6 +111,13 @@ class ButtonPanel(QWidget):
             "user-switch.svg",
             "Switch Account",
             self.switch_account_requested.emit
+        )
+
+        # Ban List button
+        self.ban_button = self._create_button(
+            "user-blocked.svg",
+            "Show Ban List",
+            lambda: self.show_banlist_requested.emit()
         )
 
         # Voice toggle button

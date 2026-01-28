@@ -326,6 +326,7 @@ class ChatWindow(QWidget):
         self.button_panel.switch_account_requested.connect(self._on_switch_account)
         self.button_panel.toggle_voice_requested.connect(self.on_toggle_voice_sound)
         self.button_panel.pronunciation_requested.connect(self.show_pronunciation_view)
+        self.button_panel.show_banlist_requested.connect(self.show_ban_list_view)
         self.button_panel.toggle_mention_requested.connect(self.on_toggle_mention_beep)
         # Color management connections (change / reset / update-from-server)
         self.button_panel.change_color_requested.connect(self.on_change_username_color)
