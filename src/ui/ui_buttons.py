@@ -88,6 +88,16 @@ class ButtonPanel(QWidget):
         )
         self.toggle_userlist_button.clicked.connect(self.toggle_userlist_requested.emit)
         self.add_button(self.toggle_userlist_button)
+
+        # Switch account button
+        self.switch_account_button = create_icon_button(
+            self.icons_path,
+            "switch_user.svg",
+            "Switch Account",
+            config=self.config
+        )
+        self.switch_account_button.clicked.connect(self._on_switch_account)
+        self.add_button(self.switch_account_button)
         
         # Theme button
         is_dark = self.theme_manager.is_dark()
