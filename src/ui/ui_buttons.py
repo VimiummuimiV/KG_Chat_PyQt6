@@ -213,11 +213,13 @@ class ButtonPanel(QWidget):
             if event.type() == QEvent.Type.Wheel:
                 return self._handle_wheel(event)
             elif event.type() == QEvent.Type.MouseButtonPress:
-                return self._handle_mouse_press(event)
+                if event.button() == Qt.MouseButton.MiddleButton:
+                    return self._handle_mouse_press(event)
             elif event.type() == QEvent.Type.MouseMove:
                 return self._handle_mouse_move(event)
             elif event.type() == QEvent.Type.MouseButtonRelease:
-                return self._handle_mouse_release(event)
+                if event.button() == Qt.MouseButton.MiddleButton:
+                    return self._handle_mouse_release(event)
         
         return super().eventFilter(obj, event)
     
@@ -231,7 +233,7 @@ class ButtonPanel(QWidget):
     
     def _handle_mouse_press(self, event: QMouseEvent) -> bool:
         """Handle mouse press for drag scrolling"""
-        if event.button() == Qt.MouseButton.LeftButton:
+        if event.button() == Qt.MouseButton.MiddleButton:
             self._is_dragging = True
             self._drag_start_pos = event.pos()
             self._scroll_start_value = self.scroll_area.verticalScrollBar().value()
@@ -250,7 +252,7 @@ class ButtonPanel(QWidget):
     
     def _handle_mouse_release(self, event: QMouseEvent) -> bool:
         """Handle mouse release to end drag scrolling"""
-        if event.button() == Qt.MouseButton.LeftButton and self._is_dragging:
+        if event.button() == Qt.MouseButton.MiddleButton and self._is_dragging:
             self._is_dragging = False
             self._drag_start_pos = None
             self._scroll_start_value = None
