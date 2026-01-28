@@ -275,6 +275,9 @@ class Application:
         # Update chat window's config instance directly if it exists
         if self.chat_window:
             self.chat_window.config.data = self.config.data
+            # Ensure chat window reflects the new voice state immediately
+            if hasattr(self.chat_window, 'update_voice_button_state'):
+                self.chat_window.update_voice_button_state()
 
     def _on_notification_mode_toggled(self):
         """Handle notification mode toggle from tray menu"""

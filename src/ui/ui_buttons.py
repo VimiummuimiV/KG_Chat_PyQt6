@@ -18,6 +18,7 @@ class ButtonPanel(QWidget):
     toggle_userlist_requested = pyqtSignal()
     toggle_theme_requested = pyqtSignal()
     switch_account_requested = pyqtSignal()
+    toggle_voice_requested = pyqtSignal()
     # Color management (change / reset / update from server)
     change_color_requested = pyqtSignal()
     reset_color_requested = pyqtSignal()
@@ -39,6 +40,7 @@ class ButtonPanel(QWidget):
         self.switch_account_button = None
         self.theme_button = None
         self.color_button = None
+        self.voice_button = None
         
         self._init_ui()
         self._create_buttons()
@@ -104,6 +106,13 @@ class ButtonPanel(QWidget):
             "user-switch.svg",
             "Switch Account",
             self.switch_account_requested.emit
+        )
+
+        # Voice toggle button
+        self.voice_button = self._create_button(
+            "user-voice.svg",
+            "Toggle Voice Sound",
+            lambda: self.toggle_voice_requested.emit()
         )
 
         # Color picker button

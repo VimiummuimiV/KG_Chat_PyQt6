@@ -139,6 +139,34 @@ class ChatWindow(QWidget):
             return
         self.app_controller._refresh_own_username_color(update_from_server)
 
+    def on_toggle_voice_sound(self):
+        """Toggle TTS (Voice Sound) from the panel button."""
+        current = self.config.get("sound", "tts_enabled")
+        if current is None:
+            current = False
+        new = not current
+        # Persist centrally via app controller so tray stays in sync
+        if self.app_controller:
+            self.app_controller.config.set("sound", "tts_enabled", value=new)
+            # update tray menu state immediately
+            if hasattr(self.app_controller, 'update_sound_menu'):
+                self.app_controller.update_sound_menu()
+        else:
+            self.config.set("sound", "tts_enabled", value=new)
+        # Update engine and visual
+        self.voice_engine.set_enabled(new)
+        self.button_panel.set_button_state(self.button_panel.voice_button, new)
+
+    def update_voice_button_state(self):
+        """Sync voice button visual and engine state with config."""
+        enabled = self.config.get("sound", "tts_enabled")
+        if enabled is None:
+            enabled = False
+        self.voice_engine.set_enabled(enabled)
+        # Defensive: button may not exist yet in some tests
+        if getattr(self, 'button_panel', None) and getattr(self.button_panel, 'voice_button', None):
+            self.button_panel.set_button_state(self.button_panel.voice_button, enabled)
+
     def _setup_sounds(self):
         """Setup mention and ban sound paths"""
         sounds_dir = Path(__file__).parent.parent / "sounds"
@@ -264,11 +292,15 @@ class ChatWindow(QWidget):
         self.button_panel.toggle_userlist_requested.connect(self.toggle_user_list)
         self.button_panel.toggle_theme_requested.connect(self.toggle_theme)
         self.button_panel.switch_account_requested.connect(self._on_switch_account)
+        self.button_panel.toggle_voice_requested.connect(self.on_toggle_voice_sound)
         # Color management connections (change / reset / update-from-server)
         self.button_panel.change_color_requested.connect(self.on_change_username_color)
         self.button_panel.reset_color_requested.connect(self.on_reset_username_color)
         self.button_panel.update_color_requested.connect(self.on_update_username_color)
-        content_wrapper.addWidget(self.button_panel, stretch=0) 
+        content_wrapper.addWidget(self.button_panel, stretch=0)
+
+        # Initialize voice button state
+        self.update_voice_button_state() 
      
         # Initialize userlist button state
         messages_userlist_visible = self.config.get("ui", "messages_userlist_visible")
