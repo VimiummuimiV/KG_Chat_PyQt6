@@ -170,7 +170,10 @@ class ChatWindow(QWidget):
 
     def on_toggle_mention_beep(self):
         """Toggle mention beep on/off from the panel button."""
-        current = self.config.get("sound", "mention_sound_enabled") or True
+        current = self.config.get("sound", "mention_sound_enabled")
+        if current is None:
+            # Default to enabled when not set
+            current = True
         new = not current
 
         # Persist centrally via app controller so tray stays in sync
