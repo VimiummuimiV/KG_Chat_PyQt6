@@ -256,9 +256,16 @@ class ChatWindow(QWidget):
         self.emoticon_selector.emoticon_selected.connect(self._on_emoticon_selected)
         self.emoticon_selector.setParent(self) # Make it float above other widgets
      
-        # Install event filter on main window to detect clicks outside selector
+        # Install a minimal event filter to detect clicks outside selector
+        # (install on window and application with a single line to keep it simple)
         self.installEventFilter(self)
-     
+        try:
+            app = QApplication.instance()
+            if app:
+                app.installEventFilter(self)
+        except Exception:
+            pass
+
         # Position will be set in showEvent
         QTimer.singleShot(50, self._position_emoticon_selector)
      
@@ -289,82 +296,47 @@ class ChatWindow(QWidget):
         self.input_field.setFocus()
  
     def _position_emoticon_selector(self):
-        """Position emoticon selector as overlay near userlist"""
+        """Place selector aligned to emoticon button (simple, predictable)."""
         if not hasattr(self, 'emoticon_selector'):
             return
-     
-        # Calculate position: right side, floating above input area
-        window_width = self.width()
-        window_height = self.height()
-     
-        # Get input container height and position
-        input_height = self.input_container.height()
-     
-        # Define consistent margins
-        top_margin = 20 # Margin from top
-        bottom_margin = 20 # Gap between selector bottom and input area top
-        side_margin = 30 # Side margins
-     
-        # Calculate available height for selector
-        # Total space = window_height - input_height - top_margin - bottom_margin
-        available_height = window_height - input_height - top_margin - bottom_margin
-     
-        # Set reasonable height bounds
-        min_height = 250
-        max_height = 650
-        selector_height = max(min_height, min(max_height, available_height))
-     
-        # If calculated height would make it go off screen, reduce it
-        if selector_height > available_height:
-            selector_height = max(min_height, available_height)
-     
-        selector_width = 420
-     
-        # Set size
-        self.emoticon_selector.setFixedSize(selector_width, selector_height)
-     
-        # Calculate horizontal position
-        userlist_visible = self.user_list_widget.isVisible()
-     
-        if userlist_visible and window_width > 800:
-            # Position to the left of userlist
-            x_pos = window_width - self.user_list_widget.width() - selector_width - side_margin
-        else:
-            # Position on the right side
-            x_pos = window_width - selector_width - side_margin
-     
-        # Ensure it doesn't go off screen horizontally
-        x_pos = max(20, min(x_pos, window_width - selector_width - 20))
-     
-        # Calculate vertical position - position from bottom up
-        # y_pos = window_height - input_height - bottom_margin - selector_height
-        y_pos = window_height - input_height - bottom_margin - selector_height
-     
-        # Ensure minimum top margin
-        y_pos = max(top_margin, y_pos)
-     
-        self.emoticon_selector.move(x_pos, y_pos)
+
+        # Clamp size to available space
+        available = max(200, self.height() - self.input_container.height() - 40)
+        h = max(250, min(650, available))
+        w = 420
+        self.emoticon_selector.setFixedSize(w, h)
+
+        # Align selector right edge to emoticon button right edge
+        btn_global = self.emoticon_button.mapToGlobal(self.emoticon_button.rect().topRight())
+        btn_top_right = self.mapFromGlobal(btn_global)
+        x = btn_top_right.x() - w
+
+        # Place above input area with small margin and keep on-screen
+        y = max(16, self.height() - self.input_container.height() - h - 16)
+        x = max(8, min(x, self.width() - w - 8))
+
+        self.emoticon_selector.move(x, y)
         self.emoticon_selector.raise_()
 
     def eventFilter(self, obj, event):
         """Event filter to handle clicks outside emoticon selector"""
-        # Handle clicks outside emoticon selector
-        if obj == self and event.type() == QEvent.Type.MouseButtonPress:
+        if event.type() == QEvent.Type.MouseButtonPress:
             if hasattr(self, 'emoticon_selector') and self.emoticon_selector.isVisible():
-                # Check if click is outside both selector and emoticon button
-                click_pos = event.pos()
-             
-                # Get global positions
-                selector_rect = self.emoticon_selector.geometry()
-                button_rect = self.emoticon_button.geometry()
-                button_global = self.emoticon_button.mapTo(self, button_rect.topLeft())
-                button_rect.moveTo(button_global)
-             
-                # If click is outside both, hide selector
-                if not selector_rect.contains(click_pos) and not button_rect.contains(click_pos):
-                    self.emoticon_selector.setVisible(False)
-                    self.config.set("ui", "emoticon_selector_visible", value=False)
-     
+                try:
+                    gp = event.globalPosition().toPoint() if hasattr(event, 'globalPosition') else event.globalPos()
+                    w = QApplication.widgetAt(gp)
+                    # Walk up parents to see if click landed inside selector or on the button
+                    inside = False
+                    while w:
+                        if w == self.emoticon_selector or w == self.emoticon_button:
+                            inside = True
+                            break
+                        w = w.parentWidget()
+                    if not inside:
+                        self.emoticon_selector.setVisible(False)
+                        self.config.set("ui", "emoticon_selector_visible", value=False)
+                except Exception:
+                    pass
         return super().eventFilter(obj, event)
 
     def showEvent(self, event):
