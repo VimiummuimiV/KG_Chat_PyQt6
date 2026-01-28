@@ -297,6 +297,9 @@ class Application:
         # Update chat window's config instance directly if it exists
         if self.chat_window:
             self.chat_window.config.data = self.config.data
+            # Sync chat window notification state
+            if hasattr(self.chat_window, 'sync_notification_state'):
+                self.chat_window.sync_notification_state()
         
         # Update the popup_manager's mode immediately
         popup_manager.set_notification_mode(new_mode)
@@ -314,6 +317,9 @@ class Application:
         # Update chat window's config instance directly if it exists
         if self.chat_window:
             self.chat_window.config.data = self.config.data
+            # Sync chat window notification state
+            if hasattr(self.chat_window, 'sync_notification_state'):
+                self.chat_window.sync_notification_state()
         
         # Update the popup_manager's muted state immediately
         popup_manager.set_muted(muted)
@@ -456,6 +462,10 @@ class Application:
         notification_muted = self.config.get("notification", "muted")
         if notification_muted:
             popup_manager.set_muted(notification_muted)
+        
+        # Initialize notification button icon to match config state
+        if hasattr(self.chat_window, 'button_panel') and hasattr(self.chat_window.button_panel, 'update_notification_button_icon'):
+            self.chat_window.button_panel.update_notification_button_icon()
         
         # Check if start minimized is enabled
         start_minimized = self.config.get("startup", "start_minimized")

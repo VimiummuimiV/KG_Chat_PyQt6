@@ -8,7 +8,7 @@ from PyQt6.QtCore import Qt, QEvent, pyqtSignal
 from PyQt6.QtGui import QWheelEvent, QMouseEvent
 
 from helpers.config import Config
-from helpers.create import create_icon_button
+from helpers.create import create_icon_button, _render_svg_icon
 
 
 class ButtonPanel(QWidget):
@@ -23,6 +23,7 @@ class ButtonPanel(QWidget):
     show_banlist_requested = pyqtSignal()
     exit_requested = pyqtSignal()
     toggle_mention_requested = pyqtSignal()
+    toggle_notification_requested = pyqtSignal()
     # Color management (change / reset / update from server)
     change_color_requested = pyqtSignal()
     reset_color_requested = pyqtSignal()
@@ -43,6 +44,7 @@ class ButtonPanel(QWidget):
         self.toggle_userlist_button = None
         self.switch_account_button = None
         self.theme_button = None
+        self.notification_button = None
         self.color_button = None
         self.voice_button = None
         self.mention_button = None
@@ -98,6 +100,30 @@ class ButtonPanel(QWidget):
         self.add_button(button)
         return button
     
+    def _get_notification_icon(self) -> str:
+        """Get current notification icon based on state"""
+        mode = self.config.get("notification", "mode") or "stack"
+        muted = self.config.get("notification", "muted") or False
+        
+        if muted:
+            return "notification-disabled.svg"
+        elif mode == "replace":
+            return "notification-replace-mode.svg"
+        else:  # stack
+            return "notification-stack-mode.svg"
+    
+    def _get_notification_tooltip(self) -> str:
+        """Get current notification tooltip based on state"""
+        mode = self.config.get("notification", "mode") or "stack"
+        muted = self.config.get("notification", "muted") or False
+        
+        if muted:
+            return "Notifications: Muted (Click to enable Stack mode)"
+        elif mode == "replace":
+            return "Notifications: Replace mode (Click to mute)"
+        else:  # stack
+            return "Notifications: Stack mode (Click to switch to Replace)"
+    
     def _create_buttons(self):
         """Create all buttons for the panel"""
         # Toggle userlist button
@@ -136,6 +162,15 @@ class ButtonPanel(QWidget):
             "bell.svg",
             "Toggle Mention Beep",
             lambda: self.toggle_mention_requested.emit()
+        )
+
+        # Notification toggle button (3-state cycle: Stack → Replace → Muted)
+        notification_icon = self._get_notification_icon()
+        notification_tooltip = self._get_notification_tooltip()
+        self.notification_button = self._create_button(
+            notification_icon,
+            notification_tooltip,
+            lambda: self.toggle_notification_requested.emit()
         )
 
         # Color picker button
@@ -179,6 +214,24 @@ class ButtonPanel(QWidget):
         is_dark = self.theme_manager.is_dark()
         self.theme_button._icon_name = "moon.svg" if is_dark else "sun.svg"
         self.theme_button.setToolTip("Switch to Light Mode" if is_dark else "Switch to Dark Mode")
+    
+    def update_notification_button_icon(self):
+        """Update notification button icon after state change"""
+        if not self.notification_button:
+            return
+        
+        new_icon_name = self._get_notification_icon()
+        new_tooltip = self._get_notification_tooltip()
+        
+        # Update icon name
+        self.notification_button._icon_name = new_icon_name
+        
+        # Render and set the new icon
+        new_icon = _render_svg_icon(self.icons_path / new_icon_name, self.notification_button._icon_size)
+        self.notification_button.setIcon(new_icon)
+        
+        # Update tooltip
+        self.notification_button.setToolTip(new_tooltip)
     
     def add_button(self, button):
         """Add a button to the panel (before the stretch)"""

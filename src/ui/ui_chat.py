@@ -199,6 +199,71 @@ class ChatWindow(QWidget):
         if getattr(self, 'button_panel', None) and getattr(self.button_panel, 'mention_button', None):
             self.button_panel.set_button_state(self.button_panel.mention_button, enabled)
 
+    def on_toggle_notification(self):
+        """Cycle through notification states: Stack → Replace → Muted → Stack"""
+        current_mode = self.config.get("notification", "mode") or "stack"
+        current_muted = self.config.get("notification", "muted") or False
+        
+        # Determine next state in cycle
+        if current_muted:
+            # Muted → Stack (unmute and reset to stack)
+            new_mode = "stack"
+            new_muted = False
+        elif current_mode == "stack":
+            # Stack → Replace
+            new_mode = "replace"
+            new_muted = False
+        else:  # replace
+            # Replace → Muted
+            new_mode = "replace"  # Keep mode, just mute
+            new_muted = True
+        
+        # Persist centrally via app controller so tray stays in sync
+        config = self.app_controller.config if self.app_controller else self.config
+        config.set("notification", "mode", value=new_mode)
+        config.set("notification", "muted", value=new_muted)
+        
+        # Update local config data to keep in sync
+        if self.app_controller:
+            self.config.data = self.app_controller.config.data
+        
+        # Update tray menu state immediately
+        if self.app_controller and hasattr(self.app_controller, 'update_notification_menu'):
+            self.app_controller.update_notification_menu()
+        
+        # Update popup_manager
+        from components.notification import popup_manager
+        popup_manager.set_notification_mode(new_mode)
+        popup_manager.set_muted(new_muted)
+        
+        # Update button visual
+        self.button_panel.update_notification_button_icon()
+        
+        # Log state change
+        state_text = "Muted" if new_muted else f"{new_mode.capitalize()} mode"
+        print(f"🔔 Notifications: {state_text}")
+
+    def update_notification_button_state(self):
+        """Sync notification button visual to config state"""
+        if getattr(self, 'button_panel', None) and getattr(self.button_panel, 'notification_button', None):
+            self.button_panel.update_notification_button_icon()
+
+    def sync_notification_state(self):
+        """Sync notification state from config - updates button and popup_manager"""
+        # Update config data first
+        if self.app_controller:
+            self.config.data = self.app_controller.config.data
+        
+        # Update button icon to match new state
+        self.update_notification_button_state()
+        
+        # Update popup_manager to match config
+        from components.notification import popup_manager
+        mode = self.config.get("notification", "mode") or "stack"
+        muted = self.config.get("notification", "muted") or False
+        popup_manager.set_notification_mode(mode)
+        popup_manager.set_muted(muted)
+
     def on_exit_requested(self):
         """Handle exit request from the button panel."""
         # Prefer the application controller's cleanup exit when available
@@ -337,15 +402,17 @@ class ChatWindow(QWidget):
         self.button_panel.show_banlist_requested.connect(self.show_ban_list_view)
         self.button_panel.exit_requested.connect(self.on_exit_requested)
         self.button_panel.toggle_mention_requested.connect(self.on_toggle_mention_beep)
+        self.button_panel.toggle_notification_requested.connect(self.on_toggle_notification)
         # Color management connections (change / reset / update-from-server)
         self.button_panel.change_color_requested.connect(self.on_change_username_color)
         self.button_panel.reset_color_requested.connect(self.on_reset_username_color)
         self.button_panel.update_color_requested.connect(self.on_update_username_color)
         content_wrapper.addWidget(self.button_panel, stretch=0)
 
-        # Initialize voice and mention button state
+        # Initialize voice, mention and notification button states
         self.update_voice_button_state()
         self.update_mention_button_state()
+        self.update_notification_button_state()
 
      
         # Initialize userlist button state
@@ -479,6 +546,10 @@ class ChatWindow(QWidget):
                         pass
         except Exception as e:
             print(f"ShowEvent resume animations error: {e}")
+
+        # Update notification button state on show
+        if hasattr(self, 'button_panel'):
+            self.button_panel.update_notification_button_icon()
 
     def disable_reconnect(self):
         """Disable auto-reconnect (called when switching accounts)"""
