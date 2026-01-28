@@ -146,19 +146,19 @@ class ButtonPanel(QWidget):
         )
         # Install event filter to capture Ctrl+Click / Shift+Click
         self.color_button.installEventFilter(self)
-        
-        # Exit application button
-        self.exit_button = self._create_button(
-            "door-open.svg",
-            "Exit Application",
-            lambda: self.exit_requested.emit()
-        )
 
         # Theme button
         is_dark = self.theme_manager.is_dark()
         theme_icon = "moon.svg" if is_dark else "sun.svg"
         theme_tooltip = "Switch to Light Mode" if is_dark else "Switch to Dark Mode"
         self.theme_button = self._create_button(theme_icon, theme_tooltip, self.toggle_theme_requested.emit)
+
+        # Exit application button
+        self.exit_button = self._create_button(
+            "door-open.svg",
+            "Exit Application",
+            lambda: self.exit_requested.emit()
+        )
     
     def set_button_state(self, button, is_active: bool):
         """Set visual state for any button without disabling it"""
