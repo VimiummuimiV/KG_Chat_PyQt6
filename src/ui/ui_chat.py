@@ -26,6 +26,7 @@ from ui.ui_profile import ProfileWidget
 from ui.ui_emoticon_selector import EmoticonSelectorWidget
 from ui.ui_pronunciation import PronunciationWidget
 from ui.ui_banlist import BanListWidget
+from ui.ui_buttons import ButtonPanel
 from components.notification import show_notification
 from components.messages_separator import NewMessagesSeparator
 
@@ -147,7 +148,7 @@ class ChatWindow(QWidget):
         main_layout.setSpacing(window_spacing)
         self.setLayout(main_layout)
 
-        # Content layout: left (messages/chatlog) + right (userlist)
+        # Content layout: left (messages/chatlog) + right (userlist) + right (button panel)
         content_spacing = self.config.get("ui", "spacing", "widget_content") or 6
         self.content_layout = QHBoxLayout()
         self.content_layout.setSpacing(content_spacing)
@@ -201,18 +202,6 @@ class ChatWindow(QWidget):
         # Exit private mode button reference (created dynamically when needed)
         self.exit_private_button = None
     
-        # Toggle userlist button with Ctrl+Click for account switcher
-        self.toggle_userlist_button = create_icon_button(
-            self.icons_path,
-            "user.svg",
-            "Toggle User List (Ctrl+Click to Switch Account)",
-            config=self.config
-        )
-        # Install event filter to catch Ctrl+Click
-        self.toggle_userlist_button.installEventFilter(self)
-        self.toggle_userlist_button.clicked.connect(self.toggle_user_list)
-        self.input_top_layout.addWidget(self.toggle_userlist_button)
-    
         # Emoticon button with hover icons
         self.emoticon_button = HoverIconButton(
             self.icons_path,
@@ -223,19 +212,11 @@ class ChatWindow(QWidget):
         self.emoticon_button.clicked.connect(self._toggle_emoticon_selector)
         self.input_top_layout.addWidget(self.emoticon_button)
     
-        is_dark = self.theme_manager.is_dark()
-        theme_icon = "moon.svg" if is_dark else "sun.svg"
-        self.theme_button = create_icon_button(self.icons_path, theme_icon,
-                                               "Switch to Light Mode" if is_dark else "Switch to Dark Mode",
-                                               config=self.config)
-        self.theme_button.clicked.connect(self.toggle_theme)
-        self.input_top_layout.addWidget(self.theme_button)
-    
         self.buttons_on_bottom = False
-        self.movable_buttons = [self.toggle_userlist_button, self.theme_button]
+        self.movable_buttons = []
     
         # Widgets to hide at < 500px width (for narrow mode)
-        self.narrow_hideable_widgets = [self.input_field, self.send_button, self.emoticon_button, self.theme_button]
+        self.narrow_hideable_widgets = [self.input_field, self.send_button, self.emoticon_button]
     
         # Messages userlist with private mode callback
         self.user_list_widget = UserListWidget(self.config, self.input_field, self.ban_manager)
@@ -248,6 +229,21 @@ class ChatWindow(QWidget):
         else:
             self.user_list_widget.setVisible(True)
         self.content_layout.addWidget(self.user_list_widget, stretch=1)
+     
+        # Create button panel (right side, vertical scrollable)
+        # Buttons are created internally by ButtonPanel
+        self.button_panel = ButtonPanel(
+            self.config, 
+            self.icons_path, 
+            self.theme_manager
+        )
+        self.button_panel.toggle_userlist_requested.connect(self.toggle_user_list)
+        self.button_panel.toggle_theme_requested.connect(self.toggle_theme)
+        self.content_layout.addWidget(self.button_panel, stretch=0)
+        
+        # Store button references for compatibility
+        self.toggle_userlist_button = self.button_panel.toggle_userlist_button
+        self.theme_button = self.button_panel.theme_button
      
         # Emoticon selector widget (overlay - positioned absolutely)
         # Create AFTER userlist so positioning works correctly
@@ -351,15 +347,7 @@ class ChatWindow(QWidget):
         self.emoticon_selector.raise_()
 
     def eventFilter(self, obj, event):
-        """Event filter to catch Ctrl+Click on toggle userlist button"""
-        if obj == self.toggle_userlist_button and event.type() == QEvent.Type.MouseButtonPress:
-            if event.button() == Qt.MouseButton.LeftButton:
-                modifiers = QApplication.keyboardModifiers()
-                if modifiers & Qt.KeyboardModifier.ControlModifier:
-                    # Ctrl+Click detected - show account switcher
-                    self._show_account_switcher()
-                    return True # Consume event
-     
+        """Event filter to handle clicks outside emoticon selector"""
         # Handle clicks outside emoticon selector
         if obj == self and event.type() == QEvent.Type.MouseButtonPress:
             if hasattr(self, 'emoticon_selector') and self.emoticon_selector.isVisible():
@@ -378,13 +366,6 @@ class ChatWindow(QWidget):
                     self.config.set("ui", "emoticon_selector_visible", value=False)
      
         return super().eventFilter(obj, event)
-
-    def _show_account_switcher(self):
-        """Show account switcher window"""
-        if self.app_controller:
-            self.app_controller.show_account_switcher()
-        else:
-            print("⚠️ Account switching not available (no app_controller)")
 
     def showEvent(self, event):
         """Handle window show events"""
@@ -475,7 +456,7 @@ class ChatWindow(QWidget):
             )
             self.exit_private_button.clicked.connect(self.exit_private_mode)
         
-            # Insert button after emoticon button (before theme button)
+            # Insert after emoticon button
             emoticon_button_index = self.input_top_layout.indexOf(self.emoticon_button)
             self.input_top_layout.insertWidget(emoticon_button_index + 1, self.exit_private_button)
         
@@ -1311,8 +1292,8 @@ class ChatWindow(QWidget):
             is_dark = self.theme_manager.is_dark()
             set_theme(is_dark)
          
-            self.theme_button._icon_name = "moon.svg" if is_dark else "sun.svg"
-            self.theme_button.setToolTip("Switch to Light Mode" if is_dark else "Switch to Dark Mode")
+            # Update theme button icon via button panel
+            self.button_panel.update_theme_button_icon()
          
             # Clear cache so colors get recalculated
             self.cache.clear_colors()
@@ -1343,6 +1324,10 @@ class ChatWindow(QWidget):
             # Update emoticon selector theme
             if hasattr(self, 'emoticon_selector'):
                 self.emoticon_selector.update_theme()
+         
+            # Update button panel theme
+            if hasattr(self, 'button_panel'):
+                self.button_panel.update_theme()
          
             self.messages_widget.rebuild_messages()
          

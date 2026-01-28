@@ -25,25 +25,6 @@ def handle_chat_resize(chat_window, width: int):
         chat_window: ChatWindow instance
         width: Current window width
     """
-    # Move buttons based on width (< 500px)
-    if width < 500 and not chat_window.buttons_on_bottom:
-        for btn in chat_window.movable_buttons:
-            chat_window.input_top_layout.removeWidget(btn)
-        for btn in chat_window.movable_buttons:
-            chat_window.input_bottom_layout.addWidget(btn)
-        chat_window.input_bottom_layout.addStretch()
-        chat_window.buttons_on_bottom = True
-    elif width >= 500 and chat_window.buttons_on_bottom:
-        for btn in chat_window.movable_buttons:
-            chat_window.input_bottom_layout.removeWidget(btn)
-        while chat_window.input_bottom_layout.count():
-            item = chat_window.input_bottom_layout.takeAt(0)
-            if item.widget() is None:
-                del item
-        for btn in chat_window.movable_buttons:
-            chat_window.input_top_layout.addWidget(btn)
-        chat_window.buttons_on_bottom = False
-    
     # Determine current view and corresponding widgets/settings
     current_view = chat_window.stacked_widget.currentWidget()
     is_chatlog_view = (current_view == chat_window.chatlog_widget)
@@ -91,6 +72,10 @@ def handle_chat_resize(chat_window, width: int):
                 for widget in chat_window.narrow_hideable_widgets:
                     if not widget.isVisible():
                         widget.setVisible(True)
+        
+        # Hide button panel at < 500px
+        if hasattr(chat_window, 'button_panel') and chat_window.button_panel.isVisible():
+            chat_window.button_panel.setVisible(False)
     
     # Above 500px: normal behavior
     if width >= 500:
@@ -103,6 +88,10 @@ def handle_chat_resize(chat_window, width: int):
             for widget in chat_window.narrow_hideable_widgets:
                 if not widget.isVisible():
                     widget.setVisible(True)
+        
+        # Show button panel at >= 500px
+        if hasattr(chat_window, 'button_panel') and not chat_window.button_panel.isVisible():
+            chat_window.button_panel.setVisible(True)
         
         # Auto-hide userlist based on compact mode
         if auto_hide and userlist_widget:
