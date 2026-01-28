@@ -367,13 +367,26 @@ class Application:
 
     def exit_application(self):
         """Exit the application completely"""
+        # Mark chat window as really closing immediately to avoid auto-reconnect races
+        if self.chat_window:
+            try:
+                self.chat_window.really_close = True
+            except Exception:
+                pass
+
+        # Ensure auto-reconnect is disabled so closing doesn't trigger reconnection
+        if self.chat_window:
+            try:
+                self.chat_window.disable_reconnect()
+            except Exception:
+                pass
+
         if self.chat_window and self.chat_window.xmpp_client:
             try:
                 self.chat_window.xmpp_client.disconnect()
             except Exception:
                 pass
         if self.chat_window:
-            self.chat_window.really_close = True
             self.chat_window.close()
         if self.tray_icon:
             self.tray_icon.hide()

@@ -199,6 +199,14 @@ class ChatWindow(QWidget):
         if getattr(self, 'button_panel', None) and getattr(self.button_panel, 'mention_button', None):
             self.button_panel.set_button_state(self.button_panel.mention_button, enabled)
 
+    def on_exit_requested(self):
+        """Handle exit request from the button panel."""
+        # Prefer the application controller's cleanup exit when available
+        if self.app_controller and hasattr(self.app_controller, 'exit_application'):
+            self.app_controller.exit_application()
+        else:
+            QApplication.quit()
+
     def _setup_sounds(self):
         """Setup mention and ban sound paths"""
         sounds_dir = Path(__file__).parent.parent / "sounds"
@@ -327,6 +335,7 @@ class ChatWindow(QWidget):
         self.button_panel.toggle_voice_requested.connect(self.on_toggle_voice_sound)
         self.button_panel.pronunciation_requested.connect(self.show_pronunciation_view)
         self.button_panel.show_banlist_requested.connect(self.show_ban_list_view)
+        self.button_panel.exit_requested.connect(self.on_exit_requested)
         self.button_panel.toggle_mention_requested.connect(self.on_toggle_mention_beep)
         # Color management connections (change / reset / update-from-server)
         self.button_panel.change_color_requested.connect(self.on_change_username_color)
@@ -1271,9 +1280,13 @@ class ChatWindow(QWidget):
             self.setWindowTitle(f"{base} - {text}")
         
         # AUTO-RECONNECT: If connection went offline, immediately attempt to reconnect
-        if status == 'offline' and self.allow_reconnect and not self.is_connecting and self.account:
-            print("🔄 Connection lost - initiating auto-reconnect...")
-            QTimer.singleShot(100, self._auto_reconnect)
+        if status == 'offline':
+            # If we're in the middle of a real application shutdown, never auto-reconnect
+            if getattr(self, 'really_close', False):
+                return
+            if self.allow_reconnect and not self.is_connecting and self.account:
+                print("🔄 Connection lost - initiating auto-reconnect...")
+                QTimer.singleShot(100, self._auto_reconnect)
 
     def _auto_reconnect(self):
         """Automatic reconnection after connection loss"""

@@ -21,6 +21,7 @@ class ButtonPanel(QWidget):
     toggle_voice_requested = pyqtSignal()
     pronunciation_requested = pyqtSignal()
     show_banlist_requested = pyqtSignal()
+    exit_requested = pyqtSignal()
     toggle_mention_requested = pyqtSignal()
     # Color management (change / reset / update from server)
     change_color_requested = pyqtSignal()
@@ -46,6 +47,7 @@ class ButtonPanel(QWidget):
         self.voice_button = None
         self.mention_button = None
         self.ban_button = None
+        self.exit_button = None
         
         self._init_ui()
         self._create_buttons()
@@ -145,6 +147,13 @@ class ButtonPanel(QWidget):
         # Install event filter to capture Ctrl+Click / Shift+Click
         self.color_button.installEventFilter(self)
         
+        # Exit application button
+        self.exit_button = self._create_button(
+            "door-open.svg",
+            "Exit Application",
+            lambda: self.exit_requested.emit()
+        )
+
         # Theme button
         is_dark = self.theme_manager.is_dark()
         theme_icon = "moon.svg" if is_dark else "sun.svg"
