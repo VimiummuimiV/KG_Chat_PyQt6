@@ -97,7 +97,7 @@
   },
   "sound": {
     "tts_enabled": false,
-    "mention_sound_enabled": true
+    "mention_sound_enabled": false
   },
   "notification": {
     "mode": "replace",

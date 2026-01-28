@@ -19,6 +19,7 @@ class ButtonPanel(QWidget):
     toggle_theme_requested = pyqtSignal()
     switch_account_requested = pyqtSignal()
     toggle_voice_requested = pyqtSignal()
+    pronunciation_requested = pyqtSignal()
     toggle_mention_requested = pyqtSignal()
     # Color management (change / reset / update from server)
     change_color_requested = pyqtSignal()
@@ -113,9 +114,11 @@ class ButtonPanel(QWidget):
         # Voice toggle button
         self.voice_button = self._create_button(
             "user-voice.svg",
-            "Toggle Voice Sound",
+            "Toggle Voice Sound (Ctrl+Click to open Username Pronunciation)",
             lambda: self.toggle_voice_requested.emit()
         )
+        # Install event filter to catch Ctrl+Click for pronunciation
+        self.voice_button.installEventFilter(self)
 
         # Mention beep toggle
         self.mention_button = self._create_button(
@@ -187,6 +190,14 @@ class ButtonPanel(QWidget):
                     return True
                 elif modifiers & Qt.KeyboardModifier.ShiftModifier:
                     self.update_color_requested.emit()
+                    return True
+
+        # Handle voice button Ctrl+Click -> open Username Pronunciation
+        if obj == self.voice_button and event.type() == QEvent.Type.MouseButtonPress:
+            if event.button() == Qt.MouseButton.LeftButton:
+                modifiers = QApplication.keyboardModifiers()
+                if modifiers & Qt.KeyboardModifier.ControlModifier:
+                    self.pronunciation_requested.emit()
                     return True
 
         if obj == self.scroll_area.viewport():

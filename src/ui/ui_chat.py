@@ -147,6 +147,9 @@ class ChatWindow(QWidget):
         # Persist centrally via app controller so tray stays in sync
         config = self.app_controller.config if self.app_controller else self.config
         config.set("sound", "tts_enabled", value=new)
+        # Also update local config data to keep in sync
+        if self.app_controller:
+            self.config.data = self.app_controller.config.data
         
         # update tray menu state immediately
         if self.app_controller and hasattr(self.app_controller, 'update_sound_menu'):
@@ -175,6 +178,9 @@ class ChatWindow(QWidget):
         # Persist centrally via app controller so tray stays in sync
         config = self.app_controller.config if self.app_controller else self.config
         config.set("sound", "mention_sound_enabled", value=new)
+        # Also update local config data to keep in sync
+        if self.app_controller:
+            self.config.data = self.app_controller.config.data
 
         # update tray menu state immediately
         if self.app_controller and hasattr(self.app_controller, 'update_sound_menu'):
@@ -318,6 +324,7 @@ class ChatWindow(QWidget):
         self.button_panel.toggle_theme_requested.connect(self.toggle_theme)
         self.button_panel.switch_account_requested.connect(self._on_switch_account)
         self.button_panel.toggle_voice_requested.connect(self.on_toggle_voice_sound)
+        self.button_panel.pronunciation_requested.connect(self.show_pronunciation_view)
         self.button_panel.toggle_mention_requested.connect(self.on_toggle_mention_beep)
         # Color management connections (change / reset / update-from-server)
         self.button_panel.change_color_requested.connect(self.on_change_username_color)
