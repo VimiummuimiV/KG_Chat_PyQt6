@@ -1,6 +1,6 @@
 """Scrollable side button panel for ChatWindow"""
 from pathlib import Path
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QScrollArea, QFrame
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QScrollArea, QFrame, QGraphicsOpacityEffect
 from PyQt6.QtCore import Qt, QEvent, pyqtSignal
 from PyQt6.QtGui import QWheelEvent, QMouseEvent
 
@@ -14,6 +14,7 @@ class ButtonPanel(QWidget):
     # Signals for button actions
     toggle_userlist_requested = pyqtSignal()
     toggle_theme_requested = pyqtSignal()
+    switch_account_requested = pyqtSignal()
     
     def __init__(self, config: Config, icons_path: Path, theme_manager):
         super().__init__()
@@ -28,6 +29,7 @@ class ButtonPanel(QWidget):
         
         # Button references
         self.toggle_userlist_button = None
+        self.switch_account_button = None
         self.theme_button = None
         
         self._init_ui()
@@ -64,52 +66,57 @@ class ButtonPanel(QWidget):
         self.scroll_area.viewport().installEventFilter(self)
         
         # Set fixed width based on button size and margins from config
-        # Default to large button size (48px) to match create_icon_button defaults
         button_size = 48
-        
-        # Try to read from config (matching create_icon_button logic)
         btn_cfg = self.config.get("ui", "buttons") or {}
         if isinstance(btn_cfg, dict):
             button_size = btn_cfg.get("button_size", button_size)
         
-        # Get widget margin from config
         panel_margin = self.config.get("ui", "margins", "widget") or 5
-        
         self.setFixedWidth(button_size + panel_margin * 2)
+    
+    def _create_button(self, icon_name: str, tooltip: str, callback):
+        """Helper to create and add a button with consistent pattern"""
+        button = create_icon_button(self.icons_path, icon_name, tooltip, config=self.config)
+        button.clicked.connect(callback)
+        self.add_button(button)
+        return button
     
     def _create_buttons(self):
         """Create all buttons for the panel"""
         # Toggle userlist button
-        self.toggle_userlist_button = create_icon_button(
-            self.icons_path,
+        self.toggle_userlist_button = self._create_button(
             "user.svg",
             "Toggle User List",
-            config=self.config
+            self.toggle_userlist_requested.emit
         )
-        self.toggle_userlist_button.clicked.connect(self.toggle_userlist_requested.emit)
-        self.add_button(self.toggle_userlist_button)
-
+        self.toggle_userlist_button._is_visually_active = True
+        
         # Switch account button
-        self.switch_account_button = create_icon_button(
-            self.icons_path,
+        self.switch_account_button = self._create_button(
             "switch_user.svg",
             "Switch Account",
-            config=self.config
+            self.switch_account_requested.emit
         )
-        self.switch_account_button.clicked.connect(self._on_switch_account)
-        self.add_button(self.switch_account_button)
         
         # Theme button
         is_dark = self.theme_manager.is_dark()
         theme_icon = "moon.svg" if is_dark else "sun.svg"
-        self.theme_button = create_icon_button(
-            self.icons_path,
-            theme_icon,
-            "Switch to Light Mode" if is_dark else "Switch to Dark Mode",
-            config=self.config
-        )
-        self.theme_button.clicked.connect(self.toggle_theme_requested.emit)
-        self.add_button(self.theme_button)
+        theme_tooltip = "Switch to Light Mode" if is_dark else "Switch to Dark Mode"
+        self.theme_button = self._create_button(theme_icon, theme_tooltip, self.toggle_theme_requested.emit)
+    
+    def set_button_state(self, button, is_active: bool):
+        """Set visual state for any button without disabling it"""
+        if not button:
+            return
+        
+        button._is_visually_active = is_active
+        
+        if is_active:
+            button.setGraphicsEffect(None)
+        else:
+            opacity_effect = QGraphicsOpacityEffect()
+            opacity_effect.setOpacity(0.3)
+            button.setGraphicsEffect(opacity_effect)
     
     def update_theme_button_icon(self):
         """Update theme button icon after theme change"""
@@ -119,7 +126,6 @@ class ButtonPanel(QWidget):
     
     def add_button(self, button):
         """Add a button to the panel (before the stretch)"""
-        # Insert before the stretch item (which is always last)
         count = self.button_layout.count()
         self.button_layout.insertWidget(count - 1, button)
     
@@ -152,18 +158,10 @@ class ButtonPanel(QWidget):
     def _handle_wheel(self, event: QWheelEvent) -> bool:
         """Handle mouse wheel scrolling"""
         scrollbar = self.scroll_area.verticalScrollBar()
-        
-        # Get wheel delta (positive = scroll up, negative = scroll down)
         delta = event.angleDelta().y()
-        
-        # Calculate scroll amount (adjust multiplier for scroll speed)
-        scroll_amount = -delta // 2  # Divide by 2 for smoother scrolling
-        
-        # Apply scroll
-        new_value = scrollbar.value() + scroll_amount
-        scrollbar.setValue(new_value)
-        
-        return True  # Event handled
+        scroll_amount = -delta // 2
+        scrollbar.setValue(scrollbar.value() + scroll_amount)
+        return True
     
     def _handle_mouse_press(self, event: QMouseEvent) -> bool:
         """Handle mouse press for drag scrolling"""
@@ -178,14 +176,9 @@ class ButtonPanel(QWidget):
     def _handle_mouse_move(self, event: QMouseEvent) -> bool:
         """Handle mouse move for drag scrolling"""
         if self._is_dragging and self._drag_start_pos is not None:
-            # Calculate distance moved
             delta = event.pos() - self._drag_start_pos
-            
-            # Update scroll position (invert Y to make drag feel natural)
             scrollbar = self.scroll_area.verticalScrollBar()
-            new_value = self._scroll_start_value - delta.y()
-            scrollbar.setValue(new_value)
-            
+            scrollbar.setValue(self._scroll_start_value - delta.y())
             return True
         return False
     
@@ -201,5 +194,4 @@ class ButtonPanel(QWidget):
     
     def update_theme(self):
         """Update theme for all buttons in the panel"""
-        # Buttons will update themselves via update_all_icons()
         pass
