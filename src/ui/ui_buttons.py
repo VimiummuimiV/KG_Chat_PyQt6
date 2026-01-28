@@ -1,6 +1,9 @@
 """Scrollable side button panel for ChatWindow"""
 from pathlib import Path
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QScrollArea, QFrame, QGraphicsOpacityEffect
+from PyQt6.QtWidgets import(
+    QWidget, QVBoxLayout, QScrollArea, QFrame,
+    QGraphicsOpacityEffect, QApplication, QMessageBox
+)
 from PyQt6.QtCore import Qt, QEvent, pyqtSignal
 from PyQt6.QtGui import QWheelEvent, QMouseEvent
 
@@ -15,6 +18,10 @@ class ButtonPanel(QWidget):
     toggle_userlist_requested = pyqtSignal()
     toggle_theme_requested = pyqtSignal()
     switch_account_requested = pyqtSignal()
+    # Color management (change / reset / update from server)
+    change_color_requested = pyqtSignal()
+    reset_color_requested = pyqtSignal()
+    update_color_requested = pyqtSignal()
     
     def __init__(self, config: Config, icons_path: Path, theme_manager):
         super().__init__()
@@ -31,6 +38,7 @@ class ButtonPanel(QWidget):
         self.toggle_userlist_button = None
         self.switch_account_button = None
         self.theme_button = None
+        self.color_button = None
         
         self._init_ui()
         self._create_buttons()
@@ -97,6 +105,15 @@ class ButtonPanel(QWidget):
             "Switch Account",
             self.switch_account_requested.emit
         )
+
+        # Color picker button
+        self.color_button = self._create_button(
+            "palette.svg",
+            "Change username color (Ctrl+Click to Reset, Shift+Click to Update from Server)",
+            lambda: self.change_color_requested.emit()
+        )
+        # Install event filter to capture Ctrl+Click / Shift+Click
+        self.color_button.installEventFilter(self)
         
         # Theme button
         is_dark = self.theme_manager.is_dark()
@@ -142,7 +159,18 @@ class ButtonPanel(QWidget):
                 item.widget().setParent(None)
     
     def eventFilter(self, obj, event):
-        """Handle mouse wheel and drag scrolling"""
+        """Handle mouse wheel, drag scrolling and specialized button clicks"""
+        # Handle color button special clicks (Ctrl+Click / Shift+Click)
+        if obj == self.color_button and event.type() == QEvent.Type.MouseButtonPress:
+            if event.button() == Qt.MouseButton.LeftButton:
+                modifiers = QApplication.keyboardModifiers()
+                if modifiers & Qt.KeyboardModifier.ControlModifier:
+                    self.reset_color_requested.emit()
+                    return True
+                elif modifiers & Qt.KeyboardModifier.ShiftModifier:
+                    self.update_color_requested.emit()
+                    return True
+
         if obj == self.scroll_area.viewport():
             if event.type() == QEvent.Type.Wheel:
                 return self._handle_wheel(event)

@@ -3,7 +3,10 @@ import threading
 import re
 from pathlib import Path
 from datetime import datetime
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QApplication, QStackedWidget, QStatusBar, QLabel, QProgressBar, QPushButton
+from PyQt6.QtWidgets import(
+    QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QApplication,
+    QStackedWidget, QStatusBar, QLabel, QProgressBar, QPushButton, QMessageBox
+)
 from PyQt6.QtCore import Qt, pyqtSignal, QObject, QTimer, QEvent
 
 from helpers.config import Config
@@ -12,6 +15,11 @@ from helpers.resize import handle_chat_resize, recalculate_layout
 from helpers.color_utils import get_private_message_colors
 from helpers.scroll import scroll
 from helpers.cache import get_cache
+from helpers.username_color_manager import(
+    change_username_color,
+    reset_username_color,
+    update_from_server
+)
 from helpers.fonts import get_font, FontType
 from helpers.voice_engine import get_voice_engine, play_sound
 from helpers.me_action import format_me_action
@@ -109,6 +117,27 @@ class ChatWindow(QWidget):
 
     def set_tray_mode(self, enabled: bool):
         self.tray_mode = enabled
+
+    def on_change_username_color(self):
+        """Called from ButtonPanel to change own username color."""
+        if not self.app_controller:
+            QMessageBox.warning(self, "Unavailable", "This action requires the application controller.")
+            return
+        self.app_controller._refresh_own_username_color(change_username_color)
+
+    def on_reset_username_color(self):
+        """Called from ButtonPanel to reset own username color."""
+        if not self.app_controller:
+            QMessageBox.warning(self, "Unavailable", "This action requires the application controller.")
+            return
+        self.app_controller._refresh_own_username_color(reset_username_color)
+
+    def on_update_username_color(self):
+        """Called from ButtonPanel to update own username color from server."""
+        if not self.app_controller:
+            QMessageBox.warning(self, "Unavailable", "This action requires the application controller.")
+            return
+        self.app_controller._refresh_own_username_color(update_from_server)
 
     def _setup_sounds(self):
         """Setup mention and ban sound paths"""
@@ -235,7 +264,11 @@ class ChatWindow(QWidget):
         self.button_panel.toggle_userlist_requested.connect(self.toggle_user_list)
         self.button_panel.toggle_theme_requested.connect(self.toggle_theme)
         self.button_panel.switch_account_requested.connect(self._on_switch_account)
-        content_wrapper.addWidget(self.button_panel, stretch=0)
+        # Color management connections (change / reset / update-from-server)
+        self.button_panel.change_color_requested.connect(self.on_change_username_color)
+        self.button_panel.reset_color_requested.connect(self.on_reset_username_color)
+        self.button_panel.update_color_requested.connect(self.on_update_username_color)
+        content_wrapper.addWidget(self.button_panel, stretch=0) 
      
         # Initialize userlist button state
         messages_userlist_visible = self.config.get("ui", "messages_userlist_visible")
