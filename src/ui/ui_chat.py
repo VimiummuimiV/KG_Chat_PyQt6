@@ -212,12 +212,6 @@ class ChatWindow(QWidget):
         self.emoticon_button.clicked.connect(self._toggle_emoticon_selector)
         self.input_top_layout.addWidget(self.emoticon_button)
     
-        self.buttons_on_bottom = False
-        self.movable_buttons = []
-    
-        # Widgets to hide at < 500px width (for narrow mode)
-        self.narrow_hideable_widgets = [self.input_field, self.send_button, self.emoticon_button]
-    
         # Messages userlist with private mode callback
         self.user_list_widget = UserListWidget(self.config, self.input_field, self.ban_manager)
         self.user_list_widget.profile_requested.connect(self.show_profile_view)
@@ -231,7 +225,6 @@ class ChatWindow(QWidget):
         self.content_layout.addWidget(self.user_list_widget, stretch=1)
      
         # Create button panel (right side, vertical scrollable)
-        # Buttons are created internally by ButtonPanel
         self.button_panel = ButtonPanel(
             self.config, 
             self.icons_path, 
@@ -240,10 +233,6 @@ class ChatWindow(QWidget):
         self.button_panel.toggle_userlist_requested.connect(self.toggle_user_list)
         self.button_panel.toggle_theme_requested.connect(self.toggle_theme)
         self.content_layout.addWidget(self.button_panel, stretch=0)
-        
-        # Store button references for compatibility
-        self.toggle_userlist_button = self.button_panel.toggle_userlist_button
-        self.theme_button = self.button_panel.theme_button
      
         # Emoticon selector widget (overlay - positioned absolutely)
         # Create AFTER userlist so positioning works correctly
@@ -459,10 +448,6 @@ class ChatWindow(QWidget):
             # Insert after emoticon button
             emoticon_button_index = self.input_top_layout.indexOf(self.emoticon_button)
             self.input_top_layout.insertWidget(emoticon_button_index + 1, self.exit_private_button)
-        
-            # Add to narrow hideable widgets
-            if self.exit_private_button not in self.narrow_hideable_widgets:
-                self.narrow_hideable_widgets.append(self.exit_private_button)
         else:
             self.exit_private_button.setVisible(True)
     
@@ -494,10 +479,6 @@ class ChatWindow(QWidget):
     
         # Remove and destroy exit button
         if self.exit_private_button is not None:
-            # Remove from narrow hideable widgets
-            if self.exit_private_button in self.narrow_hideable_widgets:
-                self.narrow_hideable_widgets.remove(self.exit_private_button)
-        
             # Remove from layout and destroy
             self.input_top_layout.removeWidget(self.exit_private_button)
             self.exit_private_button.deleteLater()
@@ -1220,31 +1201,18 @@ class ChatWindow(QWidget):
             self.chatlog_userlist_widget.setVisible(visible)
             self.config.set("ui", "chatlog_userlist_visible", value=visible)
             self.auto_hide_chatlog_userlist = False
-        
-            # Below 500px: manually hide/show widgets
-            if width < 500:
-                self.stacked_widget.setVisible(not visible)
-                for widget in self.narrow_hideable_widgets:
-                    widget.setVisible(not visible)
         else:
             # Toggle messages userlist
             visible = not self.user_list_widget.isVisible()
             self.user_list_widget.setVisible(visible)
             self.config.set("ui", "messages_userlist_visible", value=visible)
             self.auto_hide_messages_userlist = False
-        
-            # Below 500px: manually hide/show widgets
-            if width < 500:
-                self.stacked_widget.setVisible(not visible)
-                for widget in self.narrow_hideable_widgets:
-                    widget.setVisible(not visible)
     
         # Force resize handler to sync everything
         QTimer.singleShot(10, lambda: handle_chat_resize(self, width))
     
-        # Force recalculation after visibility change (only needed when messages visible)
-        if width >= 500 or not visible:
-            QTimer.singleShot(20, lambda: recalculate_layout(self))
+        # Force recalculation after visibility change
+        QTimer.singleShot(20, lambda: recalculate_layout(self))
     
     def show_profile_view(self, jid: str, username: str, user_id: str):
         """Show profile view for a user"""
@@ -1286,7 +1254,7 @@ class ChatWindow(QWidget):
         self.stacked_widget.setCurrentWidget(self.ban_list_widget)
     
     def toggle_theme(self):
-        self.theme_button.setEnabled(False)
+        self.button_panel.theme_button.setEnabled(False)
         try:
             self.theme_manager.toggle_theme()
             is_dark = self.theme_manager.is_dark()
@@ -1338,7 +1306,7 @@ class ChatWindow(QWidget):
         except Exception as e:
             print(f"Theme toggle error: {e}")
         finally:
-            self.theme_button.setEnabled(True)
+            self.button_panel.theme_button.setEnabled(True)
 
     def closeEvent(self, event):
         # Cleanup emoticon selector
