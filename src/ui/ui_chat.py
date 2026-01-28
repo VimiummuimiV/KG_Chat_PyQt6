@@ -141,28 +141,26 @@ class ChatWindow(QWidget):
 
     def on_toggle_voice_sound(self):
         """Toggle TTS (Voice Sound) from the panel button."""
-        current = self.config.get("sound", "tts_enabled")
-        if current is None:
-            current = False
+        current = self.config.get("sound", "tts_enabled") or False
         new = not current
+        
         # Persist centrally via app controller so tray stays in sync
-        if self.app_controller:
-            self.app_controller.config.set("sound", "tts_enabled", value=new)
-            # update tray menu state immediately
-            if hasattr(self.app_controller, 'update_sound_menu'):
-                self.app_controller.update_sound_menu()
-        else:
-            self.config.set("sound", "tts_enabled", value=new)
+        config = self.app_controller.config if self.app_controller else self.config
+        config.set("sound", "tts_enabled", value=new)
+        
+        # update tray menu state immediately
+        if self.app_controller and hasattr(self.app_controller, 'update_sound_menu'):
+            self.app_controller.update_sound_menu()
+        
         # Update engine and visual
         self.voice_engine.set_enabled(new)
         self.button_panel.set_button_state(self.button_panel.voice_button, new)
 
     def update_voice_button_state(self):
         """Sync voice button visual and engine state with config."""
-        enabled = self.config.get("sound", "tts_enabled")
-        if enabled is None:
-            enabled = False
+        enabled = self.config.get("sound", "tts_enabled") or False
         self.voice_engine.set_enabled(enabled)
+        
         # Defensive: button may not exist yet in some tests
         if getattr(self, 'button_panel', None) and getattr(self.button_panel, 'voice_button', None):
             self.button_panel.set_button_state(self.button_panel.voice_button, enabled)
