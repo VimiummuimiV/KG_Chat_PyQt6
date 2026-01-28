@@ -148,11 +148,16 @@ class ChatWindow(QWidget):
         main_layout.setSpacing(window_spacing)
         self.setLayout(main_layout)
 
-        # Content layout: left (messages/chatlog) + right (userlist) + right (button panel)
+        # Create wrapper layout for content + button panel
+        content_wrapper = QHBoxLayout()
         content_spacing = self.config.get("ui", "spacing", "widget_content") or 6
+        content_wrapper.setSpacing(content_spacing)
+        main_layout.addLayout(content_wrapper, stretch=1)
+
+        # Content layout: left (messages/chatlog) + right (userlist)
         self.content_layout = QHBoxLayout()
         self.content_layout.setSpacing(content_spacing)
-        main_layout.addLayout(self.content_layout, stretch=1)
+        content_wrapper.addLayout(self.content_layout, stretch=1)
 
         # Left side layout
         left_layout = QVBoxLayout()
@@ -225,6 +230,7 @@ class ChatWindow(QWidget):
         self.content_layout.addWidget(self.user_list_widget, stretch=1)
      
         # Create button panel (right side, vertical scrollable)
+        # Add to content_wrapper so it's always on the right
         self.button_panel = ButtonPanel(
             self.config, 
             self.icons_path, 
@@ -232,7 +238,7 @@ class ChatWindow(QWidget):
         )
         self.button_panel.toggle_userlist_requested.connect(self.toggle_user_list)
         self.button_panel.toggle_theme_requested.connect(self.toggle_theme)
-        self.content_layout.addWidget(self.button_panel, stretch=0)
+        content_wrapper.addWidget(self.button_panel, stretch=0)
      
         # Emoticon selector widget (overlay - positioned absolutely)
         # Create AFTER userlist so positioning works correctly
