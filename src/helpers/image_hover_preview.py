@@ -4,8 +4,8 @@ from typing import Optional
 import requests
 
 from PyQt6.QtWidgets import QLabel, QApplication, QWidget
-from PyQt6.QtCore import Qt, QPoint, QTimer, pyqtSignal, QObject, QThread, QPropertyAnimation, pyqtProperty, QBuffer, QIODevice
-from PyQt6.QtGui import QPixmap, QMovie, QCursor, QPainter, QPen, QColor
+from PyQt6.QtCore import Qt, QPoint, QTimer, pyqtSignal, QObject, QThread, QPropertyAnimation, pyqtProperty, QBuffer, QIODevice, QPointF
+from PyQt6.QtGui import QPixmap, QMovie, QCursor, QPainter, QPen, QColor, QWheelEvent, QMouseEvent, QKeyEvent, QTransform
 
 
 class LoadingSpinner(QWidget):
@@ -85,8 +85,8 @@ class ImageLoadWorker(QObject):
         self._should_stop = True
 
 
-class ImageHoverPreview(QLabel):
-    """Floating image preview widget that follows mouse cursor"""
+class ImageHoverPreview(QWidget):
+    """Fullscreen viewport for image preview with internal image transformations"""
     
     IMAGE_PATTERNS = [
         re.compile(r'https?://[^\s<>"]+\.(?:jpg|jpeg|png|gif|webp|bmp|svg)(?:\?[^\s<>"]*)?', re.IGNORECASE),
@@ -98,6 +98,7 @@ class ImageHoverPreview(QLabel):
         super().__init__(parent)
         self.current_url = None
         self.current_movie = None
+        self.current_pixmap = None
         self.cache = {}
         self.load_thread = None
         self.load_worker = None
@@ -105,19 +106,53 @@ class ImageHoverPreview(QLabel):
         screen = QApplication.primaryScreen()
         self.screen_rect = screen.availableGeometry()
         
+        # Viewport is always fullscreen
         self.setWindowFlags(Qt.WindowType.ToolTip | Qt.WindowType.FramelessWindowHint | 
                           Qt.WindowType.WindowStaysOnTopHint)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-        self.setStyleSheet("QLabel { background-color: transparent; border: none; padding: 0px; }")
-        self.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.setScaledContents(False)
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        self.setMouseTracking(True)
+        self.setGeometry(self.screen_rect)
         self.hide()
         
         self.loading_spinner = LoadingSpinner(None, 60)
         
         self.position_timer = QTimer()
-        self.position_timer.timeout.connect(self._update_position_smooth)
+        self.position_timer.timeout.connect(self._update_spinner_position)
         self.target_pos = None
+        
+        # Image transformation state
+        self.image_offset = QPointF(0, 0)  # Position of image within viewport
+        self.image_scale = 1.0  # Scale factor of image
+        
+        # Interaction state
+        self.dragging = False
+        self.scaling = False
+        self.last_mouse_pos = None
+    
+    def paintEvent(self, event):
+        """Paint the image with current transformations"""
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+        
+        # Get current pixmap
+        if self.current_movie:
+            pixmap = self.current_movie.currentPixmap()
+        elif self.current_pixmap:
+            pixmap = self.current_pixmap
+        else:
+            return
+        
+        if pixmap.isNull():
+            return
+        
+        # Apply transformations
+        painter.translate(self.image_offset)
+        painter.scale(self.image_scale, self.image_scale)
+        
+        # Draw the image at origin (transformations handle positioning)
+        painter.drawPixmap(0, 0, pixmap)
     
     @staticmethod
     def is_image_url(url: str) -> bool:
@@ -136,24 +171,34 @@ class ImageHoverPreview(QLabel):
                 return matched
         return None
     
-    def _calc_position(self, cursor_pos: QPoint, widget):
-        """Calculate position - spinner follows cursor, image centers on screen"""
-        if widget == self.loading_spinner:
-            # Spinner follows cursor
-            offset = 20
-            x, y = cursor_pos.x() + offset, cursor_pos.y() + offset
-            
-            if x + widget.width() > self.screen_rect.right():
-                x = cursor_pos.x() - widget.width() - offset
-            if y + widget.height() > self.screen_rect.bottom():
-                y = cursor_pos.y() - widget.height() - offset
-            
-            return QPoint(max(self.screen_rect.left(), x), max(self.screen_rect.top(), y))
-        else:
-            # Image centers on screen
-            x = (self.screen_rect.width() - widget.width()) // 2 + self.screen_rect.left()
-            y = (self.screen_rect.height() - widget.height()) // 2 + self.screen_rect.top()
-            return QPoint(x, y)
+    def _calc_spinner_position(self, cursor_pos: QPoint):
+        """Calculate spinner position near cursor"""
+        offset = 20
+        x, y = cursor_pos.x() + offset, cursor_pos.y() + offset
+        
+        if x + self.loading_spinner.width() > self.screen_rect.right():
+            x = cursor_pos.x() - self.loading_spinner.width() - offset
+        if y + self.loading_spinner.height() > self.screen_rect.bottom():
+            y = cursor_pos.y() - self.loading_spinner.height() - offset
+        
+        return QPoint(max(self.screen_rect.left(), x), max(self.screen_rect.top(), y))
+    
+    def _center_image(self, pixmap: QPixmap):
+        """Center image in viewport at initial scale"""
+        img_w, img_h = pixmap.width(), pixmap.height()
+        max_w, max_h = int(self.screen_rect.width() * 0.95), int(self.screen_rect.height() * 0.95)
+        
+        # Calculate initial scale to fit on screen
+        self.image_scale = min(max_w / img_w, max_h / img_h, 1.0)
+        
+        # Center the scaled image
+        scaled_w = img_w * self.image_scale
+        scaled_h = img_h * self.image_scale
+        
+        self.image_offset = QPointF(
+            (self.width() - scaled_w) / 2,
+            (self.height() - scaled_h) / 2
+        )
     
     def show_preview(self, url: str, cursor_pos: QPoint):
         image_url = self.extract_image_url(url)
@@ -161,7 +206,6 @@ class ImageHoverPreview(QLabel):
             return
         
         if self.current_url == image_url and self.isVisible():
-            self.move(self._calc_position(cursor_pos, self))
             return
         
         if image_url in self.cache:
@@ -170,7 +214,7 @@ class ImageHoverPreview(QLabel):
         
         self.hide_preview()
         self.current_url = image_url
-        self.loading_spinner.move(self._calc_position(cursor_pos, self.loading_spinner))
+        self.loading_spinner.move(self._calc_spinner_position(cursor_pos))
         self.loading_spinner.animation.start()
         self.loading_spinner.show()
         self._load_image(image_url)
@@ -184,17 +228,19 @@ class ImageHoverPreview(QLabel):
         
         if is_gif:
             self.current_movie = data
-            self.setMovie(data)
-            self._resize_to_fit_image(data.currentPixmap())
+            self.current_pixmap = None
+            self._center_image(data.currentPixmap())
+            data.frameChanged.connect(self.update)
             data.start()
         else:
+            self.current_pixmap = data
             self.current_movie = None
-            self._resize_to_fit_image(data)
-            self.setPixmap(data)
+            self._center_image(data)
         
         self.show()
-        self.target_pos = cursor_pos
-        self.position_timer.start(16)
+        self.raise_()
+        self.activateWindow()
+        self.setFocus(Qt.FocusReason.OtherFocusReason)
     
     def _load_image(self, url: str):
         if self.load_worker:
@@ -236,11 +282,18 @@ class ImageHoverPreview(QLabel):
                 if movie.isValid() and not (frame := movie.currentPixmap()).isNull():
                     self.loading_spinner.animation.stop()
                     self.loading_spinner.hide()
-                    self._resize_to_fit_image(frame)
+                    
                     self.current_movie = movie
-                    self.setMovie(movie)
+                    self.current_pixmap = None
+                    self._center_image(frame)
+                    movie.frameChanged.connect(self.update)
                     movie.start()
+                    
                     self.show()
+                    self.raise_()
+                    self.activateWindow()
+                    self.setFocus(Qt.FocusReason.OtherFocusReason)
+                    
                     if len(self.cache) < 20:
                         self.cache[url] = (movie, True)
                 else:
@@ -253,10 +306,16 @@ class ImageHoverPreview(QLabel):
                 if not pixmap.isNull():
                     self.loading_spinner.animation.stop()
                     self.loading_spinner.hide()
-                    self._resize_to_fit_image(pixmap)
-                    self.setPixmap(pixmap)
+                    
+                    self.current_pixmap = pixmap
                     self.current_movie = None
+                    self._center_image(pixmap)
+                    
                     self.show()
+                    self.raise_()
+                    self.activateWindow()
+                    self.setFocus(Qt.FocusReason.OtherFocusReason)
+                    
                     if len(self.cache) < 20:
                         self.cache[url] = (pixmap, False)
                 else:
@@ -267,22 +326,114 @@ class ImageHoverPreview(QLabel):
             self.loading_spinner.animation.stop()
             self.loading_spinner.hide()
     
-    def _resize_to_fit_image(self, pixmap: QPixmap):
-        img_w, img_h = pixmap.width(), pixmap.height()
-        max_w, max_h = int(self.screen_rect.width() * 0.95), int(self.screen_rect.height() * 0.95)
-        
-        scale = min(max_w / img_w, max_h / img_h, 1.0)
-        
-        self.setFixedSize(int(img_w * scale), int(img_h * scale))
-        self.setScaledContents(scale < 1.0)
-        self.move(self._calc_position(QCursor.pos(), self))
-    
-    def _update_position_smooth(self):
+    def _update_spinner_position(self):
+        """Update spinner position to follow cursor"""
         if self.target_pos and self.loading_spinner.isVisible():
             cursor_pos = QCursor.pos()
             if abs(cursor_pos.x() - self.target_pos.x()) > 5 or abs(cursor_pos.y() - self.target_pos.y()) > 5:
                 self.target_pos = cursor_pos
-                self.loading_spinner.move(self._calc_position(cursor_pos, self.loading_spinner))
+                self.loading_spinner.move(self._calc_spinner_position(cursor_pos))
+    
+    def wheelEvent(self, event: QWheelEvent):
+        """Handle mouse wheel for zoom"""
+        if not (self.current_pixmap or self.current_movie):
+            return
+        
+        # Zoom towards mouse position
+        mouse_pos = event.position()
+        
+        # Calculate zoom factor
+        delta = event.angleDelta().y()
+        zoom_factor = 1.15 if delta > 0 else 0.87
+        
+        new_scale = self.image_scale * zoom_factor
+        
+        # Clamp scale
+        if not (0.1 <= new_scale <= 10.0):
+            return
+        
+        # Adjust offset to zoom towards mouse position
+        # Point under mouse before zoom
+        point_before = (mouse_pos - self.image_offset) / self.image_scale
+        
+        # Apply new scale
+        self.image_scale = new_scale
+        
+        # Point under mouse after zoom (should be same logical point)
+        point_after = point_before * self.image_scale
+        
+        # Adjust offset
+        self.image_offset = mouse_pos - point_after
+        
+        self.update()
+        event.accept()
+    
+    def mousePressEvent(self, event: QMouseEvent):
+        """Handle mouse press for dragging (LMB) or scaling (Ctrl+LMB)"""
+        if event.button() == Qt.MouseButton.LeftButton:
+            is_ctrl = QApplication.keyboardModifiers() & Qt.KeyboardModifier.ControlModifier
+            self.scaling = bool(is_ctrl)
+            self.dragging = not is_ctrl
+            self.last_mouse_pos = event.position()
+            self.setCursor(QCursor(Qt.CursorShape.ClosedHandCursor))
+            event.accept()
+        else:
+            super().mousePressEvent(event)
+    
+    def mouseMoveEvent(self, event: QMouseEvent):
+        """Handle mouse move for dragging or scaling"""
+        if not self.last_mouse_pos:
+            return super().mouseMoveEvent(event)
+        
+        current_pos = event.position()
+        delta = current_pos - self.last_mouse_pos
+        
+        if self.dragging:
+            # Pan the image
+            self.image_offset += delta
+            self.update()
+        elif self.scaling:
+            # Vertical movement controls scale (up = zoom in, down = zoom out)
+            zoom_amount = -delta.y() * 0.003
+            new_scale = self.image_scale * (1.0 + zoom_amount)
+            new_scale = max(0.1, min(new_scale, 10.0))
+            
+            # Zoom towards center of viewport
+            center = QPointF(self.width() / 2, self.height() / 2)
+            point_before = (center - self.image_offset) / self.image_scale
+            
+            self.image_scale = new_scale
+            
+            point_after = point_before * self.image_scale
+            self.image_offset = center - point_after
+            
+            self.update()
+        
+        self.last_mouse_pos = current_pos
+        event.accept()
+    
+    def mouseReleaseEvent(self, event: QMouseEvent):
+        """Handle mouse release to stop dragging or scaling"""
+        if event.button() == Qt.MouseButton.LeftButton and (self.dragging or self.scaling):
+            self.dragging = False
+            self.scaling = False
+            self.last_mouse_pos = None
+            self.setCursor(QCursor(Qt.CursorShape.ArrowCursor))
+            event.accept()
+        else:
+            super().mouseReleaseEvent(event)
+    
+    def mouseDoubleClickEvent(self, event: QMouseEvent):
+        """Handle double-click to hide preview"""
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.hide_preview()
+        event.accept()
+    
+    def keyPressEvent(self, event: QKeyEvent):
+        """Handle Space and ESC keys to hide preview"""
+        if event.key() in (Qt.Key.Key_Space, Qt.Key.Key_Escape):
+            self.hide_preview()
+        event.accept()
     
     def hide_preview(self):
         self.position_timer.stop()
@@ -291,14 +442,30 @@ class ImageHoverPreview(QLabel):
         
         if self.load_worker:
             self.load_worker.stop()
-        if self.current_movie and self.current_movie not in [v[0] for v in self.cache.values()]:
-            self.current_movie.stop()
+        
+        if self.current_movie:
+            if self.current_movie not in [v[0] for v in self.cache.values()]:
+                self.current_movie.stop()
+            try:
+                self.current_movie.frameChanged.disconnect(self.update)
+            except:
+                pass
         
         self.current_movie = None
-        self.setMovie(None)
-        self.setPixmap(QPixmap())
+        self.current_pixmap = None
         self.current_url = None
         self.target_pos = None
+        
+        # Reset transformations
+        self.image_offset = QPointF(0, 0)
+        self.image_scale = 1.0
+        
+        # Reset interaction state
+        self.dragging = False
+        self.scaling = False
+        self.last_mouse_pos = None
+        
+        self.setCursor(QCursor(Qt.CursorShape.ArrowCursor))
         self.hide()
     
     def cleanup(self):

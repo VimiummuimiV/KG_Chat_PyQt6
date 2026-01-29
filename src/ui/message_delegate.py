@@ -697,22 +697,18 @@ class MessageDelegate(QStyledItemDelegate):
                 )
                
                 # Check for image URL hover
-                hovered_image_url = None
                 for link_rect, url in rects['links']:
                     if link_rect.contains(pos):
                         if ImageHoverPreview.is_image_url(url):
-                            hovered_image_url = url
+                            if url != self.hovered_image_url:
+                                self.hovered_image_url = url
+                                if self.image_preview:
+                                    self.image_preview.show_preview(url, self.list_view.viewport().mapToGlobal(pos))
+                        else:
+                            self.hovered_image_url = None
                         break
-               
-                # Show/hide image preview
-                if hovered_image_url and hovered_image_url != self.hovered_image_url:
-                    self.hovered_image_url = hovered_image_url
-                    if self.image_preview:
-                        self.image_preview.show_preview(hovered_image_url,
-                                                       self.list_view.viewport().mapToGlobal(pos))
-                elif not hovered_image_url and self.hovered_image_url:
-                    if self.image_preview:
-                        self.image_preview.hide_preview()
+                else:
+                    # Not hovering over any link
                     self.hovered_image_url = None
                
                 if self.list_view:
