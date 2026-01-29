@@ -22,7 +22,7 @@ from helpers.fonts import get_font, FontType
 from helpers.me_action import format_me_action
 from helpers.mention_parser import parse_mentions
 from core.youtube import is_youtube_url, get_cached_info, fetch_async
-from helpers.image_hover_preview import ImageHoverPreview
+from helpers.image_viewer import ImageHoverView
 
 class MessageDelegate(QStyledItemDelegate):
     """Delegate for rendering messages with virtual scrolling"""
@@ -100,7 +100,7 @@ class MessageDelegate(QStyledItemDelegate):
        
         # Initialize image preview widget
         if list_view and not self.image_preview:
-            self.image_preview = ImageHoverPreview(parent=list_view.window())
+            self.image_preview = ImageHoverView(parent=list_view.window())
   
     def set_input_field(self, input_field):
         self.input_field = input_field
@@ -699,7 +699,7 @@ class MessageDelegate(QStyledItemDelegate):
                 # Check for image URL hover
                 for link_rect, url in rects['links']:
                     if link_rect.contains(pos):
-                        if ImageHoverPreview.is_image_url(url):
+                        if ImageHoverView.is_image_url(url):
                             if url != self.hovered_image_url:
                                 self.hovered_image_url = url
                                 if self.image_preview:

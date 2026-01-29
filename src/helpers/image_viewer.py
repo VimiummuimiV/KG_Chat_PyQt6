@@ -77,8 +77,8 @@ class ImageLoadWorker(QObject):
         self._should_stop = True
 
 
-class ImageHoverPreview(QWidget):
-    """Fullscreen viewport for image preview with internal image transformations"""
+class ImageHoverView(QWidget):
+    """Fullscreen viewport for image view with internal image transformations"""
     
     IMAGE_PATTERNS = [
         re.compile(r'https?://[^\s<>"]+\.(?:jpg|jpeg|png|gif|webp|bmp|svg)(?:\?[^\s<>"]*)?', re.IGNORECASE),
@@ -125,13 +125,13 @@ class ImageHoverPreview(QWidget):
     
     @staticmethod
     def is_image_url(url: str) -> bool:
-        return any(p.search(url or '') for p in ImageHoverPreview.IMAGE_PATTERNS)
+        return any(p.search(url or '') for p in ImageHoverView.IMAGE_PATTERNS)
     
     @staticmethod
     def extract_image_url(url: str) -> Optional[str]:
         if not url:
             return None
-        for pattern in ImageHoverPreview.IMAGE_PATTERNS:
+        for pattern in ImageHoverView.IMAGE_PATTERNS:
             if match := pattern.search(url):
                 return match.group(0)
         return None
@@ -257,7 +257,7 @@ class ImageHoverPreview(QWidget):
         if self.current_pixmap or self.current_movie:
             self._apply_zoom(self.image_scale * (1.15 if event.angleDelta().y() > 0 else 0.87), event.position())
             event.accept()
-    
+
     def mousePressEvent(self, event):
         """Handle mouse press for dragging or scaling"""
         if event.button() == Qt.MouseButton.LeftButton:
@@ -266,7 +266,10 @@ class ImageHoverPreview(QWidget):
             self.last_mouse_pos = event.position()
             self.setCursor(QCursor(Qt.CursorShape.ClosedHandCursor))
             event.accept()
-    
+        elif event.button() == Qt.MouseButton.RightButton:
+            self.hide_preview()
+            event.accept()
+        
     def mouseMoveEvent(self, event):
         """Handle mouse move for dragging or scaling"""
         if not self.last_mouse_pos:
@@ -290,12 +293,6 @@ class ImageHoverPreview(QWidget):
             self.dragging = self.scaling = False
             self.last_mouse_pos = None
             self.setCursor(QCursor(Qt.CursorShape.ArrowCursor))
-            event.accept()
-    
-    def mouseDoubleClickEvent(self, event):
-        """Handle double-click to hide preview"""
-        if event.button() == Qt.MouseButton.LeftButton:
-            self.hide_preview()
             event.accept()
     
     def keyPressEvent(self, event):
