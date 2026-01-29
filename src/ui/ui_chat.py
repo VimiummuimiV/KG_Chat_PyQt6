@@ -168,17 +168,16 @@ class ChatWindow(QWidget):
         if getattr(self, 'button_panel', None) and getattr(self.button_panel, 'voice_button', None):
             self.button_panel.set_button_state(self.button_panel.voice_button, enabled)
 
-    def on_toggle_mention_beep(self):
-        """Toggle mention beep on/off from the panel button."""
-        current = self.config.get("sound", "mention_sound_enabled")
+    def on_toggle_effects_sound(self):
+        """Toggle effects sound on/off from the panel button."""
+        current = self.config.get("sound", "effects_enabled")
         if current is None:
-            # Default to enabled when not set
             current = True
         new = not current
 
         # Persist centrally via app controller so tray stays in sync
         config = self.app_controller.config if self.app_controller else self.config
-        config.set("sound", "mention_sound_enabled", value=new)
+        config.set("sound", "effects_enabled", value=new)
         # Also update local config data to keep in sync
         if self.app_controller:
             self.config.data = self.app_controller.config.data
@@ -187,17 +186,19 @@ class ChatWindow(QWidget):
         if self.app_controller and hasattr(self.app_controller, 'update_sound_menu'):
             self.app_controller.update_sound_menu()
 
-        # Update visual
-        if getattr(self, 'button_panel', None) and getattr(self.button_panel, 'mention_button', None):
-            self.button_panel.set_button_state(self.button_panel.mention_button, new)
+        # Update visual and icon
+        if getattr(self, 'button_panel', None) and getattr(self.button_panel, 'effects_button', None):
+            self.button_panel.set_button_state(self.button_panel.effects_button, new)
+            self.button_panel.update_effects_button_icon()
 
-    def update_mention_button_state(self):
-        """Sync mention button visual to config state."""
-        enabled = self.config.get("sound", "mention_sound_enabled")
+    def update_effects_button_state(self):
+        """Sync effects button visual to config state."""
+        enabled = self.config.get("sound", "effects_enabled")
         if enabled is None:
             enabled = True
-        if getattr(self, 'button_panel', None) and getattr(self.button_panel, 'mention_button', None):
-            self.button_panel.set_button_state(self.button_panel.mention_button, enabled)
+        if getattr(self, 'button_panel', None) and getattr(self.button_panel, 'effects_button', None):
+            self.button_panel.set_button_state(self.button_panel.effects_button, enabled)
+            self.button_panel.update_effects_button_icon()
 
     def on_toggle_notification(self):
         """Cycle through notification states: Stack → Replace → Muted → Stack"""
@@ -401,7 +402,7 @@ class ChatWindow(QWidget):
         self.button_panel.pronunciation_requested.connect(self.show_pronunciation_view)
         self.button_panel.show_banlist_requested.connect(self.show_ban_list_view)
         self.button_panel.exit_requested.connect(self.on_exit_requested)
-        self.button_panel.toggle_mention_requested.connect(self.on_toggle_mention_beep)
+        self.button_panel.toggle_effects_requested.connect(self.on_toggle_effects_sound)
         self.button_panel.toggle_notification_requested.connect(self.on_toggle_notification)
         # Color management connections (change / reset / update-from-server)
         self.button_panel.change_color_requested.connect(self.on_change_username_color)
@@ -411,7 +412,7 @@ class ChatWindow(QWidget):
 
         # Initialize voice, mention and notification button states
         self.update_voice_button_state()
-        self.update_mention_button_state()
+        self.update_effects_button_state()
         self.update_notification_button_state()
 
      
@@ -1119,14 +1120,6 @@ class ChatWindow(QWidget):
 
     def _play_mention_sound(self):
         """Play mention sound"""
-        mention_sound_enabled = self.config.get("sound", "mention_sound_enabled")
-        if mention_sound_enabled is None:
-            mention_sound_enabled = True  # Default to enabled
-        
-        if not mention_sound_enabled:
-            print("🔇 Mention sound disabled")
-            return
-        
         if not self.mention_sound_path:
             try:
                 QApplication.instance().beep()
@@ -1136,7 +1129,7 @@ class ChatWindow(QWidget):
         
         def _play():
             try:
-                play_sound(self.mention_sound_path)
+                play_sound(self.mention_sound_path, config=self.config)
             except Exception as e:
                 print(f"Mention sound playback error: {e}")
         
@@ -1146,7 +1139,7 @@ class ChatWindow(QWidget):
         """Play ban sound"""
         def _play():
             try:
-                play_sound(self.ban_sound_path)
+                play_sound(self.ban_sound_path, config=self.config)
             except Exception as e:
                 print(f"Ban sound playback error: {e}")
         

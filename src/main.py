@@ -85,7 +85,7 @@ class Application:
 
         self.sound_menu = None
         self.voice_sound_action = None
-        self.mention_beep_action = None
+        self.effects_sound_action = None
         self.pronunciation_action = None
 
         self.notification_menu = None
@@ -174,12 +174,12 @@ class Application:
         )
         self.sound_menu.addAction(self.voice_sound_action)
         
-        # Mention beep toggle action
-        self.mention_beep_action = QAction("Mention Beep", self.app, checkable=True)
-        self.mention_beep_action.triggered.connect(
-            lambda: self._on_sound_toggled("mention_sound_enabled", self.mention_beep_action)
+        # Effects sound toggle action
+        self.effects_sound_action = QAction("Effects Sound", self.app, checkable=True)
+        self.effects_sound_action.triggered.connect(
+            lambda: self._on_sound_toggled("effects_enabled", self.effects_sound_action)
         )
-        self.sound_menu.addAction(self.mention_beep_action)
+        self.sound_menu.addAction(self.effects_sound_action)
         
         # Add separator before pronunciation
         self.sound_menu.addSeparator()
@@ -240,11 +240,11 @@ class Application:
             voice_enabled = False
         self.voice_sound_action.setChecked(voice_enabled)
        
-        # Update mention beep state
-        mention_enabled = self.config.get("sound", "mention_sound_enabled")
-        if mention_enabled is None:
-            mention_enabled = True
-        self.mention_beep_action.setChecked(mention_enabled)
+        # Update effects sound state
+        effects_enabled = self.config.get("sound", "effects_enabled")
+        if effects_enabled is None:
+            effects_enabled = True
+        self.effects_sound_action.setChecked(effects_enabled)
 
     def update_notification_menu(self):
         """Update notification menu to reflect current state"""
@@ -278,8 +278,8 @@ class Application:
             # Ensure chat window reflects the new sound-related state immediately
             if config_key == 'tts_enabled' and hasattr(self.chat_window, 'update_voice_button_state'):
                 self.chat_window.update_voice_button_state()
-            if config_key == 'mention_sound_enabled' and hasattr(self.chat_window, 'update_mention_button_state'):
-                self.chat_window.update_mention_button_state()
+            if config_key == 'effects_enabled' and hasattr(self.chat_window, 'update_effects_button_state'):
+                self.chat_window.update_effects_button_state()
 
     def _on_notification_mode_toggled(self):
         """Handle notification mode toggle from tray menu"""

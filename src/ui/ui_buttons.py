@@ -22,7 +22,7 @@ class ButtonPanel(QWidget):
     pronunciation_requested = pyqtSignal()
     show_banlist_requested = pyqtSignal()
     exit_requested = pyqtSignal()
-    toggle_mention_requested = pyqtSignal()
+    toggle_effects_requested = pyqtSignal()
     toggle_notification_requested = pyqtSignal()
     # Color management (change / reset / update from server)
     change_color_requested = pyqtSignal()
@@ -47,7 +47,7 @@ class ButtonPanel(QWidget):
         self.notification_button = None
         self.color_button = None
         self.voice_button = None
-        self.mention_button = None
+        self.effects_button = None
         self.ban_button = None
         self.exit_button = None
         
@@ -124,6 +124,20 @@ class ButtonPanel(QWidget):
         else:  # stack
             return "Notifications: Stack mode (Click to switch to Replace)"
     
+    def _get_effects_icon(self) -> str:
+        """Get current effects icon based on state"""
+        enabled = self.config.get("sound", "effects_enabled")
+        if enabled is None:
+            enabled = True  # Default to enabled
+        return "volume-up.svg" if enabled else "volume-mute.svg"
+    
+    def _get_effects_tooltip(self) -> str:
+        """Get current effects tooltip based on state"""
+        enabled = self.config.get("sound", "effects_enabled")
+        if enabled is None:
+            enabled = True
+        return "Effects Sound: Enabled (Click to disable)" if enabled else "Effects Sound: Disabled (Click to enable)"
+    
     def _create_buttons(self):
         """Create all buttons for the panel"""
         # Toggle userlist button
@@ -157,11 +171,13 @@ class ButtonPanel(QWidget):
         # Install event filter to catch Ctrl+Click for pronunciation
         self.voice_button.installEventFilter(self)
 
-        # Mention beep toggle
-        self.mention_button = self._create_button(
-            "bell.svg",
-            "Toggle Mention Beep",
-            lambda: self.toggle_mention_requested.emit()
+        # Effects sound toggle
+        effects_icon = self._get_effects_icon()
+        effects_tooltip = self._get_effects_tooltip()
+        self.effects_button = self._create_button(
+            effects_icon,
+            effects_tooltip,
+            lambda: self.toggle_effects_requested.emit()
         )
 
         # Notification toggle button (3-state cycle: Stack → Replace → Muted)
@@ -232,6 +248,24 @@ class ButtonPanel(QWidget):
         
         # Update tooltip
         self.notification_button.setToolTip(new_tooltip)
+    
+    def update_effects_button_icon(self):
+        """Update effects button icon after state change"""
+        if not self.effects_button:
+            return
+        
+        new_icon_name = self._get_effects_icon()
+        new_tooltip = self._get_effects_tooltip()
+        
+        # Update icon name
+        self.effects_button._icon_name = new_icon_name
+        
+        # Render and set the new icon
+        new_icon = _render_svg_icon(self.icons_path / new_icon_name, self.effects_button._icon_size)
+        self.effects_button.setIcon(new_icon)
+        
+        # Update tooltip
+        self.effects_button.setToolTip(new_tooltip)
     
     def add_button(self, button):
         """Add a button to the panel (before the stretch)"""
