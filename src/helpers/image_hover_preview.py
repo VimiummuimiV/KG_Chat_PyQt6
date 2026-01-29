@@ -137,16 +137,23 @@ class ImageHoverPreview(QLabel):
         return None
     
     def _calc_position(self, cursor_pos: QPoint, widget):
-        """Calculate position for any widget"""
-        offset = 20
-        x, y = cursor_pos.x() + offset, cursor_pos.y() + offset
-        
-        if x + widget.width() > self.screen_rect.right():
-            x = cursor_pos.x() - widget.width() - offset
-        if y + widget.height() > self.screen_rect.bottom():
-            y = cursor_pos.y() - widget.height() - offset
-        
-        return QPoint(max(self.screen_rect.left(), x), max(self.screen_rect.top(), y))
+        """Calculate position - spinner follows cursor, image centers on screen"""
+        if widget == self.loading_spinner:
+            # Spinner follows cursor
+            offset = 20
+            x, y = cursor_pos.x() + offset, cursor_pos.y() + offset
+            
+            if x + widget.width() > self.screen_rect.right():
+                x = cursor_pos.x() - widget.width() - offset
+            if y + widget.height() > self.screen_rect.bottom():
+                y = cursor_pos.y() - widget.height() - offset
+            
+            return QPoint(max(self.screen_rect.left(), x), max(self.screen_rect.top(), y))
+        else:
+            # Image centers on screen
+            x = (self.screen_rect.width() - widget.width()) // 2 + self.screen_rect.left()
+            y = (self.screen_rect.height() - widget.height()) // 2 + self.screen_rect.top()
+            return QPoint(x, y)
     
     def show_preview(self, url: str, cursor_pos: QPoint):
         image_url = self.extract_image_url(url)
@@ -178,11 +185,11 @@ class ImageHoverPreview(QLabel):
         if is_gif:
             self.current_movie = data
             self.setMovie(data)
-            self._resize_to_fit_image(data.currentPixmap(), cursor_pos)
+            self._resize_to_fit_image(data.currentPixmap())
             data.start()
         else:
             self.current_movie = None
-            self._resize_to_fit_image(data, cursor_pos)
+            self._resize_to_fit_image(data)
             self.setPixmap(data)
         
         self.show()
@@ -227,11 +234,9 @@ class ImageHoverPreview(QLabel):
                 movie.jumpToFrame(0)
                 
                 if movie.isValid() and not (frame := movie.currentPixmap()).isNull():
-                    pos = self.loading_spinner.pos()
                     self.loading_spinner.animation.stop()
                     self.loading_spinner.hide()
-                    self._resize_to_fit_image(frame, QCursor.pos())
-                    self.move(pos)
+                    self._resize_to_fit_image(frame)
                     self.current_movie = movie
                     self.setMovie(movie)
                     movie.start()
@@ -246,11 +251,9 @@ class ImageHoverPreview(QLabel):
                 pixmap.loadFromData(data)
                 
                 if not pixmap.isNull():
-                    pos = self.loading_spinner.pos()
                     self.loading_spinner.animation.stop()
                     self.loading_spinner.hide()
-                    self._resize_to_fit_image(pixmap, QCursor.pos())
-                    self.move(pos)
+                    self._resize_to_fit_image(pixmap)
                     self.setPixmap(pixmap)
                     self.current_movie = None
                     self.show()
@@ -264,26 +267,22 @@ class ImageHoverPreview(QLabel):
             self.loading_spinner.animation.stop()
             self.loading_spinner.hide()
     
-    def _resize_to_fit_image(self, pixmap: QPixmap, cursor_pos: QPoint):
+    def _resize_to_fit_image(self, pixmap: QPixmap):
         img_w, img_h = pixmap.width(), pixmap.height()
-        max_w, max_h = int(self.screen_rect.width() * 0.9), int(self.screen_rect.height() * 0.9)
+        max_w, max_h = int(self.screen_rect.width() * 0.95), int(self.screen_rect.height() * 0.95)
         
-        scale = 1.0
-        if img_w > max_w or img_h > max_h:
-            scale = min(max_w / img_w, max_h / img_h)
+        scale = min(max_w / img_w, max_h / img_h, 1.0)
         
         self.setFixedSize(int(img_w * scale), int(img_h * scale))
         self.setScaledContents(scale < 1.0)
+        self.move(self._calc_position(QCursor.pos(), self))
     
     def _update_position_smooth(self):
-        if self.target_pos:
+        if self.target_pos and self.loading_spinner.isVisible():
             cursor_pos = QCursor.pos()
             if abs(cursor_pos.x() - self.target_pos.x()) > 5 or abs(cursor_pos.y() - self.target_pos.y()) > 5:
                 self.target_pos = cursor_pos
-                if self.loading_spinner.isVisible():
-                    self.loading_spinner.move(self._calc_position(cursor_pos, self.loading_spinner))
-                elif self.isVisible():
-                    self.move(self._calc_position(cursor_pos, self))
+                self.loading_spinner.move(self._calc_position(cursor_pos, self.loading_spinner))
     
     def hide_preview(self):
         self.position_timer.stop()
