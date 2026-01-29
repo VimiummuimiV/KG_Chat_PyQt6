@@ -88,7 +88,7 @@ class ImageHoverPreview(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.current_url = self.current_movie = self.current_pixmap = None
-        self.cache, self.load_thread, self.load_worker = {}, None, None
+        self.load_thread, self.load_worker = None, None
         
         screen = QApplication.primaryScreen()
         self.screen_rect = screen.availableGeometry()
@@ -167,33 +167,12 @@ class ImageHoverPreview(QWidget):
         if not image_url or (self.current_url == image_url and self.isVisible()):
             return
         
-        if image_url in self.cache:
-            return self._display_cached(image_url, cursor_pos)
-        
         self.hide_preview()
         self.current_url = image_url
         self.loading_spinner.move(self._calc_spinner_position(cursor_pos))
         self.loading_spinner.animation.start()
         self.loading_spinner.show()
         self._load_image(image_url)
-        self.target_pos = cursor_pos
-        self.position_timer.start(16)
-    
-    def _display_cached(self, url: str, cursor_pos: QPoint):
-        """Display cached image"""
-        self.current_url = url
-        data, is_gif = self.cache[url]
-        
-        if is_gif:
-            self.current_movie, self.current_pixmap = data, None
-            self._center_image(data.currentPixmap())
-            data.frameChanged.connect(self.update)
-            data.start()
-        else:
-            self.current_pixmap, self.current_movie = data, None
-            self._center_image(data)
-        
-        self._show_widget()
         self.target_pos = cursor_pos
         self.position_timer.start(16)
     
@@ -239,8 +218,6 @@ class ImageHoverPreview(QWidget):
                     movie.frameChanged.connect(self.update)
                     movie.start()
                     self._show_widget()
-                    if len(self.cache) < 20:
-                        self.cache[url] = (movie, True)
                 else:
                     self._stop_spinner()
             else:
@@ -252,8 +229,6 @@ class ImageHoverPreview(QWidget):
                     self.current_pixmap, self.current_movie = pixmap, None
                     self._center_image(pixmap)
                     self._show_widget()
-                    if len(self.cache) < 20:
-                        self.cache[url] = (pixmap, False)
                 else:
                     self._stop_spinner()
         except Exception as e:
@@ -337,14 +312,13 @@ class ImageHoverPreview(QWidget):
         if self.load_worker:
             self.load_worker.stop()
         
-        if self.current_movie and self.current_movie not in [v[0] for v in self.cache.values()]:
-            self.current_movie.stop()
-        
         if self.current_movie:
+            self.current_movie.stop()
             try:
                 self.current_movie.frameChanged.disconnect(self.update)
             except:
                 pass
+            self.current_movie.deleteLater()
         
         self.current_movie = self.current_pixmap = self.current_url = self.target_pos = self.last_mouse_pos = None
         self.image_offset, self.image_scale = QPointF(0, 0), 1.0
@@ -358,8 +332,3 @@ class ImageHoverPreview(QWidget):
         if self.load_thread and self.load_thread.isRunning():
             self.load_thread.quit()
             self.load_thread.wait(1000)
-        for data, is_gif in self.cache.values():
-            if is_gif:
-                data.stop()
-                data.deleteLater()
-        self.cache.clear()
