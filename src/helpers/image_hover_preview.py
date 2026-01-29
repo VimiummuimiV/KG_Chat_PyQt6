@@ -46,11 +46,11 @@ class LoadingSpinner(QWidget):
         line_width = max(2, int(self.spinner_size * 0.06))
         
         painter.setPen(Qt.PenStyle.NoPen)
-        painter.setBrush(QColor(45, 45, 45))
+        painter.setBrush(QColor(5, 5, 5))
         painter.drawEllipse(int(center - bg_radius), int(center - bg_radius), 
                           int(bg_radius * 2), int(bg_radius * 2))
         
-        painter.setPen(QPen(QColor(0, 120, 215), line_width, 
+        painter.setPen(QPen(QColor(66, 133, 244), line_width,
                           Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap))
         painter.setBrush(Qt.BrushStyle.NoBrush)
         painter.drawArc(int(center - inner_radius), int(center - inner_radius),
@@ -107,8 +107,8 @@ class ImageHoverPreview(QLabel):
         
         self.setWindowFlags(Qt.WindowType.ToolTip | Qt.WindowType.FramelessWindowHint | 
                           Qt.WindowType.WindowStaysOnTopHint)
-        self.setStyleSheet("QLabel { background-color: #1E1E1E; border: 2px solid #555; "
-                          "border-radius: 4px; padding: 4px; }")
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setStyleSheet("QLabel { background-color: transparent; border: none; padding: 0px; }")
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.setScaledContents(False)
         self.hide()
@@ -272,7 +272,7 @@ class ImageHoverPreview(QLabel):
         if img_w > max_w or img_h > max_h:
             scale = min(max_w / img_w, max_h / img_h)
         
-        self.setFixedSize(int(img_w * scale) + 8, int(img_h * scale) + 8)
+        self.setFixedSize(int(img_w * scale), int(img_h * scale))
         self.setScaledContents(scale < 1.0)
     
     def _update_position_smooth(self):
