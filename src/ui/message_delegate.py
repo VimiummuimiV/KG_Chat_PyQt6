@@ -754,10 +754,9 @@ class MessageDelegate(QStyledItemDelegate):
                                 self.hover_timer.start(self.hover_delay_ms)
                             break
 
+                # Only stop the timer if not hovering over media, but don't hide the viewer
                 if not found_media:
                     self.hover_timer.stop()
-                    if self.image_viewer:
-                        self.image_viewer.hide_preview()
                
                 if self.list_view:
                     cursor = (Qt.CursorShape.PointingHandCursor
