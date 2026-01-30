@@ -1,6 +1,5 @@
 """Image hover preview widget - displays images on URL hover like Imagus"""
 import re
-from typing import Optional
 import requests
 
 from PyQt6.QtWidgets import QApplication, QWidget
@@ -85,7 +84,8 @@ class ImageHoverView(QWidget):
         return any(p.search(url or '') for p in ImageHoverView.IMAGE_PATTERNS)
     
     @staticmethod
-    def extract_image_url(url: str) -> Optional[str]:
+    def extract_image_url(url: str):
+        """Extract image URL from text"""
         if not url:
             return None
         for pattern in ImageHoverView.IMAGE_PATTERNS:
@@ -93,19 +93,20 @@ class ImageHoverView(QWidget):
                 return match.group(0)
         return None
     
-    def _calc_spinner_position(self, cursor_pos: QPoint):
-        """Calculate spinner position near cursor"""
-        offset, w, h = 20, self.loading_spinner.width(), self.loading_spinner.height()
-        x = cursor_pos.x() - w - offset if cursor_pos.x() + offset + w > self.screen_rect.right() else cursor_pos.x() + offset
-        y = cursor_pos.y() - h - offset if cursor_pos.y() + offset + h > self.screen_rect.bottom() else cursor_pos.y() + offset
-        return QPoint(max(self.screen_rect.left(), x), max(self.screen_rect.top(), y))
-    
     def _center_image(self, pixmap: QPixmap):
         """Center image in viewport at initial scale"""
         img_w, img_h = pixmap.width(), pixmap.height()
-        self.image_scale = min(self.screen_rect.width() * 0.95 / img_w, self.screen_rect.height() * 0.95 / img_h, 1.0)
-        scaled_w, scaled_h = img_w * self.image_scale, img_h * self.image_scale
-        self.image_offset = QPointF((self.width() - scaled_w) / 2, (self.height() - scaled_h) / 2)
+        self.image_scale = min(
+            self.screen_rect.width() * 0.95 / img_w, 
+            self.screen_rect.height() * 0.95 / img_h, 
+            1.0
+        )
+        scaled_w = img_w * self.image_scale
+        scaled_h = img_h * self.image_scale
+        self.image_offset = QPointF(
+            (self.width() - scaled_w) / 2, 
+            (self.height() - scaled_h) / 2
+        )
     
     def _stop_spinner(self):
         """Stop and hide loading spinner"""
@@ -125,8 +126,13 @@ class ImageHoverView(QWidget):
         
         self.hide_preview()
         self.current_url = image_url
-        self.loading_spinner.move(self._calc_spinner_position(cursor_pos))
+        
+        spinner_pos = LoadingSpinner.calculate_position(
+            cursor_pos, self.loading_spinner.width(), self.screen_rect
+        )
+        self.loading_spinner.move(spinner_pos)
         self.loading_spinner.start()
+        
         self._load_image(image_url)
         self.target_pos = cursor_pos
         self.position_timer.start(16)
@@ -196,7 +202,10 @@ class ImageHoverView(QWidget):
             cursor_pos = QCursor.pos()
             if abs(cursor_pos.x() - self.target_pos.x()) > 5 or abs(cursor_pos.y() - self.target_pos.y()) > 5:
                 self.target_pos = cursor_pos
-                self.loading_spinner.move(self._calc_spinner_position(cursor_pos))
+                spinner_pos = LoadingSpinner.calculate_position(
+                    cursor_pos, self.loading_spinner.width(), self.screen_rect
+                )
+                self.loading_spinner.move(spinner_pos)
     
     def _apply_zoom(self, new_scale: float, pivot: QPointF):
         """Apply zoom transformation around pivot point"""
@@ -210,7 +219,8 @@ class ImageHoverView(QWidget):
     def wheelEvent(self, event):
         """Handle mouse wheel for zoom"""
         if self.current_pixmap or self.current_movie:
-            self._apply_zoom(self.image_scale * (1.15 if event.angleDelta().y() > 0 else 0.87), event.position())
+            scale_factor = 1.15 if event.angleDelta().y() > 0 else 0.87
+            self._apply_zoom(self.image_scale * scale_factor, event.position())
             event.accept()
 
     def mousePressEvent(self, event):
@@ -236,8 +246,10 @@ class ImageHoverView(QWidget):
             self.image_offset += delta
             self.update()
         elif self.scaling:
-            self._apply_zoom(max(0.1, min(self.image_scale * (1.0 - delta.y() * 0.003), 10.0)),
-                           QPointF(self.width() / 2, self.height() / 2))
+            new_scale = self.image_scale * (1.0 - delta.y() * 0.003)
+            new_scale = max(0.1, min(new_scale, 10.0))
+            center = QPointF(self.width() / 2, self.height() / 2)
+            self._apply_zoom(new_scale, center)
         
         self.last_mouse_pos = event.position()
         event.accept()

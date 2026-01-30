@@ -1,6 +1,6 @@
 """Shared loading spinner widget for async operations"""
-from PyQt6.QtWidgets import QWidget
-from PyQt6.QtCore import Qt, QPropertyAnimation, pyqtProperty
+from PyQt6.QtWidgets import QWidget, QApplication
+from PyQt6.QtCore import Qt, QPropertyAnimation, pyqtProperty, QPoint, QRect
 from PyQt6.QtGui import QPainter, QPen, QColor
 
 
@@ -57,3 +57,18 @@ class LoadingSpinner(QWidget):
         """Stop and hide the spinner"""
         self.animation.stop()
         self.hide()
+    
+    @staticmethod
+    def calculate_position(cursor_pos: QPoint, spinner_size: int, bounds: QRect) -> QPoint:
+        offset = 20
+        w = h = spinner_size
+        
+        # Calculate position with offset, checking bounds
+        x = cursor_pos.x() - w - offset if cursor_pos.x() + offset + w > bounds.right() else cursor_pos.x() + offset
+        y = cursor_pos.y() - h - offset if cursor_pos.y() + offset + h > bounds.bottom() else cursor_pos.y() + offset
+        
+        # Ensure within bounds
+        x = max(bounds.left(), min(x, bounds.right() - w))
+        y = max(bounds.top(), min(y, bounds.bottom() - h))
+        
+        return QPoint(x, y)

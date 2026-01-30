@@ -1,10 +1,9 @@
 """Video player widget - displays videos in a movable window"""
 import re
-from typing import Optional
 from pathlib import Path
 
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QSlider, QLabel
-from PyQt6.QtCore import Qt, QTimer, QUrl, QPoint
+from PyQt6.QtCore import Qt, QTimer, QUrl, QPoint, QRect
 from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
 from PyQt6.QtMultimediaWidgets import QVideoWidget
 
@@ -42,13 +41,12 @@ class VideoPlayer(QWidget):
         self._setup_ui()
         
         # Set volume from config
-        volume = 0.5
-        if config:
-            volume = config.get("video", "volume") or 0.5
+        volume = self.config.get("video", "volume") if self.config else None
+        volume = volume or 0.5
         self.audio_output.setVolume(volume)
         self.volume_slider.setValue(int(volume * 100))
         
-        # Signals
+        # Connect signals
         self.media_player.positionChanged.connect(self._update_position)
         self.media_player.durationChanged.connect(self._update_duration)
         self.media_player.playbackStateChanged.connect(self._update_play_button)
@@ -57,8 +55,6 @@ class VideoPlayer(QWidget):
         # Loading spinner
         self.loading_spinner = LoadingSpinner(self, 60)
         self.loading_spinner.hide()
-        
-        # Track if we're loading
         self.is_loading = False
     
     def _setup_ui(self):
@@ -70,41 +66,34 @@ class VideoPlayer(QWidget):
         # Video widget
         layout.addWidget(self.video_widget)
         
-        # Controls - single row with config-based spacing
-        controls = QWidget()
-        
-        # Get button size from config
+        # Get config values
         button_size = 48
+        spacing = 8
+        margin = 5
+        
         if self.config:
             btn_cfg = self.config.get("ui", "buttons", "large_button") or {}
             button_size = btn_cfg.get("button_size", 48)
-        
-        # Get spacing from config
-        button_spacing = 8
-        if self.config:
-            button_spacing = self.config.get("ui", "buttons", "spacing") or 8
-        
-        # Get margins from config
-        margin = 5
-        if self.config:
+            spacing = self.config.get("ui", "buttons", "spacing") or 8
             margin = self.config.get("ui", "margins", "widget") or 5
         
-        # Set controls widget to exact button height
-        controls.setFixedHeight(button_size)
+        # Controls container - height includes button + top/bottom margins
+        controls = QWidget()
+        controls_height = button_size + (margin * 2)
+        controls.setFixedHeight(controls_height)
         
         controls_layout = QHBoxLayout(controls)
-        # Set margins to match button height - no extra vertical space
-        controls_layout.setContentsMargins(margin * 2, 0, margin * 2, 0)
-        controls_layout.setSpacing(button_spacing)
+        controls_layout.setContentsMargins(margin * 2, margin, margin * 2, margin)
+        controls_layout.setSpacing(spacing)
         
-        # 1. Play/Stop button
+        # Play/Stop button
         self.play_button = create_icon_button(
             self.icons_path, "play.svg", "Play (Space)", "large", self.config
         )
         self.play_button.clicked.connect(self._toggle_play)
         controls_layout.addWidget(self.play_button)
         
-        # 2. Volume button
+        # Volume button
         self.volume_button = create_icon_button(
             self.icons_path, "volume-up.svg", "Mute (M)", "large", self.config
         )
@@ -112,7 +101,7 @@ class VideoPlayer(QWidget):
         self.volume_button.installEventFilter(self)
         controls_layout.addWidget(self.volume_button)
         
-        # Volume slider (hidden by default, shown on hover) - no extra container
+        # Volume slider
         self.volume_slider = QSlider(Qt.Orientation.Horizontal)
         self.volume_slider.setMaximumWidth(80)
         self.volume_slider.setRange(0, 100)
@@ -121,17 +110,18 @@ class VideoPlayer(QWidget):
         self.volume_slider.hide()
         controls_layout.addWidget(self.volume_slider)
         
-        # 3. Time label
+        # Time label
         self.time_label = QLabel("0:00 / 0:00")
         controls_layout.addWidget(self.time_label)
         
-        # 4. Progress slider (takes remaining space)
+        # Progress slider
         self.progress_slider = QSlider(Qt.Orientation.Horizontal)
         self.progress_slider.sliderPressed.connect(self._on_slider_pressed)
         self.progress_slider.sliderReleased.connect(self._on_slider_released)
+        self.progress_slider.installEventFilter(self)
         controls_layout.addWidget(self.progress_slider)
         
-        # 5. Fullscreen button
+        # Fullscreen button
         self.fullscreen_button = create_icon_button(
             self.icons_path, "fullscreen.svg", "Fullscreen (F)", "large", self.config
         )
@@ -154,46 +144,23 @@ class VideoPlayer(QWidget):
         
         # Show loading spinner
         if cursor_pos:
-            self._show_loading_spinner(cursor_pos)
+            screen = self.screen().availableGeometry()
+            spinner_pos = LoadingSpinner.calculate_position(
+                cursor_pos, self.loading_spinner.width(), screen
+            )
+            self.loading_spinner.move(self.mapFromGlobal(spinner_pos))
         else:
-            self._show_loading_spinner_center()
+            # Center spinner
+            x = (self.width() - self.loading_spinner.width()) // 2
+            y = (self.height() - self.loading_spinner.height()) // 2
+            self.loading_spinner.move(x, y)
         
+        self.loading_spinner.start()
         self.media_player.setSource(QUrl(url))
         self.show()
         self.raise_()
         self.activateWindow()
         self.media_player.play()
-    
-    def _show_loading_spinner(self, cursor_pos: QPoint):
-        """Show loading spinner near cursor"""
-        spinner_pos = self._calc_spinner_position(cursor_pos)
-        self.loading_spinner.move(spinner_pos)
-        self.loading_spinner.start()
-    
-    def _show_loading_spinner_center(self):
-        """Show loading spinner in center of video player"""
-        center_x = (self.width() - self.loading_spinner.width()) // 2
-        center_y = (self.height() - self.loading_spinner.height()) // 2
-        self.loading_spinner.move(center_x, center_y)
-        self.loading_spinner.start()
-    
-    def _calc_spinner_position(self, cursor_pos: QPoint):
-        """Calculate spinner position near cursor within window bounds"""
-        offset = 20
-        w, h = self.loading_spinner.width(), self.loading_spinner.height()
-        
-        # Convert global cursor position to widget-relative position
-        local_pos = self.mapFromGlobal(cursor_pos)
-        
-        # Calculate position with offset, checking bounds
-        x = local_pos.x() - w - offset if local_pos.x() + offset + w > self.width() else local_pos.x() + offset
-        y = local_pos.y() - h - offset if local_pos.y() + offset + h > self.height() else local_pos.y() + offset
-        
-        # Ensure within bounds
-        x = max(0, min(x, self.width() - w))
-        y = max(0, min(y, self.height() - h))
-        
-        return QPoint(x, y)
     
     def _on_media_status_changed(self, status):
         """Handle media status changes to hide loading spinner"""
@@ -219,17 +186,15 @@ class VideoPlayer(QWidget):
         self.audio_output.setVolume(volume)
         self._update_volume_button()
         
-        # Save to config
         if self.config:
             self.config.set("video", "volume", value=volume)
     
     def eventFilter(self, obj, event):
-        """Handle hover and wheel events on volume button and slider"""
+        """Handle hover and wheel events"""
         if obj == self.volume_button:
             if event.type() == event.Type.Enter:
                 self.volume_slider.show()
             elif event.type() == event.Type.Leave:
-                # Small delay before hiding
                 QTimer.singleShot(500, self._check_hide_volume_slider)
             elif event.type() == event.Type.Wheel:
                 delta = 5 if event.angleDelta().y() > 0 else -5
@@ -238,8 +203,15 @@ class VideoPlayer(QWidget):
                 return True
         elif obj == self.volume_slider:
             if event.type() == event.Type.Leave:
-                # Small delay before hiding
                 QTimer.singleShot(500, self._check_hide_volume_slider)
+        elif obj == self.progress_slider:
+            if event.type() == event.Type.Wheel:
+                delta = 5000 if event.angleDelta().y() > 0 else -5000
+                current_pos = self.media_player.position()
+                duration = self.media_player.duration()
+                new_pos = max(0, min(duration, current_pos + delta))
+                self.media_player.setPosition(new_pos)
+                return True
         
         return super().eventFilter(obj, event)
     
@@ -249,9 +221,10 @@ class VideoPlayer(QWidget):
             icon_name = "fullscreen.svg"
         else:
             self.showFullScreen()
-            icon_name = "exit-fullscreen.svg"
+            icon_name = "fullscreen-exit.svg"
         
-        self.fullscreen_button.setIcon(_render_svg_icon(self.icons_path / icon_name, self.fullscreen_button._icon_size))
+        icon = _render_svg_icon(self.icons_path / icon_name, self.fullscreen_button._icon_size)
+        self.fullscreen_button.setIcon(icon)
         self.fullscreen_button._icon_name = icon_name
     
     def _update_volume_button(self):
@@ -265,7 +238,8 @@ class VideoPlayer(QWidget):
         else:
             icon_name = "volume-up.svg"
         
-        self.volume_button.setIcon(_render_svg_icon(self.icons_path / icon_name, self.volume_button._icon_size))
+        icon = _render_svg_icon(self.icons_path / icon_name, self.volume_button._icon_size)
+        self.volume_button.setIcon(icon)
         self.volume_button._icon_name = icon_name
     
     def _check_hide_volume_slider(self):
@@ -281,7 +255,8 @@ class VideoPlayer(QWidget):
             icon_name = "play.svg"
             tooltip = "Play (Space)"
         
-        self.play_button.setIcon(_render_svg_icon(self.icons_path / icon_name, self.play_button._icon_size))
+        icon = _render_svg_icon(self.icons_path / icon_name, self.play_button._icon_size)
+        self.play_button.setIcon(icon)
         self.play_button._icon_name = icon_name
         self.play_button.setToolTip(tooltip)
     
@@ -338,12 +313,13 @@ class VideoPlayer(QWidget):
     
     def _disconnect_signals(self):
         """Disconnect all media player signals"""
-        for signal, slot in [
+        signals = [
             (self.media_player.positionChanged, self._update_position),
             (self.media_player.durationChanged, self._update_duration),
             (self.media_player.playbackStateChanged, self._update_play_button),
             (self.media_player.mediaStatusChanged, self._on_media_status_changed)
-        ]:
+        ]
+        for signal, slot in signals:
             try:
                 signal.disconnect(slot)
             except:
