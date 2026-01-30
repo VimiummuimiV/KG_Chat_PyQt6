@@ -2,208 +2,157 @@
 
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QFont
+from pathlib import Path
 
+from helpers.config import Config
 
-# ============================================================================
-# HELPER COMPONENTS (REUSABLE STYLED LABELS)
-# ============================================================================
-
-class KeyLabel(QLabel):
-    """Styled label for keyboard keys"""
-    
-    def __init__(self, text: str, parent=None):
-        super().__init__(text, parent)
-        self.setStyleSheet("""
-            QLabel {
-                background-color: #2d2d2d;
-                color: #00d4ff;
-                border: 1px solid #00d4ff;
-                border-radius: 4px;
-                padding: 4px 8px;
-                font-weight: bold;
-                font-family: monospace;
-            }
-        """)
-        self.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.setMinimumWidth(60)
-
-
-class DescriptionLabel(QLabel):
-    """Styled label for descriptions"""
-    
-    def __init__(self, text: str, parent=None):
-        super().__init__(text, parent)
-        self.setStyleSheet("""
-            QLabel {
-                color: #e0e0e0;
-                font-size: 13px;
-                padding: 4px 8px;
-            }
-        """)
-
-
-class SectionLabel(QLabel):
-    """Styled label for section headers"""
-    
-    def __init__(self, text: str, parent=None):
-        super().__init__(text, parent)
-        font = QFont()
-        font.setPointSize(14)
-        font.setBold(True)
-        self.setFont(font)
-        self.setStyleSheet("""
-            QLabel {
-                color: #4dd999;
-                padding: 12px 0px 8px 0px;
-                line-height: 1.5;
-            }
-        """)
-        self.setMinimumHeight(35)
-
-
-class Separator(QFrame):
-    """Horizontal separator line"""
-    
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setFrameShape(QFrame.Shape.HLine)
-        self.setFrameShadow(QFrame.Shadow.Sunken)
-        self.setStyleSheet("""
-            QFrame {
-                color: #404040;
-                margin: 8px 0px;
-            }
-        """)
-
-
-class MouseActionLabel(QLabel):
-    """Styled label for mouse actions"""
-    
-    def __init__(self, text: str, parent=None):
-        super().__init__(text, parent)
-        self.setStyleSheet("""
-            QLabel {
-                background-color: #2d2d2d;
-                color: #ffa500;
-                border: 1px solid #ffa500;
-                border-radius: 4px;
-                padding: 4px 8px;
-                font-weight: bold;
-            }
-        """)
-        self.setMinimumWidth(120)
-        self.setAlignment(Qt.AlignmentFlag.AlignCenter)
-
-
-# ============================================================================
-# HELP PANEL CLASS
-# ============================================================================
 
 class HelpPanel(QWidget):
-    """Enhanced help panel showing keyboard shortcuts and mouse controls"""
+    """Compact help panel showing keyboard shortcuts and mouse controls"""
     
     def __init__(self, parent=None, viewer_type: str = "video"):
-        """
-        Initialize help panel
-        
-        Args:
-            parent: Parent widget
-            viewer_type: Type of viewer ("video" or "image")
-        """
         super().__init__(parent)
         self.viewer_type = viewer_type
         
+        config_path = Path(__file__).parent.parent / "settings" / "config.json"
+        self.config = Config(str(config_path))
+        
         self.setWindowFlags(Qt.WindowType.Window | Qt.WindowType.WindowStaysOnTopHint)
-        self.setWindowTitle(f"{viewer_type.title()} Player Help" if viewer_type == "video" else f"{viewer_type.title()} Viewer Help")
+        self.setWindowTitle(f"{viewer_type.title()} {'Player' if viewer_type == 'video' else 'Viewer'} Help")
         self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, False)
         
-        # Dark theme background
-        self.setStyleSheet("""
-            QWidget {
-                background-color: #1e1e1e;
-            }
-        """)
+        self._build()
+    
+    def showEvent(self, event):
+        super().showEvent(event)
+        self.config = Config(str(Path(__file__).parent.parent / "settings" / "config.json"))
+        self._build()
+    
+    def _build(self):
+        """Build/rebuild UI with current theme"""
+        # Clear existing layout
+        old_layout = self.layout()
+        if old_layout:
+            while old_layout.count():
+                child = old_layout.takeAt(0)
+                if child.widget():
+                    child.widget().deleteLater()
+                elif child.layout():
+                    self._clear_layout(child.layout())
+            QWidget().setLayout(old_layout)
         
-        main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(20, 20, 20, 20)
-        main_layout.setSpacing(10)
+        theme = self.config.get("ui", "theme") or "dark"
+        is_dark = (theme == "dark")
+        
+        # Professional muted color palette
+        if is_dark:
+            bg = "#1e1e1e"
+            title = "#6bb6d6"      # Muted cyan
+            section = "#6ba885"    # Muted green
+            text = "#c8c8c8"       # Softer white
+            footer = "#888888"     # Medium gray
+            sep = "#404040"
+            kb_bg = "#5a8fb4"      # Muted blue
+            kb_text = "#1a1a1a"
+            mouse_bg = "#c9954d"   # Muted amber
+            mouse_text = "#1a1a1a"
+        else:
+            bg = "#ffffff"
+            title = "#3a8fb0"      # Muted cyan
+            section = "#4a9570"    # Muted green
+            text = "#4a4a4a"       # Softer black
+            footer = "#707070"     # Medium gray
+            sep = "#d0d0d0"
+            kb_bg = "#7ba8c7"      # Soft blue
+            kb_text = "#1a1a1a"
+            mouse_bg = "#d9a866"   # Soft orange
+            mouse_text = "#1a1a1a"
+        
+        self.setStyleSheet(f"QWidget {{background-color: {bg};}}")
+        
+        # Create new layout
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(8)
         
         # Title
-        title_text = "Video Player Controls" if viewer_type == "video" else "Image Viewer Controls"
-        title = QLabel(title_text)
-        title_font = QFont()
-        title_font.setPointSize(14)
-        title_font.setBold(True)
-        title.setFont(title_font)
-        title.setStyleSheet("QLabel { color: #00d4ff; padding-bottom: 10px; }")
-        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        main_layout.addWidget(title)
+        title_label = QLabel(f"{'Video Player' if self.viewer_type == 'video' else 'Image Viewer'} Controls")
+        title_label.setStyleSheet(f"color: {title}; font-size: 14px; font-weight: bold; padding-bottom: 8px;")
+        title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(title_label)
         
-        # Get controls based on viewer type
-        keyboard_shortcuts, mouse_controls = self._get_controls()
+        kb, mouse = (VIDEO_KB, VIDEO_MOUSE) if self.viewer_type == "video" else (IMAGE_KB, IMAGE_MOUSE)
         
-        # Keyboard shortcuts section
-        main_layout.addWidget(SectionLabel("⌨️ Keyboard Shortcuts"))
-        main_layout.addWidget(Separator())
+        # Keyboard section
+        kb_section = QLabel("Keyboard Shortcuts")
+        kb_section.setStyleSheet(f"color: {section}; font-size: 13px; font-weight: bold; padding: 8px 0 4px 0;")
+        layout.addWidget(kb_section)
         
-        for key, description in keyboard_shortcuts:
-            row = QHBoxLayout()
-            row.setSpacing(12)
-            row.addWidget(KeyLabel(key))
-            row.addWidget(DescriptionLabel(description), 1)
-            main_layout.addLayout(row)
+        kb_sep = QFrame()
+        kb_sep.setFrameShape(QFrame.Shape.HLine)
+        kb_sep.setStyleSheet(f"color: {sep}; margin: 4px 0;")
+        layout.addWidget(kb_sep)
         
-        # Mouse controls section
-        main_layout.addSpacing(10)
-        main_layout.addWidget(SectionLabel("🖱️ Mouse Controls"))
-        main_layout.addWidget(Separator())
+        for key, desc in kb:
+            layout.addLayout(self._row(key, desc, kb_bg, kb_text, 60, text))
         
-        for action, description in mouse_controls:
-            row = QHBoxLayout()
-            row.setSpacing(12)
-            row.addWidget(MouseActionLabel(action))
-            row.addWidget(DescriptionLabel(description), 1)
-            main_layout.addLayout(row)
+        # Mouse section
+        layout.addSpacing(8)
+        
+        mouse_section = QLabel("Mouse Controls")
+        mouse_section.setStyleSheet(f"color: {section}; font-size: 13px; font-weight: bold; padding: 8px 0 4px 0;")
+        layout.addWidget(mouse_section)
+        
+        mouse_sep = QFrame()
+        mouse_sep.setFrameShape(QFrame.Shape.HLine)
+        mouse_sep.setStyleSheet(f"color: {sep}; margin: 4px 0;")
+        layout.addWidget(mouse_sep)
+        
+        for action, desc in mouse:
+            layout.addLayout(self._row(action, desc, mouse_bg, mouse_text, 110, text))
         
         # Footer
-        main_layout.addSpacing(10)
-        footer = QLabel("Press F1 or Esc to close")
-        footer.setStyleSheet("""
-            QLabel {
-                color: #808080;
-                font-size: 11px;
-                font-style: italic;
-                padding-top: 10px;
-            }
-        """)
-        footer.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        main_layout.addWidget(footer)
+        footer_label = QLabel("Press F1 or Esc to close")
+        footer_label.setStyleSheet(f"color: {footer}; font-size: 11px; font-style: italic; padding-top: 8px;")
+        footer_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(footer_label)
         
         self.adjustSize()
         self.setFixedSize(self.size())
     
-    def _get_controls(self):
-        """Get keyboard shortcuts and mouse controls based on viewer type"""
-        if self.viewer_type == "video":
-            return VIDEO_KEYBOARD_SHORTCUTS, VIDEO_MOUSE_CONTROLS
-        else:
-            return IMAGE_KEYBOARD_SHORTCUTS, IMAGE_MOUSE_CONTROLS
+    def _clear_layout(self, layout):
+        """Recursively clear a layout"""
+        while layout.count():
+            child = layout.takeAt(0)
+            if child.widget():
+                child.widget().deleteLater()
+            elif child.layout():
+                self._clear_layout(child.layout())
+    
+    def _row(self, key_text, desc_text, badge_bg, badge_text, min_width, desc_color):
+        row = QHBoxLayout()
+        row.setSpacing(10)
+        
+        key = QLabel(key_text)
+        key.setStyleSheet(f"background-color: {badge_bg}; color: {badge_text}; border-radius: 4px; padding: 3px 8px; font-weight: bold;")
+        key.setMinimumWidth(min_width)
+        key.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        
+        desc = QLabel(desc_text)
+        desc.setStyleSheet(f"color: {desc_color}; font-size: 12px; padding: 3px 8px;")
+        
+        row.addWidget(key)
+        row.addWidget(desc, 1)
+        return row
     
     def keyPressEvent(self, event):
-        """Handle key press events"""
         if event.key() in (Qt.Key.Key_F1, Qt.Key.Key_Escape):
             self.hide()
         else:
             super().keyPressEvent(event)
 
 
-# ============================================================================
-# CONTROLS DEFINITIONS (BOTTOM OF FILE)
-# ============================================================================
-
-# Video Player Controls
-VIDEO_KEYBOARD_SHORTCUTS = [
+VIDEO_KB = [
     ("Space", "Play / Pause"),
     ("F", "Toggle Fullscreen"),
     ("M", "Mute / Unmute"),
@@ -213,7 +162,7 @@ VIDEO_KEYBOARD_SHORTCUTS = [
     ("F1", "Show / Hide this help"),
 ]
 
-VIDEO_MOUSE_CONTROLS = [
+VIDEO_MOUSE = [
     ("Click video", "Play / Pause"),
     ("Double-click", "Toggle Fullscreen"),
     ("Wheel on video", "Seek ±5 seconds"),
@@ -222,14 +171,13 @@ VIDEO_MOUSE_CONTROLS = [
     ("Hover volume", "Show volume slider"),
 ]
 
-# Image Viewer Controls
-IMAGE_KEYBOARD_SHORTCUTS = [
+IMAGE_KB = [
     ("Space", "Close image"),
     ("Esc", "Close image"),
     ("F1", "Show / Hide this help"),
 ]
 
-IMAGE_MOUSE_CONTROLS = [
+IMAGE_MOUSE = [
     ("Left drag", "Pan / Move image"),
     ("Ctrl + Left drag", "Scale image (up/down)"),
     ("Wheel", "Zoom in / out"),
