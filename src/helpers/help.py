@@ -169,6 +169,7 @@ VIDEO_MOUSE = [
     ("Wheel on progress", "Seek ±5 seconds"),
     ("Wheel on volume", "Adjust volume ±5%"),
     ("Hover volume", "Show volume slider"),
+    ("Right click", "Close video"),
 ]
 
 IMAGE_KB = [

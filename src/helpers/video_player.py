@@ -379,7 +379,11 @@ class VideoPlayer(QWidget):
             return True
         
         elif obj == self.video_view and event_type == QEvent.Type.MouseButtonPress:
-            if event.button() == Qt.MouseButton.LeftButton:
+            if event.button() == Qt.MouseButton.RightButton:
+                # Right-click closes the video player
+                self.close()
+                return True
+            elif event.button() == Qt.MouseButton.LeftButton:
                 # Start timer for single click, will be cancelled if double-click occurs
                 self._click_timer.start(250)  # 250ms delay to detect double-click
                 return True
@@ -479,7 +483,7 @@ class VideoPlayer(QWidget):
         elif key == Qt.Key.Key_M:
             self._toggle_mute()
         elif key in (Qt.Key.Key_J, Qt.Key.Key_L):
-            delta = -10000 if key == Qt.Key.Key_J else 10000
+            delta = -5000 if key == Qt.Key.Key_J else 5000
             new_pos = max(0, min(self.media_player.duration(), self.media_player.position() + delta))
             self.media_player.setPosition(new_pos)
         else:
