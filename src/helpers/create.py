@@ -21,21 +21,25 @@ def _render_svg_icon(svg_file: Path, icon_size: int):
     """Render SVG file to QIcon with current theme color"""
     if not svg_file.exists():
         return QIcon()
-    
+   
     with open(svg_file, 'r') as f:
         svg = f.read()
-    
+   
     color = "#e28743" if _is_dark_theme else "#154c79"
     svg = svg.replace('fill="currentColor"', f'fill="{color}"')
-    
+   
     renderer = QSvgRenderer()
     renderer.load(svg.encode('utf-8'))
-    pixmap = QPixmap(icon_size, icon_size)
+
+    if isinstance(icon_size, int):
+        icon_size = QSize(icon_size, icon_size)
+
+    pixmap = QPixmap(icon_size)
     pixmap.fill(Qt.GlobalColor.transparent)
     painter = QPainter(pixmap)
     renderer.render(painter)
     painter.end()
-    
+   
     return QIcon(pixmap)
 
 def create_icon_button(
@@ -63,7 +67,7 @@ def create_icon_button(
     button._icon_path = icons_path
     button._icon_name = icon_name
     button._icon_size = icon_size
-    
+   
     # Set icon
     button.setIcon(_render_svg_icon(icons_path / icon_name, icon_size))
     button.setIconSize(QSize(icon_size, icon_size))
@@ -77,36 +81,36 @@ def create_icon_button(
 
 class HoverIconButton(QPushButton):
     """Icon button that changes icon on hover"""
-    
+   
     def __init__(self, icons_path: Path, normal_icon: str, hover_icon: str,
                  tooltip: str = "", icon_size: int = 30, button_size: int = 48):
         super().__init__()
-        
+       
         self._icon_path = icons_path
         self._normal_icon = normal_icon
         self._hover_icon = hover_icon
         self._icon_size = icon_size
         self._hovered = False
-        
+       
         self.setIconSize(QSize(icon_size, icon_size))
         self.setFixedSize(button_size, button_size)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         if tooltip:
             self.setToolTip(tooltip)
-        
+       
         self._update_icon()
         _icon_registry.append(self)
-    
+   
     def _update_icon(self):
         """Update icon based on hover state"""
         icon_name = self._hover_icon if self._hovered else self._normal_icon
         self.setIcon(_render_svg_icon(self._icon_path / icon_name, self._icon_size))
-    
+   
     def enterEvent(self, event):
         self._hovered = True
         self._update_icon()
         super().enterEvent(event)
-    
+   
     def leaveEvent(self, event):
         self._hovered = False
         self._update_icon()
@@ -117,7 +121,7 @@ def update_all_icons():
     """Update all registered icon buttons when theme changes"""
     global _icon_registry
     _icon_registry = [btn for btn in _icon_registry if not sip.isdeleted(btn)]
-    
+   
     for button in _icon_registry:
         if isinstance(button, HoverIconButton):
             button._update_icon()
