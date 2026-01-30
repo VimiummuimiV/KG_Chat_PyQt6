@@ -95,6 +95,9 @@
       "pogranflowers"
     ]
   },
+  "video": {
+    "volume": 0.5
+  },
   "sound": {
     "tts_enabled": false,
     "effects_enabled": true

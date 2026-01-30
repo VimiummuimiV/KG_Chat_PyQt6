@@ -1,79 +1,36 @@
-"""Video hover preview widget with full playback controls"""
+"""Video player widget - displays videos in a movable window"""
 import re
 from typing import Optional
 from pathlib import Path
-import requests
 
-from PyQt6.QtWidgets import QApplication, QWidget, QHBoxLayout, QVBoxLayout, QSlider, QLabel
-from PyQt6.QtCore import Qt, QPoint, QTimer, pyqtSignal, QObject, QThread, QUrl, QPointF
-from PyQt6.QtGui import QCursor
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QSlider, QLabel
+from PyQt6.QtCore import Qt, QTimer, QUrl
 from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
 from PyQt6.QtMultimediaWidgets import QVideoWidget
 
 from helpers.loading_spinner import LoadingSpinner
-from helpers.create import create_icon_button
+from helpers.create import create_icon_button, _render_svg_icon
 
 
-class VideoLoadWorker(QObject):
-    """Worker for loading videos in background thread"""
-    finished = pyqtSignal(str, bytes, bool)
-    
-    def __init__(self, url: str):
-        super().__init__()
-        self.url = url
-        self._should_stop = False
-    
-    def run(self):
-        if self._should_stop:
-            return
-        try:
-            response = requests.get(self.url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=60, stream=True)
-            if response.status_code == 200 and not self._should_stop:
-                # For video, we'll stream directly from URL instead of downloading
-                self.finished.emit(self.url, b'', False)
-            else:
-                self.finished.emit(self.url, b'', True)
-        except Exception as e:
-            print(f"Failed to load {self.url}: {e}")
-            self.finished.emit(self.url, b'', True)
-    
-    def stop(self):
-        self._should_stop = True
-
-
-class VideoHoverView(QWidget):
-    """Fullscreen viewport for video playback with controls"""
+class VideoPlayer(QWidget):
+    """Video player in a movable window"""
     
     VIDEO_PATTERNS = [
         re.compile(r'https?://[^\s<>"]+\.(?:mp4|webm|ogg|mov|avi|mkv|flv|wmv|m4v)(?:\?[^\s<>"]*)?', re.IGNORECASE),
-        re.compile(r'https?://.*\.(?:streamable|vimeo)\.com/[^\s<>"]+', re.IGNORECASE),
     ]
     
     def __init__(self, parent=None, icons_path: Path = None, config=None):
         super().__init__(parent)
-        self.icons_path = icons_path or Path("assets/icons")
+        self.icons_path = icons_path or Path("/icons")
         self.config = config
         self.current_url = None
-        self.load_thread, self.load_worker = None, None
         
-        screen = QApplication.primaryScreen()
-        self.screen_rect = screen.availableGeometry()
+        # Window setup
+        self.setWindowFlags(Qt.WindowType.Window | Qt.WindowType.WindowStaysOnTopHint)
+        self.setWindowTitle("Video Player")
+        self.resize(800, 600)
         
-        self.setWindowFlags(Qt.WindowType.ToolTip | Qt.WindowType.FramelessWindowHint | Qt.WindowType.WindowStaysOnTopHint)
-        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
-        self.setMouseTracking(True)
-        self.setGeometry(self.screen_rect)
-        self.hide()
-        
-        # Loading spinner
-        self.loading_spinner = LoadingSpinner(None, 60)
-        
-        self.position_timer = QTimer()
-        self.position_timer.timeout.connect(self._update_spinner_position)
-        self.target_pos = None
-        
-        # Media player setup
+        # Media player
         self.media_player = QMediaPlayer()
         self.audio_output = QAudioOutput()
         self.media_player.setAudioOutput(self.audio_output)
@@ -81,29 +38,24 @@ class VideoHoverView(QWidget):
         self.video_widget = QVideoWidget()
         self.media_player.setVideoOutput(self.video_widget)
         
-        # Controls
+        # Setup UI
         self._setup_ui()
-        self._setup_controls()
         
-        # Control visibility timer
-        self.controls_timer = QTimer()
-        self.controls_timer.setSingleShot(True)
-        self.controls_timer.timeout.connect(self._hide_controls)
-        self.controls_visible = True
+        # Set volume from config
+        volume = 0.5
+        if config:
+            volume = config.get("video", "volume") or 0.5
+        self.audio_output.setVolume(volume)
+        self.volume_slider.setValue(int(volume * 100))
         
-        # Media player signals
+        # Signals
         self.media_player.positionChanged.connect(self._update_position)
         self.media_player.durationChanged.connect(self._update_duration)
         self.media_player.playbackStateChanged.connect(self._update_play_button)
         
-        # Volume from config or default
-        default_volume = 0.5
-        if config:
-            default_volume = config.get("ui", "video", "default_volume") or 0.5
-        self.audio_output.setVolume(default_volume)
-        self.volume_slider.setValue(int(default_volume * 100))
-        
-        self._was_muted = False
+        # Loading spinner
+        self.loading_spinner = LoadingSpinner(self, 60)
+        self.loading_spinner.hide()
     
     def _setup_ui(self):
         """Setup the UI layout"""
@@ -111,149 +63,152 @@ class VideoHoverView(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
         
-        # Video widget takes full space
+        # Video widget
         layout.addWidget(self.video_widget)
         
-        # Controls container at bottom
-        self.controls_container = QWidget()
-        self.controls_container.setStyleSheet("""
-            QWidget {
-                background-color: rgba(0, 0, 0, 180);
-            }
-        """)
-        controls_layout = QVBoxLayout(self.controls_container)
-        controls_layout.setContentsMargins(10, 5, 10, 5)
+        # Controls - single row with config-based spacing
+        controls = QWidget()
         
-        # Progress slider
+        # Get spacing from config
+        button_spacing = 8
+        if self.config:
+            button_spacing = self.config.get("ui", "buttons", "spacing") or 8
+        
+        # Get margins from config - increase bottom margin
+        margin = 5
+        if self.config:
+            margin = self.config.get("ui", "margins", "widget") or 5
+        
+        controls_layout = QHBoxLayout(controls)
+        # Increase bottom margin significantly
+        controls_layout.setContentsMargins(margin * 2, margin, margin * 2, margin * 3)
+        controls_layout.setSpacing(button_spacing)
+        
+        # 1. Play/Stop button
+        self.play_button = create_icon_button(
+            self.icons_path, "play.svg", "Play (Space)", "large", self.config
+        )
+        self.play_button.clicked.connect(self._toggle_play)
+        controls_layout.addWidget(self.play_button)
+        
+        # 2. Volume button with hover slider
+        volume_container = QWidget()
+        volume_layout = QHBoxLayout(volume_container)
+        volume_layout.setContentsMargins(0, 0, 0, 0)
+        volume_layout.setSpacing(button_spacing)
+        
+        self.volume_button = create_icon_button(
+            self.icons_path, "sound-up.svg", "Mute (M)", "large", self.config
+        )
+        self.volume_button.clicked.connect(self._toggle_mute)
+        self.volume_button.installEventFilter(self)
+        volume_layout.addWidget(self.volume_button)
+        
+        # Volume slider (hidden by default, shown on hover)
+        self.volume_slider = QSlider(Qt.Orientation.Horizontal)
+        self.volume_slider.setMaximumWidth(80)
+        self.volume_slider.setRange(0, 100)
+        self.volume_slider.valueChanged.connect(self._on_volume_changed)
+        self.volume_slider.hide()
+        volume_layout.addWidget(self.volume_slider)
+        
+        controls_layout.addWidget(volume_container)
+        
+        # 3. Time label
+        self.time_label = QLabel("0:00 / 0:00")
+        controls_layout.addWidget(self.time_label)
+        
+        # 4. Progress slider (takes remaining space)
         self.progress_slider = QSlider(Qt.Orientation.Horizontal)
-        self.progress_slider.setStyleSheet("""
-            QSlider::groove:horizontal {
-                height: 6px;
-                background: #555;
-                border-radius: 3px;
-            }
-            QSlider::handle:horizontal {
-                background: #4DA6FF;
-                width: 14px;
-                margin: -4px 0;
-                border-radius: 7px;
-            }
-            QSlider::sub-page:horizontal {
-                background: #4DA6FF;
-                border-radius: 3px;
-            }
-        """)
         self.progress_slider.sliderPressed.connect(self._on_slider_pressed)
         self.progress_slider.sliderReleased.connect(self._on_slider_released)
         controls_layout.addWidget(self.progress_slider)
         
-        # Bottom controls row
-        bottom_row = QHBoxLayout()
-        bottom_row.setSpacing(5)
-        
-        # Play/Pause button
-        self.play_button = create_icon_button(
-            self.icons_path,
-            "play.svg",
-            "Play/Pause (Space)",
-            size_type="large",
-            config=self.config
+        # 5. Fullscreen button
+        self.fullscreen_button = create_icon_button(
+            self.icons_path, "fullscreen.svg", "Fullscreen (F)", "large", self.config
         )
-        self.play_button.clicked.connect(self._toggle_play)
-        bottom_row.addWidget(self.play_button)
+        self.fullscreen_button.clicked.connect(self._toggle_fullscreen)
+        controls_layout.addWidget(self.fullscreen_button)
         
-        # Time labels
-        self.time_label = QLabel("0:00 / 0:00")
-        self.time_label.setStyleSheet("color: white; font-size: 12px;")
-        bottom_row.addWidget(self.time_label)
-        
-        bottom_row.addStretch()
-        
-        # Volume button
-        self.volume_button = create_icon_button(
-            self.icons_path,
-            "volume-up.svg",
-            "Mute/Unmute (M)",
-            size_type="large",
-            config=self.config
-        )
-        self.volume_button.clicked.connect(self._toggle_mute)
-        bottom_row.addWidget(self.volume_button)
-        
-        # Volume slider
-        self.volume_slider = QSlider(Qt.Orientation.Horizontal)
-        self.volume_slider.setMaximumWidth(100)
-        self.volume_slider.setRange(0, 100)
-        self.volume_slider.setValue(50)
-        self.volume_slider.setStyleSheet("""
-            QSlider::groove:horizontal {
-                height: 4px;
-                background: #555;
-                border-radius: 2px;
-            }
-            QSlider::handle:horizontal {
-                background: white;
-                width: 10px;
-                margin: -3px 0;
-                border-radius: 5px;
-            }
-            QSlider::sub-page:horizontal {
-                background: white;
-                border-radius: 2px;
-            }
-        """)
-        self.volume_slider.valueChanged.connect(self._on_volume_changed)
-        bottom_row.addWidget(self.volume_slider)
-        
-        controls_layout.addLayout(bottom_row)
-        layout.addWidget(self.controls_container)
+        layout.addWidget(controls)
     
-    def _setup_controls(self):
-        """Setup control button states"""
-        self.play_button.setEnabled(False)
-        self.progress_slider.setEnabled(False)
+    @staticmethod
+    def is_video_url(url: str) -> bool:
+        return any(p.search(url or '') for p in VideoPlayer.VIDEO_PATTERNS)
+    
+    def show_video(self, url: str):
+        """Load and show video"""
+        if self.current_url == url and self.isVisible():
+            return
+        
+        self.current_url = url
+        self.media_player.setSource(QUrl(url))
+        self.show()
+        self.raise_()
+        self.activateWindow()
+        self.media_player.play()
     
     def _toggle_play(self):
-        """Toggle play/pause"""
         if self.media_player.playbackState() == QMediaPlayer.PlaybackState.PlayingState:
             self.media_player.pause()
         else:
             self.media_player.play()
     
     def _toggle_mute(self):
-        """Toggle mute/unmute"""
-        is_muted = self.audio_output.isMuted()
-        self.audio_output.setMuted(not is_muted)
+        self.audio_output.setMuted(not self.audio_output.isMuted())
         self._update_volume_button()
     
     def _on_volume_changed(self, value: int):
-        """Handle volume slider changes"""
-        volume = value / 100.0
-        self.audio_output.setVolume(volume)
+        self.audio_output.setVolume(value / 100.0)
         self._update_volume_button()
     
+    def eventFilter(self, obj, event):
+        """Handle hover and wheel events on volume button"""
+        if obj == self.volume_button:
+            if event.type() == event.Type.Enter:
+                self.volume_slider.show()
+            elif event.type() == event.Type.Leave:
+                # Small delay before hiding
+                QTimer.singleShot(500, self._check_hide_volume_slider)
+            elif event.type() == event.Type.Wheel:
+                delta = 5 if event.angleDelta().y() > 0 else -5
+                new_volume = max(0, min(100, self.volume_slider.value() + delta))
+                self.volume_slider.setValue(new_volume)
+                return True
+        return super().eventFilter(obj, event)
+    
+    def _toggle_fullscreen(self):
+        if self.isFullScreen():
+            self.showNormal()
+            icon_name = "fullscreen.svg"
+        else:
+            self.showFullScreen()
+            icon_name = "exit-fullscreen.svg"
+        
+        self.fullscreen_button.setIcon(_render_svg_icon(self.icons_path / icon_name, self.fullscreen_button._icon_size))
+        self.fullscreen_button._icon_name = icon_name
+    
     def _update_volume_button(self):
-        """Update volume button icon based on mute state and level"""
         is_muted = self.audio_output.isMuted()
         volume = self.audio_output.volume()
         
-        # Determine icon based on state
         if is_muted or volume == 0:
-            icon_name = "volume-mute.svg"
+            icon_name = "sound-mute.svg"
         elif volume < 0.5:
-            icon_name = "volume-down.svg"
+            icon_name = "sound-down.svg"
         else:
-            icon_name = "volume-up.svg"
+            icon_name = "sound-up.svg"
         
-        # Update button icon
-        from helpers.create import _render_svg_icon
         self.volume_button.setIcon(_render_svg_icon(self.icons_path / icon_name, self.volume_button._icon_size))
         self.volume_button._icon_name = icon_name
     
+    def _check_hide_volume_slider(self):
+        """Hide volume slider if mouse is not over volume button or slider"""
+        if not self.volume_button.underMouse() and not self.volume_slider.underMouse():
+            self.volume_slider.hide()
+    
     def _update_play_button(self, state):
-        """Update play button icon based on playback state"""
-        from helpers.create import _render_svg_icon
-        
         if state == QMediaPlayer.PlaybackState.PlayingState:
             icon_name = "stop.svg"
             tooltip = "Stop (Space)"
@@ -266,17 +221,13 @@ class VideoHoverView(QWidget):
         self.play_button.setToolTip(tooltip)
     
     def _on_slider_pressed(self):
-        """Pause updates when user is dragging slider"""
         self.media_player.positionChanged.disconnect(self._update_position)
     
     def _on_slider_released(self):
-        """Seek to position when slider is released"""
-        position = self.progress_slider.value()
-        self.media_player.setPosition(position)
+        self.media_player.setPosition(self.progress_slider.value())
         self.media_player.positionChanged.connect(self._update_position)
     
     def _update_position(self, position):
-        """Update slider and time label as video plays"""
         if not self.progress_slider.isSliderDown():
             self.progress_slider.setValue(position)
         
@@ -284,12 +235,9 @@ class VideoHoverView(QWidget):
         self.time_label.setText(f"{self._format_time(position)} / {self._format_time(duration)}")
     
     def _update_duration(self, duration):
-        """Update slider range when duration is known"""
         self.progress_slider.setRange(0, duration)
-        self.time_label.setText(f"0:00 / {self._format_time(duration)}")
     
     def _format_time(self, ms: int) -> str:
-        """Format milliseconds to MM:SS or HH:MM:SS"""
         seconds = ms // 1000
         minutes = seconds // 60
         seconds = seconds % 60
@@ -300,196 +248,36 @@ class VideoHoverView(QWidget):
             return f"{hours}:{minutes:02d}:{seconds:02d}"
         return f"{minutes}:{seconds:02d}"
     
-    @staticmethod
-    def is_video_url(url: str) -> bool:
-        """Check if URL is a video"""
-        return any(p.search(url or '') for p in VideoHoverView.VIDEO_PATTERNS)
-    
-    @staticmethod
-    def extract_video_url(url: str) -> Optional[str]:
-        """Extract video URL from text"""
-        if not url:
-            return None
-        for pattern in VideoHoverView.VIDEO_PATTERNS:
-            if match := pattern.search(url):
-                return match.group(0)
-        return None
-    
-    def _calc_spinner_position(self, cursor_pos: QPoint):
-        """Calculate spinner position near cursor"""
-        offset, w, h = 20, self.loading_spinner.width(), self.loading_spinner.height()
-        x = cursor_pos.x() - w - offset if cursor_pos.x() + offset + w > self.screen_rect.right() else cursor_pos.x() + offset
-        y = cursor_pos.y() - h - offset if cursor_pos.y() + offset + h > self.screen_rect.bottom() else cursor_pos.y() + offset
-        return QPoint(max(self.screen_rect.left(), x), max(self.screen_rect.top(), y))
-    
-    def _stop_spinner(self):
-        """Stop and hide loading spinner"""
-        self.loading_spinner.stop()
-    
-    def _show_widget(self):
-        """Show and focus widget"""
-        self.show()
-        self.raise_()
-        self.activateWindow()
-        self.setFocus(Qt.FocusReason.OtherFocusReason)
-        self._show_controls()
-    
-    def show_preview(self, url: str, cursor_pos: QPoint):
-        """Show video preview for URL"""
-        video_url = self.extract_video_url(url)
-        if not video_url or (self.current_url == video_url and self.isVisible()):
-            return
-        
-        self.hide_preview()
-        self.current_url = video_url
-        self.loading_spinner.move(self._calc_spinner_position(cursor_pos))
-        self.loading_spinner.start()
-        self._load_video(video_url)
-        self.target_pos = cursor_pos
-        self.position_timer.start(16)
-    
-    def _load_video(self, url: str):
-        """Load video from URL"""
-        # QMediaPlayer can stream from URL directly
-        self._stop_spinner()
-        self.media_player.setSource(QUrl(url))
-        self.play_button.setEnabled(True)
-        self.progress_slider.setEnabled(True)
-        self._show_widget()
-        
-        # Auto-play
-        self.media_player.play()
-    
-    def _update_spinner_position(self):
-        """Update spinner position to follow cursor"""
-        if self.target_pos and self.loading_spinner.isVisible():
-            cursor_pos = QCursor.pos()
-            if abs(cursor_pos.x() - self.target_pos.x()) > 5 or abs(cursor_pos.y() - self.target_pos.y()) > 5:
-                self.target_pos = cursor_pos
-                self.loading_spinner.move(self._calc_spinner_position(cursor_pos))
-    
-    def _show_controls(self):
-        """Show controls and reset hide timer"""
-        self.controls_container.show()
-        self.controls_visible = True
-        self.controls_timer.start(3000)  # Hide after 3 seconds of inactivity
-    
-    def _hide_controls(self):
-        """Hide controls"""
-        if self.media_player.playbackState() == QMediaPlayer.PlaybackState.PlayingState:
-            self.controls_container.hide()
-            self.controls_visible = False
-    
-    def mouseMoveEvent(self, event):
-        """Show controls on mouse move"""
-        self._show_controls()
-        super().mouseMoveEvent(event)
-    
-    def mouseReleaseEvent(self, event):
-        """Handle clicks - toggle play on video area, close on right-click"""
-        if event.button() == Qt.MouseButton.LeftButton:
-            # If clicked outside controls, toggle play
-            if not self.controls_container.geometry().contains(event.pos()):
-                self._toggle_play()
-        elif event.button() == Qt.MouseButton.RightButton:
-            self.hide_preview()
-    
     def keyPressEvent(self, event):
-        """Handle keyboard shortcuts"""
         key = event.key()
         
-        # Space: Play/Pause
         if key == Qt.Key.Key_Space:
             self._toggle_play()
-            event.accept()
-        
-        # ESC: Close
         elif key == Qt.Key.Key_Escape:
-            self.hide_preview()
-            event.accept()
-        
-        # M: Mute/Unmute
+            if self.isFullScreen():
+                self.showNormal()
+            else:
+                self.close()
+        elif key == Qt.Key.Key_F:
+            self._toggle_fullscreen()
         elif key == Qt.Key.Key_M:
             self._toggle_mute()
-            event.accept()
-        
-        # J / Left Arrow: Seek backward 10 seconds
-        elif key in (Qt.Key.Key_J, Qt.Key.Key_Left):
+        elif key == Qt.Key.Key_J:
             new_pos = max(0, self.media_player.position() - 10000)
             self.media_player.setPosition(new_pos)
-            event.accept()
-        
-        # L / Right Arrow: Seek forward 10 seconds
-        elif key in (Qt.Key.Key_L, Qt.Key.Key_Right):
+        elif key == Qt.Key.Key_L:
             new_pos = min(self.media_player.duration(), self.media_player.position() + 10000)
             self.media_player.setPosition(new_pos)
-            event.accept()
-        
-        # Up Arrow: Volume up
-        elif key == Qt.Key.Key_Up:
-            new_volume = min(100, self.volume_slider.value() + 5)
-            self.volume_slider.setValue(new_volume)
-            event.accept()
-        
-        # Down Arrow: Volume down
-        elif key == Qt.Key.Key_Down:
-            new_volume = max(0, self.volume_slider.value() - 5)
-            self.volume_slider.setValue(new_volume)
-            event.accept()
-        
-        # K: Play/Pause (YouTube style)
-        elif key == Qt.Key.Key_K:
-            self._toggle_play()
-            event.accept()
-        
-        # Comma / Period: Frame by frame (when paused)
-        elif key in (Qt.Key.Key_Comma, Qt.Key.Key_Period) and self.media_player.playbackState() != QMediaPlayer.PlaybackState.PlayingState:
-            step = 100 if key == Qt.Key.Key_Period else -100
-            new_pos = max(0, min(self.media_player.duration(), self.media_player.position() + step))
-            self.media_player.setPosition(new_pos)
-            event.accept()
-        
-        # 0-9: Seek to percentage
-        elif Qt.Key.Key_0 <= key <= Qt.Key.Key_9:
-            percentage = (key - Qt.Key.Key_0) / 10.0
-            new_pos = int(self.media_player.duration() * percentage)
-            self.media_player.setPosition(new_pos)
-            event.accept()
+        else:
+            super().keyPressEvent(event)
     
-    def wheelEvent(self, event):
-        """Handle mouse wheel for volume"""
-        delta = 5 if event.angleDelta().y() > 0 else -5
-        new_volume = max(0, min(100, self.volume_slider.value() + delta))
-        self.volume_slider.setValue(new_volume)
-        event.accept()
-    
-    def hide_preview(self):
-        """Hide preview and reset state"""
-        self.position_timer.stop()
-        self._stop_spinner()
-        
-        if self.load_worker:
-            self.load_worker.stop()
-        
+    def closeEvent(self, event):
         self.media_player.stop()
         self.media_player.setSource(QUrl())
-        
-        self.current_url = self.target_pos = None
-        self.play_button.setEnabled(False)
-        self.progress_slider.setEnabled(False)
-        self.progress_slider.setValue(0)
-        self.time_label.setText("0:00 / 0:00")
-        
-        self.controls_timer.stop()
-        self._show_controls()
-        
-        self.hide()
+        self.current_url = None
+        super().closeEvent(event)
     
     def cleanup(self):
-        """Cleanup resources"""
-        self.hide_preview()
-        if self.load_thread and self.load_thread.isRunning():
-            self.load_thread.quit()
-            self.load_thread.wait(1000)
+        self.close()
         self.media_player.deleteLater()
         self.audio_output.deleteLater()

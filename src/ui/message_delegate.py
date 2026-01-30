@@ -23,6 +23,8 @@ from helpers.me_action import format_me_action
 from helpers.mention_parser import parse_mentions
 from core.youtube import is_youtube_url, get_cached_info, fetch_async
 from helpers.image_viewer import ImageHoverView
+from helpers.video_player import VideoPlayer
+
 
 class MessageDelegate(QStyledItemDelegate):
     """Delegate for rendering messages with virtual scrolling"""
@@ -87,12 +89,28 @@ class MessageDelegate(QStyledItemDelegate):
         # Connect the refresh signal
         self.row_needs_refresh.connect(self._do_refresh_row)
 
-        # Image hover view with delay
+        # Initialize image and video viewer widgets
         self.image_viewer = None
+        self.video_player = None
         self.hover_timer = QTimer()
         self.hover_timer.setSingleShot(True)
-        self.hover_timer.timeout.connect(lambda: self.image_viewer and self.image_viewer.show_preview(*self.hover_timer.property('data')))
+        self.hover_timer.timeout.connect(self._on_hover_timeout)
         self.hover_delay_ms = 500
+
+    def _on_hover_timeout(self):
+        """Handle hover timeout - show video or image preview"""
+        data = self.hover_timer.property('data')
+        if not data:
+            return
+        
+        if data[0] == 'video':
+            _, url = data
+            if self.video_player:
+                self.video_player.show_video(url)
+        elif data[0] == 'image':
+            _, url, cursor_pos = data
+            if self.image_viewer:
+                self.image_viewer.show_preview(url, cursor_pos)
   
     def set_my_username(self, username: str):
         """Set the current user's username for mention highlighting"""
@@ -104,6 +122,16 @@ class MessageDelegate(QStyledItemDelegate):
         # Initialize image viewer widget
         if list_view and not self.image_viewer:
             self.image_viewer = ImageHoverView(parent=list_view.window())
+
+        # Initialize video player widget
+        if list_view and not self.video_player:
+            from pathlib import Path
+            icons_path = Path(__file__).parent.parent / "assets" / "icons"
+            self.video_player = VideoPlayer(
+                parent=list_view.window(),
+                icons_path=icons_path,
+                config=self.config
+            )
   
     def set_input_field(self, input_field):
         self.input_field = input_field
@@ -117,6 +145,12 @@ class MessageDelegate(QStyledItemDelegate):
             self.image_viewer.cleanup()
             self.image_viewer.deleteLater()
             self.image_viewer = None
+
+        # Cleanup video player
+        if self.video_player:
+            self.video_player.cleanup()
+            self.video_player.deleteLater()
+            self.video_player = None
   
     def update_theme(self):
         theme = self.config.get("ui", "theme") or "dark"
@@ -700,18 +734,27 @@ class MessageDelegate(QStyledItemDelegate):
                     any(link_rect.contains(pos) for link_rect, _ in rects['links'])
                 )
                
-                # Check for image URL hover with delay
-                found_image = False
+                # Check for video or image URL hover with delay
+                found_media = False
                 for link_rect, url in rects['links']:
-                    if link_rect.contains(pos) and ImageHoverView.is_image_url(url):
-                        found_image = True
-                        global_pos = self.list_view.viewport().mapToGlobal(pos)
-                        if self.hover_timer.property('data') != (url, global_pos):
-                            self.hover_timer.setProperty('data', (url, global_pos))
-                            self.hover_timer.start(self.hover_delay_ms)
-                        break
-                
-                if not found_image:
+                    if link_rect.contains(pos):
+                        # Check video first
+                        if self.video_player and VideoPlayer.is_video_url(url):
+                            found_media = True
+                            if self.hover_timer.property('data') != ('video', url):
+                                self.hover_timer.setProperty('data', ('video', url))
+                                self.hover_timer.start(self.hover_delay_ms)
+                            break
+                        # Then check image
+                        elif ImageHoverView.is_image_url(url):
+                            found_media = True
+                            global_pos = self.list_view.viewport().mapToGlobal(pos)
+                            if self.hover_timer.property('data') != ('image', url, global_pos):
+                                self.hover_timer.setProperty('data', ('image', url, global_pos))
+                                self.hover_timer.start(self.hover_delay_ms)
+                            break
+
+                if not found_media:
                     self.hover_timer.stop()
                     if self.image_viewer:
                         self.image_viewer.hide_preview()
