@@ -7,6 +7,7 @@ from PyQt6.QtCore import Qt, QPoint, QTimer, pyqtSignal, QObject, QThread, QBuff
 from PyQt6.QtGui import QPixmap, QMovie, QCursor, QPainter
 
 from helpers.loading_spinner import LoadingSpinner
+from helpers.help import HelpPanel
 
 
 class ImageLoadWorker(QObject):
@@ -65,6 +66,9 @@ class ImageHoverView(QWidget):
         # Image transformation and interaction state
         self.image_offset, self.image_scale = QPointF(0, 0), 1.0
         self.dragging, self.scaling, self.last_mouse_pos = False, False, None
+        
+        # Help panel
+        self.help_panel = HelpPanel(self, viewer_type="image")
     
     def paintEvent(self, event):
         """Paint the image with current transformations"""
@@ -263,10 +267,25 @@ class ImageHoverView(QWidget):
             event.accept()
     
     def keyPressEvent(self, event):
-        """Handle Space and ESC keys to hide preview"""
-        if event.key() in (Qt.Key.Key_Space, Qt.Key.Key_Escape):
+        """Handle keyboard shortcuts"""
+        key = event.key()
+        
+        if key == Qt.Key.Key_F1:
+            if self.help_panel.isVisible():
+                self.help_panel.hide()
+            else:
+                # Center help panel on screen
+                screen_geo = self.screen_rect
+                help_geo = self.help_panel.frameGeometry()
+                help_geo.moveCenter(screen_geo.center())
+                self.help_panel.move(help_geo.topLeft())
+                self.help_panel.show()
+                self.help_panel.raise_()
+        elif key in (Qt.Key.Key_Space, Qt.Key.Key_Escape):
             self.hide_preview()
             event.accept()
+        else:
+            super().keyPressEvent(event)
     
     def hide_preview(self):
         """Hide preview and reset state"""
@@ -284,6 +303,9 @@ class ImageHoverView(QWidget):
                 pass
             self.current_movie.deleteLater()
         
+        if self.help_panel:
+            self.help_panel.close()
+        
         self.current_movie = self.current_pixmap = self.current_url = self.target_pos = self.last_mouse_pos = None
         self.image_offset, self.image_scale = QPointF(0, 0), 1.0
         self.dragging = self.scaling = False
@@ -296,3 +318,5 @@ class ImageHoverView(QWidget):
         if self.load_thread and self.load_thread.isRunning():
             self.load_thread.quit()
             self.load_thread.wait(1000)
+        if self.help_panel:
+            self.help_panel.deleteLater()

@@ -1,6 +1,8 @@
 """Video player widget - displays videos in a movable window"""
+
 import re
 from pathlib import Path
+
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QSlider, QLabel, QGraphicsView, QGraphicsScene
 from PyQt6.QtCore import (
     Qt, QTimer, QUrl, QPoint, QSize, QRectF, QSizeF,
@@ -10,8 +12,10 @@ from PyQt6.QtCore import (
 from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput, QMediaMetaData
 from PyQt6.QtMultimediaWidgets import QGraphicsVideoItem
 from PyQt6.QtGui import QPainter, QColor, QResizeEvent
+
 from helpers.loading_spinner import LoadingSpinner
 from helpers.create import create_icon_button, _render_svg_icon
+from helpers.help import HelpPanel
 
 
 class OverlayIcon(QWidget):
@@ -93,6 +97,7 @@ class OverlayIcon(QWidget):
 
 class VideoPlayer(QWidget):
     """Video player in a movable window"""
+    
     VIDEO_PATTERNS = [
         re.compile(r'https?://[^\s<>"]+\.(?:mp4|webm|ogg|mov|avi|mkv|flv|wmv|m4v)(?:\?[^\s<>"]*)?', re.IGNORECASE),
     ]
@@ -108,17 +113,17 @@ class VideoPlayer(QWidget):
         self._click_timer = QTimer()
         self._click_timer.setSingleShot(True)
         self._click_timer.timeout.connect(self._handle_single_click)
-
+        
         self.setWindowFlags(Qt.WindowType.Window | Qt.WindowType.WindowStaysOnTopHint)
         self.setWindowTitle("Video Player")
         self.setMinimumSize(400, 300)
         self.resize(800, 600)
-
+        
         # Media player
         self.media_player = QMediaPlayer()
         self.audio_output = QAudioOutput()
         self.media_player.setAudioOutput(self.audio_output)
-
+        
         # Video view
         self.video_view = QGraphicsView()
         self.scene = QGraphicsScene()
@@ -128,27 +133,30 @@ class VideoPlayer(QWidget):
         self.video_view.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.video_view.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.media_player.setVideoOutput(self.video_item)
-
+        
         # Overlay icon
         self.overlay_icon = OverlayIcon(icons_path=self.icons_path)
         self.overlay_proxy = self.scene.addWidget(self.overlay_icon)
         self.overlay_proxy.setVisible(False)
         self.overlay_proxy.setZValue(1)
-
+        
+        # Help panel
+        self.help_panel = HelpPanel(self, viewer_type="video")
+        
         self._setup_ui()
         self._ui_ready = True
-
+        
         # Install event filters after UI ready
         for widget in [self.video_view, self.volume_button, self.volume_slider, self.progress_slider]:
             widget.installEventFilter(self)
-
+        
         # Set volume
         volume = (self.config.get("video", "volume") if self.config else None) or 0.5
         self.audio_output.setVolume(volume)
         self.volume_slider.setValue(int(volume * 100))
-
+        
         self._connect_signals()
-
+        
         # Loading spinner - use None parent for global positioning
         self.loading_spinner = LoadingSpinner(None, 60)
         self.loading_spinner.hide()
@@ -170,19 +178,19 @@ class VideoPlayer(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
         layout.addWidget(self.video_view)
-
+        
         # Get config values
         btn_cfg = self.config.get("ui", "buttons", "large_button") if self.config else None
         button_size = (btn_cfg.get("button_size") if btn_cfg else None) or 48
         spacing = (self.config.get("ui", "buttons", "spacing") if self.config else None) or 8
-
+        
         # Controls
         controls = QWidget()
         controls.setFixedHeight(button_size)
         controls_layout = QHBoxLayout(controls)
         controls_layout.setContentsMargins(0, 0, 0, 0)
         controls_layout.setSpacing(spacing)
-
+        
         # Buttons
         self.play_button = create_icon_button(self.icons_path, "play.svg", "Play (Space)", "large", self.config)
         self.play_button.clicked.connect(self._toggle_play)
@@ -204,7 +212,7 @@ class VideoPlayer(QWidget):
         
         self.fullscreen_button = create_icon_button(self.icons_path, "fullscreen.svg", "Fullscreen (F)", "large", self.config)
         self.fullscreen_button.clicked.connect(self._toggle_fullscreen)
-
+        
         for w in [self.play_button, self.volume_button, self.volume_slider, self.time_label, 
                   self.progress_slider, self.fullscreen_button]:
             controls_layout.addWidget(w)
@@ -254,6 +262,12 @@ class VideoPlayer(QWidget):
             win_w, win_h = video_w, video_h
         
         self.resize(win_w, win_h + controls_h)
+        
+        # Center window on screen after resize
+        screen_geo = self.screen().availableGeometry()
+        window_geo = self.frameGeometry()
+        window_geo.moveCenter(screen_geo.center())
+        self.move(window_geo.topLeft())
 
     def resizeEvent(self, event: QResizeEvent):
         super().resizeEvent(event)
@@ -281,15 +295,15 @@ class VideoPlayer(QWidget):
         
         self.current_url = url
         self.is_loading = True
-
-        # Position and show spinner BEFORE showing window (using global coordinates)
+        
+        # Position and show spinner at cursor (using global coordinates)
         if cursor_pos:
             spinner_pos = LoadingSpinner.calculate_position(
                 cursor_pos, self.loading_spinner.width(), self.loading_spinner.screen().availableGeometry()
             )
             self.loading_spinner.move(spinner_pos)
         else:
-            # Center on screen
+            # Center spinner on screen
             screen_geo = self.loading_spinner.screen().availableGeometry()
             x = (screen_geo.width() - self.loading_spinner.width()) // 2
             y = (screen_geo.height() - self.loading_spinner.height()) // 2
@@ -297,7 +311,7 @@ class VideoPlayer(QWidget):
         
         self.loading_spinner.start()
         
-        # Show and center window
+        # Always center video player window on screen
         if not self.isVisible():
             screen_geo = self.screen().availableGeometry()
             window_geo = self.frameGeometry()
@@ -446,7 +460,17 @@ class VideoPlayer(QWidget):
     def keyPressEvent(self, event):
         key = event.key()
         
-        if key == Qt.Key.Key_Space:
+        if key == Qt.Key.Key_F1:
+            if self.help_panel.isVisible():
+                self.help_panel.hide()
+            else:
+                # Center help panel relative to video player
+                help_geo = self.help_panel.frameGeometry()
+                help_geo.moveCenter(self.frameGeometry().center())
+                self.help_panel.move(help_geo.topLeft())
+                self.help_panel.show()
+                self.help_panel.raise_()
+        elif key == Qt.Key.Key_Space:
             self._toggle_play()
         elif key == Qt.Key.Key_Escape:
             self.showNormal() if self.isFullScreen() else self.close()
@@ -484,6 +508,8 @@ class VideoPlayer(QWidget):
         self.media_player.setSource(QUrl())
         self.is_loading = False
         self.loading_spinner.stop()
+        if self.help_panel:
+            self.help_panel.close()
         super().closeEvent(event)
 
     def cleanup(self):
@@ -495,3 +521,5 @@ class VideoPlayer(QWidget):
         self.audio_output.deleteLater()
         if self.loading_spinner:
             self.loading_spinner.deleteLater()
+        if self.help_panel:
+            self.help_panel.deleteLater()
