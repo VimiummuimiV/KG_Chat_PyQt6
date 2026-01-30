@@ -88,10 +88,11 @@ class MessageDelegate(QStyledItemDelegate):
         self.row_needs_refresh.connect(self._do_refresh_row)
 
         # Image hover view with delay
-        self.image_view = None
+        self.image_viewer = None
+        self.video_player = None
         self.hover_timer = QTimer()
         self.hover_timer.setSingleShot(True)
-        self.hover_timer.timeout.connect(lambda: self.image_view and self.image_view.show_preview(*self.hover_timer.property('data')))
+        self.hover_timer.timeout.connect(lambda: self.image_viewer and self.image_viewer.show_preview(*self.hover_timer.property('data')))
         self.hover_delay_ms = 500
   
     def set_my_username(self, username: str):
@@ -101,9 +102,9 @@ class MessageDelegate(QStyledItemDelegate):
     def set_list_view(self, list_view):
         self.list_view = list_view
        
-        # Initialize image view widget
-        if list_view and not self.image_view:
-            self.image_view = ImageHoverView(parent=list_view.window())
+        # Initialize image viewer widget
+        if list_view and not self.image_viewer:
+            self.image_viewer = ImageHoverView(parent=list_view.window())
   
     def set_input_field(self, input_field):
         self.input_field = input_field
@@ -112,11 +113,11 @@ class MessageDelegate(QStyledItemDelegate):
         self.list_view = None
         self.hover_timer.stop()
        
-        # Cleanup image view
-        if self.image_view:
-            self.image_view.cleanup()
-            self.image_view.deleteLater()
-            self.image_view = None
+        # Cleanup image viewer
+        if self.image_viewer:
+            self.image_viewer.cleanup()
+            self.image_viewer.deleteLater()
+            self.image_viewer = None
   
     def update_theme(self):
         theme = self.config.get("ui", "theme") or "dark"
@@ -713,8 +714,8 @@ class MessageDelegate(QStyledItemDelegate):
                 
                 if not found_image:
                     self.hover_timer.stop()
-                    if self.image_view:
-                        self.image_view.hide_preview()
+                    if self.image_viewer:
+                        self.image_viewer.hide_preview()
                
                 if self.list_view:
                     cursor = (Qt.CursorShape.PointingHandCursor
