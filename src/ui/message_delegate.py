@@ -89,7 +89,6 @@ class MessageDelegate(QStyledItemDelegate):
 
         # Image hover view with delay
         self.image_viewer = None
-        self.video_player = None
         self.hover_timer = QTimer()
         self.hover_timer.setSingleShot(True)
         self.hover_timer.timeout.connect(lambda: self.image_viewer and self.image_viewer.show_preview(*self.hover_timer.property('data')))
