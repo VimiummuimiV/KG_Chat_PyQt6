@@ -104,9 +104,9 @@ class MessageDelegate(QStyledItemDelegate):
             return
         
         if data[0] == 'video':
-            _, url = data
+            _, url, cursor_pos = data
             if self.video_player:
-                self.video_player.show_video(url)
+                self.video_player.show_video(url, cursor_pos)
         elif data[0] == 'image':
             _, url, cursor_pos = data
             if self.image_viewer:
@@ -125,8 +125,7 @@ class MessageDelegate(QStyledItemDelegate):
 
         # Initialize video player widget
         if list_view and not self.video_player:
-            from pathlib import Path
-            icons_path = Path(__file__).parent.parent / "assets" / "icons"
+            icons_path = Path(__file__).parent.parent / "icons"
             self.video_player = VideoPlayer(
                 parent=list_view.window(),
                 icons_path=icons_path,
@@ -738,17 +737,18 @@ class MessageDelegate(QStyledItemDelegate):
                 found_media = False
                 for link_rect, url in rects['links']:
                     if link_rect.contains(pos):
+                        global_pos = self.list_view.viewport().mapToGlobal(pos)
+                        
                         # Check video first
                         if self.video_player and VideoPlayer.is_video_url(url):
                             found_media = True
-                            if self.hover_timer.property('data') != ('video', url):
-                                self.hover_timer.setProperty('data', ('video', url))
+                            if self.hover_timer.property('data') != ('video', url, global_pos):
+                                self.hover_timer.setProperty('data', ('video', url, global_pos))
                                 self.hover_timer.start(self.hover_delay_ms)
                             break
                         # Then check image
                         elif ImageHoverView.is_image_url(url):
                             found_media = True
-                            global_pos = self.list_view.viewport().mapToGlobal(pos)
                             if self.hover_timer.property('data') != ('image', url, global_pos):
                                 self.hover_timer.setProperty('data', ('image', url, global_pos))
                                 self.hover_timer.start(self.hover_delay_ms)
