@@ -23,12 +23,23 @@ class ImageLoadWorker(QObject):
         if self._should_stop:
             return
         try:
-            response = requests.get(self.url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=60)
-            self.finished.emit(self.url, response.content if response.status_code == 200 and not self._should_stop else b'', 
-                             response.status_code != 200)
+            response = requests.get(self.url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=60, stream=True)
+            if response.status_code != 200:
+                return self.finished.emit(self.url, b'', True)
+            
+            chunks = []
+            for chunk in response.iter_content(chunk_size=8192):
+                if self._should_stop:
+                    return
+                if chunk:
+                    chunks.append(chunk)
+            
+            if not self._should_stop:
+                self.finished.emit(self.url, b''.join(chunks), False)
         except Exception as e:
-            print(f"Failed to load {self.url}: {e}")
-            self.finished.emit(self.url, b'', True)
+            if not self._should_stop:
+                print(f"Failed to load {self.url}: {e}")
+                self.finished.emit(self.url, b'', True)
     
     def stop(self):
         self._should_stop = True
@@ -315,8 +326,26 @@ class ImageHoverView(QWidget):
     def cleanup(self):
         """Cleanup resources"""
         self.hide_preview()
-        if self.load_thread and self.load_thread.isRunning():
-            self.load_thread.quit()
-            self.load_thread.wait(1000)
+        
+        # Stop worker and disconnect signals
+        if self.load_worker:
+            self.load_worker.stop()
+            try:
+                self.load_worker.finished.disconnect()
+            except:
+                pass
+            self.load_worker = None
+        
+        # Stop thread - terminate if doesn't quit in 500ms
+        if self.load_thread:
+            if self.load_thread.isRunning():
+                self.load_thread.quit()
+                if not self.load_thread.wait(500):
+                    self.load_thread.terminate()
+                    self.load_thread.wait(100)
+            self.load_thread.deleteLater()
+            self.load_thread = None
+        
         if self.help_panel:
             self.help_panel.deleteLater()
+            self.help_panel = None
