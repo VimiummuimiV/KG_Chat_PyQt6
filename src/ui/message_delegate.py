@@ -87,9 +87,12 @@ class MessageDelegate(QStyledItemDelegate):
         # Connect the refresh signal
         self.row_needs_refresh.connect(self._do_refresh_row)
 
-        # Image hover preview
-        self.image_preview = None
-        self.hovered_image_url = None
+        # Image hover view with delay
+        self.image_view = None
+        self.hover_timer = QTimer()
+        self.hover_timer.setSingleShot(True)
+        self.hover_timer.timeout.connect(lambda: self.image_view and self.image_view.show_preview(*self.hover_timer.property('data')))
+        self.hover_delay_ms = 500
   
     def set_my_username(self, username: str):
         """Set the current user's username for mention highlighting"""
@@ -98,21 +101,22 @@ class MessageDelegate(QStyledItemDelegate):
     def set_list_view(self, list_view):
         self.list_view = list_view
        
-        # Initialize image preview widget
-        if list_view and not self.image_preview:
-            self.image_preview = ImageHoverView(parent=list_view.window())
+        # Initialize image view widget
+        if list_view and not self.image_view:
+            self.image_view = ImageHoverView(parent=list_view.window())
   
     def set_input_field(self, input_field):
         self.input_field = input_field
   
     def cleanup(self):
         self.list_view = None
+        self.hover_timer.stop()
        
-        # Cleanup image preview
-        if self.image_preview:
-            self.image_preview.cleanup()
-            self.image_preview.deleteLater()
-            self.image_preview = None
+        # Cleanup image view
+        if self.image_view:
+            self.image_view.cleanup()
+            self.image_view.deleteLater()
+            self.image_view = None
   
     def update_theme(self):
         theme = self.config.get("ui", "theme") or "dark"
@@ -620,7 +624,7 @@ class MessageDelegate(QStyledItemDelegate):
             self.list_view.viewport().update()
         except RuntimeError:
             pass
-  
+
     def editorEvent(self, event: QEvent, model, option: QStyleOptionViewItem,
                     index: QModelIndex) -> bool:
         msg = index.data(Qt.ItemDataRole.DisplayRole)
@@ -696,20 +700,21 @@ class MessageDelegate(QStyledItemDelegate):
                     any(link_rect.contains(pos) for link_rect, _ in rects['links'])
                 )
                
-                # Check for image URL hover
+                # Check for image URL hover with delay
+                found_image = False
                 for link_rect, url in rects['links']:
-                    if link_rect.contains(pos):
-                        if ImageHoverView.is_image_url(url):
-                            if url != self.hovered_image_url:
-                                self.hovered_image_url = url
-                                if self.image_preview:
-                                    self.image_preview.show_preview(url, self.list_view.viewport().mapToGlobal(pos))
-                        else:
-                            self.hovered_image_url = None
+                    if link_rect.contains(pos) and ImageHoverView.is_image_url(url):
+                        found_image = True
+                        global_pos = self.list_view.viewport().mapToGlobal(pos)
+                        if self.hover_timer.property('data') != (url, global_pos):
+                            self.hover_timer.setProperty('data', (url, global_pos))
+                            self.hover_timer.start(self.hover_delay_ms)
                         break
-                else:
-                    # Not hovering over any link
-                    self.hovered_image_url = None
+                
+                if not found_image:
+                    self.hover_timer.stop()
+                    if self.image_view:
+                        self.image_view.hide_preview()
                
                 if self.list_view:
                     cursor = (Qt.CursorShape.PointingHandCursor
