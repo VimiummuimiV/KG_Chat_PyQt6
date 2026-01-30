@@ -105,6 +105,9 @@ class VideoPlayer(QWidget):
         self._signals_connected = False
         self._ui_ready = False
         self._slider_pressed = False
+        self._click_timer = QTimer()
+        self._click_timer.setSingleShot(True)
+        self._click_timer.timeout.connect(self._handle_single_click)
 
         self.setWindowFlags(Qt.WindowType.Window | Qt.WindowType.WindowStaysOnTopHint)
         self.setWindowTitle("Video Player")
@@ -216,6 +219,10 @@ class VideoPlayer(QWidget):
         """Handle slider release - seek to position"""
         self._slider_pressed = False
         self.media_player.setPosition(self.progress_slider.value())
+
+    def _handle_single_click(self):
+        """Handle delayed single click - toggle play/pause"""
+        self._toggle_play()
 
     def _on_meta_data_changed(self):
         """Handle video metadata and adjust window size"""
@@ -359,7 +366,15 @@ class VideoPlayer(QWidget):
         
         elif obj == self.video_view and event_type == QEvent.Type.MouseButtonPress:
             if event.button() == Qt.MouseButton.LeftButton:
-                self._toggle_play()
+                # Start timer for single click, will be cancelled if double-click occurs
+                self._click_timer.start(250)  # 250ms delay to detect double-click
+                return True
+        
+        elif obj == self.video_view and event_type == QEvent.Type.MouseButtonDblClick:
+            if event.button() == Qt.MouseButton.LeftButton:
+                # Cancel single-click timer and toggle fullscreen instead
+                self._click_timer.stop()
+                self._toggle_fullscreen()
                 return True
         
         return super().eventFilter(obj, event)
