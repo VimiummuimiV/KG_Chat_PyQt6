@@ -1,35 +1,44 @@
 """Video player widget - displays videos in a movable window"""
 import re
 from pathlib import Path
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QSlider, QLabel, QGraphicsView, QGraphicsScene, QGraphicsProxyWidget
-from PyQt6.QtCore import(
-    Qt, QTimer, QUrl, QPoint, QRect, QSize, pyqtProperty,
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QSlider, QLabel, QGraphicsView, QGraphicsScene
+from PyQt6.QtCore import (
+    Qt, QTimer, QUrl, QPoint, QRect, QSize, QRectF, QSizeF,
     QPropertyAnimation, QSequentialAnimationGroup, QParallelAnimationGroup,
-    QPauseAnimation, QEasingCurve, QEvent, QRectF, QSizeF
+    QPauseAnimation, QEasingCurve, QEvent
 )
 from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput, QMediaMetaData
 from PyQt6.QtMultimediaWidgets import QGraphicsVideoItem
-from PyQt6.QtGui import QPainter, QColor, QPen, QPixmap, QResizeEvent
-from PyQt6.QtWidgets import QGraphicsOpacityEffect
+from PyQt6.QtGui import QPainter, QColor, QResizeEvent
 from helpers.loading_spinner import LoadingSpinner
 from helpers.create import create_icon_button, _render_svg_icon
 
+
 class OverlayIcon(QWidget):
-    """Overlay icon with animated fade in/out and scale"""
-    def __init__(self, parent=None):
+    """Overlay icon with animated fade in/out and scale - self-contained"""
+    
+    def __init__(self, parent=None, icons_path: Path = None):
         super().__init__(parent)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.icons_path = icons_path or Path(__file__).parent.parent / "icons"
+        
+        # Visual properties
         self.pixmap = None
         self.base_size = 160
         self.base_icon_size = 128
         self.max_scale = 1.5
-
+        
+        # Animation
+        self._anim_group = None
+        
     def paintEvent(self, event):
         if not self.pixmap:
             return
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
         painter.setPen(Qt.PenStyle.NoPen)
+        
         # Background ellipse
         draw_rect = QRect(
             int((self.width() - self.base_size) / 2),
@@ -39,6 +48,7 @@ class OverlayIcon(QWidget):
         )
         painter.setBrush(QColor(5, 5, 5, 128))
         painter.drawEllipse(draw_rect)
+        
         # Icon pixmap
         icon_rect = QRect(
             int((self.width() - self.base_icon_size) / 2),
@@ -47,6 +57,60 @@ class OverlayIcon(QWidget):
             self.base_icon_size
         )
         painter.drawPixmap(icon_rect, self.pixmap)
+    
+    def show_icon(self, icon_name: str, proxy_widget):
+        """Show icon with animation - handles everything internally"""
+        # Load and set icon
+        icon_size = QSize(self.base_icon_size, self.base_icon_size)
+        icon = _render_svg_icon(self.icons_path / icon_name, icon_size)
+        self.pixmap = icon.pixmap(icon_size)
+        self.update()
+        
+        # Setup proxy widget geometry and transform
+        proxy_widget.setTransformOriginPoint(proxy_widget.boundingRect().center())
+        proxy_widget.setOpacity(0)
+        proxy_widget.setScale(1.0)
+        proxy_widget.show()
+        
+        # Stop any existing animation
+        if self._anim_group and self._anim_group.state() == QSequentialAnimationGroup.State.Running:
+            self._anim_group.stop()
+        
+        # Fade in
+        appear_anim = QPropertyAnimation(proxy_widget, b"opacity")
+        appear_anim.setDuration(100)
+        appear_anim.setStartValue(0)
+        appear_anim.setEndValue(1)
+        appear_anim.setEasingCurve(QEasingCurve.Type.InOutQuad)
+        
+        # Pause
+        pause = QPauseAnimation(200)
+        
+        # Scale up + fade out
+        out_group = QParallelAnimationGroup()
+        
+        fade_out = QPropertyAnimation(proxy_widget, b"opacity")
+        fade_out.setDuration(400)
+        fade_out.setStartValue(1)
+        fade_out.setEndValue(0)
+        fade_out.setEasingCurve(QEasingCurve.Type.InOutQuad)
+        out_group.addAnimation(fade_out)
+        
+        scale_out = QPropertyAnimation(proxy_widget, b"scale")
+        scale_out.setDuration(400)
+        scale_out.setStartValue(1.0)
+        scale_out.setEndValue(self.max_scale)
+        scale_out.setEasingCurve(QEasingCurve.Type.InOutQuad)
+        out_group.addAnimation(scale_out)
+        
+        # Combine animations
+        self._anim_group = QSequentialAnimationGroup()
+        self._anim_group.addAnimation(appear_anim)
+        self._anim_group.addAnimation(pause)
+        self._anim_group.addAnimation(out_group)
+        self._anim_group.finished.connect(proxy_widget.hide)
+        self._anim_group.start()
+
 
 class VideoPlayer(QWidget):
     """Video player in a movable window"""
@@ -80,8 +144,8 @@ class VideoPlayer(QWidget):
         self.video_view.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.media_player.setVideoOutput(self.video_item)
 
-        # Overlay icon
-        self.overlay_icon = OverlayIcon()
+        # Overlay icon (self-contained now)
+        self.overlay_icon = OverlayIcon(icons_path=self.icons_path)
         self.overlay_proxy = self.scene.addWidget(self.overlay_icon)
         self.overlay_proxy.setVisible(False)
         self.overlay_proxy.setZValue(1)
@@ -128,10 +192,9 @@ class VideoPlayer(QWidget):
             button_size = btn_cfg.get("button_size", 48)
             spacing = self.config.get("ui", "buttons", "spacing") or 8
 
-        # Controls container - height includes button + top/bottom margins
+        # Controls container
         controls = QWidget()
-        controls_height = button_size
-        controls.setFixedHeight(controls_height)
+        controls.setFixedHeight(button_size)
         controls_layout = QHBoxLayout(controls)
         controls_layout.setContentsMargins(0, 0, 0, 0)
         controls_layout.setSpacing(spacing)
@@ -180,18 +243,34 @@ class VideoPlayer(QWidget):
         layout.addWidget(controls)
 
     def _on_meta_data_changed(self):
+        """Handle video metadata to set proper scene size"""
         resolution = self.media_player.metaData().value(QMediaMetaData.Key.Resolution)
         if resolution and not resolution.isEmpty():
             self.scene.setSceneRect(0, 0, resolution.width(), resolution.height())
             self.video_item.setSize(QSizeF(resolution.width(), resolution.height()))
+            self._update_overlay_position()
             self.video_view.fitInView(self.scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
 
     def resizeEvent(self, event: QResizeEvent):
+        """Handle window resize"""
         super().resizeEvent(event)
         self.video_view.fitInView(self.scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
+        self._update_overlay_position()
+
+    def _update_overlay_position(self):
+        """Update overlay position to center in video"""
+        video_size = self.video_item.size()
+        if video_size.isEmpty():
+            video_size = QSizeF(self.video_view.width(), self.video_view.height())
+        
+        base_size = self.overlay_icon.base_size
+        x = (video_size.width() - base_size) / 2
+        y = (video_size.height() - base_size) / 2
+        self.overlay_proxy.setGeometry(QRectF(x, y, base_size, base_size))
 
     @staticmethod
     def is_video_url(url: str) -> bool:
+        """Check if URL is a video"""
         return any(p.search(url or '') for p in VideoPlayer.VIDEO_PATTERNS)
 
     def show_video(self, url: str, cursor_pos: QPoint = None):
@@ -209,10 +288,10 @@ class VideoPlayer(QWidget):
             )
             self.loading_spinner.move(self.mapFromGlobal(spinner_pos))
         else:
-            # Center spinner
             x = (self.width() - self.loading_spinner.width()) // 2
             y = (self.height() - self.loading_spinner.height()) // 2
             self.loading_spinner.move(x, y)
+        
         self.loading_spinner.start()
         self.media_player.setSource(QUrl(url))
         self.show()
@@ -229,13 +308,19 @@ class VideoPlayer(QWidget):
             self.loading_spinner.stop()
 
     def _toggle_play(self):
+        """Toggle play/pause and show overlay"""
         if self.media_player.playbackState() == QMediaPlayer.PlaybackState.PlayingState:
             self.media_player.pause()
+            icon_name = "stop.svg"  # Show pause icon when pausing
         else:
             self.media_player.play()
-        self._show_overlay()
+            icon_name = "play.svg"  # Show play icon when playing
+        
+        self._update_overlay_position()
+        self.overlay_icon.show_icon(icon_name, self.overlay_proxy)
 
     def _toggle_mute(self):
+        """Toggle audio mute"""
         self.audio_output.setMuted(not self.audio_output.isMuted())
         self._update_volume_button()
 
@@ -276,60 +361,8 @@ class VideoPlayer(QWidget):
                 return True
         return super().eventFilter(obj, event)
 
-    def _show_overlay(self):
-        if self.media_player.playbackState() == QMediaPlayer.PlaybackState.PlayingState:
-            icon_name = "play.svg"  # Shown when starting playback
-        else:
-            icon_name = "stop.svg"  # Shown when pausing; adjust if using "pause.svg"
-        icon_size = QSize(self.overlay_icon.base_icon_size, self.overlay_icon.base_icon_size)
-        icon = _render_svg_icon(self.icons_path / icon_name, icon_size)
-        self.overlay_icon.pixmap = icon.pixmap(icon_size)
-        self.overlay_icon.update()
-
-        # Compute size for geometry in scene coordinates
-        video_size = self.video_item.size()
-        if video_size.isEmpty():
-            # Fallback if size not available yet
-            video_size = QSizeF(self.video_view.width(), self.video_view.height())
-        base_size = self.overlay_icon.base_size
-        x = (video_size.width() - base_size) / 2
-        y = (video_size.height() - base_size) / 2
-        self.overlay_proxy.setGeometry(QRectF(x, y, base_size, base_size))
-        self.overlay_proxy.setTransformOriginPoint(self.overlay_proxy.boundingRect().center())
-        self.overlay_proxy.setOpacity(0)
-        self.overlay_proxy.setScale(1.0)
-        self.overlay_proxy.show()
-        # Appear animation (fade in)
-        appear_anim = QPropertyAnimation(self.overlay_proxy, b"opacity")
-        appear_anim.setDuration(100)
-        appear_anim.setStartValue(0)
-        appear_anim.setEndValue(1)
-        appear_anim.setEasingCurve(QEasingCurve.Type.InOutQuad)
-        # Pause
-        pause = QPauseAnimation(200)
-        # Out animation (scale up + fade out)
-        out_group = QParallelAnimationGroup()
-        fade_out = QPropertyAnimation(self.overlay_proxy, b"opacity")
-        fade_out.setDuration(400)
-        fade_out.setStartValue(1)
-        fade_out.setEndValue(0)
-        fade_out.setEasingCurve(QEasingCurve.Type.InOutQuad)
-        out_group.addAnimation(fade_out)
-        scale_out = QPropertyAnimation(self.overlay_proxy, b"scale")
-        scale_out.setDuration(400)
-        scale_out.setStartValue(1.0)
-        scale_out.setEndValue(self.overlay_icon.max_scale)
-        scale_out.setEasingCurve(QEasingCurve.Type.InOutQuad)
-        out_group.addAnimation(scale_out)
-        # Main animation group
-        anim_group = QSequentialAnimationGroup()
-        anim_group.addAnimation(appear_anim)
-        anim_group.addAnimation(pause)
-        anim_group.addAnimation(out_group)
-        anim_group.finished.connect(self.overlay_proxy.hide)
-        anim_group.start()
-
     def _toggle_fullscreen(self):
+        """Toggle fullscreen mode"""
         if self.isFullScreen():
             self.showNormal()
             icon_name = "fullscreen.svg"
@@ -341,6 +374,7 @@ class VideoPlayer(QWidget):
         self.fullscreen_button._icon_name = icon_name
 
     def _update_volume_button(self):
+        """Update volume button icon based on mute/volume state"""
         is_muted = self.audio_output.isMuted()
         volume = self.audio_output.volume()
         if is_muted or volume == 0:
@@ -359,6 +393,7 @@ class VideoPlayer(QWidget):
             self.volume_slider.hide()
 
     def _update_play_button(self, state):
+        """Update play button icon based on playback state"""
         if state == QMediaPlayer.PlaybackState.PlayingState:
             icon_name = "stop.svg"
             tooltip = "Stop (Space)"
@@ -371,22 +406,28 @@ class VideoPlayer(QWidget):
         self.play_button.setToolTip(tooltip)
 
     def _on_slider_pressed(self):
+        """Disconnect position updates while dragging slider"""
         self.media_player.positionChanged.disconnect(self._update_position)
 
     def _on_slider_released(self):
+        """Update position when slider released"""
         self.media_player.setPosition(self.progress_slider.value())
         self.media_player.positionChanged.connect(self._update_position)
 
     def _update_position(self, position):
+        """Update progress slider and time label"""
         if not self.progress_slider.isSliderDown():
             self.progress_slider.setValue(position)
         duration = self.media_player.duration()
         self.time_label.setText(f"{self._format_time(position)} / {self._format_time(duration)}")
 
     def _update_duration(self, duration):
+        """Update slider range when duration changes"""
         self.progress_slider.setRange(0, duration)
 
-    def _format_time(self, ms: int) -> str:
+    @staticmethod
+    def _format_time(ms: int) -> str:
+        """Format milliseconds to time string"""
         seconds = ms // 1000
         minutes = seconds // 60
         seconds = seconds % 60
@@ -397,6 +438,7 @@ class VideoPlayer(QWidget):
         return f"{minutes}:{seconds:02d}"
 
     def keyPressEvent(self, event):
+        """Handle keyboard shortcuts"""
         key = event.key()
         if key == Qt.Key.Key_Space:
             self._toggle_play()
@@ -434,6 +476,7 @@ class VideoPlayer(QWidget):
                 pass
 
     def closeEvent(self, event):
+        """Clean up on close"""
         self._disconnect_signals()
         self.media_player.stop()
         self.media_player.setSource(QUrl())
@@ -442,6 +485,7 @@ class VideoPlayer(QWidget):
         super().closeEvent(event)
 
     def cleanup(self):
+        """Full cleanup - call before deleting"""
         self._disconnect_signals()
         self.close()
         self.media_player.stop()
