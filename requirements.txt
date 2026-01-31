@@ -5,4 +5,3 @@ PyQt6
 pyqtdarktheme
 playsound3
 gTTS
-yt-dlp

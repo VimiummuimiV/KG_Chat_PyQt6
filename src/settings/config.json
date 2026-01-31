@@ -96,8 +96,7 @@
     ]
   },
   "video": {
-    "volume": 0.5,
-    "youtube_quality": 720
+    "volume": 0.5
   },
   "sound": {
     "tts_enabled": false,
