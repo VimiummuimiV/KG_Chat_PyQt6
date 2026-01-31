@@ -158,6 +158,7 @@ VIDEO_KB = [
     ("M", "Mute / Unmute"),
     ("J", "Seek backward 10s"),
     ("L", "Seek forward 10s"),
+    ("Q", "Close video"),
     ("Esc", "Exit fullscreen / Close"),
     ("F1", "Show / Hide this help"),
 ]
@@ -173,8 +174,7 @@ VIDEO_MOUSE = [
 ]
 
 IMAGE_KB = [
-    ("Space", "Close image"),
-    ("Esc", "Close image"),
+    ("Esc/Space/Q", "Close image"),
     ("F1", "Show / Hide this help"),
 ]
 

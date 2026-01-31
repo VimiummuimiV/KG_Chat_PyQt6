@@ -677,6 +677,7 @@ class VideoPlayer(QWidget):
     def keyPressEvent(self, event: QKeyEvent):
         """Handle keyboard shortcuts - layout independent"""
         key = event.key()
+        text_lower = event.text().lower()
         
         if key == Qt.Key.Key_F1:
             if self.help_panel.isVisible():
@@ -687,18 +688,20 @@ class VideoPlayer(QWidget):
                 self.help_panel.move(help_geo.topLeft())
                 self.help_panel.show()
                 self.help_panel.raise_()
-        elif key == Qt.Key.Key_Space or event.text().lower() == 'k':
+        elif key == Qt.Key.Key_Space or text_lower == 'k':
             self._toggle_play()
         elif key == Qt.Key.Key_Escape:
             self.showNormal() if self.isFullScreen() else self.close()
-        elif event.text().lower() == 'f':
+        elif text_lower == 'q':
+            self.close()
+        elif text_lower == 'f':
             self._toggle_fullscreen()
-        elif event.text().lower() == 'm':
+        elif text_lower == 'm':
             self._toggle_mute()
-        elif event.text().lower() == 'j':
+        elif text_lower == 'j':
             new_pos = max(0, self.media_player.position() - 5000)
             self.media_player.setPosition(new_pos)
-        elif event.text().lower() == 'l':
+        elif text_lower == 'l':
             new_pos = min(self.media_player.duration(), self.media_player.position() + 5000)
             self.media_player.setPosition(new_pos)
         else:

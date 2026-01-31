@@ -278,8 +278,9 @@ class ImageHoverView(QWidget):
             event.accept()
     
     def keyPressEvent(self, event):
-        """Handle keyboard shortcuts"""
+        """Handle keyboard shortcuts - layout independent"""
         key = event.key()
+        text_lower = event.text().lower()
         
         if key == Qt.Key.Key_F1:
             if self.help_panel.isVisible():
@@ -292,7 +293,7 @@ class ImageHoverView(QWidget):
                 self.help_panel.move(help_geo.topLeft())
                 self.help_panel.show()
                 self.help_panel.raise_()
-        elif key in (Qt.Key.Key_Space, Qt.Key.Key_Escape):
+        elif key in (Qt.Key.Key_Space, Qt.Key.Key_Escape) or text_lower == 'q':
             self.hide_preview()
             event.accept()
         else:
