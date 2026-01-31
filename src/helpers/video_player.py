@@ -4,7 +4,10 @@ import re
 import os
 from pathlib import Path
 
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QSlider, QLabel, QGraphicsView, QGraphicsScene
+from PyQt6.QtWidgets import(
+    QWidget, QVBoxLayout, QHBoxLayout, QSlider, QLabel, 
+    QGraphicsView, QGraphicsScene, QMenu
+)
 from PyQt6.QtCore import (
     Qt, QTimer, QUrl, QPoint, QSize, QRectF, QSizeF,
     QPropertyAnimation, QSequentialAnimationGroup, QParallelAnimationGroup,
@@ -24,14 +27,24 @@ os.environ['AV_LOG_FORCE_NOCOLOR'] = '1'
 os.environ['FFREPORT'] = 'level=32'
 
 
+# YouTube quality presets
+YOUTUBE_QUALITIES = [
+    (144, "144p"), (240, "240p"), (360, "360p"), (480, "480p"),
+    (720, "720p"), (1080, "1080p"), (1440, "1440p"), 
+    (2160, "2160p (4K)"), (4320, "4320p (8K)")
+]
+
+
 class YouTubeExtractor(QObject):
-    """Compact YouTube stream extractor with adaptive quality"""
-    finished = pyqtSignal(str, str, bool)  # stream_url, resolution, error
+    """YouTube stream extractor with quality selection"""
+    finished = pyqtSignal(str, str, bool)  # stream_url, actual_resolution, error
+    formats_available = pyqtSignal(list)  # available_formats [(height, label), ...]
     
-    def __init__(self, url: str, target_height: int = 1080):
+    def __init__(self, url: str, target_height: int = 1080, fetch_formats: bool = False):
         super().__init__()
         self.url = url
         self.target_height = target_height
+        self.fetch_formats = fetch_formats
         self._stop = False
     
     def run(self):
@@ -40,28 +53,51 @@ class YouTubeExtractor(QObject):
         try:
             import yt_dlp
             
-            # Adaptive quality: prefer higher quality based on target
-            # Use 'best' format with height constraint for maximum quality
-            format_str = f'bestvideo[height<={self.target_height}]+bestaudio/best[height<={self.target_height}]/best'
+            if self.fetch_formats:
+                # Fast format list extraction (no stream URL)
+                opts = {
+                    'quiet': True,
+                    'no_warnings': True,
+                    'extractor_args': {'youtube': {'player_client': ['android']}},
+                }
+                
+                with yt_dlp.YoutubeDL(opts) as ydl:
+                    if not self._stop:
+                        info = ydl.extract_info(self.url, download=False)
+                        formats = info.get('formats', [])
+                        heights = {fmt.get('height') for fmt in formats 
+                                 if fmt.get('vcodec', 'none') != 'none' and fmt.get('height')}
+                        
+                        available = [(h, label) for h, label in YOUTUBE_QUALITIES if h in heights]
+                        if not available and heights:
+                            available = [(h, f"{h}p") for h in sorted(heights)]
+                        
+                        self.formats_available.emit(available)
+                return
+            
+            # Fast stream extraction - just get the URL
+            format_selector = (
+                f'bestvideo[height<={self.target_height}]+bestaudio/'
+                f'best[height<={self.target_height}]/'
+                f'best'
+            )
             
             opts = {
-                'format': format_str,
+                'format': format_selector,
                 'quiet': True,
                 'no_warnings': True,
                 'nocheckcertificate': True,
-                'extractor_args': {'youtube': {'player_client': ['android', 'web']}},
+                'extractor_args': {'youtube': {'player_client': ['android']}},
             }
             
             with yt_dlp.YoutubeDL(opts) as ydl:
                 if not self._stop:
                     info = ydl.extract_info(self.url, download=False)
+                    
                     if not self._stop and (stream_url := info.get('url')):
-                        # Get actual resolution
                         height = info.get('height', 0)
                         width = info.get('width', 0)
-                        resolution = f"{height}p" if height else "Unknown"
-                        if width and height:
-                            resolution = f"{width}x{height}"
+                        resolution = f"{width}x{height}" if width and height else f"{height}p" if height else "Unknown"
                         
                         self.finished.emit(stream_url, resolution, False)
                     else:
@@ -92,14 +128,14 @@ class OverlayIcon(QWidget):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
-        painter.setPen(Qt.PenStyle.NoPen)
         
         # Background circle
         center = self.width() // 2
         painter.setBrush(QColor(5, 5, 5, 128))
+        painter.setPen(Qt.PenStyle.NoPen)
         painter.drawEllipse(center - self.size // 2, center - self.size // 2, self.size, self.size)
         
-        # Icon (80% of container size)
+        # Icon
         icon_size = int(self.size * 0.8)
         offset = (self.width() - icon_size) // 2
         painter.drawPixmap(offset, offset, icon_size, icon_size, self.pixmap)
@@ -107,8 +143,7 @@ class OverlayIcon(QWidget):
     def show_icon(self, icon_name: str, proxy_widget):
         """Show icon with fade in/out animation"""
         icon_size = int(self.size * 0.8)
-        icon = _render_svg_icon(self.icons_path / icon_name, icon_size)
-        self.pixmap = icon.pixmap(QSize(icon_size, icon_size))
+        self.pixmap = _render_svg_icon(self.icons_path / icon_name, icon_size).pixmap(QSize(icon_size, icon_size))
         self.update()
         
         if self._anim_group and self._anim_group.state() == QSequentialAnimationGroup.State.Running:
@@ -126,9 +161,7 @@ class OverlayIcon(QWidget):
         fade_in.setDuration(100)
         fade_in.setStartValue(0)
         fade_in.setEndValue(1)
-        fade_in.setEasingCurve(QEasingCurve.Type.InOutQuad)
         self._anim_group.addAnimation(fade_in)
-        
         self._anim_group.addAnimation(QPauseAnimation(200))
         
         # Fade out + scale
@@ -137,13 +170,11 @@ class OverlayIcon(QWidget):
         fade_out.setDuration(400)
         fade_out.setStartValue(1)
         fade_out.setEndValue(0)
-        fade_out.setEasingCurve(QEasingCurve.Type.InOutQuad)
         
         scale_out = QPropertyAnimation(proxy_widget, b"scale")
         scale_out.setDuration(400)
         scale_out.setStartValue(1.0)
         scale_out.setEndValue(1.5)
-        scale_out.setEasingCurve(QEasingCurve.Type.InOutQuad)
         
         out_group.addAnimation(fade_out)
         out_group.addAnimation(scale_out)
@@ -165,6 +196,7 @@ class VideoPlayer(QWidget):
         self.icons_path = icons_path or Path(__file__).parent.parent / "icons"
         self.config = config
         self.current_url = None
+        self.is_youtube = False
         self._signals_connected = False
         self._ui_ready = False
         self._slider_pressed = False
@@ -175,11 +207,13 @@ class VideoPlayer(QWidget):
         # YouTube extraction
         self.yt_thread = None
         self.yt_worker = None
+        self.preferred_quality = (self.config.get("video", "youtube_quality") if self.config else None) or 1080
+        self.available_formats = []  # Track available formats for current video
         
         self.setWindowFlags(Qt.WindowType.Window | Qt.WindowType.WindowStaysOnTopHint)
         self.setWindowTitle("Video Player")
         self.setMinimumSize(400, 300)
-        self.resize(800, 600)
+        self.resize(960, 720)
         
         # Media player
         self.media_player = QMediaPlayer()
@@ -253,7 +287,7 @@ class VideoPlayer(QWidget):
         controls_layout.setContentsMargins(0, 0, 0, 0)
         controls_layout.setSpacing(spacing)
         
-        # Buttons
+        # Left side controls
         self.play_button = create_icon_button(self.icons_path, "play.svg", "Play (Space/K)", "large", self.config)
         self.play_button.clicked.connect(self._toggle_play)
         
@@ -268,23 +302,82 @@ class VideoPlayer(QWidget):
         
         self.time_label = QLabel("0:00 / 0:00")
         
+        # Current resolution label (YouTube only)
+        self.current_quality_label = QLabel("")
+        self.current_quality_label.setStyleSheet("color: #888; font-size: 11px;")
+        self.current_quality_label.setVisible(False)
+        
+        # Progress slider (center, stretches)
         self.progress_slider = QSlider(Qt.Orientation.Horizontal)
         self.progress_slider.sliderPressed.connect(self._on_slider_pressed)
         self.progress_slider.sliderReleased.connect(self._on_slider_released)
         
-        # Resolution label (compact, next to time)
-        self.resolution_label = QLabel("")
-        self.resolution_label.setStyleSheet("color: #888; font-size: 11px;")
-        self.resolution_label.setVisible(False)
+        # Right side controls
+        self.quality_button = create_icon_button(self.icons_path, "settings.svg", "Quality", "large", self.config)
+        self.quality_button.clicked.connect(self._show_quality_menu)
+        self.quality_button.setVisible(False)
         
         self.fullscreen_button = create_icon_button(self.icons_path, "fullscreen.svg", "Fullscreen (F)", "large", self.config)
         self.fullscreen_button.clicked.connect(self._toggle_fullscreen)
         
-        for w in [self.play_button, self.volume_button, self.volume_slider, self.time_label, 
-                  self.resolution_label, self.progress_slider, self.fullscreen_button]:
+        for w in [self.play_button, self.volume_button, self.volume_slider, self.time_label,
+                  self.current_quality_label, self.progress_slider, self.quality_button, self.fullscreen_button]:
             controls_layout.addWidget(w)
         
         layout.addWidget(controls)
+
+    def _show_quality_menu(self):
+        """Show quality selection menu for YouTube videos"""
+        if not self.is_youtube:
+            return
+        
+        # Fetch formats if not already available
+        if not self.available_formats:
+            # Quick format fetch
+            if self.yt_thread and self.yt_thread.isRunning():
+                return  # Already loading
+            
+            self.yt_worker = YouTubeExtractor(self.current_url, self.preferred_quality, fetch_formats=True)
+            self.yt_thread = QThread()
+            self.yt_worker.moveToThread(self.yt_thread)
+            self.yt_thread.started.connect(self.yt_worker.run)
+            self.yt_worker.formats_available.connect(self._on_formats_available)
+            self.yt_worker.formats_available.connect(self.yt_thread.quit)
+            self.yt_thread.finished.connect(lambda: self._show_quality_menu())  # Show menu after formats loaded
+            self.yt_thread.start()
+            return
+        
+        menu = QMenu(self)
+        
+        # Show only available formats
+        for height, label in self.available_formats:
+            action = menu.addAction(label)
+            if height == self.preferred_quality:
+                action.setCheckable(True)
+                action.setChecked(True)
+            action.triggered.connect(lambda checked, h=height: self._change_quality(h))
+        
+        # Position menu above button
+        button_pos = self.quality_button.mapToGlobal(QPoint(0, 0))
+        menu_height = menu.sizeHint().height()
+        menu.exec(QPoint(button_pos.x(), button_pos.y() - menu_height))
+
+    def _change_quality(self, new_height: int):
+        """Change YouTube quality and resume from current position"""
+        if not self.is_youtube or new_height == self.preferred_quality:
+            return
+        
+        # Save current position
+        current_pos = self.media_player.position()
+        was_playing = self.media_player.playbackState() == QMediaPlayer.PlaybackState.PlayingState
+        
+        # Update preference
+        self.preferred_quality = new_height
+        if self.config:
+            self.config.set("video", "youtube_quality", value=new_height)
+        
+        # Reload with new quality
+        self._load_youtube(self.current_url, resume_position=current_pos, auto_play=was_playing)
 
     def _on_slider_pressed(self):
         """Handle slider press - stop position updates"""
@@ -296,7 +389,7 @@ class VideoPlayer(QWidget):
         self.media_player.setPosition(self.progress_slider.value())
 
     def _on_meta_data_changed(self):
-        """Handle video metadata and adjust window size"""
+        """Handle video metadata and adjust window size to match aspect ratio"""
         resolution = self.media_player.metaData().value(QMediaMetaData.Key.Resolution)
         if resolution and not resolution.isEmpty():
             w, h = resolution.width(), resolution.height()
@@ -304,34 +397,30 @@ class VideoPlayer(QWidget):
             self.video_item.setSize(QSizeF(w, h))
             self._update_overlay_position()
             self.video_view.fitInView(self.scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
-            self._fit_window_to_video(w, h)
             
-            # Update resolution label
-            self.resolution_label.setText(f"{w}x{h}")
-            self.resolution_label.setVisible(True)
-    
+            # Adjust window to match video aspect ratio
+            if not self.isFullScreen():
+                self._fit_window_to_video(w, h)
+
     def _fit_window_to_video(self, video_w: int, video_h: int):
-        """Adjust window to match video aspect ratio within limits"""
+        """Adjust window to match video aspect ratio perfectly"""
         if video_w <= 0 or video_h <= 0:
             return
         
-        MAX_W, MAX_H = 1920, 1080
-        btn_cfg = self.config.get("ui", "buttons", "large_button") if self.config else None
-        controls_h = (btn_cfg.get("button_size") if btn_cfg else None) or 48
+        screen_geo = self.screen().availableGeometry()
+        MAX_W, MAX_H = int(screen_geo.width() * 0.9), int(screen_geo.height() * 0.9)
+        controls_h = (self.config.get("ui", "buttons", "large_button", "button_size") if self.config else None) or 48
         
         aspect = video_w / video_h
+        win_w, win_h = video_w, video_h
         
-        if video_h > MAX_H:
+        if win_h > MAX_H:
             win_h, win_w = MAX_H, int(MAX_H * aspect)
-        elif video_w > MAX_W:
+        if win_w > MAX_W:
             win_w, win_h = MAX_W, int(MAX_W / aspect)
-        else:
-            win_w, win_h = video_w, video_h
         
         self.resize(win_w, win_h + controls_h)
         
-        # Center window on screen after resize
-        screen_geo = self.screen().availableGeometry()
         window_geo = self.frameGeometry()
         window_geo.moveCenter(screen_geo.center())
         self.move(window_geo.topLeft())
@@ -363,15 +452,17 @@ class VideoPlayer(QWidget):
         ))
 
     def show_video(self, url: str, cursor_pos: QPoint = None):
-        """Load and show video with loading spinner (supports YouTube)"""
+        """Load and show video with loading spinner"""
         if self.current_url == url and self.isVisible():
             return
         
         self.current_url = url
+        self.is_youtube = self.is_youtube_url(url)
+        self.quality_button.setVisible(self.is_youtube)
+        self.current_quality_label.setVisible(self.is_youtube)
         self.is_loading = True
-        self.resolution_label.setVisible(False)
         
-        # Position and show spinner
+        # Position spinner
         if cursor_pos:
             spinner_pos = LoadingSpinner.calculate_position(
                 cursor_pos, self.loading_spinner.width(), self.loading_spinner.screen().availableGeometry()
@@ -379,13 +470,14 @@ class VideoPlayer(QWidget):
             self.loading_spinner.move(spinner_pos)
         else:
             screen_geo = self.loading_spinner.screen().availableGeometry()
-            x = (screen_geo.width() - self.loading_spinner.width()) // 2
-            y = (screen_geo.height() - self.loading_spinner.height()) // 2
-            self.loading_spinner.move(x, y)
+            self.loading_spinner.move(
+                (screen_geo.width() - self.loading_spinner.width()) // 2,
+                (screen_geo.height() - self.loading_spinner.height()) // 2
+            )
         
         self.loading_spinner.start()
         
-        # Center window
+        # Center and show window
         if not self.isVisible():
             screen_geo = self.screen().availableGeometry()
             window_geo = self.frameGeometry()
@@ -399,33 +491,40 @@ class VideoPlayer(QWidget):
         if not self._signals_connected:
             self._connect_signals()
         
-        # YouTube or direct video
-        if self.is_youtube_url(url):
+        # Load video
+        if self.is_youtube:
             self._load_youtube(url)
         else:
             self.media_player.setSource(QUrl(url))
             self.media_player.play()
     
-    def _load_youtube(self, url: str):
-        """Extract and play YouTube stream with adaptive quality"""
+    def _load_youtube(self, url: str, resume_position: int = 0, auto_play: bool = True):
+        """Extract and play YouTube stream with selected quality - fast!"""
         if self.yt_worker:
             self.yt_worker.stop()
         if self.yt_thread and self.yt_thread.isRunning():
             self.yt_thread.quit()
             self.yt_thread.wait(1000)
         
-        # Request higher quality: 1080p minimum, prefer 1440p or 2160p if available
-        target_height = 2160  # Request up to 4K, yt-dlp will get best available
-        
-        self.yt_worker = YouTubeExtractor(url, target_height)
+        # Just get the stream URL - don't fetch formats list
+        self.yt_worker = YouTubeExtractor(url, self.preferred_quality, fetch_formats=False)
         self.yt_thread = QThread()
         self.yt_worker.moveToThread(self.yt_thread)
         self.yt_thread.started.connect(self.yt_worker.run)
-        self.yt_worker.finished.connect(self._on_youtube_ready)
+        
+        # Handle stream URL only
+        self.yt_worker.finished.connect(
+            lambda stream_url, res, err: self._on_youtube_ready(stream_url, res, err, resume_position, auto_play)
+        )
         self.yt_worker.finished.connect(self.yt_thread.quit)
         self.yt_thread.start()
     
-    def _on_youtube_ready(self, stream_url: str, resolution: str, error: bool):
+    def _on_formats_available(self, formats: list):
+        """Store available formats for quality menu"""
+        self.available_formats = formats
+    
+    def _on_youtube_ready(self, stream_url: str, resolution: str, error: bool, 
+                          resume_position: int = 0, auto_play: bool = True):
         """Handle extracted YouTube stream"""
         if error or not stream_url:
             print(f"YouTube extraction failed")
@@ -433,13 +532,22 @@ class VideoPlayer(QWidget):
             self.is_loading = False
             return
         
-        # Update resolution label
-        if resolution:
-            self.resolution_label.setText(f"YT {resolution}")
-            self.resolution_label.setVisible(True)
+        # Display current resolution
+        self.current_quality_label.setText(resolution)
+        self.quality_button.setToolTip(f"Quality: {resolution}")
         
         self.media_player.setSource(QUrl(stream_url))
-        self.media_player.play()
+        
+        if resume_position > 0:
+            # Resume from saved position
+            def seek_after_buffered():
+                self.media_player.setPosition(resume_position)
+                self.media_player.mediaStatusChanged.disconnect(seek_after_buffered)
+            
+            self.media_player.mediaStatusChanged.connect(seek_after_buffered)
+        
+        if auto_play:
+            self.media_player.play()
 
     def _on_media_status_changed(self, status):
         """Handle media status changes to hide loading spinner"""
@@ -492,17 +600,14 @@ class VideoPlayer(QWidget):
         
         elif obj == self.video_view and event_type == QEvent.Type.MouseButtonPress:
             if event.button() == Qt.MouseButton.RightButton:
-                # Right-click closes the video player
                 self.close()
                 return True
             elif event.button() == Qt.MouseButton.LeftButton:
-                # Start timer for single click, will be cancelled if double-click occurs
-                self._click_timer.start(250)  # 250ms delay to detect double-click
+                self._click_timer.start(250)
                 return True
         
         elif obj == self.video_view and event_type == QEvent.Type.MouseButtonDblClick:
             if event.button() == Qt.MouseButton.LeftButton:
-                # Cancel single-click timer and toggle fullscreen instead
                 self._click_timer.stop()
                 self._toggle_fullscreen()
                 return True
@@ -518,43 +623,39 @@ class VideoPlayer(QWidget):
         new_pos = max(0, min(self.media_player.duration(), self.media_player.position() + seek_ms))
         self.media_player.setPosition(new_pos)
 
+    def _update_button_icon(self, button, icon_name, tooltip=None):
+        """Update button icon and tooltip"""
+        icon = _render_svg_icon(self.icons_path / icon_name, button._icon_size)
+        button.setIcon(icon)
+        button._icon_name = icon_name
+        if tooltip:
+            button.setToolTip(tooltip)
+
     def _toggle_fullscreen(self):
         is_fullscreen = self.isFullScreen()
         self.showNormal() if is_fullscreen else self.showFullScreen()
-        
         icon_name = "fullscreen.svg" if is_fullscreen else "fullscreen-exit.svg"
-        icon = _render_svg_icon(self.icons_path / icon_name, self.fullscreen_button._icon_size)
-        self.fullscreen_button.setIcon(icon)
-        self.fullscreen_button._icon_name = icon_name
+        self._update_button_icon(self.fullscreen_button, icon_name)
 
     def _update_volume_button(self):
-        is_muted = self.audio_output.isMuted()
         volume = self.audio_output.volume()
-        
-        if is_muted or volume == 0:
+        if self.audio_output.isMuted() or volume == 0:
             icon_name = "volume-mute.svg"
         elif volume < 0.5:
             icon_name = "volume-down.svg"
         else:
             icon_name = "volume-up.svg"
-        
-        icon = _render_svg_icon(self.icons_path / icon_name, self.volume_button._icon_size)
-        self.volume_button.setIcon(icon)
-        self.volume_button._icon_name = icon_name
-
-    def _check_hide_volume_slider(self):
-        if not self.volume_button.underMouse() and not self.volume_slider.underMouse():
-            self.volume_slider.hide()
+        self._update_button_icon(self.volume_button, icon_name)
 
     def _update_play_button(self, state):
         is_playing = state == QMediaPlayer.PlaybackState.PlayingState
         icon_name = "stop.svg" if is_playing else "play.svg"
         tooltip = "Stop (Space/K)" if is_playing else "Play (Space/K)"
-        
-        icon = _render_svg_icon(self.icons_path / icon_name, self.play_button._icon_size)
-        self.play_button.setIcon(icon)
-        self.play_button._icon_name = icon_name
-        self.play_button.setToolTip(tooltip)
+        self._update_button_icon(self.play_button, icon_name, tooltip)
+
+    def _check_hide_volume_slider(self):
+        if not self.volume_button.underMouse() and not self.volume_slider.underMouse():
+            self.volume_slider.hide()
 
     def _update_position(self, position):
         """Update position slider and time label"""
@@ -641,18 +742,11 @@ class VideoPlayer(QWidget):
         """Full cleanup of resources"""
         if self.yt_worker:
             self.yt_worker.stop()
-            try:
-                self.yt_worker.finished.disconnect()
-            except:
-                pass
             self.yt_worker = None
         
-        if self.yt_thread:
-            if self.yt_thread.isRunning():
-                self.yt_thread.quit()
-                if not self.yt_thread.wait(500):
-                    self.yt_thread.terminate()
-                    self.yt_thread.wait(100)
+        if self.yt_thread and self.yt_thread.isRunning():
+            self.yt_thread.quit()
+            self.yt_thread.wait(500) or self.yt_thread.terminate()
             self.yt_thread.deleteLater()
             self.yt_thread = None
         
@@ -660,9 +754,7 @@ class VideoPlayer(QWidget):
         self.close()
         self.media_player.stop()
         self.media_player.setSource(QUrl())
-        self.media_player.deleteLater()
-        self.audio_output.deleteLater()
-        if self.loading_spinner:
-            self.loading_spinner.deleteLater()
-        if self.help_panel:
-            self.help_panel.deleteLater()
+        
+        for obj in [self.media_player, self.audio_output, self.loading_spinner, self.help_panel]:
+            if obj:
+                obj.deleteLater()
