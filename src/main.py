@@ -1,4 +1,5 @@
 import sys
+import ctypes
 from pathlib import Path
 from PyQt6.QtWidgets import(
     QWidget, QApplication, QSystemTrayIcon,
@@ -36,6 +37,15 @@ class Application:
     def __init__(self):
         self.app = QApplication(sys.argv)
 
+        # Set Windows taskbar icon (must be done before any windows are created)
+        if sys.platform == 'win32':
+            try:
+                # Set App User Model ID for Windows taskbar grouping
+                myappid = 'kgchat.messenger.app.1.0'
+                ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+            except Exception as e:
+                print(f"⚠️ Failed to set Windows App ID: {e}")
+
         # Single instance lock
         self.lock_file = QLockFile(QDir.tempPath() + "/xmpp_chat.lock")
         if not self.lock_file.tryLock(100):
@@ -49,14 +59,17 @@ class Application:
         load_fonts()
         set_application_font(self.app)
 
-        # Set global application icon
+        # Initialize icons path FIRST
         self.icons_path = Path(__file__).parent / "icons"
+        
+        # Set global application icon EARLY - before any windows are created
+        # Uses chat.ico for taskbar/dock on all platforms
+        app_icon = self._get_app_icon()
+        self.app.setWindowIcon(app_icon)
         
         # Initialize tray badge manager
         self.tray_badge = TrayIconWithBadge(self.icons_path)
         self.unread_count = 0
-        
-        self.app.setWindowIcon(self._get_icon())
 
         # Initialize settings path
         self.settings_path = Path(__file__).parent / "settings"
@@ -323,6 +336,11 @@ class Application:
         
         # Update the popup_manager's muted state immediately
         popup_manager.set_muted(muted)
+
+    def _get_app_icon(self):
+        """Get the main application icon - chat.ico for taskbar/dock"""
+        ico_path = self.icons_path / "chat.ico"
+        return QIcon(str(ico_path))
 
     def _get_icon(self, count: int = 0):
         """Get chat icon with optional message count badge"""
