@@ -16,8 +16,17 @@ class ThemeManager:
         
         app = QApplication.instance()
         if app:
-            # Use load_stylesheet to get the theme stylesheet
             stylesheet = qdarktheme.load_stylesheet(theme)
+            
+            # Custom overrides - make container borders transparent only
+            stylesheet += """
+                QListView,
+                QScrollArea,
+                QFrame {
+                    border: 1px solid transparent !important;
+                }
+            """
+            
             app.setStyleSheet(stylesheet)
             self.current_theme = theme
             self.config.set("ui", "theme", value=theme)

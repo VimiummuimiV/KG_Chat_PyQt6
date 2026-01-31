@@ -102,7 +102,6 @@ class MessagesWidget(QWidget):
         # Don't set spacing from config - let it be fully dynamic
         self.list_view.setSpacing(0)
        
-        self.list_view.setFrameShape(QListView.Shape.NoFrame)
         self.list_view.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.list_view.setSelectionMode(QListView.SelectionMode.NoSelection)
         self.list_view.setFocusPolicy(Qt.FocusPolicy.NoFocus)

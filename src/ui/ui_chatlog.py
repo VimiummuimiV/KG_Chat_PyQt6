@@ -218,7 +218,6 @@ class ChatlogWidget(QWidget):
         self.list_view.setUniformItemSizes(False)
         self.list_view.setSpacing(0)
     
-        self.list_view.setFrameShape(QListView.Shape.NoFrame)
         self.list_view.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.list_view.setSelectionMode(QListView.SelectionMode.NoSelection)
         self.list_view.setFocusPolicy(Qt.FocusPolicy.NoFocus)
