@@ -23,7 +23,7 @@ from helpers.help import HelpPanel
 
 class YouTubeExtractor(QObject):
     """YouTube stream extractor with Deno runtime"""
-    finished = pyqtSignal(str, str, bool)  # stream_url, actual_resolution, error
+    finished = pyqtSignal(str, str, bool, bool)  # stream_url, actual_resolution, is_live, error
     
     def __init__(self, url: str):
         super().__init__()
@@ -64,17 +64,32 @@ class YouTubeExtractor(QObject):
                         height = info.get('height', 0)
                         width = info.get('width', 0)
                         resolution = f"{height}p" if height else "Unknown"
+                        is_live = info.get('is_live', False)
                         
-                        self.finished.emit(stream_url, resolution, False)
+                        self.finished.emit(stream_url, resolution, is_live, False)
                     else:
-                        self.finished.emit('', '', True)
+                        self.finished.emit('', '', False, True)
         except Exception as e:
             if not self._stop:
                 print(f"YouTube extraction failed: {e}")
-                self.finished.emit('', '', True)
+                self.finished.emit('', '', False, True)
     
     def stop(self):
         self._stop = True
+
+
+class LiveIndicator(QWidget):
+    """Red dot live indicator"""
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setFixedSize(16, 16)
+    
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setBrush(QColor(255, 0, 0))
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.drawEllipse(3, 3, 10, 10)
 
 
 class OverlayIcon(QWidget):
@@ -163,6 +178,7 @@ class VideoPlayer(QWidget):
         self.config = config
         self.current_url = None
         self.is_youtube = False
+        self.is_live_stream = False
         self._signals_connected = False
         self._ui_ready = False
         self._slider_pressed = False
@@ -266,6 +282,10 @@ class VideoPlayer(QWidget):
         
         self.time_label = QLabel("0:00 / 0:00")
         
+        # Live indicator
+        self.live_indicator = LiveIndicator()
+        self.live_indicator.setVisible(False)
+        
         # Current resolution label (YouTube only)
         self.current_quality_label = QLabel("")
         self.current_quality_label.setStyleSheet("color: #888; font-size: 11px;")
@@ -281,19 +301,21 @@ class VideoPlayer(QWidget):
         self.fullscreen_button.clicked.connect(self._toggle_fullscreen)
         
         for w in [self.play_button, self.volume_button, self.volume_slider, self.time_label,
-                  self.current_quality_label, self.progress_slider, self.fullscreen_button]:
+                  self.live_indicator, self.current_quality_label, self.progress_slider, self.fullscreen_button]:
             controls_layout.addWidget(w)
         
         layout.addWidget(controls)
 
     def _on_slider_pressed(self):
         """Handle slider press - stop position updates"""
-        self._slider_pressed = True
+        if not self.is_live_stream:
+            self._slider_pressed = True
 
     def _on_slider_released(self):
         """Handle slider release - seek to position"""
-        self._slider_pressed = False
-        self.media_player.setPosition(self.progress_slider.value())
+        if not self.is_live_stream:
+            self._slider_pressed = False
+            self.media_player.setPosition(self.progress_slider.value())
 
     def _on_meta_data_changed(self):
         """Handle video metadata and adjust window size to match aspect ratio"""
@@ -365,6 +387,7 @@ class VideoPlayer(QWidget):
         
         self.current_url = url
         self.is_youtube = self.is_youtube_url(url)
+        self.is_live_stream = False
         self.current_quality_label.setVisible(self.is_youtube)
         self.is_loading = True
         
@@ -423,7 +446,7 @@ class VideoPlayer(QWidget):
         self.yt_worker.finished.connect(self.yt_thread.quit)
         self.yt_thread.start()
     
-    def _on_youtube_ready(self, stream_url: str, resolution: str, error: bool):
+    def _on_youtube_ready(self, stream_url: str, resolution: str, is_live: bool, error: bool):
         """Handle extracted YouTube stream"""
         if error or not stream_url:
             print(f"YouTube extraction failed")
@@ -431,7 +454,17 @@ class VideoPlayer(QWidget):
             self.is_loading = False
             return
         
+        self.is_live_stream = is_live
         self.current_quality_label.setText(resolution)
+        
+        # Update UI for live streams
+        if self.is_live_stream:
+            self.live_indicator.setVisible(True)
+            self.progress_slider.hide()  # Hide progress bar for live streams
+        else:
+            self.live_indicator.setVisible(False)
+            self.progress_slider.show()  # Show progress bar for regular videos
+        
         self.media_player.setSource(QUrl(stream_url))
         self.media_player.play()
 
@@ -446,6 +479,13 @@ class VideoPlayer(QWidget):
     def _toggle_play(self):
         """Toggle play/pause and show overlay"""
         is_playing = self.media_player.playbackState() == QMediaPlayer.PlaybackState.PlayingState
+        
+        if self.is_live_stream and not is_playing:
+            # For live streams, reload the stream to sync to current live position
+            if self.current_url and self.is_youtube:
+                self._load_youtube(self.current_url)
+                return
+        
         self.media_player.pause() if is_playing else self.media_player.play()
         self._update_overlay_position()
         self.overlay_icon.show_icon("stop.svg" if is_playing else "play.svg", self.overlay_proxy)
@@ -481,7 +521,8 @@ class VideoPlayer(QWidget):
             QTimer.singleShot(500, self._check_hide_volume_slider)
         
         elif obj in (self.progress_slider, self.video_view) and event_type == QEvent.Type.Wheel:
-            self._seek_video(event.angleDelta().y())
+            if not self.is_live_stream:
+                self._seek_video(event.angleDelta().y())
             return True
         
         elif obj == self.video_view and event_type == QEvent.Type.MouseButtonPress:
@@ -545,13 +586,20 @@ class VideoPlayer(QWidget):
 
     def _update_position(self, position):
         """Update position slider and time label"""
+        if self.is_live_stream:
+            # For live streams, just show "LIVE" text
+            self.time_label.setText("LIVE")
+            return
+        
         if not self._slider_pressed:
             self.progress_slider.setValue(position)
+        
         duration = self.media_player.duration()
         self.time_label.setText(f"{self._format_time(position)} / {self._format_time(duration)}")
 
     def _update_duration(self, duration):
-        self.progress_slider.setRange(0, duration)
+        if not self.is_live_stream:
+            self.progress_slider.setRange(0, duration)
 
     @staticmethod
     def _format_time(ms: int) -> str:
@@ -584,10 +632,10 @@ class VideoPlayer(QWidget):
             self._toggle_fullscreen()
         elif text_lower == 'm':
             self._toggle_mute()
-        elif text_lower == 'j':
+        elif text_lower == 'j' and not self.is_live_stream:
             new_pos = max(0, self.media_player.position() - 5000)
             self.media_player.setPosition(new_pos)
-        elif text_lower == 'l':
+        elif text_lower == 'l' and not self.is_live_stream:
             new_pos = min(self.media_player.duration(), self.media_player.position() + 5000)
             self.media_player.setPosition(new_pos)
         else:
