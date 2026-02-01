@@ -300,9 +300,19 @@ class VideoPlayer(QWidget):
         self.fullscreen_button = create_icon_button(self.icons_path, "fullscreen.svg", "Fullscreen (F)", "large", self.config)
         self.fullscreen_button.clicked.connect(self._toggle_fullscreen)
         
-        for w in [self.play_button, self.volume_button, self.volume_slider, self.time_label,
-                  self.live_indicator, self.current_quality_label, self.progress_slider, self.fullscreen_button]:
-            controls_layout.addWidget(w)
+        # Add widgets to layout
+        widgets = [
+            (self.play_button, 0),
+            (self.volume_button, 0),
+            (self.volume_slider, 0),
+            (self.time_label, 0),
+            (self.live_indicator, 0),
+            (self.progress_slider, 1),
+            (self.current_quality_label, 0),
+            (self.fullscreen_button, 0),
+        ]
+        for widget, stretch in widgets:
+            controls_layout.addWidget(widget, stretch)
         
         layout.addWidget(controls)
 
@@ -460,10 +470,11 @@ class VideoPlayer(QWidget):
         # Update UI for live streams
         if self.is_live_stream:
             self.live_indicator.setVisible(True)
-            self.progress_slider.hide()  # Hide progress bar for live streams
+            self.progress_slider.setEnabled(False)
+            self.progress_slider.setValue(0)
         else:
             self.live_indicator.setVisible(False)
-            self.progress_slider.show()  # Show progress bar for regular videos
+            self.progress_slider.setEnabled(True)
         
         self.media_player.setSource(QUrl(stream_url))
         self.media_player.play()
