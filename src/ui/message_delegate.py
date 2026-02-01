@@ -92,25 +92,6 @@ class MessageDelegate(QStyledItemDelegate):
         # Initialize image and video viewer widgets
         self.image_viewer = None
         self.video_player = None
-        self.hover_timer = QTimer()
-        self.hover_timer.setSingleShot(True)
-        self.hover_timer.timeout.connect(self._on_hover_timeout)
-        self.hover_delay_ms = 500
-
-    def _on_hover_timeout(self):
-        """Handle hover timeout - show video or image preview"""
-        data = self.hover_timer.property('data')
-        if not data:
-            return
-        
-        if data[0] == 'video':
-            _, url, cursor_pos = data
-            if self.video_player:
-                self.video_player.show_video(url, cursor_pos)
-        elif data[0] == 'image':
-            _, url, cursor_pos = data
-            if self.image_viewer:
-                self.image_viewer.show_preview(url, cursor_pos)
   
     def set_my_username(self, username: str):
         """Set the current user's username for mention highlighting"""
@@ -137,7 +118,6 @@ class MessageDelegate(QStyledItemDelegate):
   
     def cleanup(self):
         self.list_view = None
-        self.hover_timer.stop()
        
         # Cleanup image viewer
         if self.image_viewer:
@@ -482,6 +462,10 @@ class MessageDelegate(QStyledItemDelegate):
                 is_system
             )
   
+    def _is_media_url(self, url: str) -> bool:
+        """Check if URL is a media link (image or video)"""
+        return ImageHoverView.is_image_url(url) or VideoPlayer.is_video_url(url)
+  
     def _paint_content(self, painter: QPainter, x: int, y: int, width: int,
                        text: str, row: int, is_private: bool = False, is_ban: bool = False, is_system: bool = False):
         """Paint content with text, links, and emoticons"""
@@ -512,7 +496,9 @@ class MessageDelegate(QStyledItemDelegate):
         else:
             text_color = "#FFFFFF" if self.is_dark_theme else "#000000"
        
-        link_color = "#4DA6FF" if self.is_dark_theme else "#0066CC"
+        # Link colors
+        normal_link_color = "#4DA6FF" if self.is_dark_theme else "#0066CC" # Blue for normal links
+        media_link_color = "#4DFF88" if self.is_dark_theme else "#00AA44"  # Green for media links
 
         def new_line():
             nonlocal current_x, current_y, line_height
@@ -568,9 +554,12 @@ class MessageDelegate(QStyledItemDelegate):
                     painter.setFont(self.body_font)
                     fm = QFontMetrics(self.body_font)
 
-        def draw_link(url: str):
+        def draw_link(url: str, is_media: bool = False):
             nonlocal current_x, line_height
             link_text = self._get_link_text(url, row)
+            
+            # Choose color based on whether it's a media link
+            link_color = media_link_color if is_media else normal_link_color
             painter.setPen(QColor(link_color))
 
             remaining = link_text
@@ -589,7 +578,7 @@ class MessageDelegate(QStyledItemDelegate):
 
                 painter.drawText(current_x, current_y + fm.ascent(), chunk)
                 link_rect = QRect(current_x, current_y, chunk_width, fm.height())
-                self.click_rects[row]['links'].append((link_rect, url))
+                self.click_rects[row]['links'].append((link_rect, url, is_media))
                 current_x += chunk_width
                 remaining = remaining[len(chunk):]
        
@@ -602,7 +591,9 @@ class MessageDelegate(QStyledItemDelegate):
                     if match.start() > last_pos:
                         draw_text_chunk(content[last_pos:match.start()], text_color)
                     url_index = int(match.group(1))
-                    draw_link(urls[url_index])
+                    url = urls[url_index]
+                    is_media = self._is_media_url(url)
+                    draw_link(url, is_media)
                     last_pos = match.end()
 
                 if last_pos < len(content):
@@ -698,12 +689,24 @@ class MessageDelegate(QStyledItemDelegate):
                 return True
           
             # Link clicks
-            for link_rect, url in rects['links']:
+            is_ctrl = QApplication.keyboardModifiers() & Qt.KeyboardModifier.ControlModifier
+            for link_rect, url, is_media in rects['links']:
                 if link_rect.contains(pos):
-                    try:
-                        webbrowser.open(url)
-                    except Exception as e:
-                        print(f"Failed to open URL: {e}")
+                    if is_media and not is_ctrl:
+                        # Media link without Ctrl: open in viewer
+                        global_pos = self.list_view.viewport().mapToGlobal(pos)
+                        if VideoPlayer.is_video_url(url):
+                            if self.video_player:
+                                self.video_player.show_video(url, global_pos)
+                        elif ImageHoverView.is_image_url(url):
+                            if self.image_viewer:
+                                self.image_viewer.show_preview(url, global_pos)
+                    else:
+                        # Normal link OR media link with Ctrl: open in browser
+                        try:
+                            webbrowser.open(url)
+                        except Exception as e:
+                            print(f"Failed to open URL: {e}")
                     return True
       
         elif event.type() == QEvent.Type.MouseButtonDblClick:
@@ -730,33 +733,8 @@ class MessageDelegate(QStyledItemDelegate):
                 is_over_clickable = (
                     rects['timestamp'].contains(pos) or
                     rects['username'].contains(pos) or
-                    any(link_rect.contains(pos) for link_rect, _ in rects['links'])
+                    any(link_rect.contains(pos) for link_rect, _, _ in rects['links'])
                 )
-               
-                # Check for video or image URL hover with delay
-                found_media = False
-                for link_rect, url in rects['links']:
-                    if link_rect.contains(pos):
-                        global_pos = self.list_view.viewport().mapToGlobal(pos)
-                        
-                        # Check video first
-                        if self.video_player and VideoPlayer.is_video_url(url):
-                            found_media = True
-                            if self.hover_timer.property('data') != ('video', url, global_pos):
-                                self.hover_timer.setProperty('data', ('video', url, global_pos))
-                                self.hover_timer.start(self.hover_delay_ms)
-                            break
-                        # Then check image
-                        elif ImageHoverView.is_image_url(url):
-                            found_media = True
-                            if self.hover_timer.property('data') != ('image', url, global_pos):
-                                self.hover_timer.setProperty('data', ('image', url, global_pos))
-                                self.hover_timer.start(self.hover_delay_ms)
-                            break
-
-                # Only stop the timer if not hovering over media, but don't hide the viewer
-                if not found_media:
-                    self.hover_timer.stop()
                
                 if self.list_view:
                     cursor = (Qt.CursorShape.PointingHandCursor
