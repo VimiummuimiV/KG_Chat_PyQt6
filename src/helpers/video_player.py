@@ -17,6 +17,8 @@ class VideoPlayer(QWidget):
     VIDEO_PATTERNS = [
         re.compile(r'https?://[^\s<>"]+\.(?:mp4|webm|ogg|mov|avi|mkv|flv|wmv|m4v)(?:\?[^\s<>"]*)?', re.IGNORECASE),
         re.compile(r'https?://(?:www\.|m\.)?(?:youtube\.com/(?:shorts/|live/|watch\?v=|embed/)|youtu\.be/)([a-zA-Z0-9_-]{11})', re.IGNORECASE),
+        re.compile(r'https?://(?:www\.)?rutube\.ru/video/[a-f0-9]{32}/?', re.IGNORECASE),
+        re.compile(r'https?://(?:www\.)?(?:vkvideo\.ru|vk\.com)/video-?\d+_\d+', re.IGNORECASE),
     ]
 
     def __init__(self, parent=None, icons_path: Path = None, config=None):
@@ -73,14 +75,6 @@ class VideoPlayer(QWidget):
     def is_video_url(url: str) -> bool:
         """Check if URL is a video URL"""
         return any(p.search(url or '') for p in VideoPlayer.VIDEO_PATTERNS)
-    
-    @staticmethod
-    def is_youtube_url(url: str) -> bool:
-        """Check if URL is a YouTube URL"""
-        return bool(re.search(
-            r'https?://(?:www\.|m\.)?(?:youtube\.com/(?:shorts/|live/|watch\?v=|embed/)|youtu\.be/)([a-zA-Z0-9_-]{11})',
-            url or '', re.IGNORECASE
-        ))
 
     def show_video(self, url: str, cursor_pos: QPoint = None):
         """Launch mpv player with the video URL"""
