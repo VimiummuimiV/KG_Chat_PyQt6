@@ -24,8 +24,8 @@ def format_registered_date(registered: Dict) -> Optional[str]:
         return None
 
 
-def convert_to_updated_timestamp(sec: int, usec: int) -> Optional[str]:
-    """Convert sec and usec to 'updated' timestamp"""
+def convert_to_timestamp(sec: int, usec: int) -> Optional[str]:
+    """Convert sec and usec to timestamp"""
     if sec is not None and usec is not None:
         return str(sec) + str(usec // 1000)
     return None
@@ -200,11 +200,8 @@ def extract_data(data: Dict, data_type: str, api_type: str) -> Any:
             'isOnline': lambda: user_data.get('is_online', False),
             'avatar': lambda: user_data.get('avatar'),
             'avatarTimestamp': lambda: (
-                convert_to_updated_timestamp(avatar['sec'], avatar['usec'])
-                if (avatar := user_data.get('avatar')) and 
-                   isinstance(avatar, dict) and
-                   isinstance(avatar.get('sec'), int) and 
-                   isinstance(avatar.get('usec'), int)
+                convert_to_timestamp(avatar['sec'], avatar['usec'])
+                if (avatar := user_data.get('avatar'))
                 else None
             ),
             'blocked': lambda: user_data.get('blocked'),
@@ -222,7 +219,11 @@ def extract_data(data: Dict, data_type: str, api_type: str) -> Any:
             'bio': lambda: data.get('bio'),
             'bioText': lambda: data.get('bio', {}).get('text') if isinstance(data.get('bio'), dict) else None,
             'bioOldText': lambda: data.get('bio', {}).get('old_text') if isinstance(data.get('bio'), dict) else None,
-            'bioEditedDate': lambda: data.get('bio', {}).get('edited_date') if isinstance(data.get('bio'), dict) else None,
+            'bioEditedDate': lambda: (
+                convert_to_timestamp(edited_date['sec'], edited_date['usec'])
+                if (edited_date := data.get('bio', {}).get('edited_date'))
+                else None
+            ),
             'stats': lambda: data.get('stats'),
             'registered': lambda: format_registered_date(data.get('stats', {}).get('registered')) if data.get('stats') else None,
             'achievesCount': lambda: data.get('stats', {}).get('achieves_cnt') if data.get('stats') else None,
