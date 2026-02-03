@@ -1,20 +1,19 @@
 import sys
 import ctypes
+import time
+import keyboard
 from pathlib import Path
 from PyQt6.QtWidgets import(
     QWidget, QApplication, QSystemTrayIcon,
     QMenu, QMessageBox
 )
 from PyQt6.QtGui import QFont, QIcon, QAction, QPixmap, QPainter, QColor
-from PyQt6.QtCore import Qt, QLockFile, QDir
+from PyQt6.QtCore import Qt, QLockFile, QDir, pyqtSignal, QObject, pyqtSlot, QMetaObject
 from PyQt6.QtSvg import QSvgRenderer
 
-# Add src directory to path if running from root
+# Add src directory to path
 src_path = Path(__file__).parent
-if src_path.name == 'src':
-    sys.path.insert(0, str(src_path))
-else:
-    sys.path.insert(0, str(src_path / 'src'))
+sys.path.insert(0, str(src_path if src_path.name == 'src' else src_path / 'src'))
 
 from ui.ui_accounts import AccountWindow
 from ui.ui_chat import ChatWindow
@@ -33,9 +32,15 @@ from components.tray_badge import TrayIconWithBadge
 from components.notification import popup_manager
 
 
-class Application:
+class Application(QObject):
+    toggle_signal = pyqtSignal()
+
     def __init__(self):
+        super().__init__()
         self.app = QApplication(sys.argv)
+        self.toggle_signal.connect(self.toggle_chat_visibility)
+        self.hotkey = None
+        self.last_hotkey_time = 0  # Add debounce tracking
 
         # Set Windows taskbar icon (must be done before any windows are created)
         if sys.platform == 'win32':
@@ -108,6 +113,7 @@ class Application:
         self.ban_list_action = None
         
         self.setup_system_tray()
+        self.setup_global_hotkey()
 
     def setup_system_tray(self):
         """Setup system tray icon and menu"""
@@ -391,6 +397,12 @@ class Application:
 
     def exit_application(self):
         """Exit the application completely"""
+        # Unhook keyboard listener
+        try:
+            keyboard.unhook_all()
+        except Exception:
+            pass
+
         # Mark chat window as really closing immediately to avoid auto-reconnect races
         if self.chat_window:
             try:
@@ -597,6 +609,45 @@ class Application:
             return
         self.focus_chat_window()
         self.chat_window.show_ban_list_view()
+
+    def setup_global_hotkey(self):
+        """Register cross-platform global hotkey (Super/Win/Cmd + C)"""
+        keyboard.on_press(self._on_key_press)
+        print(f"✅ Global hotkey registered: Win/Cmd + C")
+    
+    def _on_key_press(self, event):
+        """Handle Win/Cmd + C hotkey"""
+        if event.name.lower() != 'c':
+            return
+            
+        try:
+            # Platform-specific modifier check with Windows API for reliability
+            if sys.platform == 'win32':
+                if not keyboard.is_pressed('windows') or any((ctypes.windll.user32.GetKeyState(vk) & 0x8000) for vk in [0x12, 0x11, 0x10]):
+                    return
+            else:
+                mod = 'command' if sys.platform == 'darwin' else 'super'
+                if not keyboard.is_pressed(mod) or any(keyboard.is_pressed(k) for k in ['alt', 'ctrl', 'shift']):
+                    return
+            
+            # Debounce (300ms)
+            current_time = time.time()
+            if current_time - self.last_hotkey_time < 0.3:
+                return
+            self.last_hotkey_time = current_time
+            
+            # Thread-safe toggle
+            QMetaObject.invokeMethod(self, "toggle_chat_visibility", Qt.ConnectionType.QueuedConnection)
+        except Exception as e:
+            print(f"⚠️ Hotkey error: {e}")
+
+    @pyqtSlot()
+    def toggle_chat_visibility(self):
+        """Toggle visibility of the active window"""
+        window = self.chat_window or self.account_window
+        if window:
+            window.hide() if window.isVisible() else self.show_window()
+
 
 def main():
     """Application entry point"""
