@@ -630,9 +630,9 @@ class Application(QObject):
                 if not keyboard.is_pressed(mod) or any(keyboard.is_pressed(k) for k in ['alt', 'ctrl', 'shift']):
                     return
             
-            # Debounce (300ms)
+            # Debounce (150ms)
             current_time = time.time()
-            if current_time - self.last_hotkey_time < 0.3:
+            if current_time - self.last_hotkey_time < 0.15:
                 return
             self.last_hotkey_time = current_time
             
