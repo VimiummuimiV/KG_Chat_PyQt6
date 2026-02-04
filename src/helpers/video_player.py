@@ -134,9 +134,6 @@ class VideoPlayer(QWidget):
 
     def show_video(self, url: str, cursor_pos: QPoint = None):
         """Launch mpv player with the video URL"""
-        if self.current_url == url:
-            return
-        
         self.current_url = url
         
         # Check if mpv is available
