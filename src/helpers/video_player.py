@@ -42,7 +42,7 @@ class VideoPlayer(QWidget):
         system = platform.system()
         
         if system == 'Windows':
-            # Search common Windows directories for mpvnet.exe
+            # Search common Windows directories for mpvnet.exe and mpv.exe
             search_dirs = [
                 Path.home() / 'AppData/Local/Programs',
                 Path('C:/Program Files'),
@@ -51,11 +51,12 @@ class VideoPlayer(QWidget):
             
             for search_dir in search_dirs:
                 if search_dir.exists():
-                    # Look for mpvnet.exe in subdirectories (max 2 levels deep)
-                    for path in search_dir.glob('*/mpvnet.exe'):
-                        return str(path)
-                    for path in search_dir.glob('*/*/mpvnet.exe'):
-                        return str(path)
+                    # Look for both mpvnet.exe and mpv.exe in subdirectories (max 2 levels deep)
+                    for exe_name in ['mpvnet.exe', 'mpv.exe']:
+                        for path in search_dir.glob(f'*/{exe_name}'):
+                            return str(path)
+                        for path in search_dir.glob(f'*/*/{exe_name}'):
+                            return str(path)
         
         elif system == 'Darwin':
             # macOS: check Homebrew paths
