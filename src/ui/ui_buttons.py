@@ -24,6 +24,7 @@ class ButtonPanel(QWidget):
     exit_requested = pyqtSignal()
     toggle_effects_requested = pyqtSignal()
     toggle_notification_requested = pyqtSignal()
+    toggle_always_on_top_requested = pyqtSignal()
     reset_window_size_requested = pyqtSignal()
     # Color management (change / reset / update from server)
     change_color_requested = pyqtSignal()
@@ -44,12 +45,14 @@ class ButtonPanel(QWidget):
         # Button references
         self.toggle_userlist_button = None
         self.switch_account_button = None
-        self.theme_button = None
-        self.notification_button = None
-        self.color_button = None
+        self.ban_button = None
         self.voice_button = None
         self.effects_button = None
-        self.ban_button = None
+        self.notification_button = None
+        self.color_button = None
+        self.theme_button = None
+        self.reset_size_button = None
+        self.always_on_top_button = None
         self.exit_button = None
         
         self._init_ui()
@@ -138,6 +141,16 @@ class ButtonPanel(QWidget):
             enabled = True
         return "Effects Sound: Enabled (Click to disable)" if enabled else "Effects Sound: Disabled (Click to enable)"
     
+    def _get_pin_icon(self) -> str:
+        """Get current pin icon based on always-on-top state"""
+        enabled = self.config.get("ui", "always_on_top") or False
+        return "pin.svg" if enabled else "unpin.svg"
+    
+    def _get_pin_tooltip(self) -> str:
+        """Get current pin tooltip based on always-on-top state"""
+        enabled = self.config.get("ui", "always_on_top") or False
+        return "Always on Top: Enabled (Click to disable)" if enabled else "Always on Top: Disabled (Click to enable)"
+    
     def _create_buttons(self):
         """Create all buttons for the panel"""
         # Toggle userlist button
@@ -210,6 +223,15 @@ class ButtonPanel(QWidget):
             "Reset Window Size and Position to Default",
             lambda: self.reset_window_size_requested.emit()
         )
+        
+        # Always on top button
+        pin_icon = self._get_pin_icon()
+        pin_tooltip = self._get_pin_tooltip()
+        self.always_on_top_button = self._create_button(
+            pin_icon,
+            pin_tooltip,
+            lambda: self.toggle_always_on_top_requested.emit()
+        )
 
         # Exit application button
         self.exit_button = self._create_button(
@@ -273,6 +295,24 @@ class ButtonPanel(QWidget):
         
         # Update tooltip
         self.effects_button.setToolTip(new_tooltip)
+    
+    def update_pin_button_icon(self):
+        """Update pin button icon after always-on-top state change"""
+        if not self.always_on_top_button:
+            return
+        
+        new_icon_name = self._get_pin_icon()
+        new_tooltip = self._get_pin_tooltip()
+        
+        # Update icon name
+        self.always_on_top_button._icon_name = new_icon_name
+        
+        # Render and set the new icon
+        new_icon = _render_svg_icon(self.icons_path / new_icon_name, self.always_on_top_button._icon_size)
+        self.always_on_top_button.setIcon(new_icon)
+        
+        # Update tooltip
+        self.always_on_top_button.setToolTip(new_tooltip)
     
     def add_button(self, button):
         """Add a button to the panel (before the stretch)"""

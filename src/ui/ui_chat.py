@@ -277,6 +277,40 @@ class ChatWindow(QWidget):
         popup_manager.set_notification_mode(mode)
         popup_manager.set_muted(muted)
 
+    def on_toggle_always_on_top(self):
+        """Toggle always on top window flag"""
+        current = self.config.get("ui", "always_on_top") or False
+        new = not current
+        
+        # Save to config
+        config = self.app_controller.config if self.app_controller else self.config
+        config.set("ui", "always_on_top", value=new)
+        
+        # Update local config data
+        if self.app_controller:
+            self.config.data = self.app_controller.config.data
+        
+        # Apply window flag (requires hide/show to take effect properly)
+        was_visible = self.isVisible()
+        self.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint, new)
+        
+        # Show window if it was visible before
+        if was_visible:
+            self.show()
+            self.activateWindow()
+            self.raise_()
+        
+        # Update button icon to reflect new state
+        if hasattr(self, 'button_panel') and hasattr(self.button_panel, 'update_pin_button_icon'):
+            self.button_panel.update_pin_button_icon()
+        
+        print(f"📌 Always on top: {'Enabled' if new else 'Disabled'}")
+
+    def update_always_on_top_button_state(self):
+        """Sync always on top button visual to config state"""
+        if getattr(self, 'button_panel', None) and getattr(self.button_panel, 'update_pin_button_icon', None):
+            self.button_panel.update_pin_button_icon()
+
     def on_exit_requested(self):
         """Handle exit request from the button panel."""
         # Prefer the application controller's cleanup exit when available
@@ -317,6 +351,11 @@ class ChatWindow(QWidget):
         if window_x is not None and window_y is not None:
             self.move(window_x, window_y)
         
+        # Apply always on top flag from config if enabled
+        always_on_top = self.config.get("ui", "always_on_top")
+        if always_on_top:
+            self.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint, True)
+
         # Set minimum window dimensions
         self.setMinimumSize(400, 400)
 
@@ -422,6 +461,7 @@ class ChatWindow(QWidget):
         self.button_panel.exit_requested.connect(self.on_exit_requested)
         self.button_panel.toggle_effects_requested.connect(self.on_toggle_effects_sound)
         self.button_panel.toggle_notification_requested.connect(self.on_toggle_notification)
+        self.button_panel.toggle_always_on_top_requested.connect(self.on_toggle_always_on_top)
         # Color management connections (change / reset / update-from-server)
         self.button_panel.change_color_requested.connect(self.on_change_username_color)
         self.button_panel.reset_color_requested.connect(self.on_reset_username_color)
@@ -438,6 +478,8 @@ class ChatWindow(QWidget):
         # Initialize reset window size button state
         self.update_reset_size_button_state()
 
+        # Initialize always on top button state
+        self.update_always_on_top_button_state()
      
         # Initialize userlist button state
         messages_userlist_visible = self.config.get("ui", "messages_userlist_visible")
@@ -583,9 +625,11 @@ class ChatWindow(QWidget):
         except Exception as e:
             print(f"ShowEvent resume animations error: {e}")
 
-        # Update notification button state on show
+        # Update notification and always-on-top button state on show
         if hasattr(self, 'button_panel'):
             self.button_panel.update_notification_button_icon()
+            # Ensure pin/unpin icon reflects current config
+            self.button_panel.update_pin_button_icon()
 
         # Trigger an initial resize handler so UI elements (userlist, button panel)
         # reflect the current width immediately on first show

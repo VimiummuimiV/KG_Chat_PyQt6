@@ -79,6 +79,7 @@
     },
     "input_height": 48,
     "emoticon_selector_visible": false,
+    "always_on_top": false,
     "recent_emoticons": [
       "uzi",
       "heartcake",
@@ -95,10 +96,10 @@
       "pogranflowers"
     ],
     "window": {
-      "width": null,
-      "height": null,
-      "x": null,
-      "y": null
+      "width": 1792,
+      "height": 1368,
+      "x": 384,
+      "y": 0
     }
   },
   "sound": {
