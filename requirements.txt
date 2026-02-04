@@ -6,5 +6,4 @@ pyqtdarktheme
 playsound3
 gTTS
 yt-dlp
-deno
 keyboard
