@@ -89,7 +89,10 @@ class ChatWindow(QWidget):
         self.config = Config(str(self.config_path))
         
         # Initialize window size manager
-        self.window_size_manager = WindowSizeManager(self.config)
+        self.window_size_manager = WindowSizeManager(
+            self.config,
+            on_save_callback=self.update_reset_size_button_state
+        )
         
         self.theme_manager = ThemeManager(self.config)
         self.theme_manager.apply_theme()
@@ -522,24 +525,6 @@ class ChatWindow(QWidget):
         y = geo.y()
         return width, height, x, y
 
-    def _update_geometry_and_button(self):
-        """Update saved geometry and reset button state with debounce"""
-        self.window_size_manager.update_geometry(
-            self.width(), 
-            self.height(),
-            self.x(),
-            self.y()
-        )
-        
-        # Update button state after debounce
-        if hasattr(self, '_reset_button_update_timer'):
-            self._reset_button_update_timer.stop()
-        else:
-            self._reset_button_update_timer = QTimer(self)
-            self._reset_button_update_timer.setSingleShot(True)
-            self._reset_button_update_timer.timeout.connect(self.update_reset_size_button_state)
-        self._reset_button_update_timer.start(600)
-
     def eventFilter(self, obj, event):
         """Event filter to handle clicks outside emoticon selector"""
         if event.type() == QEvent.Type.MouseButtonPress:
@@ -943,26 +928,41 @@ class ChatWindow(QWidget):
     def resizeEvent(self, event):
         super().resizeEvent(event)
         handle_chat_resize(self, self.width())
-        self._update_geometry_and_button()
+        
+        # Skip saving geometry if we're in the middle of a reset
+        if not getattr(self, '_resetting_geometry', False):
+            self.window_size_manager.update_geometry(self.width(), self.height(), self.x(), self.y())
 
     def moveEvent(self, event):
         """Track window position changes"""
         super().moveEvent(event)
-        self._update_geometry_and_button()
+        
+        # Skip saving geometry if we're in the middle of a reset
+        if not getattr(self, '_resetting_geometry', False):
+            self.window_size_manager.update_geometry(self.width(), self.height(), self.x(), self.y())
 
     def reset_window_size(self):
         """Reset window to default calculated size and position"""
+        # Stop any pending saves in WindowSizeManager to prevent race condition
+        self.window_size_manager.save_timer.stop()
+        
         was_reset = self.window_size_manager.reset_size()
         
         if not was_reset:
             return  # Already at default
+        
+        # Set flag to prevent resize/move events from saving during reset
+        self._resetting_geometry = True
         
         # Apply default geometry
         width, height, x, y = self._calculate_default_geometry()
         self.resize(width, height)
         self.move(x, y)
         
-        # Update button state
+        # Clear flag after events have fired
+        QTimer.singleShot(100, lambda: setattr(self, '_resetting_geometry', False))
+        
+        # Update button state immediately
         self.update_reset_size_button_state()
     
     def update_reset_size_button_state(self):

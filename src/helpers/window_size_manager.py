@@ -6,13 +6,15 @@ from helpers.config import Config
 class WindowSizeManager:
     """Manages window size persistence with debounced config saving"""
     
-    def __init__(self, config: Config, debounce_ms: int = 500):
+    def __init__(self, config: Config, debounce_ms: int = 500, on_save_callback=None):
         """
         Args:
             config: Config instance
             debounce_ms: Milliseconds to wait before saving (default 500ms)
+            on_save_callback: Optional callback to run after saving geometry
         """
         self.config = config
+        self.on_save_callback = on_save_callback
         self.save_timer = QTimer()
         self.save_timer.setSingleShot(True)
         self.save_timer.timeout.connect(self._save_geometry)
@@ -86,6 +88,10 @@ class WindowSizeManager:
         if self._pending_x is not None and self._pending_y is not None:
             self.config.set("ui", "window", "x", value=self._pending_x)
             self.config.set("ui", "window", "y", value=self._pending_y)
+        
+        # Trigger callback after save (if provided)
+        if self.on_save_callback:
+            self.on_save_callback()
     
     def reset_size(self):
         """Reset saved geometry (clear size and position from config)
