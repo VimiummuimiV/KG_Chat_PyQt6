@@ -26,6 +26,7 @@ class VideoPlayer(QWidget):
         # icons_path and config are ignored but kept for compatibility with message_delegate.py
         self.current_url = None
         self.mpv_path = self._find_mpv()
+        self.mpv_process = None  # Track the mpv process
         
         # Loading spinner
         self.loading_spinner = LoadingSpinner(None, 60)
@@ -132,15 +133,31 @@ class VideoPlayer(QWidget):
             install_msg
         )
 
+    def _close_previous_mpv(self):
+        """Close previous mpv instance if running"""
+        if self.mpv_process is not None:
+            try:
+                self.mpv_process.terminate()
+                try:
+                    self.mpv_process.wait(timeout=0.5)
+                except subprocess.TimeoutExpired:
+                    self.mpv_process.kill()
+            except Exception:
+                pass
+            finally:
+                self.mpv_process = None
+
     def show_video(self, url: str, cursor_pos: QPoint = None):
         """Launch mpv player with the video URL"""
         self.current_url = url
         
         # Check if mpv is available
         if not self.mpv_path or not shutil.which(self.mpv_path):
-            # Show graphical error dialog (which also prints to console)
             self._show_mpv_error()
             return
+        
+        # Close previous mpv instance if running
+        self._close_previous_mpv()
         
         self.is_loading = True
         
@@ -165,7 +182,7 @@ class VideoPlayer(QWidget):
             
             # Launch mpv as detached process
             if platform.system() == 'Windows':
-                subprocess.Popen(
+                self.mpv_process = subprocess.Popen(
                     mpv_cmd,
                     creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.DETACHED_PROCESS,
                     stdout=subprocess.DEVNULL,
@@ -173,7 +190,7 @@ class VideoPlayer(QWidget):
                 )
             else:
                 # Unix-like: use start_new_session
-                subprocess.Popen(
+                self.mpv_process = subprocess.Popen(
                     mpv_cmd,
                     start_new_session=True,
                     stdout=subprocess.DEVNULL,
@@ -186,6 +203,7 @@ class VideoPlayer(QWidget):
         except Exception as e:
             print(f"Failed to launch mpv: {e}")
             self._stop_loading()
+            self.mpv_process = None
             
             # Show error dialog for launch failures
             self._show_error_dialog(
@@ -223,3 +241,4 @@ class VideoPlayer(QWidget):
         self.loading_spinner.stop()
         if self.loading_spinner:
             self.loading_spinner.deleteLater()
+        self._close_previous_mpv()
