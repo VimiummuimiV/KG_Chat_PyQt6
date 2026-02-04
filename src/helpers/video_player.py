@@ -126,6 +126,14 @@ class VideoPlayer(QWidget):
         else:
             install_msg += '<br><br><b>Linux:</b> sudo apt install mpv<br>(or use your distro\'s package manager)'
         
+        # Add custom GUI options
+        install_msg += (
+            '<br><br><b>Custom GUI (optional):</b><br>'
+            '<a href="https://github.com/tomasklaen/uosc/releases/">https://github.com/tomasklaen/uosc/releases/</a><br>'
+            'or<br>'
+            '<a href="https://github.com/Samillion/ModernZ/releases/">https://github.com/Samillion/ModernZ/releases/</a>'
+        )
+        
         # Show graphical dialog
         self._show_error_dialog(
             "Video Player Not Found",
