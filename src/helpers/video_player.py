@@ -5,8 +5,8 @@ import platform
 import shutil
 from pathlib import Path
 
-from PyQt6.QtWidgets import QWidget
-from PyQt6.QtCore import QPoint, QTimer
+from PyQt6.QtWidgets import QWidget, QMessageBox
+from PyQt6.QtCore import QPoint, QTimer, Qt
 
 from helpers.loading_spinner import LoadingSpinner
 
@@ -76,6 +76,61 @@ class VideoPlayer(QWidget):
         """Check if URL is a video URL"""
         return any(p.search(url or '') for p in VideoPlayer.VIDEO_PATTERNS)
 
+    def _show_error_dialog(self, title: str, text: str, informative_text: str, icon=QMessageBox.Icon.Warning):
+        """Helper function to show error dialogs"""
+        msg_box = QMessageBox(self)
+        msg_box.setIcon(icon)
+        msg_box.setWindowTitle(title)
+        msg_box.setText(text)
+        msg_box.setInformativeText(informative_text)
+        msg_box.setTextFormat(Qt.TextFormat.RichText)  # Enable HTML links
+        msg_box.setTextInteractionFlags(Qt.TextInteractionFlag.TextBrowserInteraction)  # Make links clickable
+        
+        # Add Copy and OK buttons
+        copy_button = msg_box.addButton("Copy", QMessageBox.ButtonRole.ActionRole)
+        msg_box.addButton(QMessageBox.StandardButton.Ok)
+        
+        msg_box.exec()
+        
+        # If Copy button was clicked, copy the plain text to clipboard
+        if msg_box.clickedButton() == copy_button:
+            from PyQt6.QtWidgets import QApplication
+            # Strip HTML tags for plain text copy
+            import re
+            plain_text = f"{text}\n\n{informative_text}"
+            plain_text = re.sub(r'<br>', '\n', plain_text)
+            plain_text = re.sub(r'<[^>]+>', '', plain_text)
+            QApplication.clipboard().setText(plain_text)
+
+    def _show_mpv_error(self):
+        """Show a graphical error dialog when mpv is not found"""
+        system = platform.system()
+        
+        # Base message with official site
+        install_msg = 'Please install MPV from the official site:<br><a href="https://mpv.io/installation/">https://mpv.io/installation/</a>'
+        
+        # Add platform-specific additional options
+        if system == 'Windows':
+            install_msg += (
+                '<br><br><b>Windows builds:</b><br>'
+                '<a href="https://github.com/mpvnet-player/mpv.net/releases/">https://github.com/mpvnet-player/mpv.net/releases/</a><br>'
+                'or<br>'
+                '<a href="https://github.com/zhongfly/mpv-winbuild/releases/">https://github.com/zhongfly/mpv-winbuild/releases/</a>'
+                '<br><br><b>.NET SDK</b> (required for mpv.net):<br>'
+                '<a href="https://dotnet.microsoft.com/en-us/download/dotnet/">https://dotnet.microsoft.com/en-us/download/dotnet/</a>'
+            )
+        elif system == 'Darwin':
+            install_msg += '<br><br><b>macOS:</b> brew install mpv'
+        else:
+            install_msg += '<br><br><b>Linux:</b> sudo apt install mpv<br>(or use your distro\'s package manager)'
+        
+        # Show graphical dialog
+        self._show_error_dialog(
+            "Video Player Not Found",
+            "MPV video player is not installed.",
+            install_msg
+        )
+
     def show_video(self, url: str, cursor_pos: QPoint = None):
         """Launch mpv player with the video URL"""
         if self.current_url == url:
@@ -85,14 +140,8 @@ class VideoPlayer(QWidget):
         
         # Check if mpv is available
         if not self.mpv_path or not shutil.which(self.mpv_path):
-            print("ERROR: mpv not found!")
-            print("Please install mpv:")
-            if platform.system() == 'Windows':
-                print("  https://github.com/mpvnet-player/mpv.net")
-            elif platform.system() == 'Darwin':
-                print("  brew install mpv")
-            else:
-                print("  sudo apt install mpv  (or your distro's package manager)")
+            # Show graphical error dialog (which also prints to console)
+            self._show_mpv_error()
             return
         
         self.is_loading = True
@@ -139,6 +188,14 @@ class VideoPlayer(QWidget):
         except Exception as e:
             print(f"Failed to launch mpv: {e}")
             self._stop_loading()
+            
+            # Show error dialog for launch failures
+            self._show_error_dialog(
+                "Video Player Error",
+                "Failed to launch video player.",
+                f"Error: {str(e)}",
+                QMessageBox.Icon.Critical
+            )
     
     def _build_mpv_command(self, url: str) -> list:
         """Build mpv command with appropriate options"""
