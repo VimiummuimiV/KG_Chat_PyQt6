@@ -59,7 +59,7 @@ MPV Player — медиаплеер для воспроизведения вид
 
 Для пользователей Windows требуется установить .NET Runtime для работы приложения.
 
-[b]Скачать:[/b] [url="https://dotnet.microsoft.com/download/dotnet"]https://dotnet.microsoft.com/download/dotnet[/url] (На текущий момент рекомендуется версия .NET 10.0.2)
+[b]Скачать:[/b] [url="https://dotnet.microsoft.com/download/dotnet"]https://dotnet.microsoft.com/download/dotnet[/url] (Рекомендуется версия .NET 10.0.2 и выше)
 
 [b][color="#F77F00"]═══════════════════════════════════════════[/color][/b]
 [b][size="4"][color="#2D6CDF"]3. Установка приложения чата[/color][/size][/b]
