@@ -93,7 +93,13 @@
       "serenade",
       "snowgirlwave",
       "pogranflowers"
-    ]
+    ],
+    "window": {
+      "width": null,
+      "height": null,
+      "x": null,
+      "y": null
+    }
   },
   "sound": {
     "tts_enabled": false,

@@ -24,6 +24,7 @@ class ButtonPanel(QWidget):
     exit_requested = pyqtSignal()
     toggle_effects_requested = pyqtSignal()
     toggle_notification_requested = pyqtSignal()
+    reset_window_size_requested = pyqtSignal()
     # Color management (change / reset / update from server)
     change_color_requested = pyqtSignal()
     reset_color_requested = pyqtSignal()
@@ -202,6 +203,13 @@ class ButtonPanel(QWidget):
         theme_icon = "moon.svg" if is_dark else "sun.svg"
         theme_tooltip = "Switch to Light Mode" if is_dark else "Switch to Dark Mode"
         self.theme_button = self._create_button(theme_icon, theme_tooltip, self.toggle_theme_requested.emit)
+
+        # Reset window size button
+        self.reset_size_button = self._create_button(
+            "aspect-ratio.svg",
+            "Reset Window Size and Position to Default",
+            lambda: self.reset_window_size_requested.emit()
+        )
 
         # Exit application button
         self.exit_button = self._create_button(

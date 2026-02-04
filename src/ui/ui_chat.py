@@ -23,6 +23,7 @@ from helpers.username_color_manager import(
 from helpers.fonts import get_font, FontType
 from helpers.voice_engine import get_voice_engine, play_sound
 from helpers.me_action import format_me_action
+from helpers.window_size_manager import WindowSizeManager
 from themes.theme import ThemeManager
 from core.xmpp import XMPPClient
 from core.messages import Message
@@ -86,6 +87,10 @@ class ChatWindow(QWidget):
         self.icons_path = Path(__file__).parent.parent / "icons"
 
         self.config = Config(str(self.config_path))
+        
+        # Initialize window size manager
+        self.window_size_manager = WindowSizeManager(self.config)
+        
         self.theme_manager = ThemeManager(self.config)
         self.theme_manager.apply_theme()
         set_theme(self.theme_manager.is_dark())
@@ -290,15 +295,29 @@ class ChatWindow(QWidget):
         self.setWindowTitle(window_title)
         geo = QApplication.primaryScreen().availableGeometry()
       
-        # Calculate width: 70% of viewport width, or full width if viewport < 1000px
-        window_width = geo.width() if geo.width() < 1000 else int(geo.width() * 0.7)
-      
-        # Set window size: dynamic width and full height minus 32px for taskbar/spacing
-        self.resize(window_width, geo.height() - 32)
-      
-        # Center window horizontally, align to top of screen
-        self.move(geo.x() + (geo.width() - window_width) // 2, geo.y())
-      
+        # Check for saved window geometry (size + position) first
+        saved_width, saved_height, saved_x, saved_y = self.window_size_manager.get_saved_geometry()
+        
+        if saved_width and saved_height:
+            # Use saved size
+            window_width = saved_width
+            window_height = saved_height
+        else:
+            # Calculate default: 70% width or full if < 1000px
+            window_width = geo.width() if geo.width() < 1000 else int(geo.width() * 0.7)
+            window_height = geo.height() - 32
+        
+        # Set window size
+        self.resize(window_width, window_height)
+        
+        # Set window position
+        if saved_x is not None and saved_y is not None:
+            # Use saved position
+            self.move(saved_x, saved_y)
+        else:
+            # Center window horizontally, align to top of screen
+            self.move(geo.x() + (geo.width() - window_width) // 2, geo.y())
+        
         # Set minimum window dimensions
         self.setMinimumSize(400, 400)
 
@@ -408,12 +427,17 @@ class ChatWindow(QWidget):
         self.button_panel.change_color_requested.connect(self.on_change_username_color)
         self.button_panel.reset_color_requested.connect(self.on_reset_username_color)
         self.button_panel.update_color_requested.connect(self.on_update_username_color)
+        # Window size reset connection
+        self.button_panel.reset_window_size_requested.connect(self.reset_window_size)
         content_wrapper.addWidget(self.button_panel, stretch=0)
 
         # Initialize voice, mention and notification button states
         self.update_voice_button_state()
         self.update_effects_button_state()
         self.update_notification_button_state()
+        
+        # Initialize reset window size button state
+        self.update_reset_size_button_state()
 
      
         # Initialize userlist button state
@@ -900,6 +924,73 @@ class ChatWindow(QWidget):
     def resizeEvent(self, event):
         super().resizeEvent(event)
         handle_chat_resize(self, self.width())
+        
+        # Save window geometry (size + position) with debounce
+        self.window_size_manager.update_geometry(
+            self.width(), 
+            self.height(),
+            self.x(),
+            self.y()
+        )
+        
+        # Update button state (will be active once geometry is saved)
+        # Use a timer to update after debounce period
+        if hasattr(self, '_reset_button_update_timer'):
+            self._reset_button_update_timer.stop()
+        else:
+            self._reset_button_update_timer = QTimer(self)
+            self._reset_button_update_timer.setSingleShot(True)
+            self._reset_button_update_timer.timeout.connect(self.update_reset_size_button_state)
+        self._reset_button_update_timer.start(600)  # Slightly longer than save debounce
+
+    def moveEvent(self, event):
+        """Track window position changes"""
+        super().moveEvent(event)
+        
+        # Save window geometry (size + position) with debounce
+        self.window_size_manager.update_geometry(
+            self.width(), 
+            self.height(),
+            self.x(),
+            self.y()
+        )
+        
+        # Update button state after debounce
+        if hasattr(self, '_reset_button_update_timer'):
+            self._reset_button_update_timer.stop()
+        else:
+            self._reset_button_update_timer = QTimer(self)
+            self._reset_button_update_timer.setSingleShot(True)
+            self._reset_button_update_timer.timeout.connect(self.update_reset_size_button_state)
+        self._reset_button_update_timer.start(600)
+
+    def reset_window_size(self):
+        """Reset window to default calculated size and position"""
+        was_reset = self.window_size_manager.reset_size()
+        
+        if not was_reset:
+            # Already at default, nothing to do
+            return
+        
+        # Recalculate default size and position
+        geo = QApplication.primaryScreen().availableGeometry()
+        window_width = geo.width() if geo.width() < 1000 else int(geo.width() * 0.7)
+        window_height = geo.height() - 32
+        
+        # Apply default size
+        self.resize(window_width, window_height)
+        
+        # Center window horizontally, align to top of screen
+        self.move(geo.x() + (geo.width() - window_width) // 2, geo.y())
+        
+        # Update button state
+        self.update_reset_size_button_state()
+    
+    def update_reset_size_button_state(self):
+        """Update reset size button state based on whether geometry is customized"""
+        if hasattr(self, 'button_panel') and hasattr(self.button_panel, 'reset_size_button'):
+            has_custom = self.window_size_manager.has_saved_size()
+            self.button_panel.set_button_state(self.button_panel.reset_size_button, has_custom)
 
     def _complete_resize_recalculation(self):
         """Complete resize with aggressive recalculation"""
@@ -1511,6 +1602,10 @@ class ChatWindow(QWidget):
         # Reset unread when actually closing
         if self.app_controller:
             self.app_controller.reset_unread()
+
+        # Cleanup window size manager
+        if hasattr(self, 'window_size_manager'):
+            self.window_size_manager.cleanup()
 
         # Proceed with full cleanup when actually closing
         if self.messages_widget:
