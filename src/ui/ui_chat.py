@@ -69,6 +69,10 @@ class ChatWindow(QWidget):
         self.auto_hide_messages_userlist = True
         self.auto_hide_chatlog_userlist = True
 
+        # Track window show/reset state to avoid persisting programmatic geometry
+        self._showing_window = False
+        self._resetting_geometry = False
+
         # Simple connection state tracking
         self.is_connecting = False # True when attempting to connect
         self.allow_reconnect = True # Disable when switching accounts
@@ -549,7 +553,10 @@ class ChatWindow(QWidget):
     def showEvent(self, event):
         """Handle window show events"""
         super().showEvent(event)
-        
+
+        # Prevent programmatic geometry changes during show from being saved
+        self._showing_window = True
+
         # Reset unread count when window becomes visible
         if self.app_controller:
             self.app_controller.reset_unread()
@@ -579,6 +586,14 @@ class ChatWindow(QWidget):
         # Update notification button state on show
         if hasattr(self, 'button_panel'):
             self.button_panel.update_notification_button_icon()
+
+        # Trigger an initial resize handler so UI elements (userlist, button panel)
+        # reflect the current width immediately on first show
+        QTimer.singleShot(50, lambda: handle_chat_resize(self, self.width()))
+
+        # Clear the showing flag after a short delay so subsequent user-initiated resize/move
+        # events will be persisted normally
+        QTimer.singleShot(200, lambda: setattr(self, '_showing_window', False))
 
     def disable_reconnect(self):
         """Disable auto-reconnect (called when switching accounts)"""
@@ -928,18 +943,14 @@ class ChatWindow(QWidget):
     def resizeEvent(self, event):
         super().resizeEvent(event)
         handle_chat_resize(self, self.width())
-        
-        # Skip saving geometry if we're in the middle of a reset
-        if not getattr(self, '_resetting_geometry', False):
-            self.window_size_manager.update_geometry(self.width(), self.height(), self.x(), self.y())
+
+        self._update_geometry_on_manual_change()
 
     def moveEvent(self, event):
         """Track window position changes"""
         super().moveEvent(event)
-        
-        # Skip saving geometry if we're in the middle of a reset
-        if not getattr(self, '_resetting_geometry', False):
-            self.window_size_manager.update_geometry(self.width(), self.height(), self.x(), self.y())
+
+        self._update_geometry_on_manual_change()
 
     def reset_window_size(self):
         """Reset window to default calculated size and position"""
@@ -970,6 +981,14 @@ class ChatWindow(QWidget):
         if hasattr(self, 'button_panel') and hasattr(self.button_panel, 'reset_size_button'):
             has_custom = self.window_size_manager.has_saved_size()
             self.button_panel.set_button_state(self.button_panel.reset_size_button, has_custom)
+
+    def _update_geometry_on_manual_change(self):
+        """Update saved geometry when the user has manually changed window size/position."""
+        if getattr(self, '_showing_window', False) or getattr(self, '_resetting_geometry', False):
+            return
+        cur = (self.width(), self.height(), self.x(), self.y())
+        if self.window_size_manager.has_saved_size() or cur != self._calculate_default_geometry():
+            self.window_size_manager.update_geometry(*cur)
 
     def _complete_resize_recalculation(self):
         """Complete resize with aggressive recalculation"""
