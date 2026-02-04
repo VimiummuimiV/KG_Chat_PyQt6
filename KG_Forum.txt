@@ -25,6 +25,7 @@
 [code]python --version & pip --version[/code]
 
 вы должны увидеть версии установленных Python и pip.
+[url="https://i.imgur.com/wzRLAtr.png"]Скриншот: Проверка версий Python и pip[/url]
 
 [b][color="#F77F00"]═══════════════════════════════════════════[/color][/b]
 [b][size="4"][color="#2D6CDF"]2. Установка дополнительных компонентов[/color][/size][/b]
