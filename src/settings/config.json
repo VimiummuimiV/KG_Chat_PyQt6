@@ -96,10 +96,10 @@
       "pogranflowers"
     ],
     "window": {
-      "width": 1792,
-      "height": 1368,
-      "x": 384,
-      "y": 0
+      "width": null,
+      "height": null,
+      "x": null,
+      "y": null
     }
   },
   "sound": {

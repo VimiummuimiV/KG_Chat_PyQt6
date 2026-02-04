@@ -363,15 +363,41 @@ class Application(QObject):
         if self.tray_icon:
             self.tray_icon.setIcon(self._get_icon(0))
 
+    def _force_window_to_foreground(self, window):
+        """Force window to foreground with platform-specific handling"""
+        window.setWindowState(window.windowState() & ~Qt.WindowState.WindowMinimized | Qt.WindowState.WindowActive)
+        window.activateWindow()
+        window.raise_()
+        
+        # Windows: Force window to foreground
+        if sys.platform == 'win32':
+            try:
+                hwnd = int(window.winId())
+                user32 = ctypes.windll.user32
+                foreground_hwnd = user32.GetForegroundWindow()
+                
+                if foreground_hwnd != hwnd:
+                    foreground_thread = user32.GetWindowThreadProcessId(foreground_hwnd, None)
+                    this_thread = ctypes.windll.kernel32.GetCurrentThreadId()
+                    
+                    if foreground_thread != this_thread:
+                        user32.AttachThreadInput(foreground_thread, this_thread, True)
+                    
+                    user32.BringWindowToTop(hwnd)
+                    user32.SetForegroundWindow(hwnd)
+                    
+                    if foreground_thread != this_thread:
+                        user32.AttachThreadInput(foreground_thread, this_thread, False)
+            except Exception as e:
+                print(f"⚠️ Could not force window to foreground: {e}")
+
     def show_window(self):
         """Show the active window"""
         window = self.chat_window if self.chat_window and not self.chat_window.isVisible() else self.account_window
         if window and not window.isVisible():
             window.show()
-            window.activateWindow()
-            window.raise_()
+            self._force_window_to_foreground(window)
             
-            # Reset unread count when showing window
             if window == self.chat_window:
                 self.reset_unread()
 
@@ -653,7 +679,19 @@ class Application(QObject):
         """Toggle visibility of the active window"""
         window = self.chat_window or self.account_window
         if window:
-            window.hide() if window.isVisible() else self.show_window()
+            if window.isVisible() and window.isActiveWindow():
+                # Window is visible AND in foreground - hide it
+                window.hide()
+            else:
+                # Window is hidden OR in background - show/bring to front
+                if window.isVisible():
+                    # Window is visible but in background - force to foreground
+                    self._force_window_to_foreground(window)
+                    if window == self.chat_window:
+                        self.reset_unread()
+                else:
+                    # Window is hidden - use show_window
+                    self.show_window()
 
 
 def main():
