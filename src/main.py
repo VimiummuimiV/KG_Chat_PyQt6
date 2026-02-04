@@ -113,7 +113,6 @@ class Application(QObject):
         self.ban_list_action = None
         
         self.setup_system_tray()
-        self.setup_global_hotkey()
 
     def setup_system_tray(self):
         """Setup system tray icon and menu"""
@@ -435,6 +434,9 @@ class Application(QObject):
 
     def run(self):
         """Run the application - check auto-login or show account window"""
+        # Setup global hotkey after Qt is fully initialized
+        self.setup_global_hotkey()
+        
         # Check if auto-login is enabled
         auto_login = self.config.get("startup", "auto_login")
         
@@ -612,8 +614,13 @@ class Application(QObject):
 
     def setup_global_hotkey(self):
         """Register cross-platform global hotkey (Super/Win/Cmd + C)"""
-        keyboard.on_press(self._on_key_press)
-        print(f"✅ Global hotkey registered: Win/Cmd + C")
+        try:
+            keyboard.on_press(self._on_key_press)
+            print(f"✅ Global hotkey registered: Win/Cmd + C")
+            return True
+        except Exception as e:
+            print(f"⚠️ Failed to register global hotkey: {e}")
+            return False
     
     def _on_key_press(self, event):
         """Handle Win/Cmd + C hotkey"""
