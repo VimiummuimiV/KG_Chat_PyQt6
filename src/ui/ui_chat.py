@@ -297,26 +297,18 @@ class ChatWindow(QWidget):
       
         # Check for saved window geometry (size + position) first
         saved_width, saved_height, saved_x, saved_y = self.window_size_manager.get_saved_geometry()
-        
+
         if saved_width and saved_height:
-            # Use saved size
-            window_width = saved_width
-            window_height = saved_height
+            window_width, window_height = saved_width, saved_height
+            window_x = saved_x if saved_x is not None else None
+            window_y = saved_y if saved_y is not None else None
         else:
-            # Calculate default: 70% width or full if < 1000px
-            window_width = geo.width() if geo.width() < 1000 else int(geo.width() * 0.7)
-            window_height = geo.height() - 32
-        
-        # Set window size
+            window_width, window_height, window_x, window_y = self._calculate_default_geometry()
+
+        # Apply window geometry
         self.resize(window_width, window_height)
-        
-        # Set window position
-        if saved_x is not None and saved_y is not None:
-            # Use saved position
-            self.move(saved_x, saved_y)
-        else:
-            # Center window horizontally, align to top of screen
-            self.move(geo.x() + (geo.width() - window_width) // 2, geo.y())
+        if window_x is not None and window_y is not None:
+            self.move(window_x, window_y)
         
         # Set minimum window dimensions
         self.setMinimumSize(400, 400)
@@ -520,6 +512,33 @@ class ChatWindow(QWidget):
 
         self.emoticon_selector.move(x, y)
         self.emoticon_selector.raise_()
+
+    def _calculate_default_geometry(self):
+        """Calculate default window size and position"""
+        geo = QApplication.primaryScreen().availableGeometry()
+        width = geo.width() if geo.width() < 1000 else int(geo.width() * 0.7)
+        height = geo.height() - 32
+        x = geo.x() + (geo.width() - width) // 2
+        y = geo.y()
+        return width, height, x, y
+
+    def _update_geometry_and_button(self):
+        """Update saved geometry and reset button state with debounce"""
+        self.window_size_manager.update_geometry(
+            self.width(), 
+            self.height(),
+            self.x(),
+            self.y()
+        )
+        
+        # Update button state after debounce
+        if hasattr(self, '_reset_button_update_timer'):
+            self._reset_button_update_timer.stop()
+        else:
+            self._reset_button_update_timer = QTimer(self)
+            self._reset_button_update_timer.setSingleShot(True)
+            self._reset_button_update_timer.timeout.connect(self.update_reset_size_button_state)
+        self._reset_button_update_timer.start(600)
 
     def eventFilter(self, obj, event):
         """Event filter to handle clicks outside emoticon selector"""
@@ -924,64 +943,24 @@ class ChatWindow(QWidget):
     def resizeEvent(self, event):
         super().resizeEvent(event)
         handle_chat_resize(self, self.width())
-        
-        # Save window geometry (size + position) with debounce
-        self.window_size_manager.update_geometry(
-            self.width(), 
-            self.height(),
-            self.x(),
-            self.y()
-        )
-        
-        # Update button state (will be active once geometry is saved)
-        # Use a timer to update after debounce period
-        if hasattr(self, '_reset_button_update_timer'):
-            self._reset_button_update_timer.stop()
-        else:
-            self._reset_button_update_timer = QTimer(self)
-            self._reset_button_update_timer.setSingleShot(True)
-            self._reset_button_update_timer.timeout.connect(self.update_reset_size_button_state)
-        self._reset_button_update_timer.start(600)  # Slightly longer than save debounce
+        self._update_geometry_and_button()
 
     def moveEvent(self, event):
         """Track window position changes"""
         super().moveEvent(event)
-        
-        # Save window geometry (size + position) with debounce
-        self.window_size_manager.update_geometry(
-            self.width(), 
-            self.height(),
-            self.x(),
-            self.y()
-        )
-        
-        # Update button state after debounce
-        if hasattr(self, '_reset_button_update_timer'):
-            self._reset_button_update_timer.stop()
-        else:
-            self._reset_button_update_timer = QTimer(self)
-            self._reset_button_update_timer.setSingleShot(True)
-            self._reset_button_update_timer.timeout.connect(self.update_reset_size_button_state)
-        self._reset_button_update_timer.start(600)
+        self._update_geometry_and_button()
 
     def reset_window_size(self):
         """Reset window to default calculated size and position"""
         was_reset = self.window_size_manager.reset_size()
         
         if not was_reset:
-            # Already at default, nothing to do
-            return
+            return  # Already at default
         
-        # Recalculate default size and position
-        geo = QApplication.primaryScreen().availableGeometry()
-        window_width = geo.width() if geo.width() < 1000 else int(geo.width() * 0.7)
-        window_height = geo.height() - 32
-        
-        # Apply default size
-        self.resize(window_width, window_height)
-        
-        # Center window horizontally, align to top of screen
-        self.move(geo.x() + (geo.width() - window_width) // 2, geo.y())
+        # Apply default geometry
+        width, height, x, y = self._calculate_default_geometry()
+        self.resize(width, height)
+        self.move(x, y)
         
         # Update button state
         self.update_reset_size_button_state()
