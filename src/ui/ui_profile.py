@@ -170,15 +170,16 @@ class UsernameHistoryWidget(QWidget):
         
         # Current username (highlighted)
         self.current_label = create_label(
-            f"<b>{current_username}</b> (current)", 
+            f"<b>{current_username}</b>", 
             '#00aaff' if self.is_dark else '#0066cc'
         )
         
         # History items
+        date_color = '#60a5fa' if self.is_dark else '#2563eb'  # Blue
         for item in format_username_history(history_data):
             if isinstance(item, tuple):
                 username, date = item
-                text = f"{username} <span style='color: #888;'>→ {date}</span>" if date else username
+                text = f"{username} <span style='color: #888;'>until</span> <span style='color: {date_color};'>{date}</span>" if date else username
             else:
                 text = str(item)
             create_label(text)

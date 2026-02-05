@@ -28,8 +28,9 @@ def convert_to_timestamp(sec: int, usec: int) -> Optional[str]:
         return str(sec) + str(usec // 1000)
     return None
 
-def format_username_history(history: List[Dict]) -> List[str]:
-    """Format username history with timestamps (reversed - newest first)"""
+def format_username_history(history: List[Dict]) -> List[tuple]:
+    """Format username history with timestamps (reversed - newest first)
+    Returns list of tuples: (username, date_string) or (username, None)"""
     formatted = []
     
     # Reverse the history so newest changes come first
@@ -45,11 +46,11 @@ def format_username_history(history: List[Dict]) -> List[str]:
             # Just use sec directly for the date
             try:
                 date_str = datetime.fromtimestamp(sec).strftime('%d.%m.%Y')
-                formatted.append(f"{username} → {date_str}")
+                formatted.append((username, date_str))
             except (ValueError, OSError):
-                formatted.append(username)
+                formatted.append((username, None))
         else:
-            formatted.append(username)
+            formatted.append((username, None))
     
     return formatted
 
