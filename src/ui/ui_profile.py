@@ -418,8 +418,13 @@ class ProfileWidget(QWidget):
         
         for card in self.card_widgets:
             card.update_theme(self.is_dark)
-    
+
     def resizeEvent(self, event):
         """Handle resize to adjust card grid columns"""
         super().resizeEvent(event)
         cols = 1 if self.width() < 600 else 2 if self.width() < 900 else 3
+        
+        # Only rebuild if column count changed
+        if hasattr(self, '_last_cols') and self._last_cols != cols:
+            self._last_cols = cols
+            self._rebuild_card_layout(cols)
