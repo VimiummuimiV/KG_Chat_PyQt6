@@ -122,7 +122,7 @@ class Application(QObject):
 
         self.tray_icon = QSystemTrayIcon(self._get_icon(self.unread_count), self.app)
         self.tray_icon.setToolTip("KG Chat")
-        self.tray_icon.activated.connect(lambda r: self.show_window() if r == QSystemTrayIcon.ActivationReason.DoubleClick else None)
+        self.tray_icon.activated.connect(lambda r: self.toggle_chat_visibility(ignore_active=True) if r == QSystemTrayIcon.ActivationReason.Trigger else None)
 
         # Create the main menu
         menu = QMenu()
@@ -675,23 +675,27 @@ class Application(QObject):
             print(f"⚠️ Hotkey error: {e}")
 
     @pyqtSlot()
-    def toggle_chat_visibility(self):
+    def toggle_chat_visibility(self, ignore_active=False):
         """Toggle visibility of the active window"""
         window = self.chat_window or self.account_window
-        if window:
-            if window.isVisible() and window.isActiveWindow():
-                # Window is visible AND in foreground - hide it
-                window.hide()
-            else:
-                # Window is hidden OR in background - show/bring to front
-                if window.isVisible():
-                    # Window is visible but in background - force to foreground
-                    self._force_window_to_foreground(window)
-                    if window == self.chat_window:
-                        self.reset_unread()
-                else:
-                    # Window is hidden - use show_window
-                    self.show_window()
+        if not window:
+            return
+        
+        # Cache the active state BEFORE any window operations to avoid race conditions
+        is_visible = window.isVisible()
+        is_active = window.isActiveWindow()
+        
+        # Determine if we should hide the window
+        should_hide = is_visible and (ignore_active or is_active)
+        
+        if should_hide:
+            window.hide()
+        else:
+            # Show and bring to foreground
+            window.show()
+            self._force_window_to_foreground(window)
+            if window == self.chat_window:
+                self.reset_unread()
 
 
 def main():
