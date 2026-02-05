@@ -12,7 +12,6 @@ def extract_hex_color(color_str: str) -> Optional[str]:
     match = re.match(r'^#([0-9a-fA-F]{6})\b', color_str)
     return f"#{match.group(1)}" if match else None
 
-
 def format_registered_date(registered: Dict) -> Optional[str]:
     """Convert Unix timestamp to YYYY-MM-DD format"""
     if not registered or 'sec' not in registered:
@@ -23,13 +22,36 @@ def format_registered_date(registered: Dict) -> Optional[str]:
     except:
         return None
 
-
 def convert_to_timestamp(sec: int, usec: int) -> Optional[str]:
     """Convert sec and usec to timestamp"""
     if sec is not None and usec is not None:
         return str(sec) + str(usec // 1000)
     return None
 
+def format_username_history(history: List[Dict]) -> List[str]:
+    """Format username history with timestamps (reversed - newest first)"""
+    formatted = []
+    
+    # Reverse the history so newest changes come first
+    for entry in reversed(history):
+        username = entry.get('login', '')
+        until = entry.get('until', {})
+        
+        sec = until.get('sec')
+        usec = until.get('usec')
+        
+        if sec and usec is not None:
+            # sec is already Unix timestamp in seconds, usec is microseconds
+            # Just use sec directly for the date
+            try:
+                date_str = datetime.fromtimestamp(sec).strftime('%d.%m.%Y')
+                formatted.append(f"{username} → {date_str}")
+            except (ValueError, OSError):
+                formatted.append(username)
+        else:
+            formatted.append(username)
+    
+    return formatted
 
 def fetch_json(url: str, timeout: int = 5) -> Dict:
     """Fetch JSON from URL with validation"""
@@ -37,7 +59,6 @@ def fetch_json(url: str, timeout: int = 5) -> Dict:
     if not response.ok:
         raise Exception(f"Failed to fetch {url}")
     return response.json()
-
 
 def get_exact_user_id_by_name(username: str) -> Optional[int]:
     """Get exact user ID by username via search API"""
@@ -57,7 +78,6 @@ def get_exact_user_id_by_name(username: str) -> Optional[int]:
         print(f"Error getting user ID: {e}")
         return None
 
-
 def get_all_user_ids_by_name(username: str) -> List[int]:
     """Get all user IDs matching username via search API"""
     try:
@@ -72,7 +92,6 @@ def get_all_user_ids_by_name(username: str) -> List[int]:
         print(f"Error getting user IDs: {e}")
         return []
 
-
 def get_user_summary_by_id(user_id: int) -> Optional[Dict]:
     """Get user summary data by ID"""
     try:
@@ -82,7 +101,6 @@ def get_user_summary_by_id(user_id: int) -> Optional[Dict]:
     except Exception as e:
         print(f"Error getting user summary: {e}")
         raise
-
 
 def get_user_index_data_by_id(user_id: int) -> Optional[Dict]:
     """Get user index data by ID"""
@@ -131,7 +149,6 @@ def get_data_by_name(username: str, data_type: str) -> Any:
         print(f"Error getting {data_type} for user {username}: {e}")
         return None
 
-
 def get_data_by_id(user_id: int, data_type: str) -> Any:
     """
     MAIN FUNCTION: Get specific data by user ID - automatically chooses correct API
@@ -155,7 +172,6 @@ def get_data_by_id(user_id: int, data_type: str) -> Any:
     except Exception as e:
         print(f"Error getting {data_type} for user ID {user_id}: {e}")
         return None
-
 
 def extract_data(data: Dict, data_type: str, api_type: str) -> Any:
     """
@@ -242,13 +258,11 @@ def extract_data(data: Dict, data_type: str, api_type: str) -> Any:
     
     return None
 
-
 # Convenience helper functions (used by parser)
 def get_usernames_history(username: str) -> List[str]:
     """Get username history for a user"""
     history = get_data_by_name(username, 'usernamesHistory')
     return history if isinstance(history, list) else []
-
 
 def get_registration_date(username: str) -> Optional[str]:
     """Get user registration date (YYYY-MM-DD)"""
