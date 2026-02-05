@@ -276,37 +276,27 @@ class ProfileWidget(QWidget):
     
     def _init_avatar_section(self):
         """Initialize avatar display section"""
-        avatar_container = QWidget()
-        avatar_container.setFixedSize(120, 120)
-        
-        # Placeholder
-        self.avatar_placeholder = QLabel(ProfileIcons.AVATAR_PLACEHOLDER)
-        self.avatar_placeholder.setFixedSize(120, 120)
-        self.avatar_placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.avatar_placeholder.setFont(get_font(FontType.HEADER, size=48))
-        self._update_avatar_placeholder_style()
-        
-        # Actual avatar (overlaid)
-        self.avatar_label = QLabel(parent=avatar_container)
+        # Single avatar label for both placeholder and image
+        self.avatar_label = QLabel(ProfileIcons.AVATAR_PLACEHOLDER)
         self.avatar_label.setFixedSize(120, 120)
         self.avatar_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.avatar_label.setVisible(False)
-        self.avatar_label.move(0, 0)
+        self.avatar_label.setFont(get_font(FontType.HEADER, size=48))
+        self._update_avatar_style()
         
-        QVBoxLayout(avatar_container).addWidget(self.avatar_placeholder)
-        self.content_layout.addWidget(avatar_container, alignment=Qt.AlignmentFlag.AlignHCenter)
+        self.content_layout.addWidget(self.avatar_label, alignment=Qt.AlignmentFlag.AlignHCenter)
         self.content_layout.addSpacing(10)
     
-    def _update_avatar_placeholder_style(self):
-        """Update avatar placeholder style based on theme"""
+    def _update_avatar_style(self):
+        """Update avatar styling based on theme"""
         style = f"""
             QLabel {{
                 {ContainerStyleMixin.get_container_style(self.is_dark)}
                 border-radius: 15px;
                 border-width: 2px;
+                padding: 0px;
             }}
         """
-        self.avatar_placeholder.setStyleSheet(style)
+        self.avatar_label.setStyleSheet(style)
     
     def load_profile(self, user_id: int, username: str):
         """Load and display user profile data"""
@@ -314,10 +304,9 @@ class ProfileWidget(QWidget):
         self.current_username = username
         self.title_label.setText(username)
         
-        # Reset UI
+        # Reset to placeholder
         self.avatar_label.clear()
-        self.avatar_label.setVisible(False)
-        self.avatar_placeholder.setVisible(True)
+        self.avatar_label.setText(ProfileIcons.AVATAR_PLACEHOLDER)
         
         if self.history_widget:
             self.history_widget.deleteLater()
@@ -336,8 +325,7 @@ class ProfileWidget(QWidget):
         """Set avatar pixmap"""
         if pixmap and not pixmap.isNull():
             self.avatar_label.setPixmap(make_rounded_pixmap(pixmap, 120, 15))
-            self.avatar_label.setVisible(True)
-            self.avatar_placeholder.setVisible(False)
+            self.avatar_label.setText("")  # Clear the emoji text
     
     def _fetch_and_display_data(self, user_id: int):
         """Fetch summary and index data, then display"""
@@ -422,7 +410,7 @@ class ProfileWidget(QWidget):
     def update_theme(self):
         """Update widget styling for theme changes"""
         self.is_dark = self.config.get("ui", "theme") == "dark"
-        self._update_avatar_placeholder_style()
+        self._update_avatar_style()
         
         if self.history_widget:
             self.history_widget.update_theme(self.is_dark)
