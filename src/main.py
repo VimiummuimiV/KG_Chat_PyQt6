@@ -8,7 +8,7 @@ from PyQt6.QtWidgets import(
     QMenu, QMessageBox
 )
 from PyQt6.QtGui import QFont, QIcon, QAction, QPixmap, QPainter, QColor
-from PyQt6.QtCore import Qt, QLockFile, QDir, pyqtSignal, QObject, pyqtSlot, QMetaObject
+from PyQt6.QtCore import Qt, QLockFile, QDir, pyqtSignal, QObject, pyqtSlot, QMetaObject, QTimer
 from PyQt6.QtSvg import QSvgRenderer
 
 # Add src directory to path
@@ -696,6 +696,9 @@ class Application(QObject):
             self._force_window_to_foreground(window)
             if window == self.chat_window:
                 self.reset_unread()
+                # Clear input field to remove any stray characters from hotkey
+                if hasattr(window, 'input_field') and window.input_field:
+                    QTimer.singleShot(50, window.input_field.clear)
 
 
 def main():
