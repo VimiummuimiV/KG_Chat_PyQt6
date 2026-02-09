@@ -82,6 +82,9 @@ class ChatlogWidget(QWidget):
     
         # Initialize auto-scroller after UI is set up
         self.auto_scroller = AutoScroller(self.list_view)
+        
+        # Connect message click handler
+        self.delegate.message_clicked.connect(self._on_message_clicked)
 
     def set_account(self, account):
         """Update account for parser widget"""
@@ -92,6 +95,39 @@ class ChatlogWidget(QWidget):
         # Update delegate with new username for mention highlighting
         if account and account.get('chat_username'):
             self.delegate.set_my_username(account.get('chat_username'))
+
+    def _on_message_clicked(self, row: int):
+        """Handle message click - reveal all messages and scroll to clicked message"""
+        if not (self.filtered_usernames or self.search_text or self.filter_mentions):
+            scroll(self.list_view, mode="middle", target_row=row, delay=50)
+            return
+        
+        # Get clicked message and find it in all_messages
+        clicked_msg = self.model.data(self.model.index(row, 0), Qt.ItemDataRole.DisplayRole)
+        if not clicked_msg:
+            return
+        
+        target_row = next((i for i, msg in enumerate(self.all_messages)
+                        if not msg.is_separator and msg.username == clicked_msg.username 
+                        and msg.body == clicked_msg.body and msg.timestamp == clicked_msg.timestamp), None)
+        
+        # Clear filters and rebuild (reuse existing _apply_filter logic)
+        self.filtered_usernames = set()
+        self.search_text = ""
+        self.search_field.clear()
+        
+        # Only update icon if it was actually active
+        if self.filter_mentions:
+            self.filter_mentions = False
+            icon_name = "at-line.svg"
+            self.mention_filter_btn._icon_name = icon_name
+            icon = _render_svg_icon(self.mention_filter_btn._icon_path / icon_name, self.mention_filter_btn._icon_size)
+            self.mention_filter_btn.setIcon(icon)
+        
+        self._apply_filter()  # Reuse existing method instead of duplicating
+        
+        if target_row is not None:
+            QTimer.singleShot(100, lambda: scroll(self.list_view, mode="middle", target_row=target_row, delay=100))
 
     def _setup_ui(self):
         margin = self.config.get("ui", "margins", "widget") or 5

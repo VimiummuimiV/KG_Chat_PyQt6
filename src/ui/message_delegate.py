@@ -32,6 +32,7 @@ class MessageDelegate(QStyledItemDelegate):
     timestamp_clicked = pyqtSignal(str)
     username_clicked = pyqtSignal(str, bool)
     row_needs_refresh = pyqtSignal(int)
+    message_clicked = pyqtSignal(int)
  
     def __init__(
         self,
@@ -672,6 +673,9 @@ class MessageDelegate(QStyledItemDelegate):
             row = index.row()
          
             if row not in self.click_rects:
+                # Click outside specific elements - treat as message click
+                if button == Qt.MouseButton.LeftButton:
+                    self.message_clicked.emit(row)
                 return super().editorEvent(event, model, option, index)
          
             rects = self.click_rects[row]
@@ -714,6 +718,11 @@ class MessageDelegate(QStyledItemDelegate):
                         # Copy URL to clipboard
                         QApplication.clipboard().setText(url)
                     return True
+            
+            # Click on message content area (not on specific clickable elements)
+            if button == Qt.MouseButton.LeftButton:
+                self.message_clicked.emit(row)
+                return True
      
         elif event.type() == QEvent.Type.MouseButtonDblClick:
             pos = event.pos()

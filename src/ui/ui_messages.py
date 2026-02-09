@@ -37,6 +37,7 @@ class MessagesWidget(QWidget):
        
         self.delegate.timestamp_clicked.connect(self.timestamp_clicked.emit)
         self.delegate.username_clicked.connect(self._handle_username_click)
+        self.delegate.message_clicked.connect(self._on_message_clicked)
        
         self._setup_ui()
         
@@ -55,6 +56,10 @@ class MessagesWidget(QWidget):
     def set_input_field(self, input_field):
         self.input_field = input_field
         self.delegate.set_input_field(input_field)
+    
+    def _on_message_clicked(self, row: int):
+        """Handle message click - scroll to middle"""
+        scroll(self.list_view, mode="middle", target_row=row, delay=100)
    
     def _handle_username_click(self, username: str, is_double_click: bool):
         if not self.input_field:
