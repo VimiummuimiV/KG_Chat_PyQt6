@@ -96,7 +96,7 @@ class ChatlogUserlistWidget(QWidget):
             size_type="large",
             config=config
         )
-        self.clear_filter_btn.clicked.connect(self._clear_filter)
+        self.clear_filter_btn.clicked.connect(self.clear_filter)
         self.clear_filter_btn.setVisible(False)
         button_layout.addWidget(self.clear_filter_btn)
         button_layout.addStretch()
@@ -151,13 +151,20 @@ class ChatlogUserlistWidget(QWidget):
         # Emit filter
         self.filter_requested.emit(self.filtered_usernames.copy())
     
-    def _clear_filter(self):
+    def clear_filter(self):
         """Clear all filters"""
         self.filtered_usernames = set()
         for widget in self.user_widgets.values():
             widget.set_filtered(False)
         self.clear_filter_btn.setVisible(False)
         self.filter_requested.emit(set())
+
+    def update_filter_state(self, filtered_usernames: set):
+        """Update filter state from external signal without emitting to avoid loops"""
+        self.filtered_usernames = filtered_usernames.copy()
+        for uname, widget in self.user_widgets.items():
+            widget.set_filtered(uname in filtered_usernames)
+        self.clear_filter_btn.setVisible(bool(filtered_usernames))
     
     def load_from_messages(self, messages, user_id_resolver=None):
         """Load users from chatlog messages with ban filtering"""

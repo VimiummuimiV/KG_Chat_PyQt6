@@ -981,8 +981,9 @@ class ChatWindow(QWidget):
             self.chatlog_widget.set_username_filter(usernames)
 
     def _on_chatlog_filter_changed(self, usernames: set):
-        """Handle filter change from chatlog widget"""
-        pass
+        """Handle filter change from chatlog widget - sync to userlist"""
+        if self.chatlog_userlist_widget:
+            self.chatlog_userlist_widget.update_filter_state(usernames)
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
