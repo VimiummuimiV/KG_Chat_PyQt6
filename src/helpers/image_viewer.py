@@ -79,7 +79,7 @@ class ImageHoverView(QWidget):
         self.dragging, self.scaling, self.last_mouse_pos = False, False, None
         
         # Help panel
-        self.help_panel = HelpPanel(self, viewer_type="image")
+        self.help_panel = HelpPanel(self)
     
     def paintEvent(self, event):
         """Paint the image with current transformations"""

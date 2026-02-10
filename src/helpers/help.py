@@ -1,5 +1,4 @@
-"""Help panel for video player and image viewer with styled keyboard shortcuts and mouse controls"""
-
+"""Help panel for image viewer with styled keyboard shortcuts and mouse controls"""
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame
 from PyQt6.QtCore import Qt
 from pathlib import Path
@@ -8,17 +7,14 @@ from helpers.config import Config
 
 
 class HelpPanel(QWidget):
-    """Compact help panel showing keyboard shortcuts and mouse controls"""
-    
-    def __init__(self, parent=None, viewer_type: str = "video"):
+    def __init__(self, parent=None):
         super().__init__(parent)
-        self.viewer_type = viewer_type
         
         config_path = Path(__file__).parent.parent / "settings" / "config.json"
         self.config = Config(str(config_path))
         
         self.setWindowFlags(Qt.WindowType.Window | Qt.WindowType.WindowStaysOnTopHint)
-        self.setWindowTitle(f"{viewer_type.title()} {'Player' if viewer_type == 'video' else 'Viewer'} Help")
+        self.setWindowTitle("Image Viewer Help")
         self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, False)
         
         self._build()
@@ -76,12 +72,10 @@ class HelpPanel(QWidget):
         layout.setSpacing(8)
         
         # Title
-        title_label = QLabel(f"{'Video Player' if self.viewer_type == 'video' else 'Image Viewer'} Controls")
+        title_label = QLabel("Image Viewer Controls")
         title_label.setStyleSheet(f"color: {title}; font-size: 14px; font-weight: bold; padding-bottom: 8px;")
         title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(title_label)
-        
-        kb, mouse = (VIDEO_KB, VIDEO_MOUSE) if self.viewer_type == "video" else (IMAGE_KB, IMAGE_MOUSE)
         
         # Keyboard section
         kb_section = QLabel("Keyboard Shortcuts")
@@ -93,7 +87,7 @@ class HelpPanel(QWidget):
         kb_sep.setStyleSheet(f"color: {sep}; margin: 4px 0;")
         layout.addWidget(kb_sep)
         
-        for key, desc in kb:
+        for key, desc in IMAGE_KB:
             layout.addLayout(self._row(key, desc, kb_bg, kb_text, 60, text))
         
         # Mouse section
@@ -108,7 +102,7 @@ class HelpPanel(QWidget):
         mouse_sep.setStyleSheet(f"color: {sep}; margin: 4px 0;")
         layout.addWidget(mouse_sep)
         
-        for action, desc in mouse:
+        for action, desc in IMAGE_MOUSE:
             layout.addLayout(self._row(action, desc, mouse_bg, mouse_text, 110, text))
         
         # Footer
@@ -151,27 +145,6 @@ class HelpPanel(QWidget):
         else:
             super().keyPressEvent(event)
 
-
-VIDEO_KB = [
-    ("Space", "Play / Pause"),
-    ("F", "Toggle Fullscreen"),
-    ("M", "Mute / Unmute"),
-    ("J", "Seek backward 10s"),
-    ("L", "Seek forward 10s"),
-    ("Q", "Close video"),
-    ("Esc", "Exit fullscreen / Close"),
-    ("F1", "Show / Hide this help"),
-]
-
-VIDEO_MOUSE = [
-    ("Click video", "Play / Pause"),
-    ("Double-click", "Toggle Fullscreen"),
-    ("Wheel on video", "Seek ±5 seconds"),
-    ("Wheel on progress", "Seek ±5 seconds"),
-    ("Wheel on volume", "Adjust volume ±5%"),
-    ("Hover volume", "Show volume slider"),
-    ("Right click", "Close video"),
-]
 
 IMAGE_KB = [
     ("Esc/Space/Q", "Close image"),
