@@ -3,6 +3,7 @@ import re
 import subprocess
 import platform
 import shutil
+import time
 from pathlib import Path
 
 from PyQt6.QtWidgets import QWidget, QMessageBox
@@ -143,17 +144,23 @@ class VideoPlayer(QWidget):
 
     def _close_previous_mpv(self):
         """Close previous mpv instance if running"""
-        if self.mpv_process is not None:
-            try:
+        if not self.mpv_process or self.mpv_process.poll() is not None:
+            return
+        
+        try:
+            if platform.system() == 'Windows':
+                subprocess.run(['taskkill', '/F', '/T', '/PID', str(self.mpv_process.pid)],
+                            capture_output=True, timeout=2)
+            else:
                 self.mpv_process.terminate()
-                try:
-                    self.mpv_process.wait(timeout=0.5)
-                except subprocess.TimeoutExpired:
-                    self.mpv_process.kill()
+                self.mpv_process.wait(timeout=1.0)
+        except (subprocess.TimeoutExpired, Exception):
+            try:
+                self.mpv_process.kill()
             except Exception:
                 pass
-            finally:
-                self.mpv_process = None
+        finally:
+            self.mpv_process = None
 
     def show_video(self, url: str, cursor_pos: QPoint = None):
         """Launch mpv player with the video URL"""
@@ -188,22 +195,14 @@ class VideoPlayer(QWidget):
         try:
             mpv_cmd = self._build_mpv_command(url)
             
-            # Launch mpv as detached process
-            if platform.system() == 'Windows':
-                self.mpv_process = subprocess.Popen(
-                    mpv_cmd,
-                    creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.DETACHED_PROCESS,
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL
-                )
-            else:
-                # Unix-like: use start_new_session
-                self.mpv_process = subprocess.Popen(
-                    mpv_cmd,
-                    start_new_session=True,
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL
-                )
+            # Launch mpv WITHOUT detachment flags so it can grab focus
+            # Redirect stdio to prevent console output
+            self.mpv_process = subprocess.Popen(
+                mpv_cmd,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                stdin=subprocess.DEVNULL
+            )
             
             # Stop spinner after brief delay (mpv is launching)
             QTimer.singleShot(1000, self._stop_loading)
