@@ -228,9 +228,7 @@ class VideoPlayer(QWidget):
         # Basic options for good playback
         cmd.extend([
             '--force-window=yes',
-            '--keep-open=yes',
-            '--geometry=960x720',
-            '--autofit-larger=90%x90%',
+            '--ontop',
         ])
         
         # Add the URL
