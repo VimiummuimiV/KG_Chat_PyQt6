@@ -4,8 +4,8 @@ from PyQt6.QtWidgets import(
     QListView, QCalendarWidget, QLineEdit,
     QStackedWidget, QFileDialog, QMessageBox, QApplication
 )
-from PyQt6.QtCore import Qt, QDate, QTimer, pyqtSignal
-from PyQt6.QtGui import QFont
+from PyQt6.QtCore import Qt, QDate, QTimer, pyqtSignal, QEvent
+from PyQt6.QtGui import QFont, QShortcut, QKeySequence
 from datetime import datetime, timedelta
 import threading
 from pathlib import Path
@@ -77,6 +77,17 @@ class ChatlogWidget(QWidget):
         self.parser_worker = None
         self.parser_visible = False
         self.parser_cancelled = False
+        
+        # Debounce timer for navigation
+        self.load_timer = QTimer()
+        self.load_timer.setSingleShot(True)
+        self.load_timer.timeout.connect(self.load_current_date)
+        
+        # Repeat timer for holding mouse buttons
+        self.repeat_timer = QTimer()
+        self.repeat_timer.setInterval(100)  # Repeat every 100ms
+        self.repeat_direction = None
+        self.repeat_timer.timeout.connect(self._on_repeat_timer)
 
         self._setup_ui()
     
@@ -147,6 +158,29 @@ class ChatlogWidget(QWidget):
             highlight_delay=250
         ))
 
+    def _on_repeat_timer(self):
+        """Handle repeated navigation when mouse button is held"""
+        if self.repeat_direction is not None:
+            self._navigate(self.repeat_direction)
+    
+    def eventFilter(self, obj, event):
+        """Filter mouse button events for navigation"""
+        if not self.parser_visible:
+            if event.type() == QEvent.Type.MouseButtonPress:
+                direction = {Qt.MouseButton.BackButton: -1, Qt.MouseButton.ForwardButton: 1}.get(event.button())
+                if direction:
+                    self._navigate(direction)
+                    self.repeat_direction = direction
+                    self.repeat_timer.start()
+                    return True
+            elif event.type() == QEvent.Type.MouseButtonRelease:
+                if event.button() in (Qt.MouseButton.BackButton, Qt.MouseButton.ForwardButton):
+                    self.repeat_timer.stop()
+                    self.repeat_direction = None
+                    return True
+        
+        return super().eventFilter(obj, event)
+
     def _setup_ui(self):
         margin = self.config.get("ui", "margins", "widget") or 5
         spacing = self.config.get("ui", "spacing", "widget_elements") or 6
@@ -201,12 +235,12 @@ class ChatlogWidget(QWidget):
 
         self.prev_btn = create_icon_button(self.icons_path, "arrow-left.svg", "Previous day",
                                           size_type="large", config=self.config)
-        self.prev_btn.clicked.connect(self._go_previous_day)
+        self.prev_btn.clicked.connect(lambda: self._navigate(-1))
         self.nav_buttons_layout.addWidget(self.prev_btn)
 
         self.next_btn = create_icon_button(self.icons_path, "arrow-right.svg", "Next day",
                                           size_type="large", config=self.config)
-        self.next_btn.clicked.connect(self._go_next_day)
+        self.next_btn.clicked.connect(lambda: self._navigate(1))
         self.nav_buttons_layout.addWidget(self.next_btn)
 
         self.calendar_btn = create_icon_button(self.icons_path, "calendar.svg", "Select date",
@@ -299,6 +333,13 @@ class ChatlogWidget(QWidget):
 
         self._update_date_display()
         self._error_occurred.connect(self._handle_error)
+        
+        # Setup keyboard shortcuts and event filter
+        for key, direction in [(Qt.Key.Key_Left, -1), (Qt.Key.Key_Right, 1)]:
+            QShortcut(QKeySequence(key), self, lambda d=direction: not self.parser_visible and self._navigate(d))
+        
+        self.installEventFilter(self)
+        self.list_view.viewport().installEventFilter(self)
 
     def _on_copy_results(self):
         """Copy parsed results to clipboard"""
@@ -887,17 +928,14 @@ class ChatlogWidget(QWidget):
         except Exception as e:
             self.info_label.setText(f"❌ Display error: {e}")
 
-    def _go_previous_day(self):
-        if self.current_date > self.parser.MIN_DATE:
-            self.current_date -= timedelta(days=1)
+    def _navigate(self, days):
+        """Navigate by days offset (-1 for previous, +1 for next)"""
+        new_date = self.current_date + timedelta(days=days)
+        if self.parser.MIN_DATE <= new_date <= datetime.now().date():
+            self.current_date = new_date
             self._update_date_display()
-            self.load_current_date()
-
-    def _go_next_day(self):
-        if self.current_date < datetime.now().date():
-            self.current_date += timedelta(days=1)
-            self._update_date_display()
-            self.load_current_date()
+            self.load_timer.stop()
+            self.load_timer.start(300)
 
     def _show_calendar(self):
         calendar = QCalendarWidget()
