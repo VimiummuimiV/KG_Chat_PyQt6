@@ -10,7 +10,6 @@ from .accounts import AccountManager
 from .userlist import UserList
 from .messages import MessageParser
 
-
 class XMPPClient:
     """XMPP BOSH Client"""
    

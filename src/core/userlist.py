@@ -3,7 +3,6 @@ from typing import Dict, List, Optional
 from dataclasses import dataclass
 from datetime import datetime
 
-
 @dataclass
 class ChatUser:
     """Chat user"""
@@ -22,9 +21,6 @@ class ChatUser:
         if self.last_seen is None:
             self.last_seen = datetime.now()
     
-
-
-
 class UserList:
     """Manage chat users"""
     
