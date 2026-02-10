@@ -88,6 +88,12 @@ class ChatlogWidget(QWidget):
         self.repeat_timer.setInterval(100)  # Repeat every 100ms
         self.repeat_direction = None
         self.repeat_timer.timeout.connect(self._on_repeat_timer)
+        
+        # Delay timer before repeat starts
+        self.repeat_delay_timer = QTimer()
+        self.repeat_delay_timer.setSingleShot(True)
+        self.repeat_delay_timer.setInterval(400)  # 400ms delay before repeat starts
+        self.repeat_delay_timer.timeout.connect(self.repeat_timer.start)
 
         self._setup_ui()
     
@@ -159,9 +165,20 @@ class ChatlogWidget(QWidget):
         ))
 
     def _on_repeat_timer(self):
-        """Handle repeated navigation when mouse button is held"""
+        """Handle repeated navigation when button/mouse is held"""
         if self.repeat_direction is not None:
             self._navigate(self.repeat_direction)
+    
+    def _navigate_hold(self, direction=None):
+        """Start/stop hold navigation (None to stop, -1/1 to start)"""
+        if direction is None:
+            self.repeat_delay_timer.stop()
+            self.repeat_timer.stop()
+            self.repeat_direction = None
+        else:
+            self._navigate(direction)
+            self.repeat_direction = direction
+            self.repeat_delay_timer.start()  # Start delay before repeating
     
     def eventFilter(self, obj, event):
         """Filter mouse button events for navigation"""
@@ -169,14 +186,11 @@ class ChatlogWidget(QWidget):
             if event.type() == QEvent.Type.MouseButtonPress:
                 direction = {Qt.MouseButton.BackButton: -1, Qt.MouseButton.ForwardButton: 1}.get(event.button())
                 if direction:
-                    self._navigate(direction)
-                    self.repeat_direction = direction
-                    self.repeat_timer.start()
+                    self._navigate_hold(direction)
                     return True
             elif event.type() == QEvent.Type.MouseButtonRelease:
                 if event.button() in (Qt.MouseButton.BackButton, Qt.MouseButton.ForwardButton):
-                    self.repeat_timer.stop()
-                    self.repeat_direction = None
+                    self._navigate_hold()
                     return True
         
         return super().eventFilter(obj, event)
@@ -235,12 +249,14 @@ class ChatlogWidget(QWidget):
 
         self.prev_btn = create_icon_button(self.icons_path, "arrow-left.svg", "Previous day",
                                           size_type="large", config=self.config)
-        self.prev_btn.clicked.connect(lambda: self._navigate(-1))
+        self.prev_btn.pressed.connect(lambda: self._navigate_hold(-1))
+        self.prev_btn.released.connect(lambda: self._navigate_hold())
         self.nav_buttons_layout.addWidget(self.prev_btn)
 
         self.next_btn = create_icon_button(self.icons_path, "arrow-right.svg", "Next day",
                                           size_type="large", config=self.config)
-        self.next_btn.clicked.connect(lambda: self._navigate(1))
+        self.next_btn.pressed.connect(lambda: self._navigate_hold(1))
+        self.next_btn.released.connect(lambda: self._navigate_hold())
         self.nav_buttons_layout.addWidget(self.next_btn)
 
         self.calendar_btn = create_icon_button(self.icons_path, "calendar.svg", "Select date",
