@@ -150,7 +150,7 @@ class VideoPlayer(QWidget):
         try:
             if platform.system() == 'Windows':
                 subprocess.run(['taskkill', '/F', '/T', '/PID', str(self.mpv_process.pid)],
-                            capture_output=True, timeout=2)
+                              capture_output=True, timeout=2)
             else:
                 self.mpv_process.terminate()
                 self.mpv_process.wait(timeout=1.0)
@@ -195,14 +195,16 @@ class VideoPlayer(QWidget):
         try:
             mpv_cmd = self._build_mpv_command(url)
             
-            # Launch mpv WITHOUT detachment flags so it can grab focus
-            # Redirect stdio to prevent console output
-            self.mpv_process = subprocess.Popen(
-                mpv_cmd,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                stdin=subprocess.DEVNULL
-            )
+            # On Windows, prevent console window
+            kwargs = {
+                'stdout': subprocess.DEVNULL,
+                'stderr': subprocess.DEVNULL,
+                'stdin': subprocess.DEVNULL
+            }
+            if platform.system() == 'Windows':
+                kwargs['creationflags'] = subprocess.CREATE_NO_WINDOW
+            
+            self.mpv_process = subprocess.Popen(mpv_cmd, **kwargs)
             
             # Stop spinner after brief delay (mpv is launching)
             QTimer.singleShot(1000, self._stop_loading)
@@ -226,8 +228,9 @@ class VideoPlayer(QWidget):
         
         # Basic options for good playback
         cmd.extend([
+            '--no-terminal',
             '--force-window=yes',
-            '--ontop',
+            # '--ontop',
         ])
         
         # Add the URL
