@@ -510,6 +510,9 @@ class ChatWindow(QWidget):
         except Exception:
             pass
 
+        # Set focus policy to ensure we receive key events
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+
         # Position will be set in showEvent
         QTimer.singleShot(50, self._position_emoticon_selector)
      
@@ -572,7 +575,21 @@ class ChatWindow(QWidget):
         return width, height, x, y
 
     def eventFilter(self, obj, event):
-        """Event filter to handle clicks outside emoticon selector"""
+        # Handle Tab key for view switching
+        if event.type() == QEvent.Type.KeyPress and event.key() == Qt.Key.Key_Tab:
+            current_view = self.stacked_widget.currentWidget()
+            
+            if current_view == self.messages_widget:
+                self.show_chatlog_view()
+            elif current_view == self.chatlog_widget:
+                self.show_messages_view()
+            else:
+                # From any other view, go to messages
+                self.show_messages_view()
+            
+            return True  # Event handled
+        
+        # Handle clicks outside emoticon selector
         if event.type() == QEvent.Type.MouseButtonPress:
             if hasattr(self, 'emoticon_selector') and self.emoticon_selector.isVisible():
                 try:
@@ -590,6 +607,7 @@ class ChatWindow(QWidget):
                         self.config.set("ui", "emoticon_selector_visible", value=False)
                 except Exception:
                     pass
+        
         return super().eventFilter(obj, event)
 
     def showEvent(self, event):
