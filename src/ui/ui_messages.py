@@ -58,8 +58,9 @@ class MessagesWidget(QWidget):
         self.delegate.set_input_field(input_field)
     
     def _on_message_clicked(self, row: int):
-        """Handle message click - scroll to middle"""
+        """Handle message click - scroll to middle with highlight"""
         scroll(self.list_view, mode="middle", target_row=row, delay=100)
+        QTimer.singleShot(250, lambda: self.delegate.highlight_row(row))
    
     def _handle_username_click(self, username: str, is_double_click: bool):
         if not self.input_field:

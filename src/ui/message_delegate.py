@@ -76,13 +76,20 @@ class MessageDelegate(QStyledItemDelegate):
         self.click_rects: Dict[int, Dict] = {}
         self.input_field = None
      
-        # Animation support
+        # Animation support for GIF emoticons
         self.list_view = None
         self.animated_rows = set()
         self.animation_frames = {}
         self.animation_timer = QTimer()
         self.animation_timer.timeout.connect(self._update_animations)
         self.animation_timer.start(33) # 30 FPS
+
+        # Highlight support for clicked messages
+        self.highlighted_row = None
+        self.highlight_opacity = 0.0
+        self.highlight_timer = QTimer()
+        self.highlight_timer.timeout.connect(self.highlight_row)
+        self.highlight_timer.setInterval(50) # 20 FPS
       
         # YouTube support
         self.youtube_enabled = config.get("ui", "youtube", "enabled") or True
@@ -386,6 +393,12 @@ class MessageDelegate(QStyledItemDelegate):
   
         painter.save()
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        # Draw highlight overlay if this row is highlighted
+        if row == self.highlighted_row and self.highlight_opacity > 0:
+            highlight_color = QColor("#4DA6FF" if self.is_dark_theme else "#0066CC")
+            highlight_color.setAlphaF(self.highlight_opacity * 0.15)
+            painter.fillRect(option.rect, highlight_color)
   
         self._paint_message(painter, option.rect, msg, row, self.compact_mode)
   
@@ -840,3 +853,25 @@ class MessageDelegate(QStyledItemDelegate):
         end_row = end_row_base + 3
      
         return set(range(start_row, end_row + 1))
+
+    def highlight_row(self, row: int = None):
+        """Highlight a row with fade-out effect (also handles fade animation)"""
+        
+        if row is not None:
+            # Starting NEW highlight
+            self.highlighted_row = row
+            self.highlight_opacity = 1.0
+            if not self.highlight_timer.isActive():
+                self.highlight_timer.start()
+        else:
+            # Timer callback - continue FADING
+            self.highlight_opacity -= 0.05
+            if self.highlight_opacity <= 0:
+                self.highlight_opacity = 0.0
+                self.highlighted_row = None
+                self.highlight_timer.stop()
+        
+        # Repaint the highlighted row
+        if self.highlighted_row is not None and self.list_view and self.list_view.model():
+            index = self.list_view.model().index(self.highlighted_row, 0)
+            self.list_view.viewport().update(self.list_view.visualRect(index))

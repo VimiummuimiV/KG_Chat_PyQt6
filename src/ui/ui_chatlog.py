@@ -96,22 +96,35 @@ class ChatlogWidget(QWidget):
         if account and account.get('chat_username'):
             self.delegate.set_my_username(account.get('chat_username'))
 
+    def _scroll_and_highlight(self, target_row: int, scroll_delay: int = 50, highlight_delay: int = 200):
+        """Scroll to target row and highlight it after a delay."""
+        scroll(self.list_view, mode="middle", target_row=target_row, delay=scroll_delay)
+        QTimer.singleShot(highlight_delay, lambda: self.delegate.highlight_row(target_row))
+
     def _on_message_clicked(self, row: int):
         """Handle message click - reveal all messages and scroll to clicked message"""
+        
+        # No active filters → simple direct scroll + highlight
         if not (self.filtered_usernames or self.search_text or self.filter_mentions):
-            scroll(self.list_view, mode="middle", target_row=row, delay=50)
+            self._scroll_and_highlight(row, scroll_delay=50, highlight_delay=200)
             return
-    
-        # Get clicked message and find it in all_messages
+
+        # Filters are active → clear them and find message in full list
         clicked_msg = self.model.data(self.model.index(row, 0), Qt.ItemDataRole.DisplayRole)
         if not clicked_msg:
             return
-    
+
+        # Find corresponding row in unfiltered messages
         target_row = next((i for i, msg in enumerate(self.all_messages)
-                        if not msg.is_separator and msg.username == clicked_msg.username
-                        and msg.body == clicked_msg.body and msg.timestamp == clicked_msg.timestamp), None)
-    
-        # Clear filters and rebuild (reuse existing _apply_filter logic)
+                        if not msg.is_separator 
+                        and msg.username == clicked_msg.username
+                        and msg.body == clicked_msg.body 
+                        and msg.timestamp == clicked_msg.timestamp), None)
+
+        if target_row is None:
+            return
+
+        # Clear filters
         self.filtered_usernames = set()
         self.search_text = ""
         self.search_field.clear()
@@ -123,12 +136,16 @@ class ChatlogWidget(QWidget):
             self.mention_filter_btn._icon_name = icon_name
             icon = _render_svg_icon(self.mention_filter_btn._icon_path / icon_name, self.mention_filter_btn._icon_size)
             self.mention_filter_btn.setIcon(icon)
-    
+
         self._apply_filter()
         self.filter_changed.emit(self.filtered_usernames)
-    
-        if target_row is not None:
-            QTimer.singleShot(100, lambda: scroll(self.list_view, mode="middle", target_row=target_row, delay=100))
+
+        # Scroll + highlight after the list has rebuilt
+        QTimer.singleShot(100, lambda: self._scroll_and_highlight(
+            target_row,
+            scroll_delay=100,
+            highlight_delay=250
+        ))
 
     def _setup_ui(self):
         margin = self.config.get("ui", "margins", "widget") or 5
