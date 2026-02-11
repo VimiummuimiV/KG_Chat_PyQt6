@@ -5,6 +5,7 @@ import base64
 import random
 from pathlib import Path
 from typing import Optional, Callable
+from datetime import datetime
 
 from .accounts import AccountManager
 from .userlist import UserList
@@ -186,10 +187,24 @@ class XMPPClient:
             return True
            
         except requests.Timeout:
-            print("❌ Connection timeout")
+            # Log timeout only once per minute to avoid spamming
+            if not hasattr(self, '_last_log') or (datetime.now() - self._last_log).seconds > 60:
+                print("❌ Connection timeout")
+                self._last_log = datetime.now()
             return False
+            
         except Exception as e:
-            print(f"❌ Connection error: {e}")
+            # Log other errors only if they are different from the last one or if it's been more than a minute
+            error_str = str(e)
+            should_log = (
+                not hasattr(self, '_last_error') or 
+                self._last_error != error_str or 
+                (datetime.now() - self._last_log).seconds > 60
+            )
+            if should_log:
+                print(f"❌ Connection error: {error_str}")
+                self._last_log = datetime.now()
+                self._last_error = error_str
             return False
    
     def join_room(self, room_jid, nickname=None):

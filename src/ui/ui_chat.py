@@ -76,6 +76,8 @@ class ChatWindow(QWidget):
         # Simple connection state tracking
         self.is_connecting = False # True when attempting to connect
         self.allow_reconnect = True # Disable when switching accounts
+        self.reconnect_count = 0 # Incremented each time a reconnect attempt is made
+        self.reconnect_timer = None # Timer for delayed reconnect attempts
 
         # Private messaging state
         self.private_mode = False
@@ -452,22 +454,26 @@ class ChatWindow(QWidget):
         # Create button panel (right side, vertical scrollable)
         # Add to content_wrapper so it's always on the right
         self.button_panel = ButtonPanel(self.config, self.icons_path, self.theme_manager)
+
         self.button_panel.toggle_userlist_requested.connect(self.toggle_user_list)
-        self.button_panel.toggle_theme_requested.connect(self.toggle_theme)
         self.button_panel.switch_account_requested.connect(self._on_switch_account)
+        self.button_panel.show_banlist_requested.connect(self.show_ban_list_view)
         self.button_panel.toggle_voice_requested.connect(self.on_toggle_voice_sound)
         self.button_panel.pronunciation_requested.connect(self.show_pronunciation_view)
-        self.button_panel.show_banlist_requested.connect(self.show_ban_list_view)
-        self.button_panel.exit_requested.connect(self.on_exit_requested)
         self.button_panel.toggle_effects_requested.connect(self.on_toggle_effects_sound)
         self.button_panel.toggle_notification_requested.connect(self.on_toggle_notification)
-        self.button_panel.toggle_always_on_top_requested.connect(self.on_toggle_always_on_top)
+
         # Color management connections (change / reset / update-from-server)
         self.button_panel.change_color_requested.connect(self.on_change_username_color)
         self.button_panel.reset_color_requested.connect(self.on_reset_username_color)
         self.button_panel.update_color_requested.connect(self.on_update_username_color)
-        # Window size reset connection
+
+        self.button_panel.toggle_theme_requested.connect(self.toggle_theme)
         self.button_panel.reset_window_size_requested.connect(self.reset_window_size)
+        self.button_panel.toggle_always_on_top_requested.connect(self.on_toggle_always_on_top)
+        self.button_panel.exit_requested.connect(self.on_exit_requested)
+        self.button_panel.reconnect_requested.connect(self.manual_reconnect)
+
         content_wrapper.addWidget(self.button_panel, stretch=0)
 
         # Initialize voice, mention and notification button states
@@ -1495,26 +1501,64 @@ class ChatWindow(QWidget):
         else:
             self.setWindowTitle(f"{base} - {text}")
         
-        # AUTO-RECONNECT: If connection went offline, immediately attempt to reconnect
-        if status == 'offline':
-            # If we're in the middle of a real application shutdown, never auto-reconnect
+        # Reset on success
+        if status == 'online':
+            self.reconnect_count = 0
+            if hasattr(self, 'button_panel') and hasattr(self.button_panel, 'reconnect_button'):
+                self.button_panel.reconnect_button.setVisible(False)
+        
+        # Only trigger auto-reconnect on offline status, not on connecting (which is set during auto-reconnect attempts)
+        elif status == 'offline':
             if getattr(self, 'really_close', False):
                 return
+            
+            # Show manual reconnect button immediately
+            if hasattr(self, 'button_panel') and hasattr(self.button_panel, 'reconnect_button'):
+                self.button_panel.reconnect_button.setVisible(True)
+            
             if self.allow_reconnect and not self.is_connecting and self.account:
                 print("🔄 Connection lost - initiating auto-reconnect...")
                 QTimer.singleShot(100, self._auto_reconnect)
 
     def _auto_reconnect(self):
-        """Automatic reconnection after connection loss"""
-        # Double-check conditions before reconnecting
-        if (self.allow_reconnect and 
-            not self.is_connecting and 
-            not self._is_connected() and 
-            self.account):
-            
-            print("🔌 Auto-reconnecting...")
-            self.set_connection_status('connecting')
+        """Auto-reconnect with exponential backoff (max 10 attempts)"""
+        if not self.allow_reconnect or self.is_connecting or self._is_connected() or not self.account:
+            return
+        
+        # Max 10 attempts
+        if self.reconnect_count >= 10:
+            print(f"❌ Max reconnection attempts (10) reached")
+            return  # Button already visible
+        
+        self.reconnect_count += 1
+        delay = min(2 ** (self.reconnect_count - 1), 60)
+        
+        print(f"🔄 Auto-reconnect attempt {self.reconnect_count}/10 in {delay}s...")
+        
+        # Store timer so we can cancel it if user manually reconnects or app closes
+        self.reconnect_timer = QTimer.singleShot(delay * 1000, lambda: (
+            self.set_connection_status('connecting'),
             self.connect_xmpp()
+        ) if self.allow_reconnect and not self.is_connecting else None)
+
+    def manual_reconnect(self):
+        """Manual reconnect - cancels auto-reconnect and resets counter"""
+        # Cancel pending auto-reconnect timer
+        if self.reconnect_timer is not None:
+            try:
+                self.reconnect_timer.stop()
+            except:
+                pass
+            self.reconnect_timer = None
+        
+        self.reconnect_count = 0
+
+        if hasattr(self, 'button_panel') and hasattr(self.button_panel, 'reconnect_button'):
+            self.button_panel.reconnect_button.setVisible(False)
+        
+        print("🔄 Manual reconnection (auto-reconnect cancelled)...")
+        self.set_connection_status('connecting')
+        self.connect_xmpp()
 
     def toggle_user_list(self):
         """Toggle userlist based on current view with proper recalculation"""

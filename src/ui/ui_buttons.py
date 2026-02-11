@@ -16,20 +16,23 @@ class ButtonPanel(QWidget):
     
     # Signals for button actions
     toggle_userlist_requested = pyqtSignal()
-    toggle_theme_requested = pyqtSignal()
     switch_account_requested = pyqtSignal()
+    show_banlist_requested = pyqtSignal()
     toggle_voice_requested = pyqtSignal()
     pronunciation_requested = pyqtSignal()
-    show_banlist_requested = pyqtSignal()
-    exit_requested = pyqtSignal()
     toggle_effects_requested = pyqtSignal()
     toggle_notification_requested = pyqtSignal()
-    toggle_always_on_top_requested = pyqtSignal()
-    reset_window_size_requested = pyqtSignal()
+
     # Color management (change / reset / update from server)
     change_color_requested = pyqtSignal()
     reset_color_requested = pyqtSignal()
     update_color_requested = pyqtSignal()
+
+    toggle_theme_requested = pyqtSignal()
+    reset_window_size_requested = pyqtSignal()
+    toggle_always_on_top_requested = pyqtSignal()
+    exit_requested = pyqtSignal()
+    reconnect_requested = pyqtSignal()
     
     def __init__(self, config: Config, icons_path: Path, theme_manager):
         super().__init__()
@@ -239,6 +242,14 @@ class ButtonPanel(QWidget):
             "Exit Application",
             lambda: self.exit_requested.emit()
         )
+
+        # Manual reconnect button (hidden by default, shown when auto-reconnect fails)
+        self.reconnect_button = self._create_button(
+            "reload.svg",
+            "Reconnect to Chat",
+            lambda: self.reconnect_requested.emit()
+        )
+        self.reconnect_button.setVisible(False)
     
     def set_button_state(self, button, is_active: bool):
         """Set visual state for any button without disabling it"""
