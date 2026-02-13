@@ -32,6 +32,7 @@ class WindowPresetsDialog(QDialog):
         
         # Preset list
         self.preset_list = QListWidget()
+        self.preset_list.setSelectionMode(QListWidget.SelectionMode.ExtendedSelection)
         self.preset_list.itemDoubleClicked.connect(self._load_selected_preset)
         self.preset_list.itemSelectionChanged.connect(self._update_button_states)
         layout.addWidget(self.preset_list)
@@ -87,9 +88,13 @@ class WindowPresetsDialog(QDialog):
     
     def _update_button_states(self):
         """Update load/delete button states based on selection"""
-        has_selection = self.preset_list.currentRow() >= 0
-        self.load_button.setEnabled(has_selection)
-        self.delete_button.setEnabled(has_selection)
+        selected_count = len(self.preset_list.selectedItems())
+        
+        # Load button: only enabled for single selection
+        self.load_button.setEnabled(selected_count == 1)
+        
+        # Delete button: enabled for one or more selections
+        self.delete_button.setEnabled(selected_count > 0)
     
     def _save_current_preset(self):
         """Save current window geometry as a new preset"""
@@ -177,21 +182,31 @@ class WindowPresetsDialog(QDialog):
             self.accept()
     
     def _delete_selected_preset(self):
-        """Delete the selected preset"""
-        current_item = self.preset_list.currentItem()
-        if not current_item:
+        """Delete the selected preset(s)"""
+        selected_items = self.preset_list.selectedItems()
+        if not selected_items:
             return
         
-        preset = current_item.data(Qt.ItemDataRole.UserRole)
-        if not preset:
+        # Get all selected preset names
+        presets_to_delete = []
+        for item in selected_items:
+            preset = item.data(Qt.ItemDataRole.UserRole)
+            if preset:
+                presets_to_delete.append(preset.get("name", "Unnamed"))
+        
+        if not presets_to_delete:
             return
         
-        name = preset.get("name", "Unnamed")
+        # Confirmation message
+        if len(presets_to_delete) == 1:
+            message = f"Delete preset '{presets_to_delete[0]}'?"
+        else:
+            message = f"Delete {len(presets_to_delete)} selected presets?"
         
         reply = QMessageBox.question(
             self,
-            "Delete Preset",
-            f"Delete preset '{name}'?",
+            "Delete Preset" if len(presets_to_delete) == 1 else "Delete Presets",
+            message,
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
         )
         
@@ -200,7 +215,7 @@ class WindowPresetsDialog(QDialog):
         
         # Remove from config
         presets = self.config.get("ui", "window_presets") or []
-        presets = [p for p in presets if p.get("name") != name]
+        presets = [p for p in presets if p.get("name") not in presets_to_delete]
         self.config.set("ui", "window_presets", value=presets)
         
         # Reload list
