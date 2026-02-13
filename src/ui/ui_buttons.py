@@ -30,6 +30,7 @@ class ButtonPanel(QWidget):
 
     toggle_theme_requested = pyqtSignal()
     reset_window_size_requested = pyqtSignal()
+    show_window_presets_requested = pyqtSignal()
     toggle_always_on_top_requested = pyqtSignal()
     exit_requested = pyqtSignal()
     reconnect_requested = pyqtSignal()
@@ -223,9 +224,11 @@ class ButtonPanel(QWidget):
         # Reset window size button
         self.reset_size_button = self._create_button(
             "aspect-ratio.svg",
-            "Reset Window Size and Position to Default",
+            "Reset Window Size and Position to Default (Right-click for Presets)",
             lambda: self.reset_window_size_requested.emit()
         )
+        # Install event filter for RMB click (presets)
+        self.reset_size_button.installEventFilter(self)
         
         # Always on top button
         pin_icon = self._get_pin_icon()
@@ -344,6 +347,12 @@ class ButtonPanel(QWidget):
     
     def eventFilter(self, obj, event):
         """Handle mouse wheel, drag scrolling and specialized button clicks"""
+        # Handle reset_size_button RMB click -> open presets dialog
+        if obj == self.reset_size_button and event.type() == QEvent.Type.MouseButtonPress:
+            if event.button() == Qt.MouseButton.RightButton:
+                self.show_window_presets_requested.emit()
+                return True
+        
         # Handle color button special clicks (Ctrl+Click / Shift+Click)
         if obj == self.color_button and event.type() == QEvent.Type.MouseButtonPress:
             if event.button() == Qt.MouseButton.LeftButton:

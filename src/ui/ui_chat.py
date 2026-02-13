@@ -26,6 +26,7 @@ from helpers.fonts import get_font, FontType
 from helpers.voice_engine import get_voice_engine, play_sound
 from helpers.me_action import format_me_action
 from helpers.window_size_manager import WindowSizeManager
+from helpers.window_presets_dialog import WindowPresetsDialog
 from themes.theme import ThemeManager
 from core.xmpp import XMPPClient
 from core.messages import Message
@@ -474,6 +475,7 @@ class ChatWindow(QWidget):
 
         self.button_panel.toggle_theme_requested.connect(self.toggle_theme)
         self.button_panel.reset_window_size_requested.connect(self.reset_window_size)
+        self.button_panel.show_window_presets_requested.connect(self.show_window_presets)
         self.button_panel.toggle_always_on_top_requested.connect(self.on_toggle_always_on_top)
         self.button_panel.exit_requested.connect(self.on_exit_requested)
         self.button_panel.reconnect_requested.connect(self.manual_reconnect)
@@ -1050,6 +1052,11 @@ class ChatWindow(QWidget):
         
         # Update button state immediately
         self.update_reset_size_button_state()
+    
+    def show_window_presets(self):
+        """Show window presets dialog"""
+        dialog = WindowPresetsDialog(self.config, self, parent=self)
+        dialog.exec()
     
     def update_reset_size_button_state(self):
         """Update reset size button state based on whether geometry is customized"""

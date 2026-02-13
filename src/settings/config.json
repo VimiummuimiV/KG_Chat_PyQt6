@@ -102,7 +102,30 @@
       "height": null,
       "x": null,
       "y": null
-    }
+    },
+    "window_presets": [
+      {
+        "name": "Preset 1",
+        "width": 1792,
+        "height": 1368,
+        "x": 384,
+        "y": 0
+      },
+      {
+        "name": "Preset 2",
+        "width": 1792,
+        "height": 786,
+        "x": 384,
+        "y": 582
+      },
+      {
+        "name": "Preset 3",
+        "width": 1792,
+        "height": 786,
+        "x": 91,
+        "y": 125
+      }
+    ]
   },
   "sound": {
     "tts_enabled": false,
