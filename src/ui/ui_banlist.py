@@ -1,86 +1,97 @@
 """Ban List Management UI Widget"""
 from pathlib import Path
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
-    QLineEdit, QScrollArea, QGridLayout, QMessageBox
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, 
+    QScrollArea, QGridLayout, QMessageBox, QPushButton
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QTimer
-from PyQt6.QtGui import QFont, QPixmap, QPainter
 from PyQt6.QtSvg import QSvgRenderer
+from PyQt6.QtGui import QPixmap, QPainter
+import time
 
 from helpers.create import create_icon_button
 from helpers.fonts import get_font, FontType
 from helpers.ban_manager import BanManager
+from helpers.duration_dialog import DurationDialog
 from core.api_data import get_exact_user_id_by_name
 
 
-class BannedUserItemWidget(QWidget):
-    """Single banned user item"""
-    remove_requested = pyqtSignal(object)  # Emits self
+def format_time_remaining(seconds: int) -> str:
+    """Format remaining seconds into compact display"""
+    if seconds <= 0:
+        return "Expired"
+    d, h, m = seconds // 86400, (seconds % 86400) // 3600, (seconds % 3600) // 60
+    if d > 0:
+        return f"{d}d {h}h" if h else f"{d}d"
+    if h > 0:
+        return f"{h}h {m}m" if m else f"{h}h"
+    return f"{m}m" if m else f"{seconds}s"
+
+
+def validate_username_and_get_id(username: str):
+    """Validate username via API and return user_id (or None if not found)"""
+    if not username or not isinstance(username, str):
+        return None
+    username = username.strip()
+    if not username:
+        return None
+    try:
+        user_id = get_exact_user_id_by_name(username)
+        return str(user_id) if user_id else None
+    except Exception:
+        return None
+
+
+class BanItemWidget(QWidget):
+    """Single ban item (shared by both permanent and temporary sections)"""
+    remove_requested = pyqtSignal(object)
+    expired = pyqtSignal(object)  # Signal when temporary ban expires
     
-    def __init__(self, config, icons_path: Path, username: str = "", user_id: str = ""):
+    def __init__(self, config, icons_path: Path, username="", user_id="", expires_at=None, is_temporary=False):
         super().__init__()
         self.config = config
         self.icons_path = icons_path
-        self.username_valid = True  # Track validation state
         self.user_id = user_id
-        self.parent_widget = None  # Will be set by parent
+        self.expires_at = expires_at
+        self.is_temporary = is_temporary
+        self.parent_widget = None
+        self.username_valid = True
         
-        spacing = self.config.get("ui", "spacing", "widget_elements") or 6
-        
-        # Use horizontal layout
+        spacing = config.get("ui", "spacing", "widget_elements") or 6
         layout = QHBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(spacing)
         self.setLayout(layout)
         
-        # Username input
+        # Username
         self.username_input = QLineEdit()
         self.username_input.setPlaceholderText("Username")
         self.username_input.setText(username)
         self.username_input.setFont(get_font(FontType.TEXT))
-        input_height = self.config.get("ui", "input_height") or 48
+        input_height = config.get("ui", "input_height") or 44
         self.username_input.setFixedHeight(input_height)
-        self.username_input.setFixedWidth(250)
-        
-        # Connect to validation on focus out
-        self.username_input.editingFinished.connect(self._validate_username)
-        
+        self.username_input.setFixedWidth(220)
+        self.username_input.editingFinished.connect(self._validate)
         layout.addWidget(self.username_input)
         
-        # Arrow icon label (SVG as QLabel)
+        # Arrow icon
         arrow_label = QLabel()
-        arrow_svg_path = self.icons_path / "arrow-right.svg"
-        if arrow_svg_path.exists():
-            # Get icon size from config
-            icon_size = 30  # Default large icon size
-            btn_cfg = config.get("ui", "buttons")
-            if btn_cfg and isinstance(btn_cfg, dict):
-                large_btn = btn_cfg.get("large_button", {})
-                if isinstance(large_btn, dict):
-                    icon_size = large_btn.get("icon_size", 30)
-            
-            # Render SVG to pixmap with gray color
-            with open(arrow_svg_path, 'r') as f:
-                svg_content = f.read()
-            
-            # Use gray color for arrow (works on both light and dark backgrounds)
-            svg_content = svg_content.replace('fill="currentColor"', 'fill="#888888"')
-            
+        arrow_svg = icons_path / "arrow-right.svg"
+        if arrow_svg.exists():
+            with open(arrow_svg, 'r') as f:
+                svg_content = f.read().replace('fill="currentColor"', 'fill="#888888"')
             renderer = QSvgRenderer()
             renderer.load(svg_content.encode('utf-8'))
-            pixmap = QPixmap(icon_size, icon_size)
+            pixmap = QPixmap(26, 26)
             pixmap.fill(Qt.GlobalColor.transparent)
             painter = QPainter(pixmap)
             renderer.render(painter)
             painter.end()
-            
             arrow_label.setPixmap(pixmap)
-            arrow_label.setFixedSize(icon_size, icon_size)
-
+            arrow_label.setFixedSize(26, 26)
         layout.addWidget(arrow_label)
         
-        # User ID display (read-only)
+        # User ID (read-only)
         self.user_id_input = QLineEdit()
         self.user_id_input.setPlaceholderText("User ID")
         self.user_id_input.setText(user_id)
@@ -91,90 +102,132 @@ class BannedUserItemWidget(QWidget):
         self.user_id_input.setStyleSheet("QLineEdit { background-color: rgba(128, 128, 128, 0.1); }")
         layout.addWidget(self.user_id_input)
         
+        # Duration button (only for temporary section) - clickable to change duration
+        if self.is_temporary:
+            self.duration_button = QPushButton()
+            self.duration_button.setFont(get_font(FontType.TEXT))
+            self.duration_button.setFixedHeight(input_height)
+            self.duration_button.setFixedWidth(110)
+            self.duration_button.setCursor(Qt.CursorShape.PointingHandCursor)
+            self.duration_button.clicked.connect(self._change_duration)
+            self._update_duration_text()
+            layout.addWidget(self.duration_button)
+            
+            # Timer for countdown
+            self.update_timer = QTimer()
+            self.update_timer.timeout.connect(self._update_duration_text)
+            self.update_timer.start(1000)
+        
         # Remove button
         self.remove_button = create_icon_button(
-            self.icons_path, "trash.svg", "Remove", 
-            size_type="large", config=self.config
+            icons_path, "trash.svg", "Remove", 
+            size_type="large", config=config
         )
         self.remove_button.clicked.connect(lambda: self.remove_requested.emit(self))
         layout.addWidget(self.remove_button)
         
-        # Set fixed width for the whole item
-        # 250 + 30 + 125 + 48 + spacing*3
-        total_width = 250 + icon_size + 125 + 48 + (spacing * 3)
+        # Set fixed width
+        if self.is_temporary:
+            total_width = 220 + 26 + 125 + 110 + 48 + (spacing * 4)
+        else:
+            total_width = 220 + 26 + 125 + 48 + (spacing * 3)
         self.setFixedWidth(total_width)
         
-        # If we have a username but no user_id, validate
+        # Validate if username but no ID
         if username and not user_id:
-            self._validate_username()
+            self._validate()
     
-    def _validate_username(self):
-        """Validate username exists using API and fetch user ID"""
+    def _validate(self):
+        """Validate username and fetch ID"""
         username = self.username_input.text().strip()
         
-        # If empty, reset to valid state
         if not username:
             self.username_valid = True
             self.user_id = ""
             self.user_id_input.clear()
             self._update_input_style()
-            # Trigger parent save
             if self.parent_widget:
                 self.parent_widget._save_bans()
             return
         
-        # Check if user exists
-        try:
-            user_id = get_exact_user_id_by_name(username)
-            self.username_valid = (user_id is not None)
-            if self.username_valid:
-                self.user_id = str(user_id)
-                self.user_id_input.setText(self.user_id)
-            else:
-                self.user_id = ""
-                self.user_id_input.clear()
-        except Exception:
-            self.username_valid = False
+        user_id = validate_username_and_get_id(username)
+        self.username_valid = (user_id is not None)
+        if self.username_valid:
+            self.user_id = user_id
+            self.user_id_input.setText(self.user_id)
+        else:
             self.user_id = ""
             self.user_id_input.clear()
         
         self._update_input_style()
         
-        # Trigger parent save after validation
         if self.parent_widget:
             self.parent_widget._save_bans()
     
-    def _update_input_style(self):
-        """Update input styling based on validation state"""
-        if not self.username_valid:
-            # Invalid username - show red border
-            self.username_input.setStyleSheet("""
-                QLineEdit {
-                    border: 2px solid #ff4444;
-                }
-            """)
+    def _update_input_style(self, highlight_empty=False):
+        """Update input styling based on validation"""
+        if highlight_empty and not self.username_input.text().strip():
+            self.username_input.setStyleSheet("QLineEdit { border: 2px solid #ffb84d; }")
+            self.username_input.setToolTip("Fill username before adding new item")
+        elif not self.username_valid:
+            self.username_input.setStyleSheet("QLineEdit { border: 2px solid #ff4444; }")
             self.username_input.setToolTip("User not found")
         else:
-            # Valid or empty - remove custom styling
             self.username_input.setStyleSheet("")
             self.username_input.setToolTip("")
     
+    def _update_duration_text(self):
+        """Update duration button for temporary bans"""
+        if not self.is_temporary or not hasattr(self, 'duration_button'):
+            return
+        
+        if self.expires_at:
+            remaining = max(0, self.expires_at - int(time.time()))
+            if remaining == 0:
+                # Expired - emit signal to remove
+                self.update_timer.stop()
+                self.expired.emit(self)
+            else:
+                self.duration_button.setText(format_time_remaining(remaining))
+    
+    def _change_duration(self):
+        """Show dialog to change duration for temporary ban"""
+        if not self.is_temporary:
+            return
+        
+        current_seconds = 3600  # Default 1 hour
+        if self.expires_at:
+            current_seconds = max(60, self.expires_at - int(time.time()))
+        
+        seconds, ok = DurationDialog.get_duration(self, current_seconds)
+        if ok and seconds > 0:
+            # Update duration
+            self.expires_at = int(time.time()) + seconds
+            self._update_duration_text()
+            if self.parent_widget:
+                self.parent_widget._save_bans()
+    
     def get_values(self):
-        """Get username and user_id values"""
-        return self.username_input.text().strip(), self.user_id
+        """Get username, user_id, and expires_at"""
+        return self.username_input.text().strip(), self.user_id, self.expires_at
     
     def is_empty(self):
-        """Check if both inputs are empty"""
-        username, user_id = self.get_values()
+        """Check if item is empty"""
+        username, user_id, _ = self.get_values()
         return not username and not user_id
     
     def is_valid(self):
-        """Check if username is valid"""
+        """Check if item is valid"""
         return self.username_valid
+    
+    def cleanup(self):
+        """Cleanup timers"""
+        if hasattr(self, 'update_timer'):
+            self.update_timer.stop()
 
 
 class BanListWidget(QWidget):
-    """Widget for managing banned users list"""
+    """Widget for managing banned users with separate permanent/temporary sections"""
     
     back_requested = pyqtSignal()
     
@@ -183,14 +236,44 @@ class BanListWidget(QWidget):
         self.config = config
         self.icons_path = icons_path
         self.ban_manager = ban_manager
-        self.items = []
-        self.current_columns = 1
+        self.perm_items = []  # Permanent ban items
+        self.temp_items = []  # Temporary ban items
         
         self._setup_ui()
         self._load_bans()
     
+    def _create_section(self, title: str, is_temporary: bool):
+        """Helper to create a section (avoid code duplication)"""
+        section = QWidget()
+        section_layout = QVBoxLayout()
+        section_layout.setContentsMargins(4, 4, 4, 4)
+        section_layout.setSpacing(6)
+        section.setLayout(section_layout)
+        
+        # Header with title and add button
+        header = QHBoxLayout()
+        label = QLabel(title)
+        label.setFont(get_font(FontType.HEADER))
+        header.addWidget(label, stretch=1)
+        
+        add_btn = create_icon_button(self.icons_path, "add.svg", f"Add to {title}", config=self.config)
+        add_btn.clicked.connect(lambda: self._add_new_item(is_temporary))
+        header.addWidget(add_btn)
+        section_layout.addLayout(header)
+        
+        # Grid layout for items
+        grid = QGridLayout()
+        grid.setContentsMargins(0, 0, 0, 0)
+        grid.setSpacing(self.config.get("ui", "spacing", "list_items") or 2)
+        grid.setVerticalSpacing((self.config.get("ui", "spacing", "list_items") or 2) * 2)
+        grid.setHorizontalSpacing((self.config.get("ui", "spacing", "list_items") or 2) * 4)
+        grid.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
+        section_layout.addLayout(grid)
+        
+        return section, grid, add_btn
+    
     def _setup_ui(self):
-        """Setup the ban list management UI"""
+        """Setup UI with separate sections"""
         window_margin = self.config.get("ui", "margins", "window") or 10
         window_spacing = self.config.get("ui", "spacing", "window_content") or 10
         
@@ -204,167 +287,222 @@ class BanListWidget(QWidget):
         header_layout.setSpacing(self.config.get("ui", "spacing", "widget_elements") or 6)
         main_layout.addLayout(header_layout)
         
-        # Back button
         self.back_button = create_icon_button(
             self.icons_path, "go-back.svg", "Back to Messages", config=self.config
         )
         self.back_button.clicked.connect(self.back_requested.emit)
         header_layout.addWidget(self.back_button)
         
-        # Title
         title_label = QLabel("Ban List")
         title_label.setFont(get_font(FontType.HEADER))
         header_layout.addWidget(title_label, stretch=1)
         
-        # Clear All button
         self.clear_all_button = create_icon_button(
             self.icons_path, "trash.svg", "Clear All", config=self.config
         )
         self.clear_all_button.clicked.connect(self._clear_all)
         header_layout.addWidget(self.clear_all_button)
         
-        # Add button
-        self.add_button = create_icon_button(
-            self.icons_path, "add.svg", "Add User", config=self.config
-        )
-        self.add_button.clicked.connect(self._add_new_item)
-        header_layout.addWidget(self.add_button)
-        
-        # Scroll area for items
+        # Scroll area
         self.scroll = QScrollArea()
         self.scroll.setWidgetResizable(True)
         self.scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         main_layout.addWidget(self.scroll, stretch=1)
         
-        # Container for items
+        # Container with sections
         self.items_container = QWidget()
+        sections_layout = QVBoxLayout()
+        sections_layout.setContentsMargins(0, 0, 0, 0)
+        sections_layout.setSpacing(self.config.get("ui", "spacing", "list_items") or 6)
+        sections_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        self.items_container.setLayout(sections_layout)
         
-        items_margin = self.config.get("ui", "margins", "widget") or 5
-        items_spacing = self.config.get("ui", "spacing", "list_items") or 2
+        # Create permanent section
+        perm_section, self.perm_layout, _ = self._create_section("Permanent", is_temporary=False)
+        sections_layout.addWidget(perm_section)
         
-        # Use grid layout for adaptive columns
-        self.items_layout = QGridLayout()
-        self.items_layout.setContentsMargins(items_margin, items_margin, items_margin, items_margin)
-        self.items_layout.setSpacing(items_spacing)
-        # Add vertical spacing between rows
-        self.items_layout.setVerticalSpacing(items_spacing * 2)
-        # Increase horizontal spacing significantly
-        self.items_layout.setHorizontalSpacing(items_spacing * 4)
-        self.items_layout.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
-        self.items_container.setLayout(self.items_layout)
+        # Create temporary section
+        temp_section, self.temp_layout, _ = self._create_section("Temporary", is_temporary=True)
+        sections_layout.addWidget(temp_section)
         
         self.scroll.setWidget(self.items_container)
     
     def _load_bans(self):
-        """Load existing banned users"""
-        banned = self.ban_manager.get_all_bans()
-        for user_id, username in banned.items():
-            self._add_item(username, user_id)
+        """Load existing bans into appropriate sections"""
+        # Clear existing items first to prevent duplicates
+        for item in list(self.perm_items):
+            self.perm_layout.removeWidget(item)
+            item.cleanup()
+            item.deleteLater()
+        self.perm_items.clear()
         
-        # Add one empty item if no bans exist
-        if not banned:
-            self._add_item("", "")
+        for item in list(self.temp_items):
+            self.temp_layout.removeWidget(item)
+            item.cleanup()
+            item.deleteLater()
+        self.temp_items.clear()
         
-        # Initial layout calculation
+        # Now load bans from manager
+        all_bans = self.ban_manager.get_all_bans()
+        for user_id, ban_data in all_bans.items():
+            is_temporary = ban_data.get('is_temporary', False)
+            self._add_item(
+                ban_data['username'], 
+                user_id, 
+                ban_data.get('expires_at'),
+                is_temporary=is_temporary
+            )
+        
+        # Don't create empty items - users can click [+] button to add
         QTimer.singleShot(100, self._recalculate_layout)
     
-    def _add_item(self, username: str = "", user_id: str = ""):
-        """Add a banned user item to the list"""
-        item = BannedUserItemWidget(self.config, self.icons_path, username, user_id)
-        item.parent_widget = self  # Set parent reference
+    def _add_item(self, username="", user_id="", expires_at=None, is_temporary=False):
+        """Add ban item to appropriate section"""
+        item = BanItemWidget(
+            self.config, 
+            self.icons_path, 
+            username, 
+            user_id, 
+            expires_at,
+            is_temporary=is_temporary
+        )
+        item.parent_widget = self
         item.remove_requested.connect(self._remove_item)
         
-        self.items.append(item)
+        if is_temporary:
+            item.expired.connect(self._on_expired)
+            self.temp_items.append(item)
+        else:
+            self.perm_items.append(item)
+        
         self._recalculate_layout()
     
-    def _add_new_item(self):
-        """Add a new empty banned user item"""
-        self._add_item("", "")
+    def _add_new_item(self, is_temporary: bool):
+        """Add new empty item to specified section"""
+        # Check for empty items in the target section
+        items_to_check = self.temp_items if is_temporary else self.perm_items
+        for item in items_to_check:
+            if item.is_empty():
+                item._update_input_style(highlight_empty=True)
+                item.username_input.setFocus()
+                return
+        
+        # Show duration dialog for temporary bans
+        if is_temporary:
+            seconds, ok = DurationDialog.get_duration(self, default_seconds=3600)
+            if not ok:
+                return
+            expires_at = int(time.time()) + seconds
+            self._add_item("", "", expires_at, is_temporary=True)
+        else:
+            self._add_item("", "", None, is_temporary=False)
     
-    def _remove_item(self, item: BannedUserItemWidget):
-        """Remove a banned user item"""
-        if item in self.items:
-            self.items.remove(item)
-            self.items_layout.removeWidget(item)
-            item.deleteLater()
-            self._save_bans()
-            self._recalculate_layout()
+    def _remove_item(self, item: BanItemWidget):
+        """Remove item from appropriate section"""
+        if item in self.perm_items:
+            self.perm_items.remove(item)
+            self.perm_layout.removeWidget(item)
+        elif item in self.temp_items:
+            self.temp_items.remove(item)
+            self.temp_layout.removeWidget(item)
+        
+        item.cleanup()
+        item.deleteLater()
+        self._save_bans()
+        self._recalculate_layout()
+    
+    def _on_expired(self, item: BanItemWidget):
+        """Handle expired temporary ban - remove it completely"""
+        if item in self.temp_items:
+            print(f"⏱️ Temporary ban expired for {item.username_input.text()}")
+            self._remove_item(item)
     
     def _save_bans(self):
-        """Save all banned users"""
-        # Clear existing bans
+        """Save all bans"""
         self.ban_manager.clear_all()
         
-        # Save only valid, non-empty bans
-        for item in self.items:
-            username, user_id = item.get_values()
-            # Only save if both fields filled AND username is valid
+        # Save permanent bans
+        for item in self.perm_items:
+            username, user_id, _ = item.get_values()
             if username and user_id and item.is_valid():
-                self.ban_manager.add_user(user_id, username)
+                self.ban_manager.add_user(user_id, username, duration_seconds=None)
+        
+        # Save temporary bans
+        for item in self.temp_items:
+            username, user_id, expires_at = item.get_values()
+            if username and user_id and item.is_valid() and expires_at:
+                duration = max(0, expires_at - int(time.time()))
+                if duration > 0:  # Only save if not expired
+                    self.ban_manager.add_user(user_id, username, duration_seconds=duration)
     
     def _clear_all(self):
-        """Clear all banned users"""
-        if not any(not item.is_empty() for item in self.items):
+        """Clear all bans from both sections"""
+        if not any(not item.is_empty() for item in self.perm_items + self.temp_items):
             QMessageBox.information(self, "Empty", "Ban list is already empty")
             return
         
         reply = QMessageBox.question(
-            self,
-            "Confirm Clear All",
+            self, "Confirm Clear All",
             "Remove all users from ban list?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
         )
         
         if reply == QMessageBox.StandardButton.Yes:
-            # Remove all items
-            for item in list(self.items):
-                self.items_layout.removeWidget(item)
+            # Clear permanent items
+            for item in list(self.perm_items):
+                self.perm_layout.removeWidget(item)
+                item.cleanup()
                 item.deleteLater()
-            self.items.clear()
+            self.perm_items.clear()
             
-            # Clear ban manager
+            # Clear temporary items
+            for item in list(self.temp_items):
+                self.temp_layout.removeWidget(item)
+                item.cleanup()
+                item.deleteLater()
+            self.temp_items.clear()
+            
             self.ban_manager.clear_all()
-            
-            # Add one empty item
-            self._add_item("", "")
+            # Don't create empty item - users can click [+] to add
     
     def _recalculate_layout(self):
-        """Recalculate grid layout based on available width"""
-        if not self.items:
-            return
-        
-        # Get available width
-        available_width = self.scroll.viewport().width()
-        
-        # Each item has fixed width, calculate from first item
-        if self.items:
-            item_width = self.items[0].width()
-            # Get horizontal spacing
-            h_spacing = self.items_layout.horizontalSpacing()
-            if h_spacing == -1:  # Use default if not set
-                h_spacing = self.items_layout.spacing()
+        """Recalculate grid layout for both sections"""
+        def _layout_section(grid_layout, items_list):
+            if not items_list:
+                return
             
-            # Calculate how many columns can fit
-            # Need to account for spacing between items
-            available_for_items = available_width - (self.items_layout.contentsMargins().left() + 
-                                                     self.items_layout.contentsMargins().right())
+            available_width = self.scroll.viewport().width()
+            item_width = items_list[0].width()
+            h_spacing = grid_layout.horizontalSpacing()
+            if h_spacing == -1:
+                h_spacing = grid_layout.spacing()
+            
+            available_for_items = available_width - (grid_layout.contentsMargins().left() + 
+                                                     grid_layout.contentsMargins().right())
             columns = max(1, (available_for_items + h_spacing) // (item_width + h_spacing))
             
             # Clear layout
-            for i in reversed(range(self.items_layout.count())):
-                widget = self.items_layout.itemAt(i).widget()
+            for i in reversed(range(grid_layout.count())):
+                widget = grid_layout.itemAt(i).widget()
                 if widget:
-                    self.items_layout.removeWidget(widget)
+                    grid_layout.removeWidget(widget)
             
             # Re-add items in grid
-            for idx, item in enumerate(self.items):
+            for idx, item in enumerate(items_list):
                 row = idx // columns
                 col = idx % columns
-                self.items_layout.addWidget(item, row, col)
-            
-            self.current_columns = columns
+                grid_layout.addWidget(item, row, col)
+        
+        # Layout both sections independently
+        _layout_section(self.perm_layout, self.perm_items)
+        _layout_section(self.temp_layout, self.temp_items)
     
     def resizeEvent(self, event):
-        """Handle resize to recalculate grid layout"""
+        """Handle resize"""
         super().resizeEvent(event)
         QTimer.singleShot(50, self._recalculate_layout)
+    
+    def cleanup(self):
+        """Cleanup all items"""
+        for item in self.perm_items + self.temp_items:
+            item.cleanup()

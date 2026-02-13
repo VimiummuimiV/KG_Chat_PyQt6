@@ -80,6 +80,21 @@ class MessageListModel(QAbstractListModel):
             self.beginRemoveRows(QModelIndex(), index, index)
             self._messages.pop(index)
             self.endRemoveRows()
+
+    def remove_messages_by_login(self, login: str):
+        """Remove all messages that have MessageData.login == login"""
+        if not login or not self._messages:
+            return
+        
+        indices = [i for i, m in enumerate(self._messages) if getattr(m, 'login', None) == login]
+        if not indices:
+            return
+        
+        # Remove in reverse order to maintain indices
+        for index in reversed(indices):
+            self.beginRemoveRows(QModelIndex(), index, index)
+            self._messages.pop(index)
+            self.endRemoveRows()
    
     def get_all_messages(self) -> List[MessageData]:
         return self._messages.copy()

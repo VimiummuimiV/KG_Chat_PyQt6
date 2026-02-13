@@ -29,8 +29,6 @@ from helpers.video_player import VideoPlayer
 class MessageDelegate(QStyledItemDelegate):
     """Delegate for rendering messages with virtual scrolling"""
  
-    timestamp_clicked = pyqtSignal(str)
-    username_clicked = pyqtSignal(str, bool)
     row_needs_refresh = pyqtSignal(int)
     message_clicked = pyqtSignal(int)
  
@@ -693,18 +691,15 @@ class MessageDelegate(QStyledItemDelegate):
          
             rects = self.click_rects[row]
          
-            # Timestamp click
+            # Timestamp/username clicks are handled by the VIEW (ui_messages.py).
+            # Delegate only provides geometry via `click_rects` and does not emit interaction signals.
             if rects['timestamp'].contains(pos):
-                msg = index.data(Qt.ItemDataRole.DisplayRole)
-                if msg:
-                    self.timestamp_clicked.emit(msg.get_time_str())
                 return True
-         
-            # Username single click
-            if rects['username'].contains(pos):
-                msg = index.data(Qt.ItemDataRole.DisplayRole)
-                if msg:
-                    self.username_clicked.emit(msg.username, False)
+
+            if rects['username'].contains(pos) and button == Qt.MouseButton.LeftButton:
+                return True
+
+            if rects['username'].contains(pos) and button == Qt.MouseButton.RightButton:
                 return True
          
             # Link clicks
@@ -746,10 +741,8 @@ class MessageDelegate(QStyledItemDelegate):
          
             rects = self.click_rects[row]
          
+            # Double-click on username handled by view (ui_messages.py)
             if rects['username'].contains(pos):
-                msg = index.data(Qt.ItemDataRole.DisplayRole)
-                if msg:
-                    self.username_clicked.emit(msg.username, True)
                 return True
      
         elif event.type() == QEvent.Type.MouseMove:

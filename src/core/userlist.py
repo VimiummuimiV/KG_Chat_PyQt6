@@ -2,6 +2,7 @@
 from typing import Dict, List, Optional
 from dataclasses import dataclass
 from datetime import datetime
+from helpers.jid_utils import extract_user_data_from_jid
 
 @dataclass
 class ChatUser:
@@ -32,8 +33,9 @@ class UserList:
                       role: str = 'participant', moderator: bool = False) -> ChatUser:
         """Add or update user"""
         
-        if not user_id and '#' in jid:
-            user_id = jid.split('#')[0].split('/')[-1]
+        # Extract user_id from JID if not provided
+        if not user_id:
+            user_id, _ = extract_user_data_from_jid(jid)
         
         if jid in self.users:
             user = self.users[jid]

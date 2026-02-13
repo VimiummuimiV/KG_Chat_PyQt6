@@ -3,6 +3,7 @@ import xml.etree.ElementTree as ET
 from typing import List, Tuple, Optional
 from dataclasses import dataclass
 from datetime import datetime
+from helpers.jid_utils import extract_user_data_from_jid
 
 @dataclass
 class Message:
@@ -90,14 +91,11 @@ class MessageParser:
                 if bg_elem is not None and bg_elem.text:
                     background = bg_elem.text
            
-            # If login still not found, extract from JID
+            # If login still not found, extract from JID using helper
             if not login and from_jid:
-                if '/' in from_jid:
-                    resource = from_jid.split('/')[-1]
-                    if '#' in resource:
-                        login = resource.split('#', 1)[1]
-                    else:
-                        login = resource
+                _, jid_login = extract_user_data_from_jid(from_jid)
+                if jid_login:
+                    login = jid_login
            
             # Parse timestamp
             timestamp = None
@@ -173,17 +171,14 @@ class MessageParser:
                 affiliation = muc_item.get('affiliation', 'none')
                 role = muc_item.get('role', 'participant')
            
-            if not user_id and '#' in from_jid:
-                try:
-                    user_id = from_jid.split('/')[-1].split('#')[0]
-                except:
-                    pass
+            # Extract user_id and login from JID using helper
+            if not user_id:
+                user_id, _ = extract_user_data_from_jid(from_jid)
            
-            if not login and '#' in from_jid:
-                try:
-                    login = from_jid.split('#')[1].split('/')[0] if '/' in from_jid.split('#')[1] else from_jid.split('#')[1]
-                except:
-                    pass
+            if not login and from_jid:
+                _, jid_login = extract_user_data_from_jid(from_jid)
+                if jid_login:
+                    login = jid_login
            
             presence_list.append(Presence(
                 from_jid=from_jid,

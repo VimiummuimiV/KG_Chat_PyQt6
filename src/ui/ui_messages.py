@@ -3,7 +3,7 @@ from datetime import datetime
 from pathlib import Path
 
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QListView
-from PyQt6.QtCore import Qt, QTimer, pyqtSignal
+from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QEvent
 
 from helpers.emoticons import EmoticonManager
 from helpers.scroll import scroll
@@ -17,11 +17,12 @@ from helpers.scroll_button import ScrollToBottomButton
 class MessagesWidget(QWidget):
     """Widget for displaying chat messages with virtual scrolling"""
     timestamp_clicked = pyqtSignal(str)
+    username_left_clicked = pyqtSignal(str, bool)  # username, is_double_click
+    username_right_clicked = pyqtSignal(object, object)  # msg, global_pos
 
     def __init__(self, config, my_username: str = None):
         super().__init__()
         self.config = config
-        self.input_field = None
         self.cache = get_cache()
        
         emoticons_path = Path(__file__).resolve().parent.parent / "emoticons"
@@ -35,14 +36,92 @@ class MessagesWidget(QWidget):
         if my_username:
             self.delegate.set_my_username(my_username)
        
-        self.delegate.timestamp_clicked.connect(self.timestamp_clicked.emit)
-        self.delegate.username_clicked.connect(self._handle_username_click)
-        self.delegate.message_clicked.connect(self._on_message_clicked)
-       
         self._setup_ui()
         
         # Initialize auto-scroller after UI is set up
         self.auto_scroller = AutoScroller(self.list_view)
+        
+        # Connect message click for row highlighting (still from delegate)
+        self.delegate.message_clicked.connect(self._on_message_clicked)
+        
+        # Install event filter on list view to handle username/timestamp clicks
+        self.list_view.viewport().installEventFilter(self)
+    
+    def eventFilter(self, obj, event):
+        """Handle mouse events on list view to detect username/timestamp clicks"""
+        if obj == self.list_view.viewport():
+            if event.type() == QEvent.Type.MouseButtonPress:
+                return self._handle_mouse_press(event)
+            elif event.type() == QEvent.Type.MouseButtonDblClick:
+                return self._handle_mouse_double_click(event)
+        return super().eventFilter(obj, event)
+    
+    def _handle_mouse_press(self, event):
+        """Handle single mouse clicks"""
+        index = self.list_view.indexAt(event.pos())
+        if not index.isValid():
+            return False
+        
+        msg = index.data(Qt.ItemDataRole.DisplayRole)
+        if not msg:
+            return False
+        
+        row = index.row()
+        
+        # Use delegate's existing click_rects (already calculated during paint)
+        if row not in self.delegate.click_rects:
+            return False
+        
+        rects = self.delegate.click_rects[row]
+        pos = event.pos()
+        
+        # Check username click
+        if rects['username'].contains(pos):
+            if event.button() == Qt.MouseButton.LeftButton:
+                self.username_left_clicked.emit(msg.username, False)
+                return True
+            elif event.button() == Qt.MouseButton.RightButton:
+                global_pos = self.list_view.viewport().mapToGlobal(pos)
+                self.username_right_clicked.emit(msg, global_pos)
+                return True
+        
+        # Check timestamp click
+        if rects['timestamp'].contains(pos):
+            if event.button() == Qt.MouseButton.LeftButton:
+                timestamp_str = msg.timestamp.strftime("%Y%m%d")
+                self.timestamp_clicked.emit(timestamp_str)
+                return True
+        
+        return False
+    
+    def _handle_mouse_double_click(self, event):
+        """Handle double clicks"""
+        if event.button() != Qt.MouseButton.LeftButton:
+            return False
+        
+        index = self.list_view.indexAt(event.pos())
+        if not index.isValid():
+            return False
+        
+        msg = index.data(Qt.ItemDataRole.DisplayRole)
+        if not msg:
+            return False
+        
+        row = index.row()
+        
+        # Use delegate's existing click_rects
+        if row not in self.delegate.click_rects:
+            return False
+        
+        rects = self.delegate.click_rects[row]
+        pos = event.pos()
+        
+        # Check username double-click
+        if rects['username'].contains(pos):
+            self.username_left_clicked.emit(msg.username, True)
+            return True
+        
+        return False
 
     def set_my_username(self, username: str):
         """Set the current user's username for mention highlighting"""
@@ -52,36 +131,15 @@ class MessagesWidget(QWidget):
     def set_color_cache(self, cache: dict):
         """Update delegate's color cache reference"""
         self.delegate.color_cache = cache
-   
+    
     def set_input_field(self, input_field):
-        self.input_field = input_field
+        """Set input field reference for delegate"""
         self.delegate.set_input_field(input_field)
     
     def _on_message_clicked(self, row: int):
         """Handle message click - scroll to middle with highlight"""
         scroll(self.list_view, mode="middle", target_row=row, delay=100)
         QTimer.singleShot(250, lambda: self.delegate.highlight_row(row))
-   
-    def _handle_username_click(self, username: str, is_double_click: bool):
-        if not self.input_field:
-            return
-       
-        current = (self.input_field.text() or "").strip()
-        existing = [u.strip() for u in current.split(',') if u.strip()]
-       
-        if is_double_click:
-            if len(existing) == 1 and existing[0] == username:
-                self.input_field.clear()
-            else:
-                self.input_field.setText(username + ", ")
-        else:
-            if username not in existing:
-                if existing:
-                    self.input_field.setText(", ".join(existing + [username]) + ", ")
-                else:
-                    self.input_field.setText(username + ", ")
-       
-        self.input_field.setFocus()
    
     def set_compact_mode(self, compact: bool):
         if self.delegate.compact_mode != compact:
@@ -145,6 +203,10 @@ class MessagesWidget(QWidget):
     def clear_private_messages(self):
         """Clear all private messages"""
         self.model.clear_private_messages()
+
+    def remove_messages_by_login(self, login: str):
+        """Remove all messages belonging to a login (used when banning)"""
+        self.model.remove_messages_by_login(login)
    
     def rebuild_messages(self):
         self.delegate.update_theme()

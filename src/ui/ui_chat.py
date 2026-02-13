@@ -4,10 +4,12 @@ import re
 from pathlib import Path
 from datetime import datetime
 from PyQt6.QtWidgets import(
-    QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QApplication,
+    QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QApplication, QMenu,
     QStackedWidget, QStatusBar, QLabel, QProgressBar, QPushButton, QMessageBox
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QObject, QTimer, QEvent
+from PyQt6.QtGui import QAction
+            
 
 from helpers.config import Config
 from helpers.create import create_icon_button, update_all_icons, set_theme, HoverIconButton
@@ -35,6 +37,8 @@ from ui.ui_profile import ProfileWidget
 from ui.ui_emoticon_selector import EmoticonSelectorWidget
 from ui.ui_pronunciation import PronunciationWidget
 from ui.ui_banlist import BanListWidget
+from helpers.duration_dialog import DurationDialog
+from helpers.jid_utils import extract_user_data_from_jid
 from ui.ui_buttons import ButtonPanel
 from components.notification import show_notification
 from components.messages_separator import NewMessagesSeparator
@@ -523,6 +527,8 @@ class ChatWindow(QWidget):
         QTimer.singleShot(50, self._position_emoticon_selector)
      
         self.messages_widget.timestamp_clicked.connect(self.show_chatlog_view)
+        self.messages_widget.username_left_clicked.connect(self._on_username_left_click)
+        self.messages_widget.username_right_clicked.connect(self._on_username_right_click)
     
         self._update_input_style()
 
@@ -1147,22 +1153,6 @@ class ChatWindow(QWidget):
             return False
         return msg.login == 'Клавобот' and all(word in msg.body for word in ['Пользователь', 'заблокирован'])
     
-    def _extract_user_id_from_message(self, msg):
-        """Extract user ID from message JID"""
-        if not msg.from_jid:
-            return None
-        
-        try:
-            # JID format: room@domain/user_id#username
-            if '#' in msg.from_jid:
-                parts = msg.from_jid.split('/')[-1].split('#')
-                if len(parts) >= 2:
-                    return parts[0]
-        except:
-            pass
-        
-        return None
-    
     def _is_user_banned(self, user_id: str = None, username: str = None) -> bool:
         """Check if a user is banned by ID or username"""
         if not self.ban_manager:
@@ -1188,7 +1178,7 @@ class ChatWindow(QWidget):
 
         # CHECK IF USER IS BANNED - BLOCK IMMEDIATELY
         if msg.login:
-            user_id = self._extract_user_id_from_message(msg)
+            user_id, _ = extract_user_data_from_jid(getattr(msg, 'from_jid', None))
             if self._is_user_banned(user_id, msg.login):
                 return  # Silently drop banned user's messages
 
@@ -1634,6 +1624,118 @@ class ChatWindow(QWidget):
         
         self.stacked_widget.setCurrentWidget(self.ban_list_widget)
     
+    def _on_username_left_click(self, username: str, is_double_click: bool):
+        """Handle username left-click - insert into input field"""
+        if not hasattr(self, 'input_field') or not self.input_field:
+            return
+        
+        current = (self.input_field.text() or "").strip()
+        existing = [u.strip() for u in current.split(',') if u.strip()]
+        
+        if is_double_click:
+            # Double-click: replace all with this username (or clear if already solo)
+            if len(existing) == 1 and existing[0] == username:
+                self.input_field.clear()
+            else:
+                self.input_field.setText(username + ", ")
+        else:
+            # Single-click: add to list if not already there
+            if username not in existing:
+                if existing:
+                    self.input_field.setText(", ".join(existing + [username]) + ", ")
+                else:
+                    self.input_field.setText(username + ", ")
+        
+        self.input_field.setFocus()
+
+    def _on_username_right_click(self, msg, global_pos):
+        """Show context menu when username is right-clicked in messages"""
+        try:
+
+            menu = QMenu(self)
+            
+            # Permanent ban action
+            perm_act = QAction("Ban permanently", self)
+            menu.addAction(perm_act)
+            
+            # Temporary ban action
+            temp_act = QAction("Ban temporarily", self)
+            menu.addAction(temp_act)
+            
+            act = menu.exec(global_pos)
+            if not act:
+                return
+            
+            if act == perm_act:
+                # Permanent ban
+                self._ban_user_from_msg(msg, permanent=True)
+            elif act == temp_act:
+                # Show duration dialog
+                seconds, ok = DurationDialog.get_duration(self, default_seconds=3600)
+                if ok:
+                    self._ban_user_from_msg(msg, permanent=False, duration_seconds=seconds)
+        
+        except Exception as e:
+            print(f"Context menu error: {e}")
+    
+    def _ban_user_from_msg(self, msg, permanent: bool = True, duration_seconds: int = None):
+        """Perform ban: update BanManager, remove messages, remove userlist entry"""
+        # Skip separators
+        if getattr(msg, 'is_separator', False) or getattr(msg, 'is_new_messages_marker', False):
+            return
+        
+        username = getattr(msg, 'login', None) or getattr(msg, 'username', None)
+        jid = getattr(msg, 'from_jid', None)
+        
+        # Extract user_id from JID using helper
+        user_id, _ = extract_user_data_from_jid(jid)
+        
+        if not user_id and not username:
+            return
+        
+        # Validate username via API to get correct user_id
+        if username and not user_id:
+            from ui.ui_banlist import validate_username_and_get_id
+            user_id = validate_username_and_get_id(username)
+        
+        if not user_id:
+            QMessageBox.warning(self, "Error", f"Could not find user ID for {username}")
+            return
+        
+        # Add to ban manager
+        if permanent:
+            self.ban_manager.add_user(user_id, username or user_id)
+        else:
+            self.ban_manager.add_user(user_id, username or user_id, duration_seconds=duration_seconds)
+        
+        # Remove messages by login
+        if username:
+            try:
+                self.messages_widget.remove_messages_by_login(username)
+            except Exception:
+                pass
+        
+        # Remove from userlist
+        if hasattr(self, 'user_list_widget') and self.user_list_widget:
+            try:
+                if jid:
+                    self.user_list_widget.remove_users(jids=[jid])
+                # Fallback: remove by username
+                if username:
+                    for ujid, uw in list(self.user_list_widget.user_widgets.items()):
+                        ulogin = getattr(getattr(uw, 'user', None), 'login', None)
+                        if ulogin == username:
+                            self.user_list_widget.remove_users(jids=[ujid])
+            except Exception:
+                pass
+        
+        # Refresh ban list UI if open
+        if hasattr(self, 'ban_list_widget') and self.ban_list_widget:
+            try:
+                self.ban_list_widget._load_bans()
+            except Exception:
+                pass    
+
     def toggle_theme(self):
         try:
             self.theme_manager.toggle_theme()
