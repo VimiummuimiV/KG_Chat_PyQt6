@@ -6,7 +6,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QTimer
 from PyQt6.QtSvg import QSvgRenderer
-from PyQt6.QtGui import QPixmap, QPainter
+from PyQt6.QtGui import QPixmap, QPainter, QFontMetrics
 import time
 
 from helpers.create import create_icon_button
@@ -17,15 +17,35 @@ from core.api_data import get_exact_user_id_by_name
 
 
 def format_time_remaining(seconds: int) -> str:
-    """Format remaining seconds into compact display"""
+    """Format remaining seconds into full format display
+    
+    Shows all relevant units based on magnitude:
+    - >= 1 week: shows weeks, days, hours, minutes (e.g., "2w 0d 0h 0m")
+    - >= 1 day: shows days, hours, minutes (e.g., "2d 5h 30m")
+    - >= 1 hour: shows hours, minutes (e.g., "3h 45m")
+    - >= 1 minute: shows minutes (e.g., "25m")
+    - < 1 minute: shows seconds (e.g., "45s")
+    """
     if seconds <= 0:
         return "Expired"
-    d, h, m = seconds // 86400, (seconds % 86400) // 3600, (seconds % 3600) // 60
-    if d > 0:
-        return f"{d}d {h}h" if h else f"{d}d"
-    if h > 0:
-        return f"{h}h {m}m" if m else f"{h}h"
-    return f"{m}m" if m else f"{seconds}s"
+    
+    w = seconds // 604800
+    d = (seconds % 604800) // 86400
+    h = (seconds % 86400) // 3600
+    m = (seconds % 3600) // 60
+    s = seconds % 60
+    
+    # Show all units from highest non-zero down to minutes
+    if w > 0:
+        return f"{w}w {d}d {h}h {m}m"
+    elif d > 0:
+        return f"{d}d {h}h {m}m"
+    elif h > 0:
+        return f"{h}h {m}m"
+    elif m > 0:
+        return f"{m}m"
+    else:
+        return f"{s}s"
 
 
 def validate_username_and_get_id(username: str):
@@ -107,10 +127,10 @@ class BanItemWidget(QWidget):
             self.duration_button = QPushButton()
             self.duration_button.setFont(get_font(FontType.TEXT))
             self.duration_button.setFixedHeight(input_height)
-            self.duration_button.setFixedWidth(110)
+            self.duration_button.setMinimumWidth(110)  # Minimum width
             self.duration_button.setCursor(Qt.CursorShape.PointingHandCursor)
             self.duration_button.clicked.connect(self._change_duration)
-            self._update_duration_text()
+            self._update_duration_text()  # This will set initial width
             layout.addWidget(self.duration_button)
             
             # Timer for countdown
@@ -126,9 +146,12 @@ class BanItemWidget(QWidget):
         self.remove_button.clicked.connect(lambda: self.remove_requested.emit(self))
         layout.addWidget(self.remove_button)
         
-        # Set fixed width
+        # Set fixed width - will be updated by _update_duration_text for temp items
+        spacing = config.get("ui", "spacing", "widget_elements") or 6
         if self.is_temporary:
-            total_width = 220 + 26 + 125 + 110 + 48 + (spacing * 4)
+            # Initial width using minimum button size
+            button_width = 110
+            total_width = 220 + 26 + 125 + button_width + 48 + (spacing * 4)
         else:
             total_width = 220 + 26 + 125 + 48 + (spacing * 3)
         self.setFixedWidth(total_width)
@@ -164,6 +187,22 @@ class BanItemWidget(QWidget):
         if self.parent_widget:
             self.parent_widget._save_bans()
     
+    def _update_widths(self):
+        """Update button and item widths based on duration text"""
+        if not self.is_temporary or not hasattr(self, 'duration_button'):
+            return
+        
+        # Calculate button width based on text
+        metrics = QFontMetrics(self.duration_button.font())
+        text_width = metrics.horizontalAdvance(self.duration_button.text())
+        button_width = max(110, text_width + 40)
+        self.duration_button.setFixedWidth(button_width)
+        
+        # Update item total width
+        spacing = self.config.get("ui", "spacing", "widget_elements") or 6
+        total_width = 220 + 26 + 125 + button_width + 48 + (spacing * 4)
+        self.setFixedWidth(total_width)
+    
     def _update_input_style(self, highlight_empty=False):
         """Update input styling based on validation"""
         if highlight_empty and not self.username_input.text().strip():
@@ -189,6 +228,7 @@ class BanItemWidget(QWidget):
                 self.expired.emit(self)
             else:
                 self.duration_button.setText(format_time_remaining(remaining))
+                self._update_widths()
     
     def _change_duration(self):
         """Show dialog to change duration for temporary ban"""
@@ -475,14 +515,17 @@ class BanListWidget(QWidget):
                 return
             
             available_width = self.scroll.viewport().width()
-            item_width = items_list[0].width()
             h_spacing = grid_layout.horizontalSpacing()
             if h_spacing == -1:
                 h_spacing = grid_layout.spacing()
             
             available_for_items = available_width - (grid_layout.contentsMargins().left() + 
                                                      grid_layout.contentsMargins().right())
-            columns = max(1, (available_for_items + h_spacing) // (item_width + h_spacing))
+            
+            # Find max item width (temp items may have different widths due to duration)
+            max_item_width = max(item.width() for item in items_list)
+            
+            columns = max(1, (available_for_items + h_spacing) // (max_item_width + h_spacing))
             
             # Clear layout
             for i in reversed(range(grid_layout.count())):
