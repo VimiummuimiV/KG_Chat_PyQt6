@@ -195,11 +195,11 @@ class BanItemWidget(QWidget):
         if not self.is_temporary:
             return
         
-        current_seconds = 3600  # Default 1 hour
-        if self.expires_at:
-            current_seconds = max(60, self.expires_at - int(time.time()))
+        # Calculate current remaining time
+        current_remaining = max(60, self.expires_at - int(time.time())) if self.expires_at else 3600
         
-        seconds, ok = DurationDialog.get_duration(self, current_seconds)
+        # Show dialog with current remaining time (will preserve the unit if possible)
+        seconds, ok = DurationDialog.get_duration(self, current_remaining)
         if ok and seconds > 0:
             # Update duration
             self.expires_at = int(time.time()) + seconds
@@ -329,20 +329,22 @@ class BanListWidget(QWidget):
     
     def _load_bans(self):
         """Load existing bans into appropriate sections"""
-        # Clear existing items first to prevent duplicates
-        for item in list(self.perm_items):
-            self.perm_layout.removeWidget(item)
-            item.cleanup()
-            item.deleteLater()
-        self.perm_items.clear()
+        # Only clear if items already exist
+        if self.perm_items:
+            for item in list(self.perm_items):
+                self.perm_layout.removeWidget(item)
+                item.cleanup()
+                item.deleteLater()
+            self.perm_items.clear()
         
-        for item in list(self.temp_items):
-            self.temp_layout.removeWidget(item)
-            item.cleanup()
-            item.deleteLater()
-        self.temp_items.clear()
+        if self.temp_items:
+            for item in list(self.temp_items):
+                self.temp_layout.removeWidget(item)
+                item.cleanup()
+                item.deleteLater()
+            self.temp_items.clear()
         
-        # Now load bans from manager
+        # Load bans from manager
         all_bans = self.ban_manager.get_all_bans()
         for user_id, ban_data in all_bans.items():
             is_temporary = ban_data.get('is_temporary', False)
@@ -354,7 +356,8 @@ class BanListWidget(QWidget):
             )
         
         # Don't create empty items - users can click [+] button to add
-        QTimer.singleShot(100, self._recalculate_layout)
+        if all_bans:  # Only recalculate if we loaded something
+            QTimer.singleShot(100, self._recalculate_layout)
     
     def _add_item(self, username="", user_id="", expires_at=None, is_temporary=False):
         """Add ban item to appropriate section"""
@@ -425,7 +428,7 @@ class BanListWidget(QWidget):
         for item in self.perm_items:
             username, user_id, _ = item.get_values()
             if username and user_id and item.is_valid():
-                self.ban_manager.add_user(user_id, username, duration_seconds=None)
+                self.ban_manager.add_user(user_id, username, duration=None)
         
         # Save temporary bans
         for item in self.temp_items:
@@ -433,7 +436,7 @@ class BanListWidget(QWidget):
             if username and user_id and item.is_valid() and expires_at:
                 duration = max(0, expires_at - int(time.time()))
                 if duration > 0:  # Only save if not expired
-                    self.ban_manager.add_user(user_id, username, duration_seconds=duration)
+                    self.ban_manager.add_user(user_id, username, duration=duration)
     
     def _clear_all(self):
         """Clear all bans from both sections"""

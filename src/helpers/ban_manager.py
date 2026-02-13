@@ -34,14 +34,14 @@ class BanManager:
         except Exception as e:
             print(f"Error saving ban list: {e}")
     
-    def add_user(self, user_id: str, username: str, duration_seconds: Optional[int] = None):
-        """Add ban. If duration_seconds is None = permanent, else temporary"""
+    def add_user(self, user_id: str, username: str, duration: Optional[int] = None):
+        """Add ban. If duration is None = permanent, else temporary (duration in seconds)"""
         if not user_id or not username:
             return False
         
         ban_data = {'username': username}
-        if duration_seconds:
-            ban_data['expires_at'] = int(time.time()) + int(duration_seconds)
+        if duration:
+            ban_data['expires_at'] = int(time.time()) + int(duration)
         
         self.bans[str(user_id)] = ban_data
         self.save()

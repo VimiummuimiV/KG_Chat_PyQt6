@@ -51,13 +51,15 @@ class DurationDialog(QDialog):
         layout.addWidget(buttons)
     
     def _seconds_to_best_unit(self, seconds):
-        """Convert seconds to most appropriate unit"""
-        if seconds % 604800 == 0:
+        """Convert seconds to most appropriate unit - prioritizes larger, cleaner units"""
+        # Try to find the largest unit that divides evenly
+        if seconds % 604800 == 0 and seconds >= 604800:
             return seconds // 604800, 'weeks'
-        if seconds % 86400 == 0:
+        if seconds % 86400 == 0 and seconds >= 86400:
             return seconds // 86400, 'days'
-        if seconds % 3600 == 0:
+        if seconds % 3600 == 0 and seconds >= 3600:
             return seconds // 3600, 'hours'
+        # Default to minutes for everything else
         return max(1, seconds // 60), 'minutes'
     
     def get_seconds(self) -> int:

@@ -1370,9 +1370,12 @@ class ChatWindow(QWidget):
         
         # Update ban list widget inputs
         if hasattr(self, 'ban_list_widget') and self.ban_list_widget:
-            for item in self.ban_list_widget.items:
+            # Iterate over both permanent and temporary ban items
+            for item in self.ban_list_widget.perm_items + self.ban_list_widget.temp_items:
                 item.username_input.setFont(new_font)
                 item.user_id_input.setFont(new_font)
+                if hasattr(item, 'duration_button'):
+                    item.duration_button.setFont(new_font)
             self.ban_list_widget.update()
         
         # Show font size in title, restore after 1500ms of no changes
@@ -1673,12 +1676,12 @@ class ChatWindow(QWidget):
                 # Show duration dialog
                 seconds, ok = DurationDialog.get_duration(self, default_seconds=3600)
                 if ok:
-                    self._ban_user_from_msg(msg, permanent=False, duration_seconds=seconds)
+                    self._ban_user_from_msg(msg, permanent=False, duration=seconds)
         
         except Exception as e:
             print(f"Context menu error: {e}")
     
-    def _ban_user_from_msg(self, msg, permanent: bool = True, duration_seconds: int = None):
+    def _ban_user_from_msg(self, msg, permanent: bool = True, duration: int = None):
         """Perform ban: update BanManager, remove messages, remove userlist entry"""
         # Skip separators
         if getattr(msg, 'is_separator', False) or getattr(msg, 'is_new_messages_marker', False):
@@ -1706,7 +1709,7 @@ class ChatWindow(QWidget):
         if permanent:
             self.ban_manager.add_user(user_id, username or user_id)
         else:
-            self.ban_manager.add_user(user_id, username or user_id, duration_seconds=duration_seconds)
+            self.ban_manager.add_user(user_id, username or user_id, duration=duration)
         
         # Remove messages by login
         if username:
