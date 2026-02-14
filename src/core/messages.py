@@ -97,14 +97,17 @@ class MessageParser:
                 if jid_login:
                     login = jid_login
            
-            # Parse timestamp
+            # Parse timestamp with timezone conversion
             timestamp = None
             delay_elem = msg.find('.//{urn:xmpp:delay}delay')
             if delay_elem is not None:
                 stamp = delay_elem.get('stamp')
                 if stamp:
                     try:
+                        # Parse UTC timestamp and convert to local timezone
                         timestamp = datetime.fromisoformat(stamp.replace('Z', '+00:00'))
+                        timestamp = timestamp.astimezone()  # Convert to local time
+                        timestamp = timestamp.replace(tzinfo=None)  # Remove timezone info
                     except:
                         pass
            
