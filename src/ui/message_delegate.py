@@ -45,6 +45,7 @@ class MessageDelegate(QStyledItemDelegate):
      
         self.click_rects: Dict[int, Dict] = {}
         self.input_field = None
+        self.my_username = None # Store username for mention highlighting
      
         # Animation support for GIF emoticons
         self.list_view = None
@@ -69,6 +70,7 @@ class MessageDelegate(QStyledItemDelegate):
  
     def set_my_username(self, username: str):
         """Set the current user's username for mention highlighting"""
+        self.my_username = username
         if self.message_renderer:
             self.message_renderer.set_my_username(username)
  
@@ -83,6 +85,9 @@ class MessageDelegate(QStyledItemDelegate):
                 self.is_dark_theme,
                 parent_widget=list_view.window()
             )
+            # Set username for mention highlighting
+            if self.my_username:
+                self.message_renderer.set_my_username(self.my_username)
             # Connect refresh signal
             self.message_renderer.content_needs_refresh.connect(self._refresh_row)
  
