@@ -3,6 +3,7 @@ import re
 import requests
 import threading
 from typing import Optional, Dict, Tuple, Callable
+from PyQt6.QtCore import QObject, pyqtSignal
 
 
 # Shared pattern - defined once at module level
@@ -10,6 +11,12 @@ YOUTUBE_URL_PATTERN = re.compile(
     r'https?://(?:www\.|m\.)?(?:youtube\.com/(?:shorts/|live/|watch\?v=|embed/)|youtu\.be/)([a-zA-Z0-9_-]{11})',
     re.IGNORECASE
 )
+
+
+# Global signal for YouTube metadata updates
+class _YouTubeSignals(QObject):
+    metadata_cached = pyqtSignal(str)
+youtube_signals = _YouTubeSignals()
 
 
 def extract_youtube_info(url: str) -> Optional[Dict[str, str]]:
@@ -69,7 +76,7 @@ class YouTubeProcessor:
         """Check if URL is YouTube"""
         return bool(self.PATTERN.search(url))
     
-    def fetch_metadata(self, video_id: str) -> Dict[str, str]:
+    def fetch_metadata(self, video_id: str, url: str = None) -> Dict[str, str]:
         """Fetch metadata from YouTube oEmbed API"""
         if video_id in self._cache:
             return self._cache[video_id]
@@ -89,6 +96,9 @@ class YouTubeProcessor:
             with self._lock:
                 self._cache[video_id] = result
             
+            if url:
+                youtube_signals.metadata_cached.emit(url)
+            
             return result
             
         except Exception as e:
@@ -97,13 +107,17 @@ class YouTubeProcessor:
             error_result = {'title': 'Video unavailable', 'channel': 'YouTube'}
             with self._lock:
                 self._cache[video_id] = error_result
+            
+            if url:
+                youtube_signals.metadata_cached.emit(url)
+            
             return error_result
     
     def get_cached_metadata(self, video_id: str) -> Optional[Dict[str, str]]:
         """Get metadata from cache only"""
         return self._cache.get(video_id)
     
-    def fetch_async(self, url: str, callback: Callable) -> bool:
+    def fetch_async(self, url: str, callback: Callable = None) -> bool:
         """
         Fetch YouTube metadata in background (handles deduplication)
         
@@ -121,9 +135,10 @@ class YouTubeProcessor:
             try:
                 info = extract_youtube_info(url)
                 if info:
-                    metadata = self.fetch_metadata(info['video_id'])
+                    metadata = self.fetch_metadata(info['video_id'], url)
                     result = {**info, **metadata}
-                    callback(result)
+                    if callback:
+                        callback(result)
             finally:
                 self._active_fetches.discard(fetch_key)
         
@@ -175,7 +190,7 @@ def get_cached_info(url: str, use_emojis: bool = True) -> Optional[Tuple[str, bo
     return (url, False)
 
 
-def fetch_async(url: str, callback: Callable) -> bool:
+def fetch_async(url: str, callback: Callable = None) -> bool:
     """
     Fetch YouTube metadata in background (handles deduplication)
     

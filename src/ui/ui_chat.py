@@ -1252,24 +1252,35 @@ class ChatWindow(QWidget):
             elif self._message_mentions_me(msg):
                 self._play_mention_sound()
         
-            try:
-                show_notification(
-                    title=msg.login,
-                    message=display_body,
-                    xmpp_client=self.xmpp_client,
-                    cache=self.cache,
-                    config=self.config,
-                    emoticon_manager=self.emoticon_manager,
-                    local_message_callback=self.add_local_message,
-                    account=self.account,
-                    window_show_callback=self._show_and_focus_window,
-                    is_private=msg.is_private,
-                    recipient_jid=msg.from_jid if msg.is_private else None,
-                    is_ban=is_ban,
-                    is_system=is_system
-                )
-            except Exception as e:
-                print(f"Notification error: {e}")
+            # Check if YouTube URLs need time to cache
+            from core.youtube import YOUTUBE_URL_PATTERN, get_cached_info, youtube_signals
+            uncached = [m.group(0) for m in YOUTUBE_URL_PATTERN.finditer(msg.body) 
+                       if not (get_cached_info(m.group(0)) or (None, False))[1]]
+            
+            if uncached:
+                # Wait for signal with timeout
+                pending = set(uncached)
+                timer = QTimer(self)
+                timer.setSingleShot(True)
+                
+                def show_now():
+                    try:
+                        youtube_signals.metadata_cached.disconnect(on_ready)
+                    except:
+                        pass
+                    timer.stop()
+                    self._show_notification(msg, display_body, is_ban, is_system)
+                
+                def on_ready(url):
+                    pending.discard(url)
+                    if not pending:
+                        show_now()
+                
+                youtube_signals.metadata_cached.connect(on_ready)
+                timer.timeout.connect(show_now)
+                timer.start(2000)
+            else:
+                self._show_notification(msg, display_body, is_ban, is_system)
 
     def _show_and_focus_window(self):
         if not self.isVisible():
@@ -1277,6 +1288,27 @@ class ChatWindow(QWidget):
         self.setWindowState(self.windowState() & ~Qt.WindowState.WindowMinimized | Qt.WindowState.WindowActive)
         self.activateWindow()
         self.raise_()
+
+    def _show_notification(self, msg, display_body, is_ban, is_system):
+        """Show notification"""
+        try:
+            show_notification(
+                title=msg.login,
+                message=display_body,
+                xmpp_client=self.xmpp_client,
+                cache=self.cache,
+                config=self.config,
+                emoticon_manager=self.emoticon_manager,
+                local_message_callback=self.add_local_message,
+                account=self.account,
+                window_show_callback=self._show_and_focus_window,
+                is_private=msg.is_private,
+                recipient_jid=msg.from_jid if msg.is_private else None,
+                is_ban=is_ban,
+                is_system=is_system
+            )
+        except Exception as e:
+            print(f"Notification error: {e}")
 
     def _message_mentions_me(self, msg):
         if not self.account or not msg.body:
