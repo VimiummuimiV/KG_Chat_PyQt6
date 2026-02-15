@@ -372,26 +372,38 @@ class PopupNotification(QWidget):
         self.close()
   
     def _on_answer(self):
-        """Show reply field"""
+        """Toggle reply field visibility"""
         if not self.reply_container or not self.reply_field:
             return
        
-        self.reply_field_visible = True
-        self.reply_container.setVisible(True)
+        # Toggle behavior
+        if self.reply_field_visible:
+            # Hide reply field
+            self.reply_field_visible = False
+            self.reply_container.setVisible(False)
+            self.reply_field.clear()
+            
+            # Re-enable auto-close if cursor moved and not hovering
+            if self.cursor_moved and not self.is_hovered:
+                self._start_hide_timer()
+        else:
+            # Show reply field
+            self.reply_field_visible = True
+            self.reply_container.setVisible(True)
+          
+            # Pre-fill with sender's username
+            sender_name = self.username_label.text().replace('<b>', '').replace('</b>', '')
+            self.reply_field.setText(f"{sender_name}, ")
+            self.reply_field.setFocus()
+            self.reply_field.setCursorPosition(len(self.reply_field.text()))
+          
+            # Stop hide timers
+            if self.hide_timer and self.hide_timer.isActive():
+                self.hide_timer.stop()
+            if self.cursor_check_timer and self.cursor_check_timer.isActive():
+                self.cursor_check_timer.stop()
       
-        # Pre-fill with sender's username
-        sender_name = self.username_label.text().replace('<b>', '').replace('</b>', '')
-        self.reply_field.setText(f"{sender_name}, ")
-        self.reply_field.setFocus()
-        self.reply_field.setCursorPosition(len(self.reply_field.text()))
-      
-        # Stop hide timers
-        if self.hide_timer and self.hide_timer.isActive():
-            self.hide_timer.stop()
-        if self.cursor_check_timer and self.cursor_check_timer.isActive():
-            self.cursor_check_timer.stop()
-      
-        # Recalculate size with reply field visible
+        # Recalculate size with reply field visible/hidden
         self.adjustSize()
         self.manager._position_and_cleanup()
   
