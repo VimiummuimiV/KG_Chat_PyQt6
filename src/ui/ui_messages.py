@@ -1,11 +1,9 @@
 """Messages display widget"""
 from datetime import datetime
-from pathlib import Path
 
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QListView
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QEvent
 
-from helpers.emoticons import EmoticonManager
 from helpers.scroll import scroll
 from helpers.cache import get_cache
 from helpers.auto_scroll import AutoScroller
@@ -17,22 +15,18 @@ from helpers.scroll_button import ScrollToBottomButton
 class MessagesWidget(QWidget):
     """Widget for displaying chat messages with virtual scrolling"""
     timestamp_clicked = pyqtSignal(str)
-    username_left_clicked = pyqtSignal(str, bool)  # username, is_double_click
-    username_right_clicked = pyqtSignal(object, object)  # msg, global_pos
+    username_left_clicked = pyqtSignal(str, bool)
+    username_right_clicked = pyqtSignal(object, object)
 
-    def __init__(self, config, my_username: str = None):
+    def __init__(self, config, emoticon_manager, my_username: str = None):
         super().__init__()
         self.config = config
         self.cache = get_cache()
-       
-        emoticons_path = Path(__file__).resolve().parent.parent / "emoticons"
-        self.emoticon_manager = EmoticonManager(emoticons_path)
+        self.emoticon_manager = emoticon_manager
        
         self.model = MessageListModel(max_messages=1000)
-        # Pass the cache's color dictionary directly to delegate
         self.delegate = MessageDelegate(config, self.emoticon_manager, self.cache._color_cache)
         
-        # Set username for mention highlighting if provided
         if my_username:
             self.delegate.set_my_username(my_username)
        
@@ -68,7 +62,6 @@ class MessagesWidget(QWidget):
         
         row = index.row()
         
-        # Use delegate's existing click_rects (already calculated during paint)
         if row not in self.delegate.click_rects:
             return False
         
@@ -109,7 +102,6 @@ class MessagesWidget(QWidget):
         
         row = index.row()
         
-        # Use delegate's existing click_rects
         if row not in self.delegate.click_rects:
             return False
         
@@ -162,8 +154,6 @@ class MessagesWidget(QWidget):
        
         self.list_view.setVerticalScrollMode(QListView.ScrollMode.ScrollPerPixel)
         self.list_view.setUniformItemSizes(False)
-       
-        # Don't set spacing from config - let it be fully dynamic
         self.list_view.setSpacing(0)
        
         self.list_view.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
@@ -205,12 +195,13 @@ class MessagesWidget(QWidget):
         self.model.clear_private_messages()
 
     def remove_messages_by_login(self, login: str):
-        """Remove all messages belonging to a login (used when banning)"""
+        """Remove all messages belonging to a login"""
         self.model.remove_messages_by_login(login)
    
     def rebuild_messages(self):
         self.delegate.update_theme()
-        self.delegate._emoticon_cache.clear()
+        if self.delegate.message_renderer:
+            self.delegate.message_renderer._emoticon_cache.clear()
         self._force_recalculate()
    
     def update_theme(self):
@@ -220,26 +211,13 @@ class MessagesWidget(QWidget):
    
     def _force_recalculate(self):
         """Aggressive force recalculation of all item sizes"""
-        # Disable updates during recalculation
         self.list_view.setUpdatesEnabled(False)
-       
-        # Clear the view completely
         self.list_view.reset()
-       
-        # Clear all internal size caches
         self.list_view.clearSelection()
-       
-        # Force delegate to recalculate all sizes
         self.list_view.scheduleDelayedItemsLayout()
-       
-        # Signal model that everything changed
         self.model.layoutChanged.emit()
-       
-        # Force repaint
         self.list_view.setUpdatesEnabled(True)
         self.list_view.viewport().update()
-       
-        # Additional force update
         QTimer.singleShot(10, lambda: self.list_view.viewport().update())
    
     def cleanup(self):

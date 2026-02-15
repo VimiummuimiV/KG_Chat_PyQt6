@@ -22,6 +22,7 @@ from helpers.username_color_manager import(
     reset_username_color,
     update_from_server
 )
+from helpers.emoticons import EmoticonManager
 from helpers.fonts import get_font, FontType
 from helpers.voice_engine import get_voice_engine, play_sound
 from helpers.me_action import format_me_action
@@ -98,6 +99,10 @@ class ChatWindow(QWidget):
         self.icons_path = Path(__file__).parent.parent / "icons"
 
         self.config = Config(str(self.config_path))
+
+        # Initialize emoticon manager
+        emoticons_path = Path(__file__).parent.parent / "emoticons"
+        self.emoticon_manager = EmoticonManager(emoticons_path)
         
         # Initialize window size manager
         self.window_size_manager = WindowSizeManager(
@@ -396,7 +401,7 @@ class ChatWindow(QWidget):
         left_layout.addWidget(self.stacked_widget, stretch=1)
 
         my_username = self.account.get('chat_username') if self.account else None
-        self.messages_widget = MessagesWidget(self.config, my_username=my_username)
+        self.messages_widget = MessagesWidget(self.config, self.emoticon_manager, my_username=my_username)
         self.stacked_widget.addWidget(self.messages_widget)
         self.chatlog_widget = None
         self.chatlog_userlist_widget = None
@@ -503,10 +508,9 @@ class ChatWindow(QWidget):
      
         # Emoticon selector widget (overlay - positioned absolutely)
         # Create AFTER userlist so positioning works correctly
-        # Share emoticon_manager from messages_widget to avoid loading emoticons twice
         self.emoticon_selector = EmoticonSelectorWidget(
             self.config,
-            self.messages_widget.emoticon_manager, # Reuse from MessagesWidget
+            self.emoticon_manager,
             self.icons_path
         )
         self.emoticon_selector.emoticon_selected.connect(self._on_emoticon_selected)
@@ -869,7 +873,8 @@ class ChatWindow(QWidget):
         if not self.chatlog_widget:
             # Pass parent_window=self for modal dialogs and ban_manager
             self.chatlog_widget = ChatlogWidget(
-                self.config, 
+                self.config,
+                self.emoticon_manager,
                 self.icons_path, 
                 self.account, 
                 parent_window=self,
@@ -997,7 +1002,13 @@ class ChatWindow(QWidget):
 
     def on_parse_error(self, error_msg: str):
         self.stop_parse_status()
-        show_notification(title="Parse Error", message=error_msg, config=self.config, account=self.account)
+        show_notification(
+            title="Parse Error",
+            message=error_msg,
+            config=self.config,
+            emoticon_manager=self.emoticon_manager,
+            account=self.account
+        )
 
     def _on_chatlog_messages_loaded(self, messages):
         if self.chatlog_userlist_widget and messages:
@@ -1095,6 +1106,7 @@ class ChatWindow(QWidget):
                         title="Connection Failed",
                         message="Could not connect to XMPP server",
                         config=self.config,
+                        emoticon_manager=self.emoticon_manager,
                         account=self.account
                     ))
                     self.signal_emitter.connection_changed.emit('offline')
@@ -1137,6 +1149,7 @@ class ChatWindow(QWidget):
                     title="Error",
                     message=f"Connection error: {e}",
                     config=self.config,
+                    emoticon_manager=self.emoticon_manager,
                     account=self.account
                 ))
                 self.signal_emitter.connection_changed.emit('offline')
@@ -1246,6 +1259,7 @@ class ChatWindow(QWidget):
                     xmpp_client=self.xmpp_client,
                     cache=self.cache,
                     config=self.config,
+                    emoticon_manager=self.emoticon_manager,
                     local_message_callback=self.add_local_message,
                     account=self.account,
                     window_show_callback=self._show_and_focus_window,
@@ -1762,17 +1776,15 @@ class ChatWindow(QWidget):
             self._update_input_style()
          
             update_all_icons()
-         
-            # Update messages emoticon manager theme
-            self.messages_widget.emoticon_manager.set_theme(is_dark)
-         
+            
+            # Update shared emoticon manager theme
+            self.emoticon_manager.set_theme(is_dark)
+            
             # Update widgets
             self.messages_widget.update_theme()
             self.user_list_widget.update_theme()
-         
+            
             if self.chatlog_widget:
-                # Update chatlog emoticon manager theme
-                self.chatlog_widget.emoticon_manager.set_theme(is_dark)
                 self.chatlog_widget.update_theme()
          
             if self.chatlog_userlist_widget:

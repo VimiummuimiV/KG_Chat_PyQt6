@@ -1,24 +1,16 @@
-from PyQt6.QtWidgets import(
-    QWidget, QLabel, QVBoxLayout, QHBoxLayout,
-    QLineEdit, QApplication
-)
-from PyQt6.QtCore import Qt, QTimer, QPropertyAnimation
-from PyQt6.QtGui import QCursor, QPainter, QPainterPath
-from typing import List, Callable, Optional, Any
+"""Popup notification system with persistent reply support"""
+from dataclasses import dataclass
+from typing import List, Callable, Optional, Any, Tuple
+from PyQt6.QtWidgets import QWidget, QLabel, QVBoxLayout, QHBoxLayout, QLineEdit, QApplication
+from PyQt6.QtCore import Qt, QTimer, QPropertyAnimation, QRect, QSize
+from PyQt6.QtGui import QPainter, QPainterPath, QCursor
 from pathlib import Path
 from datetime import datetime
-from dataclasses import dataclass
 import threading
 
 from helpers.create import create_icon_button
-from helpers.color_utils import(
-    get_private_message_colors,
-    get_ban_message_colors,
-    get_system_message_colors,
-    get_mention_color
-)
 from helpers.fonts import get_font, FontType
-from helpers.mention_parser import parse_mentions
+from ui.message_renderer import MessageRenderer
 
 
 @dataclass
@@ -30,6 +22,7 @@ class NotificationData:
     xmpp_client: Optional[Any] = None
     cache: Optional[Any] = None
     config: Optional[Any] = None
+    emoticon_manager: Optional[Any] = None
     local_message_callback: Optional[Callable] = None
     account: Optional[dict] = None
     window_show_callback: Optional[Callable] = None
@@ -37,6 +30,75 @@ class NotificationData:
     recipient_jid: Optional[str] = None
     is_ban: bool = False
     is_system: bool = False
+
+
+class MessageBodyWidget(QWidget):
+    """Custom widget that uses MessageRenderer for painting message body"""
+    
+    def __init__(self, message_renderer: MessageRenderer, text: str, 
+                 is_private: bool = False, is_ban: bool = False, is_system: bool = False):
+        super().__init__()
+        self.message_renderer = message_renderer
+        self.text = text
+        self.is_private = is_private
+        self.is_ban = is_ban
+        self.is_system = is_system
+        self.link_rects: List[Tuple[QRect, str, bool]] = []
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setMouseTracking(True)
+        # Initial height estimate
+        self.setFixedHeight(50)
+        
+        # Animation timer for animated emoticons (GIFs)
+        self.animation_timer = None
+        if self.message_renderer.has_animated_emoticons(text):
+            self.animation_timer = QTimer()
+            self.animation_timer.timeout.connect(self.update)  # Trigger repaint
+            self.animation_timer.start(33)  # ~30 FPS
+    
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        
+        # Paint content and get link rectangles
+        self.link_rects = self.message_renderer.paint_content(
+            painter,
+            0, 0,
+            self.width(),
+            self.text,
+            None,  # row
+            self.is_private,
+            self.is_ban,
+            self.is_system
+        )
+        
+        # Update height if needed
+        calculated_height = self.message_renderer.calculate_content_height(self.text, self.width())
+        if self.height() != calculated_height:
+            self.setFixedHeight(calculated_height)
+    
+    def sizeHint(self):
+        height = self.message_renderer.calculate_content_height(
+            self.text, 
+            self.width() if self.width() > 0 else 400
+        )
+        return QSize(self.width() if self.width() > 0 else 400, height)
+    
+    def mouseMoveEvent(self, event):
+        # Update cursor based on whether hovering over link
+        is_over_link = MessageRenderer.is_over_link(self.link_rects, event.pos())
+        self.setCursor(QCursor(Qt.CursorShape.PointingHandCursor if is_over_link else Qt.CursorShape.ArrowCursor))
+        super().mouseMoveEvent(event)
+    
+    def get_link_at_pos(self, pos) -> Optional[Tuple[str, bool]]:
+        """Get link at position"""
+        return MessageRenderer.get_link_at_pos(self.link_rects, pos)
+    
+    def cleanup(self):
+        """Cleanup animation timer"""
+        if self.animation_timer:
+            self.animation_timer.stop()
+            self.animation_timer = None
 
 
 class PopupNotification(QWidget):
@@ -51,6 +113,7 @@ class PopupNotification(QWidget):
         self.hide_timer = None
         self.cursor_check_timer = None
         self.reply_field_visible = False
+        self.message_widget = None
         self.icons_path = Path(__file__).parent.parent / "icons"
       
         # Window setup
@@ -67,43 +130,40 @@ class PopupNotification(QWidget):
         margin = data.config.get("ui", "margins", "notification") if data.config else 8
         spacing = data.config.get("ui", "spacing", "widget_elements") if data.config else 4
       
-        # Determine theme and colors
+        # Determine theme
         is_dark = data.config.get("ui", "theme") == "dark" if data.config else True
         bg_hex = "#1E1E1E" if is_dark else "#FFFFFF"
-      
-        # Load message colors from config based on message type
-        message_color = None
-        if data.is_system and data.config:
-            # System message colors
-            system_colors = get_system_message_colors(data.config, is_dark)
-            message_color = system_colors["text"]
-        elif data.is_ban and data.config:
-            # Ban message colors
-            ban_colors = get_ban_message_colors(data.config, is_dark)
-            message_color = ban_colors["text"]
-        elif data.is_private and data.config:
-            # Private message colors
-            private_colors = get_private_message_colors(data.config, is_dark)
-            message_color = private_colors["text"]
+        
+        # Initialize MessageRenderer
+        self.message_renderer = MessageRenderer(
+            data.config,
+            data.emoticon_manager,
+            is_dark,
+            parent_widget=self
+        )
+        
+        # Set username for mention highlighting
+        my_username = data.account.get('chat_username') if data.account else None
+        if my_username:
+            self.message_renderer.set_my_username(my_username)
       
         # Main layout
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(margin, margin, margin, margin)
-        main_layout.setSpacing(0)  # No spacing between rows
+        main_layout.setSpacing(0)
       
         # TOP ROW: Username (left) + Buttons (right)
         top_row = QHBoxLayout()
         top_row.setSpacing(0)
-        top_row.setContentsMargins(0, 0, 0, 0)  # No margins
+        top_row.setContentsMargins(0, 0, 0, 0)
       
-        # Username label (left side)
+        # Username label (left side) - hide for system messages
         username_color = data.cache.get_or_calculate_color(data.title, None, bg_hex, 4.5) if data.cache else "#AAAAAA"
         self.username_label = QLabel(f"<b>{data.title}</b>")
         self.username_label.setStyleSheet(f"color: {username_color};")
         self.username_label.setFont(get_font(FontType.TEXT))
         self.username_label.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         
-        # ONLY add username label for non-system messages
         if not data.is_system:
             top_row.addWidget(self.username_label, stretch=1)
         else:
@@ -115,7 +175,7 @@ class PopupNotification(QWidget):
         buttons_layout.setSpacing(button_spacing)
         buttons_layout.setContentsMargins(0, 0, 0, 0)
       
-        # Answer button (small) - hide for ban messages and system messages
+        # Answer button - hide for ban and system messages
         if not data.is_ban and not data.is_system:
             self.answer_button = create_icon_button(
                 self.icons_path, "answer.svg", "Reply",
@@ -126,7 +186,7 @@ class PopupNotification(QWidget):
         else:
             self.answer_button = None
       
-        # Mute button (small)
+        # Mute button
         self.mute_button = create_icon_button(
             self.icons_path, "shut-down.svg", "Mute Notifications",
             size_type="small", config=data.config
@@ -134,7 +194,7 @@ class PopupNotification(QWidget):
         self.mute_button.clicked.connect(self._on_mute)
         buttons_layout.addWidget(self.mute_button)
       
-        # Close button (small)
+        # Close button
         self.close_button = create_icon_button(
             self.icons_path, "close.svg", "Close",
             size_type="small", config=data.config
@@ -145,48 +205,24 @@ class PopupNotification(QWidget):
         top_row.addLayout(buttons_layout)
         main_layout.addLayout(top_row)
       
-        # MIDDLE ROW: Message only (no margins, expands to fill space)
-        # Get mention color
-        self.mention_color = get_mention_color(is_dark)
-
-        # Get my username for mention highlighting
-        my_username = data.account.get('chat_username') if data.account else None
-
-        # Only apply mention highlighting for normal messages (not system/private/ban)
-        if my_username and not data.is_system and not data.is_private and not data.is_ban:
-            segments = parse_mentions(data.message, my_username)
-            html_parts = []
-            for is_mention, segment_text in segments:
-                if is_mention:
-                    html_parts.append(f'<b><span style="color: {self.mention_color};">{segment_text}</span></b>')
-                else:
-                    html_parts.append(segment_text)
-            message_text = ''.join(html_parts)
-        else:
-            message_text = data.message
-
-        # Create message label with HTML support for mentions
-        self.message_label = QLabel(message_text)
-        self.message_label.setWordWrap(True)
-        self.message_label.setFont(get_font(FontType.TEXT))
-        self.message_label.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-        self.message_label.setTextFormat(Qt.TextFormat.RichText)
-        self.message_label.setContentsMargins(0, 0, 0, 0)
-
-        if message_color:
-            self.message_label.setStyleSheet(f"color: {message_color};")
-        
-        main_layout.addWidget(self.message_label, stretch=1)
+        # MIDDLE ROW: Message body using MessageBodyWidget
+        self.message_widget = MessageBodyWidget(
+            self.message_renderer,
+            data.message,
+            data.is_private,
+            data.is_ban,
+            data.is_system
+        )
+        main_layout.addWidget(self.message_widget, stretch=1)
       
-        # BOTTOM ROW: Reply field + Send button (only for non-ban and non-system messages)
+        # BOTTOM ROW: Reply field - hide for ban and system messages
         if not data.is_ban and not data.is_system:
             self.reply_container = QWidget()
             self.reply_container.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
             reply_layout = QHBoxLayout(self.reply_container)
-            reply_layout.setContentsMargins(0, 0, 0, 0)  # No margins
-            reply_layout.setSpacing(button_spacing)  # Space between field and send button
+            reply_layout.setContentsMargins(0, 0, 0, 0)
+            reply_layout.setSpacing(button_spacing)
           
-            # Get button size for reply field height
             send_button_size = data.config.get("ui", "buttons", "large_button", "button_size") if data.config else 48
           
             self.reply_field = QLineEdit()
@@ -209,7 +245,7 @@ class PopupNotification(QWidget):
             self.reply_field = None
             self.send_button = None
       
-        # Set fixed width early for accurate sizeHint with wrapping
+        # Set fixed width and adjust size
         self.setFixedWidth(width)
         self.adjustSize()
       
@@ -230,9 +266,9 @@ class PopupNotification(QWidget):
         painter.drawPath(path)
   
     def mousePressEvent(self, event):
-        """Click on notification body to show chat window and close notification"""
+        """Handle clicks: buttons, links, or show window"""
         if event.button() == Qt.MouseButton.LeftButton:
-            # Check if click is on a button (don't trigger on button clicks)
+            # Check if click is on a button
             clicked_widgets = [self.close_button, self.mute_button]
             if self.answer_button:
                 clicked_widgets.append(self.answer_button)
@@ -241,6 +277,19 @@ class PopupNotification(QWidget):
            
             if self.childAt(event.pos()) in clicked_widgets:
                 return super().mousePressEvent(event)
+            
+            # Check if click is on a link in message body
+            if self.message_widget:
+                widget_pos = self.message_widget.mapFrom(self, event.pos())
+                if self.message_widget.rect().contains(widget_pos):
+                    link_data = self.message_widget.get_link_at_pos(widget_pos)
+                    if link_data:
+                        url, is_media = link_data
+                        global_pos = self.mapToGlobal(event.pos())
+                        is_ctrl = event.modifiers() & Qt.KeyboardModifier.ControlModifier
+                        self.message_renderer.handle_link_click(url, is_media, global_pos, is_ctrl)
+                        # Don't close notification when link is clicked
+                        return
           
             # Show chat window if callback exists
             if self.data.window_show_callback:
@@ -303,10 +352,16 @@ class PopupNotification(QWidget):
             self.hide_timer.stop()
         if self.cursor_check_timer and self.cursor_check_timer.isActive():
             self.cursor_check_timer.stop()
+        # Cleanup message widget animation
+        if self.message_widget:
+            self.message_widget.cleanup()
         self.close()
   
     def _on_close(self):
         """Close notification"""
+        # Cleanup message widget animation
+        if self.message_widget:
+            self.message_widget.cleanup()
         self.manager.remove_popup(self)
         self.close()
   
@@ -336,16 +391,12 @@ class PopupNotification(QWidget):
   
     def _on_mute(self):
         """Mute notifications and close all popups"""
-        # Set muted state in manager
         self.manager.set_muted(True)
        
-        # Save to config if available
         if self.data.config:
             self.data.config.set("notification", "muted", value=True)
        
-        # Close all notifications
         self.manager.close_all()
-       
         print("🔇 Notifications muted")
 
     def _on_send_reply(self):
@@ -359,19 +410,17 @@ class PopupNotification(QWidget):
       
         self.reply_field.clear()
       
-        # Determine message type and recipient based on notification data
+        # Determine message type and recipient
         msg_type = 'chat' if self.data.is_private and self.data.recipient_jid else 'groupchat'
         to_jid = self.data.recipient_jid if msg_type == 'chat' else None
       
-        # Add message locally to UI before sending to server
+        # Add message locally to UI
         if self.data.local_message_callback and self.data.account:
             try:
                 from core.messages import Message
               
-                # Get effective background color (custom_background or server background)
                 effective_bg = self.data.account.get('custom_background') or self.data.account.get('background')
               
-                # Create local message object
                 own_msg = Message(
                     from_jid=self.data.xmpp_client.jid,
                     body=text,
@@ -383,11 +432,9 @@ class PopupNotification(QWidget):
                     initial=False
                 )
                
-                # Mark as private if replying to private message
                 own_msg.is_private = (msg_type == 'chat')
-                own_msg.is_system = False # Replies are never system messages
+                own_msg.is_system = False
               
-                # Add to UI locally
                 self.data.local_message_callback(own_msg)
             except Exception as e:
                 print(f"❌ Error adding local message: {e}")
@@ -430,8 +477,8 @@ class PopupManager:
         self.popups: List[PopupNotification] = []
         self.gap = 10
         self.config = None
-        self.notification_mode = "stack" # "stack" or "replace"
-        self.muted = False # Muted state
+        self.notification_mode = "stack"
+        self.muted = False
   
     def set_notification_mode(self, mode: str):
         """Set notification mode: 'stack' or 'replace'"""
@@ -439,7 +486,7 @@ class PopupManager:
             self.notification_mode = mode
   
     def set_muted(self, muted: bool):
-        """Set muted state - if True, notifications won't be shown"""
+        """Set muted state"""
         self.muted = muted
   
     def show_notification(self, data: NotificationData):
@@ -481,7 +528,7 @@ class PopupManager:
         self.popups.clear()
   
     def _position_and_cleanup(self):
-        """Combined positioning and overflow cleanup with accurate sizing"""
+        """Position all popups and handle overflow"""
         if not self.popups:
             return
       
@@ -500,7 +547,7 @@ class PopupManager:
         else: # center (default)
             x = screen.x() + (screen.width() - popup_width) // 2
       
-        # Position all popups from top down starting at y=20
+        # Position all popups from top down
         current_y = screen.y() + 20
         for popup in self.popups:
             popup.move(x, current_y)
@@ -540,23 +587,5 @@ popup_manager = PopupManager()
 
 
 def show_notification(**kwargs):
-    """
-    Show notification with click-to-show functionality
-  
-    Accepts all NotificationData parameters as keyword arguments:
-        title (str): Notification title (username)
-        message (str): Message content
-        duration (int): Auto-hide duration in milliseconds (default: 5000)
-        xmpp_client: XMPP client for sending replies
-        cache: Cache object for username colors
-        config: Application config
-        local_message_callback (Callable): Callback to add messages locally
-        account (dict): User account dict
-        window_show_callback (Callable): Callback to show/focus the chat window
-        is_private (bool): Whether this is a private message (default: False)
-        recipient_jid (str): JID to send reply to (for private messages)
-        is_ban (bool): Whether this is a ban message (default: False)
-        is_system (bool): Whether this is a system message (default: False)
-    """
     data = NotificationData(**kwargs)
     return popup_manager.show_notification(data)

@@ -1,29 +1,17 @@
 """Message delegate for rendering with virtual scrolling"""
-from typing import Dict, Optional, List
+from typing import Dict, Optional
 from pathlib import Path
-import re
-import webbrowser
-import threading
 
 from PyQt6.QtWidgets import QStyledItemDelegate, QStyleOptionViewItem, QApplication
 from PyQt6.QtCore import Qt, QSize, QRect, QModelIndex, pyqtSignal, QTimer, QEvent
-from PyQt6.QtGui import QPainter, QFontMetrics, QColor, QPixmap, QMovie, QCursor, QMouseEvent
+from PyQt6.QtGui import QPainter, QFontMetrics, QColor, QCursor, QMouseEvent
 
 from helpers.color_contrast import optimize_color_contrast
-from helpers.color_utils import(
-    get_private_message_colors,
-    get_ban_message_colors,
-    get_system_message_colors,
-    get_mention_color
-)
 from components.messages_separator import NewMessagesSeparator, ChatlogDateSeparator
 from helpers.emoticons import EmoticonManager
 from helpers.fonts import get_font, FontType
 from helpers.me_action import format_me_action
-from helpers.mention_parser import parse_mentions
-from core.youtube import is_youtube_url, get_cached_info, fetch_async
-from helpers.image_viewer import ImageHoverView
-from helpers.video_player import VideoPlayer
+from ui.message_renderer import MessageRenderer
 
 
 class MessageDelegate(QStyledItemDelegate):
@@ -47,19 +35,6 @@ class MessageDelegate(QStyledItemDelegate):
         theme = config.get("ui", "theme") or "dark"
         self.is_dark_theme = (theme == "dark")
         self.bg_hex = "#1E1E1E" if self.is_dark_theme else "#FFFFFF"
-      
-        # Track own username for mention highlighting
-        self.my_username = None
-        self.mention_color = get_mention_color(self.is_dark_theme)
-     
-        # Load private message colors from config
-        self.private_colors = get_private_message_colors(config, self.is_dark_theme)
-
-        # Load ban message colors from config
-        self.ban_colors = get_ban_message_colors(config, self.is_dark_theme)
-
-        # Load system message colors from config
-        self.system_colors = get_system_message_colors(config, self.is_dark_theme)
 
         self.body_font = get_font(FontType.TEXT)
         self.timestamp_font = get_font(FontType.TEXT)
@@ -67,10 +42,7 @@ class MessageDelegate(QStyledItemDelegate):
         self.compact_mode = False
         self.padding = config.get("ui", "message", "padding") or 2
         self.spacing = config.get("ui", "message", "element_spacing") or 4
-        self.emoticon_max_size = int(config.get("ui", "emoticon_max_size") or 140)
      
-        self._emoticon_cache: Dict[str, QPixmap] = {}
-        self._movie_cache: Dict[str, QMovie] = {}
         self.click_rects: Dict[int, Dict] = {}
         self.input_field = None
      
@@ -88,73 +60,45 @@ class MessageDelegate(QStyledItemDelegate):
         self.highlight_timer = QTimer()
         self.highlight_timer.timeout.connect(self.highlight_row)
         self.highlight_timer.setInterval(50) # 20 FPS
-      
-        # YouTube support
-        self.youtube_enabled = config.get("ui", "youtube", "enabled") or True
-      
-        # Connect the refresh signal
-        self.row_needs_refresh.connect(self._do_refresh_row)
-
-        # Initialize image and video viewer widgets
-        self.image_viewer = None
-        self.video_player = None
+        
+        # Create message renderer
+        self.message_renderer = None
  
     def set_my_username(self, username: str):
         """Set the current user's username for mention highlighting"""
-        self.my_username = username.lower() if username else None
+        if self.message_renderer:
+            self.message_renderer.set_my_username(username)
  
     def set_list_view(self, list_view):
         self.list_view = list_view
-      
-        # Initialize image viewer widget
-        if list_view and not self.image_viewer:
-            self.image_viewer = ImageHoverView(parent=list_view.window())
-
-        # Initialize video player widget
-        if list_view and not self.video_player:
-            icons_path = Path(__file__).parent.parent / "icons"
-            self.video_player = VideoPlayer(
-                parent=list_view.window(),
-                icons_path=icons_path,
-                config=self.config
+        
+        # Initialize message renderer with parent for viewers
+        if list_view and not self.message_renderer:
+            self.message_renderer = MessageRenderer(
+                self.config,
+                self.emoticon_manager,
+                self.is_dark_theme,
+                parent_widget=list_view.window()
             )
+            # Connect refresh signal
+            self.message_renderer.content_needs_refresh.connect(self._refresh_row)
  
     def set_input_field(self, input_field):
         self.input_field = input_field
  
     def cleanup(self):
         self.list_view = None
-      
-        # Cleanup image viewer
-        if self.image_viewer:
-            self.image_viewer.cleanup()
-            self.image_viewer.deleteLater()
-            self.image_viewer = None
-
-        # Cleanup video player
-        if self.video_player:
-            self.video_player.cleanup()
-            self.video_player.deleteLater()
-            self.video_player = None
+        if self.message_renderer:
+            self.message_renderer.cleanup()
  
     def update_theme(self):
         theme = self.config.get("ui", "theme") or "dark"
         self.is_dark_theme = (theme == "dark")
         self.bg_hex = "#1E1E1E" if theme == "dark" else "#FFFFFF"
-      
-        # Update mention color for new theme
-        self.mention_color = get_mention_color(self.is_dark_theme)
-     
-        # Reload private message colors for new theme
-        self.private_colors = get_private_message_colors(self.config, self.is_dark_theme)
-
-        # Reload ban message colors for new theme
-        self.ban_colors = get_ban_message_colors(self.config, self.is_dark_theme)
-
-        # Reload system message colors for new theme
-        self.system_colors = get_system_message_colors(self.config, self.is_dark_theme)
-     
-        self._emoticon_cache.clear()
+        
+        if self.message_renderer:
+            self.message_renderer.update_theme(self.is_dark_theme)
+        
         self.color_cache.clear()
  
     def set_compact_mode(self, compact: bool):
@@ -180,12 +124,18 @@ class MessageDelegate(QStyledItemDelegate):
         return QSize(width, height)
  
     def _calculate_compact_height(self, msg, width: int, row: Optional[int] = None) -> int:
+        if not self.message_renderer:
+            return 50
+        
         fm = QFontMetrics(self.body_font)
         header_height = max(fm.height(), QFontMetrics(self.timestamp_font).height())
-        content_height = self._calculate_content_height(msg.body, width - 2 * self.padding, fm, row)
+        content_height = self.message_renderer.calculate_content_height(msg.body, width - 2 * self.padding, row)
         return min(self.padding + header_height + 2 + content_height + self.padding, 500)
  
     def _calculate_normal_height(self, msg, width: int, row: Optional[int] = None) -> int:
+        if not self.message_renderer:
+            return 50
+        
         fm = QFontMetrics(self.body_font)
         fm_ts = QFontMetrics(self.timestamp_font)
      
@@ -195,164 +145,9 @@ class MessageDelegate(QStyledItemDelegate):
      
         content_width = max(width - timestamp_width - username_width - 2 * self.padding, 200)
      
-        content_height = self._calculate_content_height(msg.body, content_width, fm, row)
+        content_height = self.message_renderer.calculate_content_height(msg.body, content_width, row)
         label_height = max(fm.height(), fm_ts.height())
         return min(max(label_height, content_height) + 2 * self.padding, 500)
- 
-    def _calculate_content_height(self, text: str, width: int, fm: QFontMetrics, row: Optional[int] = None) -> int:
-        # Replace newlines with spaces and normalize multiple spaces
-        text = ' '.join(text.split())
-      
-        url_pattern = re.compile(r'https?://[^\s<>"]+')
-        def repl(m):
-            url = m.group(0)
-            cached = get_cached_info(url, use_emojis=True)
-            if cached and cached[1]:
-                return cached[0] + ' ' # Add space after URL
-            if row is not None and cached:
-                try:
-                    fetch_async(url, lambda _, r=row: self._refresh_row(r))
-                except Exception:
-                    pass
-            return url + ' ' # Add space after URL
-
-        processed_text = url_pattern.sub(repl, text)
-        segments = self.emoticon_manager.parse_emoticons(processed_text)
-        current_line_height = fm.height()
-        total_height = 0
-        current_width = 0
-     
-        for seg_type, content in segments:
-            if seg_type == 'text':
-                lines = self._wrap_text(content, width - current_width, fm)
-                for i, line in enumerate(lines):
-                    if i == 0 and current_width > 0:
-                        line_width = fm.horizontalAdvance(line)
-                        if current_width + line_width <= width:
-                            current_width += line_width
-                            continue
-                 
-                    if current_width > 0:
-                        total_height += current_line_height
-                        current_line_height = fm.height()
-                        current_width = 0
-                    current_width = fm.horizontalAdvance(line)
-            else:
-                pixmap = self._get_emoticon_pixmap(content)
-                if pixmap:
-                    w, h = pixmap.width(), pixmap.height()
-                    if current_width + w > width:
-                        total_height += current_line_height
-                        current_line_height = h
-                        current_width = w
-                    else:
-                        current_width += w
-                        current_line_height = max(current_line_height, h)
-     
-        if current_width > 0:
-            total_height += current_line_height
-     
-        return max(total_height, fm.height())
- 
-    def _wrap_text(self, text: str, width: int, fm: QFontMetrics) -> List[str]:
-        """Wrap text to fit within width, handling long words"""
-        if not text or width <= 0:
-            return [text] if text else []
-     
-        lines = []
-        for para in text.split('\n'):
-            if not para:
-                lines.append('')
-                continue
-         
-            current_line, current_width = [], 0
-            for word in para.split(' '):
-                word_width = fm.horizontalAdvance(word + ' ')
-             
-                if current_width + word_width <= width:
-                    current_line.append(word)
-                    current_width += word_width
-                elif fm.horizontalAdvance(word) > width:
-                    if current_line:
-                        lines.append(' '.join(current_line))
-                        current_line, current_width = [], 0
-                 
-                    # Split long word across lines
-                    while word:
-                        chunk = self._fit(word, width, fm)
-                        lines.append(chunk)
-                        word = word[len(chunk):]
-                else:
-                    if current_line:
-                        lines.append(' '.join(current_line))
-                    current_line = [word]
-                    current_width = word_width
-         
-            if current_line:
-                lines.append(' '.join(current_line))
-     
-        return lines
-
-    def _fit(self, text: str, max_pixels: int, fm: QFontMetrics) -> str:
-        """Binary search to fit maximum characters within pixel width"""
-        if not text or max_pixels <= 0:
-            return text[:1] if text else ''
-     
-        lo, hi, best = 1, len(text), 1
-        while lo <= hi:
-            mid = (lo + hi) // 2
-            if fm.horizontalAdvance(text[:mid]) <= max_pixels:
-                best = mid
-                lo = mid + 1
-            else:
-                hi = mid - 1
-        return text[:best]
-
-    def _get_emoticon_pixmap(self, name: str) -> Optional[QPixmap]:
-        path = self.emoticon_manager.get_emoticon_path(name)
-        if not path:
-            return None
-     
-        # Animated GIF
-        if path.suffix.lower() == '.gif':
-            key = str(path)
-            if key not in self._movie_cache:
-                movie = QMovie(str(path))
-                # Parent to application to survive view cleanup and avoid
-                # being GC'd/stopped when views are hidden.
-                try:
-                    movie.setParent(QApplication.instance())
-                except Exception:
-                    pass
-                movie.setCacheMode(QMovie.CacheMode.CacheAll)
-                first_frame = movie.currentPixmap()
-                if not first_frame.isNull():
-                    w, h = first_frame.width(), first_frame.height()
-                    if w > self.emoticon_max_size or h > self.emoticon_max_size:
-                        scale = self.emoticon_max_size / max(w, h)
-                        movie.setScaledSize(QSize(int(w * scale), int(h * scale)))
-                movie.setSpeed(100)
-                movie.start()
-                self._movie_cache[key] = movie
-                self.animation_frames[key] = -1
-         
-            return self._movie_cache[key].currentPixmap()
-     
-        # Static image
-        if name in self._emoticon_cache:
-            return self._emoticon_cache[name]
-     
-        pixmap = QPixmap(str(path))
-        if not pixmap.isNull():
-            w, h = pixmap.width(), pixmap.height()
-            if w > self.emoticon_max_size or h > self.emoticon_max_size:
-                scale = self.emoticon_max_size / max(w, h)
-                pixmap = pixmap.scaled(int(w * scale), int(h * scale),
-                                      Qt.AspectRatioMode.KeepAspectRatio,
-                                      Qt.TransformationMode.SmoothTransformation)
-            self._emoticon_cache[name] = pixmap
-     
-        return pixmap
  
     def paint(self, painter: QPainter, option: QStyleOptionViewItem, index: QModelIndex):
         msg = index.data(Qt.ItemDataRole.DisplayRole)
@@ -382,7 +177,7 @@ class MessageDelegate(QStyledItemDelegate):
 
         row = index.row()
 
-        if self._has_animated_emoticons(msg.body):
+        if self.message_renderer and self.message_renderer.has_animated_emoticons(msg.body):
             self.animated_rows.add(row)
         else:
             self.animated_rows.discard(row)
@@ -404,6 +199,9 @@ class MessageDelegate(QStyledItemDelegate):
  
     def _paint_message(self, painter: QPainter, rect: QRect, msg, row: int, compact: bool):
         """Paint message in either compact or normal mode"""
+        if not self.message_renderer:
+            return
+        
         x, y = rect.x() + self.padding, rect.y() + self.padding
         width = rect.width() - 2 * self.padding
         time_str = msg.get_time_str()
@@ -458,7 +256,7 @@ class MessageDelegate(QStyledItemDelegate):
             # Compact mode: content below header
             content_y = y + max(body_fm.height(), ts_fm.height()) + 2
             content_width = width
-            self._paint_content(
+            link_rects = self.message_renderer.paint_content(
                 painter, x, content_y, content_width, display_body, row,
                 getattr(msg, 'is_private', False),
                 getattr(msg, 'is_ban', False),
@@ -467,182 +265,21 @@ class MessageDelegate(QStyledItemDelegate):
         else:
             # Normal mode: content on same line after username/timestamp
             content_width = rect.width() - (content_x - rect.x()) - self.padding
-            self._paint_content(
+            link_rects = self.message_renderer.paint_content(
                 painter, content_x, y, content_width, display_body, row,
                 getattr(msg, 'is_private', False),
                 getattr(msg, 'is_ban', False),
                 is_system
             )
+        
+        self.click_rects[row]['links'] = link_rects
  
-    def _is_media_url(self, url: str) -> bool:
-        """Check if URL is a media link (image or video)"""
-        return ImageHoverView.is_image_url(url) or VideoPlayer.is_video_url(url)
- 
-    def _paint_content(self, painter: QPainter, x: int, y: int, width: int,
-                       text: str, row: int, is_private: bool = False, is_ban: bool = False, is_system: bool = False):
-        """Paint content with text, links, and emoticons"""
-        # Replace newlines with spaces and normalize multiple spaces
-        text = ' '.join(text.split())
-      
-        url_pattern = re.compile(r'https?://[^\s<>"]+')
-        urls = []
-        def replace_url(match):
-            url = match.group(0)
-            urls.append(url)
-            return f"[URL{len(urls)-1}] " # Add space after placeholder
-        processed_text = url_pattern.sub(replace_url, text)
-        segments = self.emoticon_manager.parse_emoticons(processed_text)
-        painter.setFont(self.body_font)
-        fm = QFontMetrics(self.body_font)
-
-        current_x, current_y = x, y
-        line_height = fm.height()
-
-        # Determine text color based on message type
-        if is_system:
-            text_color = self.system_colors["text"]
-        elif is_private:
-            text_color = self.private_colors["text"]
-        elif is_ban:
-            text_color = self.ban_colors["text"]
-        else:
-            text_color = "#FFFFFF" if self.is_dark_theme else "#000000"
-      
-        # Link colors
-        normal_link_color = "#4DA6FF" if self.is_dark_theme else "#0066CC" # Blue for normal links
-        media_link_color = "#4DFF88" if self.is_dark_theme else "#00AA44" # Green for media links
-
-        def new_line():
-            nonlocal current_x, current_y, line_height
-            current_y += line_height
-            current_x = x
-            line_height = fm.height()
-
-        def draw_text_chunk(content: str, color: str):
-            """Draw text chunk with mention highlighting (ONLY for non-system messages)"""
-            nonlocal current_x
-          
-            # Only apply mention highlighting for normal messages (not system/private/ban)
-            if not is_system and not is_private and not is_ban:
-                # Split content into mention and non-mention segments
-                mention_segments = parse_mentions(content, self.my_username)
-            else:
-                # For system/private/ban messages, treat entire content as non-mention
-                mention_segments = [(False, content)]
-          
-            for is_mention, segment_text in mention_segments:
-                if not segment_text:
-                    continue
-              
-                # Use green color AND bold font for mentions
-                if is_mention:
-                    draw_color = self.mention_color
-                    painter.setFont(get_font(FontType.TEXT)) # Reset to ensure we have the font object
-                    bold_font = painter.font()
-                    bold_font.setBold(True)
-                    painter.setFont(bold_font)
-                    fm = QFontMetrics(bold_font) # Update font metrics for bold text
-                else:
-                    draw_color = color
-                    painter.setFont(self.body_font) # Use normal font
-                    fm = QFontMetrics(self.body_font) # Update font metrics for normal text
-              
-                lines = self._wrap_text(segment_text, width - (current_x - x), fm)
-                for line in lines:
-                    if not line:
-                        new_line()
-                        continue
-
-                    line_width = fm.horizontalAdvance(line)
-                    if current_x > x and current_x + line_width > x + width:
-                        new_line()
-
-                    painter.setPen(QColor(draw_color))
-                    painter.drawText(current_x, current_y + fm.ascent(), line)
-                    current_x += line_width
-              
-                # Reset to normal font after mention
-                if is_mention:
-                    painter.setFont(self.body_font)
-                    fm = QFontMetrics(self.body_font)
-
-        def draw_link(url: str, is_media: bool = False):
-            nonlocal current_x, line_height
-            link_text = self._get_link_text(url, row)
-           
-            # Choose color based on whether it's a media link
-            link_color = media_link_color if is_media else normal_link_color
-            painter.setPen(QColor(link_color))
-
-            remaining = link_text
-            while remaining:
-                avail = x + width - current_x
-                if avail <= 0:
-                    new_line()
-                    avail = width
-
-                chunk = self._fit(remaining, avail, fm) or remaining[0]
-                chunk_width = fm.horizontalAdvance(chunk)
-
-                if current_x > x and current_x + chunk_width > x + width:
-                    new_line()
-                    continue
-
-                painter.drawText(current_x, current_y + fm.ascent(), chunk)
-                link_rect = QRect(current_x, current_y, chunk_width, fm.height())
-                self.click_rects[row]['links'].append((link_rect, url, is_media))
-                current_x += chunk_width
-                remaining = remaining[len(chunk):]
-      
-        placeholder_pattern = re.compile(r'\[URL(\d+)\]')
-
-        for seg_type, content in segments:
-            if seg_type == 'text':
-                last_pos = 0
-                for match in placeholder_pattern.finditer(content):
-                    if match.start() > last_pos:
-                        draw_text_chunk(content[last_pos:match.start()], text_color)
-                    url_index = int(match.group(1))
-                    url = urls[url_index]
-                    is_media = self._is_media_url(url)
-                    draw_link(url, is_media)
-                    last_pos = match.end()
-
-                if last_pos < len(content):
-                    draw_text_chunk(content[last_pos:], text_color)
-
-            else: # emoticon
-                pixmap = self._get_emoticon_pixmap(content)
-                if pixmap:
-                    w, h = pixmap.width(), pixmap.height()
-                    if current_x > x and current_x + w > x + width:
-                        new_line()
-                        line_height = h
-
-                    painter.drawPixmap(current_x, current_y, pixmap)
-                    current_x += w
-                    line_height = max(line_height, h)
- 
-    def _get_link_text(self, url: str, row: int) -> str:
-        """Get display text for link (process YouTube if applicable)"""
-        if not self.youtube_enabled or not is_youtube_url(url):
-            return url
-      
-        cached = get_cached_info(url, use_emojis=True)
-        if cached:
-            formatted_text, is_cached = cached
-            if is_cached:
-                return formatted_text
-            fetch_async(url, lambda result: self._refresh_row(row))
-      
-        return url
-  
     def _refresh_row(self, row: int):
         """Request refresh from background thread - emit signal to main thread"""
         self.row_needs_refresh.emit(row)
   
     def _do_refresh_row(self, row: int):
-        """Refresh row when async metadata arrives - re-evaluate sizeHint"""
+        """Refresh row when async metadata arrives"""
         if not self.list_view or not self.list_view.model() or not (0 <= row < self.list_view.model().rowCount()):
             return
         try:
@@ -668,7 +305,6 @@ class MessageDelegate(QStyledItemDelegate):
         # Handle clicking on new messages marker to remove it
         if getattr(msg, 'is_new_messages_marker', False):
             if event.type() == QEvent.Type.MouseButtonRelease:
-                from components.messages_separator import NewMessagesSeparator
                 NewMessagesSeparator.remove_from_model(model)
                 return True
             return False
@@ -691,8 +327,7 @@ class MessageDelegate(QStyledItemDelegate):
          
             rects = self.click_rects[row]
          
-            # Timestamp/username clicks are handled by the VIEW (ui_messages.py).
-            # Delegate only provides geometry via `click_rects` and does not emit interaction signals.
+            # Timestamp/username clicks are handled by the VIEW (ui_messages.py)
             if rects['timestamp'].contains(pos):
                 return True
 
@@ -703,25 +338,14 @@ class MessageDelegate(QStyledItemDelegate):
                 return True
          
             # Link clicks
-            is_ctrl = QApplication.keyboardModifiers() & Qt.KeyboardModifier.ControlModifier
-            for link_rect, url, is_media in rects['links']:
-                if link_rect.contains(pos):
+            if self.message_renderer:
+                is_ctrl = QApplication.keyboardModifiers() & Qt.KeyboardModifier.ControlModifier
+                link_data = MessageRenderer.get_link_at_pos(rects['links'], pos)
+                if link_data:
+                    url, is_media = link_data
                     if button == Qt.MouseButton.LeftButton:
-                        if is_media and not is_ctrl:
-                            # Media link without Ctrl: open in viewer
-                            global_pos = self.list_view.viewport().mapToGlobal(pos)
-                            if VideoPlayer.is_video_url(url):
-                                if self.video_player:
-                                    self.video_player.show_video(url, global_pos)
-                            elif ImageHoverView.is_image_url(url):
-                                if self.image_viewer:
-                                    self.image_viewer.show_preview(url, global_pos)
-                        else:
-                            # Normal link OR media link with Ctrl: open in browser
-                            try:
-                                webbrowser.open(url)
-                            except Exception as e:
-                                print(f"Failed to open URL: {e}")
+                        global_pos = self.list_view.viewport().mapToGlobal(pos)
+                        self.message_renderer.handle_link_click(url, is_media, global_pos, is_ctrl)
                     elif button == Qt.MouseButton.RightButton:
                         # Copy URL to clipboard
                         QApplication.clipboard().setText(url)
@@ -754,7 +378,7 @@ class MessageDelegate(QStyledItemDelegate):
                 is_over_clickable = (
                     rects['timestamp'].contains(pos) or
                     rects['username'].contains(pos) or
-                    any(link_rect.contains(pos) for link_rect, _, _ in rects['links'])
+                    (self.message_renderer and MessageRenderer.is_over_link(rects['links'], pos))
                 )
               
                 if self.list_view:
@@ -767,33 +391,22 @@ class MessageDelegate(QStyledItemDelegate):
  
     def _get_username_color(self, username: str, background: Optional[str]) -> str:
         if username not in self.color_cache:
-            # If no background color (messages/chatlog), use simple theme-dependent color
             if not background:
                 self.color_cache[username] = "#CCCCCC" if self.is_dark_theme else "#666666"
             else:
-                # Messages view: use optimized contrast
                 self.color_cache[username] = optimize_color_contrast(background, self.bg_hex, 4.5)
         return self.color_cache[username]
  
-    def _has_animated_emoticons(self, text: str) -> bool:
-        for seg_type, content in self.emoticon_manager.parse_emoticons(text):
-            if seg_type == 'emoticon':
-                path = self.emoticon_manager.get_emoticon_path(content)
-                if path and path.suffix.lower() == '.gif':
-                    return True
-        return False
- 
     def _update_animations(self):
-        if not self.animated_rows:
+        if not self.animated_rows or not self.message_renderer:
             return
 
         # Poll frames for all movies
         has_changes = False
-        for key, movie in list(self._movie_cache.items()):
+        for key, movie in list(self.message_renderer._movie_cache.items()):
             try:
                 current_frame = movie.currentFrameNumber()
             except Exception:
-                # Movie may have been invalidated; skip it
                 continue
             if self.animation_frames.get(key, -1) != current_frame:
                 self.animation_frames[key] = current_frame
@@ -802,7 +415,6 @@ class MessageDelegate(QStyledItemDelegate):
         if not has_changes:
             return
 
-        # Only repaint when view is visible
         try:
             viewport_visible = bool(self.list_view and self.list_view.isVisible())
         except RuntimeError:
@@ -848,7 +460,7 @@ class MessageDelegate(QStyledItemDelegate):
         return set(range(start_row, end_row + 1))
 
     def highlight_row(self, row: int = None):
-        """Highlight a row with fade-out effect (also handles fade animation)"""
+        """Highlight a row with fade-out effect"""
         
         if row is not None:
             # Starting NEW highlight

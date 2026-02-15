@@ -36,6 +36,7 @@ class ChatlogWidget(QWidget):
     def __init__(
         self,
         config,
+        emoticon_manager,
         icons_path: Path,
         account=None,
         parent_window=None,
@@ -43,6 +44,7 @@ class ChatlogWidget(QWidget):
         ):
         super().__init__()
         self.config = config
+        self.emoticon_manager = emoticon_manager
         self.icons_path = icons_path
         self.account = account
         self.parent_window = parent_window
@@ -62,9 +64,6 @@ class ChatlogWidget(QWidget):
         self.search_visible = config.get("ui", "chatlog_search_visible")
         if self.search_visible is None:
             self.search_visible = False
-
-        emoticons_path = Path(__file__).resolve().parent.parent / "emoticons"
-        self.emoticon_manager = EmoticonManager(emoticons_path)
 
         self.model = MessageListModel(max_messages=50000)
         self.delegate = MessageDelegate(config, self.emoticon_manager, self.color_cache)
