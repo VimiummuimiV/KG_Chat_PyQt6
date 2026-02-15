@@ -60,6 +60,9 @@ class MessageDelegate(QStyledItemDelegate):
         self.highlight_timer = QTimer()
         self.highlight_timer.timeout.connect(self.highlight_row)
         self.highlight_timer.setInterval(50) # 20 FPS
+
+        # Connect signal for refreshing rows when async metadata (like link previews) is loaded
+        self.row_needs_refresh.connect(self._do_refresh_row)
         
         # Create message renderer
         self.message_renderer = None
