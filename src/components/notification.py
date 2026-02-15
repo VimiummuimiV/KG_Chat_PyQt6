@@ -205,7 +205,12 @@ class PopupNotification(QWidget):
         top_row.addLayout(buttons_layout)
         main_layout.addLayout(top_row)
       
-        # MIDDLE ROW: Message body using MessageBodyWidget
+        # MIDDLE ROW: Message body
+        msg_container = QWidget()
+        msg_container.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        msg_layout = QVBoxLayout(msg_container)
+        msg_layout.setContentsMargins(spacing, spacing, spacing, spacing)
+        msg_layout.setSpacing(0)
         self.message_widget = MessageBodyWidget(
             self.message_renderer,
             data.message,
@@ -213,7 +218,8 @@ class PopupNotification(QWidget):
             data.is_ban,
             data.is_system
         )
-        main_layout.addWidget(self.message_widget, stretch=1)
+        msg_layout.addWidget(self.message_widget)
+        main_layout.addWidget(msg_container, stretch=1)
       
         # BOTTOM ROW: Reply field - hide for ban and system messages
         if not data.is_ban and not data.is_system:
