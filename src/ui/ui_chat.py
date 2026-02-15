@@ -1343,11 +1343,14 @@ class ChatWindow(QWidget):
         new_font = get_font(FontType.TEXT)
         font_size = new_font.pointSize()
         
-        # Update message delegates
+        # Update message delegates AND their renderers
         for widget in [self.messages_widget, self.chatlog_widget]:
             if widget:
-                widget.delegate.body_font = new_font
-                widget.delegate.timestamp_font = new_font
+                widget.delegate.body_font = new_font          # For username + metrics
+                widget.delegate.timestamp_font = new_font      # For timestamp
+                # Also update MessageRenderer font
+                if widget.delegate.message_renderer:
+                    widget.delegate.message_renderer.body_font = new_font  # For message body
                 widget._force_recalculate()
         
         # Update message input field
