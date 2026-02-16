@@ -1744,6 +1744,16 @@ class ChatWindow(QWidget):
             temp_act = QAction("Ban temporarily", self)
             menu.addAction(temp_act)
             
+            # Separator
+            menu.addSeparator()
+            
+            # Message removal actions
+            remove_msg_act = QAction("Remove this message", self)
+            menu.addAction(remove_msg_act)
+            
+            remove_all_act = QAction("Remove all messages", self)
+            menu.addAction(remove_all_act)
+            
             act = menu.exec(global_pos)
             if not act:
                 return
@@ -1756,6 +1766,12 @@ class ChatWindow(QWidget):
                 seconds, ok = DurationDialog.get_duration(self, default_seconds=3600)
                 if ok:
                     self._ban_user_from_msg(msg, permanent=False, duration=seconds)
+            elif act == remove_msg_act:
+                # Remove single message
+                self._remove_message(msg, single=True)
+            elif act == remove_all_act:
+                # Remove all messages from user
+                self._remove_message(msg, single=False)
         
         except Exception as e:
             print(f"Context menu error: {e}")
@@ -1816,7 +1832,19 @@ class ChatWindow(QWidget):
             try:
                 self.ban_list_widget._load_bans()
             except Exception:
-                pass    
+                pass
+    
+    def _remove_message(self, msg, single: bool = True):
+        """Remove message(s) without banning user"""
+        username = getattr(msg, 'login', None) or getattr(msg, 'username', None)
+        if not username:
+            return
+        
+        try:
+            timestamp = getattr(msg, 'timestamp', None) if single else None
+            self.messages_widget.remove_messages_by_login(username, timestamp)
+        except Exception as e:
+            print(f"Error removing message(s): {e}")
 
     def toggle_theme(self):
         try:
