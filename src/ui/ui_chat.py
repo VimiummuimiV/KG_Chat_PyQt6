@@ -652,16 +652,18 @@ class ChatWindow(QWidget):
         # Restore delegate references and restart animations when showing
         try:
             if self.messages_widget and getattr(self.messages_widget, 'delegate', None):
-                self.messages_widget.delegate.set_list_view(self.messages_widget.list_view)
+                delegate = self.messages_widget.delegate
+                delegate.set_list_view(self.messages_widget.list_view)
                 # Ensure timer is running
-                if not self.messages_widget.delegate.animation_timer.isActive():
-                    self.messages_widget.delegate.animation_timer.start(33)
+                if not delegate.animation_timer.isActive():
+                    delegate.animation_timer.start(33)
                 # Restart any QMovie instances
-                for movie in self.messages_widget.delegate._movie_cache.values():
-                    try:
-                        movie.start()
-                    except Exception:
-                        pass
+                if delegate.message_renderer and hasattr(delegate.message_renderer, '_movie_cache'):
+                    for movie in delegate.message_renderer._movie_cache.values():
+                        try:
+                            movie.start()
+                        except Exception:
+                            pass
         except Exception as e:
             print(f"ShowEvent resume animations error: {e}")
 
