@@ -57,7 +57,8 @@ def handle_chat_resize(chat_window, width: int):
     # Handle button panel and userlist visibility based on width
     if width < 500:
         if hasattr(chat_window, 'button_panel') and chat_window.button_panel.isVisible():
-            chat_window.button_panel.setVisible(False)
+            if not getattr(chat_window, '_hover_reveal', False):
+                chat_window.button_panel.setVisible(False)
         if auto_hide and userlist_widget and is_compact and userlist_widget.isVisible():
             userlist_widget.setVisible(False)
     else:

@@ -497,6 +497,10 @@ class ChatWindow(QWidget):
 
         # Initialize always on top button state
         self.update_always_on_top_button_state()
+
+        # Enable mouse tracking for hover-reveal
+        self.setMouseTracking(True)
+        self._hover_reveal = False
      
         # Initialize userlist button state
         messages_userlist_visible = self.config.get("ui", "messages_userlist_visible")
@@ -1039,6 +1043,25 @@ class ChatWindow(QWidget):
         super().moveEvent(event)
 
         self._update_geometry_on_manual_change()
+
+    def mouseMoveEvent(self, event):
+        """Hover-reveal button panel when mouse near right edge"""
+        if self.width() < 500 and hasattr(self, 'button_panel'):
+            near_edge = (self.width() - event.pos().x()) <= 40
+            over_panel = self.button_panel.geometry().contains(event.pos())
+            
+            if near_edge and not self.button_panel.isVisible():
+                self.button_panel.setVisible(True)
+                self._hover_reveal = True
+            elif self._hover_reveal and not near_edge and not over_panel:
+                def hide_if_away():
+                    cursor_pos = self.mapFromGlobal(self.cursor().pos())
+                    if self.width() < 500 and not self.button_panel.geometry().contains(cursor_pos):
+                        self.button_panel.setVisible(False)
+                
+                QTimer.singleShot(300, hide_if_away)
+                self._hover_reveal = False
+        super().mouseMoveEvent(event)
 
     def reset_window_size(self):
         """Reset window to default calculated size and position"""

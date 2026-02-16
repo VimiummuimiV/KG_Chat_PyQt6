@@ -81,6 +81,7 @@
     "emoticon_selector_visible": false,
     "always_on_top": false,
     "recent_emoticons": [
+      "dandy",
       "firework",
       "uzi",
       "barret",
@@ -103,14 +104,29 @@
       "x": null,
       "y": null
     },
-    "window_presets": []
+    "window_presets": [
+      {
+        "name": "Full height Narrow Left",
+        "width": 638,
+        "height": 1368,
+        "x": 1,
+        "y": 0
+      },
+      {
+        "name": "Full height Narrow Right",
+        "width": 638,
+        "height": 1368,
+        "x": 1921,
+        "y": 0
+      }
+    ]
   },
   "sound": {
     "tts_enabled": false,
     "effects_enabled": true
   },
   "notification": {
-    "mode": "replace",
+    "mode": "stack",
     "muted": false
   },
   "startup": {
