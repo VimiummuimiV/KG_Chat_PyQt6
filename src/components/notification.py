@@ -8,9 +8,10 @@ from pathlib import Path
 from datetime import datetime
 import threading
 
-from helpers.create import create_icon_button
+from helpers.create import create_icon_button, HoverIconButton
 from helpers.fonts import get_font, FontType
 from ui.message_renderer import MessageRenderer
+from ui.ui_emoticon_selector import EmoticonSelectorWidget
 
 
 @dataclass
@@ -222,6 +223,10 @@ class PopupNotification(QWidget):
         main_layout.addWidget(msg_container, stretch=1)
       
         # BOTTOM ROW: Reply field - hide for ban and system messages
+        # Initialize emoticon attributes for all cases
+        self.emoticon_selector = None
+        self.emoticon_button = None
+        
         if not data.is_ban and not data.is_system:
             self.reply_container = QWidget()
             self.reply_container.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
@@ -244,8 +249,33 @@ class PopupNotification(QWidget):
             self.send_button.clicked.connect(self._on_send_reply)
             reply_layout.addWidget(self.send_button)
           
+            # Emoticon button - only show if emoticon_manager is available
+            if data.emoticon_manager:
+                self.emoticon_button = HoverIconButton(
+                    self.icons_path,
+                    "emotion-normal.svg",
+                    "emotion-happy.svg",
+                    "Toggle Emoticon Selector"
+                )
+                self.emoticon_button.clicked.connect(self._toggle_emoticon_selector)
+                reply_layout.addWidget(self.emoticon_button)
+          
             self.reply_container.setVisible(False)
             main_layout.addWidget(self.reply_container, stretch=0)
+            
+            # Emoticon selector - embedded in notification, hidden by default
+            if data.emoticon_manager:
+                self.emoticon_selector = EmoticonSelectorWidget(
+                    data.config,
+                    data.emoticon_manager,
+                    self.icons_path,
+                    transparent_bg=True  # Transparent background for notification
+                )
+                self.emoticon_selector.emoticon_selected.connect(self._on_emoticon_selected)
+                self.emoticon_selector.setVisible(False)  # Hidden by default
+                self.emoticon_selector.setFixedHeight(350)  # Compact height for notification
+                self.emoticon_selector.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+                main_layout.addWidget(self.emoticon_selector, stretch=0)
         else:
             self.reply_container = None
             self.reply_field = None
@@ -280,6 +310,8 @@ class PopupNotification(QWidget):
                 clicked_widgets.append(self.answer_button)
             if self.send_button:
                 clicked_widgets.append(self.send_button)
+            if self.emoticon_button:
+                clicked_widgets.append(self.emoticon_button)
            
             if self.childAt(event.pos()) in clicked_widgets:
                 return super().mousePressEvent(event)
@@ -352,22 +384,26 @@ class PopupNotification(QWidget):
         self.fade_out.finished.connect(self._on_close)
         self.fade_out.start()
   
+    def _cleanup_widgets(self):
+        """Cleanup widgets on close"""
+        if self.emoticon_selector:
+            self.emoticon_selector.setVisible(False)
+            self.emoticon_selector.cleanup()
+        if self.message_widget:
+            self.message_widget.cleanup()
+  
     def close_immediately(self):
         """Close notification immediately without animation"""
         if self.hide_timer and self.hide_timer.isActive():
             self.hide_timer.stop()
         if self.cursor_check_timer and self.cursor_check_timer.isActive():
             self.cursor_check_timer.stop()
-        # Cleanup message widget animation
-        if self.message_widget:
-            self.message_widget.cleanup()
+        self._cleanup_widgets()
         self.close()
   
     def _on_close(self):
         """Close notification"""
-        # Cleanup message widget animation
-        if self.message_widget:
-            self.message_widget.cleanup()
+        self._cleanup_widgets()
         self.manager.remove_popup(self)
         self.close()
   
@@ -416,6 +452,35 @@ class PopupNotification(QWidget):
        
         self.manager.close_all()
         print("🔇 Notifications muted")
+
+    def _toggle_emoticon_selector(self):
+        """Toggle emoticon selector visibility"""
+        if not self.emoticon_selector:
+            return
+        
+        is_visible = self.emoticon_selector.isVisible()
+        self.emoticon_selector.setVisible(not is_visible)
+        
+        # Resume animations when showing
+        if not is_visible:
+            QTimer.singleShot(50, self.emoticon_selector.resume_animations)
+        
+        # Recalculate notification size
+        self.adjustSize()
+        self.manager._position_and_cleanup()
+    
+    def _on_emoticon_selected(self, emoticon_name: str):
+        """Insert emoticon into reply field"""
+        if not self.reply_field:
+            return
+        
+        cursor_pos = self.reply_field.cursorPosition()
+        emoticon_code = f":{emoticon_name}:"
+        text = self.reply_field.text()
+        
+        self.reply_field.setText(text[:cursor_pos] + emoticon_code + text[cursor_pos:])
+        self.reply_field.setCursorPosition(cursor_pos + len(emoticon_code))
+        self.reply_field.setFocus()
 
     def _on_send_reply(self):
         """Send reply message"""

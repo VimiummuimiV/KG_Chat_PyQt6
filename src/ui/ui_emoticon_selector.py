@@ -205,11 +205,12 @@ class EmoticonSelectorWidget(QWidget):
     """Widget for selecting emoticons with icon-based navigation"""
     emoticon_selected = pyqtSignal(str)
 
-    def __init__(self, config, emoticon_manager: EmoticonManager, icons_path: Path):
+    def __init__(self, config, emoticon_manager: EmoticonManager, icons_path: Path, transparent_bg: bool = False):
         super().__init__()
         self.config = config
         self.emoticon_manager = emoticon_manager
         self.icons_path = icons_path
+        self.transparent_bg = transparent_bg
 
         self.recent_emoticons = config.get("ui", "recent_emoticons") or []
         self.group_indices = {}
@@ -236,7 +237,12 @@ class EmoticonSelectorWidget(QWidget):
         theme = self.config.get("ui", "theme")
         self.is_dark_theme = (theme == "dark")
 
-        if self.is_dark_theme:
+        if self.transparent_bg:
+            # Transparent background for notifications
+            bg_color = "transparent"
+            content_bg = "transparent"
+            border_color = "transparent"
+        elif self.is_dark_theme:
             bg_color = "#1b1b1b"
             content_bg = "#1b1b1b"
             border_color = "#3D3D3D"
