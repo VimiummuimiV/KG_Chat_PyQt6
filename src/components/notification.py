@@ -11,7 +11,7 @@ import threading
 from helpers.create import create_icon_button, HoverIconButton
 from helpers.fonts import get_font, FontType
 from ui.message_renderer import MessageRenderer
-from ui.ui_emoticon_selector import EmoticonSelectorWidget
+from ui.ui_emoticon_selector import release_selector
 
 
 @dataclass
@@ -371,10 +371,15 @@ class PopupNotification(QWidget):
         self.fade_out.finished.connect(self._on_close)
         self.fade_out.start()
   
+    def _release_emoticon_selector(self):
+        """Remove the borrowed selector from this popup's layout and release ownership."""
+        sel = self.manager.emoticon_selector
+        if sel and sel.parent() is self:
+            release_selector(sel)
+
     def _cleanup_widgets(self):
-        """Cleanup widgets on close"""
-        if self.emoticon_selector and self.emoticon_selector.parent() is self:
-            self.emoticon_selector.setVisible(False)
+        """Cleanup widgets on close - release borrowed selector without destroying it"""
+        self._release_emoticon_selector()
         if self.message_widget:
             self.message_widget.cleanup()
   
@@ -440,38 +445,15 @@ class PopupNotification(QWidget):
         print("🔇 Notifications muted")
 
     def _toggle_emoticon_selector(self):
-        """Toggle emoticon selector - created once in manager, shared across notifications"""
+        """Toggle the shared emoticon selector - borrow from ChatWindow or release it."""
         sel = self.manager.emoticon_selector
-
-        # Create on first use
         if sel is None:
-            sel = EmoticonSelectorWidget(self.data.config, self.data.emoticon_manager, self.icons_path)
-            self.manager.emoticon_selector = sel
+            return  # ChatWindow not open yet; nothing to borrow
 
-        owned_by_me = sel.parent() is self
-
-        if sel.isVisible() and owned_by_me:
-            sel.setVisible(False)
+        if sel.parent() is self:
+            self._release_emoticon_selector()
         else:
-            if not owned_by_me:
-                old_parent = sel.parent()
-                if old_parent and old_parent.layout():
-                    old_parent.layout().removeWidget(sel)
-                    old_parent.adjustSize()
-                sel.setParent(self)
-                self.layout().addWidget(sel, stretch=0, alignment=Qt.AlignmentFlag.AlignCenter)
-                self.layout().setSpacing(self.spacing)
-                sel.setFixedHeight(350)
-                sp = sel.sizePolicy()
-                sp.setRetainSizeWhenHidden(False)
-                sel.setSizePolicy(sp)
-            try:
-                sel.emoticon_selected.disconnect()
-            except Exception:
-                pass
-            sel.emoticon_selected.connect(self._on_emoticon_selected)
-            sel.setVisible(True)
-            QTimer.singleShot(50, sel.resume_animations)
+            sel.attach(self, self._on_emoticon_selected, self.layout(), self.spacing)
 
         self.emoticon_selector = sel
         self.adjustSize()

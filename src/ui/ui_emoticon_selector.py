@@ -555,9 +555,75 @@ class EmoticonSelectorWidget(QWidget):
         for group_widget in self.group_widgets:
             group_widget.resume_animations()
 
+    def bind(self, callback):
+        """Reconnect emoticon_selected signal to a new callback."""
+        try:
+            self.emoticon_selected.disconnect()
+        except Exception:
+            pass
+        self.emoticon_selected.connect(callback)
+
+    def attach(self, parent, callback, layout=None, spacing=0):
+        """Re-parent the selector and reconnect its signal.
+
+        If *layout* is given the selector is embedded in it (popup mode),
+        otherwise it floats as an overlay (chat mode).
+        """
+        detach_selector_from_layout(self)
+        self.setParent(parent)
+        self.bind(callback)
+        if layout is not None:
+            layout.addWidget(self, stretch=0, alignment=Qt.AlignmentFlag.AlignCenter)
+            layout.setSpacing(spacing)
+            self.setFixedHeight(350)
+            sp = self.sizePolicy()
+            sp.setRetainSizeWhenHidden(False)
+            self.setSizePolicy(sp)
+            self.setVisible(True)
+            QTimer.singleShot(50, self.resume_animations)
+
     def cleanup(self):
         """Clean up all emoticon buttons"""
         for btn in self.recent_buttons:
             btn.cleanup()
         for widget in self.group_widgets:
             widget.cleanup()
+
+
+# ---------------------------------------------------------------------------
+# Shared selector lifecycle utilities
+# Used by both ChatWindow and PopupNotification to avoid duplicating the
+# layout-detach / release logic.
+# ---------------------------------------------------------------------------
+
+def detach_selector_from_layout(sel):
+    """Remove *sel* from its current parent's layout and shrink that parent.
+
+    Safe to call when sel is floating (not in any layout) - does nothing in
+    that case. Does NOT hide or re-parent sel; callers do that themselves.
+    """
+    old_parent = sel.parent()
+    if old_parent is None:
+        return
+    old_lyt = old_parent.layout()
+    if old_lyt and old_lyt.indexOf(sel) >= 0:
+        old_lyt.removeWidget(sel)
+        old_lyt.invalidate()
+        old_lyt.activate()
+        try:
+            old_parent.adjustSize()
+            if hasattr(old_parent, 'manager'):
+                old_parent.manager._position_and_cleanup()
+        except Exception:
+            pass
+
+
+def release_selector(sel):
+    """Fully release *sel*: detach from layout, hide, and unparent.
+
+    After this call the selector is invisible and owned by no widget.
+    The Python reference kept by PopupManager keeps it alive.
+    """
+    detach_selector_from_layout(sel)
+    sel.setVisible(False)
+    sel.setParent(None)

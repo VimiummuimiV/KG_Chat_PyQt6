@@ -42,7 +42,7 @@ from ui.ui_banlist import BanListWidget
 from helpers.duration_dialog import DurationDialog
 from helpers.jid_utils import extract_user_data_from_jid
 from ui.ui_buttons import ButtonPanel
-from components.notification import show_notification
+from components.notification import show_notification, popup_manager
 from components.messages_separator import NewMessagesSeparator
 
 
@@ -257,7 +257,6 @@ class ChatWindow(QWidget):
             self.app_controller.update_notification_menu()
         
         # Update popup_manager
-        from components.notification import popup_manager
         popup_manager.set_notification_mode(new_mode)
         popup_manager.set_muted(new_muted)
         
@@ -283,7 +282,6 @@ class ChatWindow(QWidget):
         self.update_notification_button_state()
         
         # Update popup_manager to match config
-        from components.notification import popup_manager
         mode = self.config.get("notification", "mode") or "stack"
         muted = self.config.get("notification", "muted") or False
         popup_manager.set_notification_mode(mode)
@@ -517,8 +515,10 @@ class ChatWindow(QWidget):
             self.emoticon_manager,
             self.icons_path
         )
-        self.emoticon_selector.emoticon_selected.connect(self._on_emoticon_selected)
-        self.emoticon_selector.setParent(self) # Make it float above other widgets
+        self.emoticon_selector.attach(self, self._on_emoticon_selected)
+
+        # Register shared instance with popup manager so notifications can borrow it
+        popup_manager.emoticon_selector = self.emoticon_selector
      
         # Install a minimal event filter to detect clicks outside selector
         # (install on window and application with a single line to keep it simple)
@@ -542,11 +542,19 @@ class ChatWindow(QWidget):
     
         self._update_input_style()
 
+    def _reclaim_emoticon_selector(self):
+        """Take back the selector from a popup that borrowed it, cleaning up that popup's layout."""
+        self.emoticon_selector.attach(self, self._on_emoticon_selected)
+
     def _toggle_emoticon_selector(self):
-        """Toggle emoticon selector visibility"""
-        if hasattr(self, 'emoticon_selector'):
-            self.emoticon_selector.toggle_visibility()
-            self._position_emoticon_selector()
+        """Toggle emoticon selector - reclaim from notification if borrowed, then toggle."""
+        if not hasattr(self, 'emoticon_selector'):
+            return
+        if self.emoticon_selector.parent() is not self:
+            self._reclaim_emoticon_selector()
+        # _position_emoticon_selector resets fixedSize, clearing any height set by a notification
+        self.emoticon_selector.toggle_visibility()
+        self._position_emoticon_selector()
  
     def _on_emoticon_selected(self, emoticon_name: str):
         """Handle emoticon selection"""
@@ -624,7 +632,7 @@ class ChatWindow(QWidget):
                             inside = True
                             break
                         w = w.parentWidget()
-                    if not inside:
+                    if not inside and self.emoticon_selector.parent() is self:
                         self.emoticon_selector.setVisible(False)
                         self.config.set("ui", "emoticon_selector_visible", value=False)
                 except Exception:
