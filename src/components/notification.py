@@ -275,7 +275,7 @@ class PopupNotification(QWidget):
                 self.emoticon_selector.setVisible(False)  # Hidden by default
                 self.emoticon_selector.setFixedHeight(350)  # Compact height for notification
                 self.emoticon_selector.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-                main_layout.addWidget(self.emoticon_selector, stretch=0)
+                main_layout.addWidget(self.emoticon_selector, stretch=0, alignment=Qt.AlignmentFlag.AlignCenter)
         else:
             self.reply_container = None
             self.reply_field = None
