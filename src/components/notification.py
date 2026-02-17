@@ -128,8 +128,10 @@ class PopupNotification(QWidget):
         self.setMouseTracking(True)
       
         # Get spacing/margin from config
-        margin = data.config.get("ui", "margins", "notification") if data.config else 8
-        spacing = data.config.get("ui", "spacing", "widget_elements") if data.config else 4
+        self.margin = data.config.get("ui", "margins", "notification") if data.config else 8
+        self.spacing = data.config.get("ui", "spacing", "widget_elements") if data.config else 4
+        margin = self.margin
+        spacing = self.spacing
       
         # Determine theme
         is_dark = data.config.get("ui", "theme") == "dark" if data.config else True
@@ -458,6 +460,7 @@ class PopupNotification(QWidget):
                     old_parent.adjustSize()
                 sel.setParent(self)
                 self.layout().addWidget(sel, stretch=0, alignment=Qt.AlignmentFlag.AlignCenter)
+                self.layout().setSpacing(self.spacing)
                 sel.setFixedHeight(350)
                 sp = sel.sizePolicy()
                 sp.setRetainSizeWhenHidden(False)
