@@ -464,7 +464,12 @@ class EmoticonSelectorWidget(QWidget):
         self.emoticon_selected.emit(emoticon_name)
 
         if ctrl_pressed:
-            self.setVisible(False)
+            # If embedded in a popup layout, do a full release to avoid empty space
+            lyt = self.parent().layout() if self.parent() else None
+            if lyt and lyt.indexOf(self) >= 0:
+                release_selector(self)
+            else:
+                self.setVisible(False)
             self.config.set("ui", "emoticon_selector_visible", value=False)
 
     def _add_to_recent(self, emoticon_name: str):
