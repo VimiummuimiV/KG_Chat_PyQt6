@@ -31,6 +31,7 @@ class NotificationData:
     recipient_jid: Optional[str] = None
     is_ban: bool = False
     is_system: bool = False
+    timestamp: Optional[datetime] = None
 
 
 class MessageBodyWidget(QWidget):
@@ -40,7 +41,7 @@ class MessageBodyWidget(QWidget):
                  is_private: bool = False, is_ban: bool = False, is_system: bool = False):
         super().__init__()
         self.message_renderer = message_renderer
-        self.text = text
+        self.text = MessageRenderer._emoji_prefix(text, is_private, is_ban, is_system)
         self.is_private = is_private
         self.is_ban = is_ban
         self.is_system = is_system
@@ -80,7 +81,7 @@ class MessageBodyWidget(QWidget):
     
     def sizeHint(self):
         height = self.message_renderer.calculate_content_height(
-            self.text, 
+            self.text,
             self.width() if self.width() > 0 else 400
         )
         return QSize(self.width() if self.width() > 0 else 400, height)
@@ -167,10 +168,18 @@ class PopupNotification(QWidget):
         self.username_label.setFont(get_font(FontType.TEXT))
         self.username_label.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         
+        # Timestamp label - always shown
+        ts_str = (data.timestamp or datetime.now()).strftime("%H:%M:%S")
+        self.timestamp_label = QLabel(ts_str)
+        self.timestamp_label.setStyleSheet("color: #999999;")
+        self.timestamp_label.setFont(get_font(FontType.TEXT))
+        self.timestamp_label.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        
+        top_row.addWidget(self.timestamp_label, stretch=0)
         if not data.is_system:
-            top_row.addWidget(self.username_label, stretch=1)
-        else:
-            top_row.addStretch(1)
+            top_row.addSpacing(self.spacing)
+            top_row.addWidget(self.username_label, stretch=0)
+        top_row.addStretch(1)
       
         # Buttons container (right side)
         button_spacing = data.config.get("ui", "buttons", "spacing") if data.config else 8

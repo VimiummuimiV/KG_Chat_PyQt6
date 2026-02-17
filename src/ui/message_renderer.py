@@ -109,6 +109,17 @@ class MessageRenderer(QObject):
         self.system_colors = get_system_message_colors(self.config, is_dark_theme)
         self._emoticon_cache.clear()
     
+    @staticmethod
+    def _emoji_prefix(text: str, is_private: bool, is_ban: bool, is_system: bool) -> str:
+        """Prepend type emoji for special message types."""
+        if is_ban:
+            return "🔨 " + text
+        if is_private:
+            return "💬 " + text
+        if is_system:
+            return "ℹ️ " + text
+        return text
+
     def calculate_content_height(self, text: str, width: int, row: Optional[int] = None) -> int:
         """Calculate height needed for message content"""
         text = ' '.join(text.split())

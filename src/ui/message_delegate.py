@@ -112,6 +112,14 @@ class MessageDelegate(QStyledItemDelegate):
     def set_compact_mode(self, compact: bool):
         if self.compact_mode != compact:
             self.compact_mode = compact
+
+    @staticmethod
+    def _get_display_body(msg) -> tuple:
+        """Return (display_body, is_system) with /me formatting and type emoji prefix applied."""
+        body, is_me = format_me_action(msg.body, msg.username)
+        is_system = is_me or bool(getattr(msg, 'is_system', False))
+        body = MessageRenderer._emoji_prefix(body, msg.is_private, msg.is_ban, is_system)
+        return body, is_system
  
     def sizeHint(self, option: QStyleOptionViewItem, index: QModelIndex) -> QSize:
         msg = index.data(Qt.ItemDataRole.DisplayRole)
@@ -137,7 +145,8 @@ class MessageDelegate(QStyledItemDelegate):
         
         fm = QFontMetrics(self.body_font)
         header_height = max(fm.height(), QFontMetrics(self.timestamp_font).height())
-        content_height = self.message_renderer.calculate_content_height(msg.body, width - 2 * self.padding, row)
+        display_body, _ = self._get_display_body(msg)
+        content_height = self.message_renderer.calculate_content_height(display_body, width - 2 * self.padding, row)
         return min(self.padding + header_height + 2 + content_height + self.padding, 500)
  
     def _calculate_normal_height(self, msg, width: int, row: Optional[int] = None) -> int:
@@ -153,7 +162,8 @@ class MessageDelegate(QStyledItemDelegate):
      
         content_width = max(width - timestamp_width - username_width - 2 * self.padding, 200)
      
-        content_height = self.message_renderer.calculate_content_height(msg.body, content_width, row)
+        display_body, _ = self._get_display_body(msg)
+        content_height = self.message_renderer.calculate_content_height(display_body, content_width, row)
         label_height = max(fm.height(), fm_ts.height())
         return min(max(label_height, content_height) + 2 * self.padding, 500)
  
@@ -217,9 +227,20 @@ class MessageDelegate(QStyledItemDelegate):
         body_fm = QFontMetrics(self.body_font)
         ts_fm = QFontMetrics(self.timestamp_font)
       
-        # Paint timestamp
+        # Resolve display body and message type once - used for both timestamp color and content
+        display_body, is_system = self._get_display_body(msg)
+      
+        # Paint timestamp - color matches text color for special message types
         painter.setFont(self.timestamp_font)
-        painter.setPen(QColor("#999999"))
+        if msg.is_ban:
+            ts_color = self.message_renderer.ban_colors["text"]
+        elif msg.is_private:
+            ts_color = self.message_renderer.private_colors["text"]
+        elif is_system:
+            ts_color = self.message_renderer.system_colors["text"]
+        else:
+            ts_color = "#999999"
+        painter.setPen(QColor(ts_color))
         ts_width = ts_fm.horizontalAdvance(time_str)
         ts_rect = QRect(x, y, ts_width, ts_fm.height())
         painter.drawText(
@@ -228,10 +249,6 @@ class MessageDelegate(QStyledItemDelegate):
             time_str
         )
         self.click_rects[row]['timestamp'] = ts_rect
-      
-        # Format message body if it's a /me action
-        display_body, is_me_action = format_me_action(msg.body, msg.username)
-        is_system = is_me_action or getattr(msg, 'is_system', False)
       
         # Determine content position based on mode and message type
         if not is_system:
