@@ -249,7 +249,6 @@ class PopupNotification(QWidget):
             self.send_button.clicked.connect(self._on_send_reply)
             reply_layout.addWidget(self.send_button)
           
-            # Emoticon button - only show if emoticon_manager is available
             if data.emoticon_manager:
                 self.emoticon_button = HoverIconButton(
                     self.icons_path,
@@ -262,20 +261,6 @@ class PopupNotification(QWidget):
           
             self.reply_container.setVisible(False)
             main_layout.addWidget(self.reply_container, stretch=0)
-            
-            # Emoticon selector - embedded in notification, hidden by default
-            if data.emoticon_manager:
-                self.emoticon_selector = EmoticonSelectorWidget(
-                    data.config,
-                    data.emoticon_manager,
-                    self.icons_path,
-                    transparent_bg=True  # Transparent background for notification
-                )
-                self.emoticon_selector.emoticon_selected.connect(self._on_emoticon_selected)
-                self.emoticon_selector.setVisible(False)  # Hidden by default
-                self.emoticon_selector.setFixedHeight(350)  # Compact height for notification
-                self.emoticon_selector.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-                main_layout.addWidget(self.emoticon_selector, stretch=0, alignment=Qt.AlignmentFlag.AlignCenter)
         else:
             self.reply_container = None
             self.reply_field = None
@@ -386,9 +371,8 @@ class PopupNotification(QWidget):
   
     def _cleanup_widgets(self):
         """Cleanup widgets on close"""
-        if self.emoticon_selector:
+        if self.emoticon_selector and self.emoticon_selector.parent() is self:
             self.emoticon_selector.setVisible(False)
-            self.emoticon_selector.cleanup()
         if self.message_widget:
             self.message_widget.cleanup()
   
@@ -454,18 +438,39 @@ class PopupNotification(QWidget):
         print("🔇 Notifications muted")
 
     def _toggle_emoticon_selector(self):
-        """Toggle emoticon selector visibility"""
-        if not self.emoticon_selector:
-            return
-        
-        is_visible = self.emoticon_selector.isVisible()
-        self.emoticon_selector.setVisible(not is_visible)
-        
-        # Resume animations when showing
-        if not is_visible:
-            QTimer.singleShot(50, self.emoticon_selector.resume_animations)
-        
-        # Recalculate notification size
+        """Toggle emoticon selector - created once in manager, shared across notifications"""
+        sel = self.manager.emoticon_selector
+
+        # Create on first use
+        if sel is None:
+            sel = EmoticonSelectorWidget(self.data.config, self.data.emoticon_manager, self.icons_path)
+            self.manager.emoticon_selector = sel
+
+        owned_by_me = sel.parent() is self
+
+        if sel.isVisible() and owned_by_me:
+            sel.setVisible(False)
+        else:
+            if not owned_by_me:
+                old_parent = sel.parent()
+                if old_parent and old_parent.layout():
+                    old_parent.layout().removeWidget(sel)
+                    old_parent.adjustSize()
+                sel.setParent(self)
+                self.layout().addWidget(sel, stretch=0, alignment=Qt.AlignmentFlag.AlignCenter)
+                sel.setFixedHeight(350)
+                sp = sel.sizePolicy()
+                sp.setRetainSizeWhenHidden(False)
+                sel.setSizePolicy(sp)
+            try:
+                sel.emoticon_selected.disconnect()
+            except Exception:
+                pass
+            sel.emoticon_selected.connect(self._on_emoticon_selected)
+            sel.setVisible(True)
+            QTimer.singleShot(50, sel.resume_animations)
+
+        self.emoticon_selector = sel
         self.adjustSize()
         self.manager._position_and_cleanup()
     
@@ -562,6 +567,7 @@ class PopupManager:
         self.config = None
         self.notification_mode = "stack"
         self.muted = False
+        self.emoticon_selector = None  # Single shared instance, created on first use
   
     def set_notification_mode(self, mode: str):
         """Set notification mode: 'stack' or 'replace'"""
@@ -607,7 +613,7 @@ class PopupManager:
     def close_all(self):
         """Close all notifications"""
         for popup in list(self.popups):
-            popup.close()
+            popup.close_immediately()
         self.popups.clear()
   
     def _position_and_cleanup(self):
