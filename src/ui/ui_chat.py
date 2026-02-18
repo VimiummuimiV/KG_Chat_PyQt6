@@ -1495,10 +1495,10 @@ class ChatWindow(QWidget):
         if hasattr(self, 'profile_widget') and self.profile_widget:
             if self.profile_widget.history_widget:
                 [label.setFont(new_font) for label in self.profile_widget.history_widget.findChildren(QLabel)]
-            for card in self.profile_widget.card_widgets:
-                card.icon_label.setFont(new_font)
-                card.label_widget.setFont(new_font)
-                card.value_label.setFont(new_font)
+                self.profile_widget.history_widget._adjust_height()
+            # Rebuild cards so StatCard picks up the new font-scaled min width
+            if hasattr(self.profile_widget, '_cards_data'):
+                self.profile_widget._rebuild_card_layout(getattr(self.profile_widget, '_last_cols', 3))
             self.profile_widget.update()
         
         # Update pronunciation widget inputs

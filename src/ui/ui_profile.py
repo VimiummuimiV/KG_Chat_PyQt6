@@ -87,9 +87,7 @@ class StatCard(QFrame):
         self.is_dark = is_dark
         
         self.setFrameShape(QFrame.Shape.StyledPanel)
-        self.setMinimumWidth(200)
-        self.setMaximumWidth(320)
-        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
         
         layout = QVBoxLayout(self)
         layout.setContentsMargins(8, 8, 8, 8)
@@ -105,6 +103,7 @@ class StatCard(QFrame):
         
         self.label_widget = QLabel(label)
         self.label_widget.setFont(get_font(FontType.TEXT))
+        self.label_widget.setWordWrap(True)
         header.addWidget(self.label_widget, stretch=1)
         
         layout.addLayout(header)
@@ -112,6 +111,7 @@ class StatCard(QFrame):
         # Value
         self.value_label = QLabel(value)
         self.value_label.setFont(get_font(FontType.TEXT, weight=QFont.Weight.Bold))
+        self.value_label.setWordWrap(True)
         if value_color:
             self.value_label.setStyleSheet(f"color: {value_color};")
         layout.addWidget(self.value_label)
@@ -152,7 +152,7 @@ class UsernameHistoryWidget(QWidget):
         # Transparent scrollable content
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
-        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         scroll.setFrameShape(QFrame.Shape.NoFrame)
         scroll.setStyleSheet("QScrollArea { background: transparent; border: none; }")
         
@@ -166,6 +166,7 @@ class UsernameHistoryWidget(QWidget):
         scroll.setWidget(content)
         layout.addWidget(scroll)
         self.scroll = scroll
+        scroll.wheelEvent = self._scroll_wheel_event
         self.content_widget = content
 
     def set_history(self, current_username: str, history_data: list):
@@ -203,12 +204,17 @@ class UsernameHistoryWidget(QWidget):
         QTimer.singleShot(0, self._adjust_height)
 
     def _adjust_height(self):
-        """Adjust widget height to fit content, capped at max_height"""
+        """Adjust widget height to fit content, capped at max_height scaled to font size"""
         self.content_widget.adjustSize()
+        text_size = get_font(FontType.TEXT).pointSize()
+        max_h = int(self._max_height * text_size / 17)
         header_h = self.header_card.sizeHint().height()
         content_h = self.content_widget.sizeHint().height()
-        total = min(header_h + content_h + 30, self._max_height)
-        self.setFixedHeight(total)
+        self.setFixedHeight(min(header_h + content_h + 30, max_h))
+
+    def _scroll_wheel_event(self, event):
+        bar = self.scroll.horizontalScrollBar() if event.modifiers() & Qt.KeyboardModifier.ShiftModifier else self.scroll.verticalScrollBar()
+        bar.setValue(bar.value() - event.angleDelta().y())
 
     def update_theme(self, is_dark: bool):
         """Update theme"""
@@ -295,7 +301,7 @@ class ProfileWidget(QWidget):
         self.cards_layout.setSpacing(10)
         for i in range(3):
             self.cards_layout.setColumnStretch(i, 1)
-        self.content_layout.addWidget(self.cards_container)
+        self.content_layout.addWidget(self.cards_container, alignment=Qt.AlignmentFlag.AlignHCenter)
         self.content_layout.addStretch()
     
     def _init_avatar_section(self):
@@ -417,10 +423,16 @@ class ProfileWidget(QWidget):
             (ProfileIcons.CARS, "Cars", str(stats.get('cars_cnt', 'N/A')), None),
         ]
         
-        cols = 1 if self.width() < 600 else 2 if self.width() < 900 else 3
+        cols = max(1, min(3, self.width() // self._grid_width(1)))
         self._last_cols = cols
         self._rebuild_card_layout(cols)
     
+    def _grid_width(self, cols: int) -> int:
+        """Compute shared fixed width for cards grid and history widget based on font size"""
+        text_size = get_font(FontType.TEXT).pointSize()
+        card_w = max(300, int(400 * text_size / 17))
+        return card_w * cols + 10 * (cols - 1)
+
     def _rebuild_card_layout(self, cols: int):
         """Rebuild card layout with specified number of columns"""
         if not hasattr(self, '_cards_data'):
@@ -436,6 +448,10 @@ class ProfileWidget(QWidget):
             self.cards_layout.setColumnStretch(i, 1 if i < cols else 0)
         
         # Create cards
+        w = self._grid_width(cols)
+        self.cards_container.setFixedWidth(w)
+        if self.history_widget:
+            self.history_widget.setFixedWidth(self._grid_width(1))
         for idx, (icon, label, value, value_color) in enumerate(self._cards_data):
             card = StatCard(icon, label, value, self.config, self.is_dark, value_color)
             self.card_widgets.append(card)
@@ -455,9 +471,7 @@ class ProfileWidget(QWidget):
     def resizeEvent(self, event):
         """Handle resize to adjust card grid columns"""
         super().resizeEvent(event)
-        cols = 1 if self.width() < 600 else 2 if self.width() < 900 else 3
-        
-        # Only rebuild if column count changed
+        cols = max(1, min(3, self.width() // self._grid_width(1)))  # font-aware col count
         if hasattr(self, '_last_cols') and self._last_cols != cols:
             self._last_cols = cols
             self._rebuild_card_layout(cols)
