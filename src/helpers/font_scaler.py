@@ -1,14 +1,10 @@
-from PyQt6.QtCore import QObject, pyqtSignal, QTimer, Qt, QEvent
+from PyQt6.QtCore import QObject, pyqtSignal, QTimer, Qt, QEvent, QPropertyAnimation, QEasingCurve
 from PyQt6.QtWidgets import QWidget, QHBoxLayout, QLabel, QSlider
+from PyQt6.QtWidgets import QGraphicsOpacityEffect
 from PyQt6.QtGui import QFont
 
 
 class FontScaler(QObject):
-    """
-    Manages text font size. Emits font_size_changed on every size update.
-    Disk writes are debounced to avoid excessive I/O.
-    """
-
     font_size_changed = pyqtSignal()
 
     TEXT_MIN = 12
@@ -50,11 +46,7 @@ class FontScaler(QObject):
 
 
 class _SliderWheelFilter(QObject):
-    """
-    Event filter installed on the slider widget.
-    Intercepts wheel events and enforces exactly +1/-1 per scroll notch,
-    bypassing Qt's native slider wheel acceleration entirely.
-    """
+    """Intercepts wheel on slider — enforces exactly +1/-1 per notch."""
 
     def __init__(self, font_scaler: FontScaler, parent=None):
         super().__init__(parent)
@@ -67,30 +59,25 @@ class _SliderWheelFilter(QObject):
             else:
                 self.font_scaler.scale_down()
             event.accept()
-            return True  # Stop event — do not let slider process it natively
+            return True
         return False
 
 
 class FontScaleSlider(QWidget):
     """
-    Horizontal slider for adjusting font size.
-    Layout: small A — slider — big A — value label
+    Horizontal slider for adjusting text font size. Shows current value in a label.
+    Dimmed to 0.5 opacity at rest, smoothly reveals to 1.0 on hover.
     """
 
     def __init__(self, font_scaler: FontScaler, parent=None):
         super().__init__(parent)
         self.font_scaler = font_scaler
+        self.setAttribute(Qt.WidgetAttribute.WA_Hover, True)
 
         layout = QHBoxLayout()
         layout.setContentsMargins(6, 4, 6, 4)
         layout.setSpacing(6)
         self.setLayout(layout)
-
-        # Small "A"
-        small_label = QLabel("A")
-        small_label.setFont(QFont("Roboto", 10))
-        small_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(small_label)
 
         # Slider
         self.slider = QSlider(Qt.Orientation.Horizontal)
@@ -100,20 +87,11 @@ class FontScaleSlider(QWidget):
         self.slider.setPageStep(1)
         self.slider.setValue(font_scaler.get_text_size())
         self.slider.valueChanged.connect(self._on_slider_changed)
-
-        # Event filter intercepts wheel before Qt's native handler
         self._wheel_filter = _SliderWheelFilter(font_scaler, self.slider)
         self.slider.installEventFilter(self._wheel_filter)
-
         layout.addWidget(self.slider, stretch=1)
 
-        # Large "A"
-        big_label = QLabel("A")
-        big_label.setFont(QFont("Roboto", 16))
-        big_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(big_label)
-
-        # Value label — always visible to the right of big A
+        # Value label
         self.value_label = QLabel(str(font_scaler.get_text_size()))
         self.value_label.setFont(QFont("Roboto", 12))
         self.value_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -122,12 +100,34 @@ class FontScaleSlider(QWidget):
 
         font_scaler.font_size_changed.connect(self._sync_from_scaler)
 
+        # Opacity effect
+        self._opacity_effect = QGraphicsOpacityEffect(self)
+        self._opacity_effect.setOpacity(0)
+        self.setGraphicsEffect(self._opacity_effect)
+
+        self._anim = QPropertyAnimation(self._opacity_effect, b"opacity", self)
+        self._anim.setDuration(200)
+        self._anim.setEasingCurve(QEasingCurve.Type.InOutCubic)
+
+    def _fade_to(self, opacity: float):
+        self._anim.stop()
+        self._anim.setStartValue(self._opacity_effect.opacity())
+        self._anim.setEndValue(opacity)
+        self._anim.start()
+
+    def enterEvent(self, event):
+        self._fade_to(1.0)
+        super().enterEvent(event)
+
+    def leaveEvent(self, event):
+        self._fade_to(0)
+        super().leaveEvent(event)
+
     def _on_slider_changed(self, value: int):
         self.value_label.setText(str(value))
         self.font_scaler.set_size(value)
 
     def _sync_from_scaler(self):
-        """Keep slider and label in sync when changed via Ctrl+Scroll or keyboard."""
         value = self.font_scaler.get_text_size()
         self.slider.blockSignals(True)
         self.slider.setValue(value)
