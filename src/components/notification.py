@@ -187,6 +187,16 @@ class PopupNotification(QWidget):
         buttons_layout.setSpacing(button_spacing)
         buttons_layout.setContentsMargins(0, 0, 0, 0)
       
+        # Position toggle button
+        current_position = data.config.get("ui", "notification_position") if data.config else "right"
+        position_icons = {"left": "align-left.svg", "center": "align-center.svg", "right": "align-right.svg"}
+        self.position_button = create_icon_button(
+            self.icons_path, position_icons.get(current_position or "right", "align-right.svg"), "Toggle Position",
+            size_type="small", config=data.config
+        )
+        self.position_button.clicked.connect(self._on_toggle_position)
+        buttons_layout.addWidget(self.position_button)
+
         # Answer button - hide for ban and system messages
         if not data.is_ban and not data.is_system:
             self.answer_button = create_icon_button(
@@ -301,7 +311,7 @@ class PopupNotification(QWidget):
         """Handle clicks: buttons, links, or show window"""
         if event.button() == Qt.MouseButton.LeftButton:
             # Check if click is on a button
-            clicked_widgets = [self.close_button, self.mute_button]
+            clicked_widgets = [self.close_button, self.mute_button, self.position_button]
             if self.answer_button:
                 clicked_widgets.append(self.answer_button)
             if self.send_button:
@@ -452,6 +462,24 @@ class PopupNotification(QWidget):
        
         self.manager.close_all()
         print("🔇 Notifications muted")
+
+    def _on_toggle_position(self):
+        """Cycle notification position left → center → right and reposition in realtime"""
+        cycle = {"left": "center", "center": "right", "right": "left"}
+        icons = {"left": "align-left.svg", "center": "align-center.svg", "right": "align-right.svg"}
+        current = self.data.config.get("ui", "notification_position") or "right"
+        new_pos = cycle.get(current, "right")
+        self.data.config.set("ui", "notification_position", value=new_pos)
+        # Update icon on all popup position buttons for consistency
+        for popup in self.manager.popups:
+            if hasattr(popup, 'position_button'):
+                new_btn = create_icon_button(
+                    self.icons_path, icons[new_pos], "Toggle Position",
+                    size_type="small", config=self.data.config
+                )
+                popup.position_button.setIcon(new_btn.icon())
+                new_btn.deleteLater()
+        self.manager._position_and_cleanup()
 
     def _toggle_emoticon_selector(self):
         """Toggle the shared emoticon selector - borrow from ChatWindow or release it."""
