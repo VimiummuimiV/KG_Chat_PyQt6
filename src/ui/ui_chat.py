@@ -475,8 +475,13 @@ class ChatWindow(QWidget):
             self.font_scale_slider = None
 
         self.userlist_panel.setLayout(userlist_panel)
+        self.userlist_panel.setFixedWidth(get_userlist_width())
         self.userlist_panel.setVisible(userlist_visible)
-        self.content_layout.addWidget(self.userlist_panel, stretch=1)
+        if font_scaler is not None:
+            font_scaler.font_size_changed.connect(
+                lambda: self.userlist_panel.setFixedWidth(get_userlist_width())
+            )
+        self.content_layout.addWidget(self.userlist_panel)
      
         # Create button panel (right side, vertical scrollable)
         # Add to content_wrapper so it's always on the right
