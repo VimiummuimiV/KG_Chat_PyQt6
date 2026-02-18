@@ -332,7 +332,7 @@ class PopupNotification(QWidget):
                 except Exception as e:
                     print(f"❌ Error showing window: {e}")
           
-            self._on_close()
+            self.manager.close_all()
         else:
             super().mousePressEvent(event)
   

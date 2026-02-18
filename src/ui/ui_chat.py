@@ -601,6 +601,12 @@ class ChatWindow(QWidget):
         if not hasattr(self, 'emoticon_selector'):
             return
 
+        # Don't reposition while the selector is borrowed by a notification popup.
+        # Calling setFixedSize/move on it while it lives inside a notification's
+        # layout corrupts that layout, causing an empty-space artifact.
+        if self.emoticon_selector.parent() is not self:
+            return
+
         # Clamp size to available space
         available = max(200, self.height() - self.input_container.height() - 40)
         h = max(250, min(650, available))
