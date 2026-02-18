@@ -464,10 +464,12 @@ class ChatWindow(QWidget):
         userlist_panel.setSpacing(4)
         userlist_panel.addWidget(self.user_list_widget, stretch=1)
 
-        # Font scale slider under userlist
+        # Font scale slider under userlist — fixed height matches input_container
+        # so the slider is vertically centred against the input field row.
         font_scaler = getattr(self.app_controller, 'font_scaler', None)
         if font_scaler is not None:
             self.font_scale_slider = FontScaleSlider(font_scaler)
+            self.font_scale_slider.setFixedHeight(self.input_field.minimumHeight())
             userlist_panel.addWidget(self.font_scale_slider)
         else:
             self.font_scale_slider = None
