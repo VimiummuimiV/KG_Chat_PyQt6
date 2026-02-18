@@ -61,6 +61,8 @@ def handle_chat_resize(chat_window, width: int):
                 chat_window.button_panel.setVisible(False)
         if auto_hide and userlist_widget and is_compact and userlist_widget.isVisible():
             userlist_widget.setVisible(False)
+            if not is_chatlog_view and hasattr(chat_window, 'userlist_panel'):
+                chat_window.userlist_panel.setVisible(False)
     else:
         # Show button panel at >= 500px
         if hasattr(chat_window, 'button_panel') and not chat_window.button_panel.isVisible():
@@ -70,8 +72,13 @@ def handle_chat_resize(chat_window, width: int):
         if auto_hide and userlist_widget:
             if is_compact and userlist_widget.isVisible():
                 userlist_widget.setVisible(False)
+                # Sync userlist_panel (messages view only)
+                if not is_chatlog_view and hasattr(chat_window, 'userlist_panel'):
+                    chat_window.userlist_panel.setVisible(False)
             elif not is_compact and userlist_visible_config and not userlist_widget.isVisible():
                 userlist_widget.setVisible(True)
+                if not is_chatlog_view and hasattr(chat_window, 'userlist_panel'):
+                    chat_window.userlist_panel.setVisible(True)
     
     # Reposition emoticon selector if visible
     if hasattr(chat_window, 'emoticon_selector') and chat_window.emoticon_selector.isVisible():

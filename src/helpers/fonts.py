@@ -31,11 +31,17 @@ class FontManager:
         self.config = None
         self.loaded = False
         self.font_scaler = None
+        self._font_cache: dict = {}  # (FontType, size, weight_value, italic) -> QFont
         self._initialized = True
     
+    def _invalidate_cache(self):
+        """Clear font cache — called when font size changes"""
+        self._font_cache.clear()
+
     def set_font_scaler(self, font_scaler):
         """Set the font scaler instance for dynamic sizing"""
         self.font_scaler = font_scaler
+        font_scaler.font_size_changed.connect(self._invalidate_cache)
     
     def _load_config(self):
         """Load config if not already loaded"""
@@ -46,27 +52,17 @@ class FontManager:
             except ImportError:
                 print("⚠️ Could not load config")
                 self.config = type('SimpleConfig', (), {
-                    'get': lambda self, *args: args[-1] if args else None
+                    'get': lambda self, *args: None
                 })()
     
     def _load_font_family(self, family_name: str) -> bool:
-        """
-        Load a font family by name from fonts directory
-        
-        Args:
-            family_name: Name of font family (e.g., "Roboto", "Montserrat")
-            
-        Returns:
-            True if at least one font file was loaded
-        """
+        """Load a font family by name from fonts directory"""
         family_dir = self.fonts_dir / family_name
         if not family_dir.exists():
             return False
         
-        # Try variable fonts first
         variable_fonts = list(family_dir.glob("*-VariableFont*.ttf"))
         
-        # Try static fonts
         static_dir = family_dir / "static"
         static_fonts = []
         if static_dir.exists():
@@ -76,7 +72,6 @@ class FontManager:
                 static_dir / f"{family_name}-Bold.ttf",
             ]
         
-        # Combine all font files
         font_files = variable_fonts + static_fonts
         
         loaded_any = False
@@ -103,13 +98,11 @@ class FontManager:
             self.loaded = True
             return False
         
-        # Load text font family
         if self._load_font_family(text_family):
             print(f"✅ Loaded text font: {text_family}")
         else:
             print(f"⚠️ Could not load text font: {text_family}")
         
-        # Load Noto Color Emoji (special handling for emoji)
         emoji_file = self.fonts_dir / "Noto_Color_Emoji" / "NotoColorEmoji-Regular.ttf"
         if emoji_file.exists():
             font_id = QFontDatabase.addApplicationFont(str(emoji_file))
@@ -126,16 +119,8 @@ class FontManager:
                   weight: QFont.Weight = QFont.Weight.Normal,
                   italic: bool = False) -> QFont:
         """
-        Unified font getter with type-based defaults
-        
-        Args:
-            font_type: FontType enum (UI, TEXT, or HEADER)
-            size: Optional size override (uses config default if None)
-            weight: Font weight
-            italic: Italic style
-            
-        Returns:
-            QFont with proper family fallback for emoji support
+        Unified font getter with type-based defaults.
+        Results are cached — cache is invalidated on font size change.
         """
         if not self.loaded:
             self._load_config()
@@ -143,28 +128,31 @@ class FontManager:
         text_family = self.config.get("ui", "text_font_family") or "Roboto"
         emoji_family = self.config.get("ui", "emoji_font_family") or "Noto Color Emoji"
         
-        # Get size from config based on type if not provided
+        # Resolve size
         if size is None:
             if font_type == FontType.UI:
                 size = self.config.get("ui", "ui_font_size") or 12
             elif font_type == FontType.TEXT:
-                # Use font scaler if available, otherwise fall back to config
-                if self.font_scaler:
-                    size = self.font_scaler.get_text_size()
-                else:
-                    size = self.config.get("ui", "text_font_size") or 16
+                size = self.font_scaler.get_text_size() if self.font_scaler else (
+                    self.config.get("ui", "text_font_size") or 16
+                )
             elif font_type == FontType.HEADER:
-                # Header uses config value (not affected by scaler)
                 size = self.config.get("ui", "header_font_size") or 18
                 if weight == QFont.Weight.Normal:
                     weight = QFont.Weight.Bold
             else:
                 size = 12
         
+        # Cache lookup — use int(weight) so the key is hashable across Qt versions
+        key = (font_type, size, int(weight), italic)
+        cached = self._font_cache.get(key)
+        if cached is not None:
+            return cached
+        
         font = QFont(text_family, size, weight)
         font.setItalic(italic)
         font.setFamilies([text_family, emoji_family])
-        
+        self._font_cache[key] = font
         return font
     
     def set_application_font(self, app: QApplication):
@@ -188,7 +176,6 @@ _font_manager = FontManager()
 
 # Public API
 def load_fonts() -> bool:
-    """Load custom fonts"""
     return _font_manager.load_fonts()
 
 
@@ -196,46 +183,23 @@ def get_font(font_type: FontType = FontType.TEXT,
              size: int = None,
              weight: QFont.Weight = QFont.Weight.Normal,
              italic: bool = False) -> QFont:
-    """
-    Get a font with proper emoji support
-    
-    Args:
-        font_type: FontType.UI, FontType.TEXT, or FontType.HEADER
-        size: Optional size override
-        weight: Font weight (Normal, Bold, etc.)
-        italic: Italic style
-    
-    Examples:
-        get_font(FontType.UI)  # 12pt UI font
-        get_font(FontType.TEXT)  # 16pt text font (or current scaled size)
-        get_font(FontType.HEADER)  # 18pt bold header
-        get_font(FontType.TEXT, size=14)  # 14pt text font
-        get_font(FontType.TEXT, weight=QFont.Weight.Bold)  # Bold text
-    """
     return _font_manager.get_font(font_type, size, weight, italic)
 
 
 def set_application_font(app: QApplication):
-    """Set application-wide font"""
     _font_manager.set_application_font(app)
 
 
 def set_font_scaler(font_scaler):
-    """Set the font scaler for dynamic sizing"""
     _font_manager.set_font_scaler(font_scaler)
 
 
 def get_userlist_width() -> int:
     """Calculate appropriate userlist width based on current text font size"""
-    text_font = get_font(FontType.TEXT)
-    base_size = 16  # Reference font size
-    base_width = 380  # Reference width at base size
-    
-    current_size = text_font.pointSize()
-    # Scale width proportionally: width = base_width * (current_size / base_size)
+    current_size = _font_manager.font_scaler.get_text_size() if _font_manager.font_scaler else (
+        (_font_manager.config.get("ui", "text_font_size") if _font_manager.config else None) or 16
+    )
+    base_size = 16
+    base_width = 380
     scaled_width = int(base_width * (current_size / base_size))
-    
-    # Clamp between reasonable bounds
-    min_width = 200 
-    max_width = 500 
-    return max(min_width, min(max_width, scaled_width))
+    return max(200, min(500, scaled_width))

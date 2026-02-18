@@ -26,7 +26,7 @@ from helpers.username_color_manager import(
 )
 from helpers.pronunciation_manager import PronunciationManager
 from helpers.ban_manager import BanManager
-from helpers.font_scaler import FontScaler, install_font_scaler
+from helpers.font_scaler import FontScaler
 from core.accounts import AccountManager
 from components.tray_badge import TrayIconWithBadge
 from components.notification import popup_manager
@@ -505,9 +505,6 @@ class Application(QObject):
             ban_manager=self.ban_manager
         )
         self.chat_window.set_tray_mode(True)
-        
-        # Install font scaler on chat window
-        install_font_scaler(self.chat_window, self.font_scaler)
         
         # Connect font size changes to refresh UI
         self.font_scaler.font_size_changed.connect(self.chat_window.on_font_size_changed)

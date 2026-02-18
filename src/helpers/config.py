@@ -18,6 +18,8 @@ class Config:
     def get(self, *keys):
         value = self.data
         for key in keys:
+            if not isinstance(value, dict):
+                return None
             value = value.get(key)
         return value
     

@@ -24,6 +24,7 @@ from helpers.username_color_manager import(
 )
 from helpers.emoticons import EmoticonManager
 from helpers.fonts import get_font, FontType
+from helpers.font_scaler import FontScaleSlider
 from helpers.voice_engine import get_voice_engine, play_sound
 from helpers.me_action import format_me_action
 from helpers.window_size_manager import WindowSizeManager
@@ -453,11 +454,27 @@ class ChatWindow(QWidget):
         self.user_list_widget.private_chat_requested.connect(self.enter_private_mode)
 
         messages_userlist_visible = self.config.get("ui", "messages_userlist_visible")
-        if messages_userlist_visible is not None:
-            self.user_list_widget.setVisible(messages_userlist_visible)
+        userlist_visible = messages_userlist_visible if messages_userlist_visible is not None else True
+        self.user_list_widget.setVisible(userlist_visible)
+
+        # Right column: wrap in QWidget so hiding it collapses the space
+        self.userlist_panel = QWidget()
+        userlist_panel = QVBoxLayout()
+        userlist_panel.setContentsMargins(0, 0, 0, 0)
+        userlist_panel.setSpacing(4)
+        userlist_panel.addWidget(self.user_list_widget, stretch=1)
+
+        # Font scale slider under userlist
+        font_scaler = getattr(self.app_controller, 'font_scaler', None)
+        if font_scaler is not None:
+            self.font_scale_slider = FontScaleSlider(font_scaler)
+            userlist_panel.addWidget(self.font_scale_slider)
         else:
-            self.user_list_widget.setVisible(True)
-        self.content_layout.addWidget(self.user_list_widget, stretch=1)
+            self.font_scale_slider = None
+
+        self.userlist_panel.setLayout(userlist_panel)
+        self.userlist_panel.setVisible(userlist_visible)
+        self.content_layout.addWidget(self.userlist_panel, stretch=1)
      
         # Create button panel (right side, vertical scrollable)
         # Add to content_wrapper so it's always on the right
@@ -605,6 +622,26 @@ class ChatWindow(QWidget):
         return width, height, x, y
 
     def eventFilter(self, obj, event):
+        font_scaler = getattr(self.app_controller, 'font_scaler', None)
+        if font_scaler is not None:
+            # Ctrl + Scroll → font size
+            if event.type() == QEvent.Type.Wheel:
+                if event.modifiers() & Qt.KeyboardModifier.ControlModifier:
+                    if event.angleDelta().y() > 0:
+                        font_scaler.scale_up()
+                    else:
+                        font_scaler.scale_down()
+                    return True
+            # Ctrl + Plus/Minus/Equal → font size
+            elif event.type() == QEvent.Type.KeyPress:
+                if event.modifiers() & Qt.KeyboardModifier.ControlModifier:
+                    if event.key() in (Qt.Key.Key_Plus, Qt.Key.Key_Equal):
+                        font_scaler.scale_up()
+                        return True
+                    elif event.key() == Qt.Key.Key_Minus:
+                        font_scaler.scale_down()
+                        return True
+
         # Handle Tab key for view switching
         if event.type() == QEvent.Type.KeyPress and event.key() == Qt.Key.Key_Tab:
             current_view = self.stacked_widget.currentWidget()
@@ -860,10 +897,10 @@ class ChatWindow(QWidget):
         if messages_userlist_visible is None:
             messages_userlist_visible = True
 
-        if width > 800 and messages_userlist_visible:
-            self.user_list_widget.setVisible(True)
-        elif width <= 800:
-            self.user_list_widget.setVisible(False)
+        # Restore userlist based on config; resize.py auto-hide handles width transitions
+        self.user_list_widget.setVisible(messages_userlist_visible)
+        if hasattr(self, 'userlist_panel'):
+            self.userlist_panel.setVisible(messages_userlist_visible)
 
         # Sync button state for messages userlist
         if hasattr(self, 'button_panel'):
@@ -880,9 +917,10 @@ class ChatWindow(QWidget):
 
     def show_chatlog_view(self, timestamp: str = None):
         """Open chatlog for today"""
-        # Hide messages userlist
-        if self.user_list_widget.isVisible():
-            self.user_list_widget.setVisible(False)
+        # Hide messages userlist and font slider when in chatlog view
+        self.user_list_widget.setVisible(False)
+        if hasattr(self, 'userlist_panel'):
+            self.userlist_panel.setVisible(False)
        
         if not self.chatlog_widget:
             # Pass parent_window=self for modal dialogs and ban_manager
@@ -1401,12 +1439,17 @@ class ChatWindow(QWidget):
 
     def on_font_size_changed(self):
         """Handle font size changes from font scaler - refresh all text"""
-        # Debounce: prevent multiple rapid calls
-        if hasattr(self, '_font_size_timer') and self._font_size_timer.isActive():
-            return
-        
+        # Debounce: restart timer on every call so rapid slider moves only
+        # trigger one full rebuild 80 ms after the last movement.
+        if not hasattr(self, '_font_size_timer'):
+            self._font_size_timer = QTimer(self)
+            self._font_size_timer.setSingleShot(True)
+            self._font_size_timer.timeout.connect(self._apply_font_size_change)
+        self._font_size_timer.start(80)
+
+    def _apply_font_size_change(self):
+        """Actually apply font size change after debounce"""
         new_font = get_font(FontType.TEXT)
-        font_size = new_font.pointSize()
         
         # Update message delegates AND their renderers
         for widget in [self.messages_widget, self.chatlog_widget]:
@@ -1467,22 +1510,6 @@ class ChatWindow(QWidget):
                     item.duration_button.setFont(new_font)
             self.ban_list_widget.update()
         
-        # Show font size in title, restore after 1500ms of no changes
-        if not hasattr(self, '_base_title'):
-            self._base_title = self.windowTitle()
-        self.setWindowTitle(f"{self._base_title} - {font_size}")
-        if hasattr(self, '_title_restore_timer'):
-            self._title_restore_timer.stop()
-        else:
-            self._title_restore_timer = QTimer(self)
-            self._title_restore_timer.setSingleShot(True)
-            self._title_restore_timer.timeout.connect(lambda: self.setWindowTitle(self._base_title))
-        self._title_restore_timer.start(1500)
-        
-        # Debounce timer
-        self._font_size_timer = QTimer(self)
-        self._font_size_timer.setSingleShot(True)
-        self._font_size_timer.start(100)
 
     def send_message(self):
         text = self.input_field.text().strip()
@@ -1659,6 +1686,8 @@ class ChatWindow(QWidget):
             # Toggle messages userlist
             visible = not self.user_list_widget.isVisible()
             self.user_list_widget.setVisible(visible)
+            if hasattr(self, 'userlist_panel'):
+                self.userlist_panel.setVisible(visible)
             self.config.set("ui", "messages_userlist_visible", value=visible)
             self.auto_hide_messages_userlist = False
     
