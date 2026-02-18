@@ -1493,7 +1493,8 @@ class ChatWindow(QWidget):
         
         # Update profile widget
         if hasattr(self, 'profile_widget') and self.profile_widget:
-            self.profile_widget.username_history_label.setFont(new_font)
+            if self.profile_widget.history_widget:
+                [label.setFont(new_font) for label in self.profile_widget.history_widget.findChildren(QLabel)]
             for card in self.profile_widget.card_widgets:
                 card.icon_label.setFont(new_font)
                 card.label_widget.setFont(new_font)

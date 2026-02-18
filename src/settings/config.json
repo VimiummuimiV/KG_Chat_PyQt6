@@ -130,7 +130,7 @@
     "effects_enabled": true
   },
   "notification": {
-    "mode": "replace",
+    "mode": "stack",
     "muted": false
   },
   "startup": {
