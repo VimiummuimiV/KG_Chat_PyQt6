@@ -1,14 +1,14 @@
 """Scrollable side button panel for ChatWindow"""
 from pathlib import Path
 from PyQt6.QtWidgets import(
-    QWidget, QVBoxLayout, QScrollArea, QFrame,
+    QWidget, QVBoxLayout, QFrame,
     QGraphicsOpacityEffect, QApplication, QMessageBox
 )
 from PyQt6.QtCore import Qt, QEvent, pyqtSignal
-from PyQt6.QtGui import QWheelEvent, QMouseEvent
 
 from helpers.config import Config
 from helpers.create import create_icon_button, _render_svg_icon
+from helpers.scrollable_buttons import ScrollableButtonContainer
 
 
 class ButtonPanel(QWidget):
@@ -41,11 +41,6 @@ class ButtonPanel(QWidget):
         self.icons_path = icons_path
         self.theme_manager = theme_manager
         
-        # Drag scroll state
-        self._drag_start_pos = None
-        self._scroll_start_value = None
-        self._is_dragging = False
-        
         # Button references
         self.toggle_userlist_button = None
         self.switch_account_button = None
@@ -64,39 +59,24 @@ class ButtonPanel(QWidget):
     
     def _init_ui(self):
         """Initialize the scrollable button panel UI"""
-        # Main layout
         main_layout = QVBoxLayout()
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
         self.setLayout(main_layout)
-        
-        # Create scroll area
-        self.scroll_area = QScrollArea()
-        self.scroll_area.setWidgetResizable(True)
-        self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        
-        # Container for buttons
-        self.button_container = QWidget()
-        self.button_layout = QVBoxLayout()
-        button_spacing = self.config.get("ui", "buttons", "spacing") or 8
-        self.button_layout.setSpacing(button_spacing)
-        self.button_layout.setContentsMargins(0, 0, 0, 0)
-        self.button_layout.addStretch()  # Push buttons to top
-        self.button_container.setLayout(self.button_layout)
-        
-        self.scroll_area.setWidget(self.button_container)
-        main_layout.addWidget(self.scroll_area)
-        
-        # Enable mouse tracking for drag scroll
-        self.scroll_area.viewport().installEventFilter(self)
-        
-        # Set fixed width based on button size and margins from config
+
+        # Scrollable container (vertical) – handles wheel + MMB drag internally
+        self._scroll_container = ScrollableButtonContainer(
+            Qt.Orientation.Vertical, config=self.config
+        )
+
+        main_layout.addWidget(self._scroll_container)
+
+        # Set fixed width based on button size + margins from config
         button_size = 48
         btn_cfg = self.config.get("ui", "buttons") or {}
         if isinstance(btn_cfg, dict):
             button_size = btn_cfg.get("button_size", button_size)
-        
+
         panel_margin = self.config.get("ui", "margins", "widget") or 5
         self.setFixedWidth(button_size + panel_margin * 2)
     
@@ -330,23 +310,18 @@ class ButtonPanel(QWidget):
     
     def add_button(self, button):
         """Add a button to the panel (before the stretch)"""
-        count = self.button_layout.count()
-        self.button_layout.insertWidget(count - 1, button)
+        self._scroll_container.add_widget(button)
     
     def remove_button(self, button):
         """Remove a button from the panel"""
-        self.button_layout.removeWidget(button)
-        button.setParent(None)
+        self._scroll_container.remove_widget(button)
     
     def clear_buttons(self):
         """Remove all buttons from the panel"""
-        while self.button_layout.count() > 1:  # Keep the stretch
-            item = self.button_layout.takeAt(0)
-            if item.widget():
-                item.widget().setParent(None)
+        self._scroll_container.clear_widgets()
     
     def eventFilter(self, obj, event):
-        """Handle mouse wheel, drag scrolling and specialized button clicks"""
+        """Handle specialized button clicks (RMB, Ctrl+Click, Shift+Click)"""
         # Handle reset_size_button RMB click -> open presets dialog
         if obj == self.reset_size_button and event.type() == QEvent.Type.MouseButtonPress:
             if event.button() == Qt.MouseButton.RightButton:
@@ -372,56 +347,7 @@ class ButtonPanel(QWidget):
                     self.pronunciation_requested.emit()
                     return True
 
-        if obj == self.scroll_area.viewport():
-            if event.type() == QEvent.Type.Wheel:
-                return self._handle_wheel(event)
-            elif event.type() == QEvent.Type.MouseButtonPress:
-                if event.button() == Qt.MouseButton.MiddleButton:
-                    return self._handle_mouse_press(event)
-            elif event.type() == QEvent.Type.MouseMove:
-                return self._handle_mouse_move(event)
-            elif event.type() == QEvent.Type.MouseButtonRelease:
-                if event.button() == Qt.MouseButton.MiddleButton:
-                    return self._handle_mouse_release(event)
-        
         return super().eventFilter(obj, event)
-    
-    def _handle_wheel(self, event: QWheelEvent) -> bool:
-        """Handle mouse wheel scrolling"""
-        scrollbar = self.scroll_area.verticalScrollBar()
-        delta = event.angleDelta().y()
-        scroll_amount = -delta // 2
-        scrollbar.setValue(scrollbar.value() + scroll_amount)
-        return True
-    
-    def _handle_mouse_press(self, event: QMouseEvent) -> bool:
-        """Handle mouse press for drag scrolling"""
-        if event.button() == Qt.MouseButton.MiddleButton:
-            self._is_dragging = True
-            self._drag_start_pos = event.pos()
-            self._scroll_start_value = self.scroll_area.verticalScrollBar().value()
-            self.scroll_area.viewport().setCursor(Qt.CursorShape.ClosedHandCursor)
-            return True
-        return False
-    
-    def _handle_mouse_move(self, event: QMouseEvent) -> bool:
-        """Handle mouse move for drag scrolling"""
-        if self._is_dragging and self._drag_start_pos is not None:
-            delta = event.pos() - self._drag_start_pos
-            scrollbar = self.scroll_area.verticalScrollBar()
-            scrollbar.setValue(self._scroll_start_value - delta.y())
-            return True
-        return False
-    
-    def _handle_mouse_release(self, event: QMouseEvent) -> bool:
-        """Handle mouse release to end drag scrolling"""
-        if event.button() == Qt.MouseButton.MiddleButton and self._is_dragging:
-            self._is_dragging = False
-            self._drag_start_pos = None
-            self._scroll_start_value = None
-            self.scroll_area.viewport().setCursor(Qt.CursorShape.ArrowCursor)
-            return True
-        return False
     
     def update_theme(self):
         """Update theme for all buttons in the panel"""

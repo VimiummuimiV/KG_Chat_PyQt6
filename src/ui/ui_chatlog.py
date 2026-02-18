@@ -21,6 +21,7 @@ from helpers.data import get_data_dir
 from helpers.fonts import get_font, FontType
 from helpers.scroll_button import ScrollToBottomButton
 from helpers.auto_scroll import AutoScroller
+from helpers.scrollable_buttons import ScrollableButtonContainer
 from ui.message_model import MessageListModel, MessageData
 from ui.message_delegate import MessageDelegate
 from ui.ui_chatlogs_parser import ChatlogsParserConfigWidget, ParserWorker
@@ -236,49 +237,50 @@ class ChatlogWidget(QWidget):
      
         self.main_bar.addLayout(self.info_block, stretch=1)
 
-        # Right side: Navigation buttons
-        self.nav_buttons_layout = QHBoxLayout()
-        self.nav_buttons_layout.setSpacing(self.config.get("ui", "buttons", "spacing") or 8)
-        self.nav_buttons_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        # Right side: Navigation buttons (horizontally scrollable, MMB drag supported)
+        self.nav_buttons_container = ScrollableButtonContainer(
+            Qt.Orientation.Horizontal, config=self.config
+        )
+
 
         self.back_btn = create_icon_button(self.icons_path, "go-back.svg", "Back to chat",
                                           size_type="large", config=self.config)
         self.back_btn.clicked.connect(self.back_requested.emit)
-        self.nav_buttons_layout.addWidget(self.back_btn)
+        self.nav_buttons_container.add_widget(self.back_btn)
 
         self.prev_btn = create_icon_button(self.icons_path, "arrow-left.svg", "Previous day",
                                           size_type="large", config=self.config)
         self.prev_btn.pressed.connect(lambda: self._navigate_hold(-1))
         self.prev_btn.released.connect(lambda: self._navigate_hold())
-        self.nav_buttons_layout.addWidget(self.prev_btn)
+        self.nav_buttons_container.add_widget(self.prev_btn)
 
         self.next_btn = create_icon_button(self.icons_path, "arrow-right.svg", "Next day",
                                           size_type="large", config=self.config)
         self.next_btn.pressed.connect(lambda: self._navigate_hold(1))
         self.next_btn.released.connect(lambda: self._navigate_hold())
-        self.nav_buttons_layout.addWidget(self.next_btn)
+        self.nav_buttons_container.add_widget(self.next_btn)
 
         self.calendar_btn = create_icon_button(self.icons_path, "calendar.svg", "Select date",
                                               size_type="large", config=self.config)
         self.calendar_btn.clicked.connect(self._show_calendar)
-        self.nav_buttons_layout.addWidget(self.calendar_btn)
+        self.nav_buttons_container.add_widget(self.calendar_btn)
 
         self.search_toggle_btn = create_icon_button(self.icons_path, "search.svg", "Toggle search",
                                                    size_type="large", config=self.config)
         self.search_toggle_btn.clicked.connect(self._toggle_search)
-        self.nav_buttons_layout.addWidget(self.search_toggle_btn)
+        self.nav_buttons_container.add_widget(self.search_toggle_btn)
 
         self.mention_filter_btn = create_icon_button(self.icons_path, "at-line.svg", "Filter mentions",
                                                     size_type="large", config=self.config)
         self.mention_filter_btn.clicked.connect(self._toggle_mention_filter)
-        self.nav_buttons_layout.addWidget(self.mention_filter_btn)
+        self.nav_buttons_container.add_widget(self.mention_filter_btn)
 
         self.parse_btn = create_icon_button(self.icons_path, "play.svg", "Parse all chatlogs",
                                            size_type="large", config=self.config)
         self.parse_btn.clicked.connect(self._toggle_parser)
-        self.nav_buttons_layout.addWidget(self.parse_btn)
-     
-        self.main_bar.addLayout(self.nav_buttons_layout)
+        self.nav_buttons_container.add_widget(self.parse_btn)
+
+        self.main_bar.addWidget(self.nav_buttons_container)
     
         self.compact_layout = False
 
@@ -700,24 +702,24 @@ class ChatlogWidget(QWidget):
             return
     
         if compact:
-            # Remove sub-layouts from main_bar
-            self.main_bar.takeAt(1) # nav_buttons_layout item
-            self.main_bar.takeAt(0) # info_block item
+            # Remove items from main_bar (widget at index 1, layout at index 0)
+            self.main_bar.takeAt(1)  # nav_buttons_container widget item
+            self.main_bar.takeAt(0)  # info_block item
             # Remove main_bar from top_bar_layout
             self.top_bar_layout.takeAt(0)
-            # Add sub-layouts to top_bar_layout
-            self.top_bar_layout.addLayout(self.nav_buttons_layout)
+            # Add nav_buttons_container (widget) and info_block (layout) to top_bar_layout
+            self.top_bar_layout.addWidget(self.nav_buttons_container)
             self.top_bar_layout.addLayout(self.info_block)
             self.compact_layout = True
         else:
-            # Remove sub-layouts from top_bar_layout
-            self.top_bar_layout.takeAt(1) # info_block item
-            self.top_bar_layout.takeAt(0) # nav_buttons_layout item
+            # Remove items from top_bar_layout
+            self.top_bar_layout.takeAt(1)  # info_block item
+            self.top_bar_layout.takeAt(0)  # nav_buttons_container widget item
             # Add main_bar back
             self.top_bar_layout.addLayout(self.main_bar)
-            # Add sub-layouts to main_bar
+            # Add sub-items to main_bar
             self.main_bar.addLayout(self.info_block, stretch=1)
-            self.main_bar.addLayout(self.nav_buttons_layout)
+            self.main_bar.addWidget(self.nav_buttons_container)
 
             self.compact_layout = False
 
