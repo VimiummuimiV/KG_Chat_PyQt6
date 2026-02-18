@@ -10,7 +10,7 @@ from PyQt6.QtGui import QCursor, QPixmap, QFont
 from helpers.load import make_rounded_pixmap
 from helpers.create import _render_svg_icon
 from helpers.cache import get_cache
-from helpers.fonts import get_font, FontType, get_userlist_width
+from helpers.fonts import get_font, FontType
 from core.userlist import ChatUser
 
 
@@ -153,7 +153,6 @@ class UserListWidget(QWidget):
         layout.setContentsMargins(widget_margin, widget_margin, widget_margin, widget_margin)
         layout.setSpacing(widget_spacing)
         self.setLayout(layout)
-        self.setFixedWidth(get_userlist_width())
         
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
@@ -197,10 +196,6 @@ class UserListWidget(QWidget):
         self.main_layout.addLayout(self.game_container)
         
         self.main_layout.addStretch()
-    
-    def update_width(self):
-        """Update userlist width based on current font size"""
-        self.setFixedWidth(get_userlist_width())
     
     def _update_section_visibility(self):
         """Update visibility of section headers"""

@@ -54,31 +54,21 @@ def handle_chat_resize(chat_window, width: int):
     # Apply auto-hide logic for userlists
     auto_hide = getattr(chat_window, auto_hide_attr)
     
-    # Handle button panel and userlist visibility based on width
+    # Handle button panel visibility
     if width < 500:
         if hasattr(chat_window, 'button_panel') and chat_window.button_panel.isVisible():
             if not getattr(chat_window, '_hover_reveal', False):
                 chat_window.button_panel.setVisible(False)
-        if auto_hide and userlist_widget and is_compact and userlist_widget.isVisible():
-            userlist_widget.setVisible(False)
-            if not is_chatlog_view and hasattr(chat_window, 'userlist_panel'):
-                chat_window.userlist_panel.setVisible(False)
     else:
-        # Show button panel at >= 500px
         if hasattr(chat_window, 'button_panel') and not chat_window.button_panel.isVisible():
             chat_window.button_panel.setVisible(True)
-        
-        # Auto-hide userlist based on compact mode
-        if auto_hide and userlist_widget:
-            if is_compact and userlist_widget.isVisible():
-                userlist_widget.setVisible(False)
-                # Sync userlist_panel (messages view only)
-                if not is_chatlog_view and hasattr(chat_window, 'userlist_panel'):
-                    chat_window.userlist_panel.setVisible(False)
-            elif not is_compact and userlist_visible_config and not userlist_widget.isVisible():
-                userlist_widget.setVisible(True)
-                if not is_chatlog_view and hasattr(chat_window, 'userlist_panel'):
-                    chat_window.userlist_panel.setVisible(True)
+
+    # Hide/show userlist_panel at 1000px threshold (same as compact mode)
+    if auto_hide and hasattr(chat_window, 'userlist_panel'):
+        if is_compact:
+            chat_window.userlist_panel.setVisible(False)
+        elif userlist_visible_config:
+            chat_window.userlist_panel.setVisible(True)
     
     # Reposition emoticon selector if visible
     if hasattr(chat_window, 'emoticon_selector') and chat_window.emoticon_selector.isVisible():

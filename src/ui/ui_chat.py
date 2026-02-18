@@ -23,7 +23,7 @@ from helpers.username_color_manager import(
     update_from_server
 )
 from helpers.emoticons import EmoticonManager
-from helpers.fonts import get_font, FontType
+from helpers.fonts import get_font, FontType, get_userlist_width
 from helpers.font_scaler import FontScaleSlider
 from helpers.voice_engine import get_voice_engine, play_sound
 from helpers.me_action import format_me_action
@@ -870,7 +870,7 @@ class ChatWindow(QWidget):
                 self.chatlog_userlist_widget.clear_cache()
             except:
                 pass
-            self.content_layout.removeWidget(self.chatlog_userlist_widget)
+            self.userlist_panel.layout().removeWidget(self.chatlog_userlist_widget)
             self.chatlog_userlist_widget.deleteLater()
             self.chatlog_userlist_widget = None
 
@@ -899,7 +899,6 @@ class ChatWindow(QWidget):
         if messages_userlist_visible is None:
             messages_userlist_visible = True
 
-        # Restore userlist based on config; resize.py auto-hide handles width transitions
         self.user_list_widget.setVisible(messages_userlist_visible)
         if hasattr(self, 'userlist_panel'):
             self.userlist_panel.setVisible(messages_userlist_visible)
@@ -919,10 +918,8 @@ class ChatWindow(QWidget):
 
     def show_chatlog_view(self, timestamp: str = None):
         """Open chatlog for today"""
-        # Hide messages userlist and font slider when in chatlog view
+        # Hide messages userlist when showing chatlog - it will be replaced by the chatlog userlist if enabled
         self.user_list_widget.setVisible(False)
-        if hasattr(self, 'userlist_panel'):
-            self.userlist_panel.setVisible(False)
        
         if not self.chatlog_widget:
             # Pass parent_window=self for modal dialogs and ban_manager
@@ -951,7 +948,8 @@ class ChatWindow(QWidget):
                 self.ban_manager
             )
             self.chatlog_userlist_widget.filter_requested.connect(self._on_filter_requested)
-            self.content_layout.addWidget(self.chatlog_userlist_widget, stretch=1)
+            # Insert into userlist_panel before the font slider (at index 0)
+            self.userlist_panel.layout().insertWidget(0, self.chatlog_userlist_widget, stretch=1)
        
         # Show chatlog userlist based on config and width
         width = self.width()
@@ -959,10 +957,10 @@ class ChatWindow(QWidget):
         if chatlog_userlist_visible is None:
             chatlog_userlist_visible = True
        
-        if width > 800 and chatlog_userlist_visible:
-            self.chatlog_userlist_widget.setVisible(True)
+        if width > 1000 and chatlog_userlist_visible:
+            self.userlist_panel.setVisible(True)
         else:
-            self.chatlog_userlist_widget.setVisible(False)
+            self.userlist_panel.setVisible(False)
 
         # Sync button state for chatlog userlist
         if hasattr(self, 'button_panel'):
@@ -1476,14 +1474,12 @@ class ChatWindow(QWidget):
             # Update user widgets
             for user_widget in self.user_list_widget.user_widgets.values():
                 user_widget.username_label.setFont(new_font)
-            self.user_list_widget.update_width()
             self.user_list_widget.update()
         
         if self.chatlog_userlist_widget:
             for user_widget in self.chatlog_userlist_widget.user_widgets.values():
                 user_widget.username_label.setFont(new_font)
                 user_widget.count_label.setFont(new_font)
-            self.chatlog_userlist_widget.update_width()
             self.chatlog_userlist_widget.update()
         
         # Update profile widget
@@ -1679,9 +1675,9 @@ class ChatWindow(QWidget):
         width = self.width()
     
         if is_chatlog_view and self.chatlog_userlist_widget:
-            # Toggle chatlog userlist
-            visible = not self.chatlog_userlist_widget.isVisible()
-            self.chatlog_userlist_widget.setVisible(visible)
+            # Toggle chatlog userlist (via panel so font slider follows)
+            visible = not self.userlist_panel.isVisible()
+            self.userlist_panel.setVisible(visible)
             self.config.set("ui", "chatlog_userlist_visible", value=visible)
             self.auto_hide_chatlog_userlist = False
         else:
