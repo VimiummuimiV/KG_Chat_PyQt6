@@ -39,16 +39,17 @@ class ProfileIcons:
     USERNAME_HISTORY = "📜"
 
 
+# RANKS: level -> (name, dark_color, light_color)
 RANKS = {
-    1: ('Новичок',      '#AFAFAF'),
-    2: ('Любитель',     '#61B5B3'),
-    3: ('Таксист',      '#2DAB4F'),
-    4: ('Профи',        '#C1AA00'),
-    5: ('Гонщик',       '#FF8C00'),
-    6: ('Маньяк',       '#DA0543'),
-    7: ('Супермен',     '#B543F5'),
-    8: ('Кибергонщик',  '#5681ff'),
-    9: ('Экстракибер',  '#06B4E9'),
+    1: ('Новичок',      '#C8C8C8', '#888888'),
+    2: ('Любитель',     '#7DCFCD', '#2E8B8A'),
+    3: ('Таксист',      '#3DC860', '#1A7A35'),
+    4: ('Профи',        '#DFC800', '#7A6A00'),
+    5: ('Гонщик',       '#FF9F20', '#B35E00'),
+    6: ('Маньяк',       '#FF1A5E', '#A00030'),
+    7: ('Супермен',     '#C96BFF', '#8020CC'),
+    8: ('Кибергонщик',  '#7B9FFF', '#2D50D0'),
+    9: ('Экстракибер',  '#29CCFF', '#0080AA'),
 }
 
 
@@ -395,7 +396,8 @@ class ProfileWidget(QWidget):
         is_blocked = user_data.get('blocked')
         
         level = summary.get('level')
-        rank_name, rank_color = RANKS.get(level, ('N/A', None))
+        rank_name, rank_dark, rank_light = RANKS.get(level, ('N/A', None, None))
+        rank_color = rank_dark if self.is_dark else rank_light
 
         self._cards_data = [
             (ProfileIcons.USER_ID, "User ID", str(user_data.get('id', 'N/A')), None),
