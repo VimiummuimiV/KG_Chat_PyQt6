@@ -39,6 +39,19 @@ class ProfileIcons:
     USERNAME_HISTORY = "📜"
 
 
+RANKS = {
+    1: ('Новичок',      '#AFAFAF'),
+    2: ('Любитель',     '#61B5B3'),
+    3: ('Таксист',      '#2DAB4F'),
+    4: ('Профи',        '#C1AA00'),
+    5: ('Гонщик',       '#FF8C00'),
+    6: ('Маньяк',       '#DA0543'),
+    7: ('Супермен',     '#B543F5'),
+    8: ('Кибергонщик',  '#5681ff'),
+    9: ('Экстракибер',  '#06B4E9'),
+}
+
+
 class ContainerStyleMixin:
     """Unified styling for elevated container components"""
     
@@ -67,7 +80,7 @@ class ContainerStyleMixin:
 
 class StatCard(QFrame):
     """Styled card for displaying a stat"""
-    def __init__(self, icon: str, label: str, value: str, config, is_dark: bool):
+    def __init__(self, icon: str, label: str, value: str, config, is_dark: bool, value_color: str = None):
         super().__init__()
         self.config = config
         self.is_dark = is_dark
@@ -98,6 +111,8 @@ class StatCard(QFrame):
         # Value
         self.value_label = QLabel(value)
         self.value_label.setFont(get_font(FontType.TEXT, weight=QFont.Weight.Bold))
+        if value_color:
+            self.value_label.setStyleSheet(f"color: {value_color};")
         layout.addWidget(self.value_label)
         
         self._update_style()
@@ -379,22 +394,25 @@ class ProfileWidget(QWidget):
         is_online = summary.get('is_online')
         is_blocked = user_data.get('blocked')
         
+        level = summary.get('level')
+        rank_name, rank_color = RANKS.get(level, ('N/A', None))
+
         self._cards_data = [
-            (ProfileIcons.USER_ID, "User ID", str(user_data.get('id', 'N/A'))),
-            (ProfileIcons.LEVEL, "Level", str(summary.get('level', 'N/A'))),
-            (ProfileIcons.STATUS_ONLINE if is_online else ProfileIcons.STATUS_OFFLINE, 
-             "Status", "Online" if is_online else "Offline"),
-            (ProfileIcons.ACCOUNT_ACTIVE if not is_blocked else ProfileIcons.ACCOUNT_BANNED, 
-             "Account", "Active" if not is_blocked else "Banned"),
-            (ProfileIcons.REGISTERED, "Registered", format_registered_date(stats.get('registered')) or 'N/A'),
-            (ProfileIcons.ACHIEVEMENTS, "Achievements", str(stats.get('achieves_cnt', 'N/A'))),
-            (ProfileIcons.TOTAL_RACES, "Total Races", str(stats.get('total_num_races', 'N/A'))),
-            (ProfileIcons.BEST_SPEED, "Best Speed", 
-             f"{stats.get('best_speed', 'N/A')} зн/мин" if stats.get('best_speed') else 'N/A'),
-            (ProfileIcons.RATING, "Rating", str(stats.get('rating_level', 'N/A'))),
-            (ProfileIcons.FRIENDS, "Friends", str(stats.get('friends_cnt', 'N/A'))),
-            (ProfileIcons.VOCABULARIES, "Vocabularies", str(stats.get('vocs_cnt', 'N/A'))),
-            (ProfileIcons.CARS, "Cars", str(stats.get('cars_cnt', 'N/A'))),
+            (ProfileIcons.USER_ID, "User ID", str(user_data.get('id', 'N/A')), None),
+            (ProfileIcons.LEVEL, "Rank", rank_name, rank_color),
+            (ProfileIcons.STATUS_ONLINE if is_online else ProfileIcons.STATUS_OFFLINE,
+             "Status", "Online" if is_online else "Offline", None),
+            (ProfileIcons.ACCOUNT_ACTIVE if not is_blocked else ProfileIcons.ACCOUNT_BANNED,
+             "Account", "Active" if not is_blocked else "Banned", None),
+            (ProfileIcons.REGISTERED, "Registered", format_registered_date(stats.get('registered')) or 'N/A', None),
+            (ProfileIcons.ACHIEVEMENTS, "Achievements", str(stats.get('achieves_cnt', 'N/A')), None),
+            (ProfileIcons.TOTAL_RACES, "Total Races", str(stats.get('total_num_races', 'N/A')), None),
+            (ProfileIcons.BEST_SPEED, "Best Speed",
+             f"{stats.get('best_speed', 'N/A')} зн/мин" if stats.get('best_speed') else 'N/A', None),
+            (ProfileIcons.RATING, "Rating", str(stats.get('rating_level', 'N/A')), None),
+            (ProfileIcons.FRIENDS, "Friends", str(stats.get('friends_cnt', 'N/A')), None),
+            (ProfileIcons.VOCABULARIES, "Vocabularies", str(stats.get('vocs_cnt', 'N/A')), None),
+            (ProfileIcons.CARS, "Cars", str(stats.get('cars_cnt', 'N/A')), None),
         ]
         
         cols = 1 if self.width() < 600 else 2 if self.width() < 900 else 3
@@ -416,8 +434,8 @@ class ProfileWidget(QWidget):
             self.cards_layout.setColumnStretch(i, 1 if i < cols else 0)
         
         # Create cards
-        for idx, (icon, label, value) in enumerate(self._cards_data):
-            card = StatCard(icon, label, value, self.config, self.is_dark)
+        for idx, (icon, label, value, value_color) in enumerate(self._cards_data):
+            card = StatCard(icon, label, value, self.config, self.is_dark, value_color)
             self.card_widgets.append(card)
             self.cards_layout.addWidget(card, idx // cols, idx % cols)
     
