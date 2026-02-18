@@ -81,6 +81,7 @@
     "emoticon_selector_visible": false,
     "always_on_top": false,
     "recent_emoticons": [
+      "christmasevil",
       "confuse",
       "armyscare",
       "mafia",
@@ -99,8 +100,7 @@
       "wine",
       "moose",
       "serenade",
-      "snowgirlwave",
-      "pogranflowers"
+      "snowgirlwave"
     ],
     "window": {
       "width": null,
@@ -130,7 +130,7 @@
     "effects_enabled": true
   },
   "notification": {
-    "mode": "stack",
+    "mode": "replace",
     "muted": false
   },
   "startup": {

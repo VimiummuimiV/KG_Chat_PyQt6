@@ -534,6 +534,12 @@ class PopupNotification(QWidget):
     def enterEvent(self, event):
         """Mouse entered - stop hiding"""
         self.is_hovered = True
+        for p in self.manager.popups:
+            if p.hide_timer and p.hide_timer.isActive():
+                p.hide_timer.stop()
+            if hasattr(p, 'fade_out') and p.fade_out.state() == QPropertyAnimation.State.Running:
+                p.fade_out.stop()
+            p.setWindowOpacity(1.0)
         if self.hide_timer and self.hide_timer.isActive():
             self.hide_timer.stop()
         if hasattr(self, 'fade_out') and self.fade_out.state() == QPropertyAnimation.State.Running:
@@ -549,8 +555,10 @@ class PopupNotification(QWidget):
     def leaveEvent(self, event):
         """Mouse left - restart hide timer"""
         self.is_hovered = False
-        if self.cursor_moved and not self.reply_field_visible:
-            self._start_hide_timer()
+        if not any(p.is_hovered for p in self.manager.popups):
+            for p in self.manager.popups:
+                if p.cursor_moved and not p.reply_field_visible:
+                    p._start_hide_timer()
 
 
 class PopupManager:
