@@ -4,8 +4,8 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
     QScrollArea, QGridLayout, QFrame, QSizePolicy
 )
-from PyQt6.QtCore import Qt, pyqtSignal, QTimer, pyqtSlot
-from PyQt6.QtGui import QPixmap, QFont
+from PyQt6.QtCore import Qt, pyqtSignal, QTimer, pyqtSlot, QUrl
+from PyQt6.QtGui import QPixmap, QFont, QDesktopServices
 
 from helpers.create import create_icon_button
 from helpers.load import make_rounded_pixmap
@@ -243,7 +243,14 @@ class ProfileWidget(QWidget):
         )
         self.back_button.clicked.connect(self.back_requested.emit)
         top_bar.addWidget(self.back_button)
-        
+
+        self.open_profile_button = create_icon_button(
+            self.icons_path, "user.svg", "Open Profile in Browser", config=self.config
+        )
+        self.open_profile_button.clicked.connect(self._open_profile_in_browser)
+        self.open_profile_button.setEnabled(False)
+        top_bar.addWidget(self.open_profile_button)
+
         self.title_label = QLabel()
         self.title_label.setFont(get_font(FontType.HEADER))
         top_bar.addWidget(self.title_label, stretch=1)
@@ -292,18 +299,24 @@ class ProfileWidget(QWidget):
         style = f"""
             QLabel {{
                 {ContainerStyleMixin.get_container_style(self.is_dark)}
+                border: none;
                 border-radius: 15px;
-                border-width: 2px;
                 padding: 0px;
             }}
         """
         self.avatar_label.setStyleSheet(style)
     
+    def _open_profile_in_browser(self):
+        """Open current user's profile in the default browser"""
+        if self.current_user_id:
+            QDesktopServices.openUrl(QUrl(f"https://klavogonki.ru/u/#/{self.current_user_id}/"))
+
     def load_profile(self, user_id: int, username: str):
         """Load and display user profile data"""
         self.current_user_id = user_id
         self.current_username = username
         self.title_label.setText(username)
+        self.open_profile_button.setEnabled(True)
         
         # Reset to placeholder
         self.avatar_label.clear()
