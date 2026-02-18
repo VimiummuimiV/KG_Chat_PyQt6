@@ -962,16 +962,15 @@ class ChatWindow(QWidget):
         if chatlog_userlist_visible is None:
             chatlog_userlist_visible = True
        
-        if width > 1000 and chatlog_userlist_visible:
-            self.userlist_panel.setVisible(True)
-        else:
-            self.userlist_panel.setVisible(False)
+        visible = width > 1000 and chatlog_userlist_visible
+        self.chatlog_userlist_widget.setVisible(visible)
+        self.userlist_panel.setVisible(visible)
 
-        # Sync button state for chatlog userlist
+        # Sync button state - reflects user intent, not resize-forced visibility
         if hasattr(self, 'button_panel'):
             self.button_panel.set_button_state(
                 self.button_panel.toggle_userlist_button,
-                self.chatlog_userlist_widget.isVisible()
+                chatlog_userlist_visible
             )
        
         # Sync userlist ban visibility with chatlog parse mode
@@ -1680,13 +1679,12 @@ class ChatWindow(QWidget):
         width = self.width()
     
         if is_chatlog_view and self.chatlog_userlist_widget:
-            # Toggle chatlog userlist (via panel so font slider follows)
-            visible = not self.userlist_panel.isVisible()
+            visible = not self.chatlog_userlist_widget.isVisible()
+            self.chatlog_userlist_widget.setVisible(visible)
             self.userlist_panel.setVisible(visible)
             self.config.set("ui", "chatlog_userlist_visible", value=visible)
             self.auto_hide_chatlog_userlist = False
         else:
-            # Toggle messages userlist
             visible = not self.user_list_widget.isVisible()
             self.user_list_widget.setVisible(visible)
             if hasattr(self, 'userlist_panel'):
