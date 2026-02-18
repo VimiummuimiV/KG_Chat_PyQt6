@@ -478,7 +478,7 @@ class ChatWindow(QWidget):
         self.userlist_panel.setFixedWidth(get_userlist_width())
         self.userlist_panel.setVisible(userlist_visible)
         if font_scaler is not None:
-            font_scaler.font_size_changed.connect(
+            font_scaler.font_size_committed.connect(
                 lambda: self.userlist_panel.setFixedWidth(get_userlist_width())
             )
         self.content_layout.addWidget(self.userlist_panel)
@@ -923,7 +923,7 @@ class ChatWindow(QWidget):
 
     def show_chatlog_view(self, timestamp: str = None):
         """Open chatlog for today"""
-        # Hide messages userlist when showing chatlog - it will be replaced by the chatlog userlist if enabled
+        # Hide messages userlist when in chatlog view, but keep userlist_panel visible for the chatlog userlist + font slider
         self.user_list_widget.setVisible(False)
        
         if not self.chatlog_widget:
@@ -966,7 +966,6 @@ class ChatWindow(QWidget):
         self.chatlog_userlist_widget.setVisible(visible)
         self.userlist_panel.setVisible(visible)
 
-        # Sync button state - reflects user intent, not resize-forced visibility
         if hasattr(self, 'button_panel'):
             self.button_panel.set_button_state(
                 self.button_panel.toggle_userlist_button,

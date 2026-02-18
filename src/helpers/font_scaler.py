@@ -5,7 +5,8 @@ from PyQt6.QtGui import QFont
 
 
 class FontScaler(QObject):
-    font_size_changed = pyqtSignal()
+    font_size_changed = pyqtSignal() # Fires on every change, including intermediate slider values
+    font_size_committed = pyqtSignal()  # Fires only on slider release
 
     TEXT_MIN = 12
     TEXT_MAX = 24
@@ -87,6 +88,7 @@ class FontScaleSlider(QWidget):
         self.slider.setPageStep(1)
         self.slider.setValue(font_scaler.get_text_size())
         self.slider.valueChanged.connect(self._on_slider_changed)
+        self.slider.sliderReleased.connect(font_scaler.font_size_committed.emit)
         self._wheel_filter = _SliderWheelFilter(font_scaler, self.slider)
         self.slider.installEventFilter(self._wheel_filter)
         layout.addWidget(self.slider, stretch=1)
