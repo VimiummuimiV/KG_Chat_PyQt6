@@ -563,6 +563,8 @@ class ChatWindow(QWidget):
         self.messages_widget.timestamp_clicked.connect(self.show_chatlog_view)
         self.messages_widget.username_left_clicked.connect(self._on_username_left_click)
         self.messages_widget.username_right_clicked.connect(self._on_username_right_click)
+        self.messages_widget.username_ctrl_clicked.connect(self._on_username_ctrl_click)
+        self.messages_widget.username_shift_clicked.connect(self._on_username_shift_click)
     
         self._update_input_style()
 
@@ -1436,6 +1438,8 @@ class ChatWindow(QWidget):
                 return  # Silently drop banned user's presence
     
         if pres and pres.presence_type == 'available':
+            if pres.login and pres.user_id:
+                self.cache.set_user_id(pres.login, pres.user_id)
             self.user_list_widget.add_users(presence=pres)
         elif pres and pres.presence_type == 'unavailable':
             self.user_list_widget.remove_users(presence=pres)
@@ -1775,6 +1779,38 @@ class ChatWindow(QWidget):
                     self.input_field.setText(username + ", ")
         
         self.input_field.setFocus()
+
+    def _resolve_user_then(self, username: str, callback):
+        """Resolve user_id for username: userlist → cache → API fallback (threaded)."""
+        # 1. Userlist (instant, has jid too)
+        if hasattr(self, 'user_list_widget') and self.user_list_widget:
+            for jid, widget in self.user_list_widget.user_widgets.items():
+                user = getattr(widget, 'user', None)
+                if user and user.login == username:
+                    callback(jid, user.login, user.user_id)
+                    return
+        # 2. Cache (instant, no jid)
+        user_id = self.cache.get_user_id(username)
+        if user_id:
+            callback('', username, user_id)
+            return
+        # 3. API fallback (threaded)
+        import threading
+        from core.api_data import get_exact_user_id_by_name
+        def _fetch():
+            uid = get_exact_user_id_by_name(username)
+            if uid:
+                self.cache.set_user_id(username, str(uid))
+                QTimer.singleShot(0, lambda: callback('', username, str(uid)))
+        threading.Thread(target=_fetch, daemon=True).start()
+
+    def _on_username_ctrl_click(self, username: str):
+        """Ctrl+LMB on message username → enter private chat"""
+        self._resolve_user_then(username, lambda jid, login, uid: self.enter_private_mode(jid, login, uid))
+
+    def _on_username_shift_click(self, username: str):
+        """Shift+LMB on message username → open profile"""
+        self._resolve_user_then(username, lambda jid, login, uid: self.show_profile_view(jid, login, uid))
 
     def _on_username_right_click(self, msg, global_pos):
         """Show context menu when username is right-clicked in messages"""

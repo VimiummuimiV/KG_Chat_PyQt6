@@ -1,3 +1,4 @@
+
 """Messages display widget"""
 from datetime import datetime
 
@@ -14,9 +15,11 @@ from helpers.scroll_button import ScrollToBottomButton
 
 class MessagesWidget(QWidget):
     """Widget for displaying chat messages with virtual scrolling"""
-    timestamp_clicked = pyqtSignal(str)
-    username_left_clicked = pyqtSignal(str, bool)
-    username_right_clicked = pyqtSignal(object, object)
+    timestamp_clicked = pyqtSignal(str) # Opens chatlog for current day
+    username_left_clicked = pyqtSignal(str, bool) # Set username in input field, bool indicates double-click
+    username_right_clicked = pyqtSignal(object, object) # Show context menu for user
+    username_ctrl_clicked = pyqtSignal(str)   # Ctrl+LMB → enter private
+    username_shift_clicked = pyqtSignal(str)  # Shift+LMB → open profile
 
     def __init__(self, config, emoticon_manager, my_username: str = None):
         super().__init__()
@@ -71,7 +74,13 @@ class MessagesWidget(QWidget):
         # Check username click
         if rects['username'].contains(pos):
             if event.button() == Qt.MouseButton.LeftButton:
-                self.username_left_clicked.emit(msg.username, False)
+                mods = event.modifiers()
+                if mods & Qt.KeyboardModifier.ControlModifier:
+                    self.username_ctrl_clicked.emit(msg.username)
+                elif mods & Qt.KeyboardModifier.ShiftModifier:
+                    self.username_shift_clicked.emit(msg.username)
+                else:
+                    self.username_left_clicked.emit(msg.username, False)
                 return True
             elif event.button() == Qt.MouseButton.RightButton:
                 global_pos = self.list_view.viewport().mapToGlobal(pos)

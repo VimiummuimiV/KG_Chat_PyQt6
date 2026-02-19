@@ -28,6 +28,7 @@ class CacheManager:
         
         self._avatar_cache: Dict[str, QPixmap] = {}
         self._color_cache: Dict[str, str] = {}
+        self._user_id_cache: Dict[str, str] = {}  # login → user_id
         self._avatar_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="cache_avatar_loader")
         self._cache_lock = threading.Lock()
         self._initialized = True
@@ -98,6 +99,18 @@ class CacheManager:
         """Clear all cached colors (useful for theme changes)"""
         with self._cache_lock:
             self._color_cache.clear()
+    
+    # User ID Cache Methods
+    def get_user_id(self, login: str) -> Optional[str]:
+        """Get cached user_id by login"""
+        with self._cache_lock:
+            return self._user_id_cache.get(login)
+
+    def set_user_id(self, login: str, user_id: str) -> None:
+        """Store login → user_id mapping"""
+        if login and user_id:
+            with self._cache_lock:
+                self._user_id_cache[str(login)] = str(user_id)
     
     def clear_all(self) -> None:
         """Clear all caches"""
