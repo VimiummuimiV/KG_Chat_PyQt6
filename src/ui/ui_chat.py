@@ -1947,6 +1947,9 @@ class ChatWindow(QWidget):
         Qt.Key.Key_S: 'search',
         Qt.Key.Key_H: 'nav_backward',
         Qt.Key.Key_L: 'nav_forward',
+        Qt.Key.Key_J: 'scroll_down',
+        Qt.Key.Key_K: 'scroll_up',
+        Qt.Key.Key_G: 'scroll_gg',   # gg = top, G (Shift+G) = bottom
     }
 
     def keyPressEvent(self, event):
@@ -1995,11 +1998,44 @@ class ChatWindow(QWidget):
             cw = self.chatlog_widget
             if cw and self.stacked_widget.currentWidget() == cw and not cw.search_field.hasFocus():
                 cw._toggle_search()
-        # Navigate chatlog days — H backward (H), L forward (L), supports hold
+        # Navigate chatlog days — H backward, L forward, supports hold
         elif vk in ('nav_backward', 'nav_forward'):
             cw = self.chatlog_widget
             if cw and self.stacked_widget.currentWidget() == cw and not event.isAutoRepeat():
                 cw._navigate_hold(-1 if vk == 'nav_backward' else 1)
+        # Vim-style scroll — J down, K up, works in chat and chatlog
+        elif vk in ('scroll_down', 'scroll_up'):
+            current = self.stacked_widget.currentWidget()
+            if current == self.messages_widget:
+                sb = self.messages_widget.list_view.verticalScrollBar()
+            elif self.chatlog_widget and current == self.chatlog_widget:
+                sb = self.chatlog_widget.list_view.verticalScrollBar()
+            else:
+                sb = None
+            if sb:
+                step = sb.singleStep() * 5
+                sb.setValue(sb.value() + (step if vk == 'scroll_down' else -step))
+        # Vim-style G = bottom, gg = top
+        elif vk == 'scroll_gg':
+            current = self.stacked_widget.currentWidget()
+            if current == self.messages_widget:
+                sb = self.messages_widget.list_view.verticalScrollBar()
+            elif self.chatlog_widget and current == self.chatlog_widget:
+                sb = self.chatlog_widget.list_view.verticalScrollBar()
+            else:
+                sb = None
+            if sb:
+                if shift:
+                    sb.setValue(sb.maximum())
+                else:
+                    if not hasattr(self, '_gg_timer'):
+                        self._gg_timer = QTimer(self)
+                        self._gg_timer.setSingleShot(True)
+                    if self._gg_timer.isActive():
+                        self._gg_timer.stop()
+                        sb.setValue(sb.minimum())
+                    else:
+                        self._gg_timer.start(300)
         # Always on top toggle (T)
         elif vk == 'top':
             self.on_toggle_always_on_top()
