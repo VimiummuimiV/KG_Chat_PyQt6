@@ -3,7 +3,7 @@ from typing import Dict, Optional, List, Tuple
 from pathlib import Path
 import re
 
-from PyQt6.QtCore import Qt, QRect, QSize, pyqtSignal, QObject
+from PyQt6.QtCore import Qt, QRect, QSize, pyqtSignal, QObject, QTimer
 from PyQt6.QtGui import QPainter, QFontMetrics, QColor, QPixmap, QMovie
 from PyQt6.QtWidgets import QApplication
 
@@ -19,7 +19,8 @@ class MessageRenderer(QObject):
     """Renders message body content with links, emoticons, and mentions"""
     
     # Signal emitted when content needs refresh (e.g., YouTube metadata loaded)
-    content_needs_refresh = pyqtSignal(int)  # row number
+    refresh_row = pyqtSignal(int) # row index to refresh
+    refresh_view = pyqtSignal() # general refresh (link rmb highlight)
     
     def __init__(self, config, emoticon_manager, is_dark_theme: bool, parent_widget=None):
         super().__init__()
@@ -47,6 +48,9 @@ class MessageRenderer(QObject):
         self._emoticon_cache: Dict[str, QPixmap] = {}
         self._movie_cache: Dict[str, QMovie] = {}
         
+        # Copy highlight state
+        self._copied_url: Optional[str] = None
+        
         # YouTube support
         self.youtube_enabled = config.get("ui", "youtube", "enabled") or True
         
@@ -66,7 +70,7 @@ class MessageRenderer(QObject):
             config=self.config
         )
     
-    def handle_link_click(self, url: str, is_media: bool, global_pos, is_ctrl: bool = False):
+    def handle_link_lmb(self, url: str, is_media: bool, global_pos, is_ctrl: bool = False):
         """Handle link click - opens in viewer or browser"""
         if is_media and not is_ctrl:
             # Media link without Ctrl: open in viewer
@@ -82,6 +86,17 @@ class MessageRenderer(QObject):
             except Exception as e:
                 print(f"Failed to open URL: {e}")
     
+    def handle_link_rmb(self, url: str):
+        """Copy URL to clipboard and briefly highlight it"""
+        QApplication.clipboard().setText(url)
+        self._copied_url = url
+        self.refresh_view.emit()
+        QTimer.singleShot(700, self._clear_copy_highlight)
+
+    def _clear_copy_highlight(self):
+        self._copied_url = None
+        self.refresh_view.emit()
+
     @staticmethod
     def get_link_at_pos(link_rects: List[Tuple[QRect, str, bool]], pos) -> Optional[Tuple[str, bool]]:
         """Find link at given position"""
@@ -132,7 +147,7 @@ class MessageRenderer(QObject):
                 return cached[0] + ' '
             if row is not None and cached:
                 try:
-                    fetch_async(url, lambda _, r=row: self.content_needs_refresh.emit(r))
+                    fetch_async(url, lambda _, r=row: self.refresh_row.emit(r))
                 except Exception:
                     pass
             return url + ' '
@@ -304,6 +319,16 @@ class MessageRenderer(QObject):
                 
                 painter.drawText(current_x, current_y + fm.ascent(), chunk)
                 link_rect = QRect(current_x, current_y, chunk_width, fm.height())
+                if self._copied_url == url:
+                    highlight = QColor(link_color)
+                    highlight.setAlphaF(0.35)
+                    painter.save()
+                    painter.setPen(Qt.PenStyle.NoPen)
+                    painter.setBrush(highlight)
+                    painter.drawRoundedRect(link_rect.adjusted(-2, 0, 2, 0), 3, 3)
+                    painter.restore()
+                    painter.setPen(QColor(link_color))
+                    painter.drawText(current_x, current_y + fm.ascent(), chunk)
                 link_rects.append((link_rect, url, is_media))
                 current_x += chunk_width
                 remaining = remaining[len(chunk):]
@@ -363,7 +388,7 @@ class MessageRenderer(QObject):
             if is_cached:
                 return formatted_text
             if row is not None:
-                fetch_async(url, lambda result: self.content_needs_refresh.emit(row))
+                fetch_async(url, lambda result: self.refresh_row.emit(row))
         
         return url
     

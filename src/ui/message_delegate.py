@@ -88,8 +88,9 @@ class MessageDelegate(QStyledItemDelegate):
             # Set username for mention highlighting
             if self.my_username:
                 self.message_renderer.set_my_username(self.my_username)
-            # Connect refresh signal
-            self.message_renderer.content_needs_refresh.connect(self._refresh_row)
+            # Connect refresh signals
+            self.message_renderer.refresh_row.connect(self._refresh_row)
+            self.message_renderer.refresh_view.connect(lambda: self.list_view.viewport().update())
  
     def set_input_field(self, input_field):
         self.input_field = input_field
@@ -370,10 +371,9 @@ class MessageDelegate(QStyledItemDelegate):
                     url, is_media = link_data
                     if button == Qt.MouseButton.LeftButton:
                         global_pos = self.list_view.viewport().mapToGlobal(pos)
-                        self.message_renderer.handle_link_click(url, is_media, global_pos, is_ctrl)
+                        self.message_renderer.handle_link_lmb(url, is_media, global_pos, is_ctrl)
                     elif button == Qt.MouseButton.RightButton:
-                        # Copy URL to clipboard
-                        QApplication.clipboard().setText(url)
+                        self.message_renderer.handle_link_rmb(url)
                     return True
             
             # Click on message content area (not on specific clickable elements)

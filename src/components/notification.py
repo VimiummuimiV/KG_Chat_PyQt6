@@ -51,6 +51,9 @@ class MessageBodyWidget(QWidget):
         # Initial height estimate
         self.setFixedHeight(50)
         
+        # Repaint when copy highlight clears
+        self.message_renderer.refresh_view.connect(self.update)
+        
         # Animation timer for animated emoticons (GIFs)
         self.animation_timer = None
         if self.message_renderer.has_animated_emoticons(text):
@@ -331,7 +334,7 @@ class PopupNotification(QWidget):
                         url, is_media = link_data
                         global_pos = self.mapToGlobal(event.pos())
                         is_ctrl = event.modifiers() & Qt.KeyboardModifier.ControlModifier
-                        self.message_renderer.handle_link_click(url, is_media, global_pos, is_ctrl)
+                        self.message_renderer.handle_link_lmb(url, is_media, global_pos, is_ctrl)
                         # Don't close notification when link is clicked
                         return
           
@@ -343,6 +346,16 @@ class PopupNotification(QWidget):
                     print(f"❌ Error showing window: {e}")
           
             self.manager.close_all()
+        elif event.button() == Qt.MouseButton.RightButton:
+            if self.message_widget:
+                widget_pos = self.message_widget.mapFrom(self, event.pos())
+                if self.message_widget.rect().contains(widget_pos):
+                    link_data = self.message_widget.get_link_at_pos(widget_pos)
+                    if link_data:
+                        self.message_renderer.handle_link_rmb(link_data[0])
+                        return
+            super().mousePressEvent(event)
+
         else:
             super().mousePressEvent(event)
   
