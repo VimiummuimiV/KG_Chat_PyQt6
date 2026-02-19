@@ -54,6 +54,8 @@ class SignalEmitter(QObject):
     connection_changed = pyqtSignal(str)
 
 class ChatWindow(QWidget):
+    _dispatch = pyqtSignal(object)  # thread-safe main-thread callable dispatch
+
     def __init__(
         self,
         account=None,
@@ -62,7 +64,7 @@ class ChatWindow(QWidget):
         ban_manager=None
         ):
         super().__init__()
-
+        self._dispatch.connect(lambda f: f())
         self.app_controller = app_controller
         self.pronunciation_manager = pronunciation_manager
         self.ban_manager = ban_manager
@@ -868,7 +870,7 @@ class ChatWindow(QWidget):
                     padding: 8px;
                 }}
             """)
-            self.input_field.setPlaceholderText(f"Private message to {self.private_chat_username}...")
+            self.input_field.setPlaceholderText(f"Private message to {self.private_chat_username}")
         else:
             # Normal mode - remove custom styling
             self.input_field.setStyleSheet("")
@@ -1801,7 +1803,7 @@ class ChatWindow(QWidget):
             uid = get_exact_user_id_by_name(username)
             if uid:
                 self.cache.set_user_id(username, str(uid))
-                QTimer.singleShot(0, lambda: callback('', username, str(uid)))
+                self._dispatch.emit(lambda: callback('', username, str(uid)))
         threading.Thread(target=_fetch, daemon=True).start()
 
     def _on_username_ctrl_click(self, username: str):
