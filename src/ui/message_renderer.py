@@ -110,6 +110,16 @@ class MessageRenderer(QObject):
         """Check if position is over any link"""
         return any(rect.contains(pos) for rect, _, _ in link_rects)
     
+    def get_timestamp_color(self, is_ban: bool, is_private: bool, is_system: bool) -> str:
+        """Return the appropriate timestamp color for the message type"""
+        if is_ban:
+            return self.ban_colors["text"]
+        if is_private:
+            return self.private_colors["text"]
+        if is_system:
+            return self.system_colors["text"]
+        return "#999999"
+
     def set_my_username(self, username: str):
         """Set the current user's username for mention highlighting"""
         self.my_username = username.lower() if username else None

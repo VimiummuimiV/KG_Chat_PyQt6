@@ -233,14 +233,7 @@ class MessageDelegate(QStyledItemDelegate):
       
         # Paint timestamp - color matches text color for special message types
         painter.setFont(self.timestamp_font)
-        if msg.is_ban:
-            ts_color = self.message_renderer.ban_colors["text"]
-        elif msg.is_private:
-            ts_color = self.message_renderer.private_colors["text"]
-        elif is_system:
-            ts_color = self.message_renderer.system_colors["text"]
-        else:
-            ts_color = "#999999"
+        ts_color = self.message_renderer.get_timestamp_color(msg.is_ban, msg.is_private, is_system)
         painter.setPen(QColor(ts_color))
         ts_width = ts_fm.horizontalAdvance(time_str)
         ts_rect = QRect(x, y, ts_width, ts_fm.height())

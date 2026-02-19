@@ -174,7 +174,8 @@ class PopupNotification(QWidget):
         # Timestamp label - always shown
         ts_str = (data.timestamp or datetime.now()).strftime("%H:%M:%S")
         self.timestamp_label = QLabel(ts_str)
-        self.timestamp_label.setStyleSheet("color: #999999;")
+        ts_color = self.message_renderer.get_timestamp_color(data.is_ban, data.is_private, data.is_system)
+        self.timestamp_label.setStyleSheet(f"color: {ts_color};")
         self.timestamp_label.setFont(get_font(FontType.TEXT))
         self.timestamp_label.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         
