@@ -221,6 +221,11 @@ MPV Player — медиаплеер для воспроизведения вид
 [b][color="#F77F00"]Ctrl + C[/color][/b] — сбросить цвет никнейма
 [b][color="#F77F00"]Shift + C[/color][/b] — обновить цвет никнейма с сервера
 
+[b][color="#F77F00"]J[/color][/b] — прокрутить вниз
+[b][color="#F77F00"]K[/color][/b] — прокрутить вверх
+[b][color="#F77F00"]gg[/color][/b] — перейти в начало (двойное нажатие G)
+[b][color="#F77F00"]Shift + G[/color][/b] — перейти в конец
+
 [b][color="#FF6B9D"]Дополнительные клавиши в режиме чатлогов:[/color][/b]
 
 [b][color="#F77F00"]M[/color][/b] — включить / выключить фильтр упоминаний (вместо звуковых эффектов)
@@ -236,6 +241,7 @@ MPV Player — медиаплеер для воспроизведения вид
 [b][color="#F77F00"]F[/color][/b] — [b]F[/b]ocus · [b][color="#F77F00"]U[/color][/b] — [b]U[/b]serlist · [b][color="#F77F00"]B[/color][/b] — [b]B[/b]an · [b][color="#F77F00"]P[/color][/b] — [b]P[/b]ronunciation · [b][color="#F77F00"]M[/color][/b] — [b]M[/b]ute / [b]M[/b]entions
 [b][color="#F77F00"]V[/color][/b] — [b]V[/b]oice · [b][color="#F77F00"]N[/color][/b] — [b]N[/b]otification · [b][color="#F77F00"]T[/color][/b] — [b]T[/b]op · [b][color="#F77F00"]R[/color][/b] — [b]R[/b]eset · [b][color="#F77F00"]C[/color][/b] — [b]C[/b]olor
 [b][color="#F77F00"]S[/color][/b] — [b]S[/b]earch · [b][color="#F77F00"]H[/color][/b] — [b]H[/b]istory back · [b][color="#F77F00"]L[/color][/b] — (vim-style: вперёд)
+[b][color="#F77F00"]J[/color][/b] / [b][color="#F77F00"]K[/color][/b] / [b][color="#F77F00"]gg[/color][/b] / [b][color="#F77F00"]G[/color][/b] — vim-style прокрутка
 
 [b][color="#F77F00"]═══════════════════════════════════════════[/color][/b]
 [b][size="4"][color="#2D6CDF"]5. Боковая панель кнопок[/color][/size][/b]
