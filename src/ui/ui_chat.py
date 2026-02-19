@@ -1954,6 +1954,12 @@ class ChatWindow(QWidget):
             # Pronunciation toggle (P)
             elif key == Qt.Key.Key_P:
                 _toggle_view('pronunciation_widget', self.show_pronunciation_view)
+            # Mute effects sound toggle (M)
+            elif key == Qt.Key.Key_M:
+                self.on_toggle_effects_sound()
+            # Always on top toggle (T)
+            elif key == Qt.Key.Key_T:
+                self.on_toggle_always_on_top()
         else:
             super().keyPressEvent(event)
 

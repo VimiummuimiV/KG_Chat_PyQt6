@@ -123,7 +123,7 @@ class ButtonPanel(QWidget):
         enabled = self.config.get("sound", "effects_enabled")
         if enabled is None:
             enabled = True
-        return "Effects Sound: Enabled (Click to disable)" if enabled else "Effects Sound: Disabled (Click to enable)"
+        return "Effects Sound: Enabled (M)" if enabled else "Effects Sound: Disabled (M)"
     
     def _get_pin_icon(self) -> str:
         """Get current pin icon based on always-on-top state"""
@@ -133,7 +133,7 @@ class ButtonPanel(QWidget):
     def _get_pin_tooltip(self) -> str:
         """Get current pin tooltip based on always-on-top state"""
         enabled = self.config.get("ui", "always_on_top") or False
-        return "Always on Top: Enabled (Click to disable)" if enabled else "Always on Top: Disabled (Click to enable)"
+        return "Always on Top: Enabled (T)" if enabled else "Always on Top: Disabled (T)"
     
     def _create_buttons(self):
         """Create all buttons for the panel"""
