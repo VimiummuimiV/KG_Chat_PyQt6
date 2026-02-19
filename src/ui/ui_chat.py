@@ -1940,42 +1940,65 @@ class ChatWindow(QWidget):
         Qt.Key.Key_P: 'pronun',
         Qt.Key.Key_M: 'mute',
         Qt.Key.Key_T: 'top',
+        Qt.Key.Key_V: 'voice',
+        Qt.Key.Key_R: 'reset_size',
+        Qt.Key.Key_C: 'color',
+        Qt.Key.Key_N: 'notification',
     }
 
     def keyPressEvent(self, event):
         key, mods = event.key(), event.modifiers()
-        if mods:
+        ctrl  = mods == Qt.KeyboardModifier.ControlModifier
+        shift = mods == Qt.KeyboardModifier.ShiftModifier
+        if mods and not ctrl and not shift:
             return super().keyPressEvent(event)
         focused = self.input_field.hasFocus()
         # Loose input focus on (Esc)
         if key == Qt.Key.Key_Escape and focused:
             self.input_field.clearFocus()
             return
-        # Resolve action by Qt key first, fall back to nativeVirtualKey for non-Latin layouts
-        action = self._KEY_ACTION.get(key) or self._KEY_ACTION.get(event.nativeVirtualKey())
-        if not action or focused:
+        # Resolve physical key regardless of layout
+        vk = self._KEY_ACTION.get(key) or self._KEY_ACTION.get(event.nativeVirtualKey())
+        if not vk or focused:
             return super().keyPressEvent(event)
         def _toggle_view(attr, show_fn):
             w = getattr(self, attr, None)
             self.show_messages_view() if w and self.stacked_widget.currentWidget() == w else show_fn()
         # Focus input on (F) key if not focused, for quick access
-        if action == 'focus':
+        if vk == 'focus':
             self.input_field.setFocus()
         # User list toggle (U)
-        elif action == 'userlist':
+        elif vk == 'userlist':
             self.toggle_user_list()
         # Ban list toggle (B)
-        elif action == 'banlist':
+        elif vk == 'banlist':
             _toggle_view('ban_list_widget', self.show_ban_list_view)
         # Pronunciation toggle (P)
-        elif action == 'pronun':
+        elif vk == 'pronun':
             _toggle_view('pronunciation_widget', self.show_pronunciation_view)
         # Mute effects sound toggle (M)
-        elif action == 'mute':
+        elif vk == 'mute':
             self.on_toggle_effects_sound()
         # Always on top toggle (T)
-        elif action == 'top':
+        elif vk == 'top':
             self.on_toggle_always_on_top()
+        # Voice sound toggle (V)
+        elif vk == 'voice':
+            self.on_toggle_voice_sound()
+        # Reset window size (R)
+        elif vk == 'reset_size':
+            self.reset_window_size()
+        # Change username color (C) / Ctrl+C reset / Shift+C update from server
+        elif vk == 'color':
+            if ctrl:
+                self.on_reset_username_color()
+            elif shift:
+                self.on_update_username_color()
+            else:
+                self.on_change_username_color()
+        # Toggle notifications cycle (N)
+        elif vk == 'notification':
+            self.on_toggle_notification()
 
     def toggle_theme(self):
         try:

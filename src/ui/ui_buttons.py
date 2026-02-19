@@ -105,11 +105,11 @@ class ButtonPanel(QWidget):
         muted = self.config.get("notification", "muted") or False
         
         if muted:
-            return "Notifications: Muted (Click to enable Stack mode)"
+            return "Notifications: Muted (N)"
         elif mode == "replace":
-            return "Notifications: Replace mode (Click to mute)"
+            return "Notifications: Replace (N)"
         else:  # stack
-            return "Notifications: Stack mode (Click to switch to Replace)"
+            return "Notifications: Stack (N)"
     
     def _get_effects_icon(self) -> str:
         """Get current effects icon based on state"""
@@ -162,7 +162,7 @@ class ButtonPanel(QWidget):
         # Voice toggle button
         self.voice_button = self._create_button(
             "user-voice.svg",
-            "Toggle Voice Sound (Ctrl+Click to open Username Pronunciation (P))",
+            "Toggle Voice Sound (V) (Ctrl+Click to open Username Pronunciation (P))",
             lambda: self.toggle_voice_requested.emit()
         )
         # Install event filter to catch Ctrl+Click for pronunciation
@@ -189,7 +189,7 @@ class ButtonPanel(QWidget):
         # Color picker button
         self.color_button = self._create_button(
             "palette.svg",
-            "Change username color (Ctrl+Click to Reset, Shift+Click to Update from Server)",
+            "Change username color (C | Ctrl+C/Click: Reset | Shift+C/Click: Update from Server)",
             lambda: self.change_color_requested.emit()
         )
         # Install event filter to capture Ctrl+Click / Shift+Click
@@ -204,7 +204,7 @@ class ButtonPanel(QWidget):
         # Reset window size button
         self.reset_size_button = self._create_button(
             "aspect-ratio.svg",
-            "Reset Window Size and Position to Default (Right-click for Presets)",
+            "Reset Window Size and Position to Default (R) (RMB for Presets)",
             lambda: self.reset_window_size_requested.emit()
         )
         # Install event filter for RMB click (presets)
