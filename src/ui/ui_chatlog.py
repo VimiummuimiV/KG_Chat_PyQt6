@@ -265,12 +265,12 @@ class ChatlogWidget(QWidget):
         self.calendar_btn.clicked.connect(self._show_calendar)
         self.nav_buttons_container.add_widget(self.calendar_btn)
 
-        self.search_toggle_btn = create_icon_button(self.icons_path, "search.svg", "Toggle search",
+        self.search_toggle_btn = create_icon_button(self.icons_path, "search.svg", "Toggle search (S)",
                                                    size_type="large", config=self.config)
         self.search_toggle_btn.clicked.connect(self._toggle_search)
         self.nav_buttons_container.add_widget(self.search_toggle_btn)
 
-        self.mention_filter_btn = create_icon_button(self.icons_path, "at-line.svg", "Filter mentions",
+        self.mention_filter_btn = create_icon_button(self.icons_path, "at-line.svg", "Filter mentions (M)",
                                                     size_type="large", config=self.config)
         self.mention_filter_btn.clicked.connect(self._toggle_mention_filter)
         self.nav_buttons_container.add_widget(self.mention_filter_btn)

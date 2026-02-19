@@ -1944,6 +1944,7 @@ class ChatWindow(QWidget):
         Qt.Key.Key_R: 'reset_size',
         Qt.Key.Key_C: 'color',
         Qt.Key.Key_N: 'notification',
+        Qt.Key.Key_S: 'search',
     }
 
     def keyPressEvent(self, event):
@@ -1953,10 +1954,15 @@ class ChatWindow(QWidget):
         if mods and not ctrl and not shift:
             return super().keyPressEvent(event)
         focused = self.input_field.hasFocus()
-        # Loose input focus on (Esc)
+        # Loose input focus on (Esc) — also closes chatlog search if open
         if key == Qt.Key.Key_Escape and focused:
             self.input_field.clearFocus()
             return
+        if key == Qt.Key.Key_Escape:
+            cw = self.chatlog_widget
+            if cw and self.stacked_widget.currentWidget() == cw and cw.search_visible:
+                cw._toggle_search()
+                return
         # Resolve physical key regardless of layout
         vk = self._KEY_ACTION.get(key) or self._KEY_ACTION.get(event.nativeVirtualKey())
         if not vk or focused:
@@ -1976,9 +1982,17 @@ class ChatWindow(QWidget):
         # Pronunciation toggle (P)
         elif vk == 'pronun':
             _toggle_view('pronunciation_widget', self.show_pronunciation_view)
-        # Mute effects sound toggle (M)
+        # Mute effects sound (M) or toggle mention filter in chatlog (M)
         elif vk == 'mute':
-            self.on_toggle_effects_sound()
+            if self.chatlog_widget and self.stacked_widget.currentWidget() == self.chatlog_widget:
+                self.chatlog_widget._toggle_mention_filter()
+            else:
+                self.on_toggle_effects_sound()
+        # Toggle search in chatlog (S) — only when search field is not focused
+        elif vk == 'search':
+            cw = self.chatlog_widget
+            if cw and self.stacked_widget.currentWidget() == cw and not cw.search_field.hasFocus():
+                cw._toggle_search()
         # Always on top toggle (T)
         elif vk == 'top':
             self.on_toggle_always_on_top()
