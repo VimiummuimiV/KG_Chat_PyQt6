@@ -140,7 +140,7 @@ class ButtonPanel(QWidget):
         # Toggle userlist button
         self.toggle_userlist_button = self._create_button(
             "user.svg",
-            "Toggle User List",
+            "Toggle User List (U)",
             self.toggle_userlist_requested.emit
         )
         self.toggle_userlist_button._is_visually_active = True
@@ -155,14 +155,14 @@ class ButtonPanel(QWidget):
         # Ban List button
         self.ban_button = self._create_button(
             "user-blocked.svg",
-            "Show Ban List",
+            "Show Ban List (B)",
             lambda: self.show_banlist_requested.emit()
         )
 
         # Voice toggle button
         self.voice_button = self._create_button(
             "user-voice.svg",
-            "Toggle Voice Sound (Ctrl+Click to open Username Pronunciation)",
+            "Toggle Voice Sound (Ctrl+Click to open Username Pronunciation (P))",
             lambda: self.toggle_voice_requested.emit()
         )
         # Install event filter to catch Ctrl+Click for pronunciation

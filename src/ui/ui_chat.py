@@ -1930,6 +1930,33 @@ class ChatWindow(QWidget):
         except Exception as e:
             print(f"Error removing message(s): {e}")
 
+    def keyPressEvent(self, event):
+        key, mods = event.key(), event.modifiers()
+        if mods:
+            return super().keyPressEvent(event)
+        focused = self.input_field.hasFocus()
+        # Loose input focus on (Esc)
+        if key == Qt.Key.Key_Escape and focused:
+            self.input_field.clearFocus()
+        # Focus input on (F) key if not focused, for quick access
+        elif key == Qt.Key.Key_F and not focused:
+            self.input_field.setFocus()
+        elif not focused:
+            def _toggle_view(attr, show_fn):
+                w = getattr(self, attr, None)
+                self.show_messages_view() if w and self.stacked_widget.currentWidget() == w else show_fn()
+            # User list toggle (U)
+            if key == Qt.Key.Key_U:
+                self.toggle_user_list()
+            # Ban list toggle (B)
+            elif key == Qt.Key.Key_B:
+                _toggle_view('ban_list_widget', self.show_ban_list_view)
+            # Pronunciation toggle (P)
+            elif key == Qt.Key.Key_P:
+                _toggle_view('pronunciation_widget', self.show_pronunciation_view)
+        else:
+            super().keyPressEvent(event)
+
     def toggle_theme(self):
         try:
             self.theme_manager.toggle_theme()
