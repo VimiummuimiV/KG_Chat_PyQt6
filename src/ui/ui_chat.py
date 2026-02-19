@@ -1945,6 +1945,8 @@ class ChatWindow(QWidget):
         Qt.Key.Key_C: 'color',
         Qt.Key.Key_N: 'notification',
         Qt.Key.Key_S: 'search',
+        Qt.Key.Key_H: 'nav_backward',
+        Qt.Key.Key_L: 'nav_forward',
     }
 
     def keyPressEvent(self, event):
@@ -1993,6 +1995,11 @@ class ChatWindow(QWidget):
             cw = self.chatlog_widget
             if cw and self.stacked_widget.currentWidget() == cw and not cw.search_field.hasFocus():
                 cw._toggle_search()
+        # Navigate chatlog days — H backward (H), L forward (L), supports hold
+        elif vk in ('nav_backward', 'nav_forward'):
+            cw = self.chatlog_widget
+            if cw and self.stacked_widget.currentWidget() == cw and not event.isAutoRepeat():
+                cw._navigate_hold(-1 if vk == 'nav_backward' else 1)
         # Always on top toggle (T)
         elif vk == 'top':
             self.on_toggle_always_on_top()
@@ -2013,6 +2020,18 @@ class ChatWindow(QWidget):
         # Toggle notifications cycle (N)
         elif vk == 'notification':
             self.on_toggle_notification()
+
+    def keyReleaseEvent(self, event):
+        if event.isAutoRepeat():
+            return
+        key = event.key()
+        vk = self._KEY_ACTION.get(key) or self._KEY_ACTION.get(event.nativeVirtualKey())
+        if vk in ('nav_backward', 'nav_forward'):
+            cw = self.chatlog_widget
+            if cw and self.stacked_widget.currentWidget() == cw:
+                cw._navigate_hold()  # Stop hold
+                return
+        super().keyReleaseEvent(event)
 
     def toggle_theme(self):
         try:

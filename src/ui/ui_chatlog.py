@@ -248,13 +248,13 @@ class ChatlogWidget(QWidget):
         self.back_btn.clicked.connect(self.back_requested.emit)
         self.nav_buttons_container.add_widget(self.back_btn)
 
-        self.prev_btn = create_icon_button(self.icons_path, "arrow-left.svg", "Previous day",
+        self.prev_btn = create_icon_button(self.icons_path, "arrow-left.svg", "Previous day (H)",
                                           size_type="large", config=self.config)
         self.prev_btn.pressed.connect(lambda: self._navigate_hold(-1))
         self.prev_btn.released.connect(lambda: self._navigate_hold())
         self.nav_buttons_container.add_widget(self.prev_btn)
 
-        self.next_btn = create_icon_button(self.icons_path, "arrow-right.svg", "Next day",
+        self.next_btn = create_icon_button(self.icons_path, "arrow-right.svg", "Next day (L)",
                                           size_type="large", config=self.config)
         self.next_btn.pressed.connect(lambda: self._navigate_hold(1))
         self.next_btn.released.connect(lambda: self._navigate_hold())
