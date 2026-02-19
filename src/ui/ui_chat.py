@@ -1930,6 +1930,18 @@ class ChatWindow(QWidget):
         except Exception as e:
             print(f"Error removing message(s): {e}")
 
+    # Physical key → action, layout-independent via nativeVirtualKey fallback.
+    # Qt key values for Latin letters equal their ASCII codes, as does
+    # Windows Virtual Key codes — so nativeVirtualKey() works regardless of layout.
+    _KEY_ACTION = {
+        Qt.Key.Key_F: 'focus',
+        Qt.Key.Key_U: 'userlist',
+        Qt.Key.Key_B: 'banlist',
+        Qt.Key.Key_P: 'pronun',
+        Qt.Key.Key_M: 'mute',
+        Qt.Key.Key_T: 'top',
+    }
+
     def keyPressEvent(self, event):
         key, mods = event.key(), event.modifiers()
         if mods:
@@ -1938,30 +1950,32 @@ class ChatWindow(QWidget):
         # Loose input focus on (Esc)
         if key == Qt.Key.Key_Escape and focused:
             self.input_field.clearFocus()
+            return
+        # Resolve action by Qt key first, fall back to nativeVirtualKey for non-Latin layouts
+        action = self._KEY_ACTION.get(key) or self._KEY_ACTION.get(event.nativeVirtualKey())
+        if not action or focused:
+            return super().keyPressEvent(event)
+        def _toggle_view(attr, show_fn):
+            w = getattr(self, attr, None)
+            self.show_messages_view() if w and self.stacked_widget.currentWidget() == w else show_fn()
         # Focus input on (F) key if not focused, for quick access
-        elif key == Qt.Key.Key_F and not focused:
+        if action == 'focus':
             self.input_field.setFocus()
-        elif not focused:
-            def _toggle_view(attr, show_fn):
-                w = getattr(self, attr, None)
-                self.show_messages_view() if w and self.stacked_widget.currentWidget() == w else show_fn()
-            # User list toggle (U)
-            if key == Qt.Key.Key_U:
-                self.toggle_user_list()
-            # Ban list toggle (B)
-            elif key == Qt.Key.Key_B:
-                _toggle_view('ban_list_widget', self.show_ban_list_view)
-            # Pronunciation toggle (P)
-            elif key == Qt.Key.Key_P:
-                _toggle_view('pronunciation_widget', self.show_pronunciation_view)
-            # Mute effects sound toggle (M)
-            elif key == Qt.Key.Key_M:
-                self.on_toggle_effects_sound()
-            # Always on top toggle (T)
-            elif key == Qt.Key.Key_T:
-                self.on_toggle_always_on_top()
-        else:
-            super().keyPressEvent(event)
+        # User list toggle (U)
+        elif action == 'userlist':
+            self.toggle_user_list()
+        # Ban list toggle (B)
+        elif action == 'banlist':
+            _toggle_view('ban_list_widget', self.show_ban_list_view)
+        # Pronunciation toggle (P)
+        elif action == 'pronun':
+            _toggle_view('pronunciation_widget', self.show_pronunciation_view)
+        # Mute effects sound toggle (M)
+        elif action == 'mute':
+            self.on_toggle_effects_sound()
+        # Always on top toggle (T)
+        elif action == 'top':
+            self.on_toggle_always_on_top()
 
     def toggle_theme(self):
         try:
