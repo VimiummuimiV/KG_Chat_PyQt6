@@ -261,6 +261,28 @@ MPV Player — медиаплеер для воспроизведения вид
 [b][color="#F77F00"]S[/color][/b] — [b]S[/b]earch / [b]S[/b]tart · [b][color="#F77F00"]H[/color][/b] — [b]H[/b]istory back · [b][color="#F77F00"]L[/color][/b] — (vim-style: вперёд) · [b][color="#F77F00"]D[/color][/b] — [b]D[/b]ate · [b][color="#F77F00"]X[/color][/b] — e[b]X[/b]it
 [b][color="#F77F00"]J[/color][/b] / [b][color="#F77F00"]K[/color][/b] / [b][color="#F77F00"]gg[/color][/b] / [b][color="#F77F00"]G[/color][/b] — vim-style прокрутка
 
+[b][color="#FF6B9D"]4.12. Горячие клавиши окна управления аккаунтами[/color][/b]
+
+[b]Раздел Connect (подключение):[/b]
+
+[b][color="#F77F00"]Tab[/color][/b] — переключить аккаунт в выпадающем списке
+[b][color="#F77F00"]Enter / E[/color][/b] — подключиться к чату
+[b][color="#F77F00"]A[/color][/b] — перейти к созданию аккаунта
+[b][color="#F77F00"]D[/color][/b] — удалить выбранный аккаунт
+[b][color="#F77F00"]C[/color][/b] — изменить цвет никнейма
+[b][color="#F77F00"]Ctrl + C[/color][/b] — сбросить цвет никнейма
+[b][color="#F77F00"]Shift + C[/color][/b] — обновить цвет никнейма с сервера
+[b][color="#F77F00"]1[/color][/b] — переключить Auto-login
+[b][color="#F77F00"]2[/color][/b] — переключить Start minimized
+[b][color="#F77F00"]3[/color][/b] — переключить Start with system
+
+[b]Раздел Create (создание аккаунта):[/b]
+
+[b][color="#F77F00"]Tab[/color][/b] — переключить фокус между полями Username и Password
+[b][color="#F77F00"]Enter[/color][/b] — сохранить аккаунт (когда поле ввода в фокусе)
+[b][color="#F77F00"]Ctrl + S[/color][/b] — сохранить аккаунт
+[b][color="#F77F00"]Esc[/color][/b] — вернуться в раздел Connect
+
 [b][color="#F77F00"]═══════════════════════════════════════════[/color][/b]
 [b][size="4"][color="#2D6CDF"]5. Боковая панель кнопок[/color][/size][/b]
 [b][color="#F77F00"]═══════════════════════════════════════════[/color][/b]
