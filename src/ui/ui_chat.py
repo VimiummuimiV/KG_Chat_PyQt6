@@ -584,9 +584,12 @@ class ChatWindow(QWidget):
         self.emoticon_selector.toggle_visibility()
         self._position_emoticon_selector()
 
-        # When opening, remove input focus so arrow/hjkl hotkeys work immediately
+        # When opening, remove input focus so arrow/hjkl hotkeys work immediately.
+        # Explicitly take focus on ChatWindow so the scroll area inside the selector
+        # doesn't capture arrow keys before keyPressEvent sees them.
         if self.emoticon_selector.isVisible():
             self.input_field.clearFocus()
+            self.setFocus()
  
     def _on_emoticon_selected(self, emoticon_name: str):
         """Handle emoticon selection"""
@@ -1965,6 +1968,8 @@ class ChatWindow(QWidget):
         Qt.Key.Key_L: 'nav_forward',
         Qt.Key.Key_J: 'scroll_down',
         Qt.Key.Key_K: 'scroll_up',
+        Qt.Key.Key_Down: 'scroll_down',
+        Qt.Key.Key_Up: 'scroll_up',
         Qt.Key.Key_G: 'scroll_gg',   # gg = top, G (Shift+G) = bottom
         Qt.Key.Key_D: 'calendar',
         Qt.Key.Key_Space: 'page_down',
@@ -1983,6 +1988,11 @@ class ChatWindow(QWidget):
             self.input_field.clearFocus()
             return
         if key == Qt.Key.Key_Escape:
+            sel = getattr(self, 'emoticon_selector', None)
+            if sel and sel.isVisible():
+                sel.toggle_visibility()
+                self.input_field.setFocus()
+                return
             cw = self.chatlog_widget
             if cw and self.stacked_widget.currentWidget() == cw and cw.search_visible:
                 cw._toggle_search()
@@ -2114,7 +2124,7 @@ class ChatWindow(QWidget):
         elif vk == 'page_down':
             sb = _active_scrollbar()
             if sb:
-                sb.setValue(sb.value() + sb.pageStep())
+                sb.setValue(sb.value() + (-sb.pageStep() if shift else sb.pageStep()))
         # Always on top toggle (T)
         elif vk == 'top':
             self.on_toggle_always_on_top()
