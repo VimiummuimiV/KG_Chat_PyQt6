@@ -694,6 +694,14 @@ class ChatWindow(QWidget):
         
         # Handle clicks outside emoticon selector
         if event.type() == QEvent.Type.MouseButtonPress:
+            # Back/Forward mouse buttons navigate chatlog days from anywhere in the window
+            cw = getattr(self, 'chatlog_widget', None)
+            if cw and self.stacked_widget.currentWidget() == cw and not cw.parser_visible:
+                direction = {Qt.MouseButton.BackButton: -1, Qt.MouseButton.ForwardButton: 1}.get(event.button())
+                if direction is not None:
+                    cw._navigate_hold(direction)
+                    return True
+
             if hasattr(self, 'emoticon_selector') and self.emoticon_selector.isVisible():
                 try:
                     gp = event.globalPosition().toPoint() if hasattr(event, 'globalPosition') else event.globalPos()
@@ -720,7 +728,13 @@ class ChatWindow(QWidget):
                     self.setFocus()
             except Exception:
                 pass
-        
+
+        if event.type() == QEvent.Type.MouseButtonRelease:
+            cw = getattr(self, 'chatlog_widget', None)
+            if cw and event.button() in (Qt.MouseButton.BackButton, Qt.MouseButton.ForwardButton):
+                cw._navigate_hold()
+                return True
+
         return super().eventFilter(obj, event)
 
     def showEvent(self, event):

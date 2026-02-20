@@ -180,21 +180,6 @@ class ChatlogWidget(QWidget):
             self.repeat_direction = direction
             self.repeat_delay_timer.start()  # Start delay before repeating
     
-    def eventFilter(self, obj, event):
-        """Filter mouse button events for navigation"""
-        if not self.parser_visible:
-            if event.type() == QEvent.Type.MouseButtonPress:
-                direction = {Qt.MouseButton.BackButton: -1, Qt.MouseButton.ForwardButton: 1}.get(event.button())
-                if direction:
-                    self._navigate_hold(direction)
-                    return True
-            elif event.type() == QEvent.Type.MouseButtonRelease:
-                if event.button() in (Qt.MouseButton.BackButton, Qt.MouseButton.ForwardButton):
-                    self._navigate_hold()
-                    return True
-        
-        return super().eventFilter(obj, event)
-
     def _setup_ui(self):
         margin = self.config.get("ui", "margins", "widget") or 5
         spacing = self.config.get("ui", "spacing", "widget_elements") or 6
@@ -350,9 +335,6 @@ class ChatlogWidget(QWidget):
 
         self._update_date_display()
         self._error_occurred.connect(self._handle_error)
-
-        self.installEventFilter(self)
-        self.list_view.viewport().installEventFilter(self)
 
     def _on_copy_results(self):
         """Copy parsed results to clipboard"""
