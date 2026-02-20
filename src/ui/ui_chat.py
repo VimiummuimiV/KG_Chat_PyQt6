@@ -1998,6 +1998,14 @@ class ChatWindow(QWidget):
             if self.chatlog_widget and not self.chatlog_widget.parser_visible:
                 self.chatlog_widget._toggle_parser()
             return
+        # Ctrl+U switch account
+        if ctrl and (key == Qt.Key.Key_U or event.nativeVirtualKey() == Qt.Key.Key_U):
+            self._on_switch_account()
+            return
+        # Ctrl+T toggle theme
+        if ctrl and (key == Qt.Key.Key_T or event.nativeVirtualKey() == Qt.Key.Key_T):
+            self.toggle_theme()
+            return
         # Resolve physical key regardless of layout
         vk = self._KEY_ACTION.get(key) or self._KEY_ACTION.get(event.nativeVirtualKey())
         if not vk or focused:
@@ -2015,12 +2023,9 @@ class ChatWindow(QWidget):
         # Focus input on (F) key if not focused, for quick access
         if vk == 'focus':
             self.input_field.setFocus()
-        # User list toggle (U) / Ctrl+U switch account
+        # User list toggle (U) — Ctrl+U is handled before the focus guard above
         elif vk == 'userlist':
-            if ctrl:
-                self._on_switch_account()
-            else:
-                self.toggle_user_list()
+            self.toggle_user_list()
         # Ban list toggle (B)
         elif vk == 'banlist':
             _toggle_view('ban_list_widget', self.show_ban_list_view)
@@ -2071,17 +2076,14 @@ class ChatWindow(QWidget):
                         sb.setValue(sb.minimum())
                     else:
                         self._gg_timer.start(300)
-        # Space — scroll down one page; Shift+Space — scroll up one page
+        # Space — scroll down one page
         elif vk == 'page_down':
             sb = _active_scrollbar()
             if sb:
-                sb.setValue(sb.value() + (-sb.pageStep() if shift else sb.pageStep()))
-        # Always on top toggle (T) / Ctrl+T toggle theme
+                sb.setValue(sb.value() + sb.pageStep())
+        # Always on top toggle (T)
         elif vk == 'top':
-            if ctrl:
-                self.toggle_theme()
-            else:
-                self.on_toggle_always_on_top()
+            self.on_toggle_always_on_top()
         # Voice sound toggle (V)
         elif vk == 'voice':
             self.on_toggle_voice_sound()

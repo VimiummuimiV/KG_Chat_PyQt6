@@ -4,7 +4,7 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QComboBox,
     QLineEdit, QMessageBox, QApplication, QStackedWidget, QCheckBox
 )
-from PyQt6.QtGui import QFont, QIcon, QPixmap
+from PyQt6.QtGui import QFont, QIcon, QPixmap, QKeyEvent
 from PyQt6.QtCore import Qt, pyqtSignal, QSize, pyqtSlot, QEvent
 
 from helpers.create import create_icon_button, set_theme, _render_svg_icon
@@ -60,6 +60,9 @@ class AccountWindow(QWidget):
 
         # Set initial window height for Connect page
         self._adjust_window_height()
+
+        # Ensure the window itself holds focus so Tab reaches event() immediately
+        self.setFocus()
 
     def _get_config(self, key, default):
         """Safely get config value with default fallback"""
@@ -136,12 +139,14 @@ class AccountWindow(QWidget):
             self.icons_path, "user.svg", tooltip="Account"
         )
         self.account_avatar.setStyleSheet("QPushButton { background: transparent; border: none; }")
+        self.account_avatar.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         account_row.addWidget(self.account_avatar)
 
         # Account dropdown
         self.account_dropdown = QComboBox()
         self.account_dropdown.setFont(get_font(FontType.UI))
         self._set_input_height(self.account_dropdown)
+        self.account_dropdown.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.account_dropdown.currentIndexChanged.connect(self.update_avatar)
 
         # Offset dropdown popup to not cover the border
@@ -163,31 +168,35 @@ class AccountWindow(QWidget):
 
         # Connect button
         self.connect_button = create_icon_button(
-            self.icons_path, "login.svg", tooltip="Connect to chat"
+            self.icons_path, "login.svg", tooltip="Connect to chat (Enter / E)"
         )
         self.connect_button.clicked.connect(self.on_connect)
+        self.connect_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         actions_row.addWidget(self.connect_button)
 
         # Color picker button
         self.color_button = create_icon_button(
-            self.icons_path, "palette.svg", tooltip="Change username color (Ctrl+Click to Reset, Shift+Click to Update from Server)"
+            self.icons_path, "palette.svg", tooltip="Change username color (C | Ctrl+C/Click: Reset | Shift+C/Click: Update from Server)"
         )
         self.color_button.installEventFilter(self)
         self.color_button.clicked.connect(self.on_color_picker)
+        self.color_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         actions_row.addWidget(self.color_button)
 
         # Remove button
         self.remove_button = create_icon_button(
-            self.icons_path, "trash.svg", tooltip="Remove account"
+            self.icons_path, "trash.svg", tooltip="Remove account (D)"
         )
         self.remove_button.clicked.connect(self.on_remove_account)
+        self.remove_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         actions_row.addWidget(self.remove_button)
 
         # Add user button
         self.add_user_button = create_icon_button(
-            self.icons_path, "add-user.svg", tooltip="Add account"
+            self.icons_path, "add-user.svg", tooltip="Add account (A)"
         )
         self.add_user_button.clicked.connect(self.show_create_page)
+        self.add_user_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         actions_row.addWidget(self.add_user_button)
 
         layout.addLayout(actions_row)
@@ -195,6 +204,7 @@ class AccountWindow(QWidget):
         # Auto-login checkbox
         self.auto_login_checkbox = QCheckBox("Auto-login")
         self.auto_login_checkbox.setFont(get_font(FontType.UI))
+        self.auto_login_checkbox.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.auto_login_checkbox.stateChanged.connect(self.on_auto_login_changed)
         
         # Load current auto-login state
@@ -208,6 +218,7 @@ class AccountWindow(QWidget):
         # Start minimized to tray checkbox
         self.start_minimized_checkbox = QCheckBox("Start minimized")
         self.start_minimized_checkbox.setFont(get_font(FontType.UI))
+        self.start_minimized_checkbox.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.start_minimized_checkbox.stateChanged.connect(self.on_start_minimized_changed)
         
         # Load current start minimized state
@@ -221,6 +232,7 @@ class AccountWindow(QWidget):
         # Start with system checkbox
         self.start_with_system_checkbox = QCheckBox("Start with system")
         self.start_with_system_checkbox.setFont(get_font(FontType.UI))
+        self.start_with_system_checkbox.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.start_with_system_checkbox.stateChanged.connect(self.on_start_with_system_changed)
         
         # Load current start with system state
@@ -263,6 +275,10 @@ class AccountWindow(QWidget):
         self.password_input.setFont(get_font(FontType.UI))
         credentials_layout.addWidget(self.password_input)
 
+        # Pressing Enter in either field triggers save
+        self.username_input.returnPressed.connect(self.on_create_account)
+        self.password_input.returnPressed.connect(self.on_create_account)
+
         layout.addLayout(credentials_layout)
 
         # Actions row
@@ -271,26 +287,137 @@ class AccountWindow(QWidget):
 
         # Go back button
         self.go_back_button = create_icon_button(
-            self.icons_path, "go-back.svg", tooltip="Go back to Connect"
+            self.icons_path, "go-back.svg", tooltip="Go back to Connect (Esc)"
         )
         self.go_back_button.clicked.connect(self.show_connect_page)
+        self.go_back_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         actions_row.addWidget(self.go_back_button)
 
         # Create/Save button
         self.create_button = create_icon_button(
-            self.icons_path, "save.svg", tooltip="Save account"
+            self.icons_path, "save.svg", tooltip="Save account (Ctrl+S / Enter)"
         )
         self.create_button.clicked.connect(self.on_create_account)
+        self.create_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         actions_row.addWidget(self.create_button)
 
         layout.addLayout(actions_row)
 
+        # Restrict Tab cycle to username ↔ password only
+        QWidget.setTabOrder(self.username_input, self.password_input)
+        QWidget.setTabOrder(self.password_input, self.username_input)
+
         return page
+
+    # ── Keyboard shortcuts ────────────────────────────────────────────────────
+    # Maps Qt key constants to logical action names.
+    # Connect page  (no input focused):
+    #   Tab          → cycle account dropdown selection
+    #   Enter / E    → connect to chat
+    #   C            → change username color
+    #   Ctrl+C       → reset username color
+    #   Shift+C      → update username color from server
+    #   D            → remove selected account
+    #   A            → go to Create page (add account)
+    # Create page  (no input focused):
+    #   Escape       → back to Connect page
+    #   Ctrl+S       → save / create account
+    # Create page  (input focused):
+    #   Tab          → cycle focus username ↔ password  (Qt native)
+    #   Enter        → save / create account            (returnPressed signal)
+    #   Ctrl+S       → save / create account
+    _KEY_ACTION = {
+        Qt.Key.Key_Return: 'connect',
+        Qt.Key.Key_Enter:  'connect',
+        Qt.Key.Key_E:      'connect',
+        Qt.Key.Key_C:      'color',
+        Qt.Key.Key_D:      'remove',
+        Qt.Key.Key_A:      'add',
+        Qt.Key.Key_S:      'save',
+        Qt.Key.Key_Escape: 'back',
+    }
+
+    def event(self, ev):
+        """Intercept Tab on the Connect page to cycle the account dropdown.
+        Works because the dropdown has NoFocus — Tab never gets consumed by
+        Qt's focus navigation and reaches the window's event() cleanly.
+        """
+        if (isinstance(ev, QKeyEvent)
+                and ev.type() == QEvent.Type.KeyPress
+                and ev.key() == Qt.Key.Key_Tab
+                and self.stacked_widget.currentIndex() == 0):
+            count = self.account_dropdown.count()
+            if count > 1:
+                next_index = (self.account_dropdown.currentIndex() + 1) % count
+                self.account_dropdown.setCurrentIndex(next_index)
+            return True  # consumed
+        return super().event(ev)
+
+    def keyPressEvent(self, event):
+        key  = event.key()
+        mods = event.modifiers()
+        ctrl  = bool(mods & Qt.KeyboardModifier.ControlModifier)
+        shift = bool(mods & Qt.KeyboardModifier.ShiftModifier)
+
+        # Ignore combinations with other modifiers (Alt, Meta, ...)
+        if mods and not ctrl and not shift:
+            return super().keyPressEvent(event)
+
+        on_connect = self.stacked_widget.currentIndex() == 0
+        on_create  = self.stacked_widget.currentIndex() == 1
+        any_input  = self.username_input.hasFocus() or self.password_input.hasFocus()
+
+        # Ctrl+S — save account (fires even while typing in an input field)
+        if ctrl and (key == Qt.Key.Key_S or event.nativeVirtualKey() == Qt.Key.Key_S):
+            if on_create:
+                self.on_create_account()
+            return
+
+        # Escape — go back to Connect page from Create page
+        if key == Qt.Key.Key_Escape:
+            if on_create:
+                self.show_connect_page()
+            return
+
+        # All remaining hotkeys are blocked while an input field has focus
+        # so that typing works freely.
+        vk = self._KEY_ACTION.get(key) or self._KEY_ACTION.get(event.nativeVirtualKey())
+        if not vk or any_input:
+            return super().keyPressEvent(event)
+
+        if on_connect:
+            if vk == 'connect':
+                self.on_connect()
+            elif vk == 'color':
+                if ctrl:
+                    self._hotkey_reset_color()
+                elif shift:
+                    self.on_refresh_server_color()
+                else:
+                    self.on_color_picker()
+            elif vk == 'remove':
+                self.on_remove_account()
+            elif vk in ('add', 'save'):
+                # A (or S without modifier) on Connect page → open Create page
+                self.show_create_page()
+
+    def _hotkey_reset_color(self):
+        """Reset username color via keyboard shortcut (Ctrl+C on Connect page)."""
+        account = self.account_dropdown.currentData()
+        if not account:
+            QMessageBox.warning(self, "No Account", "Please select an account first.")
+            return
+        success = reset_username_color(self, self.account_manager, account, self.cache)
+        if success:
+            self.load_accounts()
+
+    # ── End keyboard shortcuts ────────────────────────────────────────────────
 
     def show_connect_page(self):
         """Navigate to Connect page"""
         self.stacked_widget.setCurrentIndex(0)
         self._adjust_window_height()
+        self.setFocus()  # return focus to window so Tab works immediately
 
     def show_create_page(self):
         """Navigate to Create page"""
@@ -342,7 +469,9 @@ class AccountWindow(QWidget):
 
     def eventFilter(self, obj, event):
         """Event filter for Ctrl+Click on color button"""
-        if obj == self.color_button and event.type() == QEvent.Type.MouseButtonPress:
+        if (hasattr(self, 'color_button')
+                and obj == self.color_button
+                and event.type() == QEvent.Type.MouseButtonPress):
             if event.button() == Qt.MouseButton.LeftButton:
                 modifiers = QApplication.keyboardModifiers()
                 if modifiers & Qt.KeyboardModifier.ControlModifier:
