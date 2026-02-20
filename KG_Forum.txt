@@ -205,7 +205,7 @@ MPV Player — медиаплеер для воспроизведения вид
 
 [b][color="#FF6B9D"]4.11. Горячие клавиши интерфейса[/color][/b]
 
-Следующие клавиши работают в любой момент, но только когда фокус не находится в поле ввода сообщения:
+Следующие клавиши работают только когда фокус не находится в поле ввода сообщения:
 
 [b][color="#F77F00"]F[/color][/b] — перевести фокус на поле ввода сообщения
 [b][color="#F77F00"]Esc[/color][/b] — снять фокус с поля ввода
@@ -220,6 +220,16 @@ MPV Player — медиаплеер для воспроизведения вид
 [b][color="#F77F00"]C[/color][/b] — изменить цвет своего никнейма
 [b][color="#F77F00"]Ctrl + C[/color][/b] — сбросить цвет никнейма
 [b][color="#F77F00"]Shift + C[/color][/b] — обновить цвет никнейма с сервера
+[b][color="#F77F00"]X[/color][/b] — выйти из приватного режима
+[b][color="#F77F00"]Space[/color][/b] — прокрутить вниз на одну страницу
+
+Следующие клавиши работают всегда, независимо от фокуса:
+
+[b][color="#F77F00"]Ctrl + ;[/color][/b] — открыть / закрыть панель смайликов
+[b][color="#F77F00"]Ctrl + U[/color][/b] — сменить аккаунт
+[b][color="#F77F00"]Ctrl + T[/color][/b] — переключить тему оформления (светлая / тёмная)
+
+[b]Vim-style прокрутка — работает в чате и чатлогах:[/b]
 
 [b][color="#F77F00"]J[/color][/b] — прокрутить вниз
 [b][color="#F77F00"]K[/color][/b] — прокрутить вверх
@@ -229,18 +239,25 @@ MPV Player — медиаплеер для воспроизведения вид
 [b][color="#FF6B9D"]Дополнительные клавиши в режиме чатлогов:[/color][/b]
 
 [b][color="#F77F00"]M[/color][/b] — включить / выключить фильтр упоминаний (вместо звуковых эффектов)
-[b][color="#F77F00"]S[/color][/b] — открыть / закрыть поиск по чатлогу
+[b][color="#F77F00"]P[/color][/b] — открыть / закрыть парсер чатлогов
+[b][color="#F77F00"]D[/color][/b] — открыть выбор даты
+[b][color="#F77F00"]S[/color][/b] — открыть / закрыть поиск (или запустить парсинг если парсер открыт)
 [b][color="#F77F00"]Esc[/color][/b] — закрыть поиск если открыт
 [b][color="#F77F00"]H[/color][/b] — предыдущий день (поддерживает удержание)
 [b][color="#F77F00"]L[/color][/b] — следующий день (поддерживает удержание)
+[b][color="#F77F00"]Ctrl + F[/color][/b] — открыть / закрыть поиск (работает независимо от фокуса)
+[b][color="#F77F00"]Ctrl + P[/color][/b] — открыть чатлог и парсер из любого места
+[b][color="#F77F00"]Ctrl + C[/color][/b] — скопировать результаты парсинга (когда парсер открыт)
+[b][color="#F77F00"]Ctrl + S[/color][/b] — сохранить результаты парсинга в файл (когда парсер открыт)
+[b][color="#F77F00"]C[/color][/b] — отменить парсинг (когда идёт парсинг)
 
-[color="#E63946"][b]Примечание:[/b][/color] Все клавиши, кроме [b][color="#F77F00"]F[/color][/b] и [b][color="#F77F00"]Esc[/color][/b], работают только при отсутствии фокуса на поле ввода. Горячие клавиши не зависят от раскладки клавиатуры.
+[color="#E63946"][b]Примечание:[/b][/color] Все клавиши, кроме [b][color="#F77F00"]F[/color][/b], [b][color="#F77F00"]Esc[/color][/b], [b][color="#F77F00"]Ctrl+;[/color][/b], [b][color="#F77F00"]Ctrl+U[/color][/b], [b][color="#F77F00"]Ctrl+T[/color][/b] и [b][color="#F77F00"]Ctrl+F[/color][/b], работают только при отсутствии фокуса на поле ввода. Горячие клавиши не зависят от раскладки клавиатуры.
 
 [b][color="#FF6B9D"]Как запомнить:[/color][/b] каждая клавиша — первая буква английского слова, связанного с функцией:
 
-[b][color="#F77F00"]F[/color][/b] — [b]F[/b]ocus · [b][color="#F77F00"]U[/color][/b] — [b]U[/b]serlist · [b][color="#F77F00"]B[/color][/b] — [b]B[/b]an · [b][color="#F77F00"]P[/color][/b] — [b]P[/b]ronunciation · [b][color="#F77F00"]M[/color][/b] — [b]M[/b]ute / [b]M[/b]entions
-[b][color="#F77F00"]V[/color][/b] — [b]V[/b]oice · [b][color="#F77F00"]N[/color][/b] — [b]N[/b]otification · [b][color="#F77F00"]T[/color][/b] — [b]T[/b]op · [b][color="#F77F00"]R[/color][/b] — [b]R[/b]eset · [b][color="#F77F00"]C[/color][/b] — [b]C[/b]olor
-[b][color="#F77F00"]S[/color][/b] — [b]S[/b]earch · [b][color="#F77F00"]H[/color][/b] — [b]H[/b]istory back · [b][color="#F77F00"]L[/color][/b] — (vim-style: вперёд)
+[b][color="#F77F00"]F[/color][/b] — [b]F[/b]ocus · [b][color="#F77F00"]U[/color][/b] — [b]U[/b]serlist · [b][color="#F77F00"]B[/color][/b] — [b]B[/b]an · [b][color="#F77F00"]P[/color][/b] — [b]P[/b]ronunciation / [b]P[/b]arser · [b][color="#F77F00"]M[/color][/b] — [b]M[/b]ute / [b]M[/b]entions
+[b][color="#F77F00"]V[/color][/b] — [b]V[/b]oice · [b][color="#F77F00"]N[/color][/b] — [b]N[/b]otification · [b][color="#F77F00"]T[/color][/b] — [b]T[/b]op / [b]T[/b]heme · [b][color="#F77F00"]R[/color][/b] — [b]R[/b]eset · [b][color="#F77F00"]C[/color][/b] — [b]C[/b]olor / [b]C[/b]ancel
+[b][color="#F77F00"]S[/color][/b] — [b]S[/b]earch / [b]S[/b]tart · [b][color="#F77F00"]H[/color][/b] — [b]H[/b]istory back · [b][color="#F77F00"]L[/color][/b] — (vim-style: вперёд) · [b][color="#F77F00"]D[/color][/b] — [b]D[/b]ate · [b][color="#F77F00"]X[/color][/b] — e[b]X[/b]it
 [b][color="#F77F00"]J[/color][/b] / [b][color="#F77F00"]K[/color][/b] / [b][color="#F77F00"]gg[/color][/b] / [b][color="#F77F00"]G[/color][/b] — vim-style прокрутка
 
 [b][color="#F77F00"]═══════════════════════════════════════════[/color][/b]
