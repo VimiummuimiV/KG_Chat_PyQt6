@@ -202,7 +202,7 @@ class AccountWindow(QWidget):
         layout.addLayout(actions_row)
 
         # Auto-login checkbox
-        self.auto_login_checkbox = QCheckBox("Auto-login")
+        self.auto_login_checkbox = QCheckBox("1. Auto-login")
         self.auto_login_checkbox.setFont(get_font(FontType.UI))
         self.auto_login_checkbox.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.auto_login_checkbox.stateChanged.connect(self.on_auto_login_changed)
@@ -216,7 +216,7 @@ class AccountWindow(QWidget):
         layout.addWidget(self.auto_login_checkbox)
 
         # Start minimized to tray checkbox
-        self.start_minimized_checkbox = QCheckBox("Start minimized")
+        self.start_minimized_checkbox = QCheckBox("2. Start minimized")
         self.start_minimized_checkbox.setFont(get_font(FontType.UI))
         self.start_minimized_checkbox.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.start_minimized_checkbox.stateChanged.connect(self.on_start_minimized_changed)
@@ -230,7 +230,7 @@ class AccountWindow(QWidget):
         layout.addWidget(self.start_minimized_checkbox)
         
         # Start with system checkbox
-        self.start_with_system_checkbox = QCheckBox("Start with system")
+        self.start_with_system_checkbox = QCheckBox("3. Start with system")
         self.start_with_system_checkbox.setFont(get_font(FontType.UI))
         self.start_with_system_checkbox.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.start_with_system_checkbox.stateChanged.connect(self.on_start_with_system_changed)
@@ -275,9 +275,6 @@ class AccountWindow(QWidget):
         self.password_input.setFont(get_font(FontType.UI))
         credentials_layout.addWidget(self.password_input)
 
-        # Pressing Enter in either field triggers save
-        self.username_input.returnPressed.connect(self.on_create_account)
-        self.password_input.returnPressed.connect(self.on_create_account)
 
         layout.addLayout(credentials_layout)
 
@@ -303,6 +300,10 @@ class AccountWindow(QWidget):
 
         layout.addLayout(actions_row)
 
+        # Pressing Enter in either field triggers save
+        self.username_input.returnPressed.connect(self.on_create_account)
+        self.password_input.returnPressed.connect(self.on_create_account)
+
         # Restrict Tab cycle to username ↔ password only
         QWidget.setTabOrder(self.username_input, self.password_input)
         QWidget.setTabOrder(self.password_input, self.username_input)
@@ -319,6 +320,9 @@ class AccountWindow(QWidget):
     #   Shift+C      → update username color from server
     #   D            → remove selected account
     #   A            → go to Create page (add account)
+    #   1            → toggle Auto-login
+    #   2            → toggle Start minimized
+    #   3            → toggle Start with system
     # Create page  (no input focused):
     #   Escape       → back to Connect page
     #   Ctrl+S       → save / create account
@@ -333,8 +337,10 @@ class AccountWindow(QWidget):
         Qt.Key.Key_C:      'color',
         Qt.Key.Key_D:      'remove',
         Qt.Key.Key_A:      'add',
-        Qt.Key.Key_S:      'save',
         Qt.Key.Key_Escape: 'back',
+        Qt.Key.Key_1:      'toggle_1',
+        Qt.Key.Key_2:      'toggle_2',
+        Qt.Key.Key_3:      'toggle_3',
     }
 
     def event(self, ev):
@@ -390,26 +396,21 @@ class AccountWindow(QWidget):
                 self.on_connect()
             elif vk == 'color':
                 if ctrl:
-                    self._hotkey_reset_color()
+                    self.on_reset_color()
                 elif shift:
                     self.on_refresh_server_color()
                 else:
                     self.on_color_picker()
             elif vk == 'remove':
                 self.on_remove_account()
-            elif vk in ('add', 'save'):
-                # A (or S without modifier) on Connect page → open Create page
+            elif vk == 'add':
                 self.show_create_page()
-
-    def _hotkey_reset_color(self):
-        """Reset username color via keyboard shortcut (Ctrl+C on Connect page)."""
-        account = self.account_dropdown.currentData()
-        if not account:
-            QMessageBox.warning(self, "No Account", "Please select an account first.")
-            return
-        success = reset_username_color(self, self.account_manager, account, self.cache)
-        if success:
-            self.load_accounts()
+            elif vk == 'toggle_1':
+                self.auto_login_checkbox.setChecked(not self.auto_login_checkbox.isChecked())
+            elif vk == 'toggle_2':
+                self.start_minimized_checkbox.setChecked(not self.start_minimized_checkbox.isChecked())
+            elif vk == 'toggle_3':
+                self.start_with_system_checkbox.setChecked(not self.start_with_system_checkbox.isChecked())
 
     # ── End keyboard shortcuts ────────────────────────────────────────────────
 
@@ -475,14 +476,7 @@ class AccountWindow(QWidget):
             if event.button() == Qt.MouseButton.LeftButton:
                 modifiers = QApplication.keyboardModifiers()
                 if modifiers & Qt.KeyboardModifier.ControlModifier:
-                    # Ctrl+Click: Reset custom color
-                    account = self.account_dropdown.currentData()
-                    if not account:
-                        QMessageBox.warning(self, "No Account", "Please select an account first.")
-                        return True
-                    success = reset_username_color(self, self.account_manager, account, self.cache)
-                    if success:
-                        self.load_accounts()
+                    self.on_reset_color()
                     return True
                 elif modifiers & Qt.KeyboardModifier.ShiftModifier:
                     # Shift+Click: Refresh server color
@@ -499,6 +493,16 @@ class AccountWindow(QWidget):
         
         success = change_username_color(self, self.account_manager, account, self.cache)
 
+        if success:
+            self.load_accounts()
+
+    def on_reset_color(self):
+        """Reset username color for the currently selected account."""
+        account = self.account_dropdown.currentData()
+        if not account:
+            QMessageBox.warning(self, "No Account", "Please select an account first.")
+            return
+        success = reset_username_color(self, self.account_manager, account, self.cache)
         if success:
             self.load_accounts()
 
