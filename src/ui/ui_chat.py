@@ -710,6 +710,16 @@ class ChatWindow(QWidget):
                         self.config.set("ui", "emoticon_selector_visible", value=False)
                 except Exception:
                     pass
+
+            # Reclaim focus for ChatWindow after any click that doesn't land on a
+            # text input — keeps arrow/hotkeys working regardless of what was clicked.
+            try:
+                gp = event.globalPosition().toPoint() if hasattr(event, 'globalPosition') else event.globalPos()
+                clicked = QApplication.widgetAt(gp)
+                if clicked and not isinstance(clicked, QLineEdit):
+                    self.setFocus()
+            except Exception:
+                pass
         
         return super().eventFilter(obj, event)
 
