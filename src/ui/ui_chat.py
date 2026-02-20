@@ -2071,11 +2071,11 @@ class ChatWindow(QWidget):
                         sb.setValue(sb.minimum())
                     else:
                         self._gg_timer.start(300)
-        # Space — scroll down one page
+        # Space — scroll down one page; Shift+Space — scroll up one page
         elif vk == 'page_down':
             sb = _active_scrollbar()
             if sb:
-                sb.setValue(sb.value() + sb.pageStep())
+                sb.setValue(sb.value() + (-sb.pageStep() if shift else sb.pageStep()))
         # Always on top toggle (T) / Ctrl+T toggle theme
         elif vk == 'top':
             if ctrl:
