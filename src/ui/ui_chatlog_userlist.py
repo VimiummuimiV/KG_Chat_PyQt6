@@ -87,7 +87,7 @@ class ChatlogUserlistWidget(QWidget):
         # Clear filter button (initially hidden)
         button_layout = QHBoxLayout()
         button_layout.setSpacing(config.get("ui", "buttons", "spacing") or 8)
-        button_layout.setContentsMargins(0, 1, 0, 0) # Slight top margin
+        button_layout.setContentsMargins(0, 5, 0, 0)
         self.clear_filter_btn = create_icon_button(
             icons_path,
             "go-back.svg",
