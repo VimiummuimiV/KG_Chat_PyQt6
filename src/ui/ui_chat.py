@@ -686,7 +686,6 @@ class ChatWindow(QWidget):
                 elif current_view == self.chatlog_widget:
                     self.show_messages_view()
                 else:
-                    # From any other view, go to messages
                     self.show_messages_view()
                 return True
         
@@ -2028,20 +2027,18 @@ class ChatWindow(QWidget):
         vk = self._KEY_ACTION.get(key) or self._KEY_ACTION.get(event.nativeVirtualKey())
 
         # ── Emoticon selector keyboard navigation ──────────────────────────────
-        # When the selector is open and the input field is not focused, arrow keys
-        # and hjkl navigate the grid, Enter/A insert the selected emoticon, and
-        # Escape closes the selector.  These take priority over the normal
-        # scroll/chatlog actions that share the same keys.
         sel = getattr(self, 'emoticon_selector', None)
         if sel and sel.isVisible() and not focused:
+            nk = event.nativeVirtualKey()
+            sc = event.nativeScanCode()
             if not ctrl and not shift:
-                if key in (Qt.Key.Key_Left,  Qt.Key.Key_H): sel.navigate(-1, 0); return
-                if key in (Qt.Key.Key_Right, Qt.Key.Key_L): sel.navigate(1, 0); return
-                if key in (Qt.Key.Key_Down,  Qt.Key.Key_J): sel.navigate(0, 1); return
-                if key in (Qt.Key.Key_Up,    Qt.Key.Key_K): sel.navigate(0, -1); return
-                if key in (Qt.Key.Key_Return, Qt.Key.Key_Enter, Qt.Key.Key_A):
+                if key == Qt.Key.Key_Left  or nk == Qt.Key.Key_H: sel.navigate(-1, 0); return
+                if key == Qt.Key.Key_Right or nk == Qt.Key.Key_L: sel.navigate(1, 0); return
+                if key == Qt.Key.Key_Down  or nk == Qt.Key.Key_J: sel.navigate(0, 1); return
+                if key == Qt.Key.Key_Up    or nk == Qt.Key.Key_K: sel.navigate(0, -1); return
+                if key in (Qt.Key.Key_Return, Qt.Key.Key_Enter) or nk == Qt.Key.Key_A or sc == 0x27:
                     sel.insert_selected(); return
-            if shift and key in (Qt.Key.Key_Return, Qt.Key.Key_Enter, Qt.Key.Key_A):
+            if shift and (key in (Qt.Key.Key_Return, Qt.Key.Key_Enter) or nk == Qt.Key.Key_A or sc == 0x27):
                 sel.insert_selected(shift=True); return
         # ───────────────────────────────────────────────────────────────────────
 
