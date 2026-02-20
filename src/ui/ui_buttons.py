@@ -148,7 +148,7 @@ class ButtonPanel(QWidget):
         # Switch account button
         self.switch_account_button = self._create_button(
             "user-switch.svg",
-            "Switch Account",
+            "Switch Account (Ctrl+U)",
             self.switch_account_requested.emit
         )
 
@@ -198,7 +198,7 @@ class ButtonPanel(QWidget):
         # Theme button
         is_dark = self.theme_manager.is_dark()
         theme_icon = "moon.svg" if is_dark else "sun.svg"
-        theme_tooltip = "Switch to Light Mode" if is_dark else "Switch to Dark Mode"
+        theme_tooltip = "Switch to Light Mode (Ctrl+T)" if is_dark else "Switch to Dark Mode (Ctrl+T)"
         self.theme_button = self._create_button(theme_icon, theme_tooltip, self.toggle_theme_requested.emit)
 
         # Reset window size button
@@ -252,7 +252,7 @@ class ButtonPanel(QWidget):
         """Update theme button icon after theme change"""
         is_dark = self.theme_manager.is_dark()
         self.theme_button._icon_name = "moon.svg" if is_dark else "sun.svg"
-        self.theme_button.setToolTip("Switch to Light Mode" if is_dark else "Switch to Dark Mode")
+        self.theme_button.setToolTip("Switch to Light Mode (Ctrl+T)" if is_dark else "Switch to Dark Mode (Ctrl+T)")
     
     def update_notification_button_icon(self):
         """Update notification button icon after state change"""

@@ -1978,9 +1978,12 @@ class ChatWindow(QWidget):
         # Focus input on (F) key if not focused, for quick access
         if vk == 'focus':
             self.input_field.setFocus()
-        # User list toggle (U)
+        # User list toggle (U) / Ctrl+U switch account
         elif vk == 'userlist':
-            self.toggle_user_list()
+            if ctrl:
+                self._on_switch_account()
+            else:
+                self.toggle_user_list()
         # Ban list toggle (B)
         elif vk == 'banlist':
             _toggle_view('ban_list_widget', self.show_ban_list_view)
@@ -2036,9 +2039,12 @@ class ChatWindow(QWidget):
                         sb.setValue(sb.minimum())
                     else:
                         self._gg_timer.start(300)
-        # Always on top toggle (T)
+        # Always on top toggle (T) / Ctrl+T toggle theme
         elif vk == 'top':
-            self.on_toggle_always_on_top()
+            if ctrl:
+                self.toggle_theme()
+            else:
+                self.on_toggle_always_on_top()
         # Voice sound toggle (V)
         elif vk == 'voice':
             self.on_toggle_voice_sound()
