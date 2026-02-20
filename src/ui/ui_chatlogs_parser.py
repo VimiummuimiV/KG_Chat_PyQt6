@@ -297,7 +297,7 @@ class ChatlogsParserConfigWidget(QWidget):
         button_layout.setSpacing(self.config.get("ui", "buttons", "spacing") or 8)
        
         self.parse_button = create_icon_button(
-            self.icons_path, "play.svg", "Start parsing",
+            self.icons_path, "play.svg", "Start parsing (S)",
             size_type="large", config=self.config
         )
         self.parse_button.clicked.connect(self._on_parse_clicked)
@@ -305,7 +305,7 @@ class ChatlogsParserConfigWidget(QWidget):
        
         # Copy button (initially hidden)
         self.copy_button = create_icon_button(
-            self.icons_path, "clipboard.svg", "Copy results to clipboard",
+            self.icons_path, "clipboard.svg", "Copy results to clipboard (Ctrl+C)",
             size_type="large", config=self.config
         )
         self.copy_button.clicked.connect(self._on_copy_clicked)
@@ -314,7 +314,7 @@ class ChatlogsParserConfigWidget(QWidget):
        
         # Save button (initially hidden)
         self.save_button = create_icon_button(
-            self.icons_path, "save.svg", "Save results to file",
+            self.icons_path, "save.svg", "Save results to file (Ctrl+S)",
             size_type="large", config=self.config
         )
         self.save_button.clicked.connect(self._on_save_clicked)
@@ -686,8 +686,8 @@ class ChatlogsParserConfigWidget(QWidget):
            
             # Update UI for parsing state
             self.is_parsing = True
-            self.parse_button.setIcon(create_icon_button(self.icons_path, "stop.svg", "Stop parsing", config=self.config).icon())
-            self.parse_button.setToolTip("Stop parsing")
+            self.parse_button.setIcon(_render_svg_icon(self.icons_path / "stop.svg", self.parse_button._icon_size))
+            self.parse_button.setToolTip("Stop parsing (C)")
             self.progress_bar.setVisible(True)
             self.progress_bar.setValue(0)
             self.progress_label.setVisible(True)
@@ -716,8 +716,8 @@ class ChatlogsParserConfigWidget(QWidget):
     def _reset_ui(self):
         """Reset UI to non-parsing state"""
         self.is_parsing = False
-        self.parse_button.setIcon(create_icon_button(self.icons_path, "play.svg", "Start parsing", config=self.config).icon())
-        self.parse_button.setToolTip("Start parsing")
+        self.parse_button.setIcon(_render_svg_icon(self.icons_path / "play.svg", self.parse_button._icon_size))
+        self.parse_button.setToolTip("Start parsing (S)")
         self.progress_bar.setVisible(False)
         self.progress_label.setVisible(False)
         self.progress_label.setText("")

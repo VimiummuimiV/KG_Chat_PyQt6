@@ -260,12 +260,12 @@ class ChatlogWidget(QWidget):
         self.next_btn.released.connect(lambda: self._navigate_hold())
         self.nav_buttons_container.add_widget(self.next_btn)
 
-        self.calendar_btn = create_icon_button(self.icons_path, "calendar.svg", "Select date",
+        self.calendar_btn = create_icon_button(self.icons_path, "calendar.svg", "Select date (D)",
                                               size_type="large", config=self.config)
         self.calendar_btn.clicked.connect(self._show_calendar)
         self.nav_buttons_container.add_widget(self.calendar_btn)
 
-        self.search_toggle_btn = create_icon_button(self.icons_path, "search.svg", "Toggle search (S)",
+        self.search_toggle_btn = create_icon_button(self.icons_path, "search.svg", "Toggle search (S / Ctrl+F)",
                                                    size_type="large", config=self.config)
         self.search_toggle_btn.clicked.connect(self._toggle_search)
         self.nav_buttons_container.add_widget(self.search_toggle_btn)
@@ -275,7 +275,7 @@ class ChatlogWidget(QWidget):
         self.mention_filter_btn.clicked.connect(self._toggle_mention_filter)
         self.nav_buttons_container.add_widget(self.mention_filter_btn)
 
-        self.parse_btn = create_icon_button(self.icons_path, "play.svg", "Parse all chatlogs",
+        self.parse_btn = create_icon_button(self.icons_path, "play.svg", "Parse all chatlogs (P | Ctrl+P from anywhere)",
                                            size_type="large", config=self.config)
         self.parse_btn.clicked.connect(self._toggle_parser)
         self.nav_buttons_container.add_widget(self.parse_btn)
@@ -444,14 +444,14 @@ class ChatlogWidget(QWidget):
             # Hide parser, show list
             self.parser_visible = False
             self.stacked.setCurrentWidget(self.list_view)
-            self.parse_btn.setIcon(create_icon_button(self.icons_path, "play.svg", "Parse all chatlogs", config=self.config).icon())
-            self.parse_btn.setToolTip("Parse all chatlogs")
+            self.parse_btn.setIcon(_render_svg_icon(self.icons_path / "play.svg", self.parse_btn._icon_size))
+            self.parse_btn.setToolTip("Parse all chatlogs (P | Ctrl+P from anywhere)")
         else:
             # Show parser, hide list
             self.parser_visible = True
             self.stacked.setCurrentWidget(self.parser_widget)
-            self.parse_btn.setIcon(create_icon_button(self.icons_path, "list.svg", "Back to chat logs", config=self.config).icon())
-            self.parse_btn.setToolTip("Back to chat logs")
+            self.parse_btn.setIcon(_render_svg_icon(self.icons_path / "list.svg", self.parse_btn._icon_size))
+            self.parse_btn.setToolTip("Back to chat logs (P)")
 
     def _on_parse_started(self, config: ParseConfig):
         """Start parsing with given config"""

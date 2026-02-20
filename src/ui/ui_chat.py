@@ -1950,6 +1950,9 @@ class ChatWindow(QWidget):
         Qt.Key.Key_J: 'scroll_down',
         Qt.Key.Key_K: 'scroll_up',
         Qt.Key.Key_G: 'scroll_gg',   # gg = top, G (Shift+G) = bottom
+        Qt.Key.Key_D: 'calendar',
+        Qt.Key.Key_Space: 'page_down',
+        Qt.Key.Key_X: 'exit_private',
     }
 
     def keyPressEvent(self, event):
@@ -1968,6 +1971,33 @@ class ChatWindow(QWidget):
             if cw and self.stacked_widget.currentWidget() == cw and cw.search_visible:
                 cw._toggle_search()
                 return
+        # Ctrl+; toggle emoticon selector (works even when input focused)
+        if ctrl and key == Qt.Key.Key_Semicolon:
+            self._toggle_emoticon_selector()
+            return
+        # Ctrl+F toggle search in chatlog (works regardless of input focus)
+        if ctrl and (key == Qt.Key.Key_F or event.nativeVirtualKey() == Qt.Key.Key_F):
+            cw = self.chatlog_widget
+            if cw and self.stacked_widget.currentWidget() == cw:
+                cw._toggle_search()
+            return
+        # Ctrl+C / Ctrl+S in chatlog parser — copy / save results
+        if ctrl and self.chatlog_widget and self.stacked_widget.currentWidget() == self.chatlog_widget:
+            cw = self.chatlog_widget
+            if cw.parser_visible:
+                if key == Qt.Key.Key_C or event.nativeVirtualKey() == Qt.Key.Key_C:
+                    cw._on_copy_results()
+                    return
+                if key == Qt.Key.Key_S or event.nativeVirtualKey() == Qt.Key.Key_S:
+                    cw._on_save_results()
+                    return
+        # Ctrl+P open chatlog and parser from anywhere
+        if ctrl and (key == Qt.Key.Key_P or event.nativeVirtualKey() == Qt.Key.Key_P):
+            if not self.chatlog_widget or self.stacked_widget.currentWidget() != self.chatlog_widget:
+                self.show_chatlog_view()
+            if self.chatlog_widget and not self.chatlog_widget.parser_visible:
+                self.chatlog_widget._toggle_parser()
+            return
         # Resolve physical key regardless of layout
         vk = self._KEY_ACTION.get(key) or self._KEY_ACTION.get(event.nativeVirtualKey())
         if not vk or focused:
@@ -1975,6 +2005,13 @@ class ChatWindow(QWidget):
         def _toggle_view(attr, show_fn):
             w = getattr(self, attr, None)
             self.show_messages_view() if w and self.stacked_widget.currentWidget() == w else show_fn()
+        def _active_scrollbar():
+            current = self.stacked_widget.currentWidget()
+            if current == self.messages_widget:
+                return self.messages_widget.list_view.verticalScrollBar()
+            if self.chatlog_widget and current == self.chatlog_widget:
+                return self.chatlog_widget.list_view.verticalScrollBar()
+            return None
         # Focus input on (F) key if not focused, for quick access
         if vk == 'focus':
             self.input_field.setFocus()
@@ -1987,20 +2024,27 @@ class ChatWindow(QWidget):
         # Ban list toggle (B)
         elif vk == 'banlist':
             _toggle_view('ban_list_widget', self.show_ban_list_view)
-        # Pronunciation toggle (P)
+        # Pronunciation toggle (P) / in chatlog: toggle parser (P)
         elif vk == 'pronun':
-            _toggle_view('pronunciation_widget', self.show_pronunciation_view)
+            cw = self.chatlog_widget
+            if cw and self.stacked_widget.currentWidget() == cw:
+                cw._toggle_parser()
+            else:
+                _toggle_view('pronunciation_widget', self.show_pronunciation_view)
         # Mute effects sound (M) or toggle mention filter in chatlog (M)
         elif vk == 'mute':
             if self.chatlog_widget and self.stacked_widget.currentWidget() == self.chatlog_widget:
                 self.chatlog_widget._toggle_mention_filter()
             else:
                 self.on_toggle_effects_sound()
-        # Toggle search in chatlog (S) — only when search field is not focused
+        # Toggle search in chatlog (S) / start parsing when parser visible
         elif vk == 'search':
             cw = self.chatlog_widget
-            if cw and self.stacked_widget.currentWidget() == cw and not cw.search_field.hasFocus():
-                cw._toggle_search()
+            if cw and self.stacked_widget.currentWidget() == cw:
+                if cw.parser_visible and not cw.parser_widget.is_parsing:
+                    cw.parser_widget._on_parse_clicked()
+                elif not cw.parser_visible and not cw.search_field.hasFocus():
+                    cw._toggle_search()
         # Navigate chatlog days — H backward, L forward, supports hold
         elif vk in ('nav_backward', 'nav_forward'):
             cw = self.chatlog_widget
@@ -2008,25 +2052,13 @@ class ChatWindow(QWidget):
                 cw._navigate_hold(-1 if vk == 'nav_backward' else 1)
         # Vim-style scroll — J down, K up, works in chat and chatlog
         elif vk in ('scroll_down', 'scroll_up'):
-            current = self.stacked_widget.currentWidget()
-            if current == self.messages_widget:
-                sb = self.messages_widget.list_view.verticalScrollBar()
-            elif self.chatlog_widget and current == self.chatlog_widget:
-                sb = self.chatlog_widget.list_view.verticalScrollBar()
-            else:
-                sb = None
+            sb = _active_scrollbar()
             if sb:
                 step = sb.singleStep() * 5
                 sb.setValue(sb.value() + (step if vk == 'scroll_down' else -step))
         # Vim-style G = bottom, gg = top
         elif vk == 'scroll_gg':
-            current = self.stacked_widget.currentWidget()
-            if current == self.messages_widget:
-                sb = self.messages_widget.list_view.verticalScrollBar()
-            elif self.chatlog_widget and current == self.chatlog_widget:
-                sb = self.chatlog_widget.list_view.verticalScrollBar()
-            else:
-                sb = None
+            sb = _active_scrollbar()
             if sb:
                 if shift:
                     sb.setValue(sb.maximum())
@@ -2039,6 +2071,11 @@ class ChatWindow(QWidget):
                         sb.setValue(sb.minimum())
                     else:
                         self._gg_timer.start(300)
+        # Space — scroll down one page
+        elif vk == 'page_down':
+            sb = _active_scrollbar()
+            if sb:
+                sb.setValue(sb.value() + sb.pageStep())
         # Always on top toggle (T) / Ctrl+T toggle theme
         elif vk == 'top':
             if ctrl:
@@ -2052,8 +2089,15 @@ class ChatWindow(QWidget):
         elif vk == 'reset_size':
             self.reset_window_size()
         # Change username color (C) / Ctrl+C reset / Shift+C update from server
+        # In chatlog when parser visible: C cancels if parsing, Ctrl+C copies
         elif vk == 'color':
-            if ctrl:
+            cw = self.chatlog_widget
+            if cw and self.stacked_widget.currentWidget() == cw and cw.parser_visible:
+                if ctrl:
+                    cw._on_copy_results()
+                elif cw.parser_widget.is_parsing:
+                    cw.parser_widget._on_parse_clicked()  # Cancel
+            elif ctrl:
                 self.on_reset_username_color()
             elif shift:
                 self.on_update_username_color()
@@ -2062,6 +2106,15 @@ class ChatWindow(QWidget):
         # Toggle notifications cycle (N)
         elif vk == 'notification':
             self.on_toggle_notification()
+        # Open calendar date picker in chatlog (D)
+        elif vk == 'calendar':
+            cw = self.chatlog_widget
+            if cw and self.stacked_widget.currentWidget() == cw:
+                cw._show_calendar()
+        # Exit private mode (X)
+        elif vk == 'exit_private':
+            if self.private_mode:
+                self.exit_private_mode()
 
     def keyReleaseEvent(self, event):
         if event.isAutoRepeat():
