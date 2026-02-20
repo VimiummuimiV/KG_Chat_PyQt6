@@ -583,13 +583,17 @@ class ChatWindow(QWidget):
         # _position_emoticon_selector resets fixedSize, clearing any height set by a notification
         self.emoticon_selector.toggle_visibility()
         self._position_emoticon_selector()
+
+        # When opening, remove input focus so arrow/hjkl hotkeys work immediately
+        if self.emoticon_selector.isVisible():
+            self.input_field.clearFocus()
  
     def _on_emoticon_selected(self, emoticon_name: str):
         """Handle emoticon selection"""
         # Insert emoticon code at cursor position
         cursor_pos = self.input_field.cursorPosition()
         current_text = self.input_field.text()
-        emoticon_code = f":{emoticon_name}:"
+        emoticon_code = f":{emoticon_name}: "
      
         new_text = current_text[:cursor_pos] + emoticon_code + current_text[cursor_pos:]
         self.input_field.setText(new_text)
@@ -597,9 +601,14 @@ class ChatWindow(QWidget):
         # Move cursor after inserted emoticon
         self.input_field.setCursorPosition(cursor_pos + len(emoticon_code))
      
-        # Focus input field
-        self.input_field.setFocus()
+        # Defer by one event-loop tick so the selector has already hidden
+        # (or stayed open on Shift) before we check visibility.
+        QTimer.singleShot(0, self._refocus_if_selector_closed)
  
+    def _refocus_if_selector_closed(self):
+        if not (hasattr(self, 'emoticon_selector') and self.emoticon_selector.isVisible()):
+            self.input_field.setFocus()
+
     def _position_emoticon_selector(self):
         """Place selector aligned to emoticon button (simple, predictable)."""
         if not hasattr(self, 'emoticon_selector'):
@@ -659,19 +668,27 @@ class ChatWindow(QWidget):
                         font_scaler.scale_down()
                         return True
 
-        # Handle Tab key for view switching
-        if event.type() == QEvent.Type.KeyPress and event.key() == Qt.Key.Key_Tab:
-            current_view = self.stacked_widget.currentWidget()
-            
-            if current_view == self.messages_widget:
-                self.show_chatlog_view()
-            elif current_view == self.chatlog_widget:
-                self.show_messages_view()
-            else:
-                # From any other view, go to messages
-                self.show_messages_view()
-            
-            return True  # Event handled
+        # Handle Tab key for view switching (or emoticon group cycling when selector is open)
+        if event.type() == QEvent.Type.KeyPress and event.key() in (Qt.Key.Key_Tab, Qt.Key.Key_Backtab):
+            sel = getattr(self, 'emoticon_selector', None)
+            if sel and sel.isVisible():
+                # Emoticon selector gets priority: Tab/Shift+Tab cycles through groups
+                forward = event.key() != Qt.Key.Key_Backtab and not (
+                    event.modifiers() & Qt.KeyboardModifier.ShiftModifier
+                )
+                sel.cycle_tab(forward=forward)
+                return True
+
+            if event.key() == Qt.Key.Key_Tab:
+                current_view = self.stacked_widget.currentWidget()
+                if current_view == self.messages_widget:
+                    self.show_chatlog_view()
+                elif current_view == self.chatlog_widget:
+                    self.show_messages_view()
+                else:
+                    # From any other view, go to messages
+                    self.show_messages_view()
+                return True
         
         # Handle clicks outside emoticon selector
         if event.type() == QEvent.Type.MouseButtonPress:
@@ -2009,6 +2026,25 @@ class ChatWindow(QWidget):
             return
         # Resolve physical key regardless of layout
         vk = self._KEY_ACTION.get(key) or self._KEY_ACTION.get(event.nativeVirtualKey())
+
+        # ── Emoticon selector keyboard navigation ──────────────────────────────
+        # When the selector is open and the input field is not focused, arrow keys
+        # and hjkl navigate the grid, Enter/A insert the selected emoticon, and
+        # Escape closes the selector.  These take priority over the normal
+        # scroll/chatlog actions that share the same keys.
+        sel = getattr(self, 'emoticon_selector', None)
+        if sel and sel.isVisible() and not focused:
+            if not ctrl and not shift:
+                if key in (Qt.Key.Key_Left,  Qt.Key.Key_H): sel.navigate(-1, 0); return
+                if key in (Qt.Key.Key_Right, Qt.Key.Key_L): sel.navigate(1, 0); return
+                if key in (Qt.Key.Key_Down,  Qt.Key.Key_J): sel.navigate(0, 1); return
+                if key in (Qt.Key.Key_Up,    Qt.Key.Key_K): sel.navigate(0, -1); return
+                if key in (Qt.Key.Key_Return, Qt.Key.Key_Enter, Qt.Key.Key_A):
+                    sel.insert_selected(); return
+            if shift and key in (Qt.Key.Key_Return, Qt.Key.Key_Enter, Qt.Key.Key_A):
+                sel.insert_selected(shift=True); return
+        # ───────────────────────────────────────────────────────────────────────
+
         if not vk or focused:
             return super().keyPressEvent(event)
         def _toggle_view(attr, show_fn):

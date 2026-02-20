@@ -516,7 +516,7 @@ class PopupNotification(QWidget):
             return
         
         cursor_pos = self.reply_field.cursorPosition()
-        emoticon_code = f":{emoticon_name}:"
+        emoticon_code = f":{emoticon_name}: "
         text = self.reply_field.text()
         
         self.reply_field.setText(text[:cursor_pos] + emoticon_code + text[cursor_pos:])

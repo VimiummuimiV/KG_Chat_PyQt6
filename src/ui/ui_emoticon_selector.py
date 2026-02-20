@@ -11,6 +11,38 @@ from PyQt6.QtGui import QMovie, QCursor, QIcon
 from helpers.emoticons import EmoticonManager
 
 
+# ---------------------------------------------------------------------------
+# Shared style constants
+# ---------------------------------------------------------------------------
+
+RADIUS_PANEL = 10   # outer widget corners
+RADIUS_BTN   = 4    # tab buttons + emoticon buttons + keyboard highlight
+
+def _theme_colors(is_dark: bool) -> dict:
+    """Return a colour palette dict for the given theme."""
+    if is_dark:
+        return dict(
+            bg            = "#1b1b1b",
+            border        = "#3D3D3D",
+            active_bg     = "#303134",
+            hover_bg      = "#3A3B3F",
+            hover_border  = "#555555",
+            accent        = "#e28743",
+            btn_hover     = "rgba(255, 255, 255, 0.1)",
+            highlight_bg  = "rgba(255, 255, 255, 0.25)",
+        )
+    return dict(
+        bg            = "#EEEEEE",
+        border        = "#CCCCCC",
+        active_bg     = "#E0E0E0",
+        hover_bg      = "#D0D0D0",
+        hover_border  = "#999999",
+        accent        = "#154c79",
+        btn_hover     = "rgba(0, 0, 0, 0.1)",
+        highlight_bg  = "rgba(0, 0, 0, 0.18)",
+    )
+
+
 class EmoticonButton(QPushButton):
     """Button displaying an animated emoticon"""
     emoticon_clicked = pyqtSignal(str, bool)
@@ -30,16 +62,17 @@ class EmoticonButton(QPushButton):
         self._load_emoticon()
 
     def _update_style(self):
-        hover_bg = "rgba(255, 255, 255, 0.1)" if self.is_dark else "rgba(0, 0, 0, 0.1)"
+        c = _theme_colors(self.is_dark)
         self.setStyleSheet(f"""
             QPushButton {{
                 background: transparent;
-                border: none;
+                border: 2px solid transparent;
+                border-radius: {RADIUS_BTN}px;
                 padding: 2px;
             }}
             QPushButton:hover {{
-                background: {hover_bg};
-                border-radius: 4px;
+                background: {c['btn_hover']};
+                border-radius: {RADIUS_BTN}px;
             }}
         """)
 
@@ -90,10 +123,10 @@ class EmoticonButton(QPushButton):
                 self.setIcon(QIcon(pixmap))
 
     def mousePressEvent(self, event):
-        """Handle click with Ctrl detection"""
+        """Handle click — Shift = insert without closing"""
         if event.button() == Qt.MouseButton.LeftButton:
-            ctrl_pressed = event.modifiers() & Qt.KeyboardModifier.ControlModifier
-            self.emoticon_clicked.emit(self.emoticon_name, bool(ctrl_pressed))
+            shift_pressed = event.modifiers() & Qt.KeyboardModifier.ShiftModifier
+            self.emoticon_clicked.emit(self.emoticon_name, bool(shift_pressed))
         super().mousePressEvent(event)
 
     def resume_animation(self):
@@ -216,12 +249,20 @@ class EmoticonSelectorWidget(QWidget):
         self.nav_buttons = {}
         self.recent_buttons = []
         self.group_widgets = []
+        self._nav_btn = None  # currently keyboard-highlighted EmoticonButton
+        self._pos_timer = QTimer(self)
+        self._pos_timer.setSingleShot(True)
+        self._pos_timer.timeout.connect(self._save_position)
 
         self._init_ui()
        
-        # Restore visibility
+        # Restore visibility and state
         visible = config.get("ui", "emoticon_selector_visible")
-        self.setVisible(visible if visible is not None else False)
+        if visible if visible is not None else False:
+            self.setVisible(True)
+            QTimer.singleShot(50, self._restore_state)
+        else:
+            self.setVisible(False)
 
     def _init_ui(self):
         """Initialize the UI"""
@@ -231,37 +272,28 @@ class EmoticonSelectorWidget(QWidget):
         self.setLayout(layout)
 
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
-       
-        # Get theme colors
+
         theme = self.config.get("ui", "theme")
         self.is_dark_theme = (theme == "dark")
-
-        if self.is_dark_theme:
-            bg_color = "#1b1b1b"
-            content_bg = "#1b1b1b"
-            border_color = "#3D3D3D"
-        else:
-            bg_color = "#EEEEEE"
-            content_bg = "#EEEEEE"
-            border_color = "#CCCCCC"
+        c = _theme_colors(self.is_dark_theme)
 
         self.setStyleSheet(f"""
             EmoticonSelectorWidget {{
-                background: {bg_color};
-                border: 2px solid {border_color};
-                border-radius: 10px;
+                background: {c['bg']};
+                border: 2px solid {c['border']};
+                border-radius: {RADIUS_PANEL}px;
             }}
         """)
-       
+
         # Navigation bar
         self.nav_container = QWidget()
         self.nav_container.setStyleSheet(f"""
             QWidget {{
-                background: {bg_color};
+                background: {c['bg']};
                 border: none;
-                border-bottom: 1px solid {border_color};
-                border-top-left-radius: 10px;
-                border-top-right-radius: 10px;
+                border-bottom: 1px solid {c['border']};
+                border-top-left-radius: {RADIUS_PANEL}px;
+                border-top-right-radius: {RADIUS_PANEL}px;
             }}
         """)
         nav_layout = QHBoxLayout()
@@ -292,10 +324,10 @@ class EmoticonSelectorWidget(QWidget):
         self.content_container = QWidget()
         self.content_container.setStyleSheet(f"""
             QWidget {{
-                background: {content_bg};
+                background: {c['bg']};
                 border: none;
-                border-bottom-left-radius: 10px;
-                border-bottom-right-radius: 10px;
+                border-bottom-left-radius: {RADIUS_PANEL}px;
+                border-bottom-right-radius: {RADIUS_PANEL}px;
             }}
         """)
         content_layout = QVBoxLayout()
@@ -326,25 +358,19 @@ class EmoticonSelectorWidget(QWidget):
         layout.addWidget(btn)
 
     def _update_nav_button_style(self, btn: QPushButton, active: bool):
-        accent = "#e28743" if self.is_dark_theme else "#154c79"
-        active_bg = "#303134" if self.is_dark_theme else "#E0E0E0"
-        inactive_bg = "#1b1b1b" if self.is_dark_theme else "#EEEEEE"
-        hover_bg = "#3A3B3F" if self.is_dark_theme else "#D0D0D0"
-        hover_border = "#555" if self.is_dark_theme else "#999"
-
-        style = f"""
+        c = _theme_colors(self.is_dark_theme)
+        btn.setStyleSheet(f"""
             QPushButton {{
-                background: {active_bg if active else inactive_bg};
-                border: 2px solid {accent if active else 'transparent'};
-                border-radius: 8px;
+                background: {c['active_bg'] if active else c['bg']};
+                border: 2px solid {c['accent'] if active else 'transparent'};
+                border-radius: {RADIUS_BTN}px;
                 font-size: 22px;
             }}
             QPushButton:hover {{
-                background: {hover_bg};
-                {'' if active else f'border: 2px solid {hover_border};'}
+                background: {c['hover_bg']};
+                border: 2px solid {c['accent'] if active else c['hover_border']};
             }}
-        """
-        btn.setStyleSheet(style)
+        """)
 
     def _create_recent_content(self):
         """Create recent emoticons content"""
@@ -383,6 +409,12 @@ class EmoticonSelectorWidget(QWidget):
 
     def _populate_recent_emoticons(self):
         """Populate recent emoticons grid"""
+        # If the keyboard cursor points at a recent button that's about to be
+        # deleted, clear it now so _highlight never touches a dead C++ object.
+        if self._nav_btn in self.recent_buttons:
+            self._nav_btn = None
+            self._set_position("recent", 0)
+
         # Clean up old buttons
         for btn in self.recent_buttons:
             btn.cleanup()
@@ -414,6 +446,10 @@ class EmoticonSelectorWidget(QWidget):
             placeholder.setStyleSheet("color: #888; padding: 20px;")
             self.recent_grid.addWidget(placeholder, 0, 0, 1, 6)
 
+        # If recent is the active tab, restore highlight to index 0
+        if self.recent_buttons and self._current_key() == 'recent':
+            self._set_nav(self.recent_buttons, 0)
+
     def _create_group_contents(self):
         """Create content for each emoticon group"""
         groups = self.emoticon_manager.get_groups()
@@ -430,15 +466,130 @@ class EmoticonSelectorWidget(QWidget):
             self.group_indices[key] = self.stacked_content.count()
             self.stacked_content.addWidget(group_widget)
 
-    def _switch_to_group(self, key: str):
-        """Switch to a different group"""
-        current_idx = self.stacked_content.currentIndex()
-        for btn_key, btn in self.nav_buttons.items():
-            is_active = (btn_key == key)
-            self._update_nav_button_style(btn, is_active)
+    # ------------------------------------------------------------------
+    # Group switching + keyboard navigation
+    # ------------------------------------------------------------------
 
+    _COLS = 6
+
+    def _current_key(self):
+        idx = self.stacked_content.currentIndex()
+        return next((k for k, v in self.group_indices.items() if v == idx), None)
+
+    def _current_buttons(self):
+        idx = self.stacked_content.currentIndex()
+        if idx == self.group_indices.get('recent', -1):
+            return self.recent_buttons
+        for gw in self.group_widgets:
+            if self.stacked_content.indexOf(gw) == idx:
+                return gw.buttons
+        return []
+
+    def _highlight(self, btn, active):
+        if not btn:
+            return
+        try:
+            if active:
+                c = _theme_colors(self.is_dark_theme)
+                btn.setStyleSheet(f"""
+                    QPushButton {{
+                        background: {c['highlight_bg']};
+                        border: 2px solid {c['accent']};
+                        border-radius: {RADIUS_BTN}px;
+                        padding: 2px;
+                    }}
+                    QPushButton:hover {{
+                        background: {c['highlight_bg']};
+                        border-radius: {RADIUS_BTN}px;
+                    }}
+                """)
+            else:
+                btn._update_style()
+        except RuntimeError:
+            pass  # C++ object already deleted — nothing to style
+
+    def _set_nav(self, btns, idx):
+        """Unhighlight current, highlight btns[idx], scroll into view, schedule save."""
+        self._highlight(self._nav_btn, False)
+        self._nav_btn = btns[idx]
+        self._highlight(self._nav_btn, True)
+        p = self._nav_btn.parent()
+        while p:
+            if isinstance(p, QScrollArea):
+                p.ensureWidgetVisible(self._nav_btn)
+                break
+            p = p.parent()
+        self._pos_timer.start(600)
+
+    def _get_positions(self) -> dict:
+        return self.config.get("ui", "emoticon_nav_positions") or {}
+
+    def _set_position(self, key: str, idx: int):
+        positions = self._get_positions()
+        positions[key] = idx
+        self.config.set("ui", "emoticon_nav_positions", value=positions)
+
+    def _restore_idx(self, btns) -> int:
+        """Return saved position index for the current group (default 0)."""
+        saved = self._get_positions().get(self._current_key(), 0)
+        return min(saved, len(btns) - 1)
+
+    def _save_position(self):
+        key = self._current_key()
+        if not key:
+            return
+        btns = self._current_buttons()
+        self._set_position(key, btns.index(self._nav_btn) if self._nav_btn in btns else 0)
+
+    def _switch_to_group(self, key: str):
+        # Flush position save for the group we're leaving
+        if self._pos_timer.isActive():
+            self._pos_timer.stop()
+            self._save_position()
+        self._highlight(self._nav_btn, False)
+        self._nav_btn = None
+
+        for k, btn in self.nav_buttons.items():
+            self._update_nav_button_style(btn, k == key)
         if key in self.group_indices:
             self.stacked_content.setCurrentIndex(self.group_indices[key])
+
+        self.config.set("ui", "emoticon_last_group", value=key)
+
+        # Restore saved cursor position for the new group
+        btns = self._current_buttons()
+        if btns:
+            self._set_nav(btns, self._restore_idx(btns))
+
+    def navigate(self, dx: int, dy: int):
+        """Move keyboard cursor. H/L: flat linear wrap. J/K: column-aware wrap."""
+        btns = self._current_buttons()
+        if not btns:
+            return
+        total = len(btns)
+        if self._nav_btn not in btns:
+            return self._set_nav(btns, self._restore_idx(btns))
+        cur = btns.index(self._nav_btn)
+        if dx:
+            new_idx = (cur + dx) % total
+        else:
+            row, col = divmod(cur, self._COLS)
+            rows = (total - 1) // self._COLS + 1
+            new_idx = min(((row + dy) % rows) * self._COLS + col, total - 1)
+        self._set_nav(btns, new_idx)
+
+    def insert_selected(self, shift=False):
+        btns = self._current_buttons()
+        if not btns:
+            return
+        target = self._nav_btn if self._nav_btn in btns else btns[0]
+        target.emoticon_clicked.emit(target.emoticon_name, shift)
+
+    def cycle_tab(self, forward: bool = True):
+        keys = list(self.group_indices.keys())
+        cur  = self._current_key()
+        pos  = (keys.index(cur) + (1 if forward else -1)) % len(keys) if cur in keys else 0
+        self._switch_to_group(keys[pos])
 
     def eventFilter(self, obj, event):
         """Handle mouse wheel events on navigation container"""
@@ -458,13 +609,12 @@ class EmoticonSelectorWidget(QWidget):
 
         return super().eventFilter(obj, event)
 
-    def _on_emoticon_clicked(self, emoticon_name: str, ctrl_pressed: bool):
-        """Handle emoticon button click"""
+    def _on_emoticon_clicked(self, emoticon_name: str, shift_pressed: bool):
+        """Handle emoticon button click. shift_pressed = keep selector open."""
         self._add_to_recent(emoticon_name)
         self.emoticon_selected.emit(emoticon_name)
 
-        if ctrl_pressed:
-            # If embedded in a popup layout, do a full release to avoid empty space
+        if not shift_pressed:
             lyt = self.parent().layout() if self.parent() else None
             if lyt and lyt.indexOf(self) >= 0:
                 release_selector(self)
@@ -487,59 +637,47 @@ class EmoticonSelectorWidget(QWidget):
         """Update theme colors"""
         theme = self.config.get("ui", "theme")
         self.is_dark_theme = (theme == "dark")
-    
-        # Update emoticon manager theme
         self.emoticon_manager.set_theme(self.is_dark_theme)
-    
-        # Update colors
-        if self.is_dark_theme:
-            bg_color = "#1b1b1b"
-            border_color = "#3D3D3D"
-            content_bg = "#1b1b1b"
-        else:
-            bg_color = "#EEEEEE"
-            border_color = "#CCCCCC"
-            content_bg = "#EEEEEE"
+        c = _theme_colors(self.is_dark_theme)
 
         self.setStyleSheet(f"""
             EmoticonSelectorWidget {{
-                background: {bg_color};
-                border: 2px solid {border_color};
-                border-radius: 10px;
+                background: {c['bg']};
+                border: 2px solid {c['border']};
+                border-radius: {RADIUS_PANEL}px;
             }}
         """)
 
         if hasattr(self, 'nav_container'):
             self.nav_container.setStyleSheet(f"""
                 QWidget {{
-                    background: {bg_color};
+                    background: {c['bg']};
                     border: none;
-                    border-bottom: 1px solid {border_color};
-                    border-top-left-radius: 10px;
-                    border-top-right-radius: 10px;
+                    border-bottom: 1px solid {c['border']};
+                    border-top-left-radius: {RADIUS_PANEL}px;
+                    border-top-right-radius: {RADIUS_PANEL}px;
                 }}
             """)
+
         if hasattr(self, 'content_container'):
             self.content_container.setStyleSheet(f"""
                 QWidget {{
-                    background: {content_bg};
+                    background: {c['bg']};
                     border: none;
-                    border-bottom-left-radius: 10px;
-                    border-bottom-right-radius: 10px;
+                    border-bottom-left-radius: {RADIUS_PANEL}px;
+                    border-bottom-right-radius: {RADIUS_PANEL}px;
                 }}
             """)
 
         current_idx = self.stacked_content.currentIndex()
         for key, btn in self.nav_buttons.items():
-            is_active = (self.group_indices.get(key) == current_idx)
-            self._update_nav_button_style(btn, is_active)
+            self._update_nav_button_style(btn, self.group_indices.get(key) == current_idx)
 
         for group_widget in self.group_widgets:
             group_widget.update_theme(self.emoticon_manager, self.is_dark_theme)
 
         for btn in self.recent_buttons:
-            new_path = self.emoticon_manager.get_emoticon_path(btn.emoticon_name)
-            btn.update_theme(new_path, self.is_dark_theme)
+            btn.update_theme(self.emoticon_manager.get_emoticon_path(btn.emoticon_name), self.is_dark_theme)
 
         if 'recent' in self.group_indices:
             self._switch_to_group('recent')
@@ -551,7 +689,27 @@ class EmoticonSelectorWidget(QWidget):
         self.config.set("ui", "emoticon_selector_visible", value=new_visible)
 
         if new_visible:
-            QTimer.singleShot(50, self.resume_animations)
+            QTimer.singleShot(50, self._restore_state)
+        else:
+            if self._pos_timer.isActive():
+                self._pos_timer.stop()
+                self._save_position()
+            self._highlight(self._nav_btn, False)
+            self._nav_btn = None
+
+    def _restore_state(self):
+        """Restore last group + cursor position; called after the widget is shown."""
+        last = self.config.get("ui", "emoticon_last_group") or "recent"
+        key  = last if last in self.group_indices else "recent"
+        # Switch without triggering a config write for the group we're leaving
+        for k, btn in self.nav_buttons.items():
+            self._update_nav_button_style(btn, k == key)
+        if key in self.group_indices:
+            self.stacked_content.setCurrentIndex(self.group_indices[key])
+        self.resume_animations()
+        btns = self._current_buttons()
+        if btns:
+            self._set_nav(btns, self._restore_idx(btns))
 
     def resume_animations(self):
         """Resume all emoticon animations in the selector"""
