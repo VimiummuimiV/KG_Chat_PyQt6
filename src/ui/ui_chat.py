@@ -1971,8 +1971,9 @@ class ChatWindow(QWidget):
             if cw and self.stacked_widget.currentWidget() == cw and cw.search_visible:
                 cw._toggle_search()
                 return
-        # Ctrl+; toggle emoticon selector (works even when input focused)
-        if ctrl and key == Qt.Key.Key_Semicolon:
+        # Ctrl+; toggle emoticon selector (works even when input focused, layout-independent)
+        # nativeScanCode 0x27 = physical semicolon key on all standard keyboards
+        if ctrl and (key == Qt.Key.Key_Semicolon or event.nativeScanCode() == 0x27):
             self._toggle_emoticon_selector()
             return
         # Ctrl+F toggle search in chatlog (works regardless of input focus)
