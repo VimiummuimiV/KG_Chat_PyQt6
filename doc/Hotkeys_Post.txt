@@ -20,7 +20,7 @@
 
 [b]Следующие клавиши работают всегда, независимо от фокуса:[/b]
 
-[b][color="#F77F00"]Ctrl + ;[/color][/b] — открыть / закрыть панель смайликов.
+[b][color="#F77F00"]Ctrl + ;[/color][/b] — открыть / закрыть панель смайликов (также снимает фокус с поля ввода при открытии).
 [b][color="#F77F00"]Ctrl + U[/color][/b] — сменить аккаунт.
 [b][color="#F77F00"]Ctrl + T[/color][/b] — переключить тему оформления (светлая / тёмная).
 
@@ -46,6 +46,23 @@
 [b][color="#F77F00"]Ctrl + C[/color][/b] — скопировать результаты парсинга (когда парсер открыт).
 [b][color="#F77F00"]Ctrl + S[/color][/b] — сохранить результаты парсинга в файл (когда парсер открыт).
 
+[b]Клавиатурная навигация по панели смайликов:[/b]
+
+Открытие панели через [b][color="#F77F00"]Ctrl + ;[/color][/b] автоматически снимает фокус с поля ввода — клавиши навигации работают сразу. Все клавиши ниже активны только пока панель смайликов открыта и поле ввода не в фокусе.
+
+[b][color="#F77F00"]←[/color][/b] / [b][color="#F77F00"]H[/color][/b] — влево (линейно, переходит на следующую/предыдущую строку)
+[b][color="#F77F00"]→[/color][/b] / [b][color="#F77F00"]L[/color][/b] — вправо (линейно)
+[b][color="#F77F00"]↑[/color][/b] / [b][color="#F77F00"]K[/color][/b] — вверх (по столбцу)
+[b][color="#F77F00"]↓[/color][/b] / [b][color="#F77F00"]J[/color][/b] — вниз (по столбцу)
+[b][color="#F77F00"]Tab[/color][/b] — следующая группа смайликов (перехватывает стандартный Tab переключения видов)
+[b][color="#F77F00"]Shift + Tab[/color][/b] — предыдущая группа
+[b][color="#F77F00"]Enter[/color][/b] / [b][color="#F77F00"]A[/color][/b] / [b][color="#F77F00"];[/color][/b] — вставить выбранный смайлик и закрыть панель
+[b][color="#F77F00"]Shift + Enter[/color][/b] / [b][color="#F77F00"]Shift + A[/color][/b] / [b][color="#F77F00"]Shift + ;[/color][/b] — вставить без закрытия (для вставки нескольких подряд)
+
+То же правило действует для мыши: [b]ЛКМ[/b] вставляет и закрывает, [b]Shift + ЛКМ[/b] вставляет без закрытия.
+
+Панель смайликов запоминает последнюю выбранную группу и позицию курсора в каждой группе между сессиями.
+
 [b]Горячие клавиши окна управления аккаунтами:[/b]
 
 [i]Раздел Connect:[/i]
@@ -70,7 +87,7 @@
 
 [b][color="#F77F00"]F[/color][/b] — [b]F[/b]ocus · [b][color="#F77F00"]U[/color][/b] — [b]U[/b]serlist · [b][color="#F77F00"]B[/color][/b] — [b]B[/b]an · [b][color="#F77F00"]P[/color][/b] — [b]P[/b]ronunciation / [b]P[/b]arser · [b][color="#F77F00"]M[/color][/b] — [b]M[/b]ute / [b]M[/b]entions
 [b][color="#F77F00"]V[/color][/b] — [b]V[/b]oice · [b][color="#F77F00"]N[/color][/b] — [b]N[/b]otification · [b][color="#F77F00"]T[/color][/b] — [b]T[/b]op / [b]T[/b]heme · [b][color="#F77F00"]R[/color][/b] — [b]R[/b]eset · [b][color="#F77F00"]C[/color][/b] — [b]C[/b]olor / [b]C[/b]ancel
-[b][color="#F77F00"]S[/color][/b] — [b]S[/b]earch / [b]S[/b]ave · [b][color="#F77F00"]H[/color][/b] — [b]H[/b]istory back · [b][color="#F77F00"]L[/color][/b] — (vim-style: вперёд) · [b][color="#F77F00"]D[/color][/b] — [b]D[/b]ate / [b]D[/b]elete · [b][color="#F77F00"]X[/color][/b] — e[b]X[/b]it · [b][color="#F77F00"]A[/color][/b] — [b]A[/b]dd
-[b][color="#F77F00"]J[/color][/b] / [b][color="#F77F00"]K[/color][/b] / [b][color="#F77F00"]gg[/color][/b] / [b][color="#F77F00"]G[/color][/b] — vim-style прокрутка
+[b][color="#F77F00"]S[/color][/b] — [b]S[/b]earch / [b]S[/b]ave · [b][color="#F77F00"]H[/color][/b] — [b]H[/b]istory back · [b][color="#F77F00"]L[/color][/b] — (vim-style: вперёд) · [b][color="#F77F00"]D[/color][/b] — [b]D[/b]ate / [b]D[/b]elete · [b][color="#F77F00"]X[/color][/b] — e[b]X[/b]it · [b][color="#F77F00"]A[/color][/b] — [b]A[/b]dd / [b]A[/b]ct (insert emoticon)
+[b][color="#F77F00"]J[/color][/b] / [b][color="#F77F00"]K[/color][/b] / [b][color="#F77F00"]gg[/color][/b] / [b][color="#F77F00"]G[/color][/b] — vim-style прокрутка · [b][color="#F77F00"];[/color][/b] — вставить смайлик (мнемоника: та же клавиша что открывает панель)
 
 [img]https://klavogonki.ru/img/smilies/wine.gif[/img]
