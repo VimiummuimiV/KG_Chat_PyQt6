@@ -1966,6 +1966,8 @@ class ChatWindow(QWidget):
         Qt.Key.Key_S: 'search',
         Qt.Key.Key_H: 'nav_backward',
         Qt.Key.Key_L: 'nav_forward',
+        Qt.Key.Key_Left:  'nav_backward',
+        Qt.Key.Key_Right: 'nav_forward',
         Qt.Key.Key_J: 'scroll_down',
         Qt.Key.Key_K: 'scroll_up',
         Qt.Key.Key_Down: 'scroll_down',

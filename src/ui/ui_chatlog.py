@@ -5,7 +5,7 @@ from PyQt6.QtWidgets import(
     QStackedWidget, QFileDialog, QMessageBox, QApplication
 )
 from PyQt6.QtCore import Qt, QDate, QTimer, pyqtSignal, QEvent
-from PyQt6.QtGui import QFont, QShortcut, QKeySequence
+from PyQt6.QtGui import QFont
 from datetime import datetime, timedelta
 import threading
 from pathlib import Path
@@ -350,11 +350,7 @@ class ChatlogWidget(QWidget):
 
         self._update_date_display()
         self._error_occurred.connect(self._handle_error)
-        
-        # Setup keyboard shortcuts and event filter
-        for key, direction in [(Qt.Key.Key_Left, -1), (Qt.Key.Key_Right, 1)]:
-            QShortcut(QKeySequence(key), self, lambda d=direction: not self.parser_visible and self._navigate(d))
-        
+
         self.installEventFilter(self)
         self.list_view.viewport().installEventFilter(self)
 
