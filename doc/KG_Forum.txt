@@ -280,13 +280,6 @@ H/L навигация линейная — перемещается через 
 
 [color="#E63946"][b]Примечание:[/b][/color] Все клавиши, кроме [b][color="#F77F00"]F[/color][/b], [b][color="#F77F00"]Esc[/color][/b], [b][color="#F77F00"]Ctrl+;[/color][/b], [b][color="#F77F00"]Ctrl+U[/color][/b], [b][color="#F77F00"]Ctrl+T[/color][/b] и [b][color="#F77F00"]Ctrl+F[/color][/b], работают только при отсутствии фокуса на поле ввода. Горячие клавиши не зависят от раскладки клавиатуры. Клавиши навигации смайликами (стрелки, H/J/K/L, Tab, Enter/A/;) активны только пока открыта панель смайликов и перехватывают приоритет у стандартных функций этих клавиш.
 
-[b][color="#FF6B9D"]Как запомнить:[/color][/b] каждая клавиша — первая буква английского слова, связанного с функцией:
-
-[b][color="#F77F00"]F[/color][/b] — [b]F[/b]ocus · [b][color="#F77F00"]U[/color][/b] — [b]U[/b]serlist · [b][color="#F77F00"]B[/color][/b] — [b]B[/b]an · [b][color="#F77F00"]P[/color][/b] — [b]P[/b]ronunciation / [b]P[/b]arser · [b][color="#F77F00"]M[/color][/b] — [b]M[/b]ute / [b]M[/b]entions
-[b][color="#F77F00"]V[/color][/b] — [b]V[/b]oice · [b][color="#F77F00"]N[/color][/b] — [b]N[/b]otification · [b][color="#F77F00"]T[/color][/b] — [b]T[/b]op / [b]T[/b]heme · [b][color="#F77F00"]R[/color][/b] — [b]R[/b]eset · [b][color="#F77F00"]C[/color][/b] — [b]C[/b]olor / [b]C[/b]ancel
-[b][color="#F77F00"]S[/color][/b] — [b]S[/b]earch / [b]S[/b]tart · [b][color="#F77F00"]H[/color][/b] — [b]H[/b]istory back · [b][color="#F77F00"]L[/color][/b] — (vim-style: вперёд) · [b][color="#F77F00"]D[/color][/b] — [b]D[/b]ate · [b][color="#F77F00"]X[/color][/b] — e[b]X[/b]it
-[b][color="#F77F00"]J[/color][/b] / [b][color="#F77F00"]K[/color][/b] / [b][color="#F77F00"]gg[/color][/b] / [b][color="#F77F00"]G[/color][/b] — vim-style прокрутка
-
 [b][color="#FF6B9D"]4.12. Горячие клавиши окна управления аккаунтами[/color][/b]
 
 [b]Раздел Connect (подключение):[/b]
@@ -308,6 +301,13 @@ H/L навигация линейная — перемещается через 
 [b][color="#F77F00"]Enter[/color][/b] — сохранить аккаунт (когда поле ввода в фокусе)
 [b][color="#F77F00"]Ctrl + S[/color][/b] — сохранить аккаунт
 [b][color="#F77F00"]Esc[/color][/b] — вернуться в раздел Connect
+
+[b][color="#FF6B9D"]Как запомнить:[/color][/b] каждая клавиша — первая буква английского слова, связанного с функцией:
+
+[b][color="#F77F00"]F[/color][/b] — [b]F[/b]ocus · [b][color="#F77F00"]U[/color][/b] — [b]U[/b]serlist · [b][color="#F77F00"]B[/color][/b] — [b]B[/b]an · [b][color="#F77F00"]P[/color][/b] — [b]P[/b]ronunciation / [b]P[/b]arser · [b][color="#F77F00"]M[/color][/b] — [b]M[/b]ute / [b]M[/b]entions
+[b][color="#F77F00"]V[/color][/b] — [b]V[/b]oice · [b][color="#F77F00"]N[/color][/b] — [b]N[/b]otification · [b][color="#F77F00"]T[/color][/b] — [b]T[/b]op / [b]T[/b]heme · [b][color="#F77F00"]R[/color][/b] — [b]R[/b]eset · [b][color="#F77F00"]C[/color][/b] — [b]C[/b]olor / [b]C[/b]ancel
+[b][color="#F77F00"]S[/color][/b] — [b]S[/b]earch / [b]S[/b]ave · [b][color="#F77F00"]H[/color][/b] — [b]H[/b]istory back · [b][color="#F77F00"]L[/color][/b] — (vim-style: вперёд) · [b][color="#F77F00"]D[/color][/b] — [b]D[/b]ate / [b]D[/b]elete · [b][color="#F77F00"]X[/color][/b] — e[b]X[/b]it · [b][color="#F77F00"]A[/color][/b] — [b]A[/b]dd / [b]A[/b]ct (insert emoticon)
+[b][color="#F77F00"]J[/color][/b] / [b][color="#F77F00"]K[/color][/b] / [b][color="#F77F00"]gg[/color][/b] / [b][color="#F77F00"]G[/color][/b] — vim-style прокрутка · [b][color="#F77F00"];[/color][/b] — вставить смайлик (мнемоника: та же клавиша что открывает панель)
 
 [b][color="#F77F00"]═══════════════════════════════════════════[/color][/b]
 [b][size="4"][color="#2D6CDF"]5. Боковая панель кнопок[/color][/size][/b]
