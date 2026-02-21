@@ -37,7 +37,7 @@ from ui.ui_userlist import UserListWidget
 from ui.ui_chatlog import ChatlogWidget
 from ui.ui_chatlog_userlist import ChatlogUserlistWidget
 from ui.ui_profile import ProfileWidget
-from ui.ui_emoticon_selector import EmoticonSelectorWidget
+from ui.ui_emoticon_selector import EmoticonSelectorWidget, PANEL_WIDTH
 from ui.ui_pronunciation import PronunciationWidget
 from ui.ui_banlist import BanListWidget
 from helpers.duration_dialog import DurationDialog
@@ -626,7 +626,7 @@ class ChatWindow(QWidget):
         # Clamp size to available space
         available = max(200, self.height() - self.input_container.height() - 40)
         h = max(250, min(650, available))
-        w = 420
+        w = PANEL_WIDTH
         self.emoticon_selector.setFixedSize(w, h)
 
         # Align selector right edge to emoticon button right edge

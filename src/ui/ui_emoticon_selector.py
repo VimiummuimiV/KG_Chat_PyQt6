@@ -16,7 +16,17 @@ from helpers.emoticons import EmoticonManager
 # ---------------------------------------------------------------------------
 
 RADIUS_PANEL = 10   # outer widget corners
-RADIUS_BTN   = 4    # tab buttons + emoticon buttons + keyboard highlight
+RADIUS_BTN   = 8    # tab buttons + emoticon buttons + keyboard highlight
+
+# Grid / sizing constants — single source of truth
+COLS           = 7    # columns in the emoticon grid (must match number of groups)
+BTN_SIZE       = 60   # emoticon & tab button size (px)
+BTN_SPACING    = 6    # gap between buttons (px)
+BTN_BORDER     = 2    # button border width (px)
+MARGIN         = 6    # margin for nav and content areas (px)
+GRID_WIDTH     = COLS * BTN_SIZE + (COLS - 1) * BTN_SPACING
+PANEL_WIDTH    = MARGIN + GRID_WIDTH + MARGIN
+NAV_HEIGHT     = MARGIN + BTN_SIZE + MARGIN
 
 def _theme_colors(is_dark: bool) -> dict:
     """Return a colour palette dict for the given theme."""
@@ -42,7 +52,7 @@ class EmoticonButton(QPushButton):
         self.movie = None
         self._highlighted = False
 
-        self.setFixedSize(QSize(60, 60))
+        self.setFixedSize(QSize(BTN_SIZE, BTN_SIZE))
         self.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
         self.setToolTip(f":{emoticon_name}:")
 
@@ -58,13 +68,13 @@ class EmoticonButton(QPushButton):
         self.setStyleSheet(f"""
             QPushButton {{
                 background: {base_bg};
-                border: 2px solid {base_border};
+                border: {BTN_BORDER}px solid {base_border};
                 border-radius: {RADIUS_BTN}px;
                 padding: 2px;
             }}
             QPushButton:hover {{
                 background: {hover_bg};
-                border: 2px solid {hover_border};
+                border: {BTN_BORDER}px solid {hover_border};
                 border-radius: {RADIUS_BTN}px;
                 padding: 2px;
             }}
@@ -164,8 +174,8 @@ class EmoticonGroup(QWidget):
         self.buttons = []
 
         layout = QVBoxLayout()
-        layout.setContentsMargins(8, 8, 8, 8)
-        layout.setSpacing(8)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
         self.setLayout(layout)
        
         # Scroll area
@@ -186,14 +196,14 @@ class EmoticonGroup(QWidget):
         scroll.setWidget(container)
 
         grid = QGridLayout()
-        grid.setSpacing(6)
+        grid.setSpacing(BTN_SPACING)
         grid.setContentsMargins(0, 0, 0, 0)
         grid.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
         container_layout.addLayout(grid)
         container_layout.addStretch()
        
-        # Add emoticons (6 per row)
-        cols = 6
+        # Add emoticons (COLS per row)
+        cols = COLS
         for idx, (name, path) in enumerate(emoticons):
             if not self._is_valid(path):
                 continue
@@ -249,6 +259,7 @@ class EmoticonSelectorWidget(QWidget):
         self._pos_timer.timeout.connect(self._save_position)
 
         self._init_ui()
+        self.setFixedWidth(PANEL_WIDTH)  # applied after init so nothing can override it
        
         # Restore visibility and state
         visible = config.get("ui", "emoticon_selector_visible")
@@ -274,7 +285,7 @@ class EmoticonSelectorWidget(QWidget):
         self.setStyleSheet(f"""
             EmoticonSelectorWidget {{
                 background: {c['panel_bg']};
-                border: 2px solid {c['panel_border']};
+                border: {BTN_BORDER}px solid {c['panel_border']};
                 border-radius: {RADIUS_PANEL}px;
             }}
         """)
@@ -291,8 +302,8 @@ class EmoticonSelectorWidget(QWidget):
             }}
         """)
         nav_layout = QHBoxLayout()
-        nav_layout.setContentsMargins(10, 10, 10, 10)
-        nav_layout.setSpacing(6)
+        nav_layout.setContentsMargins(MARGIN, MARGIN, MARGIN, MARGIN)
+        nav_layout.setSpacing(BTN_SPACING)
         self.nav_container.setLayout(nav_layout)
         layout.addWidget(self.nav_container)
        
@@ -312,8 +323,6 @@ class EmoticonSelectorWidget(QWidget):
         }.items():
             self._create_nav_button(emoji, key, group_name, nav_layout)
 
-        nav_layout.addStretch()
-       
         # Content area
         self.content_container = QWidget()
         self.content_container.setStyleSheet(f"""
@@ -325,7 +334,7 @@ class EmoticonSelectorWidget(QWidget):
             }}
         """)
         content_layout = QVBoxLayout()
-        content_layout.setContentsMargins(0, 0, 0, 0)
+        content_layout.setContentsMargins(MARGIN, MARGIN, MARGIN, MARGIN)
         content_layout.setSpacing(0)
         self.content_container.setLayout(content_layout)
         layout.addWidget(self.content_container, stretch=1)
@@ -339,10 +348,13 @@ class EmoticonSelectorWidget(QWidget):
         self._create_recent_content()
         self._create_group_contents()
 
+        # Nav height: button size + margins
+        self.nav_container.setFixedHeight(NAV_HEIGHT)
+
     def _create_nav_button(self, emoji: str, key: str, tooltip: str, layout: QHBoxLayout, active: bool = False):
         """Create a navigation button"""
         btn = QPushButton(emoji)
-        btn.setFixedSize(48, 48)
+        btn.setFixedSize(BTN_SIZE, BTN_SIZE)
         btn.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
         btn.setToolTip(tooltip)
 
@@ -355,14 +367,14 @@ class EmoticonSelectorWidget(QWidget):
         c = _theme_colors(self.is_dark_theme)
         btn.setStyleSheet(f"""
             QPushButton {{
-                background: {c['btn_active_bg'] if active else c['panel_bg']};
-                border: 2px solid {c['btn_active_border'] if active else 'transparent'};
+                background: {c['btn_active_bg'] if active else 'transparent'};
+                border: {BTN_BORDER}px solid {c['btn_active_border'] if active else 'transparent'};
                 border-radius: {RADIUS_BTN}px;
                 font-size: 22px;
             }}
             QPushButton:hover {{
                 background: {c['btn_active_bg'] if active else c['btn_hover_bg']};
-                border: 2px solid {c['btn_active_border'] if active else c['btn_hover_border']};
+                border: {BTN_BORDER}px solid {c['btn_active_border'] if active else c['btn_hover_border']};
             }}
         """)
 
@@ -370,8 +382,8 @@ class EmoticonSelectorWidget(QWidget):
         """Create recent emoticons content"""
         self.recent_widget = QWidget()
         recent_layout = QVBoxLayout()
-        recent_layout.setContentsMargins(8, 8, 8, 8)
-        recent_layout.setSpacing(8)
+        recent_layout.setContentsMargins(0, 0, 0, 0)
+        recent_layout.setSpacing(0)
         self.recent_widget.setLayout(recent_layout)
 
         scroll = QScrollArea()
@@ -390,7 +402,7 @@ class EmoticonSelectorWidget(QWidget):
         scroll.setWidget(self.recent_container)
 
         self.recent_grid = QGridLayout()
-        self.recent_grid.setSpacing(6)
+        self.recent_grid.setSpacing(BTN_SPACING)
         self.recent_grid.setContentsMargins(0, 0, 0, 0)
         self.recent_grid.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
         self.recent_layout.addLayout(self.recent_grid)
@@ -420,8 +432,8 @@ class EmoticonSelectorWidget(QWidget):
             if item.widget():
                 item.widget().deleteLater()
        
-        # Add recent (6 per row)
-        cols = 6
+        # Add recent (COLS per row)
+        cols = COLS
         for idx, name in enumerate(self.recent_emoticons):
             path = self.emoticon_manager.get_emoticon_path(name)
             if not path:
@@ -623,7 +635,7 @@ class EmoticonSelectorWidget(QWidget):
         self.setStyleSheet(f"""
             EmoticonSelectorWidget {{
                 background: {c['panel_bg']};
-                border: 2px solid {c['panel_border']};
+                border: {BTN_BORDER}px solid {c['panel_border']};
                 border-radius: {RADIUS_PANEL}px;
             }}
         """)
@@ -722,6 +734,7 @@ class EmoticonSelectorWidget(QWidget):
             sp = self.sizePolicy()
             sp.setRetainSizeWhenHidden(False)
             self.setSizePolicy(sp)
+            self.setFixedWidth(PANEL_WIDTH)  # re-apply after setSizePolicy
             self.setVisible(True)
             QTimer.singleShot(50, self.resume_animations)
 
