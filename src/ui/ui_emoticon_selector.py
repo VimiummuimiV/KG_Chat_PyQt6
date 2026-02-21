@@ -23,7 +23,8 @@ COLS           = 7    # columns in the emoticon grid (must match number of group
 BTN_SIZE       = 60   # emoticon & tab button size (px)
 BTN_SPACING    = 6    # gap between buttons (px)
 BTN_BORDER     = 2    # button border width (px)
-MARGIN         = 6    # margin for nav and content areas (px)
+MARGIN         = 6    # margin for nav area (px)
+CONTENT_MARGIN = MARGIN - 3  # margin for content area (px) — compensates for QScrollArea platform chrome
 GRID_WIDTH     = COLS * BTN_SIZE + (COLS - 1) * BTN_SPACING
 PANEL_WIDTH    = MARGIN + GRID_WIDTH + MARGIN
 NAV_HEIGHT     = MARGIN + BTN_SIZE + MARGIN
@@ -182,7 +183,7 @@ class EmoticonGroup(QWidget):
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         scroll.setStyleSheet("QScrollArea { border: none; background: transparent; }")
         layout.addWidget(scroll)
        
@@ -334,7 +335,7 @@ class EmoticonSelectorWidget(QWidget):
             }}
         """)
         content_layout = QVBoxLayout()
-        content_layout.setContentsMargins(MARGIN, MARGIN, MARGIN, MARGIN)
+        content_layout.setContentsMargins(CONTENT_MARGIN, CONTENT_MARGIN, CONTENT_MARGIN, CONTENT_MARGIN)
         content_layout.setSpacing(0)
         self.content_container.setLayout(content_layout)
         layout.addWidget(self.content_container, stretch=1)
@@ -389,7 +390,7 @@ class EmoticonSelectorWidget(QWidget):
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         scroll.setStyleSheet("QScrollArea { border: none; background: transparent; }")
         recent_layout.addWidget(scroll)
 
