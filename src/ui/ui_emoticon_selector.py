@@ -40,6 +40,7 @@ class EmoticonButton(QPushButton):
         self.emoticon_path = emoticon_path
         self.is_dark = is_dark
         self.movie = None
+        self._highlighted = False
 
         self.setFixedSize(QSize(60, 60))
         self.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
@@ -50,17 +51,22 @@ class EmoticonButton(QPushButton):
 
     def _update_style(self):
         c = _theme_colors(self.is_dark)
+        base_bg      = c['btn_active_bg']     if self._highlighted else 'transparent'
+        base_border  = c['btn_active_border'] if self._highlighted else 'transparent'
+        hover_bg     = c['btn_active_bg']     if self._highlighted else c['btn_hover_bg']
+        hover_border = c['btn_active_border'] if self._highlighted else c['btn_hover_border']
         self.setStyleSheet(f"""
             QPushButton {{
-                background: transparent;
-                border: 2px solid transparent;
+                background: {base_bg};
+                border: 2px solid {base_border};
                 border-radius: {RADIUS_BTN}px;
                 padding: 2px;
             }}
             QPushButton:hover {{
-                background: {c['btn_hover_bg']};
-                border: 2px solid {c['btn_hover_border']};
+                background: {hover_bg};
+                border: 2px solid {hover_border};
                 border-radius: {RADIUS_BTN}px;
+                padding: 2px;
             }}
         """)
 
@@ -355,7 +361,7 @@ class EmoticonSelectorWidget(QWidget):
                 font-size: 22px;
             }}
             QPushButton:hover {{
-                background: {c['btn_hover_bg']};
+                background: {c['btn_active_bg'] if active else c['btn_hover_bg']};
                 border: 2px solid {c['btn_active_border'] if active else c['btn_hover_border']};
             }}
         """)
@@ -477,22 +483,8 @@ class EmoticonSelectorWidget(QWidget):
         if not btn:
             return
         try:
-            if active:
-                c = _theme_colors(self.is_dark_theme)
-                btn.setStyleSheet(f"""
-                    QPushButton {{
-                        background: {c['btn_active_bg']};
-                        border: 2px solid {c['btn_active_border']};
-                        border-radius: {RADIUS_BTN}px;
-                        padding: 2px;
-                    }}
-                    QPushButton:hover {{
-                        background: {c['btn_hover_bg']};
-                        border-radius: {RADIUS_BTN}px;
-                    }}
-                """)
-            else:
-                btn._update_style()
+            btn._highlighted = active
+            btn._update_style()
         except RuntimeError:
             pass  # C++ object already deleted — nothing to style
 
