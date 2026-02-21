@@ -20,26 +20,13 @@ RADIUS_BTN   = 4    # tab buttons + emoticon buttons + keyboard highlight
 
 def _theme_colors(is_dark: bool) -> dict:
     """Return a colour palette dict for the given theme."""
-    if is_dark:
-        return dict(
-            bg            = "#1b1b1b",
-            border        = "#3D3D3D",
-            active_bg     = "#303134",
-            hover_bg      = "#3A3B3F",
-            hover_border  = "#555555",
-            accent        = "#e28743",
-            btn_hover     = "rgba(255, 255, 255, 0.1)",
-            highlight_bg  = "rgba(255, 255, 255, 0.25)",
-        )
     return dict(
-        bg            = "#EEEEEE",
-        border        = "#CCCCCC",
-        active_bg     = "#E0E0E0",
-        hover_bg      = "#D0D0D0",
-        hover_border  = "#999999",
-        accent        = "#154c79",
-        btn_hover     = "rgba(0, 0, 0, 0.1)",
-        highlight_bg  = "rgba(0, 0, 0, 0.18)",
+        panel_bg           = "#1b1b1b"  if is_dark else "#EEEEEE",
+        panel_border       = "#3D3D3D"  if is_dark else "#CCCCCC",
+        btn_active_bg      = "#303134"  if is_dark else "#E0E0E0",
+        btn_active_border  = "#e28743"  if is_dark else "#154c79",
+        btn_hover_bg       = "#3A3B3F"  if is_dark else "#D0D0D0",
+        btn_hover_border   = "#555555"  if is_dark else "#999999",
     )
 
 
@@ -71,7 +58,7 @@ class EmoticonButton(QPushButton):
                 padding: 2px;
             }}
             QPushButton:hover {{
-                background: {c['btn_hover']};
+                background: {c['btn_hover_bg']};
                 border-radius: {RADIUS_BTN}px;
             }}
         """)
@@ -279,8 +266,8 @@ class EmoticonSelectorWidget(QWidget):
 
         self.setStyleSheet(f"""
             EmoticonSelectorWidget {{
-                background: {c['bg']};
-                border: 2px solid {c['border']};
+                background: {c['panel_bg']};
+                border: 2px solid {c['panel_border']};
                 border-radius: {RADIUS_PANEL}px;
             }}
         """)
@@ -289,9 +276,9 @@ class EmoticonSelectorWidget(QWidget):
         self.nav_container = QWidget()
         self.nav_container.setStyleSheet(f"""
             QWidget {{
-                background: {c['bg']};
+                background: {c['panel_bg']};
                 border: none;
-                border-bottom: 1px solid {c['border']};
+                border-bottom: 1px solid {c['panel_border']};
                 border-top-left-radius: {RADIUS_PANEL}px;
                 border-top-right-radius: {RADIUS_PANEL}px;
             }}
@@ -324,7 +311,7 @@ class EmoticonSelectorWidget(QWidget):
         self.content_container = QWidget()
         self.content_container.setStyleSheet(f"""
             QWidget {{
-                background: {c['bg']};
+                background: {c['panel_bg']};
                 border: none;
                 border-bottom-left-radius: {RADIUS_PANEL}px;
                 border-bottom-right-radius: {RADIUS_PANEL}px;
@@ -361,14 +348,14 @@ class EmoticonSelectorWidget(QWidget):
         c = _theme_colors(self.is_dark_theme)
         btn.setStyleSheet(f"""
             QPushButton {{
-                background: {c['active_bg'] if active else c['bg']};
-                border: 2px solid {c['accent'] if active else 'transparent'};
+                background: {c['btn_active_bg'] if active else c['panel_bg']};
+                border: 2px solid {c['btn_active_border'] if active else 'transparent'};
                 border-radius: {RADIUS_BTN}px;
                 font-size: 22px;
             }}
             QPushButton:hover {{
-                background: {c['hover_bg']};
-                border: 2px solid {c['accent'] if active else c['hover_border']};
+                background: {c['btn_hover_bg']};
+                border: 2px solid {c['btn_active_border'] if active else c['btn_hover_border']};
             }}
         """)
 
@@ -493,13 +480,13 @@ class EmoticonSelectorWidget(QWidget):
                 c = _theme_colors(self.is_dark_theme)
                 btn.setStyleSheet(f"""
                     QPushButton {{
-                        background: {c['highlight_bg']};
-                        border: 2px solid {c['accent']};
+                        background: {c['btn_hover_bg']};
+                        border: 2px solid {c['btn_active_border']};
                         border-radius: {RADIUS_BTN}px;
                         padding: 2px;
                     }}
                     QPushButton:hover {{
-                        background: {c['highlight_bg']};
+                        background: {c['btn_hover_bg']};
                         border-radius: {RADIUS_BTN}px;
                     }}
                 """)
@@ -642,8 +629,8 @@ class EmoticonSelectorWidget(QWidget):
 
         self.setStyleSheet(f"""
             EmoticonSelectorWidget {{
-                background: {c['bg']};
-                border: 2px solid {c['border']};
+                background: {c['panel_bg']};
+                border: 2px solid {c['panel_border']};
                 border-radius: {RADIUS_PANEL}px;
             }}
         """)
@@ -651,9 +638,9 @@ class EmoticonSelectorWidget(QWidget):
         if hasattr(self, 'nav_container'):
             self.nav_container.setStyleSheet(f"""
                 QWidget {{
-                    background: {c['bg']};
+                    background: {c['panel_bg']};
                     border: none;
-                    border-bottom: 1px solid {c['border']};
+                    border-bottom: 1px solid {c['panel_border']};
                     border-top-left-radius: {RADIUS_PANEL}px;
                     border-top-right-radius: {RADIUS_PANEL}px;
                 }}
@@ -662,7 +649,7 @@ class EmoticonSelectorWidget(QWidget):
         if hasattr(self, 'content_container'):
             self.content_container.setStyleSheet(f"""
                 QWidget {{
-                    background: {c['bg']};
+                    background: {c['panel_bg']};
                     border: none;
                     border-bottom-left-radius: {RADIUS_PANEL}px;
                     border-bottom-right-radius: {RADIUS_PANEL}px;
