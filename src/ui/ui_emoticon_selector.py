@@ -23,7 +23,7 @@ def _theme_colors(is_dark: bool) -> dict:
     return dict(
         panel_bg          = "#1b1b1b"  if is_dark else "#EEEEEE",
         panel_border      = "#3D3D3D"  if is_dark else "#CCCCCC",
-        btn_active_bg            = "#3C3830"  if is_dark else "#D0D0D0",
+        btn_active_bg     = "#3C3830"  if is_dark else "#C8D4E0",
         btn_active_border = "#e28743"  if is_dark else "#3a7fc1",
         btn_hover_bg      = "#3A3B3F"  if is_dark else "#D8D8D8",
         btn_hover_border  = "#4d4d4d"  if is_dark else "#BBBBBB",
