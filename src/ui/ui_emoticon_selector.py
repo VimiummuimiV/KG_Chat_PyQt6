@@ -23,9 +23,10 @@ def _theme_colors(is_dark: bool) -> dict:
     return dict(
         panel_bg          = "#1b1b1b"  if is_dark else "#EEEEEE",
         panel_border      = "#3D3D3D"  if is_dark else "#CCCCCC",
-        btn_bg            = "#3A3B3F"  if is_dark else "#D0D0D0",
-        btn_active_border = "#e28743"  if is_dark else "#154c79",
-        btn_hover_border  = "#555555"  if is_dark else "#999999",
+        btn_active_bg            = "#3C3830"  if is_dark else "#D0D0D0",
+        btn_active_border = "#e28743"  if is_dark else "#3a7fc1",
+        btn_hover_bg      = "#3A3B3F"  if is_dark else "#D8D8D8",
+        btn_hover_border  = "#4d4d4d"  if is_dark else "#BBBBBB",
     )
 
 
@@ -57,7 +58,7 @@ class EmoticonButton(QPushButton):
                 padding: 2px;
             }}
             QPushButton:hover {{
-                background: {c['btn_bg']};
+                background: {c['btn_hover_bg']};
                 border: 2px solid {c['btn_hover_border']};
                 border-radius: {RADIUS_BTN}px;
             }}
@@ -348,13 +349,13 @@ class EmoticonSelectorWidget(QWidget):
         c = _theme_colors(self.is_dark_theme)
         btn.setStyleSheet(f"""
             QPushButton {{
-                background: {c['btn_bg'] if active else c['panel_bg']};
+                background: {c['btn_active_bg'] if active else c['panel_bg']};
                 border: 2px solid {c['btn_active_border'] if active else 'transparent'};
                 border-radius: {RADIUS_BTN}px;
                 font-size: 22px;
             }}
             QPushButton:hover {{
-                background: {c['btn_bg']};
+                background: {c['btn_hover_bg']};
                 border: 2px solid {c['btn_active_border'] if active else c['btn_hover_border']};
             }}
         """)
@@ -480,13 +481,13 @@ class EmoticonSelectorWidget(QWidget):
                 c = _theme_colors(self.is_dark_theme)
                 btn.setStyleSheet(f"""
                     QPushButton {{
-                        background: {c['btn_bg']};
+                        background: {c['btn_active_bg']};
                         border: 2px solid {c['btn_active_border']};
                         border-radius: {RADIUS_BTN}px;
                         padding: 2px;
                     }}
                     QPushButton:hover {{
-                        background: {c['btn_bg']};
+                        background: {c['btn_hover_bg']};
                         border-radius: {RADIUS_BTN}px;
                     }}
                 """)
