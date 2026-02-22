@@ -11,6 +11,7 @@ from helpers.load import make_rounded_pixmap
 from helpers.create import _render_svg_icon
 from helpers.cache import get_cache
 from helpers.fonts import get_font, FontType
+from helpers.auto_scroll import AutoScroller
 from core.userlist import ChatUser
 
 
@@ -164,6 +165,8 @@ class UserListWidget(QWidget):
         scroll.setWidgetResizable(True)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         layout.addWidget(scroll)
+
+        self.auto_scroller = AutoScroller(scroll)
         
         container = QWidget()
         self.main_layout = QVBoxLayout()
@@ -461,3 +464,7 @@ class UserListWidget(QWidget):
             except (RuntimeError, AttributeError):
                 pass
         self.setUpdatesEnabled(True)
+
+    def cleanup(self):
+        """Clean up resources"""
+        self.auto_scroller.cleanup()

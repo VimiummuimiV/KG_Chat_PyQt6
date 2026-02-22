@@ -9,6 +9,7 @@ from helpers.create import create_icon_button, _render_svg_icon
 from helpers.load import make_rounded_pixmap
 from helpers.cache import get_cache
 from helpers.fonts import get_font, FontType
+from helpers.auto_scroll import AutoScroller
 
 
 class ChatlogUserWidget(QWidget):
@@ -146,6 +147,8 @@ class ChatlogUserlistWidget(QWidget):
         scroll.setWidgetResizable(True)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         layout.addWidget(scroll)
+
+        self.auto_scroller = AutoScroller(scroll)
         
         container = QWidget()
         self.user_layout = QVBoxLayout()
@@ -277,3 +280,7 @@ class ChatlogUserlistWidget(QWidget):
             if item.widget():
                 item.widget().deleteLater()
         QApplication.processEvents()
+
+    def cleanup(self):
+        """Clean up resources"""
+        self.auto_scroller.cleanup()
