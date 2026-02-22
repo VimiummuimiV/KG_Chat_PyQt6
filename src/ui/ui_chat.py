@@ -1487,6 +1487,10 @@ class ChatWindow(QWidget):
         if pres and pres.presence_type == 'available':
             if pres.login and pres.user_id:
                 self.cache.set_user_id(pres.login, pres.user_id)
+            if pres.user_id and pres.avatar:
+                self.cache.ensure_avatar(pres.user_id, pres.avatar, self.user_list_widget.on_avatar_updated)
+            elif pres.user_id and not pres.avatar:
+                self.cache.remove_avatar(pres.user_id)
             self.user_list_widget.add_users(presence=pres)
         elif pres and pres.presence_type == 'unavailable':
             self.user_list_widget.remove_users(presence=pres)

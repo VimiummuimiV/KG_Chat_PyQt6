@@ -405,6 +405,15 @@ class UserListWidget(QWidget):
         # Update section visibility after removing users
         QTimer.singleShot(10, self._update_section_visibility)
     
+    def on_avatar_updated(self, user_id: str, pixmap) -> None:
+        """Refresh avatar for matching user widget after disk update"""
+        for w in self.user_widgets.values():
+            try:
+                if w.user.user_id == user_id:
+                    w.avatar_label.setPixmap(make_rounded_pixmap(pixmap, w.AVATAR_SIZE, 8))
+            except RuntimeError:
+                pass
+
     def clear_all(self):
         """Clear all users and reset state"""
         for widget in list(self.user_widgets.values()):

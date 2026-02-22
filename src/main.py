@@ -569,7 +569,7 @@ class Application(QObject):
        
         # Clear avatar cache if changed
         if updated_account.get('avatar') != previous_avatar:
-            self.chat_window.cache._avatar_cache.pop(own_id, None)
+            self.chat_window.cache.remove_avatar(own_id)
        
         # Update userlist own user
         own_user = next(

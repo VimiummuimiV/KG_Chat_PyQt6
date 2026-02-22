@@ -1,28 +1,20 @@
 import requests
+from pathlib import Path
 from typing import Optional
 from PyQt6.QtGui import QPixmap, QPainter, QPainterPath
-from PyQt6.QtCore import QByteArray, Qt, QRectF
+from PyQt6.QtCore import Qt, QRectF
 
-# Load big user avatar from Klavogonki by user ID
-def load_avatar_by_id(user_id: str, timeout: int = 3) -> Optional[QPixmap]:
-    # Load user avatar from Klavogonki by user ID
-    if not user_id or not str(user_id).strip():
-        return None
-    
+def fetch_avatar_bytes(user_id: str, timeout: int = 3):
     try:
-        url = f"https://klavogonki.ru/storage/avatars/{user_id}_big.png"
-        response = requests.get(url, timeout=timeout)
-        
-        if response.status_code != 200:
-            return None
-        
-        pixmap = QPixmap()
-        pixmap.loadFromData(QByteArray(response.content))
-        
-        return pixmap if not pixmap.isNull() else None
-    except:
-        return None
+        r = requests.get(f"https://klavogonki.ru/storage/avatars/{user_id}_big.png", timeout=timeout)
+        return r.content if r.status_code == 200 else None
+    except: return None
 
+def load_avatar_from_disk(path) -> Optional[QPixmap]:
+    try:
+        px = QPixmap(); px.load(str(path))
+        return px if not px.isNull() else None
+    except: return None
 
 def make_rounded_pixmap(pixmap: QPixmap, size: int, radius: int = 10) -> QPixmap:
     # Create rounded rectangle pixmap with smooth scaling
@@ -51,8 +43,3 @@ def make_rounded_pixmap(pixmap: QPixmap, size: int, radius: int = 10) -> QPixmap
     painter.end()
     
     return output
-
-# Load username car color by user ID used for username color display
-def load_color_by_id(user_id):
-    url = f"https://klavogonki.ru/api/profile/get-summary?id={user_id}"
-    return requests.get(url).json()['car']['color']
