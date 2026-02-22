@@ -41,9 +41,20 @@ class CacheManager:
         return self._dir() / f"{user_id}_{updated}.png"
 
     @staticmethod
-    def _parse_avatar_stamps(avatar_path):
+    def _parse_stamp(avatar_path):
         m = re.search(r'updated=(\d+)', avatar_path or '')
         return m.group(1) if m else None
+
+    def _fetch_and_save(self, user_id: str, path, callback: Callable = None) -> None:
+        """Download avatar, save to path, prune stale files, fire callback"""
+        data = fetch_avatar_bytes(user_id)
+        if data:
+            path.write_bytes(data)
+            for f in self._dir().glob(f"{user_id}_*.png"):
+                if f != path: f.unlink(missing_ok=True)
+            if callback:
+                px = load_avatar_from_disk(path)
+                if px: callback(user_id, px)
 
     # ── Avatar API ──────────────────────────────────────────────────────────
 
@@ -55,7 +66,7 @@ class CacheManager:
     def ensure_avatar(self, user_id: str, avatar_path: str,
                       callback: Callable = None) -> None:
         """Called on presence: download if updated value changed, fire callback with new pixmap"""
-        updated = self._parse_avatar_stamps(avatar_path)
+        updated = self._parse_stamp(avatar_path)
         if not updated or not user_id:
             return
         with self._cache_lock:
@@ -68,15 +79,8 @@ class CacheManager:
                 if callback and prev != updated:
                     px = load_avatar_from_disk(path)
                     if px: callback(user_id, px)
-                return
-            data = fetch_avatar_bytes(user_id)
-            if data:
-                path.write_bytes(data)
-                for f in self._dir().glob(f"{user_id}_*.png"):
-                    if f != path: f.unlink(missing_ok=True)
-                if callback:
-                    px = load_avatar_from_disk(path)
-                    if px: callback(user_id, px)
+            else:
+                self._fetch_and_save(user_id, path, callback)
 
         self._avatar_executor.submit(_work)
 
@@ -95,14 +99,7 @@ class CacheManager:
                     with self._cache_lock:
                         self._avatar_stamps[user_id] = f.stem.split("_", 1)[1]
                     callback(user_id, px); return
-            data = fetch_avatar_bytes(user_id, timeout=timeout)
-            if data:
-                path = self._dir() / f"{user_id}_0.png"
-                path.write_bytes(data)
-                for f in self._dir().glob(f"{user_id}_*.png"):
-                    if f != path: f.unlink(missing_ok=True)
-                px = load_avatar_from_disk(path)
-                if px: callback(user_id, px)
+            self._fetch_and_save(user_id, self._dir() / f"{user_id}_0.png", callback)
 
         self._avatar_executor.submit(_work)
 
