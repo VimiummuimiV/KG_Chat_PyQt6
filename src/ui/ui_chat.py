@@ -1415,6 +1415,8 @@ class ChatWindow(QWidget):
         self.setWindowState(self.windowState() & ~Qt.WindowState.WindowMinimized | Qt.WindowState.WindowActive)
         self.activateWindow()
         self.raise_()
+        if self.stacked_widget.currentWidget() is not self.messages_widget:
+            self.show_messages_view()
 
     def _show_notification(self, msg, display_body, is_ban, is_system):
         """Show notification"""
