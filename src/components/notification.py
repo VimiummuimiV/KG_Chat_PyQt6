@@ -3,12 +3,13 @@ from dataclasses import dataclass
 from typing import List, Callable, Optional, Any, Tuple
 from PyQt6.QtWidgets import QWidget, QLabel, QVBoxLayout, QHBoxLayout, QLineEdit, QApplication
 from PyQt6.QtCore import Qt, QTimer, QPropertyAnimation, QRect, QSize
-from PyQt6.QtGui import QPainter, QPainterPath, QCursor
+from PyQt6.QtGui import QPainter, QPainterPath, QCursor, QPixmap
 from pathlib import Path
 from datetime import datetime
 import threading
 
-from helpers.create import create_icon_button, HoverIconButton
+from helpers.create import create_icon_button, HoverIconButton, _render_svg_icon
+from helpers.load import make_rounded_pixmap
 from helpers.fonts import get_font, FontType
 from ui.message_renderer import MessageRenderer
 from ui.ui_emoticon_selector import release_selector
@@ -179,6 +180,35 @@ class PopupNotification(QWidget):
         self.timestamp_label.setFont(get_font(FontType.TEXT))
         self.timestamp_label.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         
+        # Avatar label - shown before timestamp for non-system messages
+        AVATAR_SIZE = 36
+        SVG_AVATAR_SIZE = 24
+
+        self.avatar_label = QLabel()
+        self.avatar_label.setFixedSize(AVATAR_SIZE, AVATAR_SIZE)
+        self.avatar_label.setStyleSheet("background: transparent; border: none; padding: 0; margin: 0;")
+        self.avatar_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        if not data.is_system and data.cache:
+            user_id = data.cache.get_user_id(data.title)
+            if user_id:
+                cached_avatar = data.cache.get_avatar(user_id)
+                if cached_avatar:
+                    self.avatar_label.setPixmap(make_rounded_pixmap(cached_avatar, AVATAR_SIZE, 8))
+                else:
+                    self.avatar_label.setPixmap(
+                        _render_svg_icon(self.icons_path / "user.svg", SVG_AVATAR_SIZE)
+                        .pixmap(QSize(SVG_AVATAR_SIZE, SVG_AVATAR_SIZE))
+                    )
+                    data.cache.load_avatar_async(user_id, self._on_avatar_loaded)
+            else:
+                self.avatar_label.setPixmap(
+                    _render_svg_icon(self.icons_path / "user.svg", SVG_AVATAR_SIZE)
+                    .pixmap(QSize(SVG_AVATAR_SIZE, SVG_AVATAR_SIZE))
+                )
+
+        if not data.is_system:
+            top_row.addWidget(self.avatar_label, stretch=0)
+            top_row.addSpacing(self.spacing)
         top_row.addWidget(self.timestamp_label, stretch=0)
         if not data.is_system:
             top_row.addSpacing(self.spacing)
@@ -301,6 +331,14 @@ class PopupNotification(QWidget):
         QTimer.singleShot(0, self._animate_in)
         self._start_cursor_monitoring()
   
+    def _on_avatar_loaded(self, user_id: str, pixmap: QPixmap):
+        """Callback fired when avatar is loaded from disk or network"""
+        try:
+            if self.avatar_label:
+                self.avatar_label.setPixmap(make_rounded_pixmap(pixmap, 36, 8))
+        except RuntimeError:
+            pass  # Widget deleted before callback fired
+
     def paintEvent(self, event):
         """Custom paint for rounded corners"""
         painter = QPainter(self)
