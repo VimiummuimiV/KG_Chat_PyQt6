@@ -47,10 +47,16 @@ class UserWidget(QWidget):
             if cached_avatar:
                 self.avatar_label.setPixmap(make_rounded_pixmap(cached_avatar, self.AVATAR_SIZE, 8))
             else:
-                self.avatar_label.setPixmap(_render_svg_icon(icons_path / "user.svg", self.SVG_AVATAR_SIZE).pixmap(QSize(self.SVG_AVATAR_SIZE, self.SVG_AVATAR_SIZE)))
+                self.avatar_label.setPixmap(
+                    _render_svg_icon(icons_path / "user.svg", self.SVG_AVATAR_SIZE)
+                    .pixmap(QSize(self.SVG_AVATAR_SIZE, self.SVG_AVATAR_SIZE))
+                )
                 self.cache.load_avatar_async(user.user_id, self._on_avatar_loaded)
         else:
-            self.avatar_label.setPixmap(_render_svg_icon(icons_path / "user.svg", self.SVG_AVATAR_SIZE).pixmap(QSize(self.SVG_AVATAR_SIZE, self.SVG_AVATAR_SIZE)))
+            self.avatar_label.setPixmap(
+                _render_svg_icon(icons_path / "user.svg", self.SVG_AVATAR_SIZE)
+                .pixmap(QSize(self.SVG_AVATAR_SIZE, self.SVG_AVATAR_SIZE))
+            )
         
         layout.addWidget(self.avatar_label)
         

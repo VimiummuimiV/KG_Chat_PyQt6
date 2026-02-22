@@ -1002,7 +1002,6 @@ class ChatWindow(QWidget):
             self.chatlog_userlist_widget = ChatlogUserlistWidget(
                 self.config,
                 self.icons_path,
-                self.cache._color_cache,
                 self.ban_manager
             )
             self.chatlog_userlist_widget.filter_requested.connect(self._on_filter_requested)
@@ -1328,6 +1327,9 @@ class ChatWindow(QWidget):
             user_id, _ = extract_user_data_from_jid(getattr(msg, 'from_jid', None))
             if self._is_user_banned(user_id, msg.login):
                 return  # Silently drop banned user's messages
+            # Persist login → user_id mapping automatically
+            if user_id:
+                self.cache.set_user_id(msg.login, user_id)
 
         msg.is_private = (msg.msg_type == 'chat')
         

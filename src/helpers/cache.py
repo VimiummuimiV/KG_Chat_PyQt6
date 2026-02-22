@@ -1,5 +1,6 @@
 """Centralized cache system for avatars and colors"""
-import re, threading
+import re, json, threading
+from pathlib import Path
 from typing import Optional, Dict, Callable
 from concurrent.futures import ThreadPoolExecutor
 from PyQt6.QtGui import QPixmap
@@ -30,7 +31,14 @@ class CacheManager:
         self._user_id_cache: Dict[str, str] = {}  # login → user_id
         self._avatar_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="cache_avatar_loader")
         self._cache_lock = threading.Lock()
+        self.user_ids_path = Path(__file__).parent.parent / "settings" / "user_ids.json"
         self._initialized = True
+        try:
+            data = json.loads(self.user_ids_path.read_text(encoding='utf-8'))
+            if isinstance(data, dict):
+                self._user_id_cache = {str(k): str(v) for k, v in data.items()}
+        except Exception:
+            pass
 
     # ── internal helpers ────────────────────────────────────────────────────
 
@@ -131,14 +139,33 @@ class CacheManager:
     def clear_colors(self) -> None:
         with self._cache_lock: self._color_cache.clear()
 
-    # ── User ID Cache ────────────────────────────────────────────────────────
+    # ── User ID Cache ──────────────────────────────────────────────────────────
+
+    def _save_user_ids(self, snapshot: dict) -> None:
+        try:
+            self.user_ids_path.write_text(
+                json.dumps(snapshot, indent=2, ensure_ascii=False), encoding='utf-8'
+            )
+        except Exception as e:
+            print(f"Error saving user_ids.json: {e}")
 
     def get_user_id(self, login: str) -> Optional[str]:
         with self._cache_lock: return self._user_id_cache.get(login)
 
     def set_user_id(self, login: str, user_id: str) -> None:
-        if login and user_id:
-            with self._cache_lock: self._user_id_cache[str(login)] = str(user_id)
+        if not login or not user_id:
+            return
+        login, user_id = str(login), str(user_id)
+        with self._cache_lock:
+            if self._user_id_cache.get(login) == user_id:
+                return
+            # Remove stale entry if user renamed their login (user_id is permanent)
+            stale = [l for l, uid in self._user_id_cache.items() if uid == user_id and l != login]
+            for l in stale:
+                del self._user_id_cache[l]
+            self._user_id_cache[login] = user_id
+            snapshot = self._user_id_cache.copy()
+        self._avatar_executor.submit(self._save_user_ids, snapshot)
 
     # ── Misc ─────────────────────────────────────────────────────────────────
 

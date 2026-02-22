@@ -2,22 +2,28 @@
 from pathlib import Path
 from collections import Counter
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QScrollArea, QApplication
-from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtCore import Qt, QSize, pyqtSignal
 from PyQt6.QtGui import QFont, QCursor
 
-from helpers.create import create_icon_button
+from helpers.create import create_icon_button, _render_svg_icon
+from helpers.load import make_rounded_pixmap
+from helpers.cache import get_cache
 from helpers.fonts import get_font, FontType
 
 
 class ChatlogUserWidget(QWidget):
     """Single user widget for chatlog"""
-    
+    AVATAR_SIZE = 36
+    SVG_AVATAR_SIZE = 24
+
     clicked = pyqtSignal(str, bool)  # username, ctrl_pressed
     
-    def __init__(self, username, msg_count, config):
+    def __init__(self, username, msg_count, config, icons_path, user_id=None):
         super().__init__()
         self.username = username
+        self.user_id = user_id
         self.is_filtered = False
+        self._cache = get_cache()
         
         layout = QHBoxLayout()
         layout.setContentsMargins(2, 0, 2, 0)
@@ -25,6 +31,32 @@ class ChatlogUserWidget(QWidget):
         self.setLayout(layout)
         
         self.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+
+        # Avatar
+        self.avatar_label = QLabel()
+        self.avatar_label.setFixedSize(self.AVATAR_SIZE, self.AVATAR_SIZE)
+        self.avatar_label.setStyleSheet("background: transparent; border: none; padding: 0; margin: 0;")
+        self.avatar_label.setScaledContents(False)
+        self.avatar_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        if user_id:
+            cached_avatar = self._cache.get_avatar(user_id)
+            if cached_avatar:
+                self.avatar_label.setPixmap(make_rounded_pixmap(cached_avatar, self.AVATAR_SIZE, 8))
+            else:
+                self.avatar_label.setPixmap(
+                    _render_svg_icon(icons_path / "user.svg", self.SVG_AVATAR_SIZE)
+                    .pixmap(QSize(self.SVG_AVATAR_SIZE, self.SVG_AVATAR_SIZE))
+                )
+                # Stamp not populated yet — scan disk (glob) then network as last resort
+                self._cache.load_avatar_async(user_id, self._on_avatar_loaded)
+        else:
+            self.avatar_label.setPixmap(
+                _render_svg_icon(icons_path / "user.svg", self.SVG_AVATAR_SIZE)
+                .pixmap(QSize(self.SVG_AVATAR_SIZE, self.SVG_AVATAR_SIZE))
+            )
+
+        layout.addWidget(self.avatar_label)
         
         # Username - use theme-dependent color
         is_dark = config.get("ui", "theme") == "dark"
@@ -45,6 +77,14 @@ class ChatlogUserWidget(QWidget):
         """Update colors without rebuilding widget"""
         self.username_label.setStyleSheet(f"color: {color};")
         self.count_label.setStyleSheet(f"color: {color};")
+
+    def _on_avatar_loaded(self, user_id: str, pixmap):
+        """Callback fired by load_avatar_async when disk file is found"""
+        try:
+            if user_id == self.user_id and self.avatar_label:
+                self.avatar_label.setPixmap(make_rounded_pixmap(pixmap, self.AVATAR_SIZE, 8))
+        except RuntimeError:
+            pass
     
     def set_filtered(self, filtered: bool):
         """Update visual state when filtered"""
@@ -66,11 +106,11 @@ class ChatlogUserlistWidget(QWidget):
     
     filter_requested = pyqtSignal(set)  # Emit set of usernames to filter
     
-    def __init__(self, config, icons_path, color_cache, ban_manager=None):
+    def __init__(self, config, icons_path, ban_manager=None):
         super().__init__()
         self.config = config
         self.icons_path = icons_path
-        self.color_cache = color_cache
+        self.cache = get_cache()
         self.ban_manager = ban_manager
         self.show_banned = False  # Track if we should show banned users
         self.user_widgets = {}  # username -> widget
@@ -161,7 +201,7 @@ class ChatlogUserlistWidget(QWidget):
             widget.set_filtered(uname in filtered_usernames)
         self.clear_filter_btn.setVisible(bool(filtered_usernames))
     
-    def load_from_messages(self, messages, user_id_resolver=None):
+    def load_from_messages(self, messages):
         """Load users from chatlog messages with ban filtering"""
         self._clear_widgets()
         
@@ -195,7 +235,8 @@ class ChatlogUserlistWidget(QWidget):
         # Create widgets - all users shown here are NOT banned (or we're in parse mode)
         for username, count in sorted_users:
             try:
-                widget = ChatlogUserWidget(username, count, self.config)
+                user_id = self.cache.get_user_id(username)
+                widget = ChatlogUserWidget(username, count, self.config, self.icons_path, user_id)
                 widget.clicked.connect(self._handle_user_click)
                 widget.set_filtered(username in self.filtered_usernames)
                 self.user_widgets[username] = widget
