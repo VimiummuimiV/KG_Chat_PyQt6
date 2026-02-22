@@ -809,9 +809,6 @@ class ChatWindow(QWidget):
 
     def enter_private_mode(self, jid: str, username: str, user_id: str):
         """Enter private chat mode with a user"""
-        # If switching to a different user, clear previous private messages
-        if self.private_mode and self.private_chat_jid != jid:
-            self._clear_private_messages()
     
         self.private_mode = True
         # Prefer explicit private recipient JID (user_id#username@domain/web) for private messages
@@ -854,8 +851,8 @@ class ChatWindow(QWidget):
         # Update UI
         self._update_input_style()
 
-        # Focus input for immediate typing
-        self.input_field.setFocus()
+        # Focus input for immediate typing — deferred so userlist click doesn't steal it back
+        QTimer.singleShot(0, self.input_field.setFocus)
     
         # Update window title
         base = f"Chat - {self.account['chat_username']}" if self.account else "Chat"
@@ -2191,10 +2188,15 @@ class ChatWindow(QWidget):
             cw = self.chatlog_widget
             if cw and self.stacked_widget.currentWidget() == cw:
                 cw._show_calendar()
-        # Exit private mode (X)
+        # Exit private mode / clear private messages / clear new messages marker (X)
         elif vk == 'exit_private':
             if self.private_mode:
                 self.exit_private_mode()
+            else:
+                self._clear_private_messages()
+            if self.has_new_messages_marker:
+                NewMessagesSeparator.remove_from_model(self.messages_widget.model)
+                self.has_new_messages_marker = False
 
     def keyReleaseEvent(self, event):
         if event.isAutoRepeat():
