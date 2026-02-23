@@ -49,7 +49,6 @@ class ChatlogUserWidget(QWidget):
                     _render_svg_icon(icons_path / "user.svg", self.SVG_AVATAR_SIZE)
                     .pixmap(QSize(self.SVG_AVATAR_SIZE, self.SVG_AVATAR_SIZE))
                 )
-                # Stamp not populated yet — scan disk (glob) then network as last resort
                 self._cache.load_avatar_async(user_id, self._on_avatar_loaded)
         else:
             self.avatar_label.setPixmap(
@@ -59,24 +58,23 @@ class ChatlogUserWidget(QWidget):
 
         layout.addWidget(self.avatar_label)
         
-        # Username - use theme-dependent color
         is_dark = config.get("ui", "theme") == "dark"
-        text_color = "#CCCCCC" if is_dark else "#666666"
+        text_color = self._cache.get_username_color(username, is_dark)
         
         self.username_label = QLabel(username)
         self.username_label.setStyleSheet(f"color: {text_color};")
         self.username_label.setFont(get_font(FontType.TEXT))
         layout.addWidget(self.username_label, stretch=1)
         
-        # Message count
+        # Message count - use neutral theme color (not username color)
+        count_color = "#CCCCCC" if is_dark else "#666666"
         self.count_label = QLabel(f"{msg_count}")
         self.count_label.setFont(get_font(FontType.TEXT))
-        self.count_label.setStyleSheet(f"color: {text_color};")
+        self.count_label.setStyleSheet(f"color: {count_color};")
         layout.addWidget(self.count_label)
     
     def update_color(self, color: str):
-        """Update colors without rebuilding widget"""
-        self.username_label.setStyleSheet(f"color: {color};")
+        """Update count label color (neutral theme color); username re-reads from cache."""
         self.count_label.setStyleSheet(f"color: {color};")
 
     def _on_avatar_loaded(self, user_id: str, pixmap):
@@ -253,12 +251,15 @@ class ChatlogUserlistWidget(QWidget):
     def update_theme(self):
         """Update colors based on theme"""
         is_dark = self.config.get("ui", "theme") == "dark"
-        new_color = "#CCCCCC" if is_dark else "#666666"
+        neutral_color = "#CCCCCC" if is_dark else "#666666"
         
         self.setUpdatesEnabled(False)
         for username, widget in list(self.user_widgets.items()):
             try:
-                widget.update_color(new_color)
+                # Username gets its own precomputed color; count gets neutral theme color
+                username_color = self.cache.get_username_color(username, is_dark)
+                widget.username_label.setStyleSheet(f"color: {username_color};")
+                widget.update_color(neutral_color)
             except (RuntimeError, AttributeError):
                 pass
         self.setUpdatesEnabled(True)

@@ -1326,7 +1326,7 @@ class ChatWindow(QWidget):
                 return  # Silently drop banned user's messages
             # Persist login → user_id mapping automatically
             if user_id:
-                self.cache.set_user_id(msg.login, user_id)
+                self.cache.update_user(user_id, msg.login)
 
         msg.is_private = (msg.msg_type == 'chat')
         
@@ -1485,7 +1485,7 @@ class ChatWindow(QWidget):
     
         if pres and pres.presence_type == 'available':
             if pres.login and pres.user_id:
-                self.cache.set_user_id(pres.login, pres.user_id)
+                self.cache.update_user(pres.user_id, pres.login, pres.background)
             if pres.user_id and pres.avatar:
                 self.cache.ensure_avatar(pres.user_id, pres.avatar, self.user_list_widget.on_avatar_updated)
             elif pres.user_id and not pres.avatar:
@@ -1850,7 +1850,7 @@ class ChatWindow(QWidget):
         def _fetch():
             uid = get_exact_user_id_by_name(username)
             if uid:
-                self.cache.set_user_id(username, str(uid))
+                self.cache.update_user(str(uid), username)
                 self._dispatch.emit(lambda: callback('', username, str(uid)))
         threading.Thread(target=_fetch, daemon=True).start()
 
@@ -2218,9 +2218,6 @@ class ChatWindow(QWidget):
          
             # Update theme button icon via button panel
             self.button_panel.update_theme_button_icon()
-         
-            # Clear cache so colors get recalculated
-            self.cache.clear_colors()
          
             # Update input styling for theme
             self._update_input_style()

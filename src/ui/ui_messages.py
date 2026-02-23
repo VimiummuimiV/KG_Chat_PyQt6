@@ -1,4 +1,3 @@
-
 """Messages display widget"""
 from datetime import datetime
 
@@ -28,7 +27,7 @@ class MessagesWidget(QWidget):
         self.emoticon_manager = emoticon_manager
        
         self.model = MessageListModel(max_messages=1000)
-        self.delegate = MessageDelegate(config, self.emoticon_manager, self.cache._color_cache)
+        self.delegate = MessageDelegate(config, self.emoticon_manager)
         
         if my_username:
             self.delegate.set_my_username(my_username)
@@ -129,10 +128,6 @@ class MessagesWidget(QWidget):
         if self.delegate:
             self.delegate.set_my_username(username)
 
-    def set_color_cache(self, cache: dict):
-        """Update delegate's color cache reference"""
-        self.delegate.color_cache = cache
-    
     def set_input_field(self, input_field):
         """Set input field reference for delegate"""
         self.delegate.set_input_field(input_field)
@@ -178,13 +173,10 @@ class MessagesWidget(QWidget):
         self.scroll_button = ScrollToBottomButton(self.list_view, parent=self)
    
     def add_message(self, msg):
-        # Update centralized color cache if background color is available
         if msg.login and getattr(msg, 'background', None):
-            # Get current theme
-            theme = self.config.get("ui", "theme")
-            bg_hex = "#1E1E1E" if theme == "dark" else "#FFFFFF"
-            # Calculate optimized color and store it
-            optimized_color = self.cache.get_or_calculate_color(msg.login, msg.background, bg_hex, 4.5)
+            user_id = self.cache.get_user_id(msg.login)
+            if user_id:
+                self.cache.update_user(user_id, msg.login, msg.background)
        
         msg_data = MessageData(
             getattr(msg, 'timestamp', None) or datetime.now(),

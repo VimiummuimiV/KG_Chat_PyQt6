@@ -23,7 +23,7 @@ class UserWidget(QWidget):
     profile_requested = pyqtSignal(str, str, str)  # jid, username, user_id
     private_chat_requested = pyqtSignal(str, str, str)  # jid, username, user_id
     
-    def __init__(self, user, bg_hex, config, icons_path, is_dark_theme, counter=None):
+    def __init__(self, user, config, icons_path, is_dark_theme, counter=None):
         super().__init__()
         self.user = user
         self.cache = get_cache()
@@ -61,8 +61,11 @@ class UserWidget(QWidget):
         
         layout.addWidget(self.avatar_label)
         
-        # Username with counter and moderator icon inline
-        text_color = self.cache.get_or_calculate_color(user.login, user.background, bg_hex, 4.5)
+        if user.background:
+            self.cache.update_user(user.user_id, user.login, user.background)
+        elif user.user_id:
+            self.cache.update_user(user.user_id, user.login)
+        text_color = self.cache.get_username_color(user.login, is_dark_theme)
         
         self.username_label = QLabel()
         self.username_label.setFont(get_font(FontType.TEXT))
@@ -316,7 +319,7 @@ class UserListWidget(QWidget):
             # Add to chat
             for user in in_chat:
                 try:
-                    widget = UserWidget(user, self.bg_hex, self.config, self.icons_path, self.is_dark_theme)
+                    widget = UserWidget(user, self.config, self.icons_path, self.is_dark_theme)
                     widget.profile_requested.connect(self.profile_requested.emit)
                     widget.private_chat_requested.connect(self.private_chat_requested.emit)
                     self.chat_container.addWidget(widget)
@@ -328,7 +331,7 @@ class UserListWidget(QWidget):
             for user in in_game:
                 try:
                     counter = self.user_game_state.get(user.login, {}).get('counter', 1)
-                    widget = UserWidget(user, self.bg_hex, self.config, self.icons_path, self.is_dark_theme, counter)
+                    widget = UserWidget(user, self.config, self.icons_path, self.is_dark_theme, counter)
                     widget.profile_requested.connect(self.profile_requested.emit)
                     widget.private_chat_requested.connect(self.private_chat_requested.emit)
                     self.game_container.addWidget(widget)
@@ -357,7 +360,7 @@ class UserListWidget(QWidget):
             
             # Create widget
             try:
-                widget = UserWidget(user, self.bg_hex, self.config, self.icons_path, self.is_dark_theme, counter)
+                widget = UserWidget(user, self.config, self.icons_path, self.is_dark_theme, counter)
                 widget.profile_requested.connect(self.profile_requested.emit)
                 widget.private_chat_requested.connect(self.private_chat_requested.emit)
                 self.user_widgets[user.jid] = widget
@@ -451,15 +454,10 @@ class UserListWidget(QWidget):
         self.bg_hex = "#1E1E1E" if theme == "dark" else "#FFFFFF"
         self.is_dark_theme = theme == "dark"
         
-        # Clear color cache on theme change
-        self.cache.clear_colors()
-        
         self.setUpdatesEnabled(False)
-        for jid, widget in list(self.user_widgets.items()):
+        for widget in list(self.user_widgets.values()):
             try:
-                username = widget.user.login
-                background = widget.user.background
-                new_color = self.cache.get_or_calculate_color(username, background, self.bg_hex, 4.5)
+                new_color = self.cache.get_username_color(widget.user.login, self.is_dark_theme)
                 widget.update_color(new_color)
             except (RuntimeError, AttributeError):
                 pass

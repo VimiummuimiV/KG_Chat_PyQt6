@@ -52,7 +52,6 @@ class ChatlogWidget(QWidget):
         self.ban_manager = ban_manager
         self.parser = ChatlogsParser()
         self.current_date = datetime.now().date()
-        self.color_cache = {}
         self.filtered_usernames = set()
         self.search_text = ""
         self.filter_mentions = False 
@@ -67,7 +66,7 @@ class ChatlogWidget(QWidget):
             self.search_visible = False
 
         self.model = MessageListModel(max_messages=50000)
-        self.delegate = MessageDelegate(config, self.emoticon_manager, self.color_cache)
+        self.delegate = MessageDelegate(config, self.emoticon_manager)
         
         # Set username for mention highlighting if account is available
         if account and account.get('chat_username'):
@@ -707,7 +706,6 @@ class ChatlogWidget(QWidget):
 
     def update_theme(self):
         self.delegate.update_theme()
-        self.color_cache.clear()
         self._force_recalculate()
 
     def _force_recalculate(self):

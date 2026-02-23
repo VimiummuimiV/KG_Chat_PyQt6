@@ -140,7 +140,6 @@ class PopupNotification(QWidget):
       
         # Determine theme
         is_dark = data.config.get("ui", "theme") == "dark" if data.config else True
-        bg_hex = "#1E1E1E" if is_dark else "#FFFFFF"
         
         # Initialize MessageRenderer
         self.message_renderer = MessageRenderer(
@@ -166,7 +165,7 @@ class PopupNotification(QWidget):
         top_row.setContentsMargins(0, 0, 0, 0)
       
         # Username label (left side) - hide for system messages
-        username_color = data.cache.get_or_calculate_color(data.title, None, bg_hex, 4.5) if data.cache else "#AAAAAA"
+        username_color = data.cache.get_username_color(data.title, is_dark) if data.cache else "#AAAAAA"
         self.username_label = QLabel(f"<b>{data.title}</b>")
         self.username_label.setStyleSheet(f"color: {username_color};")
         self.username_label.setFont(get_font(FontType.TEXT))

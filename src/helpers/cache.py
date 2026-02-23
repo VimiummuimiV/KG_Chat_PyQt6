@@ -1,4 +1,4 @@
-"""Centralized cache system for avatars and colors"""
+"""Centralized cache system for avatars and user data"""
 import re, json, threading
 from pathlib import Path
 from typing import Optional, Dict, Callable
@@ -10,10 +10,20 @@ from helpers.color_contrast import optimize_color_contrast
 
 
 class CacheManager:
-    """Thread-safe singleton cache manager for avatars and colors"""
+    """Thread-safe singleton cache manager for avatars and user data.
+
+    Persistent store: settings/data.json  —  keyed by user_id (permanent).
+    Schema per entry: { login, background?, light?, dark? }
+
+    Rules on upsert (update_user):
+      • Same user_id, new login   → rename; stale reverse-index entry removed.
+      • Same user_id, new bg      → recompute both-theme colors.
+      • No change at all          → no-op (no disk write).
+    """
 
     _instance = None
     _lock = threading.Lock()
+    _BG_HEX = {"dark": "#1E1E1E", "light": "#FFFFFF"}
 
     def __new__(cls):
         if cls._instance is None:
@@ -26,21 +36,81 @@ class CacheManager:
     def __init__(self):
         if self._initialized:
             return
-        self._avatar_stamps: Dict[str, str] = {}   # user_id → updated timestamp
-        self._color_cache: Dict[str, str] = {}
-        self._user_id_cache: Dict[str, str] = {}  # login → user_id
+        self._avatar_stamps: Dict[str, str] = {}  # user_id → updated timestamp
+        self._data: Dict[str, Dict] = {}          # user_id → {login, background?, light?, dark?}
         self._avatar_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="cache_avatar_loader")
         self._cache_lock = threading.Lock()
-        self.user_ids_path = Path(__file__).parent.parent / "settings" / "user_ids.json"
+        self._data_path = Path(__file__).parent.parent / "settings" / "data.json"
         self._initialized = True
+        self._load_data()
+
+    # ── persistence ──────────────────────────────────────────────────────────
+
+    def _load_data(self) -> None:
         try:
-            data = json.loads(self.user_ids_path.read_text(encoding='utf-8'))
-            if isinstance(data, dict):
-                self._user_id_cache = {str(k): str(v) for k, v in data.items()}
+            raw = json.loads(self._data_path.read_text(encoding='utf-8'))
+            if isinstance(raw, dict):
+                for uid, entry in raw.items():
+                    if isinstance(entry, dict) and entry.get('login'):
+                        self._data[str(uid)] = entry
         except Exception:
             pass
 
-    # ── internal helpers ────────────────────────────────────────────────────
+    def _save_data(self, snapshot: dict) -> None:
+        try:
+            lines = ',\n'.join(
+                f'  {json.dumps(uid)}: {json.dumps(entry, ensure_ascii=False)}'
+                for uid, entry in snapshot.items()
+            )
+            self._data_path.write_text(f'{{\n{lines}\n}}', encoding='utf-8')
+        except Exception as e:
+            print(f"Error saving data.json: {e}")
+
+    # ── User data API ─────────────────────────────────────────────────────────
+
+    def update_user(self, user_id: str, login: str, background: str = None) -> None:
+        """Upsert user entry. Corrects stale login, recomputes colors if background changed."""
+        if not user_id or not login:
+            return
+        user_id, login = str(user_id), str(login)
+        with self._cache_lock:
+            entry = dict(self._data.get(user_id, {}))
+            changed = False
+
+            if entry.get('login') != login:
+                entry['login'] = login
+                changed = True
+
+            if background and entry.get('background') != background:
+                entry['background'] = background
+                entry['light'] = optimize_color_contrast(background, self._BG_HEX['light'], 4.5)
+                entry['dark']  = optimize_color_contrast(background, self._BG_HEX['dark'],  4.5)
+                changed = True
+
+            if not changed:
+                return
+            self._data[user_id] = entry
+            snapshot = self._data.copy()
+        self._avatar_executor.submit(self._save_data, snapshot)
+
+    def get_user_id(self, login: str) -> Optional[str]:
+        with self._cache_lock:
+            for uid, entry in self._data.items():
+                if entry.get('login') == login:
+                    return uid
+        return None
+
+    def get_username_color(self, login: str, is_dark: bool) -> str:
+        """Return precomputed color for login, or theme default if unknown."""
+        with self._cache_lock:
+            for entry in self._data.values():
+                if entry.get('login') == login:
+                    if entry.get('dark'):
+                        return entry['dark'] if is_dark else entry['light']
+                    break
+        return '#CCCCCC' if is_dark else '#666666'
+
+    # ── Avatar API ────────────────────────────────────────────────────────────
 
     def _dir(self):
         return get_data_dir("avatars")
@@ -54,7 +124,6 @@ class CacheManager:
         return m.group(1) if m else None
 
     def _fetch_and_save(self, user_id: str, path, callback: Callable = None) -> None:
-        """Download avatar, save to path, prune stale files, fire callback"""
         data = fetch_avatar_bytes(user_id)
         if data:
             path.write_bytes(data)
@@ -64,16 +133,11 @@ class CacheManager:
                 px = load_avatar_from_disk(path)
                 if px: callback(user_id, px)
 
-    # ── Avatar API ──────────────────────────────────────────────────────────
-
     def get_avatar(self, user_id: str) -> Optional[QPixmap]:
-        """Return cached avatar from disk (no network)"""
         upd = self._avatar_stamps.get(user_id)
         return load_avatar_from_disk(self._path(user_id, upd)) if upd else None
 
-    def ensure_avatar(self, user_id: str, avatar_path: str,
-                      callback: Callable = None) -> None:
-        """Called on presence: download if updated value changed, fire callback with new pixmap"""
+    def ensure_avatar(self, user_id: str, avatar_path: str, callback: Callable = None) -> None:
         updated = self._parse_stamp(avatar_path)
         if not updated or not user_id:
             return
@@ -92,15 +156,13 @@ class CacheManager:
 
         self._avatar_executor.submit(_work)
 
-    def load_avatar_async(self, user_id: str, callback: Callable,
-                          timeout: int = 2) -> None:
-        """Disk-first async load; falls back to network only if no file found"""
+    def load_avatar_async(self, user_id: str, callback: Callable, timeout: int = 2) -> None:
         def _work():
             upd = self._avatar_stamps.get(user_id)
             if upd:
                 px = load_avatar_from_disk(self._path(user_id, upd))
                 if px: callback(user_id, px)
-                return  # file pending download → ensure_avatar callback will fire
+                return
             for f in self._dir().glob(f"{user_id}_*.png"):
                 px = load_avatar_from_disk(f)
                 if px:
@@ -115,62 +177,14 @@ class CacheManager:
         with self._cache_lock: self._avatar_stamps.clear()
 
     def remove_avatar(self, user_id: str) -> None:
-        """Delete disk files and mapping when user has no avatar"""
         with self._cache_lock: self._avatar_stamps.pop(user_id, None)
         for f in self._dir().glob(f"{user_id}_*.png"):
             f.unlink(missing_ok=True)
 
-    # ── Color Cache ─────────────────────────────────────────────────────────
-
-    def get_color(self, username: str) -> Optional[str]:
-        with self._cache_lock: return self._color_cache.get(username)
-
-    def set_color(self, username: str, color: str) -> None:
-        with self._cache_lock: self._color_cache[username] = color
-
-    def get_or_calculate_color(self, username: str, background: Optional[str],
-                               bg_hex: str, contrast: float = 4.5) -> str:
-        cached = self.get_color(username)
-        if cached: return cached
-        color = optimize_color_contrast(background, bg_hex, contrast) if background else "#AAAAAA"
-        self.set_color(username, color)
-        return color
-
-    def clear_colors(self) -> None:
-        with self._cache_lock: self._color_cache.clear()
-
-    # ── User ID Cache ──────────────────────────────────────────────────────────
-
-    def _save_user_ids(self, snapshot: dict) -> None:
-        try:
-            self.user_ids_path.write_text(
-                json.dumps(snapshot, indent=2, ensure_ascii=False), encoding='utf-8'
-            )
-        except Exception as e:
-            print(f"Error saving user_ids.json: {e}")
-
-    def get_user_id(self, login: str) -> Optional[str]:
-        with self._cache_lock: return self._user_id_cache.get(login)
-
-    def set_user_id(self, login: str, user_id: str) -> None:
-        if not login or not user_id:
-            return
-        login, user_id = str(login), str(user_id)
-        with self._cache_lock:
-            if self._user_id_cache.get(login) == user_id:
-                return
-            # Remove stale entry if user renamed their login (user_id is permanent)
-            stale = [l for l, uid in self._user_id_cache.items() if uid == user_id and l != login]
-            for l in stale:
-                del self._user_id_cache[l]
-            self._user_id_cache[login] = user_id
-            snapshot = self._user_id_cache.copy()
-        self._avatar_executor.submit(self._save_user_ids, snapshot)
-
-    # ── Misc ─────────────────────────────────────────────────────────────────
+    # ── Misc ──────────────────────────────────────────────────────────────────
 
     def clear_all(self) -> None:
-        self.clear_avatars(); self.clear_colors()
+        self.clear_avatars()
 
     def shutdown(self) -> None:
         if hasattr(self, '_avatar_executor'):

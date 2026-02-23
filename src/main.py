@@ -564,8 +564,8 @@ class Application(QObject):
         own_login = updated_account['chat_username']
         own_id = updated_account['user_id']
        
-        # Clear color cache
-        self.chat_window.cache.clear_colors()
+        # Update own color in cache
+        self.chat_window.cache.update_user(own_id, own_login, effective_bg)
        
         # Clear avatar cache if changed
         if updated_account.get('avatar') != previous_avatar:

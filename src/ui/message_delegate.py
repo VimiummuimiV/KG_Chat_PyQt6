@@ -11,6 +11,7 @@ from components.messages_separator import NewMessagesSeparator, ChatlogDateSepar
 from helpers.emoticons import EmoticonManager
 from helpers.fonts import get_font, FontType
 from helpers.me_action import format_me_action
+from helpers.cache import get_cache
 from ui.message_renderer import MessageRenderer
 
 
@@ -24,13 +25,11 @@ class MessageDelegate(QStyledItemDelegate):
         self,
         config,
         emoticon_manager: EmoticonManager,
-        color_cache: Dict[str, str],
         parent=None
         ):
         super().__init__(parent)
         self.config = config
         self.emoticon_manager = emoticon_manager
-        self.color_cache = color_cache
      
         theme = config.get("ui", "theme") or "dark"
         self.is_dark_theme = (theme == "dark")
@@ -104,11 +103,8 @@ class MessageDelegate(QStyledItemDelegate):
         theme = self.config.get("ui", "theme") or "dark"
         self.is_dark_theme = (theme == "dark")
         self.bg_hex = "#1E1E1E" if theme == "dark" else "#FFFFFF"
-        
         if self.message_renderer:
             self.message_renderer.update_theme(self.is_dark_theme)
-        
-        self.color_cache.clear()
  
     def set_compact_mode(self, compact: bool):
         if self.compact_mode != compact:
@@ -408,12 +404,10 @@ class MessageDelegate(QStyledItemDelegate):
         return super().editorEvent(event, model, option, index)
  
     def _get_username_color(self, username: str, background: Optional[str]) -> str:
-        if username not in self.color_cache:
-            if not background:
-                self.color_cache[username] = "#CCCCCC" if self.is_dark_theme else "#666666"
-            else:
-                self.color_cache[username] = optimize_color_contrast(background, self.bg_hex, 4.5)
-        return self.color_cache[username]
+        cache = get_cache()
+        # Background is stored by ui_userlist/ui_messages which have user_id context.
+        # Delegate only reads the precomputed color.
+        return cache.get_username_color(username, self.is_dark_theme)
  
     def _update_animations(self):
         if not self.animated_rows or not self.message_renderer:
