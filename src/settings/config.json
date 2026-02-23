@@ -29,7 +29,7 @@
     "chatlog_userlist_visible": true,
     "chatlog_search_visible": false,
     "theme": "dark",
-    "notification_width": 500,
+    "notification_width": 550,
     "notification_position": "right",
     "emoticon_max_size": 140,
     "scroll_button_threshold": 100,
@@ -81,6 +81,8 @@
     "emoticon_selector_visible": false,
     "always_on_top": false,
     "recent_emoticons": [
+      "vpered",
+      "firework",
       "christmasevil",
       "confuse",
       "armyscare",
@@ -88,7 +90,6 @@
       "clapping",
       "bye",
       "dandy",
-      "firework",
       "uzi",
       "barret",
       "prival",
@@ -96,7 +97,6 @@
       "heartcake",
       "boystroking",
       "snowhand",
-      "vpered",
       "wine",
       "moose",
       "serenade",
@@ -123,7 +123,17 @@
         "x": 1921,
         "y": 0
       }
-    ]
+    ],
+    "emoticon_last_group": "recent",
+    "emoticon_nav_positions": {
+      "recent": 0,
+      "army": 0,
+      "boys": 0,
+      "christmas": 0,
+      "girls": 0,
+      "halloween": 0,
+      "inlove": 0
+    }
   },
   "sound": {
     "tts_enabled": false,
