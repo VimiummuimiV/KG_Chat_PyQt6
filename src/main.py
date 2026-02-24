@@ -644,7 +644,7 @@ class Application(QObject):
         except Exception as e:
             print(f"⚠️ Failed to register global hotkey: {e}")
             return False
-    
+
     def _on_key_press(self, event):
         """Handle Win/Cmd + C hotkey"""
         if event.name.lower() != 'c':
@@ -653,7 +653,7 @@ class Application(QObject):
         try:
             # Platform-specific modifier check with Windows API for reliability
             if sys.platform == 'win32':
-                if not keyboard.is_pressed('windows') or any((ctypes.windll.user32.GetKeyState(vk) & 0x8000) for vk in [0x12, 0x11, 0x10]):
+                if not keyboard.is_pressed('windows') or any((ctypes.windll.user32.GetAsyncKeyState(vk) & 0x8000) for vk in [0x12, 0x11, 0x10]):
                     return
             else:
                 mod = 'command' if sys.platform == 'darwin' else 'super'
