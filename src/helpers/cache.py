@@ -110,6 +110,10 @@ class CacheManager:
                     break
         return '#CCCCCC' if is_dark else '#666666'
 
+    def has_user(self, user_id: str) -> bool:
+        """Return True if user_id is present in the persistent data store."""
+        return bool(user_id) and user_id in self._data
+
     # ── Avatar API ────────────────────────────────────────────────────────────
 
     def _dir(self):

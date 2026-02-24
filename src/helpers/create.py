@@ -10,6 +10,11 @@ from PyQt6 import sip
 _icon_registry = []
 _is_dark_theme = True
 
+# Theme accent colors
+_COLOR_DARK  = "#e28743"
+_COLOR_LIGHT = "#154c79"
+_COLOR_GRAY  = "#888888"
+
 
 def set_theme(is_dark: bool):
     """Set current theme state"""
@@ -17,15 +22,20 @@ def set_theme(is_dark: bool):
     _is_dark_theme = is_dark
 
 
-def _render_svg_icon(svg_file: Path, icon_size: int):
-    """Render SVG file to QIcon with current theme color"""
+def get_user_svg_color(is_known: bool, is_dark: bool) -> str:
+    """SVG icon color: theme accent for known users, gray for unknown."""
+    return (_COLOR_DARK if is_dark else _COLOR_LIGHT) if is_known else _COLOR_GRAY
+
+
+def _render_svg_icon(svg_file: Path, icon_size: int, color: str = None):
+    """Render SVG file to QIcon with given or current-theme color"""
     if not svg_file.exists():
         return QIcon()
    
     with open(svg_file, 'r') as f:
         svg = f.read()
    
-    color = "#e28743" if _is_dark_theme else "#154c79"
+    color = color or (_COLOR_DARK if _is_dark_theme else _COLOR_LIGHT)
     svg = svg.replace('fill="currentColor"', f'fill="{color}"')
    
     renderer = QSvgRenderer()

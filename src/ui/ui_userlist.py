@@ -8,7 +8,7 @@ from PyQt6.QtGui import QCursor, QPixmap, QFont
 
 
 from helpers.load import make_rounded_pixmap
-from helpers.create import _render_svg_icon
+from helpers.create import _render_svg_icon, get_user_svg_color
 from helpers.cache import get_cache
 from helpers.fonts import get_font, FontType
 from helpers.auto_scroll import AutoScroller
@@ -43,19 +43,20 @@ class UserWidget(QWidget):
         self.avatar_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         
         # Load avatar from cache
+        svg_color = get_user_svg_color(self.cache.has_user(user.user_id), is_dark_theme)
         if user.user_id:
             cached_avatar = self.cache.get_avatar(user.user_id)
             if cached_avatar:
                 self.avatar_label.setPixmap(make_rounded_pixmap(cached_avatar, self.AVATAR_SIZE, 8))
             else:
                 self.avatar_label.setPixmap(
-                    _render_svg_icon(icons_path / "user.svg", self.SVG_AVATAR_SIZE)
+                    _render_svg_icon(icons_path / "user.svg", self.SVG_AVATAR_SIZE, svg_color)
                     .pixmap(QSize(self.SVG_AVATAR_SIZE, self.SVG_AVATAR_SIZE))
                 )
                 self.cache.load_avatar_async(user.user_id, self._on_avatar_loaded)
         else:
             self.avatar_label.setPixmap(
-                _render_svg_icon(icons_path / "user.svg", self.SVG_AVATAR_SIZE)
+                _render_svg_icon(icons_path / "user.svg", self.SVG_AVATAR_SIZE, svg_color)
                 .pixmap(QSize(self.SVG_AVATAR_SIZE, self.SVG_AVATAR_SIZE))
             )
         

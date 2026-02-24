@@ -5,7 +5,7 @@ from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QScrollAr
 from PyQt6.QtCore import Qt, QSize, pyqtSignal
 from PyQt6.QtGui import QFont, QCursor
 
-from helpers.create import create_icon_button, _render_svg_icon
+from helpers.create import create_icon_button, _render_svg_icon, get_user_svg_color
 from helpers.load import make_rounded_pixmap
 from helpers.cache import get_cache
 from helpers.fonts import get_font, FontType
@@ -40,25 +40,27 @@ class ChatlogUserWidget(QWidget):
         self.avatar_label.setScaledContents(False)
         self.avatar_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
+        is_dark = config.get("ui", "theme") == "dark"
+        svg_color = get_user_svg_color(self._cache.has_user(user_id), is_dark)
+
         if user_id:
             cached_avatar = self._cache.get_avatar(user_id)
             if cached_avatar:
                 self.avatar_label.setPixmap(make_rounded_pixmap(cached_avatar, self.AVATAR_SIZE, 8))
             else:
                 self.avatar_label.setPixmap(
-                    _render_svg_icon(icons_path / "user.svg", self.SVG_AVATAR_SIZE)
+                    _render_svg_icon(icons_path / "user.svg", self.SVG_AVATAR_SIZE, svg_color)
                     .pixmap(QSize(self.SVG_AVATAR_SIZE, self.SVG_AVATAR_SIZE))
                 )
                 self._cache.load_avatar_async(user_id, self._on_avatar_loaded)
         else:
             self.avatar_label.setPixmap(
-                _render_svg_icon(icons_path / "user.svg", self.SVG_AVATAR_SIZE)
+                _render_svg_icon(icons_path / "user.svg", self.SVG_AVATAR_SIZE, svg_color)
                 .pixmap(QSize(self.SVG_AVATAR_SIZE, self.SVG_AVATAR_SIZE))
             )
 
         layout.addWidget(self.avatar_label)
         
-        is_dark = config.get("ui", "theme") == "dark"
         text_color = self._cache.get_username_color(username, is_dark)
         
         self.username_label = QLabel(username)

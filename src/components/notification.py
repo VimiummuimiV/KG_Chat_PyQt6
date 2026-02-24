@@ -8,7 +8,7 @@ from pathlib import Path
 from datetime import datetime
 import threading
 
-from helpers.create import create_icon_button, HoverIconButton, _render_svg_icon
+from helpers.create import create_icon_button, HoverIconButton, _render_svg_icon, get_user_svg_color
 from helpers.load import make_rounded_pixmap
 from helpers.fonts import get_font, FontType
 from ui.message_renderer import MessageRenderer
@@ -189,19 +189,20 @@ class PopupNotification(QWidget):
         self.avatar_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         if not data.is_system and data.cache:
             user_id = data.cache.get_user_id(data.title)
+            svg_color = get_user_svg_color(data.cache.has_user(user_id), is_dark)
             if user_id:
                 cached_avatar = data.cache.get_avatar(user_id)
                 if cached_avatar:
                     self.avatar_label.setPixmap(make_rounded_pixmap(cached_avatar, AVATAR_SIZE, 8))
                 else:
                     self.avatar_label.setPixmap(
-                        _render_svg_icon(self.icons_path / "user.svg", SVG_AVATAR_SIZE)
+                        _render_svg_icon(self.icons_path / "user.svg", SVG_AVATAR_SIZE, svg_color)
                         .pixmap(QSize(SVG_AVATAR_SIZE, SVG_AVATAR_SIZE))
                     )
                     data.cache.load_avatar_async(user_id, self._on_avatar_loaded)
             else:
                 self.avatar_label.setPixmap(
-                    _render_svg_icon(self.icons_path / "user.svg", SVG_AVATAR_SIZE)
+                    _render_svg_icon(self.icons_path / "user.svg", SVG_AVATAR_SIZE, svg_color)
                     .pixmap(QSize(SVG_AVATAR_SIZE, SVG_AVATAR_SIZE))
                 )
 
