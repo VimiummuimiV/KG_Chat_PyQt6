@@ -3,8 +3,9 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
     QScrollArea, QApplication, QSizePolicy
 )
-from PyQt6.QtCore import Qt, QSize, pyqtSignal
+from PyQt6.QtCore import Qt, QSize, pyqtSignal, QTimer
 from PyQt6.QtGui import QCursor, QPixmap, QFont
+from PyQt6 import sip
 
 
 from helpers.load import make_rounded_pixmap
@@ -71,29 +72,26 @@ class UserWidget(QWidget):
         self.username_label = QLabel()
         self.username_label.setFont(get_font(FontType.TEXT))
         
-        # Build username text with counter first, then moderator icon
+        # Build username text with counter, then role icon
         username_text = user.login
         
         if counter and counter > 0:
             username_text += f" {counter}"
         
-        if self._is_moderator(user):
+        if user.role in ('moderator', 'owner') or user.affiliation == 'owner' or user.moderator:
             username_text += " ⚔️"
-            tooltip = self._build_moderator_tooltip(user)
-            self.username_label.setToolTip(tooltip)
+            self.username_label.setToolTip(self._build_moderator_tooltip(user))
+
+        if user.role == 'visitor':
+            QTimer.singleShot(700, lambda: not sip.isdeleted(self.username_label)
+                and self.user.role == 'visitor' and (
+                    self.username_label.setText(self.username_label.text() + " 🚫") or
+                    self.username_label.setToolTip("Blocked")
+                ))
         
         self.username_label.setText(username_text)
         self.username_label.setStyleSheet(f"color: {text_color};")
         layout.addWidget(self.username_label)
-    
-    def _is_moderator(self, user):
-        """Check if user has moderator privileges"""
-        # Show indicator if:
-        # - role is moderator/owner, OR
-        # - has moderator=True flag from custom tag
-        return (user.role in ['moderator', 'owner'] or 
-                user.affiliation == 'owner' or 
-                user.moderator)
     
     def _build_moderator_tooltip(self, user):
         """Build tooltip text for moderator indicator"""
