@@ -230,7 +230,7 @@ class ProfileWidget(QWidget):
     
     back_requested = pyqtSignal()
     _avatar_loaded = pyqtSignal(str, QPixmap)
-    _data_fetched = pyqtSignal(dict, dict)
+    _data_fetched = pyqtSignal(int, dict, dict)
     
     def __init__(self, config, icons_path):
         super().__init__()
@@ -358,27 +358,32 @@ class ProfileWidget(QWidget):
     
     @pyqtSlot(str, QPixmap)
     def _set_avatar(self, user_id: str, pixmap: QPixmap):
-        """Set avatar pixmap"""
+        """Set avatar pixmap — only applied if this user is still active"""
+        if user_id != str(self.current_user_id):
+            return
         if pixmap and not pixmap.isNull():
             self.avatar_label.setPixmap(make_rounded_pixmap(pixmap, 120, 15))
             self.avatar_label.setText("")  # Clear the emoji text
     
     def _fetch_and_display_data(self, user_id: int):
-        """Fetch summary and index data, then display"""
+        """Fetch summary and index data in a background thread, then emit with user_id"""
         def _worker():
             try:
                 summary = get_user_summary_by_id(user_id)
                 index_data = get_user_index_data_by_id(user_id)
-                self._data_fetched.emit(summary, index_data)
+                self._data_fetched.emit(user_id, summary, index_data)
             except Exception as e:
                 print(f"Error fetching profile data: {e}")
         
         import threading
         threading.Thread(target=_worker, daemon=True).start()
     
-    @pyqtSlot(dict, dict)
-    def _display_data(self, summary: dict, index_data: dict):
-        """Display fetched data in UI"""
+    @pyqtSlot(int, dict, dict)
+    def _display_data(self, user_id: int, summary: dict, index_data: dict):
+        """Display fetched data — silently discard if user has changed since fetch started"""
+        if user_id != self.current_user_id:
+            return
+
         if not summary or not index_data:
             return
         
