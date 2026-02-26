@@ -639,7 +639,7 @@ class ChatWindow(QWidget):
         def apply(formatted: str):
             current = self.input_field.text()
             if formatted not in current:
-                self.input_field.setText(current + " " + formatted)
+                self.input_field.setText(current + " " + formatted + " ")
                 self.input_field.setCursorPosition(len(self.input_field.text()))
 
         cached = get_cached_info(url)
