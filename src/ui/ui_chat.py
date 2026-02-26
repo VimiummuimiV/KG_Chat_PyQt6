@@ -632,7 +632,7 @@ class ChatWindow(QWidget):
 
     def _on_youtube_pasted(self, url: str):
         if not (self.config.get("ui", "youtube", "enabled") and
-                self.config.get("ui", "youtube", "url_prefill")):
+                self.config.get("ui", "youtube", "input_prefill")):
             return
         from core.youtube import get_cached_info, fetch_async, youtube_signals
 

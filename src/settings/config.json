@@ -47,7 +47,7 @@
     },
     "youtube": {
       "enabled": true,
-      "url_prefill": true
+      "input_prefill": false
     },
     "buttons": {
       "large_button": {
@@ -82,8 +82,9 @@
     "emoticon_selector_visible": false,
     "always_on_top": false,
     "recent_emoticons": [
-      "vpered",
       "confuse",
+      "wine",
+      "vpered",
       "firework",
       "christmasevil",
       "armyscare",
@@ -98,7 +99,6 @@
       "heartcake",
       "boystroking",
       "snowhand",
-      "wine",
       "moose",
       "serenade",
       "snowgirlwave"
@@ -141,7 +141,7 @@
     "effects_enabled": true
   },
   "notification": {
-    "mode": "stack",
+    "mode": "replace",
     "muted": false
   },
   "startup": {
