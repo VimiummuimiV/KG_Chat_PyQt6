@@ -10,7 +10,7 @@ from PyQt6.QtWidgets import QApplication
 from helpers.color_utils import get_private_message_colors, get_ban_message_colors, get_system_message_colors, get_mention_color
 from helpers.fonts import get_font, FontType
 from helpers.mention_parser import parse_mentions
-from core.youtube import is_youtube_url, get_cached_info, fetch_async
+from core.youtube import YOUTUBE_URL_PATTERN, is_youtube_url, get_cached_info, fetch_async
 from helpers.image_viewer import ImageHoverView
 from helpers.video_player import VideoPlayer
 
@@ -145,9 +145,20 @@ class MessageRenderer(QObject):
             return "◽️ " + text
         return text
 
+    def _strip_youtube_prefills(self, text: str) -> str:
+        """Remove prefilled YouTube labels that appear alongside their raw URL.
+        The renderer re-derives the label from the URL, so the literal text is duplicate."""
+        if not self.youtube_enabled:
+            return text
+        for match in YOUTUBE_URL_PATTERN.finditer(text):
+            cached = get_cached_info(match.group(0), use_emojis=True)
+            if cached and cached[1]:
+                text = text.replace(' ' + cached[0], '').replace(cached[0], '')
+        return text
+
     def calculate_content_height(self, text: str, width: int, row: Optional[int] = None) -> int:
         """Calculate height needed for message content"""
-        text = ' '.join(text.split())
+        text = self._strip_youtube_prefills(' '.join(text.split()))
         
         url_pattern = re.compile(r'https?://[^\s<>"]+')
         def repl(m):
@@ -220,8 +231,8 @@ class MessageRenderer(QObject):
         """
         link_rects = []
         
-        # Replace newlines with spaces
-        text = ' '.join(text.split())
+        # Replace newlines with spaces, strip duplicate YouTube prefill labels
+        text = self._strip_youtube_prefills(' '.join(text.split()))
         
         # Extract URLs and replace with placeholders
         url_pattern = re.compile(r'https?://[^\s<>"]+')

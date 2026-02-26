@@ -47,7 +47,7 @@
     },
     "youtube": {
       "enabled": true,
-      "input_prefill": false
+      "input_prefill": true
     },
     "buttons": {
       "large_button": {
