@@ -46,7 +46,8 @@
       "saturation": 0
     },
     "youtube": {
-      "enabled": true
+      "enabled": true,
+      "url_prefill": true
     },
     "buttons": {
       "large_button": {

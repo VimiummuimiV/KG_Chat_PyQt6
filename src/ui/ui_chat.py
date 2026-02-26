@@ -8,7 +8,7 @@ from PyQt6.QtWidgets import(
     QStackedWidget, QStatusBar, QLabel, QProgressBar, QPushButton, QMessageBox
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QObject, QTimer, QEvent
-from PyQt6.QtGui import QAction
+from PyQt6.QtGui import QAction, QKeySequence
             
 
 from helpers.config import Config
@@ -52,6 +52,23 @@ class SignalEmitter(QObject):
     presence_received = pyqtSignal(object)
     bulk_update_complete = pyqtSignal()
     connection_changed = pyqtSignal(str)
+
+class ChatInputField(QLineEdit):
+    youtube_pasted = pyqtSignal(str)
+
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key.Key_V and event.modifiers() & Qt.KeyboardModifier.ControlModifier:
+            self._handle_paste()
+        else:
+            super().keyPressEvent(event)
+
+    def _handle_paste(self):
+        text = QApplication.clipboard().text()
+        self.paste()
+        from core.youtube import YOUTUBE_URL_PATTERN
+        m = YOUTUBE_URL_PATTERN.search(text)
+        if m:
+            self.youtube_pasted.emit(m.group(0))
 
 class ChatWindow(QWidget):
     _dispatch = pyqtSignal(object)  # thread-safe main-thread callable dispatch
@@ -425,10 +442,11 @@ class ChatWindow(QWidget):
         self.input_bottom_layout.setSpacing(button_spacing)
         input_main_layout.addLayout(self.input_bottom_layout)
     
-        self.input_field = QLineEdit()
+        self.input_field = ChatInputField()
         self.input_field.setFont(get_font(FontType.TEXT))
         self.input_field.setFixedHeight(48)
         self.input_field.returnPressed.connect(self.send_message)
+        self.input_field.youtube_pasted.connect(self._on_youtube_pasted)
         self.input_top_layout.addWidget(self.input_field, stretch=1)
     
         self.messages_widget.set_input_field(self.input_field)
@@ -611,6 +629,37 @@ class ChatWindow(QWidget):
     def _refocus_if_selector_closed(self):
         if not (hasattr(self, 'emoticon_selector') and self.emoticon_selector.isVisible()):
             self.input_field.setFocus()
+
+    def _on_youtube_pasted(self, url: str):
+        if not (self.config.get("ui", "youtube", "enabled") and
+                self.config.get("ui", "youtube", "url_prefill")):
+            return
+        from core.youtube import get_cached_info, fetch_async, youtube_signals
+
+        def apply(formatted: str):
+            current = self.input_field.text()
+            if formatted not in current:
+                self.input_field.setText(current + " " + formatted)
+                self.input_field.setCursorPosition(len(self.input_field.text()))
+
+        cached = get_cached_info(url)
+        if cached and cached[1]:
+            apply(cached[0])
+            return
+
+        def _on_ready(ready_url: str):
+            if ready_url != url:
+                return
+            try:
+                youtube_signals.metadata_cached.disconnect(_on_ready)
+            except Exception:
+                pass
+            result = get_cached_info(url)
+            if result:
+                apply(result[0])
+
+        youtube_signals.metadata_cached.connect(_on_ready)
+        fetch_async(url)
 
     def _position_emoticon_selector(self):
         """Place selector aligned to emoticon button (simple, predictable)."""
