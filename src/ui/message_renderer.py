@@ -153,7 +153,17 @@ class MessageRenderer(QObject):
         for match in YOUTUBE_URL_PATTERN.finditer(text):
             cached = get_cached_info(match.group(0), use_emojis=True)
             if cached and cached[1]:
-                text = text.replace(' ' + cached[0], '').replace(cached[0], '')
+                label_nospace = cached[0].replace(' ', '')
+                text_nospace = text.replace(' ', '')
+                if label_nospace in text_nospace:
+                    pos = text_nospace.index(label_nospace)
+                    start = end = count = 0
+                    for i, c in enumerate(text):
+                        if c != ' ':
+                            if count == pos: start = i
+                            if count == pos + len(label_nospace) - 1: end = i + 1
+                            count += 1
+                    text = text[:start] + text[end:]
         return text
 
     def calculate_content_height(self, text: str, width: int, row: Optional[int] = None) -> int:
