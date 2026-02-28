@@ -46,8 +46,7 @@
       "saturation": 0
     },
     "youtube": {
-      "enabled": true,
-      "input_prefill": true
+      "enabled": true
     },
     "buttons": {
       "large_button": {
@@ -82,10 +81,8 @@
     "emoticon_selector_visible": false,
     "always_on_top": false,
     "recent_emoticons": [
-      "ghost",
-      "confuse",
-      "wine",
       "vpered",
+      "confuse",
       "firework",
       "christmasevil",
       "armyscare",
@@ -96,9 +93,11 @@
       "uzi",
       "barret",
       "prival",
+      "ghost",
       "heartcake",
       "boystroking",
       "snowhand",
+      "wine",
       "moose",
       "serenade",
       "snowgirlwave"
