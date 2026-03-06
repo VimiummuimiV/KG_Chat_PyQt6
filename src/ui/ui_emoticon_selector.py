@@ -451,7 +451,7 @@ class EmoticonSelectorWidget(QWidget):
             placeholder = QLabel("No recent emoticons yet")
             placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
             placeholder.setStyleSheet("color: #888; padding: 20px;")
-            self.recent_grid.addWidget(placeholder, 0, 0, 1, 6)
+            self.recent_grid.addWidget(placeholder, 0, 0, 1, COLS)
 
         # If recent is the active tab, restore highlight to index 0
         if self.recent_buttons and self._current_key() == 'recent':
@@ -476,8 +476,6 @@ class EmoticonSelectorWidget(QWidget):
     # ------------------------------------------------------------------
     # Group switching + keyboard navigation
     # ------------------------------------------------------------------
-
-    _COLS = 6
 
     def _current_key(self):
         idx = self.stacked_content.currentIndex()
@@ -566,9 +564,9 @@ class EmoticonSelectorWidget(QWidget):
         if dx:
             new_idx = (cur + dx) % total
         else:
-            row, col = divmod(cur, self._COLS)
-            rows = (total - 1) // self._COLS + 1
-            new_idx = min(((row + dy) % rows) * self._COLS + col, total - 1)
+            row, col = divmod(cur, COLS)
+            rows = (total - 1) // COLS + 1
+            new_idx = min(((row + dy) % rows) * COLS + col, total - 1)
         self._set_nav(btns, new_idx)
 
     def insert_selected(self, shift=False):
