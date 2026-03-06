@@ -32,8 +32,7 @@ CHAT_CTRL_KB = [
     ("Ctrl+U",      "Switch account"),
     ("Ctrl+P",      "Open chatlog parser"),
     ("Ctrl+C",      "Reset username color"),
-    ("Ctrl++",      "Font size up"),
-    ("Ctrl+-",      "Font size down"),
+    ("Ctrl + / -",  "Font size up / down"),
     ("Ctrl+Scroll", "Font size up / down"),
 ]
 
@@ -68,14 +67,6 @@ CHATLOG_KB = [
     ("M",               "Toggle mention-only filter"),
 ]
 
-CHATLOG_PARSER_KB = [
-    ("S",               "Start parsing"),
-    ("C",               "Cancel parsing"),
-    ("Ctrl+C",          "Copy results"),
-    ("Ctrl+F",          "Toggle search"),
-    ("Ctrl+S",          "Save results to file"),
-]
-
 CHATLOG_MOUSE = [
     ("Back button",     "Navigate to previous day"),
     ("Forward button",  "Navigate to next day"),
@@ -93,6 +84,10 @@ EMOTICON_KB = [
     ("Esc",             "Close selector"),
 ]
 
+EMOTICON_MOUSE = [
+    ("Scroll on group tabs",    "Navigate groups prev / next"),
+]
+
 CHATLOG_PARSER_ACTIVE_KB = [
     ("P",               "Toggle chatlog parser"),
     ("S",               "Start parsing"),
@@ -100,10 +95,6 @@ CHATLOG_PARSER_ACTIVE_KB = [
     ("Ctrl+C",          "Copy results"),
     ("Ctrl+S",          "Save results to file"),
     ("Ctrl+F",          "Toggle search"),
-    ("J / ↓",           "Scroll down"),
-    ("K / ↑",           "Scroll up"),
-    ("G G",             "Scroll to top"),
-    ("Shift+G",         "Scroll to bottom"),
 ]
 
 ACCOUNTS_CONNECT_KB = [
@@ -120,15 +111,15 @@ ACCOUNTS_CONNECT_KB = [
 ]
 
 ACCOUNTS_CONNECT_MOUSE = [
-    ("Left click (color btn)",   "Change username color"),
-    ("Ctrl+Click (color btn)",   "Reset username color"),
-    ("Shift+Click (color btn)",  "Update color from server"),
+    ("Left click",   "Change username color"),
+    ("Ctrl+Click",   "Reset username color"),
+    ("Shift+Click",  "Update color from server"),
 ]
 
 ACCOUNTS_CREATE_KB = [
     ("Ctrl+S",      "Save / create account"),
     ("Enter",       "Save / create account"),
-    ("Tab",         "Cycle focus username ↔ password"),
+    ("Tab",         "Cycle focus username / password"),
     ("Esc",         "Back to Connect page"),
 ]
 
@@ -167,9 +158,8 @@ CONTEXTS = {
     "chatlog": {
         "title": "Chatlog — Keyboard Shortcuts",
         "sections": [
-            ("Navigation",  CHATLOG_KB,         CHATLOG_MOUSE),
-            ("Parser",      CHATLOG_PARSER_KB,  None),
-            ("Scrolling",   CHAT_SCROLL_KB,     None),
+            ("Navigation",  CHATLOG_KB,     CHATLOG_MOUSE),
+            ("Scrolling",   CHAT_SCROLL_KB, None),
         ],
     },
     "parser": {
@@ -182,7 +172,7 @@ CONTEXTS = {
         "title": "Accounts — Connect Page",
         "sections": [
             ("Keyboard Shortcuts",  ACCOUNTS_CONNECT_KB,    None),
-            ("Color Button",        None,                   ACCOUNTS_CONNECT_MOUSE),
+            ("Color Button Clicks", None,                   ACCOUNTS_CONNECT_MOUSE),
         ],
     },
     "accounts_create": {
@@ -194,7 +184,8 @@ CONTEXTS = {
     "emoticon": {
         "title": "Emoticon Selector — Controls",
         "sections": [
-            ("Keyboard", EMOTICON_KB, None),
+            ("Keyboard", EMOTICON_KB,    None),
+            ("Mouse",    None,           EMOTICON_MOUSE),
         ],
     },
     "image": {
