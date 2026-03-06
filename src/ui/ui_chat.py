@@ -43,6 +43,7 @@ from ui.ui_banlist import BanListWidget
 from helpers.duration_dialog import DurationDialog
 from helpers.jid_utils import extract_user_data_from_jid
 from ui.ui_buttons import ButtonPanel
+from helpers.help import HelpPanel
 from components.notification import show_notification, popup_manager
 from components.messages_separator import NewMessagesSeparator
 
@@ -545,6 +546,9 @@ class ChatWindow(QWidget):
 
         # Register shared instance with popup manager so notifications can borrow it
         popup_manager.emoticon_selector = self.emoticon_selector
+
+        # Help panel (context-aware, shared across all views)
+        self.help_panel = HelpPanel(self)
      
         # Install a minimal event filter to detect clicks outside selector
         # (install on window and application with a single line to keep it simple)
@@ -2014,6 +2018,20 @@ class ChatWindow(QWidget):
         if mods and not ctrl and not shift:
             return super().keyPressEvent(event)
         focused = self.input_field.hasFocus()
+
+        # F1 — context-aware help
+        if key == Qt.Key.Key_F1:
+            sel = getattr(self, 'emoticon_selector', None)
+            if sel and sel.isVisible():
+                context = 'emoticon'
+            elif (self.chatlog_widget and
+                  self.stacked_widget.currentWidget() == self.chatlog_widget):
+                context = 'parser' if self.chatlog_widget.parser_visible else 'chatlog'
+            else:
+                context = 'chat'
+            self.help_panel.show_for_context(context)
+            return
+
         # Loose input focus on (Esc) — also closes chatlog search if open
         if key == Qt.Key.Key_Escape and focused:
             self.input_field.clearFocus()

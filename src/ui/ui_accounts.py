@@ -8,6 +8,7 @@ from PyQt6.QtGui import QFont, QIcon, QPixmap, QKeyEvent
 from PyQt6.QtCore import Qt, pyqtSignal, QSize, pyqtSlot, QEvent
 
 from helpers.create import create_icon_button, set_theme, _render_svg_icon
+from helpers.help import HelpPanel
 from helpers.load import make_rounded_pixmap
 from helpers.cache import get_cache
 from helpers.config import Config
@@ -63,6 +64,9 @@ class AccountWindow(QWidget):
 
         # Ensure the window itself holds focus so Tab reaches event() immediately
         self.setFocus()
+
+        # Help panel
+        self.help_panel = HelpPanel(self)
 
     def _get_config(self, key, default):
         """Safely get config value with default fallback"""
@@ -364,6 +368,13 @@ class AccountWindow(QWidget):
         mods = event.modifiers()
         ctrl  = bool(mods & Qt.KeyboardModifier.ControlModifier)
         shift = bool(mods & Qt.KeyboardModifier.ShiftModifier)
+
+        # F1 — context-aware help
+        if key == Qt.Key.Key_F1:
+            on_create = self.stacked_widget.currentIndex() == 1
+            context = 'accounts_create' if on_create else 'accounts_connect'
+            self.help_panel.show_for_context(context)
+            return
 
         # Ignore combinations with other modifiers (Alt, Meta, ...)
         if mods and not ctrl and not shift:

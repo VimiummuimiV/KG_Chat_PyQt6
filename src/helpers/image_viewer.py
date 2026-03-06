@@ -283,16 +283,7 @@ class ImageHoverView(QWidget):
         text_lower = event.text().lower()
         
         if key == Qt.Key.Key_F1:
-            if self.help_panel.isVisible():
-                self.help_panel.hide()
-            else:
-                # Center help panel on screen
-                screen_geo = self.screen_rect
-                help_geo = self.help_panel.frameGeometry()
-                help_geo.moveCenter(screen_geo.center())
-                self.help_panel.move(help_geo.topLeft())
-                self.help_panel.show()
-                self.help_panel.raise_()
+            self.help_panel.show_for_context('image')
         elif key in (Qt.Key.Key_Space, Qt.Key.Key_Escape) or text_lower == 'q':
             self.hide_preview()
             event.accept()
