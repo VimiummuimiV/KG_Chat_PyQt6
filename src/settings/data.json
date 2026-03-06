@@ -2077,5 +2077,6 @@
   "427286": {"login": "Shopen", "background": "#8f9f32", "light": "#717d27", "dark": "#8f9f32"},
   "28023": {"login": "Godz", "background": "#191393", "light": "#191393", "dark": "#7c76ed"},
   "793785": {"login": "ПаровозикТомас", "background": "#777777", "light": "#767676", "dark": "#858585"},
-  "714927": {"login": "espresso", "background": "#670E87", "light": "#670E87", "dark": "#c350ed"}
+  "714927": {"login": "espresso", "background": "#670E87", "light": "#670E87", "dark": "#c350ed"},
+  "835052": {"login": "phantasierend", "background": "#777777", "light": "#767676", "dark": "#858585"}
 }

@@ -130,7 +130,6 @@ ACCOUNTS_CREATE_KB = [
 
 IMAGE_KB = [
     ("Esc / Space / Q", "Close image viewer"),
-    ("F1",              "Show / Hide this help"),
 ]
 
 IMAGE_MOUSE = [
@@ -314,7 +313,7 @@ class HelpPanel(QWidget):
             mouse_bg = "#c9954d"
             mouse_text = "#1a1a1a"
         else:
-            bg = "#ffffff"
+            bg = "#f0f0f0"
             title_color = "#3a8fb0"
             section_color = "#4a9570"
             text_color = "#4a4a4a"
