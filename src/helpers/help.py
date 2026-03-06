@@ -67,6 +67,11 @@ CHATLOG_KB = [
     ("M",               "Toggle mention-only filter"),
 ]
 
+CHATLOG_USERLIST_MOUSE = [
+    ("Left click",      "Filter messages by user (click again to clear)"),
+    ("Ctrl+Click",      "Add / remove user from filter"),
+]
+
 CHATLOG_MOUSE = [
     ("Back button",     "Navigate to previous day"),
     ("Forward button",  "Navigate to next day"),
@@ -158,8 +163,9 @@ CONTEXTS = {
     "chatlog": {
         "title": "Chatlog — Keyboard Shortcuts",
         "sections": [
-            ("Navigation",  CHATLOG_KB,     CHATLOG_MOUSE),
-            ("Scrolling",   CHAT_SCROLL_KB, None),
+            ("Navigation",      CHATLOG_KB,             CHATLOG_MOUSE),
+            ("Scrolling",       CHAT_SCROLL_KB,         None),
+            ("User List",       None,                   CHATLOG_USERLIST_MOUSE),
         ],
     },
     "parser": {
