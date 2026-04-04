@@ -1373,15 +1373,18 @@ class ChatWindow(QWidget):
                 # Ensure voice engine is disabled
                 self.voice_engine.set_enabled(False)
 
-        # Only show notifications and play sounds if not initial load and window not active
-        if not is_initial and not self.isActiveWindow():
-            # Check for ban message first
+        # Only show notifications when not initial load.
+        # Ban sound should play always for ban messages, regardless of focus.
+        # Mention sound can still play while focused if the config overrides it.
+        if not is_initial:
             if is_ban:
                 self._play_ban_sound()
-            # Then check for mention
-            elif self._message_mentions_me(msg):
+
+            play_mention_sound_always = self.config.get("sound", "play_mention_sound_always") or False
+            # Play mention sound if message mentions me and either window not active or config overrides it to always play
+            if self._message_mentions_me(msg) and (not self.isActiveWindow() or play_mention_sound_always):
                 self._play_mention_sound()
-        
+
             # Check if YouTube URLs need time to cache
             from core.youtube import YOUTUBE_URL_PATTERN, get_cached_info, youtube_signals
             uncached = [m.group(0) for m in YOUTUBE_URL_PATTERN.finditer(msg.body) 

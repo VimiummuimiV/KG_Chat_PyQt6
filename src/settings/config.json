@@ -33,7 +33,7 @@
     "notification_position": "right",
     "emoticon_max_size": 140,
     "scroll_button_threshold": 100,
-    "clear_private_messages_on_exit": false,
+    "clear_private_messages_on_exit": true,
     "private_message_color": {
       "hue": 0,
       "saturation": 75
@@ -138,7 +138,8 @@
   },
   "sound": {
     "tts_enabled": false,
-    "effects_enabled": true
+    "effects_enabled": true,
+    "play_mention_sound_always": false
   },
   "notification": {
     "mode": "replace",
