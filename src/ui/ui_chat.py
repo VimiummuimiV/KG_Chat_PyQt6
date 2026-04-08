@@ -1385,35 +1385,39 @@ class ChatWindow(QWidget):
             if self._message_mentions_me(msg) and (not self.isActiveWindow() or play_mention_sound_always):
                 self._play_mention_sound()
 
-            # Check if YouTube URLs need time to cache
-            from core.youtube import YOUTUBE_URL_PATTERN, get_cached_info, youtube_signals
-            uncached = [m.group(0) for m in YOUTUBE_URL_PATTERN.finditer(msg.body) 
-                       if not (get_cached_info(m.group(0)) or (None, False))[1]]
-            
-            if uncached:
-                # Wait for signal with timeout
-                pending = set(uncached)
-                timer = QTimer(self)
-                timer.setSingleShot(True)
+            # Only show notifications when the window is not active
+            if not self.isActiveWindow():
+                # Check if YouTube URLs need time to cache
+                from core.youtube import YOUTUBE_URL_PATTERN, get_cached_info, youtube_signals
+                uncached = [m.group(0) for m in YOUTUBE_URL_PATTERN.finditer(msg.body) 
+                           if not (get_cached_info(m.group(0)) or (None, False))[1]]
                 
-                def show_now():
-                    try:
-                        youtube_signals.metadata_cached.disconnect(on_ready)
-                    except:
-                        pass
-                    timer.stop()
+                if uncached:
+                    # Wait for signal with timeout
+                    pending = set(uncached)
+                    timer = QTimer(self)
+                    timer.setSingleShot(True)
+                    
+                    def show_now():
+                        try:
+                            youtube_signals.metadata_cached.disconnect(on_ready)
+                        except:
+                            pass
+                        timer.stop()
+                        # Re-check in case the window was focused during the delay
+                        if not self.isActiveWindow():
+                            self._show_notification(msg, display_body, is_ban, is_system)
+                    
+                    def on_ready(url):
+                        pending.discard(url)
+                        if not pending:
+                            show_now()
+                    
+                    youtube_signals.metadata_cached.connect(on_ready)
+                    timer.timeout.connect(show_now)
+                    timer.start(2000)
+                else:
                     self._show_notification(msg, display_body, is_ban, is_system)
-                
-                def on_ready(url):
-                    pending.discard(url)
-                    if not pending:
-                        show_now()
-                
-                youtube_signals.metadata_cached.connect(on_ready)
-                timer.timeout.connect(show_now)
-                timer.start(2000)
-            else:
-                self._show_notification(msg, display_body, is_ban, is_system)
 
     def _show_and_focus_window(self):
         if not self.isVisible():
