@@ -4,7 +4,7 @@ import re
 from pathlib import Path
 from datetime import datetime
 from PyQt6.QtWidgets import(
-    QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QApplication, QMenu,
+    QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QTextEdit, QApplication, QMenu,
     QStackedWidget, QStatusBar, QLabel, QProgressBar, QPushButton, QMessageBox
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QObject, QTimer, QEvent
@@ -2022,9 +2022,12 @@ class ChatWindow(QWidget):
         key, mods = event.key(), event.modifiers()
         ctrl  = mods == Qt.KeyboardModifier.ControlModifier
         shift = mods == Qt.KeyboardModifier.ShiftModifier
+
         if mods and not ctrl and not shift:
             return super().keyPressEvent(event)
-        focused = self.input_field.hasFocus()
+
+        focused_widget = QApplication.focusWidget()
+        focused = isinstance(focused_widget, (QLineEdit, QTextEdit))
 
         # F1 — context-aware help
         if key == Qt.Key.Key_F1:
