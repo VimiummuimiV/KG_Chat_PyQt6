@@ -7,6 +7,8 @@ from PyQt6.QtGui import QPainter, QPainterPath, QCursor, QPixmap
 from pathlib import Path
 from datetime import datetime
 import threading
+import ctypes
+import sys
 
 from helpers.create import create_icon_button, HoverIconButton, _render_svg_icon, get_user_svg_color
 from helpers.load import make_rounded_pixmap
@@ -399,17 +401,28 @@ class PopupNotification(QWidget):
             super().mousePressEvent(event)
   
     def _start_cursor_monitoring(self):
-        """Monitor cursor movement to trigger auto-hide"""
+        """Monitor cursor movement or key press to trigger auto-hide"""
         self.cursor_check_timer = QTimer(self)
         self.cursor_check_timer.timeout.connect(self._check_cursor_movement)
         self.cursor_check_timer.start(100)
-  
+
+    @staticmethod
+    def _any_key_pressed():
+        """Return True if any key is currently down (Windows only, silent fallback elsewhere)."""
+        try:
+            if sys.platform == "win32":
+                return any(ctypes.windll.user32.GetAsyncKeyState(k) & 0x8000 for k in range(0x08, 0xFF))
+        except Exception:
+            pass
+        return False
+
     def _check_cursor_movement(self):
-        """Check if cursor moved significantly"""
+        """Check if cursor moved significantly or any key was pressed"""
         if self.cursor_moved or self.reply_field_visible:
             return
-      
-        if (QCursor.pos() - self.initial_cursor_pos).manhattanLength() > 50:
+
+        if ((QCursor.pos() - self.initial_cursor_pos).manhattanLength() > 50
+                or self._any_key_pressed()):
             self.cursor_moved = True
             self.cursor_check_timer.stop()
             self._start_hide_timer()
