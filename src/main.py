@@ -7,7 +7,7 @@ from PyQt6.QtWidgets import(
     QWidget, QApplication, QSystemTrayIcon,
     QMenu, QMessageBox
 )
-from PyQt6.QtGui import QFont, QIcon, QAction, QPixmap, QPainter, QColor
+from PyQt6.QtGui import QFont, QIcon, QAction, QActionGroup, QPixmap, QPainter, QColor
 from PyQt6.QtCore import Qt, QLockFile, QDir, pyqtSignal, QObject, pyqtSlot, QMetaObject, QTimer
 from PyQt6.QtSvg import QSvgRenderer
 
@@ -107,7 +107,8 @@ class Application(QObject):
         self.pronunciation_action = None
 
         self.notification_menu = None
-        self.notification_mode_action = None
+        self.notification_stack_action = None
+        self.notification_replace_action = None
         self.notification_muted_action = None
 
         self.ban_list_action = None
@@ -214,30 +215,41 @@ class Application(QObject):
         self.update_sound_menu()
 
     def _setup_notification_menu(self, parent_menu: QMenu):
-        """Setup notification management submenu"""
+        """Setup notification management submenu with radio-style exclusive options"""
         self.notification_menu = parent_menu.addMenu("Notification")
-        
-        # Add separator at the top
-        self.notification_menu.addSeparator()
-        
-        # Mode toggle action (changes text based on current mode)
-        self.notification_mode_action = QAction("", self.app)
-        self.notification_mode_action.triggered.connect(self._on_notification_mode_toggled)
-        self.notification_menu.addAction(self.notification_mode_action)
-        
-        # Add separator
-        self.notification_menu.addSeparator()
-        
-        # Muted action
+
+        # Exclusive action group — only one can be checked at a time (radio buttons)
+        group = QActionGroup(self.app)
+        group.setExclusive(True)
+
+        self.notification_stack_action = QAction("Stack", self.app, checkable=True)
+        self.notification_replace_action = QAction("Replace", self.app, checkable=True)
         self.notification_muted_action = QAction("Muted", self.app, checkable=True)
-        self.notification_muted_action.triggered.connect(self._on_notification_muted_toggled)
-        self.notification_menu.addAction(self.notification_muted_action)
-        
-        # Connect to aboutToShow to update menu state
-        self.notification_menu.aboutToShow.connect(self.update_notification_menu)
-        
-        # Load initial state
-        self.update_notification_menu()
+
+        for action in (self.notification_stack_action,
+                       self.notification_replace_action,
+                       self.notification_muted_action):
+            group.addAction(action)
+            self.notification_menu.addAction(action)
+
+        # Set initial checked state BEFORE connecting signals so no handler fires
+        mode = self.config.get("notification", "mode") or "stack"
+        muted = self.config.get("notification", "muted") or False
+        if muted:
+            self.notification_muted_action.setChecked(True)
+        elif mode == "replace":
+            self.notification_replace_action.setChecked(True)
+        else:
+            self.notification_stack_action.setChecked(True)
+
+        # Connect signals only after initial state is set
+        # triggered passes checked=True only for the newly selected item; ignore uncheck events
+        self.notification_stack_action.triggered.connect(
+            lambda checked: self._on_notification_option_selected("stack", False) if checked else None)
+        self.notification_replace_action.triggered.connect(
+            lambda checked: self._on_notification_option_selected("replace", False) if checked else None)
+        self.notification_muted_action.triggered.connect(
+            lambda checked: self._on_notification_option_selected("stack", True) if checked else None)
 
     def update_color_menu(self):
         """Update the color menu to show/hide Reset option based on custom_background"""
@@ -265,23 +277,17 @@ class Application(QObject):
         self.effects_sound_action.setChecked(effects_enabled)
 
     def update_notification_menu(self):
-        """Update notification menu to reflect current state"""
-        # Get current mode from config (default is "stack")
-        current_mode = self.config.get("notification", "mode")
-        if current_mode is None:
-            current_mode = "stack"
-        
-        # Update mode text
-        if current_mode == "stack":
-            self.notification_mode_action.setText("Mode: Stack")
+        """Update notification menu radio buttons to reflect current config state.
+        Safe to call at any time - triggered only fires for checked=True items."""
+        mode = self.config.get("notification", "mode") or "stack"
+        muted = self.config.get("notification", "muted") or False
+
+        if muted:
+            self.notification_muted_action.setChecked(True)
+        elif mode == "replace":
+            self.notification_replace_action.setChecked(True)
         else:
-            self.notification_mode_action.setText("Mode: Replace")
-        
-        # Get muted state from config (default is False)
-        muted = self.config.get("notification", "muted")
-        if muted is None:
-            muted = False
-        self.notification_muted_action.setChecked(muted)
+            self.notification_stack_action.setChecked(True)
 
     def _on_sound_toggled(self, config_key: str, action: QAction):
         """Handle sound toggle from tray menu"""
@@ -299,47 +305,17 @@ class Application(QObject):
             if config_key == 'effects_enabled' and hasattr(self.chat_window, 'update_effects_button_state'):
                 self.chat_window.update_effects_button_state()
 
-    def _on_notification_mode_toggled(self):
-        """Handle notification mode toggle from tray menu"""
-        # Get current mode and toggle it
-        current_mode = self.config.get("notification", "mode")
-        if current_mode is None:
-            current_mode = "stack"
-        
-        # Toggle between modes
-        new_mode = "replace" if current_mode == "stack" else "stack"
-        
-        # Save to config
-        self.config.set("notification", "mode", value=new_mode)
-        
-        # Update chat window's config instance directly if it exists
-        if self.chat_window:
-            self.chat_window.config.data = self.config.data
-            # Sync chat window notification state
-            if hasattr(self.chat_window, 'sync_notification_state'):
-                self.chat_window.sync_notification_state()
-        
-        # Update the popup_manager's mode immediately
-        popup_manager.set_notification_mode(new_mode)
-        
-        # Update menu text
-        self.update_notification_menu()
-
-    def _on_notification_muted_toggled(self):
-        """Handle notification muted toggle from tray menu"""
-        muted = self.notification_muted_action.isChecked()
-        
-        # Save to config
+    def _on_notification_option_selected(self, mode: str, muted: bool):
+        """Handle notification option selection from tray menu"""
+        self.config.set("notification", "mode", value=mode)
         self.config.set("notification", "muted", value=muted)
-        
-        # Update chat window's config instance directly if it exists
+
         if self.chat_window:
             self.chat_window.config.data = self.config.data
-            # Sync chat window notification state
             if hasattr(self.chat_window, 'sync_notification_state'):
                 self.chat_window.sync_notification_state()
-        
-        # Update the popup_manager's muted state immediately
+
+        popup_manager.set_notification_mode(mode)
         popup_manager.set_muted(muted)
 
     def _get_app_icon(self):
