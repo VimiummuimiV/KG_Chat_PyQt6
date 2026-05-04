@@ -725,10 +725,19 @@ class ChatWindow(QWidget):
 
             # Reclaim focus for ChatWindow after any click that doesn't land on a
             # text input — keeps arrow/hotkeys working regardless of what was clicked.
+            # Skip when the click is inside a QMenu (e.g. context menu "Paste"),
+            # otherwise focus is stolen from the input field before the action fires.
             try:
                 gp = event.globalPosition().toPoint() if hasattr(event, 'globalPosition') else event.globalPos()
                 clicked = QApplication.widgetAt(gp)
-                if clicked and not isinstance(clicked, QLineEdit):
+                in_menu = False
+                w = clicked
+                while w:
+                    if isinstance(w, QMenu):
+                        in_menu = True
+                        break
+                    w = w.parentWidget()
+                if clicked and not in_menu and not isinstance(clicked, QLineEdit):
                     self.setFocus()
             except Exception:
                 pass

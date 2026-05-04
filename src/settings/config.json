@@ -82,12 +82,15 @@
     "emoticon_selector_visible": false,
     "always_on_top": false,
     "recent_emoticons": [
+      "girlrevolve",
+      "pogranminigun",
+      "dandy",
+      "uzi",
       "snowhand",
       "biggrin",
       "clapping",
       "holmes",
       "boystroking",
-      "uzi",
       "cool",
       "blink",
       "vpered",
@@ -97,11 +100,8 @@
       "christmasevil",
       "armyscare",
       "bye",
-      "dandy",
       "barret",
-      "prival",
-      "ghost",
-      "heartcake"
+      "prival"
     ],
     "window": {
       "width": null,
@@ -125,13 +125,13 @@
         "y": 0
       }
     ],
-    "emoticon_last_group": "recent",
+    "emoticon_last_group": "girls",
     "emoticon_nav_positions": {
-      "recent": 0,
+      "recent": 1,
       "army": 0,
       "boys": 0,
       "christmas": 0,
-      "girls": 0,
+      "girls": 21,
       "halloween": 0,
       "inlove": 0
     }
@@ -143,7 +143,7 @@
   },
   "notification": {
     "mode": "replace",
-    "muted": false
+    "muted": true
   },
   "startup": {
     "auto_login": true,
