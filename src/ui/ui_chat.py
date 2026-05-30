@@ -1557,6 +1557,8 @@ class ChatWindow(QWidget):
             # Update user widgets
             for user_widget in self.user_list_widget.user_widgets.values():
                 user_widget.username_label.setFont(new_font)
+                if user_widget.badge:
+                    user_widget.badge.setFont(new_font)
             self.user_list_widget.update()
         
         if self.chatlog_userlist_widget:

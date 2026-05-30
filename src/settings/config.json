@@ -21,7 +21,7 @@
   },
   "ui": {
     "ui_font_size": 12,
-    "text_font_size": 15,
+    "text_font_size": 14,
     "header_font_size": 18,
     "text_font_family": "Roboto",
     "emoji_font_family": "Noto Color Emoji",
@@ -82,26 +82,26 @@
     "emoticon_selector_visible": false,
     "always_on_top": false,
     "recent_emoticons": [
+      "vpered",
+      "badcomp",
+      "confuse",
+      "holmes",
+      "comandos",
+      "ak47",
+      "clapping",
       "girlrevolve",
       "pogranminigun",
       "dandy",
       "uzi",
       "snowhand",
       "biggrin",
-      "clapping",
-      "holmes",
       "boystroking",
       "cool",
       "blink",
-      "vpered",
       "mafia",
-      "confuse",
       "firework",
       "christmasevil",
-      "armyscare",
-      "bye",
-      "barret",
-      "prival"
+      "armyscare"
     ],
     "window": {
       "width": null,
@@ -125,9 +125,9 @@
         "y": 0
       }
     ],
-    "emoticon_last_group": "girls",
+    "emoticon_last_group": "recent",
     "emoticon_nav_positions": {
-      "recent": 1,
+      "recent": 0,
       "army": 0,
       "boys": 0,
       "christmas": 0,
@@ -142,7 +142,7 @@
     "play_mention_sound_always": false
   },
   "notification": {
-    "mode": "replace",
+    "mode": "stack",
     "muted": true
   },
   "startup": {

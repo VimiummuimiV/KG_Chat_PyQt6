@@ -72,11 +72,8 @@ class UserWidget(QWidget):
         self.username_label = QLabel()
         self.username_label.setFont(get_font(FontType.TEXT))
         
-        # Build username text with counter, then role icon
+        # Build username text with role icon
         username_text = user.login
-        
-        if counter and counter > 0:
-            username_text += f" {counter}"
         
         if user.role in ('moderator', 'owner') or user.affiliation == 'owner' or user.moderator:
             username_text += " ⚔️"
@@ -92,6 +89,17 @@ class UserWidget(QWidget):
         self.username_label.setText(username_text)
         self.username_label.setStyleSheet(f"color: {text_color};")
         layout.addWidget(self.username_label)
+
+        # Counter badge for game section
+        self.badge = None
+        if counter and counter > 0:
+            self.badge = QLabel(str(counter))
+            self.badge.setFont(get_font(FontType.TEXT))
+            self.badge.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Fixed)
+            self.badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            self._badge_style(is_dark_theme)
+            layout.addWidget(self.badge)
+        layout.addStretch()
     
     def _build_moderator_tooltip(self, user):
         """Build tooltip text for moderator indicator"""
@@ -119,9 +127,15 @@ class UserWidget(QWidget):
         except RuntimeError:
             pass
     
-    def update_color(self, color: str):
+    def _badge_style(self, is_dark: bool):
+        color = "#CCCCCC" if is_dark else "#666666"
+        self.badge.setStyleSheet(f"color:{color};")
+
+    def update_color(self, color: str, is_dark: bool = None):
         """Update colors without rebuilding widget"""
         self.username_label.setStyleSheet(f"color: {color};")
+        if self.badge and is_dark is not None:
+            self._badge_style(is_dark)
     
     def mousePressEvent(self, event):
         """Handle click events"""
@@ -457,7 +471,7 @@ class UserListWidget(QWidget):
         for widget in list(self.user_widgets.values()):
             try:
                 new_color = self.cache.get_username_color(widget.user.login, self.is_dark_theme)
-                widget.update_color(new_color)
+                widget.update_color(new_color, self.is_dark_theme)
             except (RuntimeError, AttributeError):
                 pass
         self.setUpdatesEnabled(True)
