@@ -2,6 +2,7 @@ requests
 lxml
 psutil
 PyQt6
+PyQt6-WebEngine
 pyqtdarktheme
 playsound3
 gTTS
