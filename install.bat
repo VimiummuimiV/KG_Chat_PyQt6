@@ -12,6 +12,10 @@ echo. >> "%LOGFILE%"
 
 pip install -r requirements.txt >> "%LOGFILE%" 2>&1
 
+echo Checking for PyQt6 and WebEngine upgrades...
+echo Checking for PyQt6 and WebEngine upgrades... >> "%LOGFILE%"
+pip install --upgrade PyQt6 PyQt6-WebEngine >> "%LOGFILE%" 2>&1
+
 echo. >> "%LOGFILE%"
 echo Pip install completed >> "%LOGFILE%"
 echo. >> "%LOGFILE%"
