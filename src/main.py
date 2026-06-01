@@ -11,6 +11,8 @@ from PyQt6.QtGui import QFont, QIcon, QAction, QActionGroup, QPixmap, QPainter, 
 from PyQt6.QtCore import Qt, QLockFile, QDir, pyqtSignal, QObject, pyqtSlot, QMetaObject, QTimer
 from PyQt6.QtSvg import QSvgRenderer
 
+QApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
+
 # Add src directory to path
 src_path = Path(__file__).parent
 sys.path.insert(0, str(src_path if src_path.name == 'src' else src_path / 'src'))

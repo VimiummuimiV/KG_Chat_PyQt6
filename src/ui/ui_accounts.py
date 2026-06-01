@@ -24,6 +24,19 @@ from helpers.username_color_manager import (
 )
 
 
+def _add_account_from_auth_data(account_manager, user_data: dict, profile_password: str = "") -> bool:
+    return account_manager.add_account(
+        profile_username=user_data['login'],
+        profile_password=profile_password,
+        user_id=str(user_data['id']),
+        chat_username=user_data['login'],
+        chat_password=user_data['pass'],
+        avatar=user_data.get('avatar'),
+        background=user_data.get('background'),
+        set_active=True
+    )
+
+
 class AccountWindow(QWidget):
     account_connected = pyqtSignal(dict)
     _avatar_loaded = pyqtSignal(str, QPixmap)
@@ -86,7 +99,7 @@ class AccountWindow(QWidget):
     def initializeUI(self):
         # Window setup
         self.setWindowTitle("Account Manager")
-        self.setFixedWidth(280)
+        self.setMinimumWidth(280)
 
         # Set initial theme state for icons
         set_theme(self.theme_manager.is_dark())
@@ -202,6 +215,14 @@ class AccountWindow(QWidget):
         self.add_user_button.clicked.connect(self.show_create_page)
         self.add_user_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         actions_row.addWidget(self.add_user_button)
+
+        # Web login button
+        self.web_login_button = create_icon_button(
+            self.icons_path, "globe.svg", tooltip="Add account via browser login (W)"
+        )
+        self.web_login_button.clicked.connect(self.on_web_login)
+        self.web_login_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        actions_row.addWidget(self.web_login_button)
 
         layout.addLayout(actions_row)
 
@@ -341,6 +362,7 @@ class AccountWindow(QWidget):
         Qt.Key.Key_C:      'color',
         Qt.Key.Key_D:      'remove',
         Qt.Key.Key_A:      'add',
+        Qt.Key.Key_W:      'web_login',
         Qt.Key.Key_Escape: 'back',
         Qt.Key.Key_1:      'toggle_1',
         Qt.Key.Key_2:      'toggle_2',
@@ -416,6 +438,8 @@ class AccountWindow(QWidget):
                 self.on_remove_account()
             elif vk == 'add':
                 self.show_create_page()
+            elif vk == 'web_login':
+                self.on_web_login()
             elif vk == 'toggle_1':
                 self.auto_login_checkbox.setChecked(not self.auto_login_checkbox.isChecked())
             elif vk == 'toggle_2':
@@ -658,6 +682,24 @@ class AccountWindow(QWidget):
             self.account_avatar.setIconSize(QSize(30, 30))
             self.account_avatar.setStyleSheet("QPushButton { background: transparent; border: none; }")
 
+    def on_web_login(self):
+        """Open browser login dialog to add an account."""
+        from core.web_auth import LoginWebView
+        dlg = LoginWebView(self)
+        dlg.login_success.connect(self._on_web_login_success)
+        dlg.exec()
+
+    def _on_web_login_success(self, user_data: dict):
+        if not user_data.get('id'):
+            QMessageBox.critical(self, "Error", "Could not retrieve account data.")
+            return
+        success = _add_account_from_auth_data(self.account_manager, user_data)
+        if success:
+            self.load_accounts()
+            self.show_connect_page()
+        else:
+            QMessageBox.critical(self, "Error", "Failed to save account. It may already exist.")
+
     def on_connect(self):
         if self.account_dropdown.count() == 0 or self.account_dropdown.currentText() == "No accounts available":
             QMessageBox.warning(self, "No Account", "Please create an account first.")
@@ -719,16 +761,7 @@ class AccountWindow(QWidget):
             return
 
         # Add account with extracted data
-        success = self.account_manager.add_account(
-            profile_username=username,
-            profile_password=password,
-            user_id=str(user_data['id']),
-            chat_username=user_data['login'],
-            chat_password=user_data['pass'],
-            avatar=user_data.get('avatar'),
-            background=user_data.get('background'),
-            set_active=True
-        )
+        success = _add_account_from_auth_data(self.account_manager, user_data, profile_password=password)
 
         if success:
             QMessageBox.information(self, "Success", f"Account '{username}' connected successfully!")
