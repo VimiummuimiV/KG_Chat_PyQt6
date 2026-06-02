@@ -1,4 +1,5 @@
 from PyQt6.QtCore import QUrl, pyqtSignal
+from PyQt6.QtWebEngineCore import QWebEngineScript
 from PyQt6.QtWidgets import QDialog, QVBoxLayout
 
 
@@ -11,6 +12,21 @@ _CHAT_PARAMS = """
 """
 
 _LOGGED_OUT = "!document.querySelector('#login_form, .login-form');"
+
+_UI_CLEANUP = """
+(function() {
+    const elements = [
+        '.ownbanner-back',
+        '#head',
+        '#footer',
+        '#reformal_tab',
+        '.feedback'
+    ];
+    const style = document.createElement('style');
+    style.textContent = `${elements.join(', ')} { display: none !important; }`;
+    (document.head || document.documentElement).appendChild(style);
+})();
+"""
 
 
 class LoginWebView(QDialog):
@@ -26,6 +42,13 @@ class LoginWebView(QDialog):
         self._navigating_to_gamelist = False
 
         self._view = QWebEngineView()
+
+        script = QWebEngineScript()
+        script.setSourceCode(_UI_CLEANUP)
+        script.setInjectionPoint(QWebEngineScript.InjectionPoint.DocumentReady)
+        script.setWorldId(QWebEngineScript.ScriptWorldId.MainWorld)
+        self._view.page().scripts().insert(script)
+
         self._view.load(QUrl("https://klavogonki.ru/login"))
         self._view.loadFinished.connect(self._on_load_finished)
 
