@@ -13,7 +13,7 @@ _CHAT_PARAMS = """
 
 _LOGGED_OUT = "!document.querySelector('#login_form, .login-form');"
 
-_UI_CLEANUP = """
+_UI_ENHANCE = """
 (function() {
     const hideSelectors = [
         '.ownbanner-back',
@@ -30,6 +30,11 @@ _UI_CLEANUP = """
     geometryStyle.textContent = '#content { min-width: 300px !important; min-height: 200px !important; }';
     (document.head || document.documentElement).appendChild(geometryStyle);
 
+    const colorLogin     = '#88ff88';
+    const colorPass      = '#ffdd88';
+    const colorError     = '#ff5555';
+    const colorSvgStroke = 'lightgreen';
+
     const darkForm = document.createElement('style');
     darkForm.textContent = `
         html, body { background: #000000 !important; }
@@ -43,33 +48,47 @@ _UI_CLEANUP = """
             background-color: #111111 !important;
             border-radius: 8px !important;
             overflow: hidden !important;
-            border: none !important;
+            border: 2px solid transparent !important;
+            transition: border-color 0.2s !important;
             display: flex !important;
             flex-direction: column !important;
         }
         #login-page .big input {
             background: transparent !important;
-            color: #ededed !important;
             padding: 8px !important;
             width: 100% !important;
             border: none !important;
             outline: none !important;
         }
+        #login-page .big:has(input[name="login"]) input {
+            color: ${colorLogin} !important;
+        }
+        #login-page .big:has(input[name="pass"]) input {
+            color: ${colorPass} !important;
+        }
 
         #login-page .big:has(input[name="login"])::before {
             content: "Логин";
             display: block;
-            color: #88ff88;
+            color: ${colorLogin};
             font-size: 11px;
             padding: 4px 8px 0;
+        }
+
+        #login-page .big:has(input[name="login"]):has(input:focus) {
+            border: 2px solid ${colorLogin} !important;
         }
 
         #login-page .big:has(input[name="pass"])::before {
             content: "Пароль";
             display: block;
-            color: #ffdd88;
+            color: ${colorPass};
             font-size: 11px;
             padding: 4px 8px 0;
+        }
+
+        #login-page .big:has(input[name="pass"]):has(input:focus) {
+            border: 2px solid ${colorPass} !important;
         }
 
         #login-page .smart-captcha {
@@ -78,7 +97,7 @@ _UI_CLEANUP = """
 
         #login-page .error {
             padding: 8px 0 0 !important;
-            color: #ff5555 !important;
+            color: ${colorError} !important;
         }
 
         #login-page #submit_login {
@@ -90,7 +109,7 @@ _UI_CLEANUP = """
             color: transparent !important;
 
             background: #111111
-                url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='lightgreen' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E\
+                url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='${colorSvgStroke}' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E\
             %3Cpath d='M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4'/%3E\
             %3Cpolyline points='10 17 15 12 10 7'/%3E\
             %3Cline x1='15' y1='12' x2='3' y2='12'/%3E\
@@ -129,7 +148,7 @@ class LoginWebView(QDialog):
         self._view = QWebEngineView()
 
         script = QWebEngineScript()
-        script.setSourceCode(_UI_CLEANUP)
+        script.setSourceCode(_UI_ENHANCE)
         script.setInjectionPoint(QWebEngineScript.InjectionPoint.DocumentReady)
         script.setWorldId(QWebEngineScript.ScriptWorldId.MainWorld)
         self._view.page().scripts().insert(script)
