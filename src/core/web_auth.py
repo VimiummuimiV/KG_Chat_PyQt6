@@ -44,6 +44,8 @@ _UI_CLEANUP = """
             border-radius: 8px !important;
             overflow: hidden !important;
             border: none !important;
+            display: flex !important;
+            flex-direction: column !important;
         }
         #login-page .big input {
             background: transparent !important;
@@ -52,6 +54,22 @@ _UI_CLEANUP = """
             width: 100% !important;
             border: none !important;
             outline: none !important;
+        }
+
+        #login-page .big:has(input[name="login"])::before {
+            content: "Логин";
+            display: block;
+            color: #88ff88;
+            font-size: 11px;
+            padding: 4px 8px 0;
+        }
+
+        #login-page .big:has(input[name="pass"])::before {
+            content: "Пароль";
+            display: block;
+            color: #ffdd88;
+            font-size: 11px;
+            padding: 4px 8px 0;
         }
 
         #login-page .smart-captcha {
@@ -65,13 +83,30 @@ _UI_CLEANUP = """
 
         #login-page #submit_login {
             margin: 8px 0 0 !important;
+            height: 50px !important;
             width: 100% !important;
-            background-color: #111111 !important;
-            color: #ededed !important;
+
+            font-size: 0 !important;
+            color: transparent !important;
+
+            background: #111111
+                url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='lightgreen' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E\
+            %3Cpath d='M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4'/%3E\
+            %3Cpolyline points='10 17 15 12 10 7'/%3E\
+            %3Cline x1='15' y1='12' x2='3' y2='12'/%3E\
+            %3C/svg%3E")
+                center / 24px 24px 
+                no-repeat !important;
+
             border: none !important;
             padding: 8px 16px !important;
             border-radius: 8px !important;
             cursor: pointer !important;
+            transition: background-color 0.2s !important;
+        }
+
+        #login-page #submit_login:hover {
+            background-color: #222222 !important;
         }
     `;
     (document.head || document.documentElement).appendChild(darkForm);
@@ -88,7 +123,7 @@ class LoginWebView(QDialog):
         super().__init__(parent)
         from PyQt6.QtWebEngineWidgets import QWebEngineView
         self.setWindowTitle("Log in to Klavogonki")
-        self.resize(360, 320)
+        self.resize(360, 360)
         self._navigating_to_gamelist = False
 
         self._view = QWebEngineView()
