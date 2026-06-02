@@ -30,9 +30,9 @@ _UI_ENHANCE = """
     geometryStyle.textContent = '#content { min-width: 300px !important; min-height: 200px !important; }';
     (document.head || document.documentElement).appendChild(geometryStyle);
 
-    const colorLogin = '#88ff88';
-    const colorPass  = '#ffdd88';
-    const colorError = '#ff5555';
+    const colorLogin = '120, 100%, 76%';
+    const colorPass  = '45, 100%, 76%';
+    const colorError = '0, 100%, 66%';
 
     const darkForm = document.createElement('style');
     darkForm.textContent = `
@@ -60,34 +60,34 @@ _UI_ENHANCE = """
             outline: none !important;
         }
         #login-page .big:has(input[name="login"]) input {
-            color: ${colorLogin} !important;
+            color: hsl(${colorLogin}) !important;
         }
         #login-page .big:has(input[name="pass"]) input {
-            color: ${colorPass} !important;
+            color: hsl(${colorPass}) !important;
         }
 
         #login-page .big:has(input[name="login"])::before {
             content: "Логин";
             display: block;
-            color: ${colorLogin};
+            color: hsl(${colorLogin});
             font-size: 11px;
             padding: 4px 8px 0;
         }
 
         #login-page .big:has(input[name="login"]):has(input:focus) {
-            border: 2px solid ${colorLogin} !important;
+            border: 2px solid hsl(${colorLogin}) !important;
         }
 
         #login-page .big:has(input[name="pass"])::before {
             content: "Пароль";
             display: block;
-            color: ${colorPass};
+            color: hsl(${colorPass});
             font-size: 11px;
             padding: 4px 8px 0;
         }
 
         #login-page .big:has(input[name="pass"]):has(input:focus) {
-            border: 2px solid ${colorPass} !important;
+            border: 2px solid hsl(${colorPass}) !important;
         }
 
         #login-page .smart-captcha {
@@ -96,7 +96,7 @@ _UI_ENHANCE = """
 
         #login-page .error {
             padding: 8px 0 0 !important;
-            color: ${colorError} !important;
+            color: hsl(${colorError}) !important;
         }
 
         #login-page #submit_login {
@@ -107,8 +107,8 @@ _UI_ENHANCE = """
             font-size: 0 !important;
             color: transparent !important;
 
-            background: #111111
-                url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='${colorLogin.replace("#", "%23")}' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E\
+            background: hsla(${colorLogin}, 0.15)
+                url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='hsl(${colorLogin})' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E\
             %3Cpath d='M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4'/%3E\
             %3Cpolyline points='10 17 15 12 10 7'/%3E\
             %3Cline x1='15' y1='12' x2='3' y2='12'/%3E\
@@ -124,16 +124,18 @@ _UI_ENHANCE = """
         }
 
         #login-page #submit_login:hover {
-            background-color: #222222 !important;
+            background-color: hsla(${colorLogin}, 0.25) !important;
         }
     `;
     (document.head || document.documentElement).appendChild(darkForm);
 
+    // Clicking the label (::before) or padding area forwards focus to the input
     document.querySelectorAll('#login-page .big').forEach(big => {
         big.style.cursor = 'text';
         big.addEventListener('click', () => big.querySelector('input')?.focus());
     });
 
+    // Put the cursor straight into the login field on page load
     document.querySelector('#login-page input[name="login"]')?.focus();
 })();
 """
