@@ -6,7 +6,7 @@ from PyQt6.QtWidgets import QApplication, QWidget
 from PyQt6.QtCore import Qt, QPoint, QTimer, pyqtSignal, QObject, QThread, QBuffer, QIODevice, QPointF
 from PyQt6.QtGui import QPixmap, QMovie, QCursor, QPainter
 
-from helpers.loading_spinner import LoadingSpinner
+from components.loading_spinner import LoadingSpinner
 from helpers.help import HelpPanel
 
 

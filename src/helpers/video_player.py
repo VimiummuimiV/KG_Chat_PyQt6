@@ -9,7 +9,7 @@ from pathlib import Path
 from PyQt6.QtWidgets import QWidget, QMessageBox
 from PyQt6.QtCore import QPoint, QTimer, Qt
 
-from helpers.loading_spinner import LoadingSpinner
+from components.loading_spinner import LoadingSpinner
 
 
 class VideoPlayer(QWidget):
