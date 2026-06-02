@@ -30,10 +30,9 @@ _UI_ENHANCE = """
     geometryStyle.textContent = '#content { min-width: 300px !important; min-height: 200px !important; }';
     (document.head || document.documentElement).appendChild(geometryStyle);
 
-    const colorLogin     = '#88ff88';
-    const colorPass      = '#ffdd88';
-    const colorError     = '#ff5555';
-    const colorSvgStroke = 'lightgreen';
+    const colorLogin = '#88ff88';
+    const colorPass  = '#ffdd88';
+    const colorError = '#ff5555';
 
     const darkForm = document.createElement('style');
     darkForm.textContent = `
@@ -109,7 +108,7 @@ _UI_ENHANCE = """
             color: transparent !important;
 
             background: #111111
-                url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='${colorSvgStroke}' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E\
+                url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='${colorLogin.replace("#", "%23")}' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E\
             %3Cpath d='M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4'/%3E\
             %3Cpolyline points='10 17 15 12 10 7'/%3E\
             %3Cline x1='15' y1='12' x2='3' y2='12'/%3E\
