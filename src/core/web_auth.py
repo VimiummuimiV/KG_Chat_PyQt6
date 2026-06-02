@@ -15,7 +15,7 @@ _LOGGED_OUT = "!document.querySelector('#login_form, .login-form');"
 
 _UI_CLEANUP = """
 (function() {
-    const elements = [
+    const hideSelectors = [
         '.ownbanner-back',
         '#head',
         '#footer',
@@ -23,9 +23,20 @@ _UI_CLEANUP = """
         '.feedback',
         '.links'
     ];
-    const style = document.createElement('style');
-    style.textContent = `${elements.join(', ')} { display: none !important; }`;
-    (document.head || document.documentElement).appendChild(style);
+    const hideStyle = document.createElement('style');
+    hideStyle.textContent = `${hideSelectors.join(', ')} { display: none !important; }`;
+    (document.head || document.documentElement).appendChild(hideStyle);
+
+    const geometryStyle = document.createElement('style');
+    geometryStyle.textContent = '#content { min-width: 300px !important; min-height: 300px !important; }';
+    (document.head || document.documentElement).appendChild(geometryStyle);
+
+    const invertStyle = document.createElement('style');
+    invertStyle.textContent = `
+        #content { filter: invert(100%) !important; }
+        html, body { background: #2b2b2b !important; }
+    `;
+    (document.head || document.documentElement).appendChild(invertStyle);
 })();
 """
 
@@ -39,7 +50,7 @@ class LoginWebView(QDialog):
         super().__init__(parent)
         from PyQt6.QtWebEngineWidgets import QWebEngineView
         self.setWindowTitle("Log in to Klavogonki")
-        self.resize(1000, 700)
+        self.resize(500, 500)
         self._navigating_to_gamelist = False
 
         self._view = QWebEngineView()
