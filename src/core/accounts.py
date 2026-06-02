@@ -18,7 +18,7 @@ class AccountManager:
             ('profile_username', 'TEXT NOT NULL'),
             ('profile_password', 'TEXT NOT NULL'),
             ('user_id', 'TEXT NOT NULL'),
-            ('chat_username', 'TEXT NOT NULL'),
+            ('chat_username', 'TEXT NOT NULL UNIQUE'),
             ('chat_password', 'TEXT NOT NULL'),
             ('avatar', 'TEXT'),
             ('background', 'TEXT'),
@@ -42,60 +42,59 @@ class AccountManager:
 
     def _init_database(self):
         """Initialize SQLite database with migration support"""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        
-        # Check if migration is needed
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='accounts'")
-        table_exists = cursor.fetchone() is not None
-        
-        if table_exists:
-            cursor.execute("PRAGMA table_info(accounts)")
-            columns = [col[1] for col in cursor.fetchall()]
-            
-            if 'profile_username' not in columns:
-                # Migration needed
-                print("🔄 Migrating database schema...")
-                
-                # Create new table
-                cursor.execute(self._get_create_table_sql().replace('accounts', 'accounts_new'))
-                
-                # Migrate data: copy login/password to both profile and chat fields
-                cursor.execute('''
-                    INSERT INTO accounts_new (
-                        profile_username,
-                        profile_password,
-                        user_id,
-                        chat_username,
-                        chat_password,
-                        avatar,
-                        background,
-                        custom_background,
-                        active
-                    )
-                    SELECT
-                        login,
-                        password,
-                        user_id,
-                        login,
-                        password,
-                        avatar,
-                        background,
-                        custom_background,
-                        active
-                    FROM accounts;
-                ''')
-                
-                # Replace old table
-                cursor.execute('DROP TABLE accounts')
-                cursor.execute('ALTER TABLE accounts_new RENAME TO accounts')
-                print("✅ Migration complete")
-        else:
-            # Create fresh table
-            cursor.execute(self._get_create_table_sql())
-        
-        conn.commit()
-        conn.close()
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+
+            # Check if migration is needed
+            cursor.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='accounts'")
+            row = cursor.fetchone()
+            table_exists = row is not None
+
+            if table_exists:
+                current_sql = row[0]
+                cursor.execute("PRAGMA table_info(accounts)")
+                columns = [col[1] for col in cursor.fetchall()]
+
+                if 'profile_username' not in columns or 'UNIQUE' not in current_sql:
+                    # Migration needed
+                    print("🔄 Migrating database schema...")
+
+                    # Create new table
+                    cursor.execute(self._get_create_table_sql().replace('accounts', 'accounts_new'))
+
+                    # Migrate data: COALESCE handles both old schema (login/password) and current schema
+                    cursor.execute('''
+                        INSERT OR IGNORE INTO accounts_new (
+                            profile_username,
+                            profile_password,
+                            user_id,
+                            chat_username,
+                            chat_password,
+                            avatar,
+                            background,
+                            custom_background,
+                            active
+                        )
+                        SELECT
+                            COALESCE(profile_username, login),
+                            COALESCE(profile_password, password),
+                            user_id,
+                            COALESCE(chat_username, login),
+                            COALESCE(chat_password, password),
+                            avatar,
+                            background,
+                            custom_background,
+                            active
+                        FROM accounts;
+                    ''')
+
+                    # Replace old table
+                    cursor.execute('DROP TABLE accounts')
+                    cursor.execute('ALTER TABLE accounts_new RENAME TO accounts')
+                    print("✅ Migration complete")
+            else:
+                # Create fresh table
+                cursor.execute(self._get_create_table_sql())
 
     def _load_config(self) -> dict:
         for i in range(3):
@@ -115,14 +114,26 @@ class AccountManager:
                     set_active: bool = False) -> bool:
         """Add new account"""
         try:
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
 
-            if set_active:
-                cursor.execute('UPDATE accounts SET active = 0')
+                if set_active:
+                    cursor.execute('UPDATE accounts SET active = 0')
 
-            cursor.execute('''
-                INSERT INTO accounts (
+                cursor.execute('''
+                    INSERT INTO accounts (
+                        profile_username,
+                        profile_password,
+                        user_id,
+                        chat_username,
+                        chat_password,
+                        avatar,
+                        background,
+                        custom_background,
+                        active
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (
                     profile_username,
                     profile_password,
                     user_id,
@@ -130,24 +141,10 @@ class AccountManager:
                     chat_password,
                     avatar,
                     background,
-                    custom_background,
-                    active
-                )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (
-                profile_username,
-                profile_password,
-                user_id,
-                chat_username,
-                chat_password,
-                avatar,
-                background,
-                None,
-                1 if set_active else 0
-            ))
+                    None,
+                    1 if set_active else 0
+                ))
 
-            conn.commit()
-            conn.close()
             return True
         except sqlite3.IntegrityError:
             return False
@@ -158,24 +155,20 @@ class AccountManager:
     def remove_account(self, chat_username: str) -> bool:
         """Remove account by chat username"""
         try:
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
-            cursor.execute('DELETE FROM accounts WHERE chat_username = ?', (chat_username,))
-            deleted = cursor.rowcount > 0
-            conn.commit()
-            conn.close()
-            return deleted
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute('DELETE FROM accounts WHERE chat_username = ?', (chat_username,))
+                return cursor.rowcount > 0
         except Exception as e:
             print(f"❌ Error: {e}")
             return False
 
     def get_active_account(self) -> Optional[Dict]:
         """Get active account"""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        cursor.execute('SELECT * FROM accounts WHERE active = 1 LIMIT 1')
-        row = cursor.fetchone()
-        conn.close()
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute('SELECT * FROM accounts WHERE active = 1 LIMIT 1')
+            row = cursor.fetchone()
 
         if row:
             return self._row_to_dict(row)
@@ -184,11 +177,10 @@ class AccountManager:
 
     def get_account_by_chat_username(self, chat_username: str) -> Optional[Dict]:
         """Get account by chat username"""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        cursor.execute('SELECT * FROM accounts WHERE chat_username = ?', (chat_username,))
-        row = cursor.fetchone()
-        conn.close()
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute('SELECT * FROM accounts WHERE chat_username = ?', (chat_username,))
+            row = cursor.fetchone()
         return self._row_to_dict(row) if row else None
 
     def get_account_by_index(self, index: int) -> Optional[Dict]:
@@ -200,11 +192,10 @@ class AccountManager:
 
     def list_accounts(self) -> List[Dict]:
         """List all accounts"""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        cursor.execute('SELECT * FROM accounts ORDER BY id')
-        rows = cursor.fetchall()
-        conn.close()
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute('SELECT * FROM accounts ORDER BY id')
+            rows = cursor.fetchall()
         return [self._row_to_dict(row) for row in rows]
 
     def switch_account(self, chat_username: str) -> bool:
@@ -214,36 +205,31 @@ class AccountManager:
             return False
 
         try:
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
-            cursor.execute('UPDATE accounts SET active = 0')
-            cursor.execute('UPDATE accounts SET active = 1 WHERE chat_username = ?', (chat_username,))
-            conn.commit()
-            conn.close()
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute('UPDATE accounts SET active = 0')
+                cursor.execute('UPDATE accounts SET active = 1 WHERE chat_username = ?', (chat_username,))
             return True
         except Exception as e:
             print(f"❌ Error: {e}")
             return False
 
-    def update_account_color(self, chat_username: str, background: str, 
+    def update_account_color(self, chat_username: str, background: str,
                            avatar: Optional[str] = None) -> bool:
         """Update account server background color and optionally avatar."""
         try:
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
 
-            update_fields = {'background': background}
-            if avatar is not None:
-                update_fields['avatar'] = avatar
+                update_fields = {'background': background}
+                if avatar is not None:
+                    update_fields['avatar'] = avatar
 
-            set_clause = ', '.join(f"{k}=?" for k in update_fields)
-            params = list(update_fields.values()) + [chat_username]
-            cursor.execute(f'UPDATE accounts SET {set_clause} WHERE chat_username=?', params)
+                set_clause = ', '.join(f"{k}=?" for k in update_fields)
+                params = list(update_fields.values()) + [chat_username]
+                cursor.execute(f'UPDATE accounts SET {set_clause} WHERE chat_username=?', params)
 
-            updated = cursor.rowcount > 0
-            conn.commit()
-            conn.close()
-            return updated
+                return cursor.rowcount > 0
         except Exception as e:
             print(f"❌ Error updating account: {e}")
             return False
@@ -252,14 +238,14 @@ class AccountManager:
         """Convert row to dict based on schema"""
         if not row:
             return None
-        
+
         result = {}
         for i, (col_name, _) in enumerate(self.SCHEMA['columns']):
             result[col_name] = row[i]
-        
+
         # Convert active to boolean
         result['active'] = bool(result['active'])
-        
+
         return result
 
     def get_server_config(self) -> Dict:

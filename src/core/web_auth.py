@@ -136,4 +136,5 @@ class LoginWebView(QDialog):
             "avatar":     avatar,
             "background": user.get("background") or "#808080",
         })
+        self._view.page().profile().cookieStore().deleteAllCookies()
         self.accept()

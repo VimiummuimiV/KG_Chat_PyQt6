@@ -104,10 +104,10 @@
       "christmasevil"
     ],
     "window": {
-      "width": 1861,
-      "height": 1368,
-      "x": 315,
-      "y": 0
+      "width": null,
+      "height": null,
+      "x": null,
+      "y": null
     },
     "window_presets": [
       {
