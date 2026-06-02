@@ -20,23 +20,61 @@ _UI_CLEANUP = """
         '#head',
         '#footer',
         '#reformal_tab',
-        '.feedback',
-        '.links'
+        '.feedback'
     ];
     const hideStyle = document.createElement('style');
     hideStyle.textContent = `${hideSelectors.join(', ')} { display: none !important; }`;
     (document.head || document.documentElement).appendChild(hideStyle);
 
     const geometryStyle = document.createElement('style');
-    geometryStyle.textContent = '#content { min-width: 300px !important; min-height: 300px !important; }';
+    geometryStyle.textContent = '#content { min-width: 300px !important; min-height: 200px !important; }';
     (document.head || document.documentElement).appendChild(geometryStyle);
 
-    const invertStyle = document.createElement('style');
-    invertStyle.textContent = `
-        #content { filter: invert(100%) !important; }
-        html, body { background: #2b2b2b !important; }
+    const darkForm = document.createElement('style');
+    darkForm.textContent = `
+        html, body { background: #000000 !important; }
+
+        #login-page h4, 
+        #login-page table th,
+        #login-page .links { display: none !important; }
+
+        #login-page .big {
+            margin: 0 0 8px !important;
+            background-color: #111111 !important;
+            border-radius: 8px !important;
+            overflow: hidden !important;
+            border: none !important;
+        }
+        #login-page .big input {
+            background: transparent !important;
+            color: #ededed !important;
+            padding: 8px !important;
+            width: 100% !important;
+            border: none !important;
+            outline: none !important;
+        }
+
+        #login-page .smart-captcha {
+            filter: invert(93%) !important;
+        }
+
+        #login-page .error {
+            padding: 8px 0 0 !important;
+            color: #ff5555 !important;
+        }
+
+        #login-page #submit_login {
+            margin: 8px 0 0 !important;
+            width: 100% !important;
+            background-color: #111111 !important;
+            color: #ededed !important;
+            border: none !important;
+            padding: 8px 16px !important;
+            border-radius: 8px !important;
+            cursor: pointer !important;
+        }
     `;
-    (document.head || document.documentElement).appendChild(invertStyle);
+    (document.head || document.documentElement).appendChild(darkForm);
 })();
 """
 
@@ -50,7 +88,7 @@ class LoginWebView(QDialog):
         super().__init__(parent)
         from PyQt6.QtWebEngineWidgets import QWebEngineView
         self.setWindowTitle("Log in to Klavogonki")
-        self.resize(500, 500)
+        self.resize(360, 320)
         self._navigating_to_gamelist = False
 
         self._view = QWebEngineView()
