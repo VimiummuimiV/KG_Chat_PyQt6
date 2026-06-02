@@ -20,7 +20,8 @@ _UI_CLEANUP = """
         '#head',
         '#footer',
         '#reformal_tab',
-        '.feedback'
+        '.feedback',
+        '.links'
     ];
     const style = document.createElement('style');
     style.textContent = `${elements.join(', ')} { display: none !important; }`;
