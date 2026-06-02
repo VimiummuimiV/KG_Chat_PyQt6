@@ -133,6 +133,8 @@ _UI_ENHANCE = """
         big.style.cursor = 'text';
         big.addEventListener('click', () => big.querySelector('input')?.focus());
     });
+
+    document.querySelector('#login-page input[name="login"]')?.focus();
 })();
 """
 
