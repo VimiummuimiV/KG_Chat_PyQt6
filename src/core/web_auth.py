@@ -128,6 +128,11 @@ _UI_ENHANCE = """
         }
     `;
     (document.head || document.documentElement).appendChild(darkForm);
+
+    document.querySelectorAll('#login-page .big').forEach(big => {
+        big.style.cursor = 'text';
+        big.addEventListener('click', () => big.querySelector('input')?.focus());
+    });
 })();
 """
 
