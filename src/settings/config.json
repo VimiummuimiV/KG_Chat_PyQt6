@@ -21,7 +21,7 @@
   },
   "ui": {
     "ui_font_size": 12,
-    "text_font_size": 14,
+    "text_font_size": 15,
     "header_font_size": 18,
     "text_font_family": "Roboto",
     "emoji_font_family": "Noto Color Emoji",
@@ -82,6 +82,14 @@
     "emoticon_selector_visible": false,
     "always_on_top": false,
     "recent_emoticons": [
+      "spider",
+      "terminator",
+      "ghost",
+      "death",
+      "carpet",
+      "pirate",
+      "pirates",
+      "gangster",
       "barret",
       "uzi",
       "vpered",
@@ -93,15 +101,7 @@
       "clapping",
       "girlrevolve",
       "pogranminigun",
-      "dandy",
-      "snowhand",
-      "biggrin",
-      "boystroking",
-      "cool",
-      "blink",
-      "mafia",
-      "firework",
-      "christmasevil"
+      "dandy"
     ],
     "window": {
       "width": null,
@@ -125,7 +125,7 @@
         "y": 0
       }
     ],
-    "emoticon_last_group": "army",
+    "emoticon_last_group": "halloween",
     "emoticon_nav_positions": {
       "recent": 0,
       "army": 0,
@@ -142,11 +142,11 @@
     "play_mention_sound_always": false
   },
   "notification": {
-    "mode": "stack",
-    "muted": false
+    "mode": "replace",
+    "muted": true
   },
   "startup": {
-    "auto_login": false,
+    "auto_login": true,
     "start_minimized": true
   }
 }

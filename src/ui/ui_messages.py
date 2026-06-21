@@ -188,8 +188,13 @@ class MessagesWidget(QWidget):
             is_ban=getattr(msg, 'is_ban', False),
             is_system=getattr(msg, 'is_system', False)
         )
+        sb = self.list_view.verticalScrollBar()
+        at_bottom = (sb.maximum() - sb.value()) <= 100
+
         self.model.add_message(msg_data)
-        QTimer.singleShot(0, lambda: scroll(self.list_view, mode="bottom", delay=100))
+
+        if at_bottom:
+            QTimer.singleShot(0, lambda: scroll(self.list_view, mode="bottom", delay=100))
    
     def clear_private_messages(self):
         """Clear all private messages"""
