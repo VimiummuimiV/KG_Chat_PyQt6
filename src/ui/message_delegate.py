@@ -474,6 +474,7 @@ class MessageDelegate(QStyledItemDelegate):
         self._text_selector = _TextSelectorOverlay(
             msg.body, self.body_font, rect, self.is_dark_theme, self.list_view.viewport()
         )
+        self._text_selector.destroyed.connect(lambda: setattr(self, '_text_selector', None))
 
     def _get_username_color(self, username: str, background: Optional[str]) -> str:
         cache = get_cache()
