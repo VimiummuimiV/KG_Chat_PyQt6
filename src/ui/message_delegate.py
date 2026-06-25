@@ -25,8 +25,11 @@ _OVERLAY_PAD_V = 6   # vertical   padding inside the overlay (px)
 class _TextSelectorOverlay(QTextEdit):
     """Self-sizing, self-closing read-only text overlay for copy/select."""
 
-    def __init__(self, text: str, font, row_rect: QRect, is_dark: bool, viewport):
+    def __init__(self, text: str, font, row_rect: QRect, is_dark: bool, viewport,
+                 username: str = "", input_field=None):
         super().__init__(viewport)
+        self._username = username
+        self._input_field = input_field
         self.setReadOnly(True)
         self.setPlainText(text)
         self.setFont(font)
@@ -70,7 +73,28 @@ class _TextSelectorOverlay(QTextEdit):
         if event.button() == Qt.MouseButton.LeftButton and has_selection:
             if not self.textCursor().selectedText():
                 self.setTextCursor(cursor)
-            self.createStandardContextMenu().exec(event.globalPosition().toPoint())
+            self._show_context_menu(event.globalPosition().toPoint())
+
+    def contextMenuEvent(self, event):
+        self._show_context_menu(event.globalPos())
+
+    def _show_context_menu(self, global_pos):
+        menu = self.createStandardContextMenu()
+        selected = self.textCursor().selectedText().strip()
+        if selected and self._input_field is not None:
+            prefix = f"{self._username}: " if self._username else ""
+            reply_text = f"{prefix}{selected} » "
+            first = menu.actions()[0]
+            reply_act = menu.addAction("Reply")
+            menu.insertAction(first, reply_act)
+            menu.insertSeparator(first)
+            reply_act.triggered.connect(lambda: (
+                self._input_field.setText(reply_text),
+                self._input_field.setCursorPosition(len(reply_text)),
+                self._input_field.setFocus(),
+                self.close(),
+            ))
+        menu.exec(global_pos)
 
     def eventFilter(self, obj, event):
         if event.type() == QEvent.Type.MouseButtonPress:
@@ -493,8 +517,12 @@ class MessageDelegate(QStyledItemDelegate):
     def _show_text_selector(self, msg, rect: QRect):
         if self._text_selector:
             self._text_selector.close()
+        username = getattr(msg, 'username', '') or getattr(msg, 'login', '') or ''
         self._text_selector = _TextSelectorOverlay(
-            msg.body, self.body_font, rect, self.is_dark_theme, self.list_view.viewport()
+            msg.body, self.body_font, rect, self.is_dark_theme,
+            self.list_view.viewport(),
+            username=username,
+            input_field=self.input_field,
         )
         self._text_selector.destroyed.connect(lambda: setattr(self, '_text_selector', None))
 
