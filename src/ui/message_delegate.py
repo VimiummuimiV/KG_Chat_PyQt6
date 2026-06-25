@@ -2,7 +2,7 @@
 from typing import Dict, Optional
 from pathlib import Path
 
-from PyQt6.QtWidgets import QStyledItemDelegate, QStyleOptionViewItem, QApplication
+from PyQt6.QtWidgets import QStyledItemDelegate, QStyleOptionViewItem, QApplication, QTextEdit
 from PyQt6.QtCore import Qt, QSize, QRect, QModelIndex, pyqtSignal, QTimer, QEvent
 from PyQt6.QtGui import QPainter, QFontMetrics, QColor, QCursor, QMouseEvent
 
@@ -13,6 +13,63 @@ from helpers.fonts import get_font, FontType
 from helpers.me_action import format_me_action
 from helpers.cache import get_cache
 from ui.message_renderer import MessageRenderer
+
+
+_DARK  = dict(bg="#1E1E1E", fg="#D4D4D4", border="#3A3A3A", sel_bg="#4DA6FF", sel_fg="#000000")
+_LIGHT = dict(bg="#FFFFFF", fg="#1A1A1A", border="#C8C8C8", sel_bg="#4DA6FF", sel_fg="#FFFFFF")
+
+_OVERLAY_PAD_H = 8   # horizontal padding inside the overlay (px)
+_OVERLAY_PAD_V = 6   # vertical   padding inside the overlay (px)
+
+
+class _TextSelectorOverlay(QTextEdit):
+    """Self-sizing, self-closing read-only text overlay for copy/select."""
+
+    def __init__(self, text: str, font, row_rect: QRect, is_dark: bool, viewport):
+        super().__init__(viewport)
+        self.setReadOnly(True)
+        self.setPlainText(text)
+        self.setFont(font)
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+
+        c = _DARK if is_dark else _LIGHT
+        self.setStyleSheet(f"""
+            QTextEdit {{
+                background   : {c['bg']};
+                color        : {c['fg']};
+                border       : 1px solid {c['border']};
+                border-radius: 3px;
+                padding      : {_OVERLAY_PAD_V}px {_OVERLAY_PAD_H}px;
+                selection-background-color: {c['sel_bg']};
+                selection-color           : {c['sel_fg']};
+            }}
+        """)
+
+        h = row_rect.height() + 2 * _OVERLAY_PAD_V
+        self.setGeometry(QRect(row_rect.x(), row_rect.y(), row_rect.width(), h))
+        self.setContextMenuPolicy(Qt.ContextMenuPolicy.NoContextMenu)
+        self.show()
+        self.setFocus()
+        QTimer.singleShot(0, lambda: self.setContextMenuPolicy(Qt.ContextMenuPolicy.DefaultContextMenu))
+
+        viewport.installEventFilter(self)
+
+    def eventFilter(self, obj, event):
+        if obj is self.parent() and event.type() == QEvent.Type.MouseButtonPress:
+            if not self.geometry().contains(event.pos()):
+                self.close()
+        return False
+
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key.Key_Escape:
+            self.close()
+        else:
+            super().keyPressEvent(event)
+
+    def close(self):
+        self.parent().removeEventFilter(self)
+        self.deleteLater()
 
 
 class MessageDelegate(QStyledItemDelegate):
@@ -53,6 +110,9 @@ class MessageDelegate(QStyledItemDelegate):
         self.animation_timer = QTimer()
         self.animation_timer.timeout.connect(self._update_animations)
         self.animation_timer.start(33) # 30 FPS
+
+        # Text selector overlay
+        self._text_selector = None
 
         # Highlight support for clicked messages
         self.highlighted_row = None
@@ -365,6 +425,11 @@ class MessageDelegate(QStyledItemDelegate):
                         self.message_renderer.handle_link_rmb(url)
                     return True
             
+            # RMB on body - show selectable text overlay
+            if button == Qt.MouseButton.RightButton:
+                self._show_text_selector(msg, option.rect)
+                return True
+
             # Click on message content area (not on specific clickable elements)
             if button == Qt.MouseButton.LeftButton:
                 self.message_clicked.emit(row)
@@ -403,6 +468,13 @@ class MessageDelegate(QStyledItemDelegate):
      
         return super().editorEvent(event, model, option, index)
  
+    def _show_text_selector(self, msg, rect: QRect):
+        if self._text_selector:
+            self._text_selector.close()
+        self._text_selector = _TextSelectorOverlay(
+            msg.body, self.body_font, rect, self.is_dark_theme, self.list_view.viewport()
+        )
+
     def _get_username_color(self, username: str, background: Optional[str]) -> str:
         cache = get_cache()
         # Background is stored by ui_userlist/ui_messages which have user_id context.
