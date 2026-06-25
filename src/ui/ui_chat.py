@@ -2040,6 +2040,13 @@ class ChatWindow(QWidget):
         focused_widget = QApplication.focusWidget()
         focused = isinstance(focused_widget, (QLineEdit, QTextEdit))
 
+        # Forward Ctrl+C to the text selector overlay if active
+        if ctrl and (key == Qt.Key.Key_C or event.nativeVirtualKey() == Qt.Key.Key_C):
+            delegate = getattr(self.messages_widget, 'delegate', None)
+            if delegate and delegate._text_selector:
+                delegate._text_selector.copy()
+                return
+
         # F1 — context-aware help
         if key == Qt.Key.Key_F1:
             sel = getattr(self, 'emoticon_selector', None)
