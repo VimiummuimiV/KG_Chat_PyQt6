@@ -63,6 +63,16 @@ class _TextSelectorOverlay(QTextEdit):
             self.setTextCursor(cursor)
         super().mousePressEvent(event)
 
+    def mouseReleaseEvent(self, event):
+        """After a left‑click drag that created a selection, show the context menu
+        automatically so the user can copy immediately with one less click."""
+        super().mouseReleaseEvent(event)
+        if event.button() == Qt.MouseButton.LeftButton:
+            cursor = self.textCursor()
+            if cursor.selectedText():  # not empty
+                menu = self.createStandardContextMenu()
+                menu.exec(event.globalPosition().toPoint())
+
     def eventFilter(self, obj, event):
         if event.type() == QEvent.Type.MouseButtonPress:
             click_pos = event.globalPosition().toPoint()
