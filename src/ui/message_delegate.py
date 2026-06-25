@@ -53,11 +53,16 @@ class _TextSelectorOverlay(QTextEdit):
         self.setFocus()
         QTimer.singleShot(0, lambda: self.setContextMenuPolicy(Qt.ContextMenuPolicy.DefaultContextMenu))
 
-        viewport.installEventFilter(self)
+        QApplication.instance().installEventFilter(self)
 
     def eventFilter(self, obj, event):
-        if obj is self.parent() and event.type() == QEvent.Type.MouseButtonPress:
-            if not self.geometry().contains(event.pos()):
+        if event.type() == QEvent.Type.MouseButtonPress:
+            # Get the click position in screen coordinates
+            click_pos = event.globalPosition().toPoint()
+            # Build the overlay's global rectangle
+            overlay_rect = QRect(self.mapToGlobal(self.rect().topLeft()), self.size())
+            # Close if click is outside the overlay
+            if not overlay_rect.contains(click_pos):
                 self.close()
         return False
 
@@ -68,7 +73,7 @@ class _TextSelectorOverlay(QTextEdit):
             super().keyPressEvent(event)
 
     def close(self):
-        self.parent().removeEventFilter(self)
+        QApplication.instance().removeEventFilter(self)
         self.deleteLater()
 
 
