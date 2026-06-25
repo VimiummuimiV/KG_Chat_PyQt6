@@ -55,8 +55,7 @@ class _TextSelectorOverlay(QTextEdit):
         QApplication.instance().installEventFilter(self)
 
     def mousePressEvent(self, event):
-        """Left‑click clears the full selection so you can drag to select a portion.
-        Right‑click leaves the selection intact for the context menu."""
+        """Clear selection on left-click to allow new selection."""
         if event.button() == Qt.MouseButton.LeftButton:
             cursor = self.textCursor()
             cursor.clearSelection()
@@ -64,17 +63,20 @@ class _TextSelectorOverlay(QTextEdit):
         super().mousePressEvent(event)
 
     def mouseReleaseEvent(self, event):
-        """After a left‑click drag that created a selection, show the context menu
-        automatically so the user can copy immediately with one less click."""
+        """After releasing left-click, if there was a selection, show context menu."""
+        cursor = self.textCursor()
+        has_selection = bool(cursor.selectedText())
         super().mouseReleaseEvent(event)
-        if event.button() == Qt.MouseButton.LeftButton:
-            cursor = self.textCursor()
-            if cursor.selectedText():  # not empty
-                menu = self.createStandardContextMenu()
-                menu.exec(event.globalPosition().toPoint())
+        if event.button() == Qt.MouseButton.LeftButton and has_selection:
+            if not self.textCursor().selectedText():
+                self.setTextCursor(cursor)
+            self.createStandardContextMenu().exec(event.globalPosition().toPoint())
 
     def eventFilter(self, obj, event):
         if event.type() == QEvent.Type.MouseButtonPress:
+            # Don't close while a popup (menu) is active – default right‑click works.
+            if QApplication.activePopupWidget() is not None:
+                return False
             click_pos = event.globalPosition().toPoint()
             overlay_rect = QRect(self.mapToGlobal(self.rect().topLeft()), self.size())
             if not overlay_rect.contains(click_pos):
