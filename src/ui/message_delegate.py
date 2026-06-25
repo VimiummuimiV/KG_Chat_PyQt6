@@ -83,7 +83,7 @@ class _TextSelectorOverlay(QTextEdit):
         selected = self.textCursor().selectedText().strip()
         if selected and self._input_field is not None:
             prefix = f"{self._username}: " if self._username else ""
-            reply_text = f"{prefix}{selected} » "
+            reply_text = f"{prefix}{selected} ↩ "
             first = menu.actions()[0]
             reply_act = menu.addAction("Reply")
             menu.insertAction(first, reply_act)
