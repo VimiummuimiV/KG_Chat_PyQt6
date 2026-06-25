@@ -48,20 +48,25 @@ class _TextSelectorOverlay(QTextEdit):
 
         h = row_rect.height() + 2 * _OVERLAY_PAD_V
         self.setGeometry(QRect(row_rect.x(), row_rect.y(), row_rect.width(), h))
-        self.setContextMenuPolicy(Qt.ContextMenuPolicy.NoContextMenu)
         self.show()
         self.setFocus()
-        QTimer.singleShot(0, lambda: self.setContextMenuPolicy(Qt.ContextMenuPolicy.DefaultContextMenu))
+        self.selectAll()
 
         QApplication.instance().installEventFilter(self)
 
+    def mousePressEvent(self, event):
+        """Left‑click clears the full selection so you can drag to select a portion.
+        Right‑click leaves the selection intact for the context menu."""
+        if event.button() == Qt.MouseButton.LeftButton:
+            cursor = self.textCursor()
+            cursor.clearSelection()
+            self.setTextCursor(cursor)
+        super().mousePressEvent(event)
+
     def eventFilter(self, obj, event):
         if event.type() == QEvent.Type.MouseButtonPress:
-            # Get the click position in screen coordinates
             click_pos = event.globalPosition().toPoint()
-            # Build the overlay's global rectangle
             overlay_rect = QRect(self.mapToGlobal(self.rect().topLeft()), self.size())
-            # Close if click is outside the overlay
             if not overlay_rect.contains(click_pos):
                 self.close()
         return False
