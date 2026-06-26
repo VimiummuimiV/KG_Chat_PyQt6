@@ -515,7 +515,8 @@ class ChatlogWidget(QWidget):
         # Convert ChatMessage to MessageData - msg already has all fields
         for msg in messages:
             try:
-                timestamp = datetime.strptime(msg.timestamp, "%H:%M:%S")
+                t = datetime.strptime(msg.timestamp, "%H:%M:%S").time()
+                timestamp = datetime.combine(datetime.strptime(date, "%Y-%m-%d").date(), t)
                 msg_data = MessageData(timestamp, msg.username, msg.message, None, msg.username)
                 self.temp_parsed_messages.append(msg_data)
             except Exception as e:
@@ -893,7 +894,8 @@ class ChatlogWidget(QWidget):
             message_data = []
             for msg in messages:
                 try:
-                    timestamp = datetime.strptime(msg.timestamp, "%H:%M:%S")
+                    t = datetime.strptime(msg.timestamp, "%H:%M:%S").time()
+                    timestamp = datetime.combine(self.current_date, t)
                     msg_data = MessageData(timestamp, msg.username, msg.message, None, msg.username)
                     message_data.append(msg_data)
                 except:
