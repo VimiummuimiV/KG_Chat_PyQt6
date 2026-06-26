@@ -15,11 +15,8 @@ from helpers.cache import get_cache
 from ui.message_renderer import MessageRenderer
 
 
-_DARK  = dict(bg="#1E1E1E", fg="#D4D4D4", border="#3A3A3A", sel_bg="#4DA6FF", sel_fg="#000000")
-_LIGHT = dict(bg="#FFFFFF", fg="#1A1A1A", border="#C8C8C8", sel_bg="#4DA6FF", sel_fg="#FFFFFF")
-
-_OVERLAY_PAD_H = 8   # horizontal padding inside the overlay (px)
-_OVERLAY_PAD_V = 6   # vertical   padding inside the overlay (px)
+_DARK  = dict(bg="#1E1E1E", fg="#D4D4D4", sel_bg="#4DA6FF", sel_fg="#000000")
+_LIGHT = dict(bg="#FFFFFF", fg="#1A1A1A", sel_bg="#4DA6FF", sel_fg="#FFFFFF")
 
 
 class _TextSelectorOverlay(QTextEdit):
@@ -41,16 +38,16 @@ class _TextSelectorOverlay(QTextEdit):
             QTextEdit {{
                 background   : {c['bg']};
                 color        : {c['fg']};
-                border       : 1px solid {c['border']};
+                border       : none;
                 border-radius: 3px;
-                padding      : {_OVERLAY_PAD_V}px {_OVERLAY_PAD_H}px;
+                padding      : 0px;
                 selection-background-color: {c['sel_bg']};
                 selection-color           : {c['sel_fg']};
             }}
         """)
+        self.document().setDocumentMargin(0)
 
-        h = row_rect.height() + 2 * _OVERLAY_PAD_V
-        self.setGeometry(QRect(row_rect.x(), row_rect.y(), row_rect.width(), h))
+        self.setGeometry(row_rect)
         self.show()
         self.setFocus()
         self.selectAll()
