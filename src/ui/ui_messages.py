@@ -129,8 +129,17 @@ class MessagesWidget(QWidget):
             self.delegate.set_my_username(username)
 
     def set_input_field(self, input_field):
-        """Set input field reference for delegate"""
-        self.delegate.set_input_field(input_field)
+        """Set input field reference for reply action"""
+        def _reply(username, text):
+            reply_text = MessageDelegate.format_reply_text(username, text)
+            input_field.setText(reply_text)
+            input_field.setCursorPosition(len(reply_text))
+            input_field.setFocus()
+        self.delegate.reply_callback = _reply
+
+    @property
+    def reply_callback(self):
+        return self.delegate.reply_callback
     
     def _on_message_clicked(self, row: int):
         """Handle message click - scroll to middle with highlight"""

@@ -24,10 +24,10 @@ class _TextSelectorOverlay(QTextEdit):
     """Self-sizing, self-closing read-only text overlay for copy/select."""
 
     def __init__(self, text: str, font, row_rect: QRect, is_dark: bool, viewport,
-                 username: str = "", input_field=None):
+                 reply_callback=None, username: str = ""):
         super().__init__(viewport)
+        self._reply_callback = reply_callback
         self._username = username
-        self._input_field = input_field
         self.setReadOnly(True)
         self.setPlainText(text)
         self.setFont(font)
@@ -68,19 +68,14 @@ class _TextSelectorOverlay(QTextEdit):
 
     def _reply(self):
         selected = self.textCursor().selectedText().strip()
-        copy_text = selected or self.toPlainText()
-        prefix = f"{self._username}: " if self._username else ""
-        reply_text = f"{prefix}{copy_text} ↩ "
-        self._input_field.setText(reply_text)
-        self._input_field.setCursorPosition(len(reply_text))
-        self._input_field.setFocus()
+        self._reply_callback(self._username, selected or self.toPlainText())
         self.close()
 
     def _show_context_menu(self, global_pos):
         icons_path = Path(__file__).parent.parent / "icons"
         def icon(name): return _render_svg_icon(icons_path / name, 16)
         menu = QMenu(self)
-        if self._input_field is not None:
+        if self._reply_callback is not None:
             reply_act = menu.addAction(icon("reply.svg"), "Reply")
             reply_act.setShortcut(QKeySequence("R"))
             reply_act.triggered.connect(self._reply)
@@ -106,7 +101,7 @@ class _TextSelectorOverlay(QTextEdit):
                 Qt.Key.Key_Escape: self.close,
                 Qt.Key.Key_C: self._copy_text,
                 Qt.Key.Key_A: self.selectAll,
-                **(({Qt.Key.Key_R: self._reply}) if self._input_field is not None else {}),
+                **(({Qt.Key.Key_R: self._reply}) if self._reply_callback is not None else {}),
             }.get(event.key())
             if action:
                 action()
@@ -146,9 +141,9 @@ class MessageDelegate(QStyledItemDelegate):
         self.spacing = config.get("ui", "message", "element_spacing") or 4
      
         self.click_rects: Dict[int, Dict] = {}
-        self.input_field = None
+        self.reply_callback = None
         self.my_username = None # Store username for mention highlighting
-     
+
         # Animation support for GIF emoticons
         self.list_view = None
         self.animated_rows = set()
@@ -197,9 +192,6 @@ class MessageDelegate(QStyledItemDelegate):
             self.message_renderer.refresh_row.connect(self._refresh_row)
             self.message_renderer.refresh_view.connect(lambda: self.list_view.viewport().update())
  
-    def set_input_field(self, input_field):
-        self.input_field = input_field
- 
     def cleanup(self):
         self.list_view = None
         if self.message_renderer:
@@ -223,6 +215,10 @@ class MessageDelegate(QStyledItemDelegate):
         is_system = is_me or bool(getattr(msg, 'is_system', False))
         body = MessageRenderer._emoji_prefix(body, msg.is_private, msg.is_ban, is_system)
         return body, is_system
+
+    @staticmethod
+    def format_reply_text(username: str, text: str) -> str:
+        return f"{username}: {text} ↩ " if username else f"{text} ↩ "
  
     def sizeHint(self, option: QStyleOptionViewItem, index: QModelIndex) -> QSize:
         msg = index.data(Qt.ItemDataRole.DisplayRole)
@@ -517,12 +513,11 @@ class MessageDelegate(QStyledItemDelegate):
     def _show_text_selector(self, msg, rect: QRect):
         if self._text_selector:
             self._text_selector.close()
-        username = getattr(msg, 'username', '') or getattr(msg, 'login', '') or ''
         self._text_selector = _TextSelectorOverlay(
             msg.body, self.body_font, rect, self.is_dark_theme,
             self.list_view.viewport(),
-            username=username,
-            input_field=self.input_field,
+            reply_callback=self.reply_callback,
+            username=getattr(msg, 'username', '') or getattr(msg, 'login', '') or '',
         )
         self._text_selector.destroyed.connect(lambda: setattr(self, '_text_selector', None))
 
