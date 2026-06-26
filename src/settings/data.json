@@ -7589,5 +7589,7 @@
   "840110": {"login": "Rex123", "background": "#777777", "light": "#767676", "dark": "#858585"},
   "840111": {"login": "nazyrov1122", "background": "#777777", "light": "#767676", "dark": "#858585"},
   "840113": {"login": "fhneh1231", "background": "#777777", "light": "#767676", "dark": "#858585"},
-  "840108": {"login": "emondjy", "background": "#777777", "light": "#767676", "dark": "#858585"}
+  "840108": {"login": "emondjy", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "150606": {"login": "dronsovest", "background": "#a09d0a", "light": "#7d7a08", "dark": "#a09d0a"},
+  "840115": {"login": "Dinalati", "background": "#777777", "light": "#767676", "dark": "#858585"}
 }

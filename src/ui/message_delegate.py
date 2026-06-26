@@ -2,7 +2,7 @@
 from typing import Dict, Optional
 from pathlib import Path
 
-from PyQt6.QtWidgets import QStyledItemDelegate, QStyleOptionViewItem, QApplication, QTextEdit
+from PyQt6.QtWidgets import QStyledItemDelegate, QStyleOptionViewItem, QApplication, QTextEdit, QMenu
 from PyQt6.QtCore import Qt, QSize, QRect, QModelIndex, pyqtSignal, QTimer, QEvent
 from PyQt6.QtGui import QPainter, QFontMetrics, QColor, QCursor, QMouseEvent
 
@@ -50,47 +50,36 @@ class _TextSelectorOverlay(QTextEdit):
         self.setGeometry(row_rect)
         self.show()
         self.setFocus()
-        self.selectAll()
 
         QApplication.instance().installEventFilter(self)
 
-    def mousePressEvent(self, event):
-        """Clear selection on left-click to allow new selection."""
-        if event.button() == Qt.MouseButton.LeftButton:
-            cursor = self.textCursor()
-            cursor.clearSelection()
-            self.setTextCursor(cursor)
-        super().mousePressEvent(event)
-
     def mouseReleaseEvent(self, event):
-        """After releasing left-click, if there was a selection, show context menu."""
-        cursor = self.textCursor()
-        has_selection = bool(cursor.selectedText())
         super().mouseReleaseEvent(event)
-        if event.button() == Qt.MouseButton.LeftButton and has_selection:
-            if not self.textCursor().selectedText():
-                self.setTextCursor(cursor)
+        if event.button() == Qt.MouseButton.LeftButton and self.textCursor().hasSelection():
             self._show_context_menu(event.globalPosition().toPoint())
 
     def contextMenuEvent(self, event):
         self._show_context_menu(event.globalPos())
 
     def _show_context_menu(self, global_pos):
-        menu = self.createStandardContextMenu()
         selected = self.textCursor().selectedText().strip()
-        if selected and self._input_field is not None:
+        copy_text = selected or self.toPlainText()
+        menu = QMenu(self)
+        if self._input_field is not None:
             prefix = f"{self._username}: " if self._username else ""
-            reply_text = f"{prefix}{selected} ↩ "
-            first = menu.actions()[0]
+            reply_text = f"{prefix}{copy_text} ↩ "
             reply_act = menu.addAction("Reply")
-            menu.insertAction(first, reply_act)
-            menu.insertSeparator(first)
             reply_act.triggered.connect(lambda: (
                 self._input_field.setText(reply_text),
                 self._input_field.setCursorPosition(len(reply_text)),
                 self._input_field.setFocus(),
                 self.close(),
             ))
+            menu.addSeparator()
+        copy_act = menu.addAction("Copy")
+        copy_act.triggered.connect(lambda: QApplication.clipboard().setText(copy_text))
+        select_all_act = menu.addAction("Select All")
+        select_all_act.triggered.connect(self.selectAll)
         menu.exec(global_pos)
 
     def eventFilter(self, obj, event):
