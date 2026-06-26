@@ -61,43 +61,51 @@ class _TextSelectorOverlay(QTextEdit):
     def contextMenuEvent(self, event):
         self._show_context_menu(event.globalPos())
 
-    def _show_context_menu(self, global_pos):
+    def _copy_text(self):
+        selected = self.textCursor().selectedText().strip()
+        QApplication.clipboard().setText(selected or self.toPlainText())
+
+    def _reply(self):
         selected = self.textCursor().selectedText().strip()
         copy_text = selected or self.toPlainText()
+        prefix = f"{self._username}: " if self._username else ""
+        reply_text = f"{prefix}{copy_text} ↩ "
+        self._input_field.setText(reply_text)
+        self._input_field.setCursorPosition(len(reply_text))
+        self._input_field.setFocus()
+        self.close()
+
+    def _show_context_menu(self, global_pos):
         menu = QMenu(self)
         if self._input_field is not None:
-            prefix = f"{self._username}: " if self._username else ""
-            reply_text = f"{prefix}{copy_text} ↩ "
-            reply_act = menu.addAction("Reply")
-            reply_act.triggered.connect(lambda: (
-                self._input_field.setText(reply_text),
-                self._input_field.setCursorPosition(len(reply_text)),
-                self._input_field.setFocus(),
-                self.close(),
-            ))
+            reply_act = menu.addAction("Reply R")
+            reply_act.triggered.connect(self._reply)
             menu.addSeparator()
-        copy_act = menu.addAction("Copy")
-        copy_act.triggered.connect(lambda: QApplication.clipboard().setText(copy_text))
-        select_all_act = menu.addAction("Select All")
+        copy_act = menu.addAction("Copy	C")
+        copy_act.triggered.connect(self._copy_text)
+        select_all_act = menu.addAction("Select All	A")
         select_all_act.triggered.connect(self.selectAll)
         menu.exec(global_pos)
 
     def eventFilter(self, obj, event):
         if event.type() == QEvent.Type.MouseButtonPress:
-            # Don't close while a popup (menu) is active – default right‑click works.
             if QApplication.activePopupWidget() is not None:
                 return False
             click_pos = event.globalPosition().toPoint()
             overlay_rect = QRect(self.mapToGlobal(self.rect().topLeft()), self.size())
             if not overlay_rect.contains(click_pos):
                 self.close()
+        elif event.type() == QEvent.Type.KeyPress and not event.modifiers():
+            action = {
+                Qt.Key.Key_Escape: self.close,
+                Qt.Key.Key_C: self._copy_text,
+                Qt.Key.Key_A: self.selectAll,
+                **(({Qt.Key.Key_R: self._reply}) if self._input_field is not None else {}),
+            }.get(event.key())
+            if action:
+                action()
+                return True
         return False
-
-    def keyPressEvent(self, event):
-        if event.key() == Qt.Key.Key_Escape:
-            self.close()
-        else:
-            super().keyPressEvent(event)
 
     def close(self):
         QApplication.instance().removeEventFilter(self)
