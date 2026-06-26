@@ -1,6 +1,7 @@
 """Message delegate for rendering with virtual scrolling"""
 from typing import Dict, Optional
 from pathlib import Path
+from datetime import datetime
 
 from PyQt6.QtWidgets import QStyledItemDelegate, QStyleOptionViewItem, QApplication, QTextEdit, QMenu
 from PyQt6.QtCore import Qt, QSize, QRect, QModelIndex, pyqtSignal, QTimer, QEvent
@@ -24,10 +25,11 @@ class _TextSelectorOverlay(QTextEdit):
     """Self-sizing, self-closing read-only text overlay for copy/select."""
 
     def __init__(self, text: str, font, row_rect: QRect, is_dark: bool, viewport,
-                 reply_callback=None, username: str = ""):
+                 reply_callback=None, username: str = "", timestamp=None):
         super().__init__(viewport)
         self._reply_callback = reply_callback
         self._username = username
+        self._timestamp = timestamp
         self.setReadOnly(True)
         self.setPlainText(text)
         self.setFont(font)
@@ -68,7 +70,7 @@ class _TextSelectorOverlay(QTextEdit):
 
     def _reply(self):
         selected = self.textCursor().selectedText().strip()
-        self._reply_callback(self._username, selected or self.toPlainText())
+        self._reply_callback(self._username, selected or self.toPlainText(), self._timestamp)
         self.close()
 
     def _show_context_menu(self, global_pos):
@@ -217,8 +219,13 @@ class MessageDelegate(QStyledItemDelegate):
         return body, is_system
 
     @staticmethod
-    def format_reply_text(username: str, text: str) -> str:
-        return f"{username}: {text} ↩ " if username else f"{text} ↩ "
+    def format_reply_text(username: str, text: str, timestamp=None) -> str:
+        time_prefix = ""
+        if timestamp:
+            is_today = timestamp.date() == datetime.now().date()
+            time_prefix = f"[{timestamp.strftime('%H:%M:%S')}] " if is_today else f"[{timestamp.strftime('%Y-%m-%d %H:%M:%S')}] "
+        username_prefix = f"{username}: " if username else ""
+        return f"{time_prefix}{username_prefix}{text} ↩ "
  
     def sizeHint(self, option: QStyleOptionViewItem, index: QModelIndex) -> QSize:
         msg = index.data(Qt.ItemDataRole.DisplayRole)
@@ -518,6 +525,7 @@ class MessageDelegate(QStyledItemDelegate):
             self.list_view.viewport(),
             reply_callback=self.reply_callback,
             username=getattr(msg, 'username', '') or getattr(msg, 'login', '') or '',
+            timestamp=getattr(msg, 'timestamp', None),
         )
         self._text_selector.destroyed.connect(lambda: setattr(self, '_text_selector', None))
 

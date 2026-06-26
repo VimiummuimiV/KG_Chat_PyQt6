@@ -130,8 +130,8 @@ class MessagesWidget(QWidget):
 
     def set_input_field(self, input_field):
         """Set input field reference for reply action"""
-        def _reply(username, text):
-            reply_text = MessageDelegate.format_reply_text(username, text)
+        def _reply(username, text, timestamp=None):
+            reply_text = MessageDelegate.format_reply_text(username, text, timestamp)
             input_field.setText(reply_text)
             input_field.setCursorPosition(len(reply_text))
             input_field.setFocus()
