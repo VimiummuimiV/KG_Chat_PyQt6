@@ -223,12 +223,10 @@ class MessageDelegate(QStyledItemDelegate):
     def format_reply_text(username: str, text: str, timestamp=None) -> str:
         time_prefix = ""
         if timestamp:
-            is_today = timestamp.date() == datetime.now().date()
-            time_prefix = (
-                f"[{timestamp:%H:%M:%S}] "
-                if is_today
-                else f"({timestamp:%Y-%m-%d}) [{timestamp:%H:%M:%S}] "
-            )
+            date_str = timestamp.strftime("%Y-%m-%d")
+            time_str = timestamp.strftime("%H:%M:%S")
+            url = f"https://klavogonki.ru/chatlogs/{date_str}.html#{time_str}"
+            time_prefix = f"{url} "
         username_prefix = f"{username}: " if username else ""
         return f"{time_prefix}{username_prefix}{text} ↩ "
 
