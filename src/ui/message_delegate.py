@@ -15,8 +15,8 @@ from helpers.cache import get_cache
 from ui.message_renderer import MessageRenderer
 
 
-_DARK  = dict(bg="#1E1E1E", fg="#D4D4D4", sel_bg="#4DA6FF", sel_fg="#000000")
-_LIGHT = dict(bg="#FFFFFF", fg="#1A1A1A", sel_bg="#4DA6FF", sel_fg="#FFFFFF")
+_DARK  = dict(bg="#0A0A0A", fg="#D4D4D4", sel_bg="#2E7D32", sel_fg="#E8F5E9")
+_LIGHT = dict(bg="#C8C8C8", fg="#1A1A1A", sel_bg="#388E3C", sel_fg="#FFFFFF")
 
 
 class _TextSelectorOverlay(QTextEdit):
