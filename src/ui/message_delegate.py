@@ -99,12 +99,16 @@ class _TextSelectorOverlay(QTextEdit):
             if not overlay_rect.contains(click_pos):
                 self.close()
         elif event.type() == QEvent.Type.KeyPress and not event.modifiers():
-            action = {
+            # Physical key → action, layout-independent via nativeVirtualKey fallback.
+            # Qt key values for Latin letters equal their ASCII codes, as does
+            # Windows Virtual Key codes — so nativeVirtualKey() works regardless of layout.
+            actions = {
                 Qt.Key.Key_Escape: self.close,
                 Qt.Key.Key_C: self._copy_text,
                 Qt.Key.Key_A: self.selectAll,
                 **(({Qt.Key.Key_R: self._reply}) if self._reply_callback is not None else {}),
-            }.get(event.key())
+            }
+            action = actions.get(event.key()) or actions.get(event.nativeVirtualKey())
             if action:
                 action()
                 return True
