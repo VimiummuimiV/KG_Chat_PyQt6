@@ -223,10 +223,14 @@ class MessageDelegate(QStyledItemDelegate):
         time_prefix = ""
         if timestamp:
             is_today = timestamp.date() == datetime.now().date()
-            time_prefix = f"[{timestamp.strftime('%H:%M:%S')}] " if is_today else f"[{timestamp.strftime('%Y-%m-%d %H:%M:%S')}] "
+            time_prefix = (
+                f"[{timestamp:%H:%M:%S}] "
+                if is_today
+                else f"({timestamp:%Y-%m-%d}) [{timestamp:%H:%M:%S}] "
+            )
         username_prefix = f"{username}: " if username else ""
         return f"{time_prefix}{username_prefix}{text} ↩ "
- 
+
     def sizeHint(self, option: QStyleOptionViewItem, index: QModelIndex) -> QSize:
         msg = index.data(Qt.ItemDataRole.DisplayRole)
         if not msg:
