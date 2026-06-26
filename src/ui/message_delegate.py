@@ -13,6 +13,7 @@ from helpers.fonts import get_font, FontType
 from helpers.me_action import format_me_action
 from helpers.cache import get_cache
 from ui.message_renderer import MessageRenderer
+from helpers.create import _render_svg_icon
 
 
 _DARK  = dict(bg="#0A0A0A", fg="#D4D4D4", sel_bg="#2E7D32", sel_fg="#E8F5E9")
@@ -76,16 +77,18 @@ class _TextSelectorOverlay(QTextEdit):
         self.close()
 
     def _show_context_menu(self, global_pos):
+        icons_path = Path(__file__).parent.parent / "icons"
+        def icon(name): return _render_svg_icon(icons_path / name, 16)
         menu = QMenu(self)
         if self._input_field is not None:
-            reply_act = menu.addAction("Reply")
+            reply_act = menu.addAction(icon("reply.svg"), "Reply")
             reply_act.setShortcut(QKeySequence("R"))
             reply_act.triggered.connect(self._reply)
             menu.addSeparator()
-        copy_act = menu.addAction("Copy")
+        copy_act = menu.addAction(icon("clipboard.svg"), "Copy")
         copy_act.setShortcut(QKeySequence("C"))
         copy_act.triggered.connect(self._copy_text)
-        select_all_act = menu.addAction("Select All")
+        select_all_act = menu.addAction(icon("magic.svg"), "Select All")
         select_all_act.setShortcut(QKeySequence("A"))
         select_all_act.triggered.connect(self.selectAll)
         menu.exec(global_pos)

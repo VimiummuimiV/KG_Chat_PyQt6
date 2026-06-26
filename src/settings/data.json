@@ -7594,5 +7594,7 @@
   "840115": {"login": "Dinalati", "background": "#777777", "light": "#767676", "dark": "#858585"},
   "780294": {"login": "Аскар_У", "background": "#777777", "light": "#767676", "dark": "#858585"},
   "840116": {"login": "опция_блютус", "background": "#969040", "light": "#7e7836", "dark": "#969040"},
-  "799735": {"login": "GoshaSyndicate", "background": "#000000", "light": "#000000", "dark": "#858585"}
+  "799735": {"login": "GoshaSyndicate", "background": "#000000", "light": "#000000", "dark": "#858585"},
+  "598679": {"login": "andsrs", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "314983": {"login": "M4done", "background": "#1881E2", "light": "#1678d3", "dark": "#1e87e7"}
 }
