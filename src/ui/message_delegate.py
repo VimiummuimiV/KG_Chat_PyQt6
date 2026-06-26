@@ -4,7 +4,7 @@ from pathlib import Path
 
 from PyQt6.QtWidgets import QStyledItemDelegate, QStyleOptionViewItem, QApplication, QTextEdit, QMenu
 from PyQt6.QtCore import Qt, QSize, QRect, QModelIndex, pyqtSignal, QTimer, QEvent
-from PyQt6.QtGui import QPainter, QFontMetrics, QColor, QCursor, QMouseEvent
+from PyQt6.QtGui import QPainter, QFontMetrics, QColor, QCursor, QMouseEvent, QKeySequence
 
 from helpers.color_contrast import optimize_color_contrast
 from components.messages_separator import NewMessagesSeparator, ChatlogDateSeparator
@@ -78,12 +78,15 @@ class _TextSelectorOverlay(QTextEdit):
     def _show_context_menu(self, global_pos):
         menu = QMenu(self)
         if self._input_field is not None:
-            reply_act = menu.addAction("Reply R")
+            reply_act = menu.addAction("Reply")
+            reply_act.setShortcut(QKeySequence("R"))
             reply_act.triggered.connect(self._reply)
             menu.addSeparator()
-        copy_act = menu.addAction("Copy	C")
+        copy_act = menu.addAction("Copy")
+        copy_act.setShortcut(QKeySequence("C"))
         copy_act.triggered.connect(self._copy_text)
-        select_all_act = menu.addAction("Select All	A")
+        select_all_act = menu.addAction("Select All")
+        select_all_act.setShortcut(QKeySequence("A"))
         select_all_act.triggered.connect(self.selectAll)
         menu.exec(global_pos)
 
