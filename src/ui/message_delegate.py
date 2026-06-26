@@ -85,9 +85,6 @@ class _TextSelectorOverlay(QTextEdit):
         copy_act = menu.addAction(icon("clipboard.svg"), "Copy")
         copy_act.setShortcut(QKeySequence("C"))
         copy_act.triggered.connect(self._copy_text)
-        select_all_act = menu.addAction(icon("magic.svg"), "Select All")
-        select_all_act.setShortcut(QKeySequence("A"))
-        select_all_act.triggered.connect(self.selectAll)
         menu.exec(global_pos)
 
     def eventFilter(self, obj, event):
@@ -105,7 +102,6 @@ class _TextSelectorOverlay(QTextEdit):
             actions = {
                 Qt.Key.Key_Escape: self.close,
                 Qt.Key.Key_C: self._copy_text,
-                Qt.Key.Key_A: self.selectAll,
                 **(({Qt.Key.Key_R: self._reply}) if self._reply_callback is not None else {}),
             }
             action = actions.get(event.key()) or actions.get(event.nativeVirtualKey())
