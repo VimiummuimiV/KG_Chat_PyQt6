@@ -144,6 +144,7 @@ class MessageDelegate(QStyledItemDelegate):
      
         self.click_rects: Dict[int, Dict] = {}
         self.reply_callback = None
+        self.reply_includes_timestamp = False  # Chatlog sets True; realtime messages omit timestamp
         self.my_username = None # Store username for mention highlighting
 
         # Animation support for GIF emoticons
@@ -529,7 +530,7 @@ class MessageDelegate(QStyledItemDelegate):
             self.list_view.viewport(),
             reply_callback=self.reply_callback,
             username=getattr(msg, 'username', '') or getattr(msg, 'login', '') or '',
-            timestamp=getattr(msg, 'timestamp', None),
+            timestamp=getattr(msg, 'timestamp', None) if self.reply_includes_timestamp else None,
         )
         self._text_selector.destroyed.connect(lambda: setattr(self, '_text_selector', None))
 

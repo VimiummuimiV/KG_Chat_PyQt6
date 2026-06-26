@@ -1003,6 +1003,7 @@ class ChatWindow(QWidget):
             self.chatlog_widget.messages_loaded.connect(self._on_chatlog_messages_loaded)
             self.chatlog_widget.filter_changed.connect(self._on_chatlog_filter_changed)
             self.chatlog_widget.delegate.reply_callback = self.messages_widget.reply_callback
+            self.chatlog_widget.delegate.reply_includes_timestamp = True
             self.stacked_widget.addWidget(self.chatlog_widget)
            
             width = self.width()
