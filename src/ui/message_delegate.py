@@ -90,11 +90,11 @@ class _TextSelectorOverlay(QTextEdit):
             reply_act.setShortcut(QKeySequence("R"))
             reply_act.triggered.connect(self._reply)
             menu.addSeparator()
-        copy_act = menu.addAction(icon("copy.svg"), "Copy")
+        copy_act = menu.addAction(icon("clipboard.svg"), "Copy")
         copy_act.setShortcut(QKeySequence("C"))
         copy_act.triggered.connect(self._copy_text)
         if self._paste_callback is not None:
-            paste_act = menu.addAction(icon("clipboard.svg"), "Paste")
+            paste_act = menu.addAction(icon("add-circle.svg"), "Paste")
             paste_act.setShortcut(QKeySequence("V"))
             paste_act.triggered.connect(self._paste_text)
         menu.exec(global_pos)
