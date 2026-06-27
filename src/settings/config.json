@@ -143,10 +143,10 @@
   },
   "notification": {
     "mode": "replace",
-    "muted": true
+    "muted": false
   },
   "startup": {
-    "auto_login": true,
-    "start_minimized": true
+    "auto_login": false,
+    "start_minimized": false
   }
 }

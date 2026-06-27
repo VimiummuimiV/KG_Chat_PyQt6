@@ -465,7 +465,9 @@ class Application(QObject):
         """Show account selection window"""
         self.account_window = AccountWindow()
         self.account_window.account_connected.connect(self.on_account_connected)
+        self.account_window.setWindowOpacity(0)
         self.account_window.show()
+        QTimer.singleShot(50, lambda: self.account_window.setWindowOpacity(1))
 
     def on_account_connected(self, account):
         """Close account window and open chat"""
@@ -509,7 +511,9 @@ class Application(QObject):
             # The window exists but is not shown - user can access it via tray icon
         else:
             # Normal behavior - show the window
+            self.chat_window.setWindowOpacity(0)
             self.chat_window.show()
+            QTimer.singleShot(50, lambda: self.chat_window.setWindowOpacity(1))
 
     def _refresh_own_username_color(self, operation_func):
         """Execute operation and refresh own username color in UI if successful."""
@@ -667,7 +671,9 @@ class Application(QObject):
             window.hide()
         else:
             # Show and bring to foreground
+            window.setWindowOpacity(0)
             window.show()
+            QTimer.singleShot(50, lambda: window.setWindowOpacity(1))
             self._force_window_to_foreground(window)
             if window == self.chat_window:
                 self.reset_unread()
