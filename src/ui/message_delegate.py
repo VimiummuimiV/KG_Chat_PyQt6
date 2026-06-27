@@ -71,9 +71,9 @@ class _TextSelectorOverlay(QTextEdit):
         QApplication.clipboard().setText(selected or self.toPlainText())
 
     def _paste_text(self):
-        text = QApplication.clipboard().text()
-        if text:
-            self._paste_callback(text)
+        selected = self.textCursor().selectedText().strip()
+        text = selected or self.toPlainText()
+        self._paste_callback(text)
         self.close()
 
     def _reply(self):
@@ -90,14 +90,13 @@ class _TextSelectorOverlay(QTextEdit):
             reply_act.setShortcut(QKeySequence("R"))
             reply_act.triggered.connect(self._reply)
             menu.addSeparator()
-        copy_act = menu.addAction(icon("clipboard.svg"), "Copy")
+        copy_act = menu.addAction(icon("copy.svg"), "Copy")
         copy_act.setShortcut(QKeySequence("C"))
         copy_act.triggered.connect(self._copy_text)
         if self._paste_callback is not None:
             paste_act = menu.addAction(icon("clipboard.svg"), "Paste")
             paste_act.setShortcut(QKeySequence("V"))
             paste_act.triggered.connect(self._paste_text)
-            paste_act.setEnabled(bool(QApplication.clipboard().text()))
         menu.exec(global_pos)
 
     def eventFilter(self, obj, event):
