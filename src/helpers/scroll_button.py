@@ -1,10 +1,15 @@
 """Reusable scroll-to-bottom button controller for list views"""
 from pathlib import Path
-from PyQt6.QtWidgets import QListView
-from PyQt6.QtCore import QObject, QTimer, pyqtSignal
+from PyQt6.QtWidgets import QListView, QGraphicsOpacityEffect
+from PyQt6.QtCore import QObject, QTimer, QPropertyAnimation, QEvent, pyqtSignal
 from helpers.config import Config
 from helpers.create import create_icon_button
 from helpers.scroll import scroll
+
+OPACITY_DEFAULT = 0.35
+OPACITY_HOVER   = 1.0
+FADE_DURATION   = 180  # ms
+
 
 class ScrollToBottomButton(QObject):
     """Floating scroll-to-bottom icon button for QListView."""
@@ -32,7 +37,15 @@ class ScrollToBottomButton(QObject):
         )
         self.button.setParent(parent)  # Parent the actual button widget
         self.button.hide()
-        
+
+        # Opacity effect shared by all animations
+        self._effect = QGraphicsOpacityEffect(self.button)
+        self._effect.setOpacity(0.0)
+        self.button.setGraphicsEffect(self._effect)
+        self._anim = QPropertyAnimation(self._effect, b"opacity", self)
+        self._anim.setDuration(FADE_DURATION)
+        self.button.installEventFilter(self)
+
         # Scroll threshold
         self.hide_threshold = int(self.config.get("ui", "scroll_button_threshold") or 100)
         
@@ -48,18 +61,37 @@ class ScrollToBottomButton(QObject):
         # Click behavior
         self.button.clicked.connect(self._scroll_to_bottom)
     
+    def _animate_opacity(self, target: float):
+        self._anim.stop()
+        self._anim.setStartValue(self._effect.opacity())
+        self._anim.setEndValue(target)
+        self._anim.start()
+
+    def eventFilter(self, obj, event):
+        if obj is self.button:
+            if event.type() == QEvent.Type.Enter:
+                self._animate_opacity(OPACITY_HOVER)
+            elif event.type() == QEvent.Type.Leave:
+                self._animate_opacity(OPACITY_DEFAULT)
+        return super().eventFilter(obj, event)
+
     def _on_scroll(self, value: int):
         """Show/hide button based on scroll position"""
         if not self.list_view:
             return
         scrollbar = self.list_view.verticalScrollBar()
-        distance_from_bottom = scrollbar.maximum() - value
-        if distance_from_bottom > self.hide_threshold:
-            if not self.button.isVisible():
-                self.button.show()
-        else:
-            if self.button.isVisible():
-                self.button.hide()
+        far_from_bottom = scrollbar.maximum() - value > self.hide_threshold
+
+        if far_from_bottom and not self.button.isVisible():
+            self.button.show()
+            self._animate_opacity(OPACITY_DEFAULT)
+        elif not far_from_bottom and self.button.isVisible():
+            self._anim.finished.connect(self._hide_after_fade)
+            self._animate_opacity(0.0)
+
+    def _hide_after_fade(self):
+        self._anim.finished.disconnect(self._hide_after_fade)
+        self.button.hide()
     
     def _update_position(self):
         """Keep button centered vertically and aligned right"""
