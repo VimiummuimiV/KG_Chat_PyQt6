@@ -635,7 +635,8 @@ class Application(QObject):
         try:
             # Platform-specific modifier check with Windows API for reliability
             if sys.platform == 'win32':
-                if not keyboard.is_pressed('windows') or any((ctypes.windll.user32.GetAsyncKeyState(vk) & 0x8000) for vk in [0x12, 0x11, 0x10]):
+                win_pressed = any(ctypes.windll.user32.GetAsyncKeyState(vk) & 0x8000 for vk in [0x5B, 0x5C])
+                if not win_pressed or any(ctypes.windll.user32.GetAsyncKeyState(vk) & 0x8000 for vk in [0x12, 0x11, 0x10]):
                     return
             else:
                 mod = 'command' if sys.platform == 'darwin' else 'super'

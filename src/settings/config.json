@@ -146,7 +146,7 @@
     "muted": false
   },
   "startup": {
-    "auto_login": false,
-    "start_minimized": false
+    "auto_login": true,
+    "start_minimized": true
   }
 }
