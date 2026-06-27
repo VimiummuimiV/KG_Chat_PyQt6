@@ -12,7 +12,7 @@ from PyQt6.QtGui import QAction
             
 
 from helpers.config import Config
-from helpers.create import create_icon_button, update_all_icons, set_theme, HoverIconButton
+from helpers.create import create_icon_button, _render_svg_icon, update_all_icons, set_theme, HoverIconButton
 from helpers.resize import handle_chat_resize, recalculate_layout
 from helpers.color_utils import get_private_message_colors
 from helpers.scroll import scroll
@@ -1889,26 +1889,22 @@ class ChatWindow(QWidget):
     def _on_username_right_click(self, msg, global_pos):
         """Show context menu when username is right-clicked in messages"""
         try:
+            def icon(name): return _render_svg_icon(self.icons_path / name, 16)
 
             menu = QMenu(self)
-            
+
             # Permanent ban action
-            perm_act = QAction("Ban permanently", self)
-            menu.addAction(perm_act)
-            
+            perm_act = menu.addAction(icon("prohibited.svg"), "Ban permanently")
+
             # Temporary ban action
-            temp_act = QAction("Ban temporarily", self)
-            menu.addAction(temp_act)
-            
+            temp_act = menu.addAction(icon("forbidden.svg"), "Ban temporarily")
+
             # Separator
             menu.addSeparator()
-            
+
             # Message removal actions
-            remove_msg_act = QAction("Remove this message", self)
-            menu.addAction(remove_msg_act)
-            
-            remove_all_act = QAction("Remove all messages", self)
-            menu.addAction(remove_all_act)
+            remove_msg_act = menu.addAction(icon("delete-back.svg"), "Remove this message")
+            remove_all_act = menu.addAction(icon("delete-bin.svg"), "Remove all messages")
             
             act = menu.exec(global_pos)
             if not act:
