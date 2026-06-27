@@ -69,6 +69,7 @@ class _TextSelectorOverlay(QTextEdit):
     def _copy_text(self):
         selected = self.textCursor().selectedText().strip()
         QApplication.clipboard().setText(selected or self.toPlainText())
+        self.close()
 
     def _paste_text(self):
         selected = self.textCursor().selectedText().strip()
