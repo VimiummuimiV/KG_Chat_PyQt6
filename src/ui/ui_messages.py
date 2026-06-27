@@ -129,13 +129,20 @@ class MessagesWidget(QWidget):
             self.delegate.set_my_username(username)
 
     def set_input_field(self, input_field):
-        """Set input field reference for reply action"""
+        """Set input field reference for reply and paste actions"""
         def _reply(username, text, timestamp=None):
             reply_text = MessageDelegate.format_reply_text(username, text, timestamp)
             input_field.setText(reply_text)
             input_field.setCursorPosition(len(reply_text))
             input_field.setFocus()
+        def _paste(text):
+            cursor_pos = input_field.cursorPosition()
+            current = input_field.text()
+            input_field.setText(current[:cursor_pos] + text + current[cursor_pos:])
+            input_field.setCursorPosition(cursor_pos + len(text))
+            input_field.setFocus()
         self.delegate.reply_callback = _reply
+        self.delegate.paste_callback = _paste
 
     @property
     def reply_callback(self):

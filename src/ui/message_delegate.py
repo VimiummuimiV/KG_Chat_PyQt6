@@ -25,9 +25,11 @@ class _TextSelectorOverlay(QTextEdit):
     """Self-sizing, self-closing read-only text overlay for copy/select."""
 
     def __init__(self, text: str, font, row_rect: QRect, is_dark: bool, viewport,
-                 reply_callback=None, username: str = "", timestamp=None):
+                 reply_callback=None, paste_callback=None,
+                 username: str = "", timestamp=None):
         super().__init__(viewport)
         self._reply_callback = reply_callback
+        self._paste_callback = paste_callback
         self._username = username
         self._timestamp = timestamp
         self.setReadOnly(True)
@@ -68,6 +70,12 @@ class _TextSelectorOverlay(QTextEdit):
         selected = self.textCursor().selectedText().strip()
         QApplication.clipboard().setText(selected or self.toPlainText())
 
+    def _paste_text(self):
+        text = QApplication.clipboard().text()
+        if text:
+            self._paste_callback(text)
+        self.close()
+
     def _reply(self):
         selected = self.textCursor().selectedText().strip()
         self._reply_callback(self._username, selected or self.toPlainText(), self._timestamp)
@@ -85,6 +93,11 @@ class _TextSelectorOverlay(QTextEdit):
         copy_act = menu.addAction(icon("clipboard.svg"), "Copy")
         copy_act.setShortcut(QKeySequence("C"))
         copy_act.triggered.connect(self._copy_text)
+        if self._paste_callback is not None:
+            paste_act = menu.addAction(icon("clipboard.svg"), "Paste")
+            paste_act.setShortcut(QKeySequence("V"))
+            paste_act.triggered.connect(self._paste_text)
+            paste_act.setEnabled(bool(QApplication.clipboard().text()))
         menu.exec(global_pos)
 
     def eventFilter(self, obj, event):
@@ -103,6 +116,7 @@ class _TextSelectorOverlay(QTextEdit):
                 Qt.Key.Key_Escape: self.close,
                 Qt.Key.Key_C: self._copy_text,
                 **(({Qt.Key.Key_R: self._reply}) if self._reply_callback is not None else {}),
+                **(({Qt.Key.Key_V: self._paste_text}) if self._paste_callback is not None else {}),
             }
             action = actions.get(event.key()) or actions.get(event.nativeVirtualKey())
             if action:
@@ -144,6 +158,7 @@ class MessageDelegate(QStyledItemDelegate):
      
         self.click_rects: Dict[int, Dict] = {}
         self.reply_callback = None
+        self.paste_callback = None
         self.reply_includes_timestamp = False  # Chatlog sets True; realtime messages omit timestamp
         self.my_username = None # Store username for mention highlighting
 
@@ -527,6 +542,7 @@ class MessageDelegate(QStyledItemDelegate):
             msg.body, self.body_font, rect, self.is_dark_theme,
             self.list_view.viewport(),
             reply_callback=self.reply_callback,
+            paste_callback=self.paste_callback,
             username=getattr(msg, 'username', '') or getattr(msg, 'login', '') or '',
             timestamp=getattr(msg, 'timestamp', None) if self.reply_includes_timestamp else None,
         )
