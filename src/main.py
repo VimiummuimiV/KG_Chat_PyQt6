@@ -215,7 +215,7 @@ class Application(QObject):
         self.sound_menu.addSeparator()
         
         # Username Pronunciation action
-        self.pronunciation_action = QAction(icon("magic.svg"), "Username Pronunciation", self.app)
+        self.pronunciation_action = QAction(icon("user-voice.svg"), "Username Pronunciation", self.app)
         self.pronunciation_action.triggered.connect(self.handle_pronunciation_manager)
         self.sound_menu.addAction(self.pronunciation_action)
         
