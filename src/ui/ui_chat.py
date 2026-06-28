@@ -1904,8 +1904,8 @@ class ChatWindow(QWidget):
 
             # Message removal actions
             remove_msg_act  = menu.addAction(icon("delete-back.svg"), "Remove this message")
-            remove_down_act = menu.addAction(icon("delete-bin.svg"),  "Remove from here downward")
-            remove_up_act   = menu.addAction(icon("delete-bin.svg"),  "Remove from here upward")
+            remove_down_act = menu.addAction(icon("delete-bin-down.svg"),  "Remove from here downward")
+            remove_up_act   = menu.addAction(icon("delete-bin-up.svg"),  "Remove from here upward")
             remove_all_act  = menu.addAction(icon("delete-bin.svg"),  "Remove all messages")
             
             act = menu.exec(global_pos)
