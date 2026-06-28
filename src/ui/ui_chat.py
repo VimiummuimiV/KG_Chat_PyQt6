@@ -1903,10 +1903,10 @@ class ChatWindow(QWidget):
             menu.addSeparator()
 
             # Message removal actions
-            remove_msg_act  = menu.addAction(icon("delete-back.svg"), "Remove this message")
-            remove_down_act = menu.addAction(icon("delete-bin-down.svg"),  "Remove from here downward")
-            remove_up_act   = menu.addAction(icon("delete-bin-up.svg"),  "Remove from here upward")
-            remove_all_act  = menu.addAction(icon("delete-bin.svg"),  "Remove all messages")
+            remove_msg_act  = menu.addAction(icon("delete-back.svg"),     "Remove this message")
+            remove_up_act   = menu.addAction(icon("delete-bin-up.svg"),   "Remove from here upward")
+            remove_down_act = menu.addAction(icon("delete-bin-down.svg"), "Remove from here downward")
+            remove_all_act  = menu.addAction(icon("delete-bin.svg"),      "Remove all messages")
             
             act = menu.exec(global_pos)
             if not act:
@@ -1923,10 +1923,12 @@ class ChatWindow(QWidget):
             elif act == remove_msg_act:
                 # Remove single message
                 self._remove_message(msg, single=True)
-            elif act == remove_down_act:
-                self._remove_message(msg, direction="down")
             elif act == remove_up_act:
+                # Remove messages from start to this message
                 self._remove_message(msg, direction="up")
+            elif act == remove_down_act:
+                # Remove messages from this message to end
+                self._remove_message(msg, direction="down")
             elif act == remove_all_act:
                 # Remove all messages from user
                 self._remove_message(msg, single=False)
