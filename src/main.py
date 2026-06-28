@@ -198,14 +198,14 @@ class Application(QObject):
         self.sound_menu.addSeparator()
         
         # Voice sound (TTS) toggle action
-        self.voice_sound_action = QAction(icon("user-voice.svg"), "Voice Sound", self.app, checkable=True)
+        self.voice_sound_action = QAction("Voice Sound", self.app, checkable=True)
         self.voice_sound_action.triggered.connect(
             lambda: self._on_sound_toggled("tts_enabled", self.voice_sound_action)
         )
         self.sound_menu.addAction(self.voice_sound_action)
         
         # Effects sound toggle action
-        self.effects_sound_action = QAction(icon("volume-up.svg"), "Effects Sound", self.app, checkable=True)
+        self.effects_sound_action = QAction("Effects Sound", self.app, checkable=True)
         self.effects_sound_action.triggered.connect(
             lambda: self._on_sound_toggled("effects_enabled", self.effects_sound_action)
         )
@@ -234,9 +234,9 @@ class Application(QObject):
         group = QActionGroup(self.app)
         group.setExclusive(True)
 
-        self.notification_stack_action = QAction(icon("notification-stack-mode.svg"), "Stack", self.app, checkable=True)
-        self.notification_replace_action = QAction(icon("notification-replace-mode.svg"), "Replace", self.app, checkable=True)
-        self.notification_muted_action = QAction(icon("notification-disabled.svg"), "Muted", self.app, checkable=True)
+        self.notification_stack_action = QAction("Stack", self.app, checkable=True)
+        self.notification_replace_action = QAction("Replace", self.app, checkable=True)
+        self.notification_muted_action = QAction("Muted", self.app, checkable=True)
 
         for action in (self.notification_stack_action,
                        self.notification_replace_action,
