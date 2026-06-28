@@ -1903,8 +1903,10 @@ class ChatWindow(QWidget):
             menu.addSeparator()
 
             # Message removal actions
-            remove_msg_act = menu.addAction(icon("delete-back.svg"), "Remove this message")
-            remove_all_act = menu.addAction(icon("delete-bin.svg"), "Remove all messages")
+            remove_msg_act  = menu.addAction(icon("delete-back.svg"), "Remove this message")
+            remove_down_act = menu.addAction(icon("delete-bin.svg"),  "Remove from here downward")
+            remove_up_act   = menu.addAction(icon("delete-bin.svg"),  "Remove from here upward")
+            remove_all_act  = menu.addAction(icon("delete-bin.svg"),  "Remove all messages")
             
             act = menu.exec(global_pos)
             if not act:
@@ -1921,6 +1923,10 @@ class ChatWindow(QWidget):
             elif act == remove_msg_act:
                 # Remove single message
                 self._remove_message(msg, single=True)
+            elif act == remove_down_act:
+                self._remove_message(msg, direction="down")
+            elif act == remove_up_act:
+                self._remove_message(msg, direction="up")
             elif act == remove_all_act:
                 # Remove all messages from user
                 self._remove_message(msg, single=False)
@@ -1986,15 +1992,22 @@ class ChatWindow(QWidget):
             except Exception:
                 pass
     
-    def _remove_message(self, msg, single: bool = True):
-        """Remove message(s) without banning user"""
+    def _remove_message(self, msg, single: bool = True, direction: str = None):
+        """Remove message(s) without banning user.
+        direction='down' → from msg to end; 'up' → from start to msg
+        """
         username = getattr(msg, 'login', None) or getattr(msg, 'username', None)
         if not username:
             return
         
         try:
-            timestamp = getattr(msg, 'timestamp', None) if single else None
-            self.messages_widget.remove_messages_by_login(username, timestamp)
+            timestamp = getattr(msg, 'timestamp', None)
+            if direction == "down":
+                self.messages_widget.remove_messages_by_login(username, from_timestamp=timestamp)
+            elif direction == "up":
+                self.messages_widget.remove_messages_by_login(username, to_timestamp=timestamp)
+            else:
+                self.messages_widget.remove_messages_by_login(username, timestamp if single else None)
         except Exception as e:
             print(f"Error removing message(s): {e}")
 

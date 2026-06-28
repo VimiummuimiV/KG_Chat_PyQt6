@@ -81,15 +81,22 @@ class MessageListModel(QAbstractListModel):
             self._messages.pop(index)
             self.endRemoveRows()
 
-    def remove_messages_by_login(self, login: str, timestamp=None):
-        """Remove messages by login. If timestamp provided, removes only that specific message."""
+    def remove_messages_by_login(self, login: str, timestamp=None, from_timestamp=None, to_timestamp=None):
+        """Remove messages by login.
+        - timestamp:      only that exact message
+        - from_timestamp: that message and everything after (same login)
+        - to_timestamp:   that message and everything before (same login)
+        - neither:        all messages from login
+        """
         if not login or not self._messages:
             return
         
-        # Find indices of messages matching the login (and timestamp if provided)
-        indices = [i for i, m in enumerate(self._messages) 
-                  if getattr(m, 'login', None) == login 
-                  and (timestamp is None or m.timestamp == timestamp)]
+        indices = [i for i, m in enumerate(self._messages)
+                  if getattr(m, 'login', None) == login
+                  and (timestamp       is not None and m.timestamp == timestamp
+                    or from_timestamp  is not None and m.timestamp >= from_timestamp
+                    or to_timestamp    is not None and m.timestamp <= to_timestamp
+                    or timestamp is None and from_timestamp is None and to_timestamp is None)]
         
         if not indices:
             return

@@ -216,9 +216,9 @@ class MessagesWidget(QWidget):
         """Clear all private messages"""
         self.model.clear_private_messages()
 
-    def remove_messages_by_login(self, login: str, timestamp=None):
-        """Remove all messages belonging to a login, or single message if timestamp provided"""
-        self.model.remove_messages_by_login(login, timestamp)
+    def remove_messages_by_login(self, login: str, timestamp=None, from_timestamp=None, to_timestamp=None):
+        """Remove all messages belonging to a login, or a subset by timestamp/range"""
+        self.model.remove_messages_by_login(login, timestamp, from_timestamp, to_timestamp)
    
     def rebuild_messages(self):
         self.delegate.update_theme()
