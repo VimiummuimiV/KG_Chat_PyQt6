@@ -170,19 +170,19 @@ class Application(QObject):
     def _setup_color_menu(self, parent_menu: QMenu, icon):
         """Setup color management submenu"""
         self.color_menu = parent_menu.addMenu("Color")
-        self.color_menu.setIcon(self._icon("palette.svg"))
+        self.color_menu.setIcon(icon("palette.svg"))
        
         # Create actions for the submenu
-        change_color_action = QAction(self._icon("palette.svg"), "Change Username Color", self.app)
+        change_color_action = QAction(icon("palette.svg"), "Change Username Color", self.app)
         change_color_action.triggered.connect(self.handle_change_username_color)
         self.color_menu.addAction(change_color_action)
        
         # Reset action - will be shown/hidden dynamically
-        self.reset_color_action = QAction(self._icon("go-back.svg"), "Reset to Original", self.app)
+        self.reset_color_action = QAction(icon("go-back.svg"), "Reset to Original", self.app)
         self.reset_color_action.triggered.connect(self.handle_reset_username_color)
         self.color_menu.addAction(self.reset_color_action)
        
-        update_color_action = QAction(self._icon("reload.svg"), "Update from Server", self.app)
+        update_color_action = QAction(icon("reload.svg"), "Update from Server", self.app)
         update_color_action.triggered.connect(self.handle_update_from_server)
         self.color_menu.addAction(update_color_action)
        
@@ -192,20 +192,20 @@ class Application(QObject):
     def _setup_sound_menu(self, parent_menu: QMenu, icon):
         """Setup sound management submenu"""
         self.sound_menu = parent_menu.addMenu("Sound")
-        self.sound_menu.setIcon(self._icon("volume-up.svg"))
+        self.sound_menu.setIcon(icon("volume-up.svg"))
         
         # Add separator at the top
         self.sound_menu.addSeparator()
         
         # Voice sound (TTS) toggle action
-        self.voice_sound_action = QAction(self._icon("user-voice.svg"), "Voice Sound", self.app, checkable=True)
+        self.voice_sound_action = QAction(icon("user-voice.svg"), "Voice Sound", self.app, checkable=True)
         self.voice_sound_action.triggered.connect(
             lambda: self._on_sound_toggled("tts_enabled", self.voice_sound_action)
         )
         self.sound_menu.addAction(self.voice_sound_action)
         
         # Effects sound toggle action
-        self.effects_sound_action = QAction(self._icon("volume-up.svg"), "Effects Sound", self.app, checkable=True)
+        self.effects_sound_action = QAction(icon("volume-up.svg"), "Effects Sound", self.app, checkable=True)
         self.effects_sound_action.triggered.connect(
             lambda: self._on_sound_toggled("effects_enabled", self.effects_sound_action)
         )
@@ -215,7 +215,7 @@ class Application(QObject):
         self.sound_menu.addSeparator()
         
         # Username Pronunciation action
-        self.pronunciation_action = QAction(self._icon("magic.svg"), "Username Pronunciation", self.app)
+        self.pronunciation_action = QAction(icon("magic.svg"), "Username Pronunciation", self.app)
         self.pronunciation_action.triggered.connect(self.handle_pronunciation_manager)
         self.sound_menu.addAction(self.pronunciation_action)
         
@@ -228,15 +228,15 @@ class Application(QObject):
     def _setup_notification_menu(self, parent_menu: QMenu, icon):
         """Setup notification management submenu with radio-style exclusive options"""
         self.notification_menu = parent_menu.addMenu("Notification")
-        self.notification_menu.setIcon(self._icon("notification-stack-mode.svg"))
+        self.notification_menu.setIcon(icon("notification-stack-mode.svg"))
 
         # Exclusive action group — only one can be checked at a time (radio buttons)
         group = QActionGroup(self.app)
         group.setExclusive(True)
 
-        self.notification_stack_action = QAction(self._icon("notification-stack-mode.svg"), "Stack", self.app, checkable=True)
-        self.notification_replace_action = QAction(self._icon("notification-replace-mode.svg"), "Replace", self.app, checkable=True)
-        self.notification_muted_action = QAction(self._icon("notification-disabled.svg"), "Muted", self.app, checkable=True)
+        self.notification_stack_action = QAction(icon("notification-stack-mode.svg"), "Stack", self.app, checkable=True)
+        self.notification_replace_action = QAction(icon("notification-replace-mode.svg"), "Replace", self.app, checkable=True)
+        self.notification_muted_action = QAction(icon("notification-disabled.svg"), "Muted", self.app, checkable=True)
 
         for action in (self.notification_stack_action,
                        self.notification_replace_action,
