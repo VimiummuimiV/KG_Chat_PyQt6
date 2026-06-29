@@ -310,7 +310,9 @@ class ChatWindow(QWidget):
         
         # Show window if it was visible before
         if was_visible:
+            self.setWindowOpacity(0)
             self.show()
+            QTimer.singleShot(50, lambda: self.setWindowOpacity(1))
             self.activateWindow()
             self.raise_()
         

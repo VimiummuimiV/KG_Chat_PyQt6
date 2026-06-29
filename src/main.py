@@ -383,7 +383,9 @@ class Application(QObject):
         """Show the active window"""
         window = self.chat_window if self.chat_window and not self.chat_window.isVisible() else self.account_window
         if window and not window.isVisible():
+            window.setWindowOpacity(0)
             window.show()
+            QTimer.singleShot(50, lambda: window.setWindowOpacity(1))
             self._force_window_to_foreground(window)
             
             if window == self.chat_window:
@@ -609,7 +611,9 @@ class Application(QObject):
     def focus_chat_window(self):
         """Show and focus the chat window if hidden."""
         if not self.chat_window.isVisible():
+            self.chat_window.setWindowOpacity(0)
             self.chat_window.show()
+            QTimer.singleShot(50, lambda: self.chat_window.setWindowOpacity(1))
             self.chat_window.activateWindow()
             self.chat_window.raise_()
 
