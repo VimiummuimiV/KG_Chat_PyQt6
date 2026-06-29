@@ -906,6 +906,11 @@ class ChatWindow(QWidget):
         """Clear all private messages from the messages widget"""
         self.messages_widget.clear_private_messages()
 
+    def _clear_new_messages_marker(self):
+        if self.has_new_messages_marker:
+            NewMessagesSeparator.remove_from_model(self.messages_widget.model)
+            self.has_new_messages_marker = False
+
     def _update_input_style(self):
         """Update input field styling based on private mode"""
         is_dark = self.theme_manager.is_dark()
@@ -2253,9 +2258,7 @@ class ChatWindow(QWidget):
                 self.exit_private_mode()
             else:
                 self._clear_private_messages()
-            if self.has_new_messages_marker:
-                NewMessagesSeparator.remove_from_model(self.messages_widget.model)
-                self.has_new_messages_marker = False
+            self._clear_new_messages_marker()
 
     def keyReleaseEvent(self, event):
         if event.isAutoRepeat():
@@ -2322,9 +2325,7 @@ class ChatWindow(QWidget):
             self.emoticon_selector.cleanup()
 
         # Remove new messages marker when closing
-        if self.has_new_messages_marker:
-            NewMessagesSeparator.remove_from_model(self.messages_widget.model)
-            self.has_new_messages_marker = False
+        self._clear_new_messages_marker()
     
         # If hiding to tray, do not perform full cleanup so animations and
         # delegate state remain intact. Full cleanup happens only when the

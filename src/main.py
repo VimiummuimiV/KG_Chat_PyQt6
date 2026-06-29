@@ -679,6 +679,8 @@ class Application(QObject):
         should_hide = is_visible and (ignore_active or is_active)
         
         if should_hide:
+            if window == self.chat_window:
+                window._clear_new_messages_marker()
             window.hide()
         else:
             # Show and bring to foreground

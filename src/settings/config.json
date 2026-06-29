@@ -21,7 +21,7 @@
   },
   "ui": {
     "ui_font_size": 12,
-    "text_font_size": 15,
+    "text_font_size": 14,
     "header_font_size": 18,
     "text_font_family": "Roboto",
     "emoji_font_family": "Noto Color Emoji",
@@ -125,7 +125,7 @@
         "y": 0
       }
     ],
-    "emoticon_last_group": "recent",
+    "emoticon_last_group": "army",
     "emoticon_nav_positions": {
       "recent": 0,
       "army": 0,
@@ -143,7 +143,7 @@
   },
   "notification": {
     "mode": "replace",
-    "muted": true
+    "muted": false
   },
   "startup": {
     "auto_login": true,
