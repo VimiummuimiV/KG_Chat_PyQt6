@@ -7876,5 +7876,6 @@
   "840288": {"login": "ЗАЧИНЩИКСОБЫТИЙ", "background": "#D35F0C", "light": "#c2570b", "dark": "#d9620c"},
   "365192": {"login": "vaihayasa", "background": "#ED008C", "light": "#e40087", "dark": "#ff0096"},
   "724427": {"login": "парламент", "background": "#000000", "light": "#000000", "dark": "#858585"},
-  "840289": {"login": "марина0307", "background": "#777777", "light": "#767676", "dark": "#858585"}
+  "840289": {"login": "марина0307", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "624575": {"login": "psina667", "background": "#777777", "light": "#767676", "dark": "#858585"}
 }

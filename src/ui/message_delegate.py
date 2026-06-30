@@ -247,6 +247,11 @@ class MessageDelegate(QStyledItemDelegate):
         username_prefix = f"{username}: " if username else ""
         return f"{time_prefix}{username_prefix}{text} ↩ "
 
+    @staticmethod
+    def _chatlog_url(msg) -> str:
+        date_str = getattr(msg, 'date', None) or msg.timestamp.strftime("%Y-%m-%d")
+        return f"https://klavogonki.ru/chatlogs/{date_str}.html#{msg.get_time_str()}"
+
     def sizeHint(self, option: QStyleOptionViewItem, index: QModelIndex) -> QSize:
         msg = index.data(Qt.ItemDataRole.DisplayRole)
         if not msg:
@@ -359,9 +364,13 @@ class MessageDelegate(QStyledItemDelegate):
         # Paint timestamp - color matches text color for special message types
         painter.setFont(self.timestamp_font)
         ts_color = self.message_renderer.get_timestamp_color(msg.is_ban, msg.is_private, is_system)
-        painter.setPen(QColor(ts_color))
         ts_width = ts_fm.horizontalAdvance(time_str)
         ts_rect = QRect(x, y, ts_width, ts_fm.height())
+
+        if self.message_renderer.is_copied(self._chatlog_url(msg)):
+            self.message_renderer.draw_copy_highlight(painter, ts_rect, ts_color)
+
+        painter.setPen(QColor(ts_color))
         painter.drawText(
             ts_rect,
             Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
@@ -480,9 +489,10 @@ class MessageDelegate(QStyledItemDelegate):
             # Timestamp/username clicks are handled by the VIEW (ui_messages.py)
             if rects['timestamp'].contains(pos):
                 if button == Qt.MouseButton.LeftButton:
-                    date_str = getattr(msg, 'date', None) or msg.timestamp.strftime("%Y-%m-%d")
-                    url = f"https://klavogonki.ru/chatlogs/{date_str}.html#{msg.get_time_str()}"
+                    url = self._chatlog_url(msg)
                     self.timestamp_clicked.emit(url)
+                    if self.message_renderer:
+                        self.message_renderer.handle_link_rmb(url)
                 return True
 
             if rects['username'].contains(pos) and button == Qt.MouseButton.LeftButton:

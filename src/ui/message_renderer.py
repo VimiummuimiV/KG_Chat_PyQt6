@@ -97,6 +97,21 @@ class MessageRenderer(QObject):
         self._copied_url = None
         self.refresh_view.emit()
 
+    def is_copied(self, url: str) -> bool:
+        """Whether url is the one just copied (drives the flash highlight)"""
+        return self._copied_url == url
+
+    @staticmethod
+    def draw_copy_highlight(painter: QPainter, rect: QRect, color: str):
+        """Translucent rounded-rect background flagging a just-copied URL/timestamp"""
+        highlight = QColor(color)
+        highlight.setAlphaF(0.35)
+        painter.save()
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(highlight)
+        painter.drawRoundedRect(rect.adjusted(-2, 0, 2, 0), 3, 3)
+        painter.restore()
+
     @staticmethod
     def get_link_at_pos(link_rects: List[Tuple[QRect, str, bool]], pos) -> Optional[Tuple[str, bool]]:
         """Find link at given position"""
@@ -330,13 +345,7 @@ class MessageRenderer(QObject):
                 painter.drawText(current_x, current_y + fm.ascent(), chunk)
                 link_rect = QRect(current_x, current_y, chunk_width, fm.height())
                 if self._copied_url == url:
-                    highlight = QColor(link_color)
-                    highlight.setAlphaF(0.35)
-                    painter.save()
-                    painter.setPen(Qt.PenStyle.NoPen)
-                    painter.setBrush(highlight)
-                    painter.drawRoundedRect(link_rect.adjusted(-2, 0, 2, 0), 3, 3)
-                    painter.restore()
+                    self.draw_copy_highlight(painter, link_rect, link_color)
                     painter.setPen(QColor(link_color))
                     painter.drawText(current_x, current_y + fm.ascent(), chunk)
                 link_rects.append((link_rect, url, is_media))
