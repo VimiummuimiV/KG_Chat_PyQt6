@@ -121,6 +121,19 @@ class ChatlogWidget(QWidget):
 
     def _on_message_clicked(self, row: int):
         """Handle message click - reveal all messages and scroll to clicked message"""
+
+        # Split view open → find message by timestamp in the split chatlog and highlight it there
+        if self.split_chatlog_widget:
+            clicked_msg = self.model.data(self.model.index(row, 0), Qt.ItemDataRole.DisplayRole)
+            if clicked_msg and not getattr(clicked_msg, 'is_separator', False):
+                target_row = next(
+                    (i for i, msg in enumerate(self.split_chatlog_widget.all_messages)
+                     if not getattr(msg, 'is_separator', False) and msg.timestamp == clicked_msg.timestamp),
+                    None
+                )
+                if target_row is not None:
+                    self.split_chatlog_widget._scroll_and_highlight(target_row, scroll_delay=50, highlight_delay=200)
+            return
         
         # No active filters → simple direct scroll + highlight
         if not (self.filtered_usernames or self.search_text or self.filter_mentions):
