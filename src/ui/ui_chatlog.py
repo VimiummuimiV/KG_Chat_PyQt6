@@ -458,7 +458,11 @@ class ChatlogWidget(QWidget):
             self.stacked.setCurrentWidget(self.list_view)
             self.parse_btn.setIcon(_render_svg_icon(self.icons_path / "play.svg", self.parse_btn._icon_size))
             self.parse_btn.setToolTip("Parse all chatlogs (P | Ctrl+P from anywhere)")
-            self._update_date_display()
+            # Parser results can span multiple dates, so keep "Parser" instead of a single stale date
+            if self.is_parsing:
+                self.date_label.setText("Parser")
+            else:
+                self._update_date_display()
         else:
             # Show parser, hide list
             self.parser_visible = True
@@ -474,6 +478,7 @@ class ChatlogWidget(QWidget):
         """Start parsing with given config"""
         self.is_parsing = True
         self.exceeded_max_messages = False
+        self.date_label.setText("Parser")
         
         # Only clear UI for non-sync modes
         if config.mode != 'syncdatabase':
