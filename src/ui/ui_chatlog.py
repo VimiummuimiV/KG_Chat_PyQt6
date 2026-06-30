@@ -103,6 +103,7 @@ class ChatlogWidget(QWidget):
         # Connect message click handler
         self.delegate.message_clicked.connect(self._on_message_clicked)
         self.delegate.separator_clicked.connect(self._on_date_separator_clicked)
+        self.delegate.timestamp_clicked.connect(lambda url: QApplication.clipboard().setText(url))
 
     def set_account(self, account):
         """Update account for parser widget"""

@@ -135,6 +135,7 @@ class MessageDelegate(QStyledItemDelegate):
     row_needs_refresh = pyqtSignal(int)
     message_clicked = pyqtSignal(int)
     separator_clicked = pyqtSignal(str)  # date_str of clicked chatlog date separator
+    timestamp_clicked = pyqtSignal(str)  # full chatlog URL for the clicked message
  
     def __init__(
         self,
@@ -478,6 +479,10 @@ class MessageDelegate(QStyledItemDelegate):
          
             # Timestamp/username clicks are handled by the VIEW (ui_messages.py)
             if rects['timestamp'].contains(pos):
+                if button == Qt.MouseButton.LeftButton:
+                    date_str = getattr(msg, 'date', None) or msg.timestamp.strftime("%Y-%m-%d")
+                    url = f"https://klavogonki.ru/chatlogs/{date_str}.html#{msg.get_time_str()}"
+                    self.timestamp_clicked.emit(url)
                 return True
 
             if rects['username'].contains(pos) and button == Qt.MouseButton.LeftButton:
