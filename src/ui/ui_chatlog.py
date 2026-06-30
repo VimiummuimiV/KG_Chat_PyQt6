@@ -458,12 +458,17 @@ class ChatlogWidget(QWidget):
             self.stacked.setCurrentWidget(self.list_view)
             self.parse_btn.setIcon(_render_svg_icon(self.icons_path / "play.svg", self.parse_btn._icon_size))
             self.parse_btn.setToolTip("Parse all chatlogs (P | Ctrl+P from anywhere)")
+            self._update_date_display()
         else:
             # Show parser, hide list
             self.parser_visible = True
             self.stacked.setCurrentWidget(self.parser_widget)
             self.parse_btn.setIcon(_render_svg_icon(self.icons_path / "list.svg", self.parse_btn._icon_size))
             self.parse_btn.setToolTip("Back to chat logs (P)")
+            self.date_label.setText("Parser")
+
+        # The "Loaded N messages" status belongs to the chatlog list, not the parser config screen
+        self.info_label.setVisible(not self.parser_visible)
 
     def _on_parse_started(self, config: ParseConfig):
         """Start parsing with given config"""

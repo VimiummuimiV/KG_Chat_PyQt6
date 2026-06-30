@@ -187,11 +187,6 @@ class ChatlogsParserConfigWidget(QWidget):
         layout.setSpacing(self.spacing)
         self.setLayout(layout)
        
-        # Title
-        title = QLabel("Parse Chat Logs")
-        title.setFont(get_font(FontType.HEADER))
-        layout.addWidget(title)
-       
         # Mode selection
         mode_container = QWidget()
         mode_layout = QHBoxLayout()
