@@ -5,7 +5,7 @@ from pathlib import Path
 from datetime import datetime
 from PyQt6.QtWidgets import(
     QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QTextEdit, QApplication, QMenu,
-    QStackedWidget, QStatusBar, QLabel, QProgressBar, QPushButton, QMessageBox
+    QStackedWidget, QStatusBar, QLabel, QProgressBar, QPushButton, QMessageBox, QSplitter
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QObject, QTimer, QEvent
 from PyQt6.QtGui import QAction
@@ -406,7 +406,14 @@ class ChatWindow(QWidget):
 
         my_username = self.account.get('chat_username') if self.account else None
         self.messages_widget = MessagesWidget(self.config, self.emoticon_manager, my_username=my_username)
-        self.stacked_widget.addWidget(self.messages_widget)
+
+        # Splitter so a chatlog can be shown alongside the live messages view
+        # (RMB on a timestamp), without leaving/replacing the messages view itself
+        self.messages_splitter = QSplitter(Qt.Orientation.Vertical)
+        self.messages_splitter.addWidget(self.messages_widget)
+        self.chatlog_split_widget = None  # the split-pane ChatlogWidget, when open
+
+        self.stacked_widget.addWidget(self.messages_splitter)
         self.chatlog_widget = None
         self.chatlog_userlist_widget = None
 
@@ -568,7 +575,8 @@ class ChatWindow(QWidget):
         # Position will be set in showEvent
         QTimer.singleShot(50, self._position_emoticon_selector)
      
-        self.messages_widget.timestamp_clicked.connect(self.show_chatlog_view)
+        self.messages_widget.timestamp_left_clicked.connect(self.show_chatlog_view)
+        self.messages_widget.timestamp_right_clicked.connect(self.show_chatlog_split_view)
         self.messages_widget.username_left_clicked.connect(self._on_username_left_click)
         self.messages_widget.username_right_clicked.connect(self._on_username_right_click)
         self.messages_widget.username_ctrl_clicked.connect(self._on_username_ctrl_click)
@@ -690,7 +698,7 @@ class ChatWindow(QWidget):
 
             if event.key() == Qt.Key.Key_Tab:
                 current_view = self.stacked_widget.currentWidget()
-                if current_view == self.messages_widget:
+                if current_view == self.messages_splitter:
                     self.show_chatlog_view()
                 elif current_view == self.chatlog_widget:
                     self.show_messages_view()
@@ -966,7 +974,7 @@ class ChatWindow(QWidget):
                 self.chatlog_widget.deleteLater()
                 self.chatlog_widget = None
 
-        self.stacked_widget.setCurrentWidget(self.messages_widget)
+        self.stacked_widget.setCurrentWidget(self.messages_splitter)
 
         # Restore messages userlist based on width
         width = self.width()
@@ -1054,6 +1062,42 @@ class ChatWindow(QWidget):
             self.chatlog_widget.load_current_date()
        
         self.stacked_widget.setCurrentWidget(self.chatlog_widget)
+
+    def show_chatlog_split_view(self, date_str: str):
+        """RMB on a live-chat timestamp: show that date's chatlog in a split pane
+        below the messages view, keeping the messages view open."""
+        if self.chatlog_split_widget is None:
+            self.chatlog_split_widget = ChatlogWidget(
+                self.config,
+                self.emoticon_manager,
+                self.icons_path,
+                self.account,
+                parent_window=self,
+                ban_manager=self.ban_manager
+            )
+            self.chatlog_split_widget.back_btn.setToolTip("Close split view")
+            self.chatlog_split_widget.back_requested.connect(self._close_chatlog_split_view)
+            self.chatlog_split_widget.delegate.reply_callback = self.messages_widget.reply_callback
+            self.chatlog_split_widget.delegate.reply_includes_timestamp = True
+            self.messages_splitter.insertWidget(0, self.chatlog_split_widget)
+            self.messages_splitter.setSizes([self.height() // 2, self.height() // 2])
+            self.chatlog_split_widget.load_date(date_str)
+            # Widget's own scroll-to-bottom (inside load_date) can fire before the
+            # splitter finishes giving it its real size on first insertion - redo it once settled.
+            QTimer.singleShot(150, lambda: scroll(self.chatlog_split_widget.list_view, mode="bottom", delay=50))
+            return
+
+        self.chatlog_split_widget.load_date(date_str)
+
+    def _close_chatlog_split_view(self):
+        """Close the split pane opened via RMB on a live-chat timestamp"""
+        if not self.chatlog_split_widget:
+            return
+        widget = self.chatlog_split_widget
+        self.chatlog_split_widget = None
+        widget.cleanup()
+        widget.setParent(None)
+        widget.deleteLater()
 
     def show_parser_view(self):
         """Switch to chatlog view and show parser"""
@@ -1231,7 +1275,7 @@ class ChatWindow(QWidget):
     def _complete_resize_recalculation(self):
         """Complete resize with aggressive recalculation"""
         current = self.stacked_widget.currentWidget()
-        if current == self.messages_widget:
+        if current == self.messages_splitter:
             self.messages_widget._force_recalculate()
             QTimer.singleShot(50, lambda: scroll(self.messages_widget.scroll_area, mode="bottom"))
         elif current == self.chatlog_widget and self.chatlog_widget:
@@ -1443,7 +1487,7 @@ class ChatWindow(QWidget):
         self.setWindowState(self.windowState() & ~Qt.WindowState.WindowMinimized | Qt.WindowState.WindowActive)
         self.activateWindow()
         self.raise_()
-        if self.stacked_widget.currentWidget() is not self.messages_widget:
+        if self.stacked_widget.currentWidget() is not self.messages_splitter:
             self.show_messages_view()
 
     def _show_notification(self, msg, display_body, is_ban, is_system):
@@ -1544,7 +1588,7 @@ class ChatWindow(QWidget):
         new_font = get_font(FontType.TEXT)
         
         # Update message delegates AND their renderers
-        for widget in [self.messages_widget, self.chatlog_widget]:
+        for widget in [self.messages_widget, self.chatlog_widget, self.chatlog_split_widget]:
             if widget:
                 widget.delegate.body_font = new_font          # For username + metrics
                 widget.delegate.timestamp_font = new_font      # For timestamp
@@ -2156,7 +2200,7 @@ class ChatWindow(QWidget):
             self.show_messages_view() if w and self.stacked_widget.currentWidget() == w else show_fn()
         def _active_scrollbar():
             current = self.stacked_widget.currentWidget()
-            if current == self.messages_widget:
+            if current == self.messages_splitter:
                 return self.messages_widget.list_view.verticalScrollBar()
             if self.chatlog_widget and current == self.chatlog_widget:
                 return self.chatlog_widget.list_view.verticalScrollBar()
@@ -2353,6 +2397,8 @@ class ChatWindow(QWidget):
                 except:
                     pass
             self.messages_widget.cleanup()
+        if self.chatlog_split_widget:
+            self.chatlog_split_widget.cleanup()
         if self.chatlog_widget:
             self.chatlog_widget.cleanup()
 

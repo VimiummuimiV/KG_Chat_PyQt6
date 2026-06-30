@@ -14,7 +14,8 @@ from helpers.scroll_button import ScrollToBottomButton
 
 class MessagesWidget(QWidget):
     """Widget for displaying chat messages with virtual scrolling"""
-    timestamp_clicked = pyqtSignal(str) # Opens chatlog for current day
+    timestamp_left_clicked = pyqtSignal(str) # Opens chatlog for current day
+    timestamp_right_clicked = pyqtSignal(str) # RMB on timestamp: date_str ("%Y-%m-%d"), opens chatlog as split view
     username_left_clicked = pyqtSignal(str, bool) # Set username in input field, bool indicates double-click
     username_right_clicked = pyqtSignal(object, object) # Show context menu for user
     username_ctrl_clicked = pyqtSignal(str)   # Ctrl+LMB → enter private
@@ -88,9 +89,12 @@ class MessagesWidget(QWidget):
         
         # Check timestamp click
         if rects['timestamp'].contains(pos):
+            date_str = msg.timestamp.strftime("%Y-%m-%d")
             if event.button() == Qt.MouseButton.LeftButton:
-                timestamp_str = msg.timestamp.strftime("%Y%m%d")
-                self.timestamp_clicked.emit(timestamp_str)
+                self.timestamp_left_clicked.emit(date_str)
+                return True
+            elif event.button() == Qt.MouseButton.RightButton:
+                self.timestamp_right_clicked.emit(date_str)
                 return True
         
         return False
