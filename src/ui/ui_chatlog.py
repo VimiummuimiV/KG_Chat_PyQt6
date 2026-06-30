@@ -120,20 +120,32 @@ class ChatlogWidget(QWidget):
         scroll(self.list_view, mode="middle", target_row=target_row, delay=scroll_delay)
         QTimer.singleShot(highlight_delay, lambda: self.delegate.highlight_row(target_row))
 
+    def _highlight_in_split(self, timestamp):
+        """Find a message by timestamp in the split pane (already showing the right date) and highlight it"""
+        target_row = next(
+            (i for i, msg in enumerate(self.split_chatlog_widget.all_messages)
+             if not getattr(msg, 'is_separator', False) and msg.timestamp == timestamp),
+            None
+        )
+        if target_row is not None:
+            self.split_chatlog_widget._scroll_and_highlight(target_row, scroll_delay=50, highlight_delay=200)
+
     def _on_message_clicked(self, row: int):
         """Handle message click - reveal all messages and scroll to clicked message"""
 
-        # Split view open → find message by timestamp in the split chatlog and highlight it there
+        # Split view open → find message in the split chatlog and highlight it there,
+        # loading that message's own date into the split pane first if it differs
         if self.split_chatlog_widget:
             clicked_msg = self.model.data(self.model.index(row, 0), Qt.ItemDataRole.DisplayRole)
             if clicked_msg and not getattr(clicked_msg, 'is_separator', False):
-                target_row = next(
-                    (i for i, msg in enumerate(self.split_chatlog_widget.all_messages)
-                     if not getattr(msg, 'is_separator', False) and msg.timestamp == clicked_msg.timestamp),
-                    None
-                )
-                if target_row is not None:
-                    self.split_chatlog_widget._scroll_and_highlight(target_row, scroll_delay=50, highlight_delay=200)
+                if clicked_msg.timestamp.date() == self.split_chatlog_widget.current_date:
+                    self._highlight_in_split(clicked_msg.timestamp)
+                else:
+                    def _on_loaded(_messages=None, ts=clicked_msg.timestamp):
+                        self.split_chatlog_widget.messages_loaded.disconnect(_on_loaded)
+                        self._highlight_in_split(ts)
+                    self.split_chatlog_widget.messages_loaded.connect(_on_loaded)
+                    self.split_chatlog_widget.load_date(clicked_msg.timestamp.strftime("%Y-%m-%d"))
             self.delegate.highlight_row(row)
             return
         
@@ -225,11 +237,10 @@ class ChatlogWidget(QWidget):
             self.repeat_delay_timer.start()  # Start delay before repeating
     
     def _setup_ui(self):
-        margin = self.config.get("ui", "margins", "widget") or 5
         spacing = self.config.get("ui", "spacing", "widget_elements") or 6
     
         layout = QVBoxLayout()
-        layout.setContentsMargins(margin, margin, margin, margin)
+        layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(spacing)
         self.setLayout(layout)
 

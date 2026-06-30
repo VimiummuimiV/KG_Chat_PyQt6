@@ -163,11 +163,10 @@ class MessagesWidget(QWidget):
             self._force_recalculate()
    
     def _setup_ui(self):
-        margin = self.config.get("ui", "margins", "list") or 2
         spacing = self.config.get("ui", "spacing", "widget_elements") or 4
        
         layout = QVBoxLayout()
-        layout.setContentsMargins(margin, margin, margin, margin)
+        layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(spacing)
         self.setLayout(layout)
        
