@@ -133,6 +133,7 @@ class ChatlogWidget(QWidget):
                 )
                 if target_row is not None:
                     self.split_chatlog_widget._scroll_and_highlight(target_row, scroll_delay=50, highlight_delay=200)
+            self.delegate.highlight_row(row)
             return
         
         # No active filters → simple direct scroll + highlight
