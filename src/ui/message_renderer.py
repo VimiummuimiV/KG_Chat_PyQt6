@@ -88,6 +88,10 @@ class MessageRenderer(QObject):
     
     def handle_link_rmb(self, url: str):
         """Copy URL to clipboard and briefly highlight it"""
+        self.copy_and_highlight(url)
+
+    def copy_and_highlight(self, url: str):
+        """Copy url to clipboard and briefly flag it as copied (drives the highlight repaint)"""
         QApplication.clipboard().setText(url)
         self._copied_url = url
         self.refresh_view.emit()

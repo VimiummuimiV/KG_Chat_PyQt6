@@ -492,7 +492,7 @@ class MessageDelegate(QStyledItemDelegate):
                     url = self._chatlog_url(msg)
                     self.timestamp_clicked.emit(url)
                     if self.message_renderer:
-                        self.message_renderer.handle_link_rmb(url)
+                        self.message_renderer.copy_and_highlight(url)
                 return True
 
             if rects['username'].contains(pos) and button == Qt.MouseButton.LeftButton:
