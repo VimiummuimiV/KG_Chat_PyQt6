@@ -134,6 +134,7 @@ class MessageDelegate(QStyledItemDelegate):
  
     row_needs_refresh = pyqtSignal(int)
     message_clicked = pyqtSignal(int)
+    separator_clicked = pyqtSignal(str)  # date_str of clicked chatlog date separator
  
     def __init__(
         self,
@@ -451,8 +452,14 @@ class MessageDelegate(QStyledItemDelegate):
                 return True
             return False
       
-        # Ignore clicks on date separators
+        # Clicking a date separator opens the full chatlog for that date
         if getattr(msg, 'is_separator', False):
+            if event.type() == QEvent.Type.MouseButtonRelease and event.button() == Qt.MouseButton.LeftButton:
+                self.separator_clicked.emit(msg.date_str)
+                return True
+            if event.type() == QEvent.Type.MouseMove and self.list_view:
+                self.list_view.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+                return True
             return False
 
         if event.type() == QEvent.Type.MouseButtonRelease:

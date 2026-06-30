@@ -2,7 +2,7 @@
 from PyQt6.QtWidgets import(
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QListView, QCalendarWidget, QLineEdit,
-    QStackedWidget, QFileDialog, QMessageBox, QApplication
+    QStackedWidget, QSplitter, QFileDialog, QMessageBox, QApplication
 )
 from PyQt6.QtCore import Qt, QDate, QTimer, pyqtSignal, QEvent
 from PyQt6.QtGui import QFont
@@ -60,6 +60,7 @@ class ChatlogWidget(QWidget):
         self.temp_parsed_messages = [] # Temp storage during parsing
         self.is_parsing = False  # Track if we're in parse mode
         self.exceeded_max_messages = False
+        self.split_chatlog_widget = None  # Side pane showing full chatlog for a clicked date
 
         self.search_visible = config.get("ui", "chatlog_search_visible")
         if self.search_visible is None:
@@ -101,6 +102,7 @@ class ChatlogWidget(QWidget):
         
         # Connect message click handler
         self.delegate.message_clicked.connect(self._on_message_clicked)
+        self.delegate.separator_clicked.connect(self._on_date_separator_clicked)
 
     def set_account(self, account):
         """Update account for parser widget"""
@@ -162,6 +164,34 @@ class ChatlogWidget(QWidget):
             scroll_delay=100,
             highlight_delay=250
         ))
+
+    def _on_date_separator_clicked(self, date_str: str):
+        """Open (or update) a split pane showing the full chatlog for the clicked date"""
+        if self.split_chatlog_widget is None:
+            self.split_chatlog_widget = ChatlogWidget(
+                self.config,
+                self.emoticon_manager,
+                self.icons_path,
+                account=self.account,
+                parent_window=None,
+                ban_manager=self.ban_manager
+            )
+            self.split_chatlog_widget.back_btn.setToolTip("Close split view")
+            self.split_chatlog_widget.back_requested.connect(self._close_split_view)
+            self.content_splitter.addWidget(self.split_chatlog_widget)
+            self.content_splitter.setSizes([self.height() // 2, self.height() // 2])
+
+        self.split_chatlog_widget.load_date(date_str)
+
+    def _close_split_view(self):
+        """Close the split pane showing a single date's full chatlog"""
+        if not self.split_chatlog_widget:
+            return
+        widget = self.split_chatlog_widget
+        self.split_chatlog_widget = None
+        widget.cleanup()
+        widget.setParent(None)
+        widget.deleteLater()
 
     def _on_repeat_timer(self):
         """Handle repeated navigation when button/mouse is held"""
@@ -295,7 +325,12 @@ class ChatlogWidget(QWidget):
 
         # Stacked widget: List view OR Parser config
         self.stacked = QStackedWidget()
-        layout.addWidget(self.stacked, stretch=1)
+
+        # Splitter holds the main view and, when opened, a split pane showing
+        # the full chatlog for a date clicked in the parsed results
+        self.content_splitter = QSplitter(Qt.Orientation.Vertical)
+        self.content_splitter.addWidget(self.stacked)
+        layout.addWidget(self.content_splitter, stretch=1)
 
         # List view page
         self.list_view = QListView()
@@ -968,3 +1003,5 @@ class ChatlogWidget(QWidget):
             self.auto_scroller.cleanup()
         if hasattr(self.parser, 'db'):
             self.parser.db.close()
+        if self.split_chatlog_widget:
+            self.split_chatlog_widget.cleanup()
