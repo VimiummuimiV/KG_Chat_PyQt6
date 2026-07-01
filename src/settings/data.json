@@ -138,5 +138,9 @@
   "514393": {"login": "AntCher", "background": "#777777", "light": "#767676", "dark": "#858585"},
   "109985": {"login": "Youkhov", "background": "#9B29B2", "light": "#9B29B2", "dark": "#c357d8"},
   "781268": {"login": "mef_enjoyer", "background": "#777777", "light": "#767676", "dark": "#858585"},
-  "256373": {"login": "Sunkob", "background": "#8da900", "light": "#6a7f00", "dark": "#8da900"}
+  "256373": {"login": "Sunkob", "background": "#8da900", "light": "#6a7f00", "dark": "#8da900"},
+  "666439": {"login": "ArtTnoV", "background": "#d28214", "light": "#a86810", "dark": "#d28214"},
+  "592104": {"login": "Zenseky", "background": "#005B1E", "light": "#005B1E", "dark": "#009a33"},
+  "800397": {"login": "faeton2", "background": "#000000", "light": "#000000", "dark": "#858585"},
+  "501294": {"login": "_noragami", "background": "#0B00AD", "light": "#0B00AD", "dark": "#7a72ff"}
 }

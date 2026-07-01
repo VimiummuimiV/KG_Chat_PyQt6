@@ -17,6 +17,7 @@ class TagButton(QWidget):
 
     def __init__(self, text: str, icons_path: Path, close_icon: str = "close.svg"):
         super().__init__()
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.text_value = text
         self.icons_path = icons_path
         self.close_icon = close_icon
@@ -69,8 +70,6 @@ class FlowLayout(QLayout):
         self.setContentsMargins(0, 0, 0, 0)
         self.setSpacing(spacing)
         self._items = []
-        self._height = 0
-
     def addItem(self, item):
         self._items.append(item)
 
@@ -83,12 +82,20 @@ class FlowLayout(QLayout):
     def takeAt(self, index):
         return self._items.pop(index) if index < len(self._items) else None
 
-    def sizeHint(self):
-        return QSize(self.geometry().width(), self._height)
-
     def setGeometry(self, rect):
-        """Arrange items left-to-right, wrapping to a new row as needed; cache resulting height"""
         super().setGeometry(rect)
+        self._arrange(rect, apply=True)
+
+    def sizeHint(self):
+        return QSize(self.geometry().width(), self.height_for_width(self.geometry().width()))
+
+    def height_for_width(self, width):
+        """Required height to lay out all items within the given width"""
+        return self._arrange(QRect(0, 0, width, 0), apply=False)
+
+    def _arrange(self, rect, apply):
+        """Place items left-to-right, wrapping rows as needed. Shared by setGeometry
+        (actually moves items) and height_for_width (just measures)."""
         spacing = self.spacing()
         x, y, line_height = rect.x(), rect.y(), 0
 
@@ -96,11 +103,12 @@ class FlowLayout(QLayout):
             hint = item.sizeHint()
             if x + hint.width() > rect.right() and line_height:
                 x, y, line_height = rect.x(), y + line_height + spacing, 0
-            item.setGeometry(QRect(x, y, hint.width(), hint.height()))
+            if apply:
+                item.setGeometry(QRect(x, y, hint.width(), hint.height()))
             x += hint.width() + spacing
             line_height = max(line_height, hint.height())
 
-        self._height = y + line_height - rect.y()
+        return y + line_height - rect.y()
 
 
 class SavedValuesBar(QWidget):
@@ -118,6 +126,10 @@ class SavedValuesBar(QWidget):
 
         self._layout = FlowLayout(self)
         self._rebuild()
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self.setFixedHeight(self._layout.height_for_width(event.size().width()))
 
     def add_values(self, values: list):
         """Add any values not already saved, and persist"""
@@ -149,3 +161,4 @@ class SavedValuesBar(QWidget):
             self._layout.addWidget(tag)
 
         self.setVisible(bool(self.values))
+        self.setFixedHeight(self._layout.height_for_width(self.width() or self.sizeHint().width()))
