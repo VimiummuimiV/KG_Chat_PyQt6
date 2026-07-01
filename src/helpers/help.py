@@ -174,7 +174,7 @@ IMAGE_MOUSE = [
 
 CONTEXTS = {
     "chat": {
-        "title": "Chat — Keyboard Shortcuts",
+        "title": "Chat — Controls",
         "sections": [
             ("General",                  CHAT_GENERAL_KB,    None),
             ("Ctrl Shortcuts",           CHAT_CTRL_KB,       None),
@@ -187,7 +187,7 @@ CONTEXTS = {
         ],
     },
     "chatlog": {
-        "title": "Chatlog — Keyboard Shortcuts",
+        "title": "Chatlog — Controls",
         "sections": [
             ("Navigation",               CHATLOG_KB,         CHATLOG_MOUSE),
             ("Scrolling",                CHAT_SCROLL_KB,     None),
