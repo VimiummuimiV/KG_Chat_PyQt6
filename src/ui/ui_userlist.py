@@ -13,7 +13,7 @@ from helpers.create import _render_svg_icon, get_user_svg_color
 from helpers.cache import get_cache
 from helpers.fonts import get_font, FontType
 from helpers.auto_scroll import AutoScroller
-from components.user_context_menu import show_user_context_menu, PROFILE, PRIVATE, COPY
+from components.user_context_menu import show_user_context_menu, PROFILE, PRIVATE, COPY_USERNAME, COPY_ID
 from core.userlist import ChatUser
 
 
@@ -150,14 +150,16 @@ class UserWidget(QWidget):
         super().mousePressEvent(event)
 
     def contextMenuEvent(self, event):
-        """RMB → compact Profile / Private / Copy menu"""
+        """RMB → Profile / Private Chat / Copy Username / Copy ID menu"""
         action = show_user_context_menu(self.icons_path, self, QCursor.pos())
         if action == PROFILE:
             self.profile_requested.emit(self.user.jid, self.user.login, self.user.user_id)
         elif action == PRIVATE:
             self.private_chat_requested.emit(self.user.jid, self.user.login, self.user.user_id)
-        elif action == COPY:
+        elif action == COPY_USERNAME:
             QApplication.clipboard().setText(self.user.login)
+        elif action == COPY_ID:
+            QApplication.clipboard().setText(str(self.user.user_id or ""))
 
 
 class UserListWidget(QWidget):

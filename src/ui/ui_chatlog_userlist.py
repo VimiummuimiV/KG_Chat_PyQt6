@@ -10,7 +10,7 @@ from helpers.load import make_rounded_pixmap
 from helpers.cache import get_cache
 from helpers.fonts import get_font, FontType
 from helpers.auto_scroll import AutoScroller
-from components.user_context_menu import show_user_context_menu, PROFILE, PRIVATE, COPY
+from components.user_context_menu import show_user_context_menu, PROFILE, PRIVATE, COPY_USERNAME, COPY_ID, FILTER
 
 
 class ChatlogUserWidget(QWidget):
@@ -106,14 +106,19 @@ class ChatlogUserWidget(QWidget):
         super().mousePressEvent(event)
 
     def contextMenuEvent(self, event):
-        """RMB → compact Profile / Private / Copy menu"""
-        action = show_user_context_menu(self.icons_path, self, QCursor.pos())
+        """RMB → Profile / Private Chat / Copy Username / Copy ID / Filter by User menu"""
+        action = show_user_context_menu(self.icons_path, self, QCursor.pos(), show_filter=True)
         if action == PROFILE:
             self.profile_requested.emit("", self.username, self.user_id or "")
         elif action == PRIVATE:
             self.private_chat_requested.emit("", self.username, self.user_id or "")
-        elif action == COPY:
+        elif action == COPY_USERNAME:
             QApplication.clipboard().setText(self.username)
+        elif action == COPY_ID:
+            QApplication.clipboard().setText(str(self.user_id or ""))
+        elif action == FILTER:
+            # Reuse the same single-select filter logic as a plain LMB click
+            self.clicked.emit(self.username, False)
 
 
 class ChatlogUserlistWidget(QWidget):
