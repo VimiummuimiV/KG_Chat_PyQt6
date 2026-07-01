@@ -51,7 +51,7 @@
   "495516": {"login": "UNPlayer", "background": "#757575", "light": "#757575", "dark": "#858585"},
   "379648": {"login": "alexif", "background": "#777777", "light": "#767676", "dark": "#858585"},
   "218791": {"login": "Dibauch", "background": "#93a509", "light": "#707d07", "dark": "#93a509"},
-  "804201": {"login": "молодость", "background": "#7f7f7f", "light": "#767676", "dark": "#858585"},
+  "804201": {"login": "молодость", "background": "#808386", "light": "#74777a", "dark": "#838588"},
   "834354": {"login": "yuiopx2x", "background": "#777777", "light": "#767676", "dark": "#858585"},
   "323659": {"login": "eugeneLuck", "background": "#569f44", "light": "#488439", "dark": "#569f44"},
   "345220": {"login": "Espera", "background": "#000000", "light": "#000000", "dark": "#858585"},
@@ -7877,5 +7877,9 @@
   "365192": {"login": "vaihayasa", "background": "#ED008C", "light": "#e40087", "dark": "#ff0096"},
   "724427": {"login": "парламент", "background": "#000000", "light": "#000000", "dark": "#858585"},
   "840289": {"login": "марина0307", "background": "#777777", "light": "#767676", "dark": "#858585"},
-  "624575": {"login": "psina667", "background": "#777777", "light": "#767676", "dark": "#858585"}
+  "624575": {"login": "psina667", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "270779": {"login": "nithrous", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "840296": {"login": "too_realco1", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "682102": {"login": "Ведущий", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "141647": {"login": "rosari85", "background": "#0DAA86", "light": "#0a866a", "dark": "#0DAA86"}
 }

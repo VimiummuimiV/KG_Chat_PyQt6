@@ -61,6 +61,7 @@ class ChatlogWidget(QWidget):
         self.is_parsing = False  # Track if we're in parse mode
         self.exceeded_max_messages = False
         self.split_chatlog_widget = None  # Side pane showing full chatlog for a clicked date
+        self.suppress_bottom_scroll = False  # Set before a load triggered by cross-date message search
 
         self.search_visible = config.get("ui", "chatlog_search_visible")
         if self.search_visible is None:
@@ -145,6 +146,7 @@ class ChatlogWidget(QWidget):
                         self.split_chatlog_widget.messages_loaded.disconnect(_on_loaded)
                         self._highlight_in_split(ts)
                     self.split_chatlog_widget.messages_loaded.connect(_on_loaded)
+                    self.split_chatlog_widget.suppress_bottom_scroll = True
                     self.split_chatlog_widget.load_date(clicked_msg.timestamp.strftime("%Y-%m-%d"))
             self.delegate.highlight_row(row)
             return
@@ -891,6 +893,13 @@ class ChatlogWidget(QWidget):
             else:
                 self.info_label.setText(f"Loaded {total} messages")
 
+        self._scroll_to_bottom()
+
+    def _scroll_to_bottom(self):
+        """Scroll to bottom after a load, unless suppressed by a cross-date message search"""
+        if self.suppress_bottom_scroll:
+            self.suppress_bottom_scroll = False
+            return
         QTimer.singleShot(0, lambda: scroll(self.list_view, mode="bottom", delay=100))
 
     def load_current_date(self):
@@ -990,7 +999,6 @@ class ChatlogWidget(QWidget):
                 self.info_label.setText(info_text)
         
             self.messages_loaded.emit(message_data)
-            QTimer.singleShot(0, lambda: scroll(self.list_view, mode="bottom", delay=100))
         except Exception as e:
             self.info_label.setText(f"❌ Display error: {e}")
 
