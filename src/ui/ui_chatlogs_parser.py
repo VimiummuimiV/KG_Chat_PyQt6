@@ -15,6 +15,7 @@ from functools import partial
 from core.api_data import get_exact_user_id_by_name, get_usernames_history, get_registration_date
 from core.chatlogs_parser import ParseConfig, ChatlogsParserEngine
 from helpers.create import create_icon_button, _render_svg_icon
+from components.tag_button import SavedValuesBar
 from helpers.data import get_data_dir
 from helpers.fonts import get_font, FontType
 
@@ -242,6 +243,11 @@ class ChatlogsParserConfigWidget(QWidget):
         username_container.setLayout(username_layout)
         self.username_container_widget = username_container
         layout.addWidget(username_container)
+       
+        # Saved usernames quick-access chips (loaded from/persisted to config)
+        self.saved_usernames_bar = SavedValuesBar(self.config, ("chatlog_parser", "saved_usernames"), self.icons_path)
+        self.saved_usernames_bar.value_selected.connect(self._on_saved_username_clicked)
+        layout.addWidget(self.saved_usernames_bar)
        
         # Search terms input (label changes in Personal Mentions mode)
         search_container = QWidget()
@@ -721,6 +727,15 @@ class ChatlogsParserConfigWidget(QWidget):
         """Show copy and save buttons after successful parse"""
         self.copy_button.setVisible(True)
         self.save_button.setVisible(True)
+        if not self.is_sync_mode:
+            self.saved_usernames_bar.add_values(self._get_usernames())
+
+    def _on_saved_username_clicked(self, username: str):
+        """Add a saved username chip into the usernames field"""
+        current = self._get_usernames()
+        if username not in current:
+            current.append(username)
+            self.username_input.setText(', '.join(current))
    
     def update_progress(self, start_date: str, current_date: str, percent: int):
         """Update progress display"""
