@@ -27,8 +27,8 @@ def get_user_svg_color(is_known: bool, is_dark: bool) -> str:
     return (_COLOR_DARK if is_dark else _COLOR_LIGHT) if is_known else _COLOR_GRAY
 
 
-def _render_svg_icon(svg_file: Path, icon_size: int, color: str = None):
-    """Render SVG file to QIcon with given or current-theme color"""
+def _render_svg_icon(svg_file: Path, icon_size: int, color: str = None, stroke_width: float = None):
+    """Render SVG file to QIcon with given or current-theme color, optionally overriding stroke-width"""
     if not svg_file.exists():
         return QIcon()
    
@@ -36,7 +36,8 @@ def _render_svg_icon(svg_file: Path, icon_size: int, color: str = None):
         svg = f.read()
    
     color = color or (_COLOR_DARK if _is_dark_theme else _COLOR_LIGHT)
-    svg = svg.replace('fill="currentColor"', f'fill="{color}"')
+    stroke_attr = f' stroke="{color}" stroke-width="{stroke_width}"' if stroke_width is not None else ''
+    svg = svg.replace('fill="currentColor"', f'fill="{color}"{stroke_attr}')
    
     renderer = QSvgRenderer()
     renderer.load(svg.encode('utf-8'))
