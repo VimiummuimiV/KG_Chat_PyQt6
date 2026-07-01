@@ -7893,5 +7893,6 @@
   "101646": {"login": "Аромат"},
   "251006": {"login": "Slonic"},
   "695028": {"login": "G-Light"},
-  "678460": {"login": "Doomfist", "background": "#777777", "light": "#767676", "dark": "#858585"}
+  "678460": {"login": "Doomfist", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "840259": {"login": "Russel87", "background": "#777777", "light": "#767676", "dark": "#858585"}
 }

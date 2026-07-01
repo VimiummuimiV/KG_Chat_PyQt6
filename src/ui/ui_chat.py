@@ -1004,6 +1004,7 @@ class ChatWindow(QWidget):
         """Wire up reply support and row layout shared by every ChatlogWidget instance
         (main chatlog view and the RMB split-pane view)."""
         widget.delegate.reply_callback = self.messages_widget.reply_callback
+        widget.delegate.paste_callback = self.messages_widget.delegate.paste_callback
         widget.delegate.reply_includes_timestamp = True
         compact = self.width() <= 1000
         widget.set_compact_mode(compact)
