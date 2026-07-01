@@ -180,6 +180,7 @@ CONTEXTS = {
             ("Navigation",               CHATLOG_KB,         CHATLOG_MOUSE),
             ("Scrolling",                CHAT_SCROLL_KB,     None),
             ("User List",                None,               CHATLOG_USERLIST_MOUSE),
+            ("Message Username Clicks",  None,               MSG_USERNAME_MOUSE),
             ("Message Timestamp Clicks", None,               CHATLOG_TIMESTAMP_MOUSE),
             ("Message Body Clicks",      None,               MSG_BODY_MOUSE),
         ],

@@ -7892,5 +7892,6 @@
   "399436": {"login": "Rockliff", "background": "#21cb12", "light": "#16890c", "dark": "#21cb12"},
   "101646": {"login": "Аромат"},
   "251006": {"login": "Slonic"},
-  "695028": {"login": "G-Light"}
+  "695028": {"login": "G-Light"},
+  "678460": {"login": "Doomfist", "background": "#777777", "light": "#767676", "dark": "#858585"}
 }
