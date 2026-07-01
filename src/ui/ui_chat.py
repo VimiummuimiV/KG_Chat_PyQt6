@@ -8,7 +8,7 @@ from PyQt6.QtWidgets import(
     QStackedWidget, QStatusBar, QLabel, QProgressBar, QPushButton, QMessageBox, QSplitter
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QObject, QTimer, QEvent
-from PyQt6.QtGui import QAction
+from PyQt6.QtGui import QAction, QCursor
             
 
 from helpers.config import Config
@@ -708,16 +708,18 @@ class ChatWindow(QWidget):
                     self.show_messages_view()
                 return True
         
-        # Handle clicks outside emoticon selector
+        # Handle mouse button presses/releases for navigation and focus reclaim
         if event.type() == QEvent.Type.MouseButtonPress:
-            # Back/Forward mouse buttons navigate chatlog days from anywhere in the window
-            cw = getattr(self, 'chatlog_widget', None)
-            if cw and self.stacked_widget.currentWidget() == cw and not cw.parser_visible:
+            # Back/Forward mouse buttons navigate chatlog days
+            # (works on main stacked chatlog OR split view under cursor)
+            cw = self._get_hovered_chatlog_widget()
+            if cw:
                 direction = {Qt.MouseButton.BackButton: -1, Qt.MouseButton.ForwardButton: 1}.get(event.button())
                 if direction is not None:
                     cw._navigate_hold(direction)
                     return True
 
+            # Close emoticon selector if click is outside it and outside the button
             if hasattr(self, 'emoticon_selector') and self.emoticon_selector.isVisible():
                 try:
                     gp = event.globalPosition().toPoint() if hasattr(event, 'globalPosition') else event.globalPos()
@@ -755,7 +757,7 @@ class ChatWindow(QWidget):
                 pass
 
         if event.type() == QEvent.Type.MouseButtonRelease:
-            cw = getattr(self, 'chatlog_widget', None)
+            cw = self._get_hovered_chatlog_widget()
             if cw and event.button() in (Qt.MouseButton.BackButton, Qt.MouseButton.ForwardButton):
                 cw._navigate_hold()
                 return True
@@ -1118,6 +1120,21 @@ class ChatWindow(QWidget):
         widget.cleanup()
         widget.setParent(None)
         widget.deleteLater()
+
+    def _get_hovered_chatlog_widget(self):
+        """Return the ChatlogWidget (main or split) currently under the mouse cursor.
+        Returns None if no suitable chatlog widget is hovered."""
+        gp = QCursor.pos()
+        widget = QApplication.widgetAt(gp)
+        if not widget:
+            return None
+
+        while widget:
+            if isinstance(widget, ChatlogWidget):
+                if not getattr(widget, 'parser_visible', False):
+                    return widget
+            widget = widget.parentWidget()
+        return None
 
     def show_parser_view(self):
         """Switch to chatlog view and show parser"""
