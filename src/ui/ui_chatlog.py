@@ -22,6 +22,7 @@ from helpers.fonts import get_font, FontType
 from helpers.scroll_button import ScrollToBottomButton
 from helpers.auto_scroll import AutoScroller
 from helpers.scrollable_buttons import ScrollableButtonContainer
+from helpers.message_interactions import MessageInteractions
 from ui.message_model import MessageListModel, MessageData
 from ui.message_delegate import MessageDelegate
 from ui.ui_chatlogs_parser import ChatlogsParserConfigWidget, ParserWorker
@@ -105,6 +106,13 @@ class ChatlogWidget(QWidget):
         self.delegate.message_clicked.connect(self._on_message_clicked)
         self.delegate.separator_clicked.connect(self._on_date_separator_clicked)
         self.delegate.timestamp_clicked.connect(lambda url: QApplication.clipboard().setText(url))
+
+        # Shared username click detection (same component MessagesWidget uses).
+        # Timestamp clicks stay handled above via delegate.timestamp_clicked -
+        # handle_timestamp=False keeps this component from also swallowing the
+        # press for that region, which broke the copy-and-highlight behavior.
+        # Exposed as self.interactions for callers to connect to directly.
+        self.interactions = MessageInteractions(self.list_view, self.delegate, handle_timestamp=False)
 
     def set_account(self, account):
         """Update account for parser widget"""

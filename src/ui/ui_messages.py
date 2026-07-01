@@ -2,13 +2,14 @@
 from datetime import datetime
 
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QListView
-from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QEvent
+from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 
 from helpers.scroll import scroll
 from helpers.cache import get_cache
 from helpers.auto_scroll import AutoScroller
 from ui.message_model import MessageListModel, MessageData
 from ui.message_delegate import MessageDelegate
+from helpers.message_interactions import MessageInteractions
 from helpers.fonts import get_font, FontType
 from helpers.scroll_button import ScrollToBottomButton
 
@@ -41,91 +42,14 @@ class MessagesWidget(QWidget):
         # Connect message click for row highlighting (still from delegate)
         self.delegate.message_clicked.connect(self._on_message_clicked)
         
-        # Install event filter on list view to handle username/timestamp clicks
-        self.list_view.viewport().installEventFilter(self)
-    
-    def eventFilter(self, obj, event):
-        """Handle mouse events on list view to detect username/timestamp clicks"""
-        if obj == self.list_view.viewport():
-            if event.type() == QEvent.Type.MouseButtonPress:
-                return self._handle_mouse_press(event)
-            elif event.type() == QEvent.Type.MouseButtonDblClick:
-                return self._handle_mouse_double_click(event)
-        return super().eventFilter(obj, event)
-    
-    def _handle_mouse_press(self, event):
-        """Handle single mouse clicks"""
-        index = self.list_view.indexAt(event.pos())
-        if not index.isValid():
-            return False
-        
-        msg = index.data(Qt.ItemDataRole.DisplayRole)
-        if not msg:
-            return False
-        
-        row = index.row()
-        
-        if row not in self.delegate.click_rects:
-            return False
-        
-        rects = self.delegate.click_rects[row]
-        pos = event.pos()
-        
-        # Check username click
-        if rects['username'].contains(pos):
-            if event.button() == Qt.MouseButton.LeftButton:
-                mods = event.modifiers()
-                if mods & Qt.KeyboardModifier.ControlModifier:
-                    self.username_ctrl_clicked.emit(msg.username)
-                elif mods & Qt.KeyboardModifier.ShiftModifier:
-                    self.username_shift_clicked.emit(msg.username)
-                else:
-                    self.username_left_clicked.emit(msg.username, False)
-                return True
-            elif event.button() == Qt.MouseButton.RightButton:
-                global_pos = self.list_view.viewport().mapToGlobal(pos)
-                self.username_right_clicked.emit(msg, global_pos)
-                return True
-        
-        # Check timestamp click
-        if rects['timestamp'].contains(pos):
-            date_str = msg.timestamp.strftime("%Y-%m-%d")
-            if event.button() == Qt.MouseButton.LeftButton:
-                self.timestamp_left_clicked.emit(date_str)
-                return True
-            elif event.button() == Qt.MouseButton.RightButton:
-                self.timestamp_right_clicked.emit(date_str)
-                return True
-        
-        return False
-    
-    def _handle_mouse_double_click(self, event):
-        """Handle double clicks"""
-        if event.button() != Qt.MouseButton.LeftButton:
-            return False
-        
-        index = self.list_view.indexAt(event.pos())
-        if not index.isValid():
-            return False
-        
-        msg = index.data(Qt.ItemDataRole.DisplayRole)
-        if not msg:
-            return False
-        
-        row = index.row()
-        
-        if row not in self.delegate.click_rects:
-            return False
-        
-        rects = self.delegate.click_rects[row]
-        pos = event.pos()
-        
-        # Check username double-click
-        if rects['username'].contains(pos):
-            self.username_left_clicked.emit(msg.username, True)
-            return True
-        
-        return False
+        # Shared username/timestamp click detection (also used by ChatlogWidget)
+        self.interactions = MessageInteractions(self.list_view, self.delegate)
+        self.interactions.timestamp_left_clicked.connect(self.timestamp_left_clicked.emit)
+        self.interactions.timestamp_right_clicked.connect(self.timestamp_right_clicked.emit)
+        self.interactions.username_left_clicked.connect(self.username_left_clicked.emit)
+        self.interactions.username_right_clicked.connect(self.username_right_clicked.emit)
+        self.interactions.username_ctrl_clicked.connect(self.username_ctrl_clicked.emit)
+        self.interactions.username_shift_clicked.connect(self.username_shift_clicked.emit)
 
     def set_my_username(self, username: str):
         """Set the current user's username for mention highlighting"""

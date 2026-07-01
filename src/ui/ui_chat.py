@@ -416,6 +416,7 @@ class ChatWindow(QWidget):
         self.stacked_widget.addWidget(self.messages_splitter)
         self.chatlog_widget = None
         self.chatlog_userlist_widget = None
+        self.pre_profile_view = None  # 'messages' or 'chatlog' - where to return after profile/pronunciation/ban-list views
 
         # Input area
         self.input_container = QWidget()
@@ -1008,8 +1009,19 @@ class ChatWindow(QWidget):
         widget.set_compact_mode(compact)
         widget.set_compact_layout(compact)
 
-    def show_chatlog_view(self, timestamp: str = None):
-        """Open chatlog for today"""
+        # Reuse the same username-click handlers as the realtime messages view.
+        # source_widget=widget lets _ban_user_from_msg/_remove_message operate on
+        # this widget's own model instead of always assuming messages_widget.
+        widget.interactions.username_left_clicked.connect(self._on_username_left_click)
+        widget.interactions.username_ctrl_clicked.connect(self._on_username_ctrl_click)
+        widget.interactions.username_shift_clicked.connect(self._on_username_shift_click)
+        widget.interactions.username_right_clicked.connect(
+            lambda msg, pos, w=widget: self._on_username_right_click(msg, pos, w)
+        )
+
+    def show_chatlog_view(self, timestamp: str = None, reload: bool = True):
+        """Open chatlog for today. reload=False just re-shows the existing widget
+        as-is (used when returning from the profile view) without resetting its date/scroll."""
         # Hide messages userlist when in chatlog view, but keep userlist_panel visible for the chatlog userlist + font slider
         self.user_list_widget.setVisible(False)
        
@@ -1059,8 +1071,8 @@ class ChatWindow(QWidget):
         if self.chatlog_widget and self.chatlog_userlist_widget:
             self.chatlog_userlist_widget.set_show_banned(self.chatlog_widget.is_parsing)
        
-        # Only load daily chatlog if not in parser mode
-        if not self.chatlog_widget.parser_visible:
+        # If reload is True and the parser is not visible, reset to today's date and load it
+        if reload and not self.chatlog_widget.parser_visible:
             self.chatlog_widget.current_date = datetime.now().date()
             self.chatlog_widget._update_date_display()
             self.chatlog_widget.load_current_date()
@@ -1852,13 +1864,24 @@ class ChatWindow(QWidget):
         if not user_id:
             return
 
+        # Remember whether we're coming from the chatlog so "back" can return there
+        # instead of always going to messages (which would destroy chatlog_widget).
+        self.pre_profile_view = 'chatlog' if self.stacked_widget.currentWidget() is self.chatlog_widget else 'messages'
+
         if not hasattr(self, 'profile_widget') or not self.profile_widget:
             self.profile_widget = ProfileWidget(self.config, self.icons_path)
-            self.profile_widget.back_requested.connect(self.show_messages_view)
+            self.profile_widget.back_requested.connect(self._on_back)
             self.stacked_widget.addWidget(self.profile_widget)
 
         self.profile_widget.load_profile(int(user_id), username)
         self.stacked_widget.setCurrentWidget(self.profile_widget)
+
+    def _on_back(self):
+        """Return to whichever view (chatlog or messages) was open before the profile was shown."""
+        if self.pre_profile_view == 'chatlog' and self.chatlog_widget:
+            self.show_chatlog_view(reload=False)
+        else:
+            self.show_messages_view()
     
     def show_pronunciation_view(self):
         """Show pronunciation management view"""
@@ -1942,8 +1965,9 @@ class ChatWindow(QWidget):
         """Shift+LMB on message username → open profile"""
         self._resolve_user_then(username, lambda jid, login, uid: self.show_profile_view(jid, login, uid))
 
-    def _on_username_right_click(self, msg, global_pos):
-        """Show context menu when username is right-clicked in messages"""
+    def _on_username_right_click(self, msg, global_pos, source_widget=None):
+        """Show context menu when username is right-clicked in messages or chatlog"""
+        source_widget = source_widget or self.messages_widget
         try:
             def icon(name): return _render_svg_icon(self.icons_path / name, 16)
 
@@ -1970,30 +1994,31 @@ class ChatWindow(QWidget):
             
             if act == perm_act:
                 # Permanent ban
-                self._ban_user_from_msg(msg, permanent=True)
+                self._ban_user_from_msg(msg, permanent=True, widget=source_widget)
             elif act == temp_act:
                 # Show duration dialog
                 seconds, ok = DurationDialog.get_duration(self, default_seconds=3600)
                 if ok:
-                    self._ban_user_from_msg(msg, permanent=False, duration=seconds)
+                    self._ban_user_from_msg(msg, permanent=False, duration=seconds, widget=source_widget)
             elif act == remove_msg_act:
                 # Remove single message
-                self._remove_message(msg, single=True)
+                self._remove_message(msg, single=True, widget=source_widget)
             elif act == remove_up_act:
                 # Remove messages from start to this message
-                self._remove_message(msg, direction="up")
+                self._remove_message(msg, direction="up", widget=source_widget)
             elif act == remove_down_act:
                 # Remove messages from this message to end
-                self._remove_message(msg, direction="down")
+                self._remove_message(msg, direction="down", widget=source_widget)
             elif act == remove_all_act:
                 # Remove all messages from user
-                self._remove_message(msg, single=False)
+                self._remove_message(msg, single=False, widget=source_widget)
         
         except Exception as e:
             print(f"Context menu error: {e}")
     
-    def _ban_user_from_msg(self, msg, permanent: bool = True, duration: int = None):
+    def _ban_user_from_msg(self, msg, permanent: bool = True, duration: int = None, widget=None):
         """Perform ban: update BanManager, remove messages, remove userlist entry"""
+        widget = widget or self.messages_widget
         # Skip separators
         if getattr(msg, 'is_separator', False) or getattr(msg, 'is_new_messages_marker', False):
             return
@@ -2025,7 +2050,7 @@ class ChatWindow(QWidget):
         # Remove messages by login
         if username:
             try:
-                self.messages_widget.remove_messages_by_login(username)
+                widget.model.remove_messages_by_login(username)
             except Exception:
                 pass
         
@@ -2050,10 +2075,11 @@ class ChatWindow(QWidget):
             except Exception:
                 pass
     
-    def _remove_message(self, msg, single: bool = True, direction: str = None):
+    def _remove_message(self, msg, single: bool = True, direction: str = None, widget=None):
         """Remove message(s) without banning user.
         direction='down' → from msg to end; 'up' → from start to msg
         """
+        widget = widget or self.messages_widget
         username = getattr(msg, 'login', None) or getattr(msg, 'username', None)
         if not username:
             return
@@ -2061,11 +2087,11 @@ class ChatWindow(QWidget):
         try:
             timestamp = getattr(msg, 'timestamp', None)
             if direction == "down":
-                self.messages_widget.remove_messages_by_login(username, from_timestamp=timestamp)
+                widget.model.remove_messages_by_login(username, from_timestamp=timestamp)
             elif direction == "up":
-                self.messages_widget.remove_messages_by_login(username, to_timestamp=timestamp)
+                widget.model.remove_messages_by_login(username, to_timestamp=timestamp)
             else:
-                self.messages_widget.remove_messages_by_login(username, timestamp if single else None)
+                widget.model.remove_messages_by_login(username, timestamp if single else None)
         except Exception as e:
             print(f"Error removing message(s): {e}")
 
