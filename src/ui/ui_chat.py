@@ -582,6 +582,7 @@ class ChatWindow(QWidget):
         self.messages_widget.username_right_clicked.connect(self._on_username_right_click)
         self.messages_widget.username_ctrl_clicked.connect(self._on_username_ctrl_click)
         self.messages_widget.username_shift_clicked.connect(self._on_username_shift_click)
+        self.messages_widget.chatlog_link_clicked.connect(self.show_chatlog_split_view)
     
         self._update_input_style()
 
@@ -1080,9 +1081,10 @@ class ChatWindow(QWidget):
        
         self.stacked_widget.setCurrentWidget(self.chatlog_widget)
 
-    def show_chatlog_split_view(self, date_str: str):
-        """RMB on a live-chat timestamp: show that date's chatlog in a split pane
-        below the messages view, keeping the messages view open."""
+    def show_chatlog_split_view(self, date_str: str, time_str: str = ""):
+        """Show that date's chatlog in a split pane below the messages view, keeping the messages
+        view open. Used both for RMB on a live-chat timestamp and for clicking a chatlog link in a
+        message body (time_str, if given, scrolls to and highlights that specific message)."""
         if self.chatlog_split_widget is None:
             self.chatlog_split_widget = ChatlogWidget(
                 self.config,
@@ -1098,14 +1100,14 @@ class ChatWindow(QWidget):
             self._configure_chatlog_widget(self.chatlog_split_widget)
             self.messages_splitter.insertWidget(0, self.chatlog_split_widget)
             self.messages_splitter.setSizes([self.height() // 2, self.height() // 2])
-            self.chatlog_split_widget.load_date(date_str)
+            self.chatlog_split_widget.load_date_and_scroll(date_str, time_str)
 
             # Shrinking messages_widget's viewport here invalidates its "at bottom"
             # scroll position, breaking future auto-scroll in add_message() unless restored.
             QTimer.singleShot(150, lambda: scroll(self.messages_widget.list_view, mode="bottom", delay=50))
             return
 
-        self.chatlog_split_widget.load_date(date_str)
+        self.chatlog_split_widget.load_date_and_scroll(date_str, time_str)
 
     def _close_chatlog_split_view(self):
         """Close the split pane opened via RMB on a live-chat timestamp"""

@@ -21,6 +21,9 @@ class MessageRenderer(QObject):
     # Signal emitted when content needs refresh (e.g., YouTube metadata loaded)
     refresh_row = pyqtSignal(int) # row index to refresh
     refresh_view = pyqtSignal() # general refresh (link rmb highlight)
+    chatlog_link_clicked = pyqtSignal(str, str) # date_str, time_str ("" if none) - chatlog URL clicked in a message body
+
+    CHATLOG_URL_PATTERN = re.compile(r'^https?://klavogonki\.ru/chatlogs/(\d{4}-\d{2}-\d{2})\.html(?:#(\d{2}:\d{2}:\d{2}))?$')
     
     def __init__(self, config, emoticon_manager, is_dark_theme: bool, parent_widget=None):
         super().__init__()
@@ -70,8 +73,21 @@ class MessageRenderer(QObject):
             config=self.config
         )
     
+    @classmethod
+    def parse_chatlog_url(cls, url: str) -> Optional[Tuple[str, Optional[str]]]:
+        """Parse a klavogonki chatlog URL into (date_str, time_str or None), or None if it doesn't match"""
+        match = cls.CHATLOG_URL_PATTERN.match(url)
+        if not match:
+            return None
+        return match.group(1), match.group(2)
+
     def handle_link_lmb(self, url: str, is_media: bool, global_pos, is_ctrl: bool = False):
-        """Handle link click - opens in viewer or browser"""
+        """Handle link click - chatlog links open in split view, media opens in viewer, everything else in browser"""
+        chatlog_match = self.parse_chatlog_url(url)
+        if chatlog_match and not is_ctrl:
+            date_str, time_str = chatlog_match
+            self.chatlog_link_clicked.emit(date_str, time_str or "")
+            return
         if is_media and not is_ctrl:
             # Media link without Ctrl: open in viewer
             if VideoPlayer.is_video_url(url) and self.video_player:

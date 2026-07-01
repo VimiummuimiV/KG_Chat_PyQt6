@@ -136,6 +136,7 @@ class MessageDelegate(QStyledItemDelegate):
     message_clicked = pyqtSignal(int)
     separator_clicked = pyqtSignal(str)  # date_str of clicked chatlog date separator
     timestamp_clicked = pyqtSignal(str)  # full chatlog URL for the clicked message
+    chatlog_link_clicked = pyqtSignal(str, str)  # date_str, time_str ("" if none) - chatlog URL clicked in a message body
  
     def __init__(
         self,
@@ -211,6 +212,7 @@ class MessageDelegate(QStyledItemDelegate):
             # Connect refresh signals
             self.message_renderer.refresh_row.connect(self._refresh_row)
             self.message_renderer.refresh_view.connect(lambda: self.list_view.viewport().update())
+            self.message_renderer.chatlog_link_clicked.connect(self.chatlog_link_clicked.emit)
  
     def cleanup(self):
         self.list_view = None

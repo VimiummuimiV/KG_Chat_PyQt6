@@ -106,6 +106,7 @@ class ChatlogWidget(QWidget):
         self.delegate.message_clicked.connect(self._on_message_clicked)
         self.delegate.separator_clicked.connect(self._on_date_separator_clicked)
         self.delegate.timestamp_clicked.connect(lambda url: QApplication.clipboard().setText(url))
+        self.delegate.chatlog_link_clicked.connect(self._on_chatlog_link_clicked)
 
         # Shared username click detection (same component MessagesWidget uses).
         # Timestamp clicks stay handled above via delegate.timestamp_clicked -
@@ -124,6 +125,13 @@ class ChatlogWidget(QWidget):
         if account and account.get('chat_username'):
             self.delegate.set_my_username(account.get('chat_username'))
 
+    def _find_message_row(self, messages, predicate):
+        return next(
+            (i for i, msg in enumerate(messages)
+             if not getattr(msg, 'is_separator', False) and predicate(msg)),
+            None
+        )
+
     def _scroll_and_highlight(self, target_row: int, scroll_delay: int = 50, highlight_delay: int = 200):
         """Scroll to target row and highlight it after a delay."""
         scroll(self.list_view, mode="middle", target_row=target_row, delay=scroll_delay)
@@ -131,10 +139,9 @@ class ChatlogWidget(QWidget):
 
     def _highlight_in_split(self, timestamp):
         """Find a message by timestamp in the split pane (already showing the right date) and highlight it"""
-        target_row = next(
-            (i for i, msg in enumerate(self.split_chatlog_widget.all_messages)
-             if not getattr(msg, 'is_separator', False) and msg.timestamp == timestamp),
-            None
+        target_row = self._find_message_row(
+            self.split_chatlog_widget.all_messages,
+            lambda msg: msg.timestamp == timestamp
         )
         if target_row is not None:
             self.split_chatlog_widget._scroll_and_highlight(target_row, scroll_delay=50, highlight_delay=200)
@@ -202,8 +209,8 @@ class ChatlogWidget(QWidget):
             highlight_delay=250
         ))
 
-    def _on_date_separator_clicked(self, date_str: str):
-        """Open (or update) a split pane showing the full chatlog for the clicked date"""
+    def _ensure_split_chatlog_widget(self):
+        """Create (if needed) and return the split pane showing another date's chatlog"""
         if self.split_chatlog_widget is None:
             self.split_chatlog_widget = ChatlogWidget(
                 self.config,
@@ -217,8 +224,16 @@ class ChatlogWidget(QWidget):
             self.split_chatlog_widget.back_requested.connect(self._close_split_view)
             self.content_splitter.addWidget(self.split_chatlog_widget)
             self.content_splitter.setSizes([self.height() // 2, self.height() // 2])
+        return self.split_chatlog_widget
 
-        self.split_chatlog_widget.load_date(date_str)
+    def _on_date_separator_clicked(self, date_str: str):
+        """Open (or update) a split pane showing the full chatlog for the clicked date"""
+        self._ensure_split_chatlog_widget().load_date(date_str)
+
+    def _on_chatlog_link_clicked(self, date_str: str, time_str: str):
+        """A chatlog URL inside a message body was clicked - open/update the split pane
+        at that date, scrolling to and highlighting the linked message if a time was given"""
+        self._ensure_split_chatlog_widget().load_date_and_scroll(date_str, time_str)
 
     def _close_split_view(self):
         """Close the split pane showing a single date's full chatlog"""
@@ -807,6 +822,36 @@ class ChatlogWidget(QWidget):
             self.load_current_date()
         except Exception as e:
             self.info_label.setText(f"Error: {e}")
+
+    def load_date_and_scroll(self, date_str: str, time_str: str = ""):
+        """Load date_str, then, if time_str (HH:MM:SS) is given, scroll to and highlight that message"""
+        current_date_str = self.current_date.strftime("%Y-%m-%d")
+        if current_date_str == date_str and self.all_messages:
+            if time_str:
+                self._scroll_to_time(time_str)
+            return
+
+        if not time_str:
+            self.load_date(date_str)
+            return
+
+        self.suppress_bottom_scroll = True
+
+        def _on_loaded(_messages=None, t=time_str):
+            self.messages_loaded.disconnect(_on_loaded)
+            self._scroll_to_time(t)
+
+        self.messages_loaded.connect(_on_loaded)
+        self.load_date(date_str)
+
+    def _scroll_to_time(self, time_str: str):
+        """Scroll to and highlight the message matching time_str (HH:MM:SS) in the currently loaded date"""
+        target_row = self._find_message_row(
+            self.all_messages,
+            lambda msg: msg.get_time_str() == time_str
+        )
+        if target_row is not None:
+            self._scroll_and_highlight(target_row, scroll_delay=50, highlight_delay=200)
 
     def set_username_filter(self, usernames: set):
         self.filtered_usernames = usernames

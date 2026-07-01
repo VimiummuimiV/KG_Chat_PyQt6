@@ -21,6 +21,7 @@ class MessagesWidget(QWidget):
     username_right_clicked = pyqtSignal(object, object) # Show context menu for user
     username_ctrl_clicked = pyqtSignal(str)   # Ctrl+LMB → enter private
     username_shift_clicked = pyqtSignal(str)  # Shift+LMB → open profile
+    chatlog_link_clicked = pyqtSignal(str, str)  # date_str, time_str ("" if none) - chatlog URL clicked in a message body
 
     def __init__(self, config, emoticon_manager, my_username: str = None):
         super().__init__()
@@ -41,6 +42,7 @@ class MessagesWidget(QWidget):
         
         # Connect message click for row highlighting (still from delegate)
         self.delegate.message_clicked.connect(self._on_message_clicked)
+        self.delegate.chatlog_link_clicked.connect(self.chatlog_link_clicked.emit)
         
         # Shared username/timestamp click detection (also used by ChatlogWidget)
         self.interactions = MessageInteractions(self.list_view, self.delegate)
