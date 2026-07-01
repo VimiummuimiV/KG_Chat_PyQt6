@@ -48,6 +48,7 @@ CHAT_SCROLL_KB = [
 USERLIST_MOUSE = [
     ("Left click",       "View user profile"),
     ("Ctrl+Click",       "Start private chat"),
+    ("Right click",      "Context menu"),
 ]
 
 MSG_USERNAME_MOUSE = [
@@ -55,7 +56,7 @@ MSG_USERNAME_MOUSE = [
     ("Double click",     "Replace input / clear if solo"),
     ("Ctrl+Click",       "Start private chat"),
     ("Shift+Click",      "View user profile"),
-    ("Right click",      "Ban / remove message menu"),
+    ("Right click",      "Context menu"),
 ]
 
 MSG_TIMESTAMP_MOUSE = [
@@ -83,6 +84,7 @@ CHATLOG_KB = [
 CHATLOG_USERLIST_MOUSE = [
     ("Left click",      "Filter messages by user (click again to clear)"),
     ("Ctrl+Click",      "Add / remove user from filter"),
+    ("Right click",     "Context menu"),
 ]
 
 CHATLOG_MOUSE = [
