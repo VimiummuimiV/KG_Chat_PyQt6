@@ -999,6 +999,15 @@ class ChatWindow(QWidget):
         if self.chatlog_widget and self.chatlog_widget.parser_widget.is_parsing:
             self.start_parse_status()
 
+    def _configure_chatlog_widget(self, widget):
+        """Wire up reply support and row layout shared by every ChatlogWidget instance
+        (main chatlog view and the RMB split-pane view)."""
+        widget.delegate.reply_callback = self.messages_widget.reply_callback
+        widget.delegate.reply_includes_timestamp = True
+        compact = self.width() <= 1000
+        widget.set_compact_mode(compact)
+        widget.set_compact_layout(compact)
+
     def show_chatlog_view(self, timestamp: str = None):
         """Open chatlog for today"""
         # Hide messages userlist when in chatlog view, but keep userlist_panel visible for the chatlog userlist + font slider
@@ -1017,13 +1026,8 @@ class ChatWindow(QWidget):
             self.chatlog_widget.back_requested.connect(self.show_messages_view)
             self.chatlog_widget.messages_loaded.connect(self._on_chatlog_messages_loaded)
             self.chatlog_widget.filter_changed.connect(self._on_chatlog_filter_changed)
-            self.chatlog_widget.delegate.reply_callback = self.messages_widget.reply_callback
-            self.chatlog_widget.delegate.reply_includes_timestamp = True
             self.stacked_widget.addWidget(self.chatlog_widget)
-           
-            width = self.width()
-            self.chatlog_widget.set_compact_mode(width <= 1000)
-            self.chatlog_widget.set_compact_layout(width <= 1000)
+            self._configure_chatlog_widget(self.chatlog_widget)
        
         if not self.chatlog_userlist_widget:
             self.chatlog_userlist_widget = ChatlogUserlistWidget(
@@ -1077,14 +1081,15 @@ class ChatWindow(QWidget):
             )
             self.chatlog_split_widget.back_btn.setToolTip("Close split view")
             self.chatlog_split_widget.back_requested.connect(self._close_chatlog_split_view)
-            self.chatlog_split_widget.delegate.reply_callback = self.messages_widget.reply_callback
-            self.chatlog_split_widget.delegate.reply_includes_timestamp = True
+            # Match the live messages view's row layout so the two panes line up
+            self._configure_chatlog_widget(self.chatlog_split_widget)
             self.messages_splitter.insertWidget(0, self.chatlog_split_widget)
             self.messages_splitter.setSizes([self.height() // 2, self.height() // 2])
             self.chatlog_split_widget.load_date(date_str)
-            # Widget's own scroll-to-bottom (inside load_date) can fire before the
-            # splitter finishes giving it its real size on first insertion - redo it once settled.
-            QTimer.singleShot(150, lambda: scroll(self.chatlog_split_widget.list_view, mode="bottom", delay=50))
+
+            # Shrinking messages_widget's viewport here invalidates its "at bottom"
+            # scroll position, breaking future auto-scroll in add_message() unless restored.
+            QTimer.singleShot(150, lambda: scroll(self.messages_widget.list_view, mode="bottom", delay=50))
             return
 
         self.chatlog_split_widget.load_date(date_str)
