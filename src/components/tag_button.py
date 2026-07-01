@@ -1,7 +1,7 @@
 """Reusable tag/chip UI components (e.g. saved-value quick-access buttons)."""
 from pathlib import Path
 from PyQt6.QtWidgets import QWidget, QHBoxLayout, QLabel, QPushButton, QLayout
-from PyQt6.QtCore import QSize, QRect, Qt, pyqtSignal
+from PyQt6.QtCore import QSize, QRect, QTimer, Qt, pyqtSignal
 from PyQt6 import sip
 
 from helpers import create as icon_helpers
@@ -149,13 +149,15 @@ class SavedValuesBar(QWidget):
         self.config_path = config_path
         self.icons_path = icons_path
         self.values = self.config.get(*config_path) or []
+        self._tags = {}
 
         self._layout = FlowLayout(self)
         self._rebuild()
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
-        self.setFixedHeight(self._layout.height_for_width(event.size().width()))
+        if self.values:
+            self.setFixedHeight(self._layout.height_for_width(event.size().width()))
 
     def add_values(self, values: list):
         """Add any values not already saved, and persist"""
@@ -163,29 +165,51 @@ class SavedValuesBar(QWidget):
         if new_values:
             self.values.extend(new_values)
             self._save()
-            self._rebuild()
+            for value in new_values:
+                self._add_tag(value)
+            self._update_size()
 
     def _remove_value(self, value: str):
-        if value in self.values:
-            self.values.remove(value)
-            self._save()
-            self._rebuild()
+        if value not in self.values:
+            return
+        self.values.remove(value)
+        self._save()
+        tag = self._tags.pop(value, None)
+        if tag:
+            self._layout.removeWidget(tag)
+            tag.deleteLater()
+        self._update_size()
 
     def _save(self):
         self.config.set(*self.config_path, value=self.values)
 
+    def _add_tag(self, value: str):
+        """Create a chip for one value and add it to the layout, without touching existing chips"""
+        tag = TagButton(value, self.icons_path)
+        tag.clicked.connect(self.value_selected.emit)
+        tag.double_clicked.connect(self.value_double_clicked.emit)
+        tag.removed.connect(self._remove_value)
+        self._tags[value] = tag
+        self._layout.addWidget(tag)
+
     def _rebuild(self):
+        """Full teardown/recreate - only needed for the initial load from config"""
         while self._layout.count():
             item = self._layout.takeAt(0)
             if item.widget():
                 item.widget().deleteLater()
+        self._tags.clear()
 
         for value in self.values:
-            tag = TagButton(value, self.icons_path)
-            tag.clicked.connect(self.value_selected.emit)
-            tag.double_clicked.connect(self.value_double_clicked.emit)
-            tag.removed.connect(self._remove_value)
-            self._layout.addWidget(tag)
+            self._add_tag(value)
 
+        self._update_size()
+
+    def _update_size(self):
         self.setVisible(bool(self.values))
+        if self.values:
+            QTimer.singleShot(0, self._apply_content_height)
+
+    def _apply_content_height(self):
+        """Measure and apply height after Qt has settled the layout (deferred - see _update_size)"""
         self.setFixedHeight(self._layout.height_for_width(self.width() or self.sizeHint().width()))
