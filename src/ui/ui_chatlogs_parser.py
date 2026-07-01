@@ -247,6 +247,7 @@ class ChatlogsParserConfigWidget(QWidget):
         # Saved usernames quick-access chips (loaded from/persisted to config)
         self.saved_usernames_bar = SavedValuesBar(self.config, ("chatlog_parser", "saved_usernames"), self.icons_path)
         self.saved_usernames_bar.value_selected.connect(self._on_saved_username_clicked)
+        self.saved_usernames_bar.value_double_clicked.connect(self._on_saved_username_double_clicked)
         layout.addWidget(self.saved_usernames_bar)
        
         # Search terms input (label changes in Personal Mentions mode)
@@ -736,6 +737,12 @@ class ChatlogsParserConfigWidget(QWidget):
         if username not in current:
             current.append(username)
             self.username_input.setText(', '.join(current))
+
+    def _on_saved_username_double_clicked(self, username: str):
+        """Replace the usernames field with only the double-clicked chip,
+        or clear it if that chip was already the sole entry"""
+        current = self._get_usernames()
+        self.username_input.setText("" if current == [username] else username)
    
     def update_progress(self, start_date: str, current_date: str, percent: int):
         """Update progress display"""

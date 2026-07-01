@@ -27,6 +27,7 @@ class TagButton(QWidget):
     """Pill-shaped tag with a label and a small remove (x) icon, themed for dark/light."""
 
     clicked = pyqtSignal(str)
+    double_clicked = pyqtSignal(str)
     removed = pyqtSignal(str)
 
     def __init__(self, text: str, icons_path: Path, close_icon: str = "close.svg"):
@@ -43,6 +44,7 @@ class TagButton(QWidget):
         self.label = QLabel(text)
         self.label.setCursor(Qt.CursorShape.PointingHandCursor)
         self.label.mousePressEvent = lambda e: self.clicked.emit(self.text_value)
+        self.label.mouseDoubleClickEvent = lambda e: self.double_clicked.emit(self.text_value)
         layout.addWidget(self.label)
 
         self.close_btn = QPushButton()
@@ -139,6 +141,7 @@ class SavedValuesBar(QWidget):
     Owns loading/saving/rebuilding; the parent widget only reacts to chip clicks."""
 
     value_selected = pyqtSignal(str)
+    value_double_clicked = pyqtSignal(str)
 
     def __init__(self, config, config_path: tuple, icons_path: Path):
         super().__init__()
@@ -180,6 +183,7 @@ class SavedValuesBar(QWidget):
         for value in self.values:
             tag = TagButton(value, self.icons_path)
             tag.clicked.connect(self.value_selected.emit)
+            tag.double_clicked.connect(self.value_double_clicked.emit)
             tag.removed.connect(self._remove_value)
             self._layout.addWidget(tag)
 

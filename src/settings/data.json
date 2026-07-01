@@ -156,5 +156,6 @@
   "346928": {"login": "Аурика", "background": "#b353ef", "light": "#aa40ed", "dark": "#b659f0"},
   "761927": {"login": "pffffff", "background": "#777777", "light": "#767676", "dark": "#858585"},
   "344417": {"login": "8RUMIT", "background": "#2200FF", "light": "#2200FF", "dark": "#836fff"},
-  "840254": {"login": "doublebubble", "background": "#777777", "light": "#767676", "dark": "#858585"}
+  "840254": {"login": "doublebubble", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "445193": {"login": "Диктатор", "background": "#00037C", "light": "#00037C", "dark": "#7175ff"}
 }
