@@ -13,6 +13,7 @@ from helpers.create import _render_svg_icon, get_user_svg_color
 from helpers.cache import get_cache
 from helpers.fonts import get_font, FontType
 from helpers.auto_scroll import AutoScroller
+from components.user_context_menu import show_user_context_menu, PROFILE, PRIVATE, COPY
 from core.userlist import ChatUser
 
 
@@ -27,6 +28,7 @@ class UserWidget(QWidget):
     def __init__(self, user, config, icons_path, is_dark_theme, counter=None):
         super().__init__()
         self.user = user
+        self.icons_path = icons_path
         self.cache = get_cache()
         
         self.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
@@ -146,6 +148,16 @@ class UserWidget(QWidget):
             else:
                 self.profile_requested.emit(self.user.jid, self.user.login, self.user.user_id)
         super().mousePressEvent(event)
+
+    def contextMenuEvent(self, event):
+        """RMB → compact Profile / Private / Copy menu"""
+        action = show_user_context_menu(self.icons_path, self, QCursor.pos())
+        if action == PROFILE:
+            self.profile_requested.emit(self.user.jid, self.user.login, self.user.user_id)
+        elif action == PRIVATE:
+            self.private_chat_requested.emit(self.user.jid, self.user.login, self.user.user_id)
+        elif action == COPY:
+            QApplication.clipboard().setText(self.user.login)
 
 
 class UserListWidget(QWidget):

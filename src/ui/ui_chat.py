@@ -1052,6 +1052,8 @@ class ChatWindow(QWidget):
                 self.ban_manager
             )
             self.chatlog_userlist_widget.filter_requested.connect(self._on_filter_requested)
+            self.chatlog_userlist_widget.profile_requested.connect(self.show_profile_view)
+            self.chatlog_userlist_widget.private_chat_requested.connect(self.enter_private_mode)
             # Insert into userlist_panel before the font slider (at index 0)
             self.userlist_panel.layout().insertWidget(0, self.chatlog_userlist_widget, stretch=1)
        
