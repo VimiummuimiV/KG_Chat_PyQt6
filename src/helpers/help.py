@@ -58,6 +58,19 @@ MSG_USERNAME_MOUSE = [
     ("Right click",      "Ban / remove message menu"),
 ]
 
+MSG_TIMESTAMP_MOUSE = [
+    ("Left click",       "Open chatlog for that day"),
+    ("Right click",      "Open chatlog for that day in split view"),
+]
+
+MSG_BODY_MOUSE = [
+    ("Right click",      "Open selectable text (reply / copy / paste)"),
+]
+
+CHATLOG_TIMESTAMP_MOUSE = [
+    ("Left click",       "Copy chatlog link for that message"),
+]
+
 CHATLOG_KB = [
     ("H / ←",           "Previous day (hold to fast-seek)"),
     ("L / →",           "Next day (hold to fast-seek)"),
@@ -156,7 +169,9 @@ CONTEXTS = {
             ("Ctrl Shortcuts",          CHAT_CTRL_KB,       None),
             ("Scrolling",               CHAT_SCROLL_KB,     None),
             ("User List Clicks",        None,               USERLIST_MOUSE),
+            ("Message Timestamp Clicks", None,              MSG_TIMESTAMP_MOUSE),
             ("Message Username Clicks", None,               MSG_USERNAME_MOUSE),
+            ("Message Body Clicks",     None,               MSG_BODY_MOUSE),
         ],
     },
     "chatlog": {
@@ -165,6 +180,7 @@ CONTEXTS = {
             ("Navigation",      CHATLOG_KB,             CHATLOG_MOUSE),
             ("Scrolling",       CHAT_SCROLL_KB,         None),
             ("User List",       None,                   CHATLOG_USERLIST_MOUSE),
+            ("Message Timestamp Clicks", None,           CHATLOG_TIMESTAMP_MOUSE),
         ],
     },
     "parser": {
