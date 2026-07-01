@@ -68,6 +68,10 @@ MSG_BODY_MOUSE = [
     ("Right click",      "Open selectable text (reply / copy / paste)"),
 ]
 
+MSG_URL_MOUSE = [
+    ("Right click on URL",  "Copy link"),
+]
+
 CHATLOG_TIMESTAMP_MOUSE = [
     ("Left click",       "Copy chatlog link for that message"),
 ]
@@ -179,6 +183,7 @@ CONTEXTS = {
             ("Message Timestamp Clicks", None,               MSG_TIMESTAMP_MOUSE),
             ("Message Username Clicks",  None,               MSG_USERNAME_MOUSE),
             ("Message Body Clicks",      None,               MSG_BODY_MOUSE),
+            ("URL Interactions",         None,               MSG_URL_MOUSE),
         ],
     },
     "chatlog": {
@@ -190,6 +195,7 @@ CONTEXTS = {
             ("Message Username Clicks",  None,               MSG_USERNAME_MOUSE),
             ("Message Timestamp Clicks", None,               CHATLOG_TIMESTAMP_MOUSE),
             ("Message Body Clicks",      None,               MSG_BODY_MOUSE),
+            ("URL Interactions",         None,               MSG_URL_MOUSE),
         ],
     },
     "parser": {
