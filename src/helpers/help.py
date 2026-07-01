@@ -115,6 +115,11 @@ CHATLOG_PARSER_ACTIVE_KB = [
     ("Ctrl+F",          "Toggle search"),
 ]
 
+PARSER_TAG_MOUSE = [
+    ("Left click",       "Add username to field"),
+    ("Double click",     "Replace field / clear if solo"),
+]
+
 ACCOUNTS_CONNECT_KB = [
     ("Enter / E",   "Connect to chat"),
     ("Tab",         "Cycle account selection"),
@@ -188,7 +193,8 @@ CONTEXTS = {
     "parser": {
         "title": "Chatlog Parser — Keyboard Shortcuts",
         "sections": [
-            ("Parser Controls", CHATLOG_PARSER_ACTIVE_KB, None),
+            ("Parser Controls",     CHATLOG_PARSER_ACTIVE_KB, None),
+            ("Saved Username Tags", None,                     PARSER_TAG_MOUSE),
         ],
     },
     "accounts_connect": {
