@@ -1995,6 +1995,12 @@ class ChatWindow(QWidget):
 
             menu = QMenu(self)
 
+            # Profile / Private chat
+            profile_act = menu.addAction(icon("user.svg"), "Profile")
+            private_act = menu.addAction(icon("private-chat.svg"), "Private Chat")
+
+            menu.addSeparator()
+
             # Copy username
             copy_act = menu.addAction(icon("clipboard.svg"), "Copy username")
 
@@ -2022,7 +2028,15 @@ class ChatWindow(QWidget):
             if not act:
                 return
             
-            if act == copy_act:
+            if act == profile_act:
+                username = getattr(msg, 'login', None) or getattr(msg, 'username', None)
+                if username:
+                    self._resolve_user_then(username, lambda jid, login, uid: self.show_profile_view(jid, login, uid))
+            elif act == private_act:
+                username = getattr(msg, 'login', None) or getattr(msg, 'username', None)
+                if username:
+                    self._resolve_user_then(username, lambda jid, login, uid: self.enter_private_mode(jid, login, uid))
+            elif act == copy_act:
                 username = getattr(msg, 'login', None) or getattr(msg, 'username', None)
                 if username:
                     QApplication.clipboard().setText(username)
