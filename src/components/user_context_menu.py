@@ -26,8 +26,8 @@ def show_user_context_menu(icons_path, parent, global_pos, show_filter=False):
 
     menu = QMenu(parent)
     profile_act = menu.addAction(icon("user.svg"), "Profile")
-    private_act = menu.addAction(icon("private-chat.svg"), "Private Chat")
-    copy_act = menu.addAction(icon("clipboard.svg"), "Copy Username")
+    private_act = menu.addAction(icon("private-chat.svg"), "Private")
+    copy_act = menu.addAction(icon("clipboard.svg"), "Copy")
     copy_id_act = menu.addAction(icon("hashtag.svg"), "Copy ID")
     filter_act = menu.addAction(icon("filter.svg"), "Filter by User") if show_filter else None
 
