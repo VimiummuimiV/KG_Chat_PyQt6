@@ -1993,6 +1993,11 @@ class ChatWindow(QWidget):
 
             menu = QMenu(self)
 
+            # Copy username
+            copy_act = menu.addAction(icon("clipboard.svg"), "Copy username")
+
+            menu.addSeparator()
+
             # Permanent ban action
             perm_act = menu.addAction(icon("prohibited.svg"), "Ban permanently")
 
@@ -2012,7 +2017,11 @@ class ChatWindow(QWidget):
             if not act:
                 return
             
-            if act == perm_act:
+            if act == copy_act:
+                username = getattr(msg, 'login', None) or getattr(msg, 'username', None)
+                if username:
+                    QApplication.clipboard().setText(username)
+            elif act == perm_act:
                 # Permanent ban
                 self._ban_user_from_msg(msg, permanent=True, widget=source_widget)
             elif act == temp_act:
