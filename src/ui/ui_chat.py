@@ -46,6 +46,7 @@ from ui.ui_buttons import ButtonPanel
 from helpers.help import HelpPanel
 from components.notification import show_notification, popup_manager
 from components.messages_separator import NewMessagesSeparator
+from components.tag_button import update_all_tag_buttons
 
 
 class SignalEmitter(QObject):
@@ -2414,6 +2415,7 @@ class ChatWindow(QWidget):
             self._update_input_style()
          
             update_all_icons()
+            update_all_tag_buttons()
             
             # Update shared emoticon manager theme
             self.emoticon_manager.set_theme(is_dark)

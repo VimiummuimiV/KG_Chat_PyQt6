@@ -132,7 +132,7 @@ def update_all_icons():
     """Update all registered icon buttons when theme changes"""
     global _icon_registry
     _icon_registry = [btn for btn in _icon_registry if not sip.isdeleted(btn)]
-   
+
     for button in _icon_registry:
         if isinstance(button, HoverIconButton):
             button._update_icon()
