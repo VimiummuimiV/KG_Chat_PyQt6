@@ -92,7 +92,7 @@ class MessagesWidget(QWidget):
         spacing = self.config.get("ui", "spacing", "widget_elements") or 4
        
         layout = QVBoxLayout()
-        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setContentsMargins(4, 0, 4, 0)  # Add left and right margins to match chatlog
         layout.setSpacing(spacing)
         self.setLayout(layout)
        
