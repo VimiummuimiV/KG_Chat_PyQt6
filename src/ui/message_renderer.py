@@ -288,6 +288,7 @@ class MessageRenderer(QObject):
         # Link colors
         normal_link_color = "#4DA6FF" if self.is_dark_theme else "#0066CC"
         media_link_color = "#4DFF88" if self.is_dark_theme else "#00AA44"
+        chatlog_link_color = "#FFD24D" if self.is_dark_theme else "#CC6600"
         
         def new_line():
             nonlocal current_x, current_y, line_height
@@ -344,8 +345,13 @@ class MessageRenderer(QObject):
             nonlocal current_x, line_height
             link_text = self._get_link_text(url, row)
             
-            # Choose color based on whether it's a media link
-            link_color = media_link_color if is_media else normal_link_color
+            # Choose color based on whether it's a media link or chatlog link
+            if is_media:
+                link_color = media_link_color
+            elif self.parse_chatlog_url(url):
+                link_color = chatlog_link_color
+            else:
+                link_color = normal_link_color
             painter.setPen(QColor(link_color))
             
             remaining = link_text

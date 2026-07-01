@@ -47,5 +47,8 @@
   "382964": {"login": "Fernando_Alonso", "background": "#898900", "light": "#7a7a00", "dark": "#8a8a00"},
   "472891": {"login": "lusplus", "background": "#777777", "light": "#767676", "dark": "#858585"},
   "838653": {"login": "Лишний", "background": "#75040C", "light": "#75040C", "dark": "#f83a47"},
-  "47396": {"login": "3Volta", "background": "#3975E5", "light": "#3471e4", "dark": "#4c83e8"}
+  "47396": {"login": "3Volta", "background": "#3975E5", "light": "#3471e4", "dark": "#4c83e8"},
+  "256825": {"login": "-IL-", "background": "#000000", "light": "#000000", "dark": "#858585"},
+  "817711": {"login": "farshmak", "background": "#595959", "light": "#595959", "dark": "#858585"},
+  "155716": {"login": "g1raweb", "background": "#000C4C", "light": "#000C4C", "dark": "#6079ff"}
 }
