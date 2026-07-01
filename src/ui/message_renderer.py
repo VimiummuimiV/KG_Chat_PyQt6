@@ -82,7 +82,7 @@ class MessageRenderer(QObject):
         return match.group(1), match.group(2)
 
     def handle_link_lmb(self, url: str, is_media: bool, global_pos, is_ctrl: bool = False):
-        """Handle link click - chatlog links open in split view, media opens in viewer, everything else in browser"""
+        # Chatlog URL opens in split view
         chatlog_match = self.parse_chatlog_url(url)
         if chatlog_match and not is_ctrl:
             date_str, time_str = chatlog_match
@@ -95,7 +95,7 @@ class MessageRenderer(QObject):
             elif ImageHoverView.is_image_url(url) and self.image_viewer:
                 self.image_viewer.show_preview(url, global_pos)
         else:
-            # Normal link OR media link with Ctrl: open in browser
+            # Normal link, media link with Ctrl, or chatlog link with Ctrl: open in browser
             import webbrowser
             try:
                 webbrowser.open(url)
