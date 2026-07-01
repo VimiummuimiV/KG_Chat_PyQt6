@@ -1998,6 +1998,9 @@ class ChatWindow(QWidget):
             # Copy username
             copy_act = menu.addAction(icon("clipboard.svg"), "Copy username")
 
+            # Copy user ID
+            copy_id_act = menu.addAction(icon("hashtag.svg"), "Copy ID")
+
             menu.addSeparator()
 
             # Permanent ban action
@@ -2023,6 +2026,10 @@ class ChatWindow(QWidget):
                 username = getattr(msg, 'login', None) or getattr(msg, 'username', None)
                 if username:
                     QApplication.clipboard().setText(username)
+            elif act == copy_id_act:
+                username = getattr(msg, 'login', None) or getattr(msg, 'username', None)
+                user_id = self.cache.get_user_id(username) if username else None
+                QApplication.clipboard().setText(str(user_id or ""))
             elif act == perm_act:
                 # Permanent ban
                 self._ban_user_from_msg(msg, permanent=True, widget=source_widget)
