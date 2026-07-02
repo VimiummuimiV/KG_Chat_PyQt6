@@ -26,7 +26,8 @@ _CLOSE_HOVER_BG_LIGHT = "#d5d8db"
 # Drag-to-reorder insertion line
 _DROP_LINE_COLOR_DARK = "#3399ff"
 _DROP_LINE_COLOR_LIGHT = "#0060df"
-_DROP_LINE_WIDTH = 3
+_DROP_LINE_WIDTH = 6
+_DROP_LINE_RADIUS = 3
 
 
 class TagButton(QWidget):
@@ -249,7 +250,7 @@ class SavedValuesBar(QWidget):
 
         color = _DROP_LINE_COLOR_DARK if icon_helpers._is_dark_theme else _DROP_LINE_COLOR_LIGHT
         self._drop_indicator.setStyleSheet(
-            f"background-color: {color}; border-radius: {_DROP_LINE_WIDTH // 2}px;"
+            f"background-color: {color}; border-radius: {_DROP_LINE_RADIUS}px;"
         )
         g, gap = widget.geometry(), self._layout.spacing()
         x = (g.right() + gap / 2) if after else (g.left() - gap / 2)
