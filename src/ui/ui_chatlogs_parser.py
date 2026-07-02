@@ -67,6 +67,8 @@ class ChatlogsParserConfigWidget(QWidget):
    
     parse_started = pyqtSignal(object) # ParseConfig
     parse_cancelled = pyqtSignal()
+
+    DATE_PLACEHOLDER = "YYYY-MM-DD / YYMMDD / today / yesterday / -7"
    
     def __init__(self, config, icons_path: Path, account=None):
         super().__init__()
@@ -131,12 +133,24 @@ class ChatlogsParserConfigWidget(QWidget):
         return layout, input_field
    
     def _parse_short_date(self, date_str: str):
-        """Convert YYMMDD to YYYY-MM-DD"""
+        """Convert shorthand date entries (YYMMDD, YYYYMMDD, today, yesterday, -N) to YYYY-MM-DD"""
+        text = date_str.strip().lower()
+
+        if text == 'today':
+            return datetime.now().strftime('%Y-%m-%d')
+        if text == 'yesterday':
+            return (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
+        if text.startswith('-') and text[1:].isdigit():
+            return (datetime.now() - timedelta(days=int(text[1:]))).strftime('%Y-%m-%d')
+
         clean = date_str.replace('-', '').replace('/', '').replace('.', '').strip()
-        if len(clean) == 6 and clean.isdigit():
+        if clean.isdigit() and len(clean) in (6, 8):
             try:
-                yy, mm, dd = int(clean[0:2]), int(clean[2:4]), int(clean[4:6])
-                return datetime(2000 + yy, mm, dd).strftime('%Y-%m-%d')
+                if len(clean) == 6:
+                    yy, mm, dd = int(clean[0:2]), int(clean[2:4]), int(clean[4:6])
+                    return datetime(2000 + yy, mm, dd).strftime('%Y-%m-%d')
+                yyyy, mm, dd = int(clean[0:4]), int(clean[4:6]), int(clean[6:8])
+                return datetime(yyyy, mm, dd).strftime('%Y-%m-%d')
             except ValueError:
                 pass
         return date_str
@@ -602,16 +616,16 @@ class ChatlogsParserConfigWidget(QWidget):
         self.search_container_widget.setVisible(not self.is_sync_mode)
        
         if mode == "Single Date":
-            self._add_date_input("Date:", "single_date", "YYYY-MM-DD")
+            self._add_date_input("Date:", "single_date")
        
         elif mode == "From Date":
-            self._add_date_input("From:", "from_date", "YYYY-MM-DD")
+            self._add_date_input("From:", "from_date")
             info = QLabel("(to today)")
             info.setStyleSheet("color: #888;")
             self.date_layout.addWidget(info)
        
         elif mode == "Date Range":
-            self._add_date_input("Range:", "range_dates", "YYYY-MM-DD YYYY-MM-DD")
+            self._add_date_input("Range:", "range_dates", f"{self.DATE_PLACEHOLDER}  {self.DATE_PLACEHOLDER}")
        
         elif mode == "From Start":
             info = QLabel("Will parse from 2012-12-02 to today")
@@ -668,11 +682,11 @@ class ChatlogsParserConfigWidget(QWidget):
         sub_mode = self.mention_date_combo.currentText()
        
         if sub_mode == "Single Date":
-            self._add_date_input("Date:", "mention_single_date", "YYYY-MM-DD")
+            self._add_date_input("Date:", "mention_single_date")
         elif sub_mode == "From Date":
-            self._add_date_input("From:", "mention_from_date", "YYYY-MM-DD")
+            self._add_date_input("From:", "mention_from_date")
         elif sub_mode == "Date Range":
-            self._add_date_input("Range:", "mention_range_dates", "YYYY-MM-DD YYYY-MM-DD")
+            self._add_date_input("Range:", "mention_range_dates", f"{self.DATE_PLACEHOLDER}  {self.DATE_PLACEHOLDER}")
         elif sub_mode == "From Start":
             pass # No input needed
         elif sub_mode == "Last N Days":
@@ -683,9 +697,9 @@ class ChatlogsParserConfigWidget(QWidget):
             container.setLayout(days_layout)
             self.date_layout.addWidget(container)
    
-    def _add_date_input(self, label_text: str, obj_name: str, placeholder: str = "YYYY-MM-DD"):
+    def _add_date_input(self, label_text: str, obj_name: str, placeholder: str = None):
         """Add a date input field with calendar picker"""
-        layout, line_edit = self._create_input_row(label_text, placeholder, obj_name)
+        layout, line_edit = self._create_input_row(label_text, placeholder or self.DATE_PLACEHOLDER, obj_name)
         
         # Add auto-format on blur
         line_edit.editingFinished.connect(lambda: self._auto_format_date(line_edit))
