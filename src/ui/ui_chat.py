@@ -1007,18 +1007,19 @@ class ChatWindow(QWidget):
             self.start_parse_status()
 
     def _configure_chatlog_widget(self, widget):
-        """Wire up reply support and row layout shared by every ChatlogWidget instance
-        (main chatlog view and the RMB split-pane view)."""
-        widget.delegate.reply_callback = self.messages_widget.reply_callback
-        widget.delegate.paste_callback = self.messages_widget.delegate.paste_callback
-        widget.delegate.reply_includes_timestamp = True
+        """Configure chatlog widget (main + split view) with actions support and shared settings."""
+        if not widget:
+            return
+            
+        # Enable Reply and Paste in context menu
+        widget.set_input_field(self.input_field)
+        
+        # Layout / compact mode
         compact = self.width() <= 1000
         widget.set_compact_mode(compact)
         widget.set_compact_layout(compact)
-
-        # Reuse the same username-click handlers as the realtime messages view.
-        # source_widget=widget lets _ban_user_from_msg/_remove_message operate on
-        # this widget's own model instead of always assuming messages_widget.
+        
+        # Username click handlers (reuse same logic as live messages)
         widget.interactions.username_left_clicked.connect(self._on_username_left_click)
         widget.interactions.username_ctrl_clicked.connect(self._on_username_ctrl_click)
         widget.interactions.username_shift_clicked.connect(self._on_username_shift_click)
@@ -1028,27 +1029,28 @@ class ChatWindow(QWidget):
 
     def show_chatlog_view(self, timestamp: str = None, reload: bool = True):
         """Open chatlog for today. reload=False just re-shows the existing widget
-        as-is (used when returning from the profile view) without resetting its date/scroll."""
-        # Hide messages userlist when in chatlog view, but keep userlist_panel visible for the chatlog userlist + font slider
+        as-is (used when returning from the profile view)."""
+        # Hide messages userlist when in chatlog view
         self.user_list_widget.setVisible(False)
-       
+      
         if not self.chatlog_widget:
-            # Pass parent_window=self for modal dialogs and ban_manager
+            # Create chatlog widget
             self.chatlog_widget = ChatlogWidget(
                 self.config,
                 self.emoticon_manager,
-                self.icons_path, 
-                self.account, 
+                self.icons_path,
+                self.account,
                 parent_window=self,
                 ban_manager=self.ban_manager
             )
-            self.chatlog_widget.set_input_field(self.input_field)
             self.chatlog_widget.back_requested.connect(self.show_messages_view)
             self.chatlog_widget.messages_loaded.connect(self._on_chatlog_messages_loaded)
             self.chatlog_widget.filter_changed.connect(self._on_chatlog_filter_changed)
             self.stacked_widget.addWidget(self.chatlog_widget)
+            
+            # Configure it (reply, compact mode, username clicks, etc.)
             self._configure_chatlog_widget(self.chatlog_widget)
-       
+      
         if not self.chatlog_userlist_widget:
             self.chatlog_userlist_widget = ChatlogUserlistWidget(
                 self.config,
@@ -1059,15 +1061,15 @@ class ChatWindow(QWidget):
             self.chatlog_userlist_widget.profile_requested.connect(self.show_profile_view)
             self.chatlog_userlist_widget.private_chat_requested.connect(self.enter_private_mode)
             self.chatlog_userlist_widget.paste_requested.connect(self._paste_username_to_input)
-            # Insert into userlist_panel before the font slider (at index 0)
+            # Insert into userlist_panel before the font slider
             self.userlist_panel.layout().insertWidget(0, self.chatlog_userlist_widget, stretch=1)
-       
+      
         # Show chatlog userlist based on config and width
         width = self.width()
         chatlog_userlist_visible = self.config.get("ui", "chatlog_userlist_visible")
         if chatlog_userlist_visible is None:
             chatlog_userlist_visible = True
-       
+      
         visible = width > 1000 and chatlog_userlist_visible
         self.chatlog_userlist_widget.setVisible(visible)
         self.userlist_panel.setVisible(visible)
@@ -1077,17 +1079,17 @@ class ChatWindow(QWidget):
                 self.button_panel.toggle_userlist_button,
                 chatlog_userlist_visible
             )
-       
+      
         # Sync userlist ban visibility with chatlog parse mode
         if self.chatlog_widget and self.chatlog_userlist_widget:
             self.chatlog_userlist_widget.set_show_banned(self.chatlog_widget.is_parsing)
-       
-        # If reload is True and the parser is not visible, reset to today's date and load it
+      
+        # If reload is True and the parser is not visible, reset to today's date
         if reload and not self.chatlog_widget.parser_visible:
             self.chatlog_widget.current_date = datetime.now().date()
             self.chatlog_widget._update_date_display()
             self.chatlog_widget.load_current_date()
-       
+      
         self.stacked_widget.setCurrentWidget(self.chatlog_widget)
 
     def show_chatlog_split_view(self, date_str: str, time_str: str = ""):

@@ -223,16 +223,18 @@ class ChatlogWidget(QWidget):
                 self.emoticon_manager,
                 self.icons_path,
                 account=self.account,
-                parent_window=None,
+                parent_window=self,
                 ban_manager=self.ban_manager
             )
             self.split_chatlog_widget.back_btn.setToolTip("Close split view")
             self.split_chatlog_widget.back_requested.connect(self._close_split_view)
             self.content_splitter.addWidget(self.split_chatlog_widget)
             self.content_splitter.setSizes([self.height() // 2, self.height() // 2])
-            # Enable Reply & Paste in split view
-            input_field = getattr(self.parent_window, 'input_field', None)
-            self.split_chatlog_widget.set_input_field(input_field)
+
+            # Configure reply, compact mode, username clicks, etc.
+            if self.parent_window:
+                self.parent_window._configure_chatlog_widget(self.split_chatlog_widget)
+
         return self.split_chatlog_widget
 
     def _on_date_separator_clicked(self, date_str: str):
