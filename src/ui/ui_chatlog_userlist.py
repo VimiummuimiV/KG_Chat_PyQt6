@@ -10,7 +10,7 @@ from helpers.load import make_rounded_pixmap
 from helpers.cache import get_cache
 from helpers.fonts import get_font, FontType
 from helpers.auto_scroll import AutoScroller
-from components.user_context_menu import show_user_context_menu, PROFILE, PRIVATE, COPY_USERNAME, COPY_ID, FILTER
+from components.user_context_menu import show_user_context_menu, PROFILE, PRIVATE, PASTE_USERNAME, COPY_USERNAME, COPY_ID, FILTER
 
 
 class ChatlogUserWidget(QWidget):
@@ -21,6 +21,7 @@ class ChatlogUserWidget(QWidget):
     clicked = pyqtSignal(str, bool)  # username, ctrl_pressed
     profile_requested = pyqtSignal(str, str, str)  # jid, username, user_id
     private_chat_requested = pyqtSignal(str, str, str)  # jid, username, user_id
+    paste_requested = pyqtSignal(str) # username
 
     def __init__(self, username, msg_count, config, icons_path, user_id=None):
         super().__init__()
@@ -112,6 +113,8 @@ class ChatlogUserWidget(QWidget):
             self.profile_requested.emit("", self.username, self.user_id or "")
         elif action == PRIVATE:
             self.private_chat_requested.emit("", self.username, self.user_id or "")
+        elif action == PASTE_USERNAME:
+            self.paste_requested.emit(self.username)
         elif action == COPY_USERNAME:
             QApplication.clipboard().setText(self.username)
         elif action == COPY_ID:
@@ -127,6 +130,7 @@ class ChatlogUserlistWidget(QWidget):
     filter_requested = pyqtSignal(set)  # Emit set of usernames to filter
     profile_requested = pyqtSignal(str, str, str)  # jid, username, user_id
     private_chat_requested = pyqtSignal(str, str, str)  # jid, username, user_id
+    paste_requested = pyqtSignal(str) # username
 
     def __init__(self, config, icons_path, ban_manager=None):
         super().__init__()
@@ -264,6 +268,7 @@ class ChatlogUserlistWidget(QWidget):
                 widget.clicked.connect(self._handle_user_click)
                 widget.profile_requested.connect(self.profile_requested.emit)
                 widget.private_chat_requested.connect(self.private_chat_requested.emit)
+                widget.paste_requested.connect(self.paste_requested.emit)
                 widget.set_filtered(username in self.filtered_usernames)
                 self.user_widgets[username] = widget
                 self.user_layout.insertWidget(self.user_layout.count() - 1, widget)

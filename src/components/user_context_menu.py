@@ -10,6 +10,7 @@ from helpers.create import _render_svg_icon
 
 PROFILE = "profile"
 PRIVATE = "private"
+PASTE_USERNAME = "paste_username"
 COPY_USERNAME = "copy_username"
 COPY_ID = "copy_id"
 FILTER = "filter"
@@ -19,7 +20,7 @@ def show_user_context_menu(icons_path, parent, global_pos, show_filter=False):
     """Show the compact user menu at global_pos.
 
     show_filter=True adds a "Filter" action (chatlog userlist only).
-    Returns PROFILE, PRIVATE, COPY_USERNAME, COPY_ID, FILTER, or None (menu dismissed).
+    Returns PROFILE, PRIVATE, PASTE_USERNAME, COPY_USERNAME, COPY_ID, FILTER, or None (menu dismissed).
     """
     def icon(name):
         return _render_svg_icon(icons_path / name, 16)
@@ -27,6 +28,7 @@ def show_user_context_menu(icons_path, parent, global_pos, show_filter=False):
     menu = QMenu(parent)
     profile_act = menu.addAction(icon("user.svg"), "Profile")
     private_act = menu.addAction(icon("private-chat.svg"), "Private Chat")
+    paste_act = menu.addAction(icon("add-circle.svg"), "Paste Username")
     copy_username_act = menu.addAction(icon("clipboard.svg"), "Copy Username")
     copy_id_act = menu.addAction(icon("hashtag.svg"), "Copy ID")
     filter_act = menu.addAction(icon("filter.svg"), "Filter by User") if show_filter else None
@@ -36,6 +38,8 @@ def show_user_context_menu(icons_path, parent, global_pos, show_filter=False):
         return PROFILE
     if act == private_act:
         return PRIVATE
+    if act == paste_act:
+        return PASTE_USERNAME
     if act == copy_username_act:
         return COPY_USERNAME
     if act == copy_id_act:

@@ -13,7 +13,7 @@ from helpers.create import _render_svg_icon, get_user_svg_color
 from helpers.cache import get_cache
 from helpers.fonts import get_font, FontType
 from helpers.auto_scroll import AutoScroller
-from components.user_context_menu import show_user_context_menu, PROFILE, PRIVATE, COPY_USERNAME, COPY_ID
+from components.user_context_menu import show_user_context_menu, PROFILE, PRIVATE, PASTE_USERNAME, COPY_USERNAME, COPY_ID
 from core.userlist import ChatUser
 
 
@@ -24,7 +24,8 @@ class UserWidget(QWidget):
     
     profile_requested = pyqtSignal(str, str, str)  # jid, username, user_id
     private_chat_requested = pyqtSignal(str, str, str)  # jid, username, user_id
-    
+    paste_requested = pyqtSignal(str) # username
+
     def __init__(self, user, config, icons_path, is_dark_theme, counter=None):
         super().__init__()
         self.user = user
@@ -156,6 +157,8 @@ class UserWidget(QWidget):
             self.profile_requested.emit(self.user.jid, self.user.login, self.user.user_id)
         elif action == PRIVATE:
             self.private_chat_requested.emit(self.user.jid, self.user.login, self.user.user_id)
+        elif action == PASTE_USERNAME:
+            self.paste_requested.emit(self.user.login)
         elif action == COPY_USERNAME:
             QApplication.clipboard().setText(self.user.login)
         elif action == COPY_ID:
@@ -167,7 +170,8 @@ class UserListWidget(QWidget):
     
     profile_requested = pyqtSignal(str, str, str)
     private_chat_requested = pyqtSignal(str, str, str)
-    
+    paste_requested = pyqtSignal(str) # username
+
     def __init__(self, config, input_field=None, ban_manager=None):
         super().__init__()
         self.config = config
@@ -349,6 +353,7 @@ class UserListWidget(QWidget):
                     widget = UserWidget(user, self.config, self.icons_path, self.is_dark_theme)
                     widget.profile_requested.connect(self.profile_requested.emit)
                     widget.private_chat_requested.connect(self.private_chat_requested.emit)
+                    widget.paste_requested.connect(self.paste_requested.emit)
                     self.chat_container.addWidget(widget)
                     self.user_widgets[user.jid] = widget
                 except Exception as e:
@@ -361,6 +366,7 @@ class UserListWidget(QWidget):
                     widget = UserWidget(user, self.config, self.icons_path, self.is_dark_theme, counter)
                     widget.profile_requested.connect(self.profile_requested.emit)
                     widget.private_chat_requested.connect(self.private_chat_requested.emit)
+                    widget.paste_requested.connect(self.paste_requested.emit)
                     self.game_container.addWidget(widget)
                     self.user_widgets[user.jid] = widget
                 except Exception as e:
@@ -390,6 +396,7 @@ class UserListWidget(QWidget):
                 widget = UserWidget(user, self.config, self.icons_path, self.is_dark_theme, counter)
                 widget.profile_requested.connect(self.profile_requested.emit)
                 widget.private_chat_requested.connect(self.private_chat_requested.emit)
+                widget.paste_requested.connect(self.paste_requested.emit)
                 self.user_widgets[user.jid] = widget
                 
                 # Find sorted position and insert
