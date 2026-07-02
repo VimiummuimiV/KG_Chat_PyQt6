@@ -124,6 +124,7 @@ CHATLOG_PARSER_ACTIVE_KB = [
 PARSER_TAG_MOUSE = [
     ("Left click",       "Add username to field"),
     ("Double click",     "Replace field / clear if solo"),
+    ("Drag",             "Reorder saved usernames"),
 ]
 
 ACCOUNTS_CONNECT_KB = [
