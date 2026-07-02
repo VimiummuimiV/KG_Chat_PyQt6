@@ -704,9 +704,17 @@ class ChatWindow(QWidget):
             if event.key() == Qt.Key.Key_Tab:
                 current_view = self.stacked_widget.currentWidget()
                 if current_view == self.messages_splitter:
-                    self.show_chatlog_view()
+                    # Close the split chatlog pane if open, otherwise switch to full chatlog view
+                    if self.chatlog_split_widget:
+                        self._close_chatlog_split_view()
+                    else:
+                        self.show_chatlog_view()
                 elif current_view == self.chatlog_widget:
-                    self.show_messages_view()
+                    # Close the date split pane if open, otherwise leave chatlog for messages
+                    if self.chatlog_widget.split_chatlog_widget:
+                        self.chatlog_widget._close_split_view()
+                    else:
+                        self.show_messages_view()
                 else:
                     self.show_messages_view()
                 return True
