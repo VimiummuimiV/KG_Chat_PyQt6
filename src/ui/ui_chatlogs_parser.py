@@ -15,6 +15,7 @@ from functools import partial
 from core.api_data import get_exact_user_id_by_name, get_usernames_history, get_registration_date
 from core.chatlogs_parser import ParseConfig, ChatlogsParserEngine
 from helpers.create import create_icon_button, _render_svg_icon
+from helpers.dates import parse_short_date
 from components.tag_button import SavedValuesBar
 from helpers.data import get_data_dir
 from helpers.fonts import get_font, FontType
@@ -132,35 +133,12 @@ class ChatlogsParserConfigWidget(QWidget):
        
         return layout, input_field
    
-    def _parse_short_date(self, date_str: str):
-        """Convert shorthand date entries (YYMMDD, YYYYMMDD, today, yesterday, -N) to YYYY-MM-DD"""
-        text = date_str.strip().lower()
-
-        if text == 'today':
-            return datetime.now().strftime('%Y-%m-%d')
-        if text == 'yesterday':
-            return (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
-        if text.startswith('-') and text[1:].isdigit():
-            return (datetime.now() - timedelta(days=int(text[1:]))).strftime('%Y-%m-%d')
-
-        clean = date_str.replace('-', '').replace('/', '').replace('.', '').strip()
-        if clean.isdigit() and len(clean) in (6, 8):
-            try:
-                if len(clean) == 6:
-                    yy, mm, dd = int(clean[0:2]), int(clean[2:4]), int(clean[4:6])
-                    return datetime(2000 + yy, mm, dd).strftime('%Y-%m-%d')
-                yyyy, mm, dd = int(clean[0:4]), int(clean[4:6]), int(clean[6:8])
-                return datetime(yyyy, mm, dd).strftime('%Y-%m-%d')
-            except ValueError:
-                pass
-        return date_str
-
     def _auto_format_date(self, input_field):
         """Auto-format dates on blur"""
         text = input_field.text().strip()
         if not text:
             return
-        parts = [self._parse_short_date(p) for p in text.split()]
+        parts = [parse_short_date(p) for p in text.split()]
         if parts:
             input_field.setText(' '.join(parts))
 

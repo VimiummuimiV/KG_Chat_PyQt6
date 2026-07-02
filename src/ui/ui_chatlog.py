@@ -15,6 +15,7 @@ from core.chatlogs_db import ChatMessage
 from core.chatlogs_parser import ParseConfig, ChatlogsParserEngine
 from helpers.mention_parser import parse_mentions
 from helpers.create import create_icon_button, _render_svg_icon
+from helpers.dates import parse_short_date
 from helpers.emoticons import EmoticonManager
 from helpers.scroll import scroll
 from helpers.data import get_data_dir
@@ -357,10 +358,11 @@ class ChatlogWidget(QWidget):
         self.search_container.setLayout(search_layout)
     
         self.search_field = QLineEdit()
-        self.search_field.setPlaceholderText("Search: 'text' or 'U:Bob' or 'U:Bob,Alice' or 'M:hello' or 'U:Bob M:hello'")
+        self.search_field.setPlaceholderText("Search: 'text' or 'U:Bob' or 'U:Bob,Alice' or 'M:hello' or 'D:250115' (Enter to jump)")
         self.search_field.setFont(get_font(FontType.TEXT))
         self.search_field.setFixedHeight(self.config.get("ui", "input_height") or 48)
         self.search_field.textChanged.connect(self._on_search_changed)
+        self.search_field.returnPressed.connect(self._on_search_enter)
         search_layout.addWidget(self.search_field, stretch=1)
     
         self.clear_search_btn = create_icon_button(self.icons_path, "trash.svg", "Clear search",
@@ -727,6 +729,27 @@ class ChatlogWidget(QWidget):
     def _on_search_changed(self, text: str):
         self.search_text = text.strip()
         self._apply_filter()
+
+    def _on_search_enter(self):
+        """Enter in the search field - if it's a 'D:<date>' entry, jump to that date"""
+        import re
+        match = re.match(r'^[Dd]:\s*(\S+)', self.search_text)
+        if not match:
+            return
+
+        date_str = parse_short_date(match.group(1))
+        try:
+            target = datetime.strptime(date_str, '%Y-%m-%d').date()
+        except ValueError:
+            self.info_label.setText(f"Invalid date: {match.group(1)}")
+            return
+
+        if not (self.parser.MIN_DATE <= target <= datetime.now().date()):
+            self.info_label.setText(f"Date out of range: {date_str}")
+            return
+
+        self._clear_search()
+        self.load_date(date_str)
 
     def _parse_search_text(self):
         if not self.search_text:

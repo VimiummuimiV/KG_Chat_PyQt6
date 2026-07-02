@@ -265,5 +265,9 @@
   "284540": {"login": "ZH2S", "background": "#59b458", "light": "#3d853c", "dark": "#59b458"},
   "1210": {"login": "ToNick", "background": "#0F0E4F", "light": "#0F0E4F", "dark": "#7a79e7"},
   "830102": {"login": "Sdhklm", "background": "#6744A3", "light": "#6744A3", "dark": "#9477c6"},
-  "830223": {"login": "onlycaspy", "background": "#777777", "light": "#767676", "dark": "#858585"}
+  "830223": {"login": "onlycaspy", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "85213": {"login": "Верховцев", "background": "#471622", "light": "#471622", "dark": "#cf627d"},
+  "772866": {"login": "Zolex76", "background": "#00e800", "light": "#008a00", "dark": "#00e800"},
+  "827579": {"login": "vikysa", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "370997": {"login": "Хеопс", "background": "#4c6ec1", "light": "#4c6ec1", "dark": "#6783ca"}
 }
