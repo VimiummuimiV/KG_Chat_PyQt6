@@ -242,5 +242,16 @@
   "711034": {"login": "Purgatorium", "background": "#777777", "light": "#767676", "dark": "#858585"},
   "14708": {"login": "Panzers", "background": "#2B0CF7", "light": "#2B0CF7", "dark": "#8371fa"},
   "387605": {"login": "stag_", "background": "#7f7f7f", "light": "#767676", "dark": "#858585"},
-  "837043": {"login": "markf0x", "background": "#777777", "light": "#767676", "dark": "#858585"}
+  "837043": {"login": "markf0x", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "1625": {"login": "libertadore", "background": "#0A0909", "light": "#0A0909", "dark": "#8f8282"},
+  "737879": {"login": "lornashore", "background": "#dd7d00", "light": "#b06300", "dark": "#dd7d00"},
+  "830224": {"login": "ne_boldy", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "480097": {"login": "Deda61", "background": "#1443FF", "light": "#1443FF", "dark": "#597bff"},
+  "805676": {"login": "semen_bakin", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "570549": {"login": "LittleBigRace", "background": "#D43E68", "light": "#d43d67", "dark": "#da587d"},
+  "785183": {"login": "neonul01", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "773639": {"login": "Q_Robot", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "202087": {"login": "олегатар", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "520388": {"login": "Phantorm", "background": "#6eaf24", "light": "#53831b", "dark": "#6eaf24"},
+  "242674": {"login": "KaliaN-93RUS", "background": "#000A38", "light": "#000A38", "dark": "#5c7aff"}
 }

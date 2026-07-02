@@ -239,6 +239,15 @@ class ChatlogsParserConfigWidget(QWidget):
         self.fetch_history_button.clicked.connect(lambda: self._fetch_username_history(self.username_input))
         self.fetch_history_button.setEnabled(False)
         username_layout.addWidget(self.fetch_history_button)
+
+        # Add current usernames to the saved chips (not just after a successful parse)
+        self.add_username_button = create_icon_button(
+            self.icons_path, "add.svg", "Add to saved usernames",
+            size_type="large", config=self.config
+        )
+        self.add_username_button.clicked.connect(self._add_usernames_to_saved)
+        self.add_username_button.setEnabled(False)
+        username_layout.addWidget(self.add_username_button)
        
         username_container.setLayout(username_layout)
         self.username_container_widget = username_container
@@ -337,6 +346,7 @@ class ChatlogsParserConfigWidget(QWidget):
         has_username = bool(self.username_input.text().strip())
         has_search = bool(self.search_input.text().strip())
         self.fetch_history_button.setEnabled(has_username and not self.is_fetching_username)
+        self.add_username_button.setEnabled(has_username)
         self.search_fetch_history_button.setEnabled(has_search and not self.is_fetching_search)
    
     def _set_username_fetch_loading(self, is_loading: bool):
@@ -355,6 +365,36 @@ class ChatlogsParserConfigWidget(QWidget):
         self.search_fetch_history_button.setIcon(_render_svg_icon(self.icons_path / icon_name, icon_size))
         self.search_fetch_history_button.setToolTip(tooltip)
    
+    def _validate_usernames(self, usernames: list, on_done):
+        """Check which of the given usernames exist (background thread), then
+        call on_done(valid, invalid) on the main thread."""
+        def _check():
+            valid = [u for u in usernames if get_exact_user_id_by_name(u)]
+            invalid = [u for u in usernames if u not in valid]
+            QTimer.singleShot(0, partial(on_done, valid, invalid))
+
+        threading.Thread(target=_check, daemon=True).start()
+
+    def _add_usernames_to_saved(self):
+        """Validate the typed usernames exist before saving them as chips"""
+        usernames = self._get_usernames()
+        if not usernames:
+            return
+        self.add_username_button.setEnabled(False)
+        self._validate_usernames(usernames, self._on_add_validated)
+
+    def _on_add_validated(self, valid: list, invalid: list):
+        """Save whichever typed usernames turned out to exist"""
+        self._update_fetch_button_state()
+        if valid:
+            self.saved_usernames_bar.add_values(valid)
+        if invalid:
+            QMessageBox.warning(
+                self,
+                "Users Not Found",
+                f"The following users were not found and were not saved:\n{', '.join(invalid)}"
+            )
+
     def _fetch_username_history(self, input_field: QLineEdit):
         """Generic fetch username history for any input field"""
         text = input_field.text().strip()
@@ -680,7 +720,26 @@ class ChatlogsParserConfigWidget(QWidget):
         pass
    
     def _start_parsing(self):
-        """Validate inputs and start parsing"""
+        """Validate any typed usernames (mode-permitting) before actually starting the parse"""
+        mode = self.mode_combo.currentText()
+        usernames = [] if mode == "Sync Database" else self._get_usernames()
+        if not usernames:
+            self._on_parse_usernames_validated([], [])
+            return
+        self.parse_button.setEnabled(False)
+        self._validate_usernames(usernames, self._on_parse_usernames_validated)
+
+    def _on_parse_usernames_validated(self, valid: list, invalid: list):
+        """Abort the parse if any typed username doesn't exist, otherwise build the config and start it"""
+        self.parse_button.setEnabled(True)
+        if invalid:
+            QMessageBox.warning(
+                self,
+                "Users Not Found",
+                f"The following users were not found:\n{', '.join(invalid)}\n\nPlease fix the usernames before parsing."
+            )
+            return
+
         try:
             config = self._build_parse_config()
             if not config:
