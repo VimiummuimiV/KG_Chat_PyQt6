@@ -8,12 +8,12 @@ class Config:
         self.data = self.load()
     
     def load(self):
-        with open(self.path, 'r') as f:
+        with open(self.path, 'r', encoding='utf-8') as f:
             return json.load(f)
     
     def save(self):
-        with open(self.path, 'w') as f:
-            json.dump(self.data, f, indent=2)
+        with open(self.path, 'w', encoding='utf-8') as f:
+            json.dump(self.data, f, indent=2, ensure_ascii=False)
     
     def get(self, *keys):
         value = self.data
