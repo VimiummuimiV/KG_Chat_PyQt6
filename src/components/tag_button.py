@@ -2,7 +2,7 @@
 from pathlib import Path
 from PyQt6.QtWidgets import QWidget, QHBoxLayout, QLabel, QPushButton, QLayout, QApplication
 from PyQt6.QtCore import QSize, QRect, QTimer, Qt, pyqtSignal, QMimeData
-from PyQt6.QtGui import QDrag, QPainter, QColor
+from PyQt6.QtGui import QDrag
 from PyQt6 import sip
 
 from helpers import create as icon_helpers
@@ -194,7 +194,10 @@ class SavedValuesBar(QWidget):
         self._tags = {}
 
         self._layout = FlowLayout(self)
-        self._drop_line = None
+        self._drop_indicator = QWidget(self)
+        self._drop_indicator.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self._drop_indicator.hide()
+        self._drop_target = (None, False)
         self.setAcceptDrops(True)
         self._rebuild()
 
@@ -235,36 +238,43 @@ class SavedValuesBar(QWidget):
         after = widget is not None and pos.x() > widget.geometry().center().x()
         return widget, after
 
-    def dragEnterEvent(self, event):
-        self.dragMoveEvent(event)
+    def _update_drop_indicator(self, pos):
+        """Single place that owns the drop indicator: resolves the target tag,
+        remembers it for dropEvent, and positions/shows or hides the indicator."""
+        widget, after = self._tag_at(pos)
+        self._drop_target = (widget, after)
+        if widget is None:
+            self._drop_indicator.hide()
+            return
+
+        color = _DROP_LINE_COLOR_DARK if icon_helpers._is_dark_theme else _DROP_LINE_COLOR_LIGHT
+        self._drop_indicator.setStyleSheet(
+            f"background-color: {color}; border-radius: {_DROP_LINE_WIDTH // 2}px;"
+        )
+        g, gap = widget.geometry(), self._layout.spacing()
+        x = (g.right() + gap / 2) if after else (g.left() - gap / 2)
+        self._drop_indicator.setGeometry(round(x - _DROP_LINE_WIDTH / 2), g.top(), _DROP_LINE_WIDTH, g.height())
+        self._drop_indicator.raise_()
+        self._drop_indicator.show()
 
     def dragMoveEvent(self, event):
-        if not event.mimeData().hasText():
-            return
-        widget, after = self._tag_at(event.position().toPoint())
-        if widget is None:
-            self._drop_line = None
-        else:
-            g, gap = widget.geometry(), self._layout.spacing()
-            x = (g.right() + gap / 2) if after else (g.left() - gap / 2)
-            self._drop_line = QRect(round(x - _DROP_LINE_WIDTH / 2), g.top(), _DROP_LINE_WIDTH, g.height())
-        self.update()
-        event.acceptProposedAction()
+        if event.mimeData().hasText():
+            self._update_drop_indicator(event.position().toPoint())
+            event.acceptProposedAction()
+
+    dragEnterEvent = dragMoveEvent
 
     def dragLeaveEvent(self, event):
-        self._drop_line = None
-        self.update()
+        self._drop_indicator.hide()
 
     def dropEvent(self, event):
         """Move the dragged tag next to whichever tag it was dropped on."""
-        self._drop_line = None
-        self.update()
+        self._update_drop_indicator(event.position().toPoint())
+        self._drop_indicator.hide()
 
         dragged_value = event.mimeData().text()
-        if dragged_value not in self.values:
-            return
-        widget, after = self._tag_at(event.position().toPoint())
-        if widget is self._tags.get(dragged_value):
+        widget, after = self._drop_target
+        if dragged_value not in self.values or widget is self._tags.get(dragged_value):
             event.acceptProposedAction()
             return
 
@@ -275,17 +285,10 @@ class SavedValuesBar(QWidget):
             target_value = next(v for v, w in self._tags.items() if w is widget)
             new_values.insert(new_values.index(target_value) + after, dragged_value)
 
-        if new_values != self.values:
-            self.values = new_values
-            self._save()
-            self._layout.reorder([self._tags[v] for v in self.values])
+        self.values = new_values
+        self._save()
+        self._layout.reorder([self._tags[v] for v in self.values])
         event.acceptProposedAction()
-
-    def paintEvent(self, event):
-        super().paintEvent(event)
-        if self._drop_line:
-            color = _DROP_LINE_COLOR_DARK if icon_helpers._is_dark_theme else _DROP_LINE_COLOR_LIGHT
-            QPainter(self).fillRect(self._drop_line, QColor(color))
 
     def _add_tag(self, value: str):
         """Create a chip for one value and add it to the layout, without touching existing chips"""
