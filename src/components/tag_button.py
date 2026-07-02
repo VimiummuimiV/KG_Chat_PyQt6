@@ -1,7 +1,8 @@
 """Reusable tag/chip UI components (e.g. saved-value quick-access buttons)."""
 from pathlib import Path
-from PyQt6.QtWidgets import QWidget, QHBoxLayout, QLabel, QPushButton, QLayout
-from PyQt6.QtCore import QSize, QRect, QTimer, Qt, pyqtSignal
+from PyQt6.QtWidgets import QWidget, QHBoxLayout, QLabel, QPushButton, QLayout, QApplication
+from PyQt6.QtCore import QSize, QRect, QTimer, Qt, pyqtSignal, QMimeData
+from PyQt6.QtGui import QDrag, QPainter, QColor
 from PyQt6 import sip
 
 from helpers import create as icon_helpers
@@ -22,6 +23,11 @@ _CLOSE_ICON_STROKE_WIDTH = 2
 _CLOSE_HOVER_BG_DARK = "#4a4a4a"
 _CLOSE_HOVER_BG_LIGHT = "#d5d8db"
 
+# Drag-to-reorder insertion line
+_DROP_LINE_COLOR_DARK = "#3399ff"
+_DROP_LINE_COLOR_LIGHT = "#0060df"
+_DROP_LINE_WIDTH = 3
+
 
 class TagButton(QWidget):
     """Pill-shaped tag with a label and a small remove (x) icon, themed for dark/light."""
@@ -36,6 +42,7 @@ class TagButton(QWidget):
         self.text_value = text
         self.icons_path = icons_path
         self.close_icon = close_icon
+        self._drag_start_pos = None
 
         layout = QHBoxLayout()
         layout.setContentsMargins(10, 4, 6, 4)
@@ -43,7 +50,9 @@ class TagButton(QWidget):
 
         self.label = QLabel(text)
         self.label.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.label.mousePressEvent = lambda e: self.clicked.emit(self.text_value)
+        self.label.mousePressEvent = self._on_label_press
+        self.label.mouseMoveEvent = self._on_label_move
+        self.label.mouseReleaseEvent = self._on_label_release
         self.label.mouseDoubleClickEvent = lambda e: self.double_clicked.emit(self.text_value)
         layout.addWidget(self.label)
 
@@ -58,6 +67,33 @@ class TagButton(QWidget):
         self.setLayout(layout)
         _tag_registry.append(self)
         self._update_style()
+
+    def _on_label_press(self, e):
+        if e.button() == Qt.MouseButton.LeftButton:
+            self._drag_start_pos = e.position().toPoint()
+
+    def _on_label_move(self, e):
+        if self._drag_start_pos is None or not (e.buttons() & Qt.MouseButton.LeftButton):
+            return
+        if (e.position().toPoint() - self._drag_start_pos).manhattanLength() >= QApplication.startDragDistance():
+            self._start_drag()
+
+    def _on_label_release(self, e):
+        if e.button() == Qt.MouseButton.LeftButton and self._drag_start_pos is not None:
+            self.clicked.emit(self.text_value)
+        self._drag_start_pos = None
+
+    def _start_drag(self):
+        """Reorder drag: carries this tag's text so the container can reposition it."""
+        self._drag_start_pos = None
+        mime = QMimeData()
+        mime.setText(self.text_value)
+
+        drag = QDrag(self.label)
+        drag.setMimeData(mime)
+        drag.setPixmap(self.grab())
+        drag.setHotSpot(self.rect().center())
+        drag.exec(Qt.DropAction.MoveAction)
 
     def _update_style(self):
         """Re-apply colors for the current theme (read live from helpers.create)"""
@@ -118,6 +154,12 @@ class FlowLayout(QLayout):
         """Required height to lay out all items within the given width"""
         return self._arrange(QRect(0, 0, width, 0), apply=False)
 
+    def reorder(self, widgets):
+        """Reorder existing items to match the given widget order (no add/remove/recreate)."""
+        by_widget = {item.widget(): item for item in self._items}
+        self._items = [by_widget[w] for w in widgets if w in by_widget]
+        self.invalidate()
+
     def _arrange(self, rect, apply):
         """Place items left-to-right, wrapping rows as needed. Shared by setGeometry
         (actually moves items) and height_for_width (just measures)."""
@@ -152,6 +194,8 @@ class SavedValuesBar(QWidget):
         self._tags = {}
 
         self._layout = FlowLayout(self)
+        self._drop_line = None
+        self.setAcceptDrops(True)
         self._rebuild()
 
     def resizeEvent(self, event):
@@ -182,6 +226,66 @@ class SavedValuesBar(QWidget):
 
     def _save(self):
         self.config.set(*self.config_path, value=self.values)
+
+    def _tag_at(self, pos):
+        """Which tag (if any) a point is over, and whether pos is past its midpoint."""
+        widget = self.childAt(pos)
+        while widget is not None and widget not in self._tags.values():
+            widget = widget.parentWidget()
+        after = widget is not None and pos.x() > widget.geometry().center().x()
+        return widget, after
+
+    def dragEnterEvent(self, event):
+        self.dragMoveEvent(event)
+
+    def dragMoveEvent(self, event):
+        if not event.mimeData().hasText():
+            return
+        widget, after = self._tag_at(event.position().toPoint())
+        if widget is None:
+            self._drop_line = None
+        else:
+            g, gap = widget.geometry(), self._layout.spacing()
+            x = (g.right() + gap / 2) if after else (g.left() - gap / 2)
+            self._drop_line = QRect(round(x - _DROP_LINE_WIDTH / 2), g.top(), _DROP_LINE_WIDTH, g.height())
+        self.update()
+        event.acceptProposedAction()
+
+    def dragLeaveEvent(self, event):
+        self._drop_line = None
+        self.update()
+
+    def dropEvent(self, event):
+        """Move the dragged tag next to whichever tag it was dropped on."""
+        self._drop_line = None
+        self.update()
+
+        dragged_value = event.mimeData().text()
+        if dragged_value not in self.values:
+            return
+        widget, after = self._tag_at(event.position().toPoint())
+        if widget is self._tags.get(dragged_value):
+            event.acceptProposedAction()
+            return
+
+        new_values = [v for v in self.values if v != dragged_value]
+        if widget is None:
+            new_values.append(dragged_value)
+        else:
+            target_value = next(v for v, w in self._tags.items() if w is widget)
+            new_values.insert(new_values.index(target_value) + after, dragged_value)
+
+        if new_values != self.values:
+            self.values = new_values
+            self._save()
+            self._layout.reorder([self._tags[v] for v in self.values])
+        event.acceptProposedAction()
+
+    def paintEvent(self, event):
+        super().paintEvent(event)
+        if self._drop_line:
+            color = _DROP_LINE_COLOR_DARK if icon_helpers._is_dark_theme else _DROP_LINE_COLOR_LIGHT
+            QPainter(self).fillRect(self._drop_line, QColor(color))
 
     def _add_tag(self, value: str):
         """Create a chip for one value and add it to the layout, without touching existing chips"""
