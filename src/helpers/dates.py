@@ -1,6 +1,7 @@
 """Shared date parsing helpers"""
 from datetime import datetime, timedelta
 
+DATE_PLACEHOLDER = "YYYY-MM-DD / YYMMDD / today / yesterday / -7"
 
 def parse_short_date(date_str: str) -> str:
     """Convert shorthand date entries (YYMMDD, YYYYMMDD, today, yesterday, -N) to YYYY-MM-DD.

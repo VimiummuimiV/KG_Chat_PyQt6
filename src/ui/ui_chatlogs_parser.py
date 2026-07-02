@@ -15,7 +15,7 @@ from functools import partial
 from core.api_data import get_exact_user_id_by_name, get_usernames_history, get_registration_date
 from core.chatlogs_parser import ParseConfig, ChatlogsParserEngine
 from helpers.create import create_icon_button, _render_svg_icon
-from helpers.dates import parse_short_date
+from helpers.dates import parse_short_date, DATE_PLACEHOLDER
 from components.tag_button import SavedValuesBar
 from helpers.data import get_data_dir
 from helpers.fonts import get_font, FontType
@@ -68,8 +68,6 @@ class ChatlogsParserConfigWidget(QWidget):
    
     parse_started = pyqtSignal(object) # ParseConfig
     parse_cancelled = pyqtSignal()
-
-    DATE_PLACEHOLDER = "YYYY-MM-DD / YYMMDD / today / yesterday / -7"
    
     def __init__(self, config, icons_path: Path, account=None):
         super().__init__()
@@ -603,7 +601,7 @@ class ChatlogsParserConfigWidget(QWidget):
             self.date_layout.addWidget(info)
        
         elif mode == "Date Range":
-            self._add_date_input("Range:", "range_dates", f"{self.DATE_PLACEHOLDER}  {self.DATE_PLACEHOLDER}")
+            self._add_date_input("Range:", "range_dates", f"{DATE_PLACEHOLDER}  {DATE_PLACEHOLDER}")
        
         elif mode == "From Start":
             info = QLabel("Will parse from 2012-12-02 to today")
@@ -664,7 +662,7 @@ class ChatlogsParserConfigWidget(QWidget):
         elif sub_mode == "From Date":
             self._add_date_input("From:", "mention_from_date")
         elif sub_mode == "Date Range":
-            self._add_date_input("Range:", "mention_range_dates", f"{self.DATE_PLACEHOLDER}  {self.DATE_PLACEHOLDER}")
+            self._add_date_input("Range:", "mention_range_dates", f"{DATE_PLACEHOLDER}  {DATE_PLACEHOLDER}")
         elif sub_mode == "From Start":
             pass # No input needed
         elif sub_mode == "Last N Days":
@@ -677,7 +675,7 @@ class ChatlogsParserConfigWidget(QWidget):
    
     def _add_date_input(self, label_text: str, obj_name: str, placeholder: str = None):
         """Add a date input field with calendar picker"""
-        layout, line_edit = self._create_input_row(label_text, placeholder or self.DATE_PLACEHOLDER, obj_name)
+        layout, line_edit = self._create_input_row(label_text, placeholder or DATE_PLACEHOLDER, obj_name)
         
         # Add auto-format on blur
         line_edit.editingFinished.connect(lambda: self._auto_format_date(line_edit))

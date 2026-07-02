@@ -15,7 +15,7 @@ from core.chatlogs_db import ChatMessage
 from core.chatlogs_parser import ParseConfig, ChatlogsParserEngine
 from helpers.mention_parser import parse_mentions
 from helpers.create import create_icon_button, _render_svg_icon
-from helpers.dates import parse_short_date
+from helpers.dates import parse_short_date, DATE_PLACEHOLDER
 from helpers.emoticons import EmoticonManager
 from helpers.scroll import scroll
 from helpers.data import get_data_dir
@@ -358,7 +358,7 @@ class ChatlogWidget(QWidget):
         self.search_container.setLayout(search_layout)
     
         self.search_field = QLineEdit()
-        self.search_field.setPlaceholderText("Search: 'text' or 'U:Bob' or 'U:Bob,Alice' or 'M:hello' or 'D:250115' (Enter to jump)")
+        self.search_field.setPlaceholderText(f"Search: 'text' or 'U:Bob' or 'U:Bob,Alice' or 'M:hello' or 'D:{DATE_PLACEHOLDER}' (Enter)")
         self.search_field.setFont(get_font(FontType.TEXT))
         self.search_field.setFixedHeight(self.config.get("ui", "input_height") or 48)
         self.search_field.textChanged.connect(self._on_search_changed)
