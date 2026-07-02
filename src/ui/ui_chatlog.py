@@ -126,6 +126,11 @@ class ChatlogWidget(QWidget):
         if account and account.get('chat_username'):
             self.delegate.set_my_username(account.get('chat_username'))
 
+    def set_input_field(self, input_field):
+        """Enable Reply and Paste options in message context menu"""
+        if self.delegate:
+            self.delegate.set_input_field(input_field)
+
     def _find_message_row(self, messages, predicate):
         return next(
             (i for i, msg in enumerate(messages)
@@ -225,6 +230,9 @@ class ChatlogWidget(QWidget):
             self.split_chatlog_widget.back_requested.connect(self._close_split_view)
             self.content_splitter.addWidget(self.split_chatlog_widget)
             self.content_splitter.setSizes([self.height() // 2, self.height() // 2])
+            # Enable Reply & Paste in split view
+            input_field = getattr(self.parent_window, 'input_field', None)
+            self.split_chatlog_widget.set_input_field(input_field)
         return self.split_chatlog_widget
 
     def _on_date_separator_clicked(self, date_str: str):

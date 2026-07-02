@@ -137,7 +137,7 @@
     }
   },
   "sound": {
-    "tts_enabled": false,
+    "tts_enabled": true,
     "effects_enabled": true,
     "play_mention_sound_always": false
   },

@@ -1042,6 +1042,7 @@ class ChatWindow(QWidget):
                 parent_window=self,
                 ban_manager=self.ban_manager
             )
+            self.chatlog_widget.set_input_field(self.input_field)
             self.chatlog_widget.back_requested.connect(self.show_messages_view)
             self.chatlog_widget.messages_loaded.connect(self._on_chatlog_messages_loaded)
             self.chatlog_widget.filter_changed.connect(self._on_chatlog_filter_changed)

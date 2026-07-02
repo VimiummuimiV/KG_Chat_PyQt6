@@ -194,6 +194,31 @@ class MessageDelegate(QStyledItemDelegate):
         self.my_username = username
         if self.message_renderer:
             self.message_renderer.set_my_username(username)
+
+    def set_input_field(self, input_field):
+        """Configure reply and paste callbacks for the text selector overlay.
+        Used by both live MessagesWidget and ChatlogWidget (including split view)."""
+        if not input_field:
+            self.reply_callback = None
+            self.paste_callback = None
+            return
+
+        def _reply(username: str, text: str, timestamp=None):
+            reply_text = MessageDelegate.format_reply_text(username, text, timestamp)
+            input_field.setText(reply_text)
+            input_field.setCursorPosition(len(reply_text))
+            input_field.setFocus()
+
+        def _paste(text: str):
+            cursor_pos = input_field.cursorPosition()
+            current = input_field.text() or ""
+            input_field.setText(current[:cursor_pos] + text + current[cursor_pos:])
+            input_field.setCursorPosition(cursor_pos + len(text))
+            input_field.setFocus()
+
+        self.reply_callback = _reply
+        self.paste_callback = _paste
+        self.reply_includes_timestamp = True # Chatlogs should include timestamp in reply
  
     def set_list_view(self, list_view):
         self.list_view = list_view

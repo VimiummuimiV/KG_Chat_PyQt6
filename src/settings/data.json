@@ -309,5 +309,22 @@
   "836410": {"login": "LIJyXeP", "background": "#909223", "light": "#797b1e", "dark": "#909223"},
   "749327": {"login": "Anders77", "background": "#777777", "light": "#767676", "dark": "#858585"},
   "840342": {"login": "thazer", "background": "#000000", "light": "#000000", "dark": "#858585"},
-  "263782": {"login": "Moroder", "background": "#FC00D6", "light": "#d900b9", "dark": "#FC00D6"}
+  "263782": {"login": "Moroder", "background": "#FC00D6", "light": "#d900b9", "dark": "#FC00D6"},
+  "825482": {"login": "КСА", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "840349": {"login": "Верта130", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "728613": {"login": "хулиномик", "background": "#FF0000", "light": "#ee0000", "dark": "#ff2e2e"},
+  "524156": {"login": "kenoch", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "828379": {"login": "soloistka_new", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "260060": {"login": "r-money", "background": "#543103", "light": "#543103", "dark": "#c37107"},
+  "801468": {"login": "vyunner123", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "716588": {"login": "Mental1tet", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "839671": {"login": "Poka9999", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "602074": {"login": "agamyan", "background": "#1D00FF", "light": "#1D00FF", "dark": "#8070ff"},
+  "525535": {"login": "alexdmk", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "345220": {"login": "Espera", "background": "#000000", "light": "#000000", "dark": "#858585"},
+  "405133": {"login": "Еремей", "background": "#0B0B82", "light": "#0B0B82", "dark": "#7777f3"},
+  "777214": {"login": "самоходныйдед", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "840351": {"login": "w0l3n", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "840350": {"login": "Tommy2032", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "759102": {"login": "BlenDark", "background": "#00e230", "light": "#008a1d", "dark": "#00e230"}
 }
