@@ -228,7 +228,7 @@ class ChatlogsParserConfigWidget(QWidget):
         self.username_label = username_layout.itemAt(0).widget()
        
         # Connect to enable/disable fetch button based on input
-        self.username_input.textChanged.connect(self._update_fetch_button_state)
+        self.username_input.textChanged.connect(self._update_buttons_state)
         self.username_input.textChanged.connect(self._update_mention_label)
        
         # Fetch history button
@@ -271,7 +271,7 @@ class ChatlogsParserConfigWidget(QWidget):
         
         # Connect to update mention label and fetch button state
         self.search_input.textChanged.connect(self._update_mention_label)
-        self.search_input.textChanged.connect(self._update_fetch_button_state)
+        self.search_input.textChanged.connect(self._update_buttons_state)
         
         # Fetch history button for search/mentions field
         self.search_fetch_history_button = create_icon_button(
@@ -341,8 +341,8 @@ class ChatlogsParserConfigWidget(QWidget):
         # Initialize with first mode
         self._on_mode_changed(0)
    
-    def _update_fetch_button_state(self):
-        """Enable/disable both fetch buttons based on inputs"""
+    def _update_buttons_state(self):
+        """Enable/disable the fetch and add buttons based on inputs"""
         has_username = bool(self.username_input.text().strip())
         has_search = bool(self.search_input.text().strip())
         self.fetch_history_button.setEnabled(has_username and not self.is_fetching_username)
@@ -385,7 +385,7 @@ class ChatlogsParserConfigWidget(QWidget):
 
     def _on_add_validated(self, valid: list, invalid: list):
         """Save whichever typed usernames turned out to exist"""
-        self._update_fetch_button_state()
+        self._update_buttons_state()
         if valid:
             self.saved_usernames_bar.add_values(valid)
         if invalid:
@@ -416,7 +416,7 @@ class ChatlogsParserConfigWidget(QWidget):
             self.is_fetching_search = True
             self._set_search_fetch_loading(True)
        
-        self._update_fetch_button_state()
+        self._update_buttons_state()
        
         def _fetch():
             expanded = set()
@@ -464,7 +464,7 @@ class ChatlogsParserConfigWidget(QWidget):
             self.is_fetching_search = False
             self._set_search_fetch_loading(False)
        
-        self._update_fetch_button_state()
+        self._update_buttons_state()
        
         # Always update username field with valid usernames (even if empty)
         if usernames:
@@ -505,7 +505,7 @@ class ChatlogsParserConfigWidget(QWidget):
             self.is_fetching_search = False
             self._set_search_fetch_loading(False)
        
-        self._update_fetch_button_state()
+        self._update_buttons_state()
        
         QMessageBox.critical(self, "Error", f"Failed to fetch username history:\n{error}")
    
