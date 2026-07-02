@@ -462,10 +462,12 @@ class ChatWindow(QWidget):
         self.emoticon_button.clicked.connect(self._toggle_emoticon_selector)
         self.input_top_layout.addWidget(self.emoticon_button)
     
-        # Messages userlist with private mode callback
+        # User list widget (right side, vertical scrollable)
         self.user_list_widget = UserListWidget(self.config, self.input_field, self.ban_manager)
+        # Connect signals for user list actions
         self.user_list_widget.profile_requested.connect(self.show_profile_view)
         self.user_list_widget.private_chat_requested.connect(self.enter_private_mode)
+        self.user_list_widget.paste_requested.connect(self._paste_username_to_input)
 
         messages_userlist_visible = self.config.get("ui", "messages_userlist_visible")
         userlist_visible = messages_userlist_visible if messages_userlist_visible is not None else True
@@ -1055,6 +1057,7 @@ class ChatWindow(QWidget):
             self.chatlog_userlist_widget.filter_requested.connect(self._on_filter_requested)
             self.chatlog_userlist_widget.profile_requested.connect(self.show_profile_view)
             self.chatlog_userlist_widget.private_chat_requested.connect(self.enter_private_mode)
+            self.chatlog_userlist_widget.paste_requested.connect(self._paste_username_to_input)
             # Insert into userlist_panel before the font slider (at index 0)
             self.userlist_panel.layout().insertWidget(0, self.chatlog_userlist_widget, stretch=1)
        
@@ -1954,6 +1957,26 @@ class ChatWindow(QWidget):
                 else:
                     self.input_field.setText(username + ", ")
         
+        self.input_field.setFocus()
+
+    def _paste_username_to_input(self, username: str):
+        """Paste username from userlist context menu into input field at cursor position."""
+        if not hasattr(self, 'input_field') or not self.input_field:
+            return
+        
+        cursor_pos = self.input_field.cursorPosition()
+        current = self.input_field.text() or ""
+        
+        # Add comma + space if it makes sense (common in multi-recipient)
+        to_insert = username
+        if current.strip() and not current.strip().endswith((',', ' ')):
+            to_insert = f", {username}"
+        else:
+            to_insert = f"{username}, "
+        
+        new_text = current[:cursor_pos] + to_insert + current[cursor_pos:]
+        self.input_field.setText(new_text)
+        self.input_field.setCursorPosition(cursor_pos + len(to_insert))
         self.input_field.setFocus()
 
     def _resolve_user_then(self, username: str, callback):
