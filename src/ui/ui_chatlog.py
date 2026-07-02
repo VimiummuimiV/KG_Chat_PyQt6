@@ -126,10 +126,10 @@ class ChatlogWidget(QWidget):
         if account and account.get('chat_username'):
             self.delegate.set_my_username(account.get('chat_username'))
 
-    def set_input_field(self, input_field):
+    def set_input_field(self, input_field, include_timestamp: bool = True):
         """Enable Reply and Paste options in message context menu"""
         if self.delegate:
-            self.delegate.set_input_field(input_field)
+            self.delegate.set_input_field(input_field, include_timestamp=include_timestamp)
 
     def _find_message_row(self, messages, predicate):
         return next(

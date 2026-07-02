@@ -59,9 +59,9 @@ class MessagesWidget(QWidget):
             self.delegate.set_my_username(username)
 
     def set_input_field(self, input_field):
-        """Delegate to MessageDelegate"""
+        """Enable Reply and Paste options in message context menu"""
         if self.delegate:
-            self.delegate.set_input_field(input_field)
+            self.delegate.set_input_field(input_field, include_timestamp=False)
 
     @property
     def reply_callback(self):

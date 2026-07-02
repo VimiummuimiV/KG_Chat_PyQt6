@@ -1011,8 +1011,8 @@ class ChatWindow(QWidget):
         if not widget:
             return
             
-        # Enable Reply and Paste in context menu
-        widget.set_input_field(self.input_field)
+        # Enable Reply and Paste - chatlogs SHOULD include timestamp
+        widget.set_input_field(self.input_field, include_timestamp=True)
         
         # Layout / compact mode
         compact = self.width() <= 1000
