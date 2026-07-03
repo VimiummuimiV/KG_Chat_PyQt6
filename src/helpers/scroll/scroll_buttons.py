@@ -1,6 +1,6 @@
 """Reusable scroll buttons panel (top/bottom full + page up/down) for list views"""
 from pathlib import Path
-from PyQt6.QtWidgets import QListView, QWidget, QVBoxLayout, QGraphicsOpacityEffect, QAbstractItemView
+from PyQt6.QtWidgets import QListView, QWidget, QVBoxLayout, QGraphicsOpacityEffect, QAbstractItemView, QApplication
 from PyQt6.QtCore import Qt, QObject, QTimer, QPropertyAnimation, QEvent, QPoint, pyqtSignal
 from helpers.config import Config
 from helpers.create import create_icon_button, create_disabled_icon
@@ -10,7 +10,7 @@ OPACITY_HIDDEN   = 0.0
 OPACITY_VISIBLE  = 1.0
 FADE_DURATION    = 180
 BUTTON_GAP       = 6
-REVEAL_PADDING   = 200 
+REVEAL_PADDING   = 150 
 
 # Top-to-bottom order, matching the on-screen stack: full-up, page-up, page-down, full-down
 _BUTTONS = (
@@ -117,6 +117,9 @@ class ScrollButtonsPanel(QObject):
                 self._animate_container(OPACITY_VISIBLE)
             elif event.type() == QEvent.Type.Leave:
                 self._animate_container(OPACITY_HIDDEN)
+            elif event.type() == QEvent.Type.Wheel:
+                QApplication.sendEvent(self.list_view.viewport(), event)
+                return True
         return super().eventFilter(obj, event)
 
     def _animate_container(self, target: float):
