@@ -6,10 +6,11 @@ from helpers.config import Config
 from helpers.create import create_icon_button
 from helpers.scroll.scroll import scroll
 
-OPACITY_DEFAULT = 0.35
-OPACITY_HOVER   = 1.0
-FADE_DURATION   = 180  # ms
-BUTTON_GAP      = 6    # px between stacked buttons
+OPACITY_DEFAULT  = 0.35
+OPACITY_HOVER    = 1.0
+OPACITY_DISABLED = 0.12
+FADE_DURATION    = 180
+BUTTON_GAP       = 6
 
 # Top-to-bottom order, matching the on-screen stack: full-up, page-up, page-down, full-down
 _BUTTONS = (
@@ -87,11 +88,13 @@ class ScrollButtonsPanel(QObject):
         at_top = sb.value() <= sb.minimum()
         at_bottom = sb.value() >= sb.maximum()
         for entry in self._entries:
-            entry["button"].setVisible(scrollable)
-            if entry["action"] in ("top", "page_up"):
-                entry["button"].setEnabled(not at_top)
-            else:
-                entry["button"].setEnabled(not at_bottom)
+            button = entry["button"]
+            button.setVisible(scrollable)
+            enabled = not (at_top if entry["action"] in ("top", "page_up") else at_bottom)
+            if enabled != button.isEnabled():
+                button.setEnabled(enabled)
+                entry["anim"].stop()
+                entry["effect"].setOpacity(OPACITY_DEFAULT if enabled else OPACITY_DISABLED)
 
     def _animate_opacity(self, entry: dict, target: float):
         anim = entry["anim"]
@@ -103,6 +106,8 @@ class ScrollButtonsPanel(QObject):
     def eventFilter(self, obj, event):
         for entry in self._entries:
             if obj is entry["button"]:
+                if not entry["button"].isEnabled():
+                    break
                 if event.type() == QEvent.Type.Enter:
                     self._animate_opacity(entry, OPACITY_HOVER)
                 elif event.type() == QEvent.Type.Leave:
