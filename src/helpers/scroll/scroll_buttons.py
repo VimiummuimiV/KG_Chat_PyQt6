@@ -2,17 +2,15 @@
 from pathlib import Path
 from PyQt6.QtWidgets import QListView, QWidget, QVBoxLayout, QGraphicsOpacityEffect, QAbstractItemView
 from PyQt6.QtCore import Qt, QObject, QTimer, QPropertyAnimation, QEvent, QPoint, pyqtSignal
-from PyQt6.QtGui import QIcon, QPixmap, QPainter
 from helpers.config import Config
-from helpers.create import create_icon_button
+from helpers.create import create_icon_button, create_disabled_icon
 from helpers.scroll.scroll import scroll
 
 OPACITY_HIDDEN   = 0.0
 OPACITY_VISIBLE  = 1.0
-OPACITY_DISABLED = 0.25
 FADE_DURATION    = 180
 BUTTON_GAP       = 6
-REVEAL_PADDING   = 200
+REVEAL_PADDING   = 200 
 
 # Top-to-bottom order, matching the on-screen stack: full-up, page-up, page-down, full-down
 _BUTTONS = (
@@ -77,7 +75,7 @@ class ScrollButtonsPanel(QObject):
             button.clicked.connect(lambda _checked=False, a=action: self._on_clicked(a))
 
             icon_normal = button.icon()
-            icon_dimmed = self._dim_icon(icon_normal, button.iconSize(), OPACITY_DISABLED)
+            icon_dimmed = create_disabled_icon(icons_path, icon_name, icon_size=button._icon_size)
 
             self._entries.append({
                 "button": button,
@@ -126,20 +124,6 @@ class ScrollButtonsPanel(QObject):
         self._container_anim.setStartValue(self._container_effect.opacity())
         self._container_anim.setEndValue(target)
         self._container_anim.start()
-
-    @staticmethod
-    def _dim_icon(icon, size, alpha: float):
-        """Pre-render a dimmed version of an icon by painting it at reduced alpha onto
-        a transparent pixmap - avoids a second, nested QGraphicsOpacityEffect."""
-        pixmap = icon.pixmap(size)
-        dimmed = QPixmap(pixmap.size())
-        dimmed.setDevicePixelRatio(pixmap.devicePixelRatio())
-        dimmed.fill(Qt.GlobalColor.transparent)
-        painter = QPainter(dimmed)
-        painter.setOpacity(alpha)
-        painter.drawPixmap(0, 0, pixmap)
-        painter.end()
-        return QIcon(dimmed)
 
     def _on_clicked(self, action: str):
         if not self.list_view:

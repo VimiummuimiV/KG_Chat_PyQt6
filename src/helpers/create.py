@@ -94,6 +94,11 @@ def create_icon_button(
     _icon_registry.append(button)
     return button
 
+
+def create_disabled_icon(icons_path: Path, icon_name: str, icon_size: int) -> QIcon:
+    """Render an icon in the muted gray tone used for a disabled button state"""
+    return _render_svg_icon(icons_path / icon_name, icon_size, color=_COLOR_GRAY)
+
 class HoverIconButton(QPushButton):
     """Icon button that changes icon on hover"""
    
