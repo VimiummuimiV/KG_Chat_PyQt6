@@ -1,16 +1,18 @@
 """Reusable scroll buttons panel (top/bottom full + page up/down) for list views"""
 from pathlib import Path
-from PyQt6.QtWidgets import QListView, QGraphicsOpacityEffect, QAbstractItemView
-from PyQt6.QtCore import QObject, QTimer, QPropertyAnimation, QEvent, QPoint, pyqtSignal
+from PyQt6.QtWidgets import QListView, QWidget, QVBoxLayout, QGraphicsOpacityEffect, QAbstractItemView
+from PyQt6.QtCore import Qt, QObject, QTimer, QPropertyAnimation, QEvent, QPoint, pyqtSignal
+from PyQt6.QtGui import QIcon, QPixmap, QPainter
 from helpers.config import Config
 from helpers.create import create_icon_button
 from helpers.scroll.scroll import scroll
 
-OPACITY_DEFAULT  = 0.35
-OPACITY_HOVER    = 1.0
-OPACITY_DISABLED = 0.12
+OPACITY_HIDDEN   = 0.0
+OPACITY_VISIBLE  = 1.0
+OPACITY_DISABLED = 0.25
 FADE_DURATION    = 180
 BUTTON_GAP       = 6
+REVEAL_PADDING   = 200
 
 # Top-to-bottom order, matching the on-screen stack: full-up, page-up, page-down, full-down
 _BUTTONS = (
@@ -25,10 +27,10 @@ _BUTTONS = (
 class ScrollButtonsPanel(QObject):
     """Floating panel of scroll buttons (top/bottom full + page up/down) for a QListView.
 
-    Shown only while the list is actually scrollable (rangeChanged-driven), and while
-    shown stays at OPACITY_DEFAULT, brightening to OPACITY_HOVER per-button on hover.
-    Up-buttons disable when already at the top; down-buttons disable when already at
-    the bottom.
+    All four buttons live in a single container widget that is invisible (opacity 0)
+    until the cursor comes near it, then fades in as one unit. Individually, a button
+    dims further while disabled (already at the top/bottom, so that direction is a
+    no-op).
     """
     clicked_scroll = pyqtSignal(str)  # emits the action that was triggered: top/page_up/page_down/bottom
 
@@ -44,8 +46,24 @@ class ScrollButtonsPanel(QObject):
         # Load config
         self.config = Config(str(config_path))
 
-        # Build the four buttons, each with its own opacity effect/animation so hover
-        # only affects the button under the cursor
+        # Single container for all four buttons, so opacity/reveal is handled once
+        self.container = QWidget(parent)
+        self.container.setMouseTracking(True)
+        self.container.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground, True)
+        self.container.setAutoFillBackground(False)
+        layout = QVBoxLayout(self.container)
+        layout.setContentsMargins(REVEAL_PADDING, REVEAL_PADDING, REVEAL_PADDING, REVEAL_PADDING)
+        layout.setSpacing(BUTTON_GAP)
+
+        self._container_effect = QGraphicsOpacityEffect(self.container)
+        self._container_effect.setOpacity(OPACITY_HIDDEN)
+        self.container.setGraphicsEffect(self._container_effect)
+
+        self._container_anim = QPropertyAnimation(self._container_effect, b"opacity", self)
+        self._container_anim.setDuration(FADE_DURATION)
+
+        self.container.installEventFilter(self)
+
         self._entries = []
         for icon_name, tooltip, action in _BUTTONS:
             button = create_icon_button(
@@ -55,21 +73,22 @@ class ScrollButtonsPanel(QObject):
                 size_type="large",
                 config=self.config
             )
-            button.setParent(parent)
-
-            effect = QGraphicsOpacityEffect(button)
-            effect.setOpacity(OPACITY_DEFAULT)
-            button.setGraphicsEffect(effect)
-
-            anim = QPropertyAnimation(effect, b"opacity", self)
-            anim.setDuration(FADE_DURATION)
-
-            button.installEventFilter(self)
+            layout.addWidget(button)
             button.clicked.connect(lambda _checked=False, a=action: self._on_clicked(a))
 
-            self._entries.append({"button": button, "effect": effect, "anim": anim, "action": action})
+            icon_normal = button.icon()
+            icon_dimmed = self._dim_icon(icon_normal, button.iconSize(), OPACITY_DISABLED)
 
-        # Show only while scrollable, and disable up/down buttons at the respective end
+            self._entries.append({
+                "button": button,
+                "action": action,
+                "icon_normal": icon_normal,
+                "icon_dimmed": icon_dimmed,
+            })
+
+        self.container.adjustSize()
+
+        # Show/reveal only while scrollable, and disable up/down buttons at the respective end
         sb = self.list_view.verticalScrollBar()
         sb.rangeChanged.connect(self._update_buttons)
         sb.valueChanged.connect(self._update_buttons)
@@ -77,43 +96,50 @@ class ScrollButtonsPanel(QObject):
 
         # Position update timer
         self.position_timer = QTimer(self)  # Parent timer to the QObject
-        self.position_timer.timeout.connect(self._update_positions)
+        self.position_timer.timeout.connect(self._update_position)
         self.position_timer.start(100)
 
     def _update_buttons(self, *_args):
-        """Show buttons only while scrollable; disable up-buttons at the top and
-        down-buttons at the bottom of the range."""
+        """Hide the container entirely when nothing is scrollable; disable up-buttons
+        at the top and down-buttons at the bottom of the range."""
         sb = self.list_view.verticalScrollBar()
         scrollable = sb.maximum() > sb.minimum()
         at_top = sb.value() <= sb.minimum()
         at_bottom = sb.value() >= sb.maximum()
+        self.container.setVisible(scrollable)
         for entry in self._entries:
-            button = entry["button"]
-            button.setVisible(scrollable)
             enabled = not (at_top if entry["action"] in ("top", "page_up") else at_bottom)
-            if enabled != button.isEnabled():
-                button.setEnabled(enabled)
-                entry["anim"].stop()
-                entry["effect"].setOpacity(OPACITY_DEFAULT if enabled else OPACITY_DISABLED)
-
-    def _animate_opacity(self, entry: dict, target: float):
-        anim = entry["anim"]
-        anim.stop()
-        anim.setStartValue(entry["effect"].opacity())
-        anim.setEndValue(target)
-        anim.start()
+            if enabled != entry["button"].isEnabled():
+                entry["button"].setEnabled(enabled)
+                entry["button"].setIcon(entry["icon_normal"] if enabled else entry["icon_dimmed"])
 
     def eventFilter(self, obj, event):
-        for entry in self._entries:
-            if obj is entry["button"]:
-                if not entry["button"].isEnabled():
-                    break
-                if event.type() == QEvent.Type.Enter:
-                    self._animate_opacity(entry, OPACITY_HOVER)
-                elif event.type() == QEvent.Type.Leave:
-                    self._animate_opacity(entry, OPACITY_DEFAULT)
-                break
+        if obj is self.container:
+            if event.type() == QEvent.Type.Enter:
+                self._animate_container(OPACITY_VISIBLE)
+            elif event.type() == QEvent.Type.Leave:
+                self._animate_container(OPACITY_HIDDEN)
         return super().eventFilter(obj, event)
+
+    def _animate_container(self, target: float):
+        self._container_anim.stop()
+        self._container_anim.setStartValue(self._container_effect.opacity())
+        self._container_anim.setEndValue(target)
+        self._container_anim.start()
+
+    @staticmethod
+    def _dim_icon(icon, size, alpha: float):
+        """Pre-render a dimmed version of an icon by painting it at reduced alpha onto
+        a transparent pixmap - avoids a second, nested QGraphicsOpacityEffect."""
+        pixmap = icon.pixmap(size)
+        dimmed = QPixmap(pixmap.size())
+        dimmed.setDevicePixelRatio(pixmap.devicePixelRatio())
+        dimmed.fill(Qt.GlobalColor.transparent)
+        painter = QPainter(dimmed)
+        painter.setOpacity(alpha)
+        painter.drawPixmap(0, 0, pixmap)
+        painter.end()
+        return QIcon(dimmed)
 
     def _on_clicked(self, action: str):
         if not self.list_view:
@@ -152,36 +178,26 @@ class ScrollButtonsPanel(QObject):
 
         self.list_view.scrollTo(model.index(target_row, 0), QAbstractItemView.ScrollHint.PositionAtTop)
 
-    def _update_positions(self):
-        """Stack buttons right-aligned, centered as a group vertically in the viewport"""
-        if not self.list_view or not self._entries:
+    def _update_position(self):
+        """Right-align the container, centered vertically in the viewport - a single
+        move() instead of repositioning each button individually."""
+        if not self.list_view:
             return
         try:
-            padding = 10
+            padding = 10 - REVEAL_PADDING  # keep the visible buttons at the same on-screen spot
             viewport = self.list_view.viewport()
-            button = self._entries[0]["button"]
-            button_h = button.height()
-            total_h = button_h * len(self._entries) + BUTTON_GAP * (len(self._entries) - 1)
+            container_size = self.container.sizeHint()
 
-            # Right aligned
-            x = viewport.width() - button.width() - padding
+            x = viewport.width() - container_size.width() - padding
+            y = (viewport.height() - container_size.height()) // 2
 
-            # Stack centered as a group vertically in the viewport
-            top_y = (viewport.height() - total_h) // 2
-
-            # Map viewport position to list_view coordinates
             viewport_pos = viewport.mapTo(self.list_view, viewport.rect().topLeft())
-            final_x = viewport_pos.x() + x
-
-            y = top_y
-            for entry in self._entries:
-                entry["button"].move(final_x, viewport_pos.y() + y)
-                y += button_h + BUTTON_GAP
+            self.container.move(viewport_pos.x() + x, viewport_pos.y() + y)
         except RuntimeError:
             pass
 
     def cleanup(self):
-        """Stop timers and release buttons"""
+        """Stop timers and release the container"""
         if self.position_timer:
             self.position_timer.stop()
         if self.list_view:
@@ -191,6 +207,5 @@ class ScrollButtonsPanel(QObject):
                 sb.valueChanged.disconnect(self._update_buttons)
             except (RuntimeError, TypeError):
                 pass
-        for entry in self._entries:
-            entry["button"].hide()
-            entry["button"].setParent(None)
+        self.container.hide()
+        self.container.setParent(None)
