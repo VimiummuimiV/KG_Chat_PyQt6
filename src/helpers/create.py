@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 from PyQt6.QtWidgets import QPushButton
 from PyQt6.QtGui import QIcon, QPixmap, QPainter
 from PyQt6.QtCore import QSize, Qt
@@ -28,7 +29,7 @@ def get_user_svg_color(is_known: bool, is_dark: bool) -> str:
 
 
 def _render_svg_icon(svg_file: Path, icon_size: int, color: str = None, stroke_width: float = None):
-    """Render SVG file to QIcon with given or current-theme color, optionally overriding stroke-width"""
+    """Render SVG file to QIcon with given or current-theme color, optionally overriding stroke-width."""
     if not svg_file.exists():
         return QIcon()
    
@@ -36,8 +37,11 @@ def _render_svg_icon(svg_file: Path, icon_size: int, color: str = None, stroke_w
         svg = f.read()
    
     color = color or (_COLOR_DARK if _is_dark_theme else _COLOR_LIGHT)
-    stroke_attr = f' stroke="{color}" stroke-width="{stroke_width}"' if stroke_width is not None else ''
-    svg = svg.replace('fill="currentColor"', f'fill="{color}"{stroke_attr}')
+    for attr in ('fill', 'stroke'):  # skip "none" - it means don't paint this channel
+        svg = re.sub(rf'{attr}="(?!none")[^"]*"', f'{attr}="{color}"', svg)
+
+    if stroke_width is not None:
+        svg = re.sub(r'stroke-width="[^"]*"', f'stroke-width="{stroke_width}"', svg)
    
     renderer = QSvgRenderer()
     renderer.load(svg.encode('utf-8'))
