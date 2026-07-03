@@ -20,7 +20,7 @@ from helpers.emoticons import EmoticonManager
 from helpers.scroll import scroll
 from helpers.data import get_data_dir
 from helpers.fonts import get_font, FontType
-from helpers.scroll_button import ScrollToBottomButton
+from helpers.scroll_buttons import ScrollButtonsPanel
 from helpers.auto_scroll import AutoScroller
 from helpers.scrollable_buttons import ScrollableButtonContainer
 from helpers.message_interactions import MessageInteractions
@@ -413,8 +413,8 @@ class ChatlogWidget(QWidget):
     
         self.stacked.addWidget(self.list_view)
        
-        # Add scroll-to-bottom button
-        self.scroll_button = ScrollToBottomButton(self.list_view, parent=self)
+        # Add scroll buttons panel for quick navigation
+        self.scroll_buttons = ScrollButtonsPanel(self.list_view, parent=self)
        
         # Parser config page
         self.parser_widget = ChatlogsParserConfigWidget(self.config, self.icons_path, self.account)
@@ -1131,8 +1131,8 @@ class ChatlogWidget(QWidget):
     def cleanup(self):
         if self.delegate:
             self.delegate.cleanup()
-        if hasattr(self, 'scroll_button'):
-            self.scroll_button.cleanup()
+        if hasattr(self, 'scroll_buttons'):
+            self.scroll_buttons.cleanup()
         if hasattr(self, 'auto_scroller'):
             self.auto_scroller.cleanup()
         if hasattr(self.parser, 'db'):

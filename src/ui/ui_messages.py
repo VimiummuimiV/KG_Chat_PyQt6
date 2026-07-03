@@ -11,7 +11,7 @@ from ui.message_model import MessageListModel, MessageData
 from ui.message_delegate import MessageDelegate
 from helpers.message_interactions import MessageInteractions
 from helpers.fonts import get_font, FontType
-from helpers.scroll_button import ScrollToBottomButton
+from helpers.scroll_buttons import ScrollButtonsPanel
 
 class MessagesWidget(QWidget):
     """Widget for displaying chat messages with virtual scrolling"""
@@ -103,8 +103,8 @@ class MessagesWidget(QWidget):
        
         layout.addWidget(self.list_view)
        
-        # Add scroll-to-bottom button
-        self.scroll_button = ScrollToBottomButton(self.list_view, parent=self)
+        # Add scroll buttons panel for quick navigation
+        self.scroll_buttons = ScrollButtonsPanel(self.list_view, parent=self)
    
     def add_message(self, msg):
         if msg.login and getattr(msg, 'background', None):
@@ -164,8 +164,8 @@ class MessagesWidget(QWidget):
         """Cleanup delegate to stop animation timer"""
         if self.delegate:
             self.delegate.cleanup()
-        if hasattr(self, 'scroll_button'):
-            self.scroll_button.cleanup()
+        if hasattr(self, 'scroll_buttons'):
+            self.scroll_buttons.cleanup()
         if hasattr(self, 'auto_scroller'):
             self.auto_scroller.cleanup()
    

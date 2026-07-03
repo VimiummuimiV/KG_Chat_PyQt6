@@ -32,7 +32,6 @@
     "notification_width": 550,
     "notification_position": "right",
     "emoticon_max_size": 140,
-    "scroll_button_threshold": 100,
     "clear_private_messages_on_exit": true,
     "private_message_color": {
       "hue": 0,
