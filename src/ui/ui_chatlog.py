@@ -597,7 +597,7 @@ class ChatlogWidget(QWidget):
                 non_separator_messages = [m for m in self.all_messages if not m.is_separator]
                 self.messages_loaded.emit(non_separator_messages)
                 self.parser_widget.show_copy_save_buttons()
-                QTimer.singleShot(100, lambda: scroll(self.list_view, mode="bottom", delay=50))
+                QTimer.singleShot(100, lambda: scroll(self.list_view, mode="top", delay=50))
                 message_count = sum(1 for m in self.all_messages if not m.is_separator)
                 self.info_label.setText(f"Found {message_count} messages (partial)")
             else:
@@ -672,7 +672,7 @@ class ChatlogWidget(QWidget):
                 
                 non_separator_messages = [m for m in self.all_messages if not m.is_separator]
                 self.messages_loaded.emit(non_separator_messages)
-                QTimer.singleShot(100, lambda: scroll(self.list_view, mode="bottom", delay=50))
+                QTimer.singleShot(100, lambda: scroll(self.list_view, mode="top", delay=50))
             
             self.parser_widget.show_copy_save_buttons()
         else:
