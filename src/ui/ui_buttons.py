@@ -8,7 +8,7 @@ from PyQt6.QtCore import Qt, QEvent, pyqtSignal
 
 from helpers.config import Config
 from helpers.create import create_icon_button, _render_svg_icon
-from helpers.scrollable_buttons import ScrollableButtonContainer
+from helpers.scroll.scrollable_buttons import ScrollableButtonContainer
 
 
 class ButtonPanel(QWidget):

@@ -4,7 +4,7 @@ from PyQt6.QtWidgets import QListView, QGraphicsOpacityEffect, QAbstractItemView
 from PyQt6.QtCore import QObject, QTimer, QPropertyAnimation, QEvent, QPoint, pyqtSignal
 from helpers.config import Config
 from helpers.create import create_icon_button
-from helpers.scroll import scroll
+from helpers.scroll.scroll import scroll
 
 OPACITY_DEFAULT = 0.35
 OPACITY_HOVER   = 1.0
@@ -34,7 +34,7 @@ class ScrollButtonsPanel(QObject):
         self.list_view = list_view
 
         # Paths
-        base_path = Path(__file__).parent.parent
+        base_path = Path(__file__).parent.parent.parent
         icons_path = base_path / "icons"
         config_path = base_path / "settings" / "config.json"
 

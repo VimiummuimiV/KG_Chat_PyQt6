@@ -9,7 +9,7 @@ from helpers.create import create_icon_button, _render_svg_icon, get_user_svg_co
 from helpers.load import make_rounded_pixmap
 from helpers.cache import get_cache
 from helpers.fonts import get_font, FontType
-from helpers.auto_scroll import AutoScroller
+from helpers.scroll.auto_scroll import AutoScroller
 from components.user_context_menu import show_user_context_menu, PROFILE, PRIVATE, PASTE_USERNAME, COPY_USERNAME, COPY_ID, FILTER
 
 

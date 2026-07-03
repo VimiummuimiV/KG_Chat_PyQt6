@@ -4,14 +4,14 @@ from datetime import datetime
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QListView
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 
-from helpers.scroll import scroll
+from helpers.scroll.scroll import scroll
 from helpers.cache import get_cache
-from helpers.auto_scroll import AutoScroller
+from helpers.scroll.auto_scroll import AutoScroller
 from ui.message_model import MessageListModel, MessageData
 from ui.message_delegate import MessageDelegate
 from helpers.message_interactions import MessageInteractions
 from helpers.fonts import get_font, FontType
-from helpers.scroll_buttons import ScrollButtonsPanel
+from helpers.scroll.scroll_buttons import ScrollButtonsPanel
 
 class MessagesWidget(QWidget):
     """Widget for displaying chat messages with virtual scrolling"""

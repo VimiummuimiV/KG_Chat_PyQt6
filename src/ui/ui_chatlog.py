@@ -17,12 +17,12 @@ from helpers.mention_parser import parse_mentions
 from helpers.create import create_icon_button, _render_svg_icon
 from helpers.dates import parse_short_date, DATE_PLACEHOLDER
 from helpers.emoticons import EmoticonManager
-from helpers.scroll import scroll
+from helpers.scroll.scroll import scroll
 from helpers.data import get_data_dir
 from helpers.fonts import get_font, FontType
-from helpers.scroll_buttons import ScrollButtonsPanel
-from helpers.auto_scroll import AutoScroller
-from helpers.scrollable_buttons import ScrollableButtonContainer
+from helpers.scroll.scroll_buttons import ScrollButtonsPanel
+from helpers.scroll.auto_scroll import AutoScroller
+from helpers.scroll.scrollable_buttons import ScrollableButtonContainer
 from helpers.message_interactions import MessageInteractions
 from ui.message_model import MessageListModel, MessageData
 from ui.message_delegate import MessageDelegate

@@ -15,7 +15,7 @@ from helpers.config import Config
 from helpers.create import create_icon_button, _render_svg_icon, update_all_icons, set_theme, HoverIconButton
 from helpers.resize import handle_chat_resize, recalculate_layout
 from helpers.color_utils import get_private_message_colors
-from helpers.scroll import scroll
+from helpers.scroll.scroll import scroll
 from helpers.cache import get_cache
 from helpers.username_color_manager import(
     change_username_color,
