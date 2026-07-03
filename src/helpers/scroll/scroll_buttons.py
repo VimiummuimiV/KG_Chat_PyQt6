@@ -26,6 +26,8 @@ class ScrollButtonsPanel(QObject):
 
     Shown only while the list is actually scrollable (rangeChanged-driven), and while
     shown stays at OPACITY_DEFAULT, brightening to OPACITY_HOVER per-button on hover.
+    Up-buttons disable when already at the top; down-buttons disable when already at
+    the bottom.
     """
     clicked_scroll = pyqtSignal(str)  # emits the action that was triggered: top/page_up/page_down/bottom
 
@@ -64,27 +66,32 @@ class ScrollButtonsPanel(QObject):
             button.installEventFilter(self)
             button.clicked.connect(lambda _checked=False, a=action: self._on_clicked(a))
 
-            self._entries.append({"button": button, "effect": effect, "anim": anim})
+            self._entries.append({"button": button, "effect": effect, "anim": anim, "action": action})
 
-        # Only show buttons when there's actually something to scroll
-        self.list_view.verticalScrollBar().rangeChanged.connect(self._on_range_changed)
-        self._on_range_changed(*self._scrollbar_range())
+        # Show only while scrollable, and disable up/down buttons at the respective end
+        sb = self.list_view.verticalScrollBar()
+        sb.rangeChanged.connect(self._update_buttons)
+        sb.valueChanged.connect(self._update_buttons)
+        self._update_buttons()
 
         # Position update timer
         self.position_timer = QTimer(self)  # Parent timer to the QObject
         self.position_timer.timeout.connect(self._update_positions)
         self.position_timer.start(100)
 
-    def _scrollbar_range(self):
+    def _update_buttons(self, *_args):
+        """Show buttons only while scrollable; disable up-buttons at the top and
+        down-buttons at the bottom of the range."""
         sb = self.list_view.verticalScrollBar()
-        return sb.minimum(), sb.maximum()
-
-    def _on_range_changed(self, minimum: int, maximum: int):
-        """Show the panel only while the list actually has a scrollbar (content overflows
-        the viewport); hide it entirely when everything already fits on screen."""
-        scrollable = maximum > minimum
+        scrollable = sb.maximum() > sb.minimum()
+        at_top = sb.value() <= sb.minimum()
+        at_bottom = sb.value() >= sb.maximum()
         for entry in self._entries:
             entry["button"].setVisible(scrollable)
+            if entry["action"] in ("top", "page_up"):
+                entry["button"].setEnabled(not at_top)
+            else:
+                entry["button"].setEnabled(not at_bottom)
 
     def _animate_opacity(self, entry: dict, target: float):
         anim = entry["anim"]
@@ -174,7 +181,9 @@ class ScrollButtonsPanel(QObject):
             self.position_timer.stop()
         if self.list_view:
             try:
-                self.list_view.verticalScrollBar().rangeChanged.disconnect(self._on_range_changed)
+                sb = self.list_view.verticalScrollBar()
+                sb.rangeChanged.disconnect(self._update_buttons)
+                sb.valueChanged.disconnect(self._update_buttons)
             except (RuntimeError, TypeError):
                 pass
         for entry in self._entries:
