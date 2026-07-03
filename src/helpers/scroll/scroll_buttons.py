@@ -50,7 +50,9 @@ class ScrollButtonsPanel(QObject):
         self.container.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground, True)
         self.container.setAutoFillBackground(False)
         layout = QVBoxLayout(self.container)
-        layout.setContentsMargins(REVEAL_PADDING, REVEAL_PADDING, REVEAL_PADDING, REVEAL_PADDING)
+        # No right margin: that side sits against the scrollbar, so padding there
+        # would steal its hover/click events. Left/top/bottom keep the full reveal zone.
+        layout.setContentsMargins(REVEAL_PADDING, REVEAL_PADDING, 0, REVEAL_PADDING)
         layout.setSpacing(BUTTON_GAP)
 
         self._container_effect = QGraphicsOpacityEffect(self.container)
@@ -171,7 +173,7 @@ class ScrollButtonsPanel(QObject):
         if not self.list_view:
             return
         try:
-            padding = 10 - REVEAL_PADDING  # keep the visible buttons at the same on-screen spot
+            padding = 10  # right margin is 0 now, so the container's own edge is the button's edge
             viewport = self.list_view.viewport()
             container_size = self.container.sizeHint()
 
