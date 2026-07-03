@@ -44,6 +44,7 @@ class Application(QObject):
         self.toggle_signal.connect(self.toggle_chat_visibility)
         self.hotkey = None
         self.last_hotkey_time = 0  # Add debounce tracking
+        self.is_initial_launch = True
 
         # Set Windows taskbar icon (must be done before any windows are created)
         if sys.platform == 'win32':
@@ -459,7 +460,7 @@ class Application(QObject):
         if auto_login:
             # Get active account and connect directly
             active_account = self.account_manager.get_active_account()
-            
+
             if active_account:
                 print(f"🔑 Auto-login enabled, connecting to {active_account['chat_username']}")
                 self.show_chat_window(active_account)
@@ -514,18 +515,17 @@ class Application(QObject):
         if hasattr(self.chat_window, 'button_panel') and hasattr(self.chat_window.button_panel, 'update_notification_button_icon'):
             self.chat_window.button_panel.update_notification_button_icon()
         
-        # Check if start minimized is enabled
-        start_minimized = self.config.get("startup", "start_minimized")
-        
-        if start_minimized:
-            # Don't show the window, just let it stay hidden (tray mode)
+        # === Respect "Start minimized" ONLY on initial launch ===
+        # On account switch we ALWAYS show the window
+        if self.is_initial_launch and self.config.get("startup", "start_minimized"):
             print("🪟 Starting minimized to tray")
-            # The window exists but is not shown - user can access it via tray icon
+            self.is_initial_launch = False
         else:
             # Normal behavior - show the window
             self.chat_window.setWindowOpacity(0)
             self.chat_window.show()
             QTimer.singleShot(50, lambda: self.chat_window.setWindowOpacity(1))
+            self.is_initial_launch = False
 
     def _refresh_own_username_color(self, operation_func):
         """Execute operation and refresh own username color in UI if successful."""
