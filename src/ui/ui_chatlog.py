@@ -982,9 +982,13 @@ class ChatlogWidget(QWidget):
         self._scroll_to_bottom()
 
     def _scroll_to_bottom(self):
-        """Scroll to bottom after a load, unless suppressed by a cross-date message search"""
+        """Scroll to bottom after a load, unless suppressed by a cross-date message search.
+        Only auto-scrolls for today's log (where "latest" = bottom); for past dates the
+        user reads top-to-bottom and scrolls down manually as needed."""
         if self.suppress_bottom_scroll:
             self.suppress_bottom_scroll = False
+            return
+        if self.current_date != datetime.now().date():
             return
         QTimer.singleShot(0, lambda: scroll(self.list_view, mode="bottom", delay=100))
 
