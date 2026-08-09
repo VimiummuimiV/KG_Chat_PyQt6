@@ -2,7 +2,7 @@
 from pathlib import Path
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QScrollArea,
-    QCheckBox, QComboBox, QSpinBox, QMessageBox
+    QCheckBox, QComboBox, QSpinBox, QSlider, QMessageBox
 )
 from PyQt6.QtCore import Qt, pyqtSignal
 
@@ -69,19 +69,40 @@ class SettingsWidget(QWidget):
         section_layout.addLayout(row)
         return combo
 
-    def _add_spin_row(self, section_layout: QVBoxLayout, label_text: str, minimum: int, maximum: int, on_changed, on_reset=None) -> QSpinBox:
+    def _add_slider_spin_row(self, section_layout: QVBoxLayout, label_text: str, minimum: int, maximum: int, on_changed, on_reset=None) -> QSpinBox:
         row = QHBoxLayout()
         row.setSpacing(self.config.get("ui", "spacing", "widget_elements") or 6)
+
         label = QLabel(label_text)
         label.setFont(get_font(FontType.UI))
-        row.addWidget(label, stretch=1)
+        row.addWidget(label)
+
+        slider = QSlider(Qt.Orientation.Horizontal)
+        slider.setRange(minimum, maximum)
+        row.addWidget(slider, stretch=1)
 
         spin = QSpinBox()
         spin.setFont(get_font(FontType.UI))
         spin.setRange(minimum, maximum)
         spin.setFixedWidth(100)
-        spin.valueChanged.connect(on_changed)
         row.addWidget(spin)
+
+        # Keep slider and spinbox in sync, and persist on either one changing
+        def sync_from_slider(value):
+            spin.blockSignals(True)
+            spin.setValue(value)
+            spin.blockSignals(False)
+            on_changed(value)
+
+        def sync_from_spin(value):
+            slider.blockSignals(True)
+            slider.setValue(value)
+            slider.blockSignals(False)
+            on_changed(value)
+
+        slider.valueChanged.connect(sync_from_slider)
+        spin.valueChanged.connect(sync_from_spin)
+        spin._slider = slider  # keep a reference so refresh() can drive both via the spinbox alone
 
         if on_reset:
             reset_button = create_icon_button(self.icons_path, "reload.svg", "Reset to default", size_type="small", config=self.config)
@@ -166,7 +187,7 @@ class SettingsWidget(QWidget):
             section, "Notification position", ["Right", "Left", "Center"],
             self._on_notification_position_changed
         )
-        self.notification_width_spin = self._add_spin_row(
+        self.notification_width_spin = self._add_slider_spin_row(
             section, "Notification width", 250, 1000, self._on_notification_width_changed,
             on_reset=self._on_notification_width_reset
         )
@@ -203,6 +224,7 @@ class SettingsWidget(QWidget):
         idx = self.notification_position_combo.findText(position)
         self.notification_position_combo.setCurrentIndex(idx if idx >= 0 else 0)
         self.notification_width_spin.setValue(int(self.config.get("ui", "notification_width") or NOTIFICATION_WIDTH_DEFAULT))
+        self.notification_width_spin._slider.setValue(self.notification_width_spin.value())
 
         self.mention_always_checkbox.setChecked(bool(self.config.get("sound", "play_mention_sound_always")))
 
