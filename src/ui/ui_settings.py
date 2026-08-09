@@ -10,6 +10,8 @@ from helpers.create import create_icon_button
 from helpers.fonts import get_font, FontType
 from helpers.startup_manager import StartupManager
 
+NOTIFICATION_WIDTH_DEFAULT = 550
+
 
 class SettingsWidget(QWidget):
     """Settings page organized into collapsible sections"""
@@ -67,7 +69,7 @@ class SettingsWidget(QWidget):
         section_layout.addLayout(row)
         return combo
 
-    def _add_spin_row(self, section_layout: QVBoxLayout, label_text: str, minimum: int, maximum: int, on_changed) -> QSpinBox:
+    def _add_spin_row(self, section_layout: QVBoxLayout, label_text: str, minimum: int, maximum: int, on_changed, on_reset=None) -> QSpinBox:
         row = QHBoxLayout()
         row.setSpacing(self.config.get("ui", "spacing", "widget_elements") or 6)
         label = QLabel(label_text)
@@ -80,6 +82,12 @@ class SettingsWidget(QWidget):
         spin.setFixedWidth(100)
         spin.valueChanged.connect(on_changed)
         row.addWidget(spin)
+
+        if on_reset:
+            reset_button = create_icon_button(self.icons_path, "reload.svg", "Reset to default", size_type="small", config=self.config)
+            reset_button.clicked.connect(on_reset)
+            row.addWidget(reset_button)
+
         section_layout.addLayout(row)
         return spin
 
@@ -159,7 +167,8 @@ class SettingsWidget(QWidget):
             self._on_notification_position_changed
         )
         self.notification_width_spin = self._add_spin_row(
-            section, "Notification width", 250, 1000, self._on_notification_width_changed
+            section, "Notification width", 250, 1000, self._on_notification_width_changed,
+            on_reset=self._on_notification_width_reset
         )
 
     def _build_sound_section(self):
@@ -193,7 +202,7 @@ class SettingsWidget(QWidget):
         position = (self.config.get("ui", "notification_position") or "right").capitalize()
         idx = self.notification_position_combo.findText(position)
         self.notification_position_combo.setCurrentIndex(idx if idx >= 0 else 0)
-        self.notification_width_spin.setValue(int(self.config.get("ui", "notification_width") or 550))
+        self.notification_width_spin.setValue(int(self.config.get("ui", "notification_width") or NOTIFICATION_WIDTH_DEFAULT))
 
         self.mention_always_checkbox.setChecked(bool(self.config.get("sound", "play_mention_sound_always")))
 
@@ -232,6 +241,9 @@ class SettingsWidget(QWidget):
 
     def _on_notification_width_changed(self, value: int):
         self.config.set("ui", "notification_width", value=value)
+
+    def _on_notification_width_reset(self):
+        self.notification_width_spin.setValue(NOTIFICATION_WIDTH_DEFAULT)
 
     def _on_mention_always_toggled(self, checked: bool):
         self.config.set("sound", "play_mention_sound_always", value=checked)
