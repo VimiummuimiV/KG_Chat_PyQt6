@@ -29,7 +29,7 @@
     "chatlog_userlist_visible": true,
     "chatlog_search_visible": false,
     "theme": "dark",
-    "notification_width": 550,
+    "notification_width": 500,
     "notification_position": "right",
     "emoticon_max_size": 140,
     "clear_private_messages_on_exit": true,
@@ -81,6 +81,11 @@
     "emoticon_selector_visible": false,
     "always_on_top": false,
     "recent_emoticons": [
+      "vdv",
+      "uzi",
+      "spiteful",
+      "boredom",
+      "comandos",
       "carpet",
       "badcomp",
       "vpered",
@@ -95,12 +100,7 @@
       "pirates",
       "gangster",
       "barret",
-      "uzi",
-      "confuse",
-      "holmes",
-      "comandos",
-      "ak47",
-      "girlrevolve"
+      "confuse"
     ],
     "window": {
       "width": null,
@@ -141,7 +141,7 @@
     "play_mention_sound_always": false
   },
   "notification": {
-    "mode": "replace",
+    "mode": "stack",
     "muted": true
   },
   "startup": {
@@ -150,12 +150,12 @@
   },
   "chatlog_parser": {
     "saved_usernames": [
-      "Пьяный_Качок",
-      "un4given",
       "Ri_chu_long",
       "TolikWorkaholic",
       "Изящный",
       "Кибертаксист",
+      "un4given",
+      "Пьяный_Качок",
       "ПОТРОШИТЕЛЬЧАТА"
     ]
   }

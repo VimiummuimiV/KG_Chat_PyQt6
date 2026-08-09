@@ -56,7 +56,7 @@ class AccountWindow(QWidget):
         # Account manager
         self.account_manager = AccountManager(str(self.config_path))
         self.cache = get_cache()
-        
+
         # Startup manager
         self.startup_manager = StartupManager()
 

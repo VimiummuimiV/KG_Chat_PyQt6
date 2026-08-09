@@ -40,6 +40,7 @@ from ui.ui_profile import ProfileWidget
 from ui.ui_emoticon_selector import EmoticonSelectorWidget, PANEL_WIDTH
 from ui.ui_pronunciation import PronunciationWidget
 from ui.ui_banlist import BanListWidget
+from ui.ui_settings import SettingsWidget
 from helpers.duration_dialog import DurationDialog
 from helpers.jid_utils import extract_user_data_from_jid
 from ui.ui_buttons import ButtonPanel
@@ -171,8 +172,10 @@ class ChatWindow(QWidget):
     def on_toggle_voice_sound(self):
         """Toggle TTS (Voice Sound) from the panel button."""
         current = self.config.get("sound", "tts_enabled") or False
-        new = not current
-        
+        self.apply_voice_sound(not current)
+
+    def apply_voice_sound(self, new: bool):
+        """Set TTS (Voice Sound) to an explicit state. Shared by the panel button and Settings."""
         # Persist centrally via app controller so tray stays in sync
         config = self.app_controller.config if self.app_controller else self.config
         config.set("sound", "tts_enabled", value=new)
@@ -202,8 +205,10 @@ class ChatWindow(QWidget):
         current = self.config.get("sound", "effects_enabled")
         if current is None:
             current = True
-        new = not current
+        self.apply_effects_sound(not current)
 
+    def apply_effects_sound(self, new: bool):
+        """Set effects sound to an explicit state. Shared by the panel button and Settings."""
         # Persist centrally via app controller so tray stays in sync
         config = self.app_controller.config if self.app_controller else self.config
         config.set("sound", "effects_enabled", value=new)
@@ -248,6 +253,10 @@ class ChatWindow(QWidget):
             new_mode = "replace"  # Keep mode, just mute
             new_muted = True
         
+        self.apply_notification_state(new_mode, new_muted)
+
+    def apply_notification_state(self, new_mode: str, new_muted: bool):
+        """Set notification mode/muted to explicit values. Shared by the panel button and Settings."""
         # Persist centrally via app controller so tray stays in sync
         config = self.app_controller.config if self.app_controller else self.config
         config.set("notification", "mode", value=new_mode)
@@ -295,8 +304,10 @@ class ChatWindow(QWidget):
     def on_toggle_always_on_top(self):
         """Toggle always on top window flag"""
         current = self.config.get("ui", "always_on_top") or False
-        new = not current
-        
+        self.apply_always_on_top(not current)
+
+    def apply_always_on_top(self, new: bool):
+        """Set always-on-top to an explicit state. Shared by the panel button and Settings."""
         # Save to config
         config = self.app_controller.config if self.app_controller else self.config
         config.set("ui", "always_on_top", value=new)
@@ -520,6 +531,7 @@ class ChatWindow(QWidget):
         self.button_panel.reset_window_size_requested.connect(self.reset_window_size)
         self.button_panel.show_window_presets_requested.connect(self.show_window_presets)
         self.button_panel.toggle_always_on_top_requested.connect(self.on_toggle_always_on_top)
+        self.button_panel.show_settings_requested.connect(self.show_settings_view)
         self.button_panel.exit_requested.connect(self.on_exit_requested)
         self.button_panel.reconnect_requested.connect(self.manual_reconnect)
 
@@ -1945,6 +1957,18 @@ class ChatWindow(QWidget):
             self.stacked_widget.addWidget(self.ban_list_widget)
         
         self.stacked_widget.setCurrentWidget(self.ban_list_widget)
+
+    def show_settings_view(self):
+        """Show the settings view"""
+        if not hasattr(self, 'settings_widget') or not self.settings_widget:
+            self.settings_widget = SettingsWidget(self.config, self.icons_path)
+            self.settings_widget.back_requested.connect(self.show_messages_view)
+            self.stacked_widget.addWidget(self.settings_widget)
+        else:
+            # Reflect any state changed elsewhere (tray menu, hotkeys) since it was last shown
+            self.settings_widget.refresh()
+
+        self.stacked_widget.setCurrentWidget(self.settings_widget)
     
     def _on_username_left_click(self, username: str, is_double_click: bool):
         """Handle username left-click - insert into input field"""

@@ -32,6 +32,7 @@ class ButtonPanel(QWidget):
     reset_window_size_requested = pyqtSignal()
     show_window_presets_requested = pyqtSignal()
     toggle_always_on_top_requested = pyqtSignal()
+    show_settings_requested = pyqtSignal()
     exit_requested = pyqtSignal()
     reconnect_requested = pyqtSignal()
     
@@ -52,6 +53,7 @@ class ButtonPanel(QWidget):
         self.theme_button = None
         self.reset_size_button = None
         self.always_on_top_button = None
+        self.settings_button = None
         self.exit_button = None
         
         self._init_ui()
@@ -217,6 +219,13 @@ class ButtonPanel(QWidget):
             pin_icon,
             pin_tooltip,
             lambda: self.toggle_always_on_top_requested.emit()
+        )
+
+        # Settings button
+        self.settings_button = self._create_button(
+            "settings.svg",
+            "Settings",
+            lambda: self.show_settings_requested.emit()
         )
 
         # Exit application button
