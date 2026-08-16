@@ -2,7 +2,8 @@
 from pathlib import Path
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QScrollArea,
-    QCheckBox, QComboBox, QSpinBox, QSlider, QMessageBox, QTextEdit
+    QCheckBox, QComboBox, QSpinBox, QSlider, QMessageBox, QTextEdit,
+    QApplication
 )
 from PyQt6.QtCore import Qt, pyqtSignal
 
@@ -18,6 +19,12 @@ class SettingsWidget(QWidget):
 
     back_requested = pyqtSignal()
 
+    _CONNECTION_STATES = {
+        "connected": ("#2ecc71", "Connected"),
+        "connecting": ("#f39c12", "Connecting..."),
+        "reconnecting": ("#f39c12", "Reconnecting..."),
+    }
+
     def __init__(self, config, icons_path: Path):
         super().__init__()
         self.config = config
@@ -30,12 +37,15 @@ class SettingsWidget(QWidget):
     # ------------------------------------------------------------------ #
     # Layout helpers
     # ------------------------------------------------------------------ #
+    def _spacing(self) -> int:
+        return self.config.get("ui", "spacing", "widget_elements") or 6
+
     def _create_section(self, title: str) -> QVBoxLayout:
         """Create a titled section and append it to the scroll content."""
         section = QWidget()
         section_layout = QVBoxLayout()
         section_layout.setContentsMargins(4, 4, 4, 4)
-        section_layout.setSpacing(self.config.get("ui", "spacing", "widget_elements") or 6)
+        section_layout.setSpacing(self._spacing())
         section.setLayout(section_layout)
 
         label = QLabel(title)
@@ -55,7 +65,7 @@ class SettingsWidget(QWidget):
 
     def _add_combo_row(self, section_layout: QVBoxLayout, label_text: str, items: list, on_changed) -> QComboBox:
         row = QHBoxLayout()
-        row.setSpacing(self.config.get("ui", "spacing", "widget_elements") or 6)
+        row.setSpacing(self._spacing())
         label = QLabel(label_text)
         label.setFont(get_font(FontType.UI))
         row.addWidget(label, stretch=1)
@@ -71,7 +81,7 @@ class SettingsWidget(QWidget):
 
     def _add_slider_spin_row(self, section_layout: QVBoxLayout, label_text: str, minimum: int, maximum: int, on_changed, on_reset=None) -> QSpinBox:
         row = QHBoxLayout()
-        row.setSpacing(self.config.get("ui", "spacing", "widget_elements") or 6)
+        row.setSpacing(self._spacing())
 
         label = QLabel(label_text)
         label.setFont(get_font(FontType.UI))
@@ -126,7 +136,7 @@ class SettingsWidget(QWidget):
 
         # Header
         header_layout = QHBoxLayout()
-        header_layout.setSpacing(self.config.get("ui", "spacing", "widget_elements") or 6)
+        header_layout.setSpacing(self._spacing())
         main_layout.addLayout(header_layout)
 
         self.back_button = create_icon_button(
@@ -198,7 +208,7 @@ class SettingsWidget(QWidget):
 
         # status row: green/red indicator + checkbox
         status_row = QHBoxLayout()
-        status_row.setSpacing(self.config.get("ui", "spacing", "widget_elements") or 6)
+        status_row.setSpacing(self._spacing())
         self.competitions_indicator = QLabel("●")
         self.competitions_indicator.setFixedWidth(16)
         status_row.addWidget(self.competitions_indicator)
@@ -213,6 +223,15 @@ class SettingsWidget(QWidget):
             section, "Minimum multiplier", ["x1+", "x2+", "x3+", "x5+"],
             self._on_min_multiplier_changed
         )
+
+        log_header_row = QHBoxLayout()
+        log_header_row.addStretch(1)
+        self.copy_log_button = create_icon_button(
+            self.icons_path, "copy.svg", "Copy log", size_type="small", config=self.config
+        )
+        self.copy_log_button.clicked.connect(self._on_copy_log_clicked)
+        log_header_row.addWidget(self.copy_log_button)
+        section.addLayout(log_header_row)
 
         self.competitions_log = QTextEdit()
         self.competitions_log.setReadOnly(True)
@@ -330,16 +349,9 @@ class SettingsWidget(QWidget):
             self.competitions_log.setHtml(self._status_log_html("Tracking enabled", "enabled"))
 
         state = connection or "connecting"
-        if state == "connected":
-            self.competitions_indicator.setStyleSheet("color: #2ecc71; font-size: 14px;")
-            self.competitions_indicator.setToolTip("Connected")
-        elif state == "connecting":
-            self.competitions_indicator.setStyleSheet("color: #f39c12; font-size: 14px;")
-            self.competitions_indicator.setToolTip("Connecting...")
-        else:
-            self.competitions_indicator.setStyleSheet("color: #f39c12; font-size: 14px;")
-            self.competitions_indicator.setToolTip("Reconnecting...")
-
+        color, tooltip = self._CONNECTION_STATES.get(state, self._CONNECTION_STATES["reconnecting"])
+        self.competitions_indicator.setStyleSheet(f"color: {color}; font-size: 14px;")
+        self.competitions_indicator.setToolTip(tooltip)
 
     def _competitions_log_colors(self) -> dict:
         is_dark = (self.config.get("ui", "theme") or "dark") == "dark"
@@ -442,6 +454,9 @@ class SettingsWidget(QWidget):
             lines = self.competitions_log.toPlainText().splitlines()[-200:]
             self.set_competition_log_lines(lines)
 
+
+    def _on_copy_log_clicked(self):
+        QApplication.clipboard().setText(self.competitions_log.toPlainText())
 
     def _on_min_multiplier_changed(self, text: str):
         self.config.set("competitions", "min_multiplier", value=text)
