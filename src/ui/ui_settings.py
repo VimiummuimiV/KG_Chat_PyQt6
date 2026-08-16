@@ -217,7 +217,7 @@ class SettingsWidget(QWidget):
             section, "Notify about competitions even when muted", self._on_competitions_bypass_mute_toggled
         )
         self.competitions_force_sound_checkbox = self._add_checkbox(
-            section, "Always play competition sound (ignore sound effects toggle)",
+            section, "Always play competition sound",
             self._on_competitions_force_sound_toggled
         )
 

@@ -214,12 +214,12 @@ def get_voice_engine() -> VoiceEngine:
     return _voice_engine
 
 
-def play_sound(sound_path: str, volume: float = 1.0, config=None):
+def play_sound(sound_path: str, volume: float = 1.0, config=None, force: bool = False):
     if volume == 0.0:
         return
     
-    # Check if effects sound is enabled
-    if config:
+    # Check if effects sound is enabled, unless explicitly forced
+    if config and not force:
         effects_enabled = config.get("sound", "effects_enabled")
         if effects_enabled is False:
             return

@@ -137,12 +137,12 @@
   },
   "sound": {
     "tts_enabled": false,
-    "effects_enabled": true,
+    "effects_enabled": false,
     "play_mention_sound_always": false
   },
   "notification": {
-    "mode": "stack",
-    "muted": false
+    "mode": "replace",
+    "muted": true
   },
   "startup": {
     "auto_login": true,
