@@ -80,18 +80,12 @@ class ChatWindow(QWidget):
         self.signal_emitter = SignalEmitter()
         self.cache = get_cache()
         self.races_listener = None
-        self._competition_notified = set()
+        self._competition_notified = set()  # game_ids already announced this session
         self._competition_log_lines = []
         self._races_status = "disconnected"
-        self._pending_competitions = []
-        # False until the chat has completed at least one full history load;
-        # gates competition announcements found before connecting even starts
-        # (races_listener can connect and fire before connect_xmpp runs).
-        self._chat_ready = False
-        # Fires once the initial message history stream has been quiet for a
-        # bit, so competition announcements are queued until history is
-        # actually rendered instead of just until the room-join step ends.
-        self._history_settle_timer = QTimer(self)
+        self._pending_competitions = []  # queued while chat history isn't ready yet
+        self._chat_ready = False  # True once initial history has settled once
+        self._history_settle_timer = QTimer(self)  # fires when history stream goes quiet
         self._history_settle_timer.setSingleShot(True)
         self._history_settle_timer.timeout.connect(self._on_history_settled)
         self.initial_roster_loading = False
@@ -868,8 +862,7 @@ class ChatWindow(QWidget):
         # Clear all messages to avoid duplicates (server will send last 20 again)
         self.messages_widget.clear()
 
-        # History is being reloaded from scratch - hold competition
-        # announcements back until it settles again.
+        # History is being reloaded from scratch - hold competitions back until it settles again
         self._chat_ready = False
         self._history_settle_timer.stop()
     
@@ -1502,16 +1495,18 @@ class ChatWindow(QWidget):
         if mw and hasattr(mw, "clear_competition_messages"):
             mw.clear_competition_messages()
 
+    @staticmethod
+    def _competition_fields(info: dict) -> tuple:
+        gid = info.get("game_id")
+        tag = f"competition:{gid}" if gid else None
+        return gid, info.get("multiplier") or "?", info.get("url") or "", tag
+
     def _on_history_settled(self):
-        """Called once the initial history stream has been quiet for a bit."""
         self._chat_ready = True
         self._flush_pending_competitions()
 
     def _on_competition_found(self, info: dict):
-        gid = info.get("game_id")
-        tag = f"competition:{gid}" if gid else None
-        mult = info.get("multiplier") or "?"
-        url = info.get("url") or ""
+        gid, mult, url, tag = self._competition_fields(info)
         status = info.get("status") or "?"
 
         # settings log: all statuses
@@ -1535,9 +1530,7 @@ class ChatWindow(QWidget):
         if len(self._competition_notified) > 200:
             self._competition_notified = set(list(self._competition_notified)[-100:])
 
-        # Hold back the announcement until the chat has completed its first
-        # history load, and while it's re-loading/settling on reconnect - so
-        # the competition message never lands ahead of the loaded messages.
+        # queue until history has settled at least once, so it can't land ahead of loaded messages
         if not self._chat_ready or self.initial_roster_loading or self._history_settle_timer.isActive():
             self._pending_competitions.append(info)
             return
@@ -1545,10 +1538,7 @@ class ChatWindow(QWidget):
         self._announce_competition(info)
 
     def _announce_competition(self, info: dict):
-        mult = info.get("multiplier") or "?"
-        url = info.get("url") or ""
-        gid = info.get("game_id")
-        tag = f"competition:{gid}" if gid else None
+        gid, mult, url, tag = self._competition_fields(info)
         body = f"Rating competition {mult} is waiting."
         if url:
             body = f"{body}\n{url}"
@@ -1646,9 +1636,7 @@ class ChatWindow(QWidget):
         # Check if initial load
         is_initial = getattr(msg, 'initial', False)
         if is_initial:
-            # Keep pushing back the "history settled" point while initial
-            # messages are still streaming in.
-            self._history_settle_timer.start(self._HISTORY_SETTLE_MS)
+            self._history_settle_timer.start(self._HISTORY_SETTLE_MS)  # keeps pushing back until history goes quiet
 
         # Skip own messages (server echoes groupchat messages back)
         if msg.login == self.account.get('chat_username') and not is_initial:
@@ -1837,10 +1825,7 @@ class ChatWindow(QWidget):
             self.user_list_widget.remove_users(presence=pres)
 
     def on_bulk_update_complete(self):
-        # Roster/rooms are joined, but message history may still be streaming
-        # in - arm the settle timer as a fallback in case no history messages
-        # follow (e.g. an empty room), rather than flushing immediately.
-        self._history_settle_timer.start(self._HISTORY_SETTLE_MS)
+        self._history_settle_timer.start(self._HISTORY_SETTLE_MS)  # fallback in case no history messages follow
         if not self.xmpp_client:
             return
         users = self.xmpp_client.user_list.get_online()
