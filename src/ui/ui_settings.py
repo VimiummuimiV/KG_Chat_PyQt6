@@ -12,6 +12,8 @@ from helpers.fonts import get_font, FontType
 from helpers.startup_manager import StartupManager
 
 NOTIFICATION_WIDTH_DEFAULT = 550
+COMPETITIONS_LOG_HEIGHT = 300
+COMPETITIONS_LOG_HEIGHT_COLLAPSED = 32 
 
 
 class SettingsWidget(QWidget):
@@ -30,6 +32,7 @@ class SettingsWidget(QWidget):
         self.config = config
         self.icons_path = icons_path
         self.startup_manager = StartupManager()
+        self._competitions_accent_color = None
 
         self._setup_ui()
         self.refresh()
@@ -206,18 +209,9 @@ class SettingsWidget(QWidget):
     def _build_competitions_section(self):
         section = self._create_section("Competitions")
 
-        # status row: green/red indicator + checkbox
-        status_row = QHBoxLayout()
-        status_row.setSpacing(self._spacing())
-        self.competitions_indicator = QLabel("●")
-        self.competitions_indicator.setFixedWidth(16)
-        status_row.addWidget(self.competitions_indicator)
-        self.track_competitions_checkbox = QCheckBox("Track rating competitions")
-        self.track_competitions_checkbox.setFont(get_font(FontType.UI))
-        self.track_competitions_checkbox.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self.track_competitions_checkbox.toggled.connect(self._on_track_competitions_toggled)
-        status_row.addWidget(self.track_competitions_checkbox, 1)
-        section.addLayout(status_row)
+        self.track_competitions_checkbox = self._add_checkbox(
+            section, "Track rating competitions", self._on_track_competitions_toggled
+        )
 
         self.competitions_bypass_mute_checkbox = self._add_checkbox(
             section, "Notify about competitions even when muted", self._on_competitions_bypass_mute_toggled
@@ -243,7 +237,7 @@ class SettingsWidget(QWidget):
 
         self.competitions_log = QTextEdit()
         self.competitions_log.setReadOnly(True)
-        self.competitions_log.setFixedHeight(300)
+        self.competitions_log.setFixedHeight(COMPETITIONS_LOG_HEIGHT)
         self.competitions_log.setFont(get_font(FontType.UI))
         self.competitions_log.setPlaceholderText("Competition log")
         self.competitions_log.setAcceptRichText(True)
@@ -355,15 +349,17 @@ class SettingsWidget(QWidget):
         """connection: connecting | connected | disconnected (optional).
         Log text is owned by ChatWindow buffer — do not clear it here when enabled.
         """
-        self._apply_competitions_log_theme()
         if not enabled:
-            self.competitions_indicator.setStyleSheet("color: #e74c3c; font-size: 14px;")
-            self.competitions_indicator.setToolTip("Tracking disabled")
+            self._competitions_accent_color = self._competitions_log_colors()["error"]
+            self.competitions_log.setToolTip("Tracking disabled")
+            self._apply_competitions_log_theme()
             self.competitions_log.setEnabled(False)
+            self.competitions_log.setFixedHeight(COMPETITIONS_LOG_HEIGHT_COLLAPSED)
             self.competitions_log.setHtml(self._status_log_html("Tracking disabled", "disabled"))
             return
 
         self.competitions_log.setEnabled(True)
+        self.competitions_log.setFixedHeight(COMPETITIONS_LOG_HEIGHT)
         # If log only had the disabled placeholder, show enabled status
         plain = self.competitions_log.toPlainText().strip()
         if plain in ("", "Tracking disabled"):
@@ -371,8 +367,9 @@ class SettingsWidget(QWidget):
 
         state = connection or "connecting"
         color, tooltip = self._CONNECTION_STATES.get(state, self._CONNECTION_STATES["reconnecting"])
-        self.competitions_indicator.setStyleSheet(f"color: {color}; font-size: 14px;")
-        self.competitions_indicator.setToolTip(tooltip)
+        self._competitions_accent_color = color
+        self.competitions_log.setToolTip(tooltip)
+        self._apply_competitions_log_theme()
 
     def _competitions_log_colors(self) -> dict:
         is_dark = (self.config.get("ui", "theme") or "dark") == "dark"
@@ -402,8 +399,10 @@ class SettingsWidget(QWidget):
 
     def _apply_competitions_log_theme(self):
         c = self._competitions_log_colors()
+        accent = self._competitions_accent_color or "transparent"
         self.competitions_log.setStyleSheet(
-            f"QTextEdit {{ background-color: {c['bg']}; color: {c['fg']}; border: none; }}"
+            f"QTextEdit {{ background-color: {c['bg']}; color: {c['fg']}; "
+            f"border: none; border-left: 3px solid {accent}; border-radius: 0; }}"
         )
 
     def _colorize_log_line(self, line: str) -> str:
