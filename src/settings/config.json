@@ -137,12 +137,14 @@
   },
   "sound": {
     "tts_enabled": false,
-    "effects_enabled": false,
-    "play_mention_sound_always": false
+    "effects_enabled": true,
+    "play_mention_sound_always": false,
+    "competition_sound_force": true
   },
   "notification": {
     "mode": "replace",
-    "muted": true
+    "muted": true,
+    "competitions_bypass_mute": true
   },
   "startup": {
     "auto_login": true,

@@ -24,14 +24,25 @@ def _sockjs_send(ws, msg: str):
     ws.send(json.dumps([msg], separators=(",", ":")))
 
 
+def _info_and_params(data: dict) -> tuple[dict | None, dict]:
+    """Resolve the nested info/params dicts, handling both wrapped and flat payloads."""
+    info = data.get("info") or data
+    if not isinstance(info, dict):
+        return None, {}
+    return info, info.get("params") or {}
+
+
+def _game_url(gid) -> str:
+    return f"https://klavogonki.ru/g/?gmid={gid}"
+
+
 def _multiplier(data: dict) -> str:
     if not isinstance(data, dict):
         return "?"
     if "regular_competition" in data:
         val = data["regular_competition"]
     else:
-        info = data.get("info") or data
-        params = (info.get("params") or {}) if isinstance(info, dict) else {}
+        _, params = _info_and_params(data)
         val = params.get("regular_competition")
     if val is None:
         return "?"
@@ -43,19 +54,15 @@ def _is_rating(data) -> bool:
         return False
     if data.get("competition") is True:
         return True
-    info = data.get("info") or data
-    if not isinstance(info, dict):
-        return False
-    params = info.get("params") or {}
-    return isinstance(params, dict) and bool(params.get("competition"))
+    _, params = _info_and_params(data)
+    return bool(params.get("competition"))
 
 
 def _game_info(data: dict) -> dict | None:
     """Full game object (gameCreated / initList item)."""
-    info = data.get("info") or data
-    if not isinstance(info, dict):
+    info, params = _info_and_params(data)
+    if info is None:
         return None
-    params = info.get("params") or {}
     gid = info.get("id") or data.get("id")
     if not gid:
         return None
@@ -70,7 +77,7 @@ def _game_info(data: dict) -> dict | None:
         "level_to": params.get("level_to"),
         "gametype": params.get("gametype"),
         "begintime": info.get("begintime"),
-        "url": f"https://klavogonki.ru/g/?gmid={gid}",
+        "url": _game_url(gid),
     }
 
 
@@ -183,7 +190,7 @@ class RacesListener(QObject):
                     "level_from": data.get("level_from"),
                     "level_to": data.get("level_to"),
                     "gametype": data.get("gametype"),
-                    "url": f"https://klavogonki.ru/g/?gmid={gmid}" if gmid else None,
+                    "url": _game_url(gmid) if gmid else None,
                 })
 
             elif event == "gamelist/initList" and isinstance(data, list):
