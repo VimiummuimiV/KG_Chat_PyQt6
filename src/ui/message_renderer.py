@@ -7,7 +7,13 @@ from PyQt6.QtCore import Qt, QRect, QSize, pyqtSignal, QObject, QTimer
 from PyQt6.QtGui import QPainter, QFontMetrics, QColor, QPixmap, QMovie
 from PyQt6.QtWidgets import QApplication
 
-from helpers.color_utils import get_private_message_colors, get_ban_message_colors, get_system_message_colors, get_mention_color
+from helpers.color_utils import (
+    get_private_message_colors,
+    get_ban_message_colors,
+    get_system_message_colors,
+    get_competition_message_colors,
+    get_mention_color
+)
 from helpers.fonts import get_font, FontType
 from helpers.mention_parser import parse_mentions
 from core.youtube import is_youtube_url, get_cached_info, fetch_async
@@ -40,6 +46,7 @@ class MessageRenderer(QObject):
         self.private_colors = get_private_message_colors(config, is_dark_theme)
         self.ban_colors = get_ban_message_colors(config, is_dark_theme)
         self.system_colors = get_system_message_colors(config, is_dark_theme)
+        self.competition_colors = get_competition_message_colors(config, is_dark_theme)
         
         # Font setup
         self.body_font = get_font(FontType.TEXT)
@@ -145,8 +152,10 @@ class MessageRenderer(QObject):
         """Check if position is over any link"""
         return any(rect.contains(pos) for rect, _, _ in link_rects)
     
-    def get_timestamp_color(self, is_ban: bool, is_private: bool, is_system: bool) -> str:
+    def get_timestamp_color(self, is_ban: bool, is_private: bool, is_system: bool, is_competition: bool = False) -> str:
         """Return the appropriate timestamp color for the message type"""
+        if is_competition:
+            return self.competition_colors["text"]
         if is_ban:
             return self.ban_colors["text"]
         if is_private:
@@ -167,11 +176,14 @@ class MessageRenderer(QObject):
         self.private_colors = get_private_message_colors(self.config, is_dark_theme)
         self.ban_colors = get_ban_message_colors(self.config, is_dark_theme)
         self.system_colors = get_system_message_colors(self.config, is_dark_theme)
+        self.competition_colors = get_competition_message_colors(self.config, is_dark_theme)
         self._emoticon_cache.clear()
     
     @staticmethod
-    def _emoji_prefix(text: str, is_private: bool, is_ban: bool, is_system: bool) -> str:
+    def _emoji_prefix(text: str, is_private: bool, is_ban: bool, is_system: bool, is_competition: bool = False) -> str:
         """Prepend type emoji for special message types."""
+        if is_competition:
+            return "🏆 " + text
         if is_ban:
             return "🔹 " + text
         if is_private:
@@ -238,16 +250,17 @@ class MessageRenderer(QObject):
         return max(total_height, fm.height())
     
     def paint_content(
-        self, 
-        painter: QPainter, 
-        x: int, 
-        y: int, 
+        self,
+        painter: QPainter,
+        x: int,
+        y: int,
         width: int,
-        text: str, 
-        row: Optional[int] = None, 
-        is_private: bool = False, 
-        is_ban: bool = False, 
-        is_system: bool = False
+        text: str,
+        row: Optional[int] = None,
+        is_private: bool = False,
+        is_ban: bool = False,
+        is_system: bool = False,
+        is_competition: bool = False,
     ) -> List[Tuple[QRect, str, bool]]:
         """
         Paint message body content with links, emoticons, and mentions.
@@ -276,7 +289,9 @@ class MessageRenderer(QObject):
         line_height = fm.height()
         
         # Determine text color based on message type
-        if is_system:
+        if is_competition:
+            text_color = self.competition_colors["text"]
+        elif is_system:
             text_color = self.system_colors["text"]
         elif is_private:
             text_color = self.private_colors["text"]

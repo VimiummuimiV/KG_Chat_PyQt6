@@ -104,3 +104,27 @@ def get_system_message_colors(config, is_dark_theme: bool) -> dict:
 def get_mention_color(is_dark_theme: bool) -> str:
     """Get mention highlight color based on theme"""
     return "#00FF00" if is_dark_theme else "#008000"
+
+
+def get_competition_message_colors(config, is_dark_theme: bool) -> dict:
+    # Read only hue and saturation from config
+    hue = config.get("ui", "competition_message_color", "hue") or 45
+    saturation = config.get("ui", "competition_message_color", "saturation") or 80
+
+    # Derive lightness values based on theme
+    if is_dark_theme:
+        # Dark theme: light text on dark backgrounds
+        lightness_values = {
+            "text": 75,          # Light & readable text
+        }
+    else:
+        # Light theme: dark text on light backgrounds
+        lightness_values = {
+            "text": 40,          # Dark & readable text
+        }
+
+    # Generate all colors
+    return {
+        key: hsl_to_hex(hue, saturation, lightness)
+        for key, lightness in lightness_values.items()
+    }

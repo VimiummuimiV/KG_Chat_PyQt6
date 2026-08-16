@@ -18,6 +18,8 @@ class MessageData:
     date_str: Optional[str] = None  # For separators
     is_ban: bool = False
     is_system: bool = False
+    is_competition: bool = False
+    competition_game_id: Optional[int] = None
     is_new_messages_marker: bool = False
    
     def get_time_str(self) -> str:
@@ -77,6 +79,22 @@ class MessageListModel(QAbstractListModel):
        
         # Remove in reverse order to maintain indices
         for index in reversed(private_indices):
+            self.beginRemoveRows(QModelIndex(), index, index)
+            self._messages.pop(index)
+            self.endRemoveRows()
+
+
+    def clear_competition_messages(self, game_id=None):
+        """Remove rating competition messages.
+        If game_id is set, only messages for that competition are removed.
+        """
+        if not self._messages:
+            return
+        indices = [
+            i for i, msg in enumerate(self._messages)
+            if msg.is_competition and (game_id is None or msg.competition_game_id == game_id)
+        ]
+        for index in reversed(indices):
             self.beginRemoveRows(QModelIndex(), index, index)
             self._messages.pop(index)
             self.endRemoveRows()

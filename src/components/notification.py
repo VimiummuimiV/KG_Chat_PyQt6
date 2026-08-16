@@ -34,20 +34,25 @@ class NotificationData:
     recipient_jid: Optional[str] = None
     is_ban: bool = False
     is_system: bool = False
+    is_competition: bool = False
     timestamp: Optional[datetime] = None
+    click_url: Optional[str] = None
+    tag: Optional[str] = None
 
 
 class MessageBodyWidget(QWidget):
     """Custom widget that uses MessageRenderer for painting message body"""
     
     def __init__(self, message_renderer: MessageRenderer, text: str, 
-                 is_private: bool = False, is_ban: bool = False, is_system: bool = False):
+                 is_private: bool = False, is_ban: bool = False, is_system: bool = False,
+                 is_competition: bool = False):
         super().__init__()
         self.message_renderer = message_renderer
-        self.text = MessageRenderer._emoji_prefix(text, is_private, is_ban, is_system)
+        self.text = MessageRenderer._emoji_prefix(text, is_private, is_ban, is_system, is_competition)
         self.is_private = is_private
         self.is_ban = is_ban
         self.is_system = is_system
+        self.is_competition = is_competition
         self.link_rects: List[Tuple[QRect, str, bool]] = []
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setMouseTracking(True)
@@ -77,7 +82,8 @@ class MessageBodyWidget(QWidget):
             None,  # row
             self.is_private,
             self.is_ban,
-            self.is_system
+            self.is_system,
+            self.is_competition,
         )
         
         # Update height if needed
@@ -176,7 +182,9 @@ class PopupNotification(QWidget):
         # Timestamp label - always shown
         ts_str = (data.timestamp or datetime.now()).strftime("%H:%M:%S")
         self.timestamp_label = QLabel(ts_str)
-        ts_color = self.message_renderer.get_timestamp_color(data.is_ban, data.is_private, data.is_system)
+        ts_color = self.message_renderer.get_timestamp_color(
+            data.is_ban, data.is_private, data.is_system, data.is_competition
+        )
         self.timestamp_label.setStyleSheet(f"color: {ts_color};")
         self.timestamp_label.setFont(get_font(FontType.TEXT))
         self.timestamp_label.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
@@ -274,7 +282,8 @@ class PopupNotification(QWidget):
             data.message,
             data.is_private,
             data.is_ban,
-            data.is_system
+            data.is_system,
+            data.is_competition,
         )
         msg_layout.addWidget(self.message_widget)
         main_layout.addWidget(msg_container, stretch=1)
@@ -379,6 +388,17 @@ class PopupNotification(QWidget):
                         # Don't close notification when link is clicked
                         return
           
+            # Competition / external link: open in browser instead of chat
+            if self.data.click_url:
+                try:
+                    from PyQt6.QtGui import QDesktopServices
+                    from PyQt6.QtCore import QUrl
+                    QDesktopServices.openUrl(QUrl(self.data.click_url))
+                except Exception as e:
+                    print(f"❌ Error opening url: {e}")
+                self.manager.close_all()
+                return
+
             # Show chat window if callback exists
             if self.data.window_show_callback:
                 try:
@@ -710,6 +730,17 @@ class PopupManager:
         for popup in list(self.popups):
             popup.close_immediately()
         self.popups.clear()
+
+    def close_by_tag(self, tag: str):
+        """Close notifications with the given tag"""
+        if not tag:
+            return
+        for popup in list(self.popups):
+            if getattr(popup.data, "tag", None) == tag:
+                if hasattr(popup, "_animate_out"):
+                    popup._animate_out()
+                else:
+                    popup.close_immediately()
   
     def _position_and_cleanup(self):
         """Position all popups and handle overflow"""

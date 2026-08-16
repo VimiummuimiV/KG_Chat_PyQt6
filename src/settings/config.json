@@ -81,12 +81,12 @@
     "emoticon_selector_visible": false,
     "always_on_top": false,
     "recent_emoticons": [
-      "vdv",
       "uzi",
+      "carpet",
+      "vdv",
       "spiteful",
       "boredom",
       "comandos",
-      "carpet",
       "badcomp",
       "vpered",
       "clapping",
@@ -158,5 +158,9 @@
       "Пьяный_Качок",
       "ПОТРОШИТЕЛЬЧАТА"
     ]
+  },
+  "competitions": {
+    "enabled": true,
+    "min_multiplier": "x1+"
   }
 }

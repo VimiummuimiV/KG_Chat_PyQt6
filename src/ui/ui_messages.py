@@ -120,7 +120,9 @@ class MessagesWidget(QWidget):
             msg.login,
             getattr(msg, 'is_private', False),
             is_ban=getattr(msg, 'is_ban', False),
-            is_system=getattr(msg, 'is_system', False)
+            is_system=getattr(msg, 'is_system', False),
+            is_competition=getattr(msg, 'is_competition', False),
+            competition_game_id=getattr(msg, 'competition_game_id', None),
         )
         sb = self.list_view.verticalScrollBar()
         at_bottom = (sb.maximum() - sb.value()) <= 100
@@ -133,6 +135,10 @@ class MessagesWidget(QWidget):
     def clear_private_messages(self):
         """Clear all private messages"""
         self.model.clear_private_messages()
+
+    def clear_competition_messages(self, game_id=None):
+        """Clear rating competition system messages (all or one game_id)."""
+        self.model.clear_competition_messages(game_id)
 
     def remove_messages_by_login(self, login: str, timestamp=None, from_timestamp=None, to_timestamp=None):
         """Remove all messages belonging to a login, or a subset by timestamp/range"""

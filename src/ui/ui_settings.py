@@ -2,7 +2,7 @@
 from pathlib import Path
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QScrollArea,
-    QCheckBox, QComboBox, QSpinBox, QSlider, QMessageBox
+    QCheckBox, QComboBox, QSpinBox, QSlider, QMessageBox, QTextEdit
 )
 from PyQt6.QtCore import Qt, pyqtSignal
 
@@ -156,6 +156,7 @@ class SettingsWidget(QWidget):
         self._build_startup_section()
         self._build_chat_section()
         self._build_notifications_section()
+        self._build_competitions_section()
         self._build_sound_section()
 
         self._sections_layout.addStretch(1)
@@ -192,7 +193,38 @@ class SettingsWidget(QWidget):
             on_reset=self._on_notification_width_reset
         )
 
+    def _build_competitions_section(self):
+        section = self._create_section("Competitions")
+
+        # status row: green/red indicator + checkbox
+        status_row = QHBoxLayout()
+        status_row.setSpacing(self.config.get("ui", "spacing", "widget_elements") or 6)
+        self.competitions_indicator = QLabel("●")
+        self.competitions_indicator.setFixedWidth(16)
+        status_row.addWidget(self.competitions_indicator)
+        self.track_competitions_checkbox = QCheckBox("Track rating competitions")
+        self.track_competitions_checkbox.setFont(get_font(FontType.UI))
+        self.track_competitions_checkbox.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.track_competitions_checkbox.toggled.connect(self._on_track_competitions_toggled)
+        status_row.addWidget(self.track_competitions_checkbox, 1)
+        section.addLayout(status_row)
+
+        self.min_multiplier_combo = self._add_combo_row(
+            section, "Minimum multiplier", ["x1+", "x2+", "x3+", "x5+"],
+            self._on_min_multiplier_changed
+        )
+
+        self.competitions_log = QTextEdit()
+        self.competitions_log.setReadOnly(True)
+        self.competitions_log.setFixedHeight(300)
+        self.competitions_log.setFont(get_font(FontType.UI))
+        self.competitions_log.setPlaceholderText("Competition log")
+        self.competitions_log.setAcceptRichText(True)
+        self._apply_competitions_log_theme()
+        section.addWidget(self.competitions_log)
+
     def _build_sound_section(self):
+
         section = self._create_section("Sound")
         self.mention_always_checkbox = self._add_checkbox(
             section, "Always play mention sound", self._on_mention_always_toggled
@@ -206,6 +238,7 @@ class SettingsWidget(QWidget):
         widgets = (
             self.auto_login_checkbox, self.start_minimized_checkbox, self.start_with_system_checkbox,
             self.clear_private_checkbox, self.youtube_checkbox,
+            self.track_competitions_checkbox, self.min_multiplier_combo,
             self.notification_position_combo, self.notification_width_spin,
             self.mention_always_checkbox,
         )
@@ -219,6 +252,14 @@ class SettingsWidget(QWidget):
         self.clear_private_checkbox.setChecked(bool(self.config.get("ui", "clear_private_messages_on_exit")))
         youtube_enabled = self.config.get("ui", "youtube", "enabled")
         self.youtube_checkbox.setChecked(True if youtube_enabled is None else bool(youtube_enabled))
+
+        track = self.config.get("competitions", "enabled")
+        enabled = True if track is None else bool(track)
+        self.track_competitions_checkbox.setChecked(enabled)
+        self._update_competitions_status(enabled, None if not enabled else "connecting")
+        min_m = self.config.get("competitions", "min_multiplier") or "x1+"
+        idx = self.min_multiplier_combo.findText(min_m)
+        self.min_multiplier_combo.setCurrentIndex(idx if idx >= 0 else 0)
 
         position = (self.config.get("ui", "notification_position") or "right").capitalize()
         idx = self.notification_position_combo.findText(position)
@@ -257,6 +298,153 @@ class SettingsWidget(QWidget):
 
     def _on_youtube_toggled(self, checked: bool):
         self.config.set("ui", "youtube", "enabled", value=checked)
+
+    def _on_track_competitions_toggled(self, checked: bool):
+        self.config.set("competitions", "enabled", value=checked)
+        self._update_competitions_status(checked)
+
+    def _status_log_html(self, text: str, kind: str) -> str:
+        c = self._competitions_log_colors()
+        color = {
+            "disabled": c["error"],
+            "enabled": c["finished"],
+        }.get(kind, c["default"])
+        return f'<span style="color:{color}"><b>{text}</b></span>'
+
+    def _update_competitions_status(self, enabled: bool, connection: str | None = None):
+        """connection: connecting | connected | disconnected (optional).
+        Log text is owned by ChatWindow buffer — do not clear it here when enabled.
+        """
+        self._apply_competitions_log_theme()
+        if not enabled:
+            self.competitions_indicator.setStyleSheet("color: #e74c3c; font-size: 14px;")
+            self.competitions_indicator.setToolTip("Tracking disabled")
+            self.competitions_log.setEnabled(False)
+            self.competitions_log.setHtml(self._status_log_html("Tracking disabled", "disabled"))
+            return
+
+        self.competitions_log.setEnabled(True)
+        # If log only had the disabled placeholder, show enabled status
+        plain = self.competitions_log.toPlainText().strip()
+        if plain in ("", "Tracking disabled"):
+            self.competitions_log.setHtml(self._status_log_html("Tracking enabled", "enabled"))
+
+        state = connection or "connecting"
+        if state == "connected":
+            self.competitions_indicator.setStyleSheet("color: #2ecc71; font-size: 14px;")
+            self.competitions_indicator.setToolTip("Connected")
+        elif state == "connecting":
+            self.competitions_indicator.setStyleSheet("color: #f39c12; font-size: 14px;")
+            self.competitions_indicator.setToolTip("Connecting...")
+        else:
+            self.competitions_indicator.setStyleSheet("color: #f39c12; font-size: 14px;")
+            self.competitions_indicator.setToolTip("Reconnecting...")
+
+
+    def _competitions_log_colors(self) -> dict:
+        is_dark = (self.config.get("ui", "theme") or "dark") == "dark"
+        if is_dark:
+            return {
+                "bg": "#1E1E1E",
+                "fg": "#D4D4D4",
+                "ws": "#888888",
+                "waiting": "#4EC9B0",
+                "paused": "#DCDCAA",
+                "racing": "#569CD6",
+                "finished": "#6A9955",
+                "error": "#F44747",
+                "default": "#D4D4D4",
+            }
+        return {
+            "bg": "#FFFFFF",
+            "fg": "#333333",
+            "ws": "#6A6A6A",
+            "waiting": "#0E8A6A",
+            "paused": "#8A7A00",
+            "racing": "#1A6FB5",
+            "finished": "#2E7D32",
+            "error": "#C62828",
+            "default": "#333333",
+        }
+
+    def _apply_competitions_log_theme(self):
+        c = self._competitions_log_colors()
+        self.competitions_log.setStyleSheet(
+            f"QTextEdit {{ background-color: {c['bg']}; color: {c['fg']}; border: none; }}"
+        )
+
+    def _colorize_log_line(self, line: str) -> str:
+        from html import escape
+        import re as _re
+        c = self._competitions_log_colors()
+        low = line.lower()
+        if "[ws]" in low or "  ws " in f"  {low}":
+            color = c["ws"]
+        elif "waiting" in low:
+            color = c["waiting"]
+        elif "paused" in low:
+            color = c["paused"]
+        elif "racing" in low:
+            color = c["racing"]
+        elif "finished" in low:
+            color = c["finished"]
+        elif "error" in low or "disconnect" in low:
+            color = c["error"]
+        else:
+            color = c["default"]
+
+        def _bold_tag(m):
+            return f"{m.group(1)}<b>{escape(m.group(2))}</b>{m.group(3)}"
+
+        html_line = escape(line)
+        html_line = _re.sub(
+            r"^(\d{2}:\d{2}:\d{2}\s+)(\[?\w+\+?]?)(\s+)",
+            _bold_tag,
+            html_line,
+            count=1,
+        )
+        return f'<span style="color:{color}">{html_line}</span>'
+
+    def set_competition_log_lines(self, lines: list):
+        """Replace log content from chat session buffer (HTML colored)."""
+        self._apply_competitions_log_theme()
+        if not lines:
+            self.competitions_log.clear()
+            return
+        html = "<br>".join(self._colorize_log_line(x) for x in lines)
+        self.competitions_log.setHtml(html)
+        cursor = self.competitions_log.textCursor()
+        cursor.movePosition(cursor.MoveOperation.End)
+        self.competitions_log.setTextCursor(cursor)
+
+    def update_theme(self):
+        """Re-apply competitions log colors after theme toggle."""
+        if not hasattr(self, "competitions_log"):
+            return
+        lines = self.competitions_log.toPlainText().splitlines()
+        if lines and lines != ["Tracking disabled"]:
+            self.set_competition_log_lines(lines)
+        else:
+            self._apply_competitions_log_theme()
+
+    def append_competition_log(self, line: str):
+        """Called from chat when a competition event is logged."""
+        if not self.track_competitions_checkbox.isChecked():
+            return
+        cursor = self.competitions_log.textCursor()
+        cursor.movePosition(cursor.MoveOperation.End)
+        if self.competitions_log.toPlainText():
+            cursor.insertHtml("<br>" + self._colorize_log_line(line))
+        else:
+            cursor.insertHtml(self._colorize_log_line(line))
+        self.competitions_log.setTextCursor(cursor)
+        if self.competitions_log.document().blockCount() > 200:
+            lines = self.competitions_log.toPlainText().splitlines()[-200:]
+            self.set_competition_log_lines(lines)
+
+
+    def _on_min_multiplier_changed(self, text: str):
+        self.config.set("competitions", "min_multiplier", value=text)
 
     def _on_notification_position_changed(self, text: str):
         self.config.set("ui", "notification_position", value=text.lower())

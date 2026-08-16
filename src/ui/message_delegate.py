@@ -258,9 +258,13 @@ class MessageDelegate(QStyledItemDelegate):
     def _get_display_body(msg) -> tuple:
         """Return (display_body, is_system) with /me formatting and type emoji prefix applied."""
         body, is_me = format_me_action(msg.body, msg.username)
+        is_competition = bool(getattr(msg, 'is_competition', False))
         is_system = is_me or bool(getattr(msg, 'is_system', False))
-        body = MessageRenderer._emoji_prefix(body, msg.is_private, msg.is_ban, is_system)
-        return body, is_system
+        body = MessageRenderer._emoji_prefix(
+            body, msg.is_private, msg.is_ban, is_system, is_competition
+        )
+        # layout treats competition like system (no username column)
+        return body, is_system or is_competition
 
     @staticmethod
     def format_reply_text(username: str, text: str, timestamp=None) -> str:
@@ -386,10 +390,13 @@ class MessageDelegate(QStyledItemDelegate):
       
         # Resolve display body and message type once - used for both timestamp color and content
         display_body, is_system = self._get_display_body(msg)
+        is_competition = bool(getattr(msg, 'is_competition', False))
       
         # Paint timestamp - color matches text color for special message types
         painter.setFont(self.timestamp_font)
-        ts_color = self.message_renderer.get_timestamp_color(msg.is_ban, msg.is_private, is_system)
+        ts_color = self.message_renderer.get_timestamp_color(
+            msg.is_ban, msg.is_private, is_system, is_competition
+        )
         ts_width = ts_fm.horizontalAdvance(time_str)
         ts_rect = QRect(x, y, ts_width, ts_fm.height())
 
@@ -437,18 +444,14 @@ class MessageDelegate(QStyledItemDelegate):
             content_width = width
             link_rects = self.message_renderer.paint_content(
                 painter, x, content_y, content_width, display_body, row,
-                getattr(msg, 'is_private', False),
-                getattr(msg, 'is_ban', False),
-                is_system
+                msg.is_private, msg.is_ban, is_system, is_competition,
             )
         else:
             # Normal mode: content on same line after username/timestamp
             content_width = rect.width() - (content_x - rect.x()) - self.padding
             link_rects = self.message_renderer.paint_content(
                 painter, content_x, y, content_width, display_body, row,
-                getattr(msg, 'is_private', False),
-                getattr(msg, 'is_ban', False),
-                is_system
+                msg.is_private, msg.is_ban, is_system, is_competition,
             )
         
         self.click_rects[row]['links'] = link_rects
