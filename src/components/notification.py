@@ -36,7 +36,6 @@ class NotificationData:
     is_system: bool = False
     is_competition: bool = False
     timestamp: Optional[datetime] = None
-    click_url: Optional[str] = None
     tag: Optional[str] = None
 
 
@@ -388,17 +387,6 @@ class PopupNotification(QWidget):
                         # Don't close notification when link is clicked
                         return
           
-            # Competition / external link: open in browser instead of chat
-            if self.data.click_url:
-                try:
-                    from PyQt6.QtGui import QDesktopServices
-                    from PyQt6.QtCore import QUrl
-                    QDesktopServices.openUrl(QUrl(self.data.click_url))
-                except Exception as e:
-                    print(f"❌ Error opening url: {e}")
-                self.manager.close_all()
-                return
-
             # Show chat window if callback exists
             if self.data.window_show_callback:
                 try:

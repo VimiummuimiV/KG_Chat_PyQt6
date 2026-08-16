@@ -1558,14 +1558,14 @@ class ChatWindow(QWidget):
                 show_notification(
                     title=f"Competition {mult}",
                     message=body,
-                    duration=8000,
+                    duration=10000,
                     config=self.config,
                     cache=getattr(self, "cache", None),
                     emoticon_manager=getattr(self, "emoticon_manager", None),
                     account=getattr(self, "account", None),
                     is_system=False,
                     is_competition=True,
-                    click_url=url or None,
+                    window_show_callback=self._show_and_focus_window,
                     tag=tag,
                 )
             except Exception as e:
