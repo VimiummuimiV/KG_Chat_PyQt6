@@ -3630,5 +3630,7 @@
   "842146": {"login": "Asiiat", "background": "#777777", "light": "#767676", "dark": "#858585"},
   "386661": {"login": "DC_MaSt", "background": "#000000", "light": "#000000", "dark": "#858585"},
   "842148": {"login": "MIOSIM", "background": "#777777", "light": "#767676", "dark": "#858585"},
-  "842149": {"login": "badboydio", "background": "#777777", "light": "#767676", "dark": "#858585"}
+  "842149": {"login": "badboydio", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "842154": {"login": "Dfax", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "842155": {"login": "vladlenhehe", "background": "#777777", "light": "#767676", "dark": "#858585"}
 }

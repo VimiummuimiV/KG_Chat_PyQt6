@@ -219,6 +219,14 @@ class SettingsWidget(QWidget):
         status_row.addWidget(self.track_competitions_checkbox, 1)
         section.addLayout(status_row)
 
+        self.competitions_bypass_mute_checkbox = self._add_checkbox(
+            section, "Notify about competitions even when muted", self._on_competitions_bypass_mute_toggled
+        )
+        self.competitions_force_sound_checkbox = self._add_checkbox(
+            section, "Always play competition sound (ignore sound effects toggle)",
+            self._on_competitions_force_sound_toggled
+        )
+
         self.min_multiplier_combo = self._add_combo_row(
             section, "Minimum multiplier", ["x1+", "x2+", "x3+", "x5+"],
             self._on_min_multiplier_changed
@@ -257,7 +265,8 @@ class SettingsWidget(QWidget):
         widgets = (
             self.auto_login_checkbox, self.start_minimized_checkbox, self.start_with_system_checkbox,
             self.clear_private_checkbox, self.youtube_checkbox,
-            self.track_competitions_checkbox, self.min_multiplier_combo,
+            self.track_competitions_checkbox, self.competitions_bypass_mute_checkbox,
+            self.competitions_force_sound_checkbox, self.min_multiplier_combo,
             self.notification_position_combo, self.notification_width_spin,
             self.mention_always_checkbox,
         )
@@ -276,6 +285,12 @@ class SettingsWidget(QWidget):
         enabled = True if track is None else bool(track)
         self.track_competitions_checkbox.setChecked(enabled)
         self._update_competitions_status(enabled, None if not enabled else "connecting")
+        self.competitions_bypass_mute_checkbox.setChecked(
+            bool(self.config.get("notification", "competitions_bypass_mute"))
+        )
+        self.competitions_force_sound_checkbox.setChecked(
+            bool(self.config.get("sound", "competition_sound_force"))
+        )
         min_m = self.config.get("competitions", "min_multiplier") or "x1+"
         idx = self.min_multiplier_combo.findText(min_m)
         self.min_multiplier_combo.setCurrentIndex(idx if idx >= 0 else 0)
@@ -321,6 +336,12 @@ class SettingsWidget(QWidget):
     def _on_track_competitions_toggled(self, checked: bool):
         self.config.set("competitions", "enabled", value=checked)
         self._update_competitions_status(checked)
+
+    def _on_competitions_bypass_mute_toggled(self, checked: bool):
+        self.config.set("notification", "competitions_bypass_mute", value=checked)
+
+    def _on_competitions_force_sound_toggled(self, checked: bool):
+        self.config.set("sound", "competition_sound_force", value=checked)
 
     def _status_log_html(self, text: str, kind: str) -> str:
         c = self._competitions_log_colors()

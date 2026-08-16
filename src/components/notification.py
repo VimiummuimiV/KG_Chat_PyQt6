@@ -682,9 +682,14 @@ class PopupManager:
         self.muted = muted
   
     def show_notification(self, data: NotificationData):
-        """Create and show notification (unless muted)"""
-        # If muted, don't show notification
-        if self.muted:
+        """Create and show notification (unless muted).
+        Rating-competition notifications can be allowed to bypass mute via
+        notification.competitions_bypass_mute in config.
+        """
+        bypass_mute = data.is_competition and data.config and data.config.get(
+            "notification", "competitions_bypass_mute"
+        )
+        if self.muted and not bypass_mute:
             return None
        
         self.config = data.config

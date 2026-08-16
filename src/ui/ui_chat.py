@@ -144,6 +144,7 @@ class ChatWindow(QWidget):
             self.voice_engine.set_pronunciation_manager(self.pronunciation_manager)
         self.mention_sound_path = None
         self.ban_sound_path = None
+        self.competition_sound_path = None
         self._setup_sounds()
 
         self._init_ui()
@@ -375,6 +376,10 @@ class ChatWindow(QWidget):
         # Setup ban sound
         ban_sound_path = sounds_dir / "banned.mp3"
         self.ban_sound_path = str(ban_sound_path) if ban_sound_path.exists() else None
+
+        # Setup rating competition sound
+        competition_sound_path = sounds_dir / "competition.mp3"
+        self.competition_sound_path = str(competition_sound_path) if competition_sound_path.exists() else None
 
     def _init_ui(self):
         window_title = f"Chat - {self.account['chat_username']}" if self.account else "Chat"
@@ -1552,6 +1557,10 @@ class ChatWindow(QWidget):
             self.add_local_message(msg)
         except Exception as e:
             print(f"[races] local message error: {e}")
+
+        # Competition sound plays regardless of window focus, like ban sound
+        self._play_competition_sound()
+
         # Same rule as chat messages: notify only when window is not focused
         if not self.isActiveWindow():
             try:
@@ -1802,6 +1811,23 @@ class ChatWindow(QWidget):
             except Exception as e:
                 print(f"Ban sound playback error: {e}")
         
+        threading.Thread(target=_play, daemon=True).start()
+
+    def _play_competition_sound(self):
+        """Play rating-competition sound. Falls back to mention sound if no
+        dedicated file is present. Can bypass the effects-sound toggle via
+        sound.competition_sound_force in config (set from Settings)."""
+        path = self.competition_sound_path or self.mention_sound_path
+        if not path:
+            return
+        force = self.config.get("sound", "competition_sound_force") or False
+
+        def _play():
+            try:
+                play_sound(path, config=self.config, force=force)
+            except Exception as e:
+                print(f"Competition sound playback error: {e}")
+
         threading.Thread(target=_play, daemon=True).start()
 
     def on_presence(self, pres):
