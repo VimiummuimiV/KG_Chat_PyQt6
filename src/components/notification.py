@@ -451,14 +451,20 @@ class PopupNotification(QWidget):
         self.fade_in.setEndValue(1.0)
         self.fade_in.start()
   
-    def _animate_out(self):
-        """Fade out animation"""
-        if self.is_hovered or self.reply_field_visible:
+    def _animate_out(self, force: bool = False):
+        """Fade out animation.
+        force=True bypasses the hover check (used for tag-based closes, e.g.
+        race status changes). An open reply field always blocks the close,
+        so we never yank the popup out from under the user mid-reply.
+        """
+        if self.reply_field_visible or (self.is_hovered and not force):
             return
-      
+        if self.hide_timer and self.hide_timer.isActive():
+            self.hide_timer.stop()
+
         self.fade_out = QPropertyAnimation(self, b"windowOpacity")
         self.fade_out.setDuration(300)
-        self.fade_out.setStartValue(1.0)
+        self.fade_out.setStartValue(self.windowOpacity())
         self.fade_out.setEndValue(0.0)
         self.fade_out.finished.connect(self._on_close)
         self.fade_out.start()
@@ -730,10 +736,7 @@ class PopupManager:
             return
         for popup in list(self.popups):
             if getattr(popup.data, "tag", None) == tag:
-                if hasattr(popup, "_animate_out"):
-                    popup._animate_out()
-                else:
-                    popup.close_immediately()
+                popup._animate_out(force=True)
   
     def _position_and_cleanup(self):
         """Position all popups and handle overflow"""
