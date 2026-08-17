@@ -1,14 +1,17 @@
 """Voice Engine for TTS (Text-to-Speech)"""
+import os
 import re
+import subprocess
+import sys
+import tempfile
 import threading
+import time
 from queue import Queue
 from typing import Optional
-import tempfile
-import os
-import time
 
 from playsound3 import playsound
 from gtts import gTTS
+
 
 def clean_text_for_tts(text: str) -> str:
     """Clean text for TTS by removing symbols, URLs, and punctuation"""
@@ -16,7 +19,7 @@ def clean_text_for_tts(text: str) -> str:
     text = re.sub(
         r'https?://(?:www\.)?([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})(?:/[^\s]*)?',
         r'\1',
-        text
+        text,
     )
     
     # Convert hyphens, minus signs, and underscores to spaces for natural pauses
@@ -33,14 +36,14 @@ def clean_text_for_tts(text: str) -> str:
 
 class VoiceEngine:
     """Manages TTS playback with queuing support"""
-   
+
     def __init__(self):
         self.enabled = False
         self.queue = Queue()
         self.last_username = None
         self.worker = None
         self.pronunciation_manager = None
-       
+
     def set_enabled(self, enabled: bool):
         self.enabled = enabled
         if enabled and (not self.worker or not self.worker.is_alive()):
@@ -48,11 +51,11 @@ class VoiceEngine:
             self.worker.start()
         elif not enabled:
             self._clear_queue()
-    
+
     def set_pronunciation_manager(self, pronunciation_manager):
         """Set the pronunciation manager for username replacements"""
         self.pronunciation_manager = pronunciation_manager
-   
+
     def _process_queue(self):
         while True:
             try:
@@ -65,17 +68,15 @@ class VoiceEngine:
                 self.queue.task_done()
             except Exception as e:
                 print(f"TTS error: {e}")
-   
+
     def _speak(self, text: str, lang: str):
         temp_file_path = None
         try:
             with tempfile.NamedTemporaryFile(delete=False, suffix='.mp3') as temp_file:
                 temp_file_path = temp_file.name
                 gTTS(text=text, lang=lang, slow=False).write_to_fp(temp_file)
-            
             time.sleep(0.05)
             playsound(temp_file_path, block=True)
-                
         except Exception as e:
             print(f"TTS playback error: {e}")
         finally:
@@ -85,37 +86,34 @@ class VoiceEngine:
                     os.unlink(temp_file_path)
                 except Exception as e:
                     print(f"Temp file cleanup error: {e}")
-   
+
     def _clear_queue(self):
         while not self.queue.empty():
             try:
                 self.queue.get_nowait()
-            except:
+            except Exception:
                 break
-   
-    def speak_message(self, username: str, message: str, my_username: str, is_initial: bool = False, 
-                     is_private: bool = False, is_ban: bool = False, is_system: bool = False):
-        """Speak a message with appropriate verb based on message type
-        
-        Args:
-            username: Username of the sender
-            message: Message text
-            my_username: Current user's username
-            is_initial: Whether this is an initial/historical message
-            is_private: Whether this is a private message (directed to me)
-            is_ban: Whether this is a ban message from Клавобот
-            is_system: Whether this is a system message (/me command)
-            
-        Verb selection and announcement logic:
-            - Ban messages: ALWAYS announce with "ультует" (insults)
-            - Private messages: ALWAYS announce with "обращается" (appeals to)
-            - Mentions: ALWAYS announce with "обращается" (appeals to)
-            - System messages: No announcement (message already contains username)
-            - Regular messages: announce with "пишет" (writes) only when username changes
+
+    def speak_message(
+        self,
+        username: str,
+        message: str,
+        my_username: str,
+        is_initial: bool = False,
+        is_private: bool = False,
+        is_ban: bool = False,
+        is_system: bool = False,
+    ):
+        """Speak a message with appropriate verb based on message type.
+
+        - Ban: always «ультует»
+        - Private / mention: always «обращается»
+        - System (/me): no announcement
+        - Regular: «пишет» only when username changes
         """
         if not self.enabled or is_initial:
             return
-       
+
         is_mention = my_username.lower() in message.lower()
        
         # Get pronunciation for username if manager is available
@@ -130,12 +128,12 @@ class VoiceEngine:
         chunks = []
         current_chunk = []
         current_lang = None
-        
+
         for word in cleaned_message.split():
             # Detect language of this word
             is_cyrillic = any('\u0400' <= c <= '\u04FF' for c in word)
-            is_digit_only = word.isdigit() or all(c.isdigit() or c == '.' or c == ',' for c in word)
-            
+            is_digit_only = word.isdigit() or all(c.isdigit() or c in '.,' for c in word)
+
             # Digits are ALWAYS pronounced in Russian
             if is_digit_only:
                 word_lang = 'ru'
@@ -143,10 +141,10 @@ class VoiceEngine:
                 word_lang = 'ru'
             else:
                 word_lang = 'en'
-            
+
             if current_lang is None:
                 current_lang = word_lang
-            
+
             if word_lang == current_lang:
                 current_chunk.append(word)
             else:
@@ -162,22 +160,23 @@ class VoiceEngine:
         
         # Determine if we need to announce the username
         announce_username = False
-        
+        verb = ''
+
         if is_system:
             # System message (/me): don't announce username, message already contains it
             # e.g., "* username does something" - just read as-is
             announce_username = False
         elif is_ban:
             # Ban message: always announce with "ультует"
-            verb = "ультует"
+            verb = 'ультует'
             announce_username = True
         elif is_private or is_mention:
             # Private message or mention: ALWAYS announce with "обращается"
-            verb = "обращается"
+            verb = 'обращается'
             announce_username = True
         elif username != self.last_username:
             # Regular message: announce with "пишет" only when username changes
-            verb = "пишет"
+            verb = 'пишет'
             announce_username = True
             self.last_username = username
         
@@ -187,16 +186,16 @@ class VoiceEngine:
             # Username is in Russian if it contains Cyrillic, otherwise English
             if any('\u0400' <= c <= '\u04FF' for c in spoken_username):
                 # Russian username - announce everything in Russian
-                chunks.insert(0, (f"{spoken_username} {verb}.", 'ru'))
+                chunks.insert(0, (f'{spoken_username} {verb}.', 'ru'))
             else:
                 # English username - username in English, verb in Russian
                 chunks.insert(0, (spoken_username, 'en'))
-                chunks.insert(1, (f"{verb}.", 'ru'))
-        
+                chunks.insert(1, (f'{verb}.', 'ru'))
+
         # Queue each chunk separately with its language
         for text, lang in chunks:
             self.queue.put((text, lang))
-   
+
     def shutdown(self):
         self.enabled = False
         self._clear_queue()
@@ -214,25 +213,70 @@ def get_voice_engine() -> VoiceEngine:
     return _voice_engine
 
 
-def play_sound(sound_path: str, volume: float = 1.0, config=None, force: bool = False):
-    if volume == 0.0:
+# One effect at a time: previous process is terminated before a new one starts.
+_sound_lock = threading.Lock()
+_sound_proc = None
+
+
+def cancel_current_sound():
+    """Stop the effect currently playing, if any."""
+    global _sound_proc
+    proc = _sound_proc
+    if proc is None or proc.poll() is not None:
+        _sound_proc = None
         return
-    
-    # Check if effects sound is enabled, unless explicitly forced
-    if config and not force:
-        effects_enabled = config.get("sound", "effects_enabled")
-        if effects_enabled is False:
-            return
-        
-    def _play():
+    try:
+        proc.terminate()
+        proc.wait(timeout=1)
+    except Exception:
         try:
-            playsound(sound_path, block=False)
-        except Exception as e:
-            print(f"Sound error: {e}")
+            proc.kill()
+        except Exception:
+            pass
+    _sound_proc = None
+
+
+def play_sound(sound_path: str, volume: float = 1.0, config=None, force: bool = False):
+    """Play a short effect. Stops any previous effect first (no stacking).
+
+    force=True skips the effects_enabled check (settings preview).
+    """
+    if volume == 0.0 or not sound_path:
+        return
+
+    if config and not force:
+        if config.get('sound', 'effects_enabled') is False:
+            return
+
+    def _play():
+        global _sound_proc
+        with _sound_lock:
+            cancel_current_sound()
             try:
-                from PyQt6.QtWidgets import QApplication
-                QApplication.instance().beep()
-            except:
-                pass
-    
+                _sound_proc = subprocess.Popen(
+                    [
+                        sys.executable,
+                        '-c',
+                        'import sys; from playsound3 import playsound; '
+                        'playsound(sys.argv[1], block=True)',
+                        sound_path,
+                    ],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    stdin=subprocess.DEVNULL,
+                )
+                _sound_proc.wait()
+            except Exception as e:
+                print(f'Sound error: {e}')
+                try:
+                    from PyQt6.QtWidgets import QApplication
+                    app = QApplication.instance()
+                    if app:
+                        app.beep()
+                except Exception:
+                    pass
+            finally:
+                if _sound_proc is not None and _sound_proc.poll() is not None:
+                    _sound_proc = None
+
     threading.Thread(target=_play, daemon=True).start()

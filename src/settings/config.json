@@ -139,7 +139,12 @@
     "tts_enabled": false,
     "effects_enabled": true,
     "play_mention_sound_always": false,
-    "competition_sound_force": true
+    "competition_sound_force": true,
+    "selected": {
+      "mention": "mention.mp3",
+      "competition": "competition.mp3",
+      "ban": "banned.mp3"
+    }
   },
   "notification": {
     "mode": "replace",

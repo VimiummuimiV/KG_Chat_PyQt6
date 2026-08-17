@@ -1,25 +1,408 @@
 """Application Settings widget"""
 from pathlib import Path
+import shutil
+
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QScrollArea,
     QCheckBox, QComboBox, QSpinBox, QSlider, QMessageBox, QTextEdit,
-    QApplication
+    QApplication, QInputDialog, QFileDialog
 )
-from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtCore import Qt, pyqtSignal, QTimer
 
 from helpers.create import create_icon_button
 from helpers.fonts import get_font, FontType
 from helpers.startup_manager import StartupManager
+from helpers.voice_engine import play_sound
+from helpers.data import get_data_dir
 
 NOTIFICATION_WIDTH_DEFAULT = 550
 COMPETITIONS_LOG_HEIGHT = 300
-COMPETITIONS_LOG_HEIGHT_COLLAPSED = 32 
+COMPETITIONS_LOG_HEIGHT_COLLAPSED = 32
+
+
+# kind == folder name == config key: "mention" | "ban" | "competition"
+
+def get_system_sound_dir(sound_root: Path, kind: str) -> Path:
+    """Project-bundled sounds (read-only for the user)."""
+    if not sound_root:
+        return Path()
+    return sound_root / (kind or "").strip().lower()
+
+
+def get_user_sound_dir(kind: str) -> Path:
+    """User-writable sounds under KG_Chat_Data/sounds/<kind>/."""
+    return get_data_dir("sounds") / (kind or "").strip().lower()
+
+
+def get_sound_files(sound_dir: Path) -> list[str]:
+    """Return sorted MP3 names from one directory."""
+    if not sound_dir or not sound_dir.exists():
+        return []
+    return sorted(
+        [p.name for p in sound_dir.iterdir() if p.is_file() and p.suffix.lower() == ".mp3"],
+        key=lambda name: name.lower(),
+    )
+
+
+def get_merged_sound_files(system_dir: Path, user_dir: Path) -> list[str]:
+    """Unique filenames from system + user dirs (user overrides on name clash)."""
+    names = set(get_sound_files(system_dir)) | set(get_sound_files(user_dir))
+    return sorted(names, key=lambda n: n.lower())
+
+
+def resolve_sound_file(name: str, system_dir: Path, user_dir: Path) -> Path | None:
+    """Prefer user copy, then system."""
+    if not name:
+        return None
+    user_path = user_dir / name
+    if user_path.is_file():
+        return user_path
+    system_path = system_dir / name
+    if system_path.is_file():
+        return system_path
+    return None
+
+
+def _read_selected_name(config, kind: str) -> str | None:
+    """Read sound.selected.<kind>; accept legacy key 'banned' as 'ban'."""
+    if isinstance(config, dict):
+        selected = (config.get("sound") or {}).get("selected") or {}
+    else:
+        selected = config.get("sound", "selected") or {}
+    if not isinstance(selected, dict):
+        return None
+    name = selected.get(kind)
+    if not name and kind == "ban":
+        name = selected.get("banned")  # legacy
+    return name
+
+
+def get_sound_name(sound_root: Path, kind: str, config) -> str | None:
+    """Filename currently chosen for this kind, or a sensible default."""
+    system_dir = get_system_sound_dir(sound_root, kind)
+    user_dir = get_user_sound_dir(kind)
+    files = get_merged_sound_files(system_dir, user_dir)
+    if not files:
+        return None
+
+    name = _read_selected_name(config, kind)
+    if name and name in files:
+        return name
+
+    # Prefer <kind>.mp3 if present, else first file
+    preferred = f"{(kind or '').strip().lower()}.mp3"
+    if preferred in files:
+        return preferred
+    return files[0]
+
+
+def get_sound_path(sound_root: Path, kind: str, config) -> Path | None:
+    """Full path to the active sound for this kind (user dir wins over system)."""
+    name = get_sound_name(sound_root, kind, config)
+    if not name:
+        return None
+    return resolve_sound_file(
+        name,
+        get_system_sound_dir(sound_root, kind),
+        get_user_sound_dir(kind),
+    )
+
+
+class SoundSelectorWidget(QWidget):
+    """Selector for one notification sound type.
+
+    System sounds (project/sounds/...) are listed but cannot be deleted or renamed.
+    User sounds live in KG_Chat_Data/sounds/<kind>/ and can be added, renamed, deleted.
+    """
+
+    def __init__(self, config, sound_root: Path, kind: str, label_text: str):
+        super().__init__()
+        self.config = config
+        self.sound_root = sound_root
+        self.kind = kind
+        self.config_key = (kind or '').strip().lower()
+        self.system_dir = get_system_sound_dir(sound_root, kind)
+        self.user_dir = get_user_sound_dir(kind)
+        self.icons_path = Path(__file__).parent.parent / "icons"
+
+        layout = QHBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(6)
+        self.setLayout(layout)
+
+        label = QLabel(label_text)
+        label.setFont(get_font(FontType.UI))
+        layout.addWidget(label)
+
+        self.prev_button = create_icon_button(
+            self.icons_path, "arrow-left.svg", "Previous sound", size_type="small", config=self.config
+        )
+        self.prev_button.clicked.connect(self._on_prev)
+        layout.addWidget(self.prev_button)
+
+        self.combo = QComboBox()
+        self.combo.setFont(get_font(FontType.UI))
+        self.combo.currentIndexChanged.connect(self._on_combo_changed)
+        self.combo.setMinimumWidth(180)
+        layout.addWidget(self.combo, stretch=1)
+
+        self.next_button = create_icon_button(
+            self.icons_path, "arrow-right.svg", "Next sound", size_type="small", config=self.config
+        )
+        self.next_button.clicked.connect(self._on_next)
+        layout.addWidget(self.next_button)
+
+        self.play_button = create_icon_button(
+            self.icons_path, "play.svg", "Play sound", size_type="small", config=self.config
+        )
+        self.play_button.clicked.connect(self._on_play)
+        layout.addWidget(self.play_button)
+
+        self.add_button = create_icon_button(
+            self.icons_path, "add.svg", "Add sound from file", size_type="small", config=self.config
+        )
+        self.add_button.clicked.connect(self._on_add)
+        layout.addWidget(self.add_button)
+
+        self.delete_button = create_icon_button(
+            self.icons_path, "trash.svg", "Delete sound", size_type="small", config=self.config
+        )
+        self.delete_button.clicked.connect(self._on_delete)
+        layout.addWidget(self.delete_button)
+
+        self.rename_button = create_icon_button(
+            self.icons_path, "pencil.svg", "Rename sound", size_type="small", config=self.config
+        )
+        self.rename_button.clicked.connect(self._on_rename)
+        layout.addWidget(self.rename_button)
+
+        self.refresh()
+
+    # ------------------------------------------------------------------ #
+    # Helpers
+    # ------------------------------------------------------------------ #
+    def _safe_name(self) -> str | None:
+        current = self.combo.currentText()
+        if current and current != "No sound":
+            return current
+        return None
+
+    def _is_user_owned(self, file_name: str | None) -> bool:
+        if not file_name:
+            return False
+        return (self.user_dir / file_name).is_file()
+
+    def _resolve_path(self, file_name: str | None) -> Path | None:
+        if not file_name:
+            return None
+        return resolve_sound_file(file_name, self.system_dir, self.user_dir)
+
+    def _update_edit_buttons(self):
+        """Delete/Rename only for user-owned files."""
+        user_owned = self._is_user_owned(self._safe_name())
+        self.delete_button.setEnabled(user_owned)
+        self.rename_button.setEnabled(user_owned)
+
+    def _persist_selection(self, name: str | None):
+        if not self.config:
+            return
+        selected = self.config.get("sound", "selected") or {}
+        if not isinstance(selected, dict):
+            selected = {}
+        selected = dict(selected)
+
+        if self.config_key == "ban":
+            selected.pop("banned", None)  # drop legacy key
+        if name:
+            selected[self.config_key] = name
+        else:
+            selected.pop(self.config_key, None)
+
+        self.config.set(
+            "sound",
+            "selected",
+            value={k: v for k, v in selected.items() if v is not None},
+        )
+
+    def _play_file(self, file_name: str | None):
+        """Stop any current effect and play the chosen file (preview ignores mute)."""
+        path = self._resolve_path(file_name)
+        if not path:
+            return
+        # force=True so preview works even when effects are muted;
+        # play_sound already cancels the previous sound.
+        play_sound(str(path), config=self.config, force=True)
+
+    # ------------------------------------------------------------------ #
+    # Refresh / selection
+    # ------------------------------------------------------------------ #
+    def refresh(self, select_name: str | None = None):
+        files = get_merged_sound_files(self.system_dir, self.user_dir)
+        self.combo.blockSignals(True)
+        self.combo.clear()
+
+        if not files:
+            self.combo.addItem("No sound")
+            self.combo.setEnabled(False)
+            self._persist_selection(None)
+            self.combo.blockSignals(False)
+            self._update_edit_buttons()
+            return
+
+        self.combo.setEnabled(True)
+        self.combo.addItems(files)
+
+        preferred = select_name or get_sound_name(self.sound_root, self.kind, self.config)
+        index = self.combo.findText(preferred) if preferred else -1
+        self.combo.setCurrentIndex(index if index >= 0 else 0)
+
+        current = self.combo.currentText()
+        self._persist_selection(current if current != "No sound" else None)
+        self.combo.blockSignals(False)
+        self._update_edit_buttons()
+
+    def _on_combo_changed(self, _index: int):
+        name = self.combo.currentText()
+        if name == "No sound":
+            self._persist_selection(None)
+            self._update_edit_buttons()
+            return
+        self._persist_selection(name)
+        self._update_edit_buttons()
+        self._play_file(name)
+
+    def _on_prev(self):
+        if self.combo.count() <= 1:
+            return
+        self.combo.setCurrentIndex((self.combo.currentIndex() - 1) % self.combo.count())
+
+    def _on_next(self):
+        if self.combo.count() <= 1:
+            return
+        self.combo.setCurrentIndex((self.combo.currentIndex() + 1) % self.combo.count())
+
+    def _on_play(self):
+        self._play_file(self._safe_name())
+
+    # ------------------------------------------------------------------ #
+    # User file operations (only touch user_dir)
+    # ------------------------------------------------------------------ #
+    def _on_add(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select sound file",
+            "",
+            "Audio (*.mp3);;All files (*)",
+        )
+        if not path:
+            return
+
+        src = Path(path)
+        if not src.is_file():
+            return
+
+        self.user_dir.mkdir(parents=True, exist_ok=True)
+
+        stem = src.stem
+        dest_name = f"{stem}.mp3"
+        dest = self.user_dir / dest_name
+
+        if dest.exists():
+            reply = QMessageBox.question(
+                self,
+                "File exists",
+                f"'{dest_name}' already exists in your sounds. Overwrite?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
+            )
+            if reply != QMessageBox.StandardButton.Yes:
+                return
+
+        try:
+            shutil.copy2(src, dest)
+        except OSError as exc:
+            QMessageBox.warning(self, "Add sound", f"Failed to copy file: {exc}")
+            return
+
+        self.refresh(select_name=dest_name)
+        self._play_file(dest_name)
+
+    def _on_delete(self):
+        file_name = self._safe_name()
+        if not file_name or not self._is_user_owned(file_name):
+            QMessageBox.information(
+                self,
+                "Delete sound",
+                "System sounds cannot be deleted. Only sounds you added can be removed.",
+            )
+            return
+
+        path = self.user_dir / file_name
+        reply = QMessageBox.question(
+            self,
+            "Delete sound",
+            f"Delete '{file_name}'?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+
+        try:
+            path.unlink()
+        except OSError as exc:
+            QMessageBox.warning(self, "Delete sound", f"Failed to delete sound: {exc}")
+            return
+
+        self.refresh()
+
+    def _on_rename(self):
+        file_name = self._safe_name()
+        if not file_name or not self._is_user_owned(file_name):
+            QMessageBox.information(
+                self,
+                "Rename sound",
+                "System sounds cannot be renamed. Only sounds you added can be renamed.",
+            )
+            return
+
+        current_path = self.user_dir / file_name
+        new_name, ok = QInputDialog.getText(
+            self,
+            "Rename sound",
+            "New file name:",
+            text=file_name,
+        )
+        if not ok or not new_name.strip():
+            return
+
+        clean_name = new_name.strip().strip("\\/")
+        if not clean_name.lower().endswith(".mp3"):
+            clean_name = f"{clean_name}.mp3"
+
+        if any(ch in clean_name for ch in ("/", "\\")):
+            QMessageBox.warning(self, "Rename sound", "The name cannot contain path separators.")
+            return
+
+        target_path = self.user_dir / clean_name
+        if target_path.exists() and target_path.name.lower() != current_path.name.lower():
+            QMessageBox.warning(self, "Rename sound", "A sound with that name already exists.")
+            return
+
+        try:
+            current_path.rename(target_path)
+        except OSError as exc:
+            QMessageBox.warning(self, "Rename sound", f"Failed to rename sound: {exc}")
+            return
+
+        self.refresh(select_name=clean_name)
 
 
 class SettingsWidget(QWidget):
     """Settings page organized into collapsible sections"""
 
     back_requested = pyqtSignal()
+    sound_changed = pyqtSignal()
 
     _CONNECTION_STATES = {
         "connected": ("#2ecc71", "Connected"),
@@ -100,7 +483,6 @@ class SettingsWidget(QWidget):
         spin.setFixedWidth(100)
         row.addWidget(spin)
 
-        # Keep slider and spinbox in sync, and persist on either one changing
         def sync_from_slider(value):
             spin.blockSignals(True)
             spin.setValue(value)
@@ -115,7 +497,7 @@ class SettingsWidget(QWidget):
 
         slider.valueChanged.connect(sync_from_slider)
         spin.valueChanged.connect(sync_from_spin)
-        spin._slider = slider  # keep a reference so refresh() can drive both via the spinbox alone
+        spin._slider = slider
 
         if on_reset:
             reset_button = create_icon_button(self.icons_path, "reload.svg", "Reset to default", size_type="small", config=self.config)
@@ -245,11 +627,26 @@ class SettingsWidget(QWidget):
         section.addWidget(self.competitions_log)
 
     def _build_sound_section(self):
-
         section = self._create_section("Sound")
         self.mention_always_checkbox = self._add_checkbox(
             section, "Always play mention sound", self._on_mention_always_toggled
         )
+
+        self.sound_selectors = {}
+        self.sound_dir = Path(__file__).parent.parent / "sounds"
+        sound_types = [
+            ("mention", "Mention sound"),
+            ("ban", "Ban sound"),
+            ("competition", "Competition sound"),
+        ]
+        for kind, label in sound_types:
+            selector = SoundSelectorWidget(self.config, self.sound_dir, kind, label)
+            selector.combo.currentIndexChanged.connect(self._on_sound_selection_changed)
+            self.sound_selectors[kind] = selector
+            section.addWidget(selector)
+
+    def _on_sound_selection_changed(self, _index: int):
+        self.sound_changed.emit()
 
     # ------------------------------------------------------------------ #
     # Config <-> UI sync
@@ -264,6 +661,9 @@ class SettingsWidget(QWidget):
             self.notification_position_combo, self.notification_width_spin,
             self.mention_always_checkbox,
         )
+        if hasattr(self, "sound_selectors"):
+            for selector in self.sound_selectors.values():
+                selector.refresh()
         for widget in widgets:
             widget.blockSignals(True)
 
@@ -360,7 +760,6 @@ class SettingsWidget(QWidget):
 
         self.competitions_log.setEnabled(True)
         self.competitions_log.setFixedHeight(COMPETITIONS_LOG_HEIGHT)
-        # If log only had the disabled placeholder, show enabled status
         plain = self.competitions_log.toPlainText().strip()
         if plain in ("", "Tracking disabled"):
             self.competitions_log.setHtml(self._status_log_html("Tracking enabled", "enabled"))
@@ -473,7 +872,6 @@ class SettingsWidget(QWidget):
         if self.competitions_log.document().blockCount() > 200:
             lines = self.competitions_log.toPlainText().splitlines()[-200:]
             self.set_competition_log_lines(lines)
-
 
     def _on_copy_log_clicked(self):
         QApplication.clipboard().setText(self.competitions_log.toPlainText())

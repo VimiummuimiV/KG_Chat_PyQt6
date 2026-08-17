@@ -40,7 +40,7 @@ from ui.ui_profile import ProfileWidget
 from ui.ui_emoticon_selector import EmoticonSelectorWidget, PANEL_WIDTH
 from ui.ui_pronunciation import PronunciationWidget
 from ui.ui_banlist import BanListWidget
-from ui.ui_settings import SettingsWidget
+from ui.ui_settings import SettingsWidget, get_sound_path
 from helpers.duration_dialog import DurationDialog
 from helpers.jid_utils import extract_user_data_from_jid
 from ui.ui_buttons import ButtonPanel
@@ -366,20 +366,15 @@ class ChatWindow(QWidget):
             QApplication.quit()
 
     def _setup_sounds(self):
-        """Setup mention and ban sound paths"""
+        """Setup sound paths using the per-category sound folders."""
         sounds_dir = Path(__file__).parent.parent / "sounds"
-        
-        # Setup mention sound
-        mention_sound_path = sounds_dir / "mention.mp3"
-        self.mention_sound_path = str(mention_sound_path) if mention_sound_path.exists() else None
-        
-        # Setup ban sound
-        ban_sound_path = sounds_dir / "banned.mp3"
-        self.ban_sound_path = str(ban_sound_path) if ban_sound_path.exists() else None
-
-        # Setup rating competition sound
-        competition_sound_path = sounds_dir / "competition.mp3"
-        self.competition_sound_path = str(competition_sound_path) if competition_sound_path.exists() else None
+        for kind, attr in (
+            ("mention", "mention_sound_path"),
+            ("ban", "ban_sound_path"),
+            ("competition", "competition_sound_path"),
+        ):
+            path = get_sound_path(sounds_dir, kind, self.config)
+            setattr(self, attr, str(path) if path else None)
 
     def _init_ui(self):
         window_title = f"Chat - {self.account['chat_username']}" if self.account else "Chat"
@@ -1786,49 +1781,31 @@ class ChatWindow(QWidget):
         pattern = r'\b' + re.escape(my_username) + r'\b'
         return bool(re.search(pattern, msg.body.lower()))
 
-    def _play_mention_sound(self):
-        """Play mention sound"""
-        if not self.mention_sound_path:
-            try:
-                QApplication.instance().beep()
-            except Exception as e:
-                print(f"System beep error: {e}")
+    def _play_notification_sound(self, path: str | None, force: bool = False, fallback_beep: bool = False):
+        """Play an effect by path. play_sound() already threads and handles its
+        own errors, so no extra wrapping is needed here."""
+        if not path:
+            if fallback_beep:
+                try:
+                    QApplication.instance().beep()
+                except Exception as e:
+                    print(f"System beep error: {e}")
             return
-        
-        def _play():
-            try:
-                play_sound(self.mention_sound_path, config=self.config)
-            except Exception as e:
-                print(f"Mention sound playback error: {e}")
-        
-        threading.Thread(target=_play, daemon=True).start()
+        play_sound(path, config=self.config, force=force)
+
+    def _play_mention_sound(self):
+        self._play_notification_sound(self.mention_sound_path, fallback_beep=True)
 
     def _play_ban_sound(self):
-        """Play ban sound"""
-        def _play():
-            try:
-                play_sound(self.ban_sound_path, config=self.config)
-            except Exception as e:
-                print(f"Ban sound playback error: {e}")
-        
-        threading.Thread(target=_play, daemon=True).start()
+        self._play_notification_sound(self.ban_sound_path)
 
     def _play_competition_sound(self):
-        """Play rating-competition sound. Falls back to mention sound if no
-        dedicated file is present. Can bypass the effects-sound toggle via
-        sound.competition_sound_force in config (set from Settings)."""
+        """Falls back to mention sound if no dedicated file is present.
+        Can bypass the effects-sound toggle via sound.competition_sound_force
+        in config (set from Settings)."""
         path = self.competition_sound_path or self.mention_sound_path
-        if not path:
-            return
         force = self.config.get("sound", "competition_sound_force") or False
-
-        def _play():
-            try:
-                play_sound(path, config=self.config, force=force)
-            except Exception as e:
-                print(f"Competition sound playback error: {e}")
-
-        threading.Thread(target=_play, daemon=True).start()
+        self._play_notification_sound(path, force=force)
 
     def on_presence(self, pres):
         if not self.xmpp_client or self.initial_roster_loading:
@@ -2185,11 +2162,13 @@ class ChatWindow(QWidget):
             self.settings_widget.min_multiplier_combo.currentTextChanged.connect(
                 lambda t: self.races_listener and self.races_listener.set_min_multiplier(t)
             )
+            self.settings_widget.sound_changed.connect(self._setup_sounds)
             self.stacked_widget.addWidget(self.settings_widget)
         else:
             # Reflect any state changed elsewhere (tray menu, hotkeys) since it was last shown
             self.settings_widget.refresh()
 
+        self._setup_sounds()
         self._sync_competitions_settings_ui()
         self.stacked_widget.setCurrentWidget(self.settings_widget)
     
