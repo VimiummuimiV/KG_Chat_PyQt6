@@ -469,7 +469,7 @@ class SettingsWidget(QWidget):
         section_layout.addLayout(row)
         return combo
 
-    def _add_slider_spin_row(self, section_layout: QVBoxLayout, label_text: str, minimum: int, maximum: int, on_changed, on_reset=None) -> QSpinBox:
+    def _add_slider_spin_row(self, section_layout: QVBoxLayout, label_text: str, minimum: int, maximum: int, on_changed, on_reset=None, default=None) -> QSpinBox:
         row = QHBoxLayout()
         row.setSpacing(self._spacing())
 
@@ -487,17 +487,25 @@ class SettingsWidget(QWidget):
         spin.setFixedWidth(100)
         row.addWidget(spin)
 
+        reset_button = None
+
+        def update_reset_state(value):
+            if reset_button is not None and default is not None:
+                reset_button.setEnabled(value != default)
+
         def sync_from_slider(value):
             spin.blockSignals(True)
             spin.setValue(value)
             spin.blockSignals(False)
             on_changed(value)
+            update_reset_state(value)
 
         def sync_from_spin(value):
             slider.blockSignals(True)
             slider.setValue(value)
             slider.blockSignals(False)
             on_changed(value)
+            update_reset_state(value)
 
         slider.valueChanged.connect(sync_from_slider)
         spin.valueChanged.connect(sync_from_spin)
@@ -507,6 +515,7 @@ class SettingsWidget(QWidget):
             reset_button = create_icon_button(self.icons_path, "reload.svg", "Reset to default", size_type="small", config=self.config)
             reset_button.clicked.connect(on_reset)
             row.addWidget(reset_button)
+            update_reset_state(spin.value())
 
         section_layout.addLayout(row)
         return spin
@@ -587,7 +596,7 @@ class SettingsWidget(QWidget):
         )
         self.notification_width_spin = self._add_slider_spin_row(
             section, "Notification width", 250, 1000, self._on_notification_width_changed,
-            on_reset=self._on_notification_width_reset
+            on_reset=self._on_notification_width_reset, default=NOTIFICATION_WIDTH_DEFAULT
         )
 
         self.competitions_bypass_mute_checkbox = self._add_checkbox(
@@ -609,7 +618,7 @@ class SettingsWidget(QWidget):
         self.competitions_alert_lead_spin = self._add_slider_spin_row(
             section, "Alert lead time before start (sec)", 0, 300,
             self._on_competitions_alert_lead_changed,
-            on_reset=self._on_competitions_alert_lead_reset
+            on_reset=self._on_competitions_alert_lead_reset, default=COMPETITIONS_ALERT_LEAD_DEFAULT
         )
 
         # Gates both sound and pop-up alerts, so it lives at the feature level
@@ -619,11 +628,11 @@ class SettingsWidget(QWidget):
         )
         self.competitions_notify_start_spin = self._add_slider_spin_row(
             section, "From", 0, 24, self._on_competitions_notify_start_changed,
-            on_reset=self._on_competitions_notify_start_reset
+            on_reset=self._on_competitions_notify_start_reset, default=COMPETITIONS_NOTIFY_START_DEFAULT
         )
         self.competitions_notify_end_spin = self._add_slider_spin_row(
             section, "To", 0, 24, self._on_competitions_notify_end_changed,
-            on_reset=self._on_competitions_notify_end_reset
+            on_reset=self._on_competitions_notify_end_reset, default=COMPETITIONS_NOTIFY_END_DEFAULT
         )
 
         log_header_row = QHBoxLayout()
@@ -674,7 +683,7 @@ class SettingsWidget(QWidget):
         )
         self.competition_sound_repeat_interval_spin = self._add_slider_spin_row(
             section, "Repeat interval (sec)", 3, 120, self._on_competition_sound_repeat_interval_changed,
-            on_reset=self._on_competition_sound_repeat_interval_reset
+            on_reset=self._on_competition_sound_repeat_interval_reset, default=COMPETITION_SOUND_REPEAT_INTERVAL_DEFAULT
         )
 
     def _on_sound_selection_changed(self, _index: int):
