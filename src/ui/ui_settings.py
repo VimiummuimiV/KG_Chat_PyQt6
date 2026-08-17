@@ -179,10 +179,7 @@ class SoundSelectorWidget(QWidget):
     # Helpers
     # ------------------------------------------------------------------ #
     def _safe_name(self) -> str | None:
-        current = self.combo.currentText()
-        if current and current != "No sound":
-            return current
-        return None
+        return self.combo.currentData()
 
     def _is_user_owned(self, file_name: str | None) -> bool:
         if not file_name:
@@ -228,6 +225,11 @@ class SoundSelectorWidget(QWidget):
         # play_sound already cancels the previous sound.
         play_sound(str(path), config=self.config, force=True)
 
+    @staticmethod
+    def _display_name(file_name: str) -> str:
+        """Combo label without the extension - only .mp3 is supported, so it's just noise."""
+        return file_name[:-4] if file_name.lower().endswith(".mp3") else file_name
+
     # ------------------------------------------------------------------ #
     # Refresh / selection
     # ------------------------------------------------------------------ #
@@ -237,7 +239,7 @@ class SoundSelectorWidget(QWidget):
         self.combo.clear()
 
         if not files:
-            self.combo.addItem("No sound")
+            self.combo.addItem("No sound", None)
             self.combo.setEnabled(False)
             self._persist_selection(None)
             self.combo.blockSignals(False)
@@ -245,20 +247,20 @@ class SoundSelectorWidget(QWidget):
             return
 
         self.combo.setEnabled(True)
-        self.combo.addItems(files)
+        for file_name in files:
+            self.combo.addItem(self._display_name(file_name), file_name)
 
         preferred = select_name or get_sound_name(self.sound_root, self.kind, self.config)
-        index = self.combo.findText(preferred) if preferred else -1
+        index = self.combo.findData(preferred) if preferred else -1
         self.combo.setCurrentIndex(index if index >= 0 else 0)
 
-        current = self.combo.currentText()
-        self._persist_selection(current if current != "No sound" else None)
+        self._persist_selection(self.combo.currentData())
         self.combo.blockSignals(False)
         self._update_edit_buttons()
 
     def _on_combo_changed(self, _index: int):
-        name = self.combo.currentText()
-        if name == "No sound":
+        name = self.combo.currentData()
+        if name is None:
             self._persist_selection(None)
             self._update_edit_buttons()
             return
