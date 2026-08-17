@@ -364,18 +364,19 @@ class SoundSelectorWidget(QWidget):
             return
 
         current_path = self.user_dir / file_name
-        new_name, ok = QInputDialog.getText(
+        new_stem, ok = QInputDialog.getText(
             self,
             "Rename sound",
             "New file name:",
-            text=file_name,
+            text=self._display_name(file_name),
         )
-        if not ok or not new_name.strip():
+        if not ok or not new_stem.strip():
             return
 
-        clean_name = new_name.strip().strip("\\/")
-        if not clean_name.lower().endswith(".mp3"):
-            clean_name = f"{clean_name}.mp3"
+        clean_name = new_stem.strip().strip("\\/")
+        if clean_name.lower().endswith(".mp3"):
+            clean_name = clean_name[:-4]  # in case the user typed it anyway
+        clean_name = f"{clean_name}.mp3"
 
         if any(ch in clean_name for ch in ("/", "\\")):
             QMessageBox.warning(self, "Rename sound", "The name cannot contain path separators.")

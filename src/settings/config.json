@@ -141,7 +141,7 @@
     "play_mention_sound_always": false,
     "competition_sound_force": true,
     "selected": {
-      "mention": "tick_short.mp3",
+      "mention": "test.mp3",
       "competition": "competition.mp3",
       "ban": "bullet_hit.mp3"
     }
