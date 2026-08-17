@@ -45,7 +45,7 @@ from helpers.duration_dialog import DurationDialog
 from helpers.jid_utils import extract_user_data_from_jid
 from ui.ui_buttons import ButtonPanel
 from helpers.help import HelpPanel
-from components.notification import show_notification, popup_manager
+from components.notification import show_notification, popup_manager, cursor_moved_or_key_pressed
 from core.races_listener import RacesListener
 from components.messages_separator import NewMessagesSeparator
 from components.tag_button import update_all_tag_buttons
@@ -79,6 +79,7 @@ class ChatWindow(QWidget):
         self.xmpp_client = None
         self.signal_emitter = SignalEmitter()
         self.cache = get_cache()
+
         self.races_listener = None
         self._competition_notified = set()  # game_ids already announced this session
         self._competition_log_lines = []
@@ -88,6 +89,16 @@ class ChatWindow(QWidget):
         self._history_settle_timer = QTimer(self)  # fires when history stream goes quiet
         self._history_settle_timer.setSingleShot(True)
         self._history_settle_timer.timeout.connect(self._on_history_settled)
+
+        # Live-updating competition messages: game_id -> {mult, url, begintime, players}
+        self._competition_live = {}
+        self._competition_alert_timers = {}  # game_id -> pending lead-time alert QTimer
+        self._competition_countdown_timer = QTimer(self)
+        self._competition_countdown_timer.timeout.connect(self._tick_competition_countdowns)
+        self._competition_sound_repeat_timer = QTimer(self)
+        self._competition_sound_repeat_timer.timeout.connect(self._on_competition_sound_repeat_tick)
+        self._competition_sound_repeat_cursor_pos = None
+
         self.initial_roster_loading = False
         self.auto_hide_messages_userlist = True
         self.auto_hide_chatlog_userlist = True
@@ -1448,6 +1459,9 @@ class ChatWindow(QWidget):
                 self.races_listener.competition_found.connect(
                     self._on_competition_found, Qt.ConnectionType.QueuedConnection
                 )
+                self.races_listener.players_changed.connect(
+                    self._on_competition_players_changed, Qt.ConnectionType.QueuedConnection
+                )
                 self.races_listener.status_changed.connect(
                     self._on_races_status, Qt.ConnectionType.QueuedConnection
                 )
@@ -1463,6 +1477,7 @@ class ChatWindow(QWidget):
                 self.races_listener.stop()
                 try:
                     self.races_listener.competition_found.disconnect(self._on_competition_found)
+                    self.races_listener.players_changed.disconnect(self._on_competition_players_changed)
                     self.races_listener.status_changed.disconnect(self._on_races_status)
                 except TypeError:
                     pass
@@ -1472,7 +1487,16 @@ class ChatWindow(QWidget):
             self._pending_competitions.clear()
             self._competition_log_lines.clear()
             self._remove_competition_messages()
+            self._reset_competition_live_state()
             self._on_races_status("disconnected")
+
+    def _reset_competition_live_state(self):
+        self._competition_countdown_timer.stop()
+        self._competition_sound_repeat_timer.stop()
+        self._competition_live.clear()
+        for timer in self._competition_alert_timers.values():
+            timer.stop()
+        self._competition_alert_timers.clear()
 
     def _on_races_status(self, state: str):
         prev = getattr(self, "_races_status", None)
@@ -1510,7 +1534,7 @@ class ChatWindow(QWidget):
         status = info.get("status") or "?"
 
         # settings log: all statuses
-        self._append_competition_log(f"{mult} #{gid} {status}" + (f"  {url}" if status == "waiting" and url else ""))
+        self._append_competition_log(f"{mult} #{gid} {status}")
 
         if status == "racing":
             if tag:
@@ -1518,6 +1542,10 @@ class ChatWindow(QWidget):
             mw = getattr(self, "messages_widget", None)
             if mw and hasattr(mw, "clear_competition_messages"):
                 mw.clear_competition_messages(gid)
+            self._competition_live.pop(gid, None)
+            alert_timer = self._competition_alert_timers.pop(gid, None)
+            if alert_timer:
+                alert_timer.stop()
             return
 
         # chat + notification only for waiting (once)
@@ -1537,31 +1565,132 @@ class ChatWindow(QWidget):
 
         self._announce_competition(info)
 
+    @staticmethod
+    def _format_competition_header(mult: str, url: str, begintime, count: int) -> str:
+        parts = [mult]
+        if url:
+            parts.append(url)
+        if begintime:
+            remaining = max(0, round(begintime - datetime.now().timestamp()))
+            parts.append(f"⏱️ {remaining // 60:02d}:{remaining % 60:02d}")
+        parts.append(f"👥 {count}")
+        return " ".join(parts)
+
+    @staticmethod
+    def _player_names(players: list) -> list:
+        return [p.get("name") or p.get("login") or "?" for p in players]
+
     def _announce_competition(self, info: dict):
         gid, mult, url, tag = self._competition_fields(info)
-        body = f"Rating competition {mult} is waiting."
-        if url:
-            body = f"{body}\n{url}"
+        begintime = info.get("begintime")
+        players = info.get("players") or []
+        self._competition_live[gid] = {
+            "mult": mult, "url": url, "begintime": begintime, "players": players,
+        }
+        names = self._player_names(players)
+        header = self._format_competition_header(mult, url, begintime, len(players))
         try:
             msg = Message(
-                from_jid="", body=body, msg_type="groupchat",
+                from_jid="", body=header, msg_type="groupchat",
                 login="Система", timestamp=datetime.now(),
             )
             msg.is_competition = True
             msg.competition_game_id = gid
+            msg.competition_players = names
             self.add_local_message(msg)
         except Exception as e:
             print(f"[races] local message error: {e}")
 
+        if not self._competition_countdown_timer.isActive():
+            self._start_competition_countdown_timer()
+
+        self._schedule_competition_alert(gid, mult, url, tag, begintime)
+
+    def _start_competition_countdown_timer(self):
+        """Align ticks to wall-clock second boundaries so the countdown doesn't lag behind real time."""
+        self._competition_countdown_timer.setInterval(1000)
+        ms_to_next_second = 1000 - (int(datetime.now().timestamp() * 1000) % 1000)
+
+        def _aligned_start():
+            self._tick_competition_countdowns()
+            self._competition_countdown_timer.start()
+
+        QTimer.singleShot(ms_to_next_second, _aligned_start)
+
+    def _on_competition_players_changed(self, gid: int, players: list):
+        live = self._competition_live.get(gid)
+        if live is None:
+            return
+        live["players"] = players
+        self._refresh_competition_message(gid)
+
+    def _tick_competition_countdowns(self):
+        if not self._competition_live:
+            self._competition_countdown_timer.stop()
+            return
+        for gid in list(self._competition_live.keys()):
+            self._refresh_competition_message(gid)
+
+    def _refresh_competition_message(self, gid: int):
+        live = self._competition_live.get(gid)
+        mw = getattr(self, "messages_widget", None)
+        if live is None or not mw:
+            return
+        players = live.get("players") or []
+        names = self._player_names(players)
+        header = self._format_competition_header(live["mult"], live["url"], live.get("begintime"), len(players))
+        mw.update_competition_message(gid, header, names)
+
+        popup = popup_manager.find_by_tag(f"competition:{gid}")
+        if popup:
+            popup.update_message(header, names)
+
+    def _schedule_competition_alert(self, gid: int, mult: str, url: str, tag: str, begintime):
+        """Fire the popup/sound alert immediately, or delayed to `alert_lead_seconds` before start."""
+        lead = int(self.config.get("competitions", "alert_lead_seconds") or 0)
+        delay = max(0, int(begintime - datetime.now().timestamp()) - lead) if begintime and lead else 0
+
+        def fire():
+            self._competition_alert_timers.pop(gid, None)
+            self._fire_competition_alert(gid, mult, url, tag)
+
+        if delay <= 0:
+            fire()
+            return
+        timer = QTimer(self)
+        timer.setSingleShot(True)
+        timer.timeout.connect(fire)
+        timer.start(delay * 1000)
+        self._competition_alert_timers[gid] = timer
+
+    def _within_notify_window(self) -> bool:
+        if not self.config.get("competitions", "notify_window_enabled"):
+            return True
+        start = self.config.get("competitions", "notify_window_start")
+        end = self.config.get("competitions", "notify_window_end")
+        if start is None or end is None or start == end:
+            return True
+        hour = datetime.now().hour
+        return start <= hour < end if start < end else hour >= start or hour < end
+
+    def _fire_competition_alert(self, gid: int, mult: str, url: str, tag: str):
+        if not self._within_notify_window():
+            return
+        live = self._competition_live.get(gid, {})
+        players = live.get("players") or []
+        names = self._player_names(players)
+        header = self._format_competition_header(mult, url, live.get("begintime"), len(players))
+
         # Competition sound plays regardless of window focus, like ban sound
         self._play_competition_sound()
+        self._start_competition_sound_repeat()
 
         # Same rule as chat messages: notify only when window is not focused
         if not self.isActiveWindow():
             try:
                 show_notification(
                     title=f"Competition {mult}",
-                    message=body,
+                    message=header,
                     duration=10000,
                     config=self.config,
                     cache=getattr(self, "cache", None),
@@ -1571,9 +1700,27 @@ class ChatWindow(QWidget):
                     is_competition=True,
                     window_show_callback=self._show_and_focus_window,
                     tag=tag,
+                    players=names,
                 )
             except Exception as e:
                 print(f"[races] notification error: {e}")
+
+    def _start_competition_sound_repeat(self):
+        """Repeat the competition sound until the user moves the mouse or presses a key."""
+        self._competition_sound_repeat_timer.stop()
+        if not self.config.get("sound", "competition_repeat_enabled"):
+            return
+        interval = int(self.config.get("sound", "competition_repeat_interval") or 15)
+        if interval <= 0:
+            return
+        self._competition_sound_repeat_cursor_pos = QCursor.pos()
+        self._competition_sound_repeat_timer.start(interval * 1000)
+
+    def _on_competition_sound_repeat_tick(self):
+        if cursor_moved_or_key_pressed(self._competition_sound_repeat_cursor_pos):
+            self._competition_sound_repeat_timer.stop()
+            return
+        self._play_competition_sound()
 
     def _flush_pending_competitions(self):
         pending = self._pending_competitions
@@ -2736,6 +2883,8 @@ class ChatWindow(QWidget):
         # Cleanup window size manager
         if hasattr(self, 'window_size_manager'):
             self.window_size_manager.cleanup()
+
+        self._reset_competition_live_state()
 
         # Proceed with full cleanup when actually closing
         if self.messages_widget:

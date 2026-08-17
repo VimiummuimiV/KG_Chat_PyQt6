@@ -2,7 +2,7 @@
 from dataclasses import dataclass
 from typing import List, Callable, Optional, Any, Tuple
 from PyQt6.QtWidgets import QWidget, QLabel, QVBoxLayout, QHBoxLayout, QLineEdit, QApplication
-from PyQt6.QtCore import Qt, QTimer, QPropertyAnimation, QRect, QSize
+from PyQt6.QtCore import Qt, QTimer, QPropertyAnimation, QRect, QSize, pyqtSignal
 from PyQt6.QtGui import QPainter, QPainterPath, QCursor, QPixmap
 from pathlib import Path
 from datetime import datetime
@@ -15,6 +15,21 @@ from helpers.load import make_rounded_pixmap
 from helpers.fonts import get_font, FontType
 from ui.message_renderer import MessageRenderer
 from ui.ui_emoticon_selector import release_selector
+
+
+def any_key_pressed() -> bool:
+    """True if any key is currently down (Windows only, silent fallback elsewhere)."""
+    try:
+        if sys.platform == "win32":
+            return any(ctypes.windll.user32.GetAsyncKeyState(k) & 0x8000 for k in range(0x08, 0xFF))
+    except Exception:
+        pass
+    return False
+
+
+def cursor_moved_or_key_pressed(initial_pos, threshold: int = 50) -> bool:
+    """True once the cursor has moved past threshold px from initial_pos, or a key is down."""
+    return (QCursor.pos() - initial_pos).manhattanLength() > threshold or any_key_pressed()
 
 
 @dataclass
@@ -37,14 +52,17 @@ class NotificationData:
     is_competition: bool = False
     timestamp: Optional[datetime] = None
     tag: Optional[str] = None
+    players: Optional[List[str]] = None
 
 
 class MessageBodyWidget(QWidget):
     """Custom widget that uses MessageRenderer for painting message body"""
-    
+
+    content_resized = pyqtSignal()
+
     def __init__(self, message_renderer: MessageRenderer, text: str, 
                  is_private: bool = False, is_ban: bool = False, is_system: bool = False,
-                 is_competition: bool = False):
+                 is_competition: bool = False, players: Optional[List[str]] = None):
         super().__init__()
         self.message_renderer = message_renderer
         self.text = MessageRenderer._emoji_prefix(text, is_private, is_ban, is_system, is_competition)
@@ -52,6 +70,7 @@ class MessageBodyWidget(QWidget):
         self.is_ban = is_ban
         self.is_system = is_system
         self.is_competition = is_competition
+        self.players = players or []
         self.link_rects: List[Tuple[QRect, str, bool]] = []
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setMouseTracking(True)
@@ -67,7 +86,24 @@ class MessageBodyWidget(QWidget):
             self.animation_timer = QTimer()
             self.animation_timer.timeout.connect(self.update)  # Trigger repaint
             self.animation_timer.start(33)  # ~30 FPS
-    
+
+    def _calculate_height(self, width: int) -> int:
+        height = self.message_renderer.calculate_content_height(self.text, width)
+        if self.players:
+            height += 6 + self.message_renderer.calculate_chips_height(self.players, width)
+        return height
+
+    def update_content(self, text: str, players: Optional[List[str]] = None):
+        """Update text and player chips in place, without recreating the notification."""
+        self.text = MessageRenderer._emoji_prefix(text, self.is_private, self.is_ban, self.is_system, self.is_competition)
+        if players is not None:
+            self.players = players
+        new_height = self._calculate_height(self.width() if self.width() > 0 else 400)
+        if new_height != self.height():
+            self.setFixedHeight(new_height)
+            self.content_resized.emit()
+        self.update()
+
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
@@ -84,18 +120,21 @@ class MessageBodyWidget(QWidget):
             self.is_system,
             self.is_competition,
         )
+
+        if self.players:
+            content_height = self.message_renderer.calculate_content_height(self.text, self.width())
+            self.message_renderer.paint_chips(
+                painter, 0, content_height + 6, self.width(), self.players, self.message_renderer.is_dark_theme
+            )
         
         # Update height if needed
-        calculated_height = self.message_renderer.calculate_content_height(self.text, self.width())
+        calculated_height = self._calculate_height(self.width())
         if self.height() != calculated_height:
             self.setFixedHeight(calculated_height)
     
     def sizeHint(self):
-        height = self.message_renderer.calculate_content_height(
-            self.text,
-            self.width() if self.width() > 0 else 400
-        )
-        return QSize(self.width() if self.width() > 0 else 400, height)
+        width = self.width() if self.width() > 0 else 400
+        return QSize(width, self._calculate_height(width))
     
     def mouseMoveEvent(self, event):
         # Update cursor based on whether hovering over link
@@ -283,7 +322,9 @@ class PopupNotification(QWidget):
             data.is_ban,
             data.is_system,
             data.is_competition,
+            data.players,
         )
+        self.message_widget.content_resized.connect(self._on_content_resized)
         msg_layout.addWidget(self.message_widget)
         main_layout.addWidget(msg_container, stretch=1)
       
@@ -341,6 +382,16 @@ class PopupNotification(QWidget):
         QTimer.singleShot(0, self._animate_in)
         self._start_cursor_monitoring()
   
+    def update_message(self, text: str, players: Optional[List[str]] = None):
+        """Update the body text (and player chips) in place, no new popup created."""
+        if self.message_widget:
+            self.message_widget.update_content(text, players)
+
+    def _on_content_resized(self):
+        """Body grew/shrank (e.g. player roster changed) - resize and reflow the stack."""
+        self.adjustSize()
+        self.manager._position_and_cleanup()
+
     def _on_avatar_loaded(self, user_id: str, pixmap: QPixmap):
         """Callback fired when avatar is loaded from disk or network"""
         try:
@@ -414,23 +465,12 @@ class PopupNotification(QWidget):
         self.cursor_check_timer.timeout.connect(self._check_cursor_movement)
         self.cursor_check_timer.start(100)
 
-    @staticmethod
-    def _any_key_pressed():
-        """Return True if any key is currently down (Windows only, silent fallback elsewhere)."""
-        try:
-            if sys.platform == "win32":
-                return any(ctypes.windll.user32.GetAsyncKeyState(k) & 0x8000 for k in range(0x08, 0xFF))
-        except Exception:
-            pass
-        return False
-
     def _check_cursor_movement(self):
         """Check if cursor moved significantly or any key was pressed"""
         if self.cursor_moved or self.reply_field_visible:
             return
 
-        if ((QCursor.pos() - self.initial_cursor_pos).manhattanLength() > 50
-                or self._any_key_pressed()):
+        if cursor_moved_or_key_pressed(self.initial_cursor_pos):
             self.cursor_moved = True
             self.cursor_check_timer.stop()
             self._start_hide_timer()
@@ -737,6 +777,12 @@ class PopupManager:
         for popup in list(self.popups):
             if getattr(popup.data, "tag", None) == tag:
                 popup._animate_out(force=True)
+
+    def find_by_tag(self, tag: str) -> Optional["PopupNotification"]:
+        """Find an open notification by tag, for in-place content updates."""
+        if not tag:
+            return None
+        return next((p for p in self.popups if getattr(p.data, "tag", None) == tag), None)
   
     def _position_and_cleanup(self):
         """Position all popups and handle overflow"""

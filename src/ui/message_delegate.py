@@ -308,7 +308,8 @@ class MessageDelegate(QStyledItemDelegate):
         header_height = max(fm.height(), QFontMetrics(self.timestamp_font).height())
         display_body, _ = self._get_display_body(msg)
         content_height = self.message_renderer.calculate_content_height(display_body, width - 2 * self.padding, row)
-        return min(self.padding + header_height + 2 + content_height + self.padding, 500)
+        chips_height = self._chips_height(msg, width - 2 * self.padding)
+        return min(self.padding + header_height + 2 + content_height + chips_height + self.padding, 500)
  
     def _calculate_normal_height(self, msg, width: int, row: Optional[int] = None) -> int:
         if not self.message_renderer:
@@ -325,8 +326,15 @@ class MessageDelegate(QStyledItemDelegate):
      
         display_body, _ = self._get_display_body(msg)
         content_height = self.message_renderer.calculate_content_height(display_body, content_width, row)
+        chips_height = self._chips_height(msg, width - 2 * self.padding)
         label_height = max(fm.height(), fm_ts.height())
-        return min(max(label_height, content_height) + 2 * self.padding, 500)
+        return min(max(label_height, content_height) + chips_height + 2 * self.padding, 500)
+
+    def _chips_height(self, msg, width: int) -> int:
+        players = getattr(msg, 'competition_players', None)
+        if not players or not self.message_renderer:
+            return 0
+        return self.spacing + self.message_renderer.calculate_chips_height(players, width)
  
     def paint(self, painter: QPainter, option: QStyleOptionViewItem, index: QModelIndex):
         msg = index.data(Qt.ItemDataRole.DisplayRole)
@@ -446,6 +454,7 @@ class MessageDelegate(QStyledItemDelegate):
                 painter, x, content_y, content_width, display_body, row,
                 msg.is_private, msg.is_ban, is_system, is_competition,
             )
+            chips_base_y = content_y
         else:
             # Normal mode: content on same line after username/timestamp
             content_width = rect.width() - (content_x - rect.x()) - self.padding
@@ -453,8 +462,16 @@ class MessageDelegate(QStyledItemDelegate):
                 painter, content_x, y, content_width, display_body, row,
                 msg.is_private, msg.is_ban, is_system, is_competition,
             )
+            chips_base_y = y
         
         self.click_rects[row]['links'] = link_rects
+
+        players = getattr(msg, 'competition_players', None)
+        if players:
+            content_height = self.message_renderer.calculate_content_height(display_body, content_width, row)
+            self.message_renderer.paint_chips(
+                painter, x, chips_base_y + content_height + self.spacing, width, players, self.is_dark_theme
+            )
  
     def _refresh_row(self, row: int):
         """Request refresh from background thread - emit signal to main thread"""

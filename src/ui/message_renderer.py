@@ -30,6 +30,8 @@ class MessageRenderer(QObject):
     chatlog_link_clicked = pyqtSignal(str, str) # date_str, time_str ("" if none) - chatlog URL clicked in a message body
 
     CHATLOG_URL_PATTERN = re.compile(r'^https?://klavogonki\.ru/chatlogs/(\d{4}-\d{2}-\d{2})\.html(?:#(\d{2}:\d{2}:\d{2}))?$')
+    GAME_URL_PATTERN = re.compile(r'^https?://klavogonki\.ru/g/\?gmid=(\d+)$')
+    CHIP_GAP = 6
     
     def __init__(self, config, emoticon_manager, is_dark_theme: bool, parent_widget=None):
         super().__init__()
@@ -424,6 +426,49 @@ class MessageRenderer(QObject):
         
         return link_rects
     
+    def calculate_chips_height(self, names: List[str], width: int) -> int:
+        """Height needed for the wrapping row of user chips."""
+        if not names or width <= 0:
+            return 0
+        fm = QFontMetrics(self.body_font)
+        chip_height = fm.height() + 6
+        row_width = 0
+        rows = 1
+        for name in names:
+            chip_width = fm.horizontalAdvance(name) + 16
+            if row_width and row_width + self.CHIP_GAP + chip_width > width:
+                rows += 1
+                row_width = chip_width
+            else:
+                row_width += (self.CHIP_GAP if row_width else 0) + chip_width
+        return rows * chip_height + (rows - 1) * self.CHIP_GAP
+
+    def paint_chips(self, painter: QPainter, x: int, y: int, width: int, names: List[str], is_dark: bool) -> int:
+        """Paint usernames as pill-shaped chips in a wrapping flow. Returns the block height used."""
+        if not names or width <= 0:
+            return 0
+        fm = QFontMetrics(self.body_font)
+        painter.setFont(self.body_font)
+        chip_height = fm.height() + 6
+        bg_color = QColor("#3A3A3A" if is_dark else "#E0E0E0")
+        fg_color = QColor("#DDDDDD" if is_dark else "#333333")
+        current_x, current_y = x, y
+
+        for name in names:
+            chip_width = fm.horizontalAdvance(name) + 16
+            if current_x > x and current_x + chip_width > x + width:
+                current_y += chip_height + self.CHIP_GAP
+                current_x = x
+            chip_rect = QRect(current_x, current_y, chip_width, chip_height)
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(bg_color)
+            painter.drawRoundedRect(chip_rect, chip_height // 2, chip_height // 2)
+            painter.setPen(fg_color)
+            painter.drawText(chip_rect, Qt.AlignmentFlag.AlignCenter, name)
+            current_x += chip_width + self.CHIP_GAP
+
+        return current_y + chip_height - y
+
     def has_animated_emoticons(self, text: str) -> bool:
         """Check if text contains animated emoticons"""
         for seg_type, content in self.emoticon_manager.parse_emoticons(text):
@@ -438,7 +483,11 @@ class MessageRenderer(QObject):
         return ImageHoverView.is_image_url(url) or VideoPlayer.is_video_url(url)
     
     def _get_link_text(self, url: str, row: Optional[int]) -> str:
-        """Get display text for link (process YouTube if applicable)"""
+        """Get display text for link (short label for game links, processed YouTube title, else the URL)"""
+        game_match = self.GAME_URL_PATTERN.match(url)
+        if game_match:
+            return f"🔗 {game_match.group(1)}"
+
         if not self.youtube_enabled or not is_youtube_url(url):
             return url
         

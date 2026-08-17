@@ -123,6 +123,7 @@ class MessagesWidget(QWidget):
             is_system=getattr(msg, 'is_system', False),
             is_competition=getattr(msg, 'is_competition', False),
             competition_game_id=getattr(msg, 'competition_game_id', None),
+            competition_players=getattr(msg, 'competition_players', None),
         )
         sb = self.list_view.verticalScrollBar()
         at_bottom = (sb.maximum() - sb.value()) <= 100
@@ -139,6 +140,14 @@ class MessagesWidget(QWidget):
     def clear_competition_messages(self, game_id=None):
         """Clear rating competition system messages (all or one game_id)."""
         self.model.clear_competition_messages(game_id)
+
+    def update_competition_message(self, game_id: int, body: str, players=None) -> bool:
+        """Update a competition message's header and player chips in place."""
+        row = self.model.update_message_by_game_id(game_id, body, players)
+        if row is None:
+            return False
+        self.delegate.row_needs_refresh.emit(row)
+        return True
 
     def remove_messages_by_login(self, login: str, timestamp=None, from_timestamp=None, to_timestamp=None):
         """Remove all messages belonging to a login, or a subset by timestamp/range"""

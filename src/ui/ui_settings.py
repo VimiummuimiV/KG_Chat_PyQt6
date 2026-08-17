@@ -586,6 +586,10 @@ class SettingsWidget(QWidget):
             on_reset=self._on_notification_width_reset
         )
 
+        self.competitions_bypass_mute_checkbox = self._add_checkbox(
+            section, "Notify about competitions even when muted", self._on_competitions_bypass_mute_toggled
+        )
+
     def _build_competitions_section(self):
         section = self._create_section("Competitions")
 
@@ -593,18 +597,37 @@ class SettingsWidget(QWidget):
             section, "Track rating competitions", self._on_track_competitions_toggled
         )
 
-        self.competitions_bypass_mute_checkbox = self._add_checkbox(
-            section, "Notify about competitions even when muted", self._on_competitions_bypass_mute_toggled
-        )
-        self.competitions_force_sound_checkbox = self._add_checkbox(
-            section, "Always play competition sound",
-            self._on_competitions_force_sound_toggled
-        )
-
         self.min_multiplier_combo = self._add_combo_row(
             section, "Minimum multiplier", ["x1+", "x2+", "x3+", "x5+"],
             self._on_min_multiplier_changed
         )
+
+        self.competitions_alert_lead_spin = self._add_slider_spin_row(
+            section, "Alert lead time before start (sec)", 0, 300,
+            self._on_competitions_alert_lead_changed
+        )
+
+        # Gates both sound and pop-up alerts, so it lives at the feature level
+        # rather than under a single delivery channel.
+        self.competitions_notify_window_checkbox = self._add_checkbox(
+            section, "Only alert during allowed hours", self._on_competitions_notify_window_toggled
+        )
+        notify_hours_row = QHBoxLayout()
+        notify_hours_row.setSpacing(self._spacing())
+        notify_hours_row.addWidget(QLabel("From"))
+        self.competitions_notify_start_spin = QSpinBox()
+        self.competitions_notify_start_spin.setRange(0, 23)
+        self.competitions_notify_start_spin.setSuffix(":00")
+        self.competitions_notify_start_spin.valueChanged.connect(self._on_competitions_notify_start_changed)
+        notify_hours_row.addWidget(self.competitions_notify_start_spin)
+        notify_hours_row.addWidget(QLabel("to"))
+        self.competitions_notify_end_spin = QSpinBox()
+        self.competitions_notify_end_spin.setRange(0, 23)
+        self.competitions_notify_end_spin.setSuffix(":00")
+        self.competitions_notify_end_spin.valueChanged.connect(self._on_competitions_notify_end_changed)
+        notify_hours_row.addWidget(self.competitions_notify_end_spin)
+        notify_hours_row.addStretch(1)
+        section.addLayout(notify_hours_row)
 
         log_header_row = QHBoxLayout()
         log_header_row.addStretch(1)
@@ -643,6 +666,19 @@ class SettingsWidget(QWidget):
             self.sound_selectors[kind] = selector
             section.addWidget(selector)
 
+        # Competition-sound-specific behavior, grouped together after the selectors
+        self.competitions_force_sound_checkbox = self._add_checkbox(
+            section, "Always play competition sound",
+            self._on_competitions_force_sound_toggled
+        )
+        self.competition_sound_repeat_checkbox = self._add_checkbox(
+            section, "Repeat competition sound until you're back",
+            self._on_competition_sound_repeat_toggled
+        )
+        self.competition_sound_repeat_interval_spin = self._add_slider_spin_row(
+            section, "Repeat interval (sec)", 3, 120, self._on_competition_sound_repeat_interval_changed
+        )
+
     def _on_sound_selection_changed(self, _index: int):
         self.sound_changed.emit()
 
@@ -656,8 +692,11 @@ class SettingsWidget(QWidget):
             self.clear_private_checkbox, self.youtube_checkbox,
             self.track_competitions_checkbox, self.competitions_bypass_mute_checkbox,
             self.competitions_force_sound_checkbox, self.min_multiplier_combo,
+            self.competitions_alert_lead_spin, self.competitions_notify_window_checkbox,
+            self.competitions_notify_start_spin, self.competitions_notify_end_spin,
             self.notification_position_combo, self.notification_width_spin,
             self.mention_always_checkbox,
+            self.competition_sound_repeat_checkbox, self.competition_sound_repeat_interval_spin,
         )
         if hasattr(self, "sound_selectors"):
             for selector in self.sound_selectors.values():
@@ -687,6 +726,15 @@ class SettingsWidget(QWidget):
         idx = self.min_multiplier_combo.findText(min_m)
         self.min_multiplier_combo.setCurrentIndex(idx if idx >= 0 else 0)
 
+        self.competitions_alert_lead_spin.setValue(int(self.config.get("competitions", "alert_lead_seconds") or 0))
+        self.competitions_alert_lead_spin._slider.setValue(self.competitions_alert_lead_spin.value())
+
+        self.competitions_notify_window_checkbox.setChecked(
+            bool(self.config.get("competitions", "notify_window_enabled"))
+        )
+        self.competitions_notify_start_spin.setValue(int(self.config.get("competitions", "notify_window_start") or 0))
+        self.competitions_notify_end_spin.setValue(int(self.config.get("competitions", "notify_window_end") or 23))
+
         position = (self.config.get("ui", "notification_position") or "right").capitalize()
         idx = self.notification_position_combo.findText(position)
         self.notification_position_combo.setCurrentIndex(idx if idx >= 0 else 0)
@@ -694,6 +742,14 @@ class SettingsWidget(QWidget):
         self.notification_width_spin._slider.setValue(self.notification_width_spin.value())
 
         self.mention_always_checkbox.setChecked(bool(self.config.get("sound", "play_mention_sound_always")))
+
+        self.competition_sound_repeat_checkbox.setChecked(
+            bool(self.config.get("sound", "competition_repeat_enabled"))
+        )
+        self.competition_sound_repeat_interval_spin.setValue(
+            int(self.config.get("sound", "competition_repeat_interval") or 15)
+        )
+        self.competition_sound_repeat_interval_spin._slider.setValue(self.competition_sound_repeat_interval_spin.value())
 
         for widget in widgets:
             widget.blockSignals(False)
@@ -876,6 +932,24 @@ class SettingsWidget(QWidget):
 
     def _on_min_multiplier_changed(self, text: str):
         self.config.set("competitions", "min_multiplier", value=text)
+
+    def _on_competitions_alert_lead_changed(self, value: int):
+        self.config.set("competitions", "alert_lead_seconds", value=value)
+
+    def _on_competitions_notify_window_toggled(self, checked: bool):
+        self.config.set("competitions", "notify_window_enabled", value=checked)
+
+    def _on_competitions_notify_start_changed(self, value: int):
+        self.config.set("competitions", "notify_window_start", value=value)
+
+    def _on_competitions_notify_end_changed(self, value: int):
+        self.config.set("competitions", "notify_window_end", value=value)
+
+    def _on_competition_sound_repeat_toggled(self, checked: bool):
+        self.config.set("sound", "competition_repeat_enabled", value=checked)
+
+    def _on_competition_sound_repeat_interval_changed(self, value: int):
+        self.config.set("sound", "competition_repeat_interval", value=value)
 
     def _on_notification_position_changed(self, text: str):
         self.config.set("ui", "notification_position", value=text.lower())

@@ -20,6 +20,7 @@ class MessageData:
     is_system: bool = False
     is_competition: bool = False
     competition_game_id: Optional[int] = None
+    competition_players: Optional[List[str]] = None
     is_new_messages_marker: bool = False
    
     def get_time_str(self) -> str:
@@ -125,5 +126,16 @@ class MessageListModel(QAbstractListModel):
             self._messages.pop(index)
             self.endRemoveRows()
    
+    def update_message_by_game_id(self, game_id: int, body: str, players: Optional[List[str]] = None) -> Optional[int]:
+        """Update a competition message's body (and optionally its player chips) in place. Returns its row, or None."""
+        for row in range(len(self._messages) - 1, -1, -1):
+            msg = self._messages[row]
+            if msg.is_competition and msg.competition_game_id == game_id:
+                msg.body = body
+                if players is not None:
+                    msg.competition_players = players
+                return row
+        return None
+
     def get_all_messages(self) -> List[MessageData]:
         return self._messages.copy()

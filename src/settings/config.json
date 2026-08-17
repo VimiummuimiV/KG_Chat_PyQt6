@@ -144,7 +144,9 @@
       "mention": "tick_short.mp3",
       "competition": "long_tone.mp3",
       "ban": "bullet_hit.mp3"
-    }
+    },
+    "competition_repeat_interval": 5,
+    "competition_repeat_enabled": true
   },
   "notification": {
     "mode": "replace",
@@ -168,6 +170,10 @@
   },
   "competitions": {
     "enabled": true,
-    "min_multiplier": "x1+"
+    "min_multiplier": "x2+",
+    "notify_window_enabled": true,
+    "notify_window_start": 6,
+    "notify_window_end": 23,
+    "alert_lead_seconds": 20
   }
 }
