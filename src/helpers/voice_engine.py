@@ -217,6 +217,11 @@ def get_voice_engine() -> VoiceEngine:
 _sound_lock = threading.Lock()
 _sound_proc = None
 
+# Hide console window on Windows (prevents black cmd.exe flash on every effect)
+_CREATE_NO_WINDOW = (
+    getattr(subprocess, 'CREATE_NO_WINDOW', 0) if sys.platform == 'win32' else 0
+)
+
 
 def cancel_current_sound():
     """Stop the effect currently playing, if any."""
@@ -264,6 +269,7 @@ def play_sound(sound_path: str, volume: float = 1.0, config=None, force: bool = 
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
                     stdin=subprocess.DEVNULL,
+                    creationflags=_CREATE_NO_WINDOW,
                 )
                 _sound_proc = proc
             except Exception as e:
