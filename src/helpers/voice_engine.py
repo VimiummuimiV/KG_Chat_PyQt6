@@ -1,8 +1,6 @@
 """Voice Engine for TTS (Text-to-Speech)"""
 import os
 import re
-import subprocess
-import sys
 import tempfile
 import threading
 import time
@@ -213,32 +211,23 @@ def get_voice_engine() -> VoiceEngine:
     return _voice_engine
 
 
-# One effect at a time: previous process is terminated before a new one starts.
+# One effect at a time: previous sound is stopped before a new one starts.
 _sound_lock = threading.Lock()
-_sound_proc = None
-
-# Hide console window on Windows (prevents black cmd.exe flash on every effect)
-_CREATE_NO_WINDOW = (
-    getattr(subprocess, 'CREATE_NO_WINDOW', 0) if sys.platform == 'win32' else 0
-)
+_sound_obj = None
 
 
 def cancel_current_sound():
     """Stop the effect currently playing, if any."""
-    global _sound_proc
-    proc = _sound_proc
-    if proc is None or proc.poll() is not None:
-        _sound_proc = None
+    global _sound_obj
+    with _sound_lock:
+        sound = _sound_obj
+        _sound_obj = None
+    if sound is None:
         return
     try:
-        proc.terminate()
-        proc.wait(timeout=1)
+        sound.stop()
     except Exception:
-        try:
-            proc.kill()
-        except Exception:
-            pass
-    _sound_proc = None
+        pass
 
 
 def play_sound(sound_path: str, volume: float = 1.0, config=None, force: bool = False):
@@ -254,24 +243,20 @@ def play_sound(sound_path: str, volume: float = 1.0, config=None, force: bool = 
             return
 
     def _play():
-        global _sound_proc
+        global _sound_obj
         with _sound_lock:
-            cancel_current_sound()
+            # Stop previous without nested lock (already held)
+            prev = _sound_obj
+            _sound_obj = None
+            if prev is not None:
+                try:
+                    prev.stop()
+                except Exception:
+                    pass
             try:
-                proc = subprocess.Popen(
-                    [
-                        sys.executable,
-                        '-c',
-                        'import sys; from playsound3 import playsound; '
-                        'playsound(sys.argv[1], block=True)',
-                        sound_path,
-                    ],
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                    stdin=subprocess.DEVNULL,
-                    creationflags=_CREATE_NO_WINDOW,
-                )
-                _sound_proc = proc
+                # block=False → returns a Sound object with .stop() / .wait() / .is_alive()
+                sound = playsound(sound_path, block=False)
+                _sound_obj = sound
             except Exception as e:
                 print(f'Sound error: {e}')
                 try:
@@ -283,15 +268,14 @@ def play_sound(sound_path: str, volume: float = 1.0, config=None, force: bool = 
                     pass
                 return
 
-        # Wait outside the lock, otherwise it's held for the whole playback
-        # and a new play_sound() call can't interrupt this one - it just queues.
+        # Wait outside the lock so a new play_sound() can interrupt this one.
         try:
-            proc.wait()
+            sound.wait()
         except Exception:
             pass
         finally:
             with _sound_lock:
-                if _sound_proc is proc:
-                    _sound_proc = None
+                if _sound_obj is sound:
+                    _sound_obj = None
 
     threading.Thread(target=_play, daemon=True).start()
