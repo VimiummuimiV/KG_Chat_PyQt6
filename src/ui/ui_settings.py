@@ -109,6 +109,13 @@ def get_sound_path(sound_root: Path, kind: str, config) -> Path | None:
     )
 
 
+class NoWheelSlider(QSlider):
+    """QSlider that ignores mouse wheel events, letting the parent scroll area handle scrolling instead."""
+
+    def wheelEvent(self, event):
+        event.ignore()
+
+
 class SoundSelectorWidget(QWidget):
     """Selector for one notification sound type.
 
@@ -477,7 +484,7 @@ class SettingsWidget(QWidget):
         label.setFont(get_font(FontType.UI))
         row.addWidget(label)
 
-        slider = QSlider(Qt.Orientation.Horizontal)
+        slider = NoWheelSlider(Qt.Orientation.Horizontal)
         slider.setRange(minimum, maximum)
         row.addWidget(slider, stretch=1)
 

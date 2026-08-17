@@ -171,7 +171,7 @@
   "competitions": {
     "enabled": true,
     "min_multiplier": "x1+",
-    "notify_window_enabled": true,
+    "notify_window_enabled": false,
     "notify_window_start": 6,
     "notify_window_end": 24,
     "alert_lead_seconds": 20
