@@ -3687,5 +3687,6 @@
   "733445": {"login": "nrmelihov", "background": "#d18700", "light": "#a56a00", "dark": "#d18700"},
   "577511": {"login": "Avash", "background": "#777777", "light": "#767676", "dark": "#858585"},
   "842194": {"login": "alexgur", "background": "#777777", "light": "#767676", "dark": "#858585"},
-  "451094": {"login": "Mkesha", "background": "#FF007F", "light": "#e70073", "dark": "#ff0f87"}
+  "451094": {"login": "Mkesha", "background": "#FF007F", "light": "#e70073", "dark": "#ff0f87"},
+  "842196": {"login": "chinatown", "background": "#777777", "light": "#767676", "dark": "#858585"}
 }

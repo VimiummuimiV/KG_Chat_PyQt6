@@ -45,7 +45,8 @@ from helpers.duration_dialog import DurationDialog
 from helpers.jid_utils import extract_user_data_from_jid
 from ui.ui_buttons import ButtonPanel
 from helpers.help import HelpPanel
-from components.notification import show_notification, popup_manager, cursor_moved_or_key_pressed
+from components.notification import show_notification, popup_manager
+from helpers.input_activity import cursor_moved_or_key_pressed
 from core.races_listener import RacesListener
 from components.messages_separator import NewMessagesSeparator
 from components.tag_button import update_all_tag_buttons
@@ -1548,6 +1549,7 @@ class ChatWindow(QWidget):
             alert_timer = self._competition_alert_timers.pop(gid, None)
             if alert_timer:
                 alert_timer.stop()
+            self._competition_sound_repeat_timer.stop()
             return
 
         # chat + notification only for waiting (once)
