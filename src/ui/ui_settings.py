@@ -64,17 +64,14 @@ def resolve_sound_file(name: str, system_dir: Path, user_dir: Path) -> Path | No
 
 
 def _read_selected_name(config, kind: str) -> str | None:
-    """Read sound.selected.<kind>; accept legacy key 'banned' as 'ban'."""
+    """Read sound.selected.<kind>."""
     if isinstance(config, dict):
         selected = (config.get("sound") or {}).get("selected") or {}
     else:
         selected = config.get("sound", "selected") or {}
     if not isinstance(selected, dict):
         return None
-    name = selected.get(kind)
-    if not name and kind == "ban":
-        name = selected.get("banned")  # legacy
-    return name
+    return selected.get(kind)
 
 
 def get_sound_name(sound_root: Path, kind: str, config) -> str | None:
@@ -211,8 +208,6 @@ class SoundSelectorWidget(QWidget):
             selected = {}
         selected = dict(selected)
 
-        if self.config_key == "ban":
-            selected.pop("banned", None)  # drop legacy key
         if name:
             selected[self.config_key] = name
         else:
@@ -519,7 +514,6 @@ class SettingsWidget(QWidget):
         main_layout.setSpacing(window_spacing)
         self.setLayout(main_layout)
 
-        # Header
         header_layout = QHBoxLayout()
         header_layout.setSpacing(self._spacing())
         main_layout.addLayout(header_layout)
@@ -534,7 +528,6 @@ class SettingsWidget(QWidget):
         title_label.setFont(get_font(FontType.HEADER))
         header_layout.addWidget(title_label, stretch=1)
 
-        # Scroll area
         self.scroll = QScrollArea()
         self.scroll.setWidgetResizable(True)
         self.scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
