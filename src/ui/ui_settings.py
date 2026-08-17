@@ -16,6 +16,10 @@ from helpers.voice_engine import play_sound
 from helpers.data import get_data_dir
 
 NOTIFICATION_WIDTH_DEFAULT = 550
+COMPETITIONS_ALERT_LEAD_DEFAULT = 0
+COMPETITIONS_NOTIFY_START_DEFAULT = 0
+COMPETITIONS_NOTIFY_END_DEFAULT = 24
+COMPETITION_SOUND_REPEAT_INTERVAL_DEFAULT = 15
 COMPETITIONS_LOG_HEIGHT = 300
 COMPETITIONS_LOG_HEIGHT_COLLAPSED = 32
 
@@ -604,7 +608,8 @@ class SettingsWidget(QWidget):
 
         self.competitions_alert_lead_spin = self._add_slider_spin_row(
             section, "Alert lead time before start (sec)", 0, 300,
-            self._on_competitions_alert_lead_changed
+            self._on_competitions_alert_lead_changed,
+            on_reset=self._on_competitions_alert_lead_reset
         )
 
         # Gates both sound and pop-up alerts, so it lives at the feature level
@@ -613,10 +618,12 @@ class SettingsWidget(QWidget):
             section, "Only alert during allowed hours", self._on_competitions_notify_window_toggled
         )
         self.competitions_notify_start_spin = self._add_slider_spin_row(
-            section, "From", 0, 24, self._on_competitions_notify_start_changed
+            section, "From", 0, 24, self._on_competitions_notify_start_changed,
+            on_reset=self._on_competitions_notify_start_reset
         )
         self.competitions_notify_end_spin = self._add_slider_spin_row(
-            section, "To", 0, 24, self._on_competitions_notify_end_changed
+            section, "To", 0, 24, self._on_competitions_notify_end_changed,
+            on_reset=self._on_competitions_notify_end_reset
         )
 
         log_header_row = QHBoxLayout()
@@ -666,7 +673,8 @@ class SettingsWidget(QWidget):
             self._on_competition_sound_repeat_toggled
         )
         self.competition_sound_repeat_interval_spin = self._add_slider_spin_row(
-            section, "Repeat interval (sec)", 3, 120, self._on_competition_sound_repeat_interval_changed
+            section, "Repeat interval (sec)", 3, 120, self._on_competition_sound_repeat_interval_changed,
+            on_reset=self._on_competition_sound_repeat_interval_reset
         )
 
     def _on_sound_selection_changed(self, _index: int):
@@ -716,15 +724,15 @@ class SettingsWidget(QWidget):
         idx = self.min_multiplier_combo.findText(min_m)
         self.min_multiplier_combo.setCurrentIndex(idx if idx >= 0 else 0)
 
-        self.competitions_alert_lead_spin.setValue(int(self.config.get("competitions", "alert_lead_seconds") or 0))
+        self.competitions_alert_lead_spin.setValue(int(self.config.get("competitions", "alert_lead_seconds") or COMPETITIONS_ALERT_LEAD_DEFAULT))
         self.competitions_alert_lead_spin._slider.setValue(self.competitions_alert_lead_spin.value())
 
         self.competitions_notify_window_checkbox.setChecked(
             bool(self.config.get("competitions", "notify_window_enabled"))
         )
-        self.competitions_notify_start_spin.setValue(int(self.config.get("competitions", "notify_window_start") or 0))
+        self.competitions_notify_start_spin.setValue(int(self.config.get("competitions", "notify_window_start") or COMPETITIONS_NOTIFY_START_DEFAULT))
         self.competitions_notify_start_spin._slider.setValue(self.competitions_notify_start_spin.value())
-        self.competitions_notify_end_spin.setValue(int(self.config.get("competitions", "notify_window_end") or 24))
+        self.competitions_notify_end_spin.setValue(int(self.config.get("competitions", "notify_window_end") or COMPETITIONS_NOTIFY_END_DEFAULT))
         self.competitions_notify_end_spin._slider.setValue(self.competitions_notify_end_spin.value())
 
         position = (self.config.get("ui", "notification_position") or "right").capitalize()
@@ -739,7 +747,7 @@ class SettingsWidget(QWidget):
             bool(self.config.get("sound", "competition_repeat_enabled"))
         )
         self.competition_sound_repeat_interval_spin.setValue(
-            int(self.config.get("sound", "competition_repeat_interval") or 15)
+            int(self.config.get("sound", "competition_repeat_interval") or COMPETITION_SOUND_REPEAT_INTERVAL_DEFAULT)
         )
         self.competition_sound_repeat_interval_spin._slider.setValue(self.competition_sound_repeat_interval_spin.value())
 
@@ -928,20 +936,32 @@ class SettingsWidget(QWidget):
     def _on_competitions_alert_lead_changed(self, value: int):
         self.config.set("competitions", "alert_lead_seconds", value=value)
 
+    def _on_competitions_alert_lead_reset(self):
+        self.competitions_alert_lead_spin.setValue(COMPETITIONS_ALERT_LEAD_DEFAULT)
+
     def _on_competitions_notify_window_toggled(self, checked: bool):
         self.config.set("competitions", "notify_window_enabled", value=checked)
 
     def _on_competitions_notify_start_changed(self, value: int):
         self.config.set("competitions", "notify_window_start", value=value)
 
+    def _on_competitions_notify_start_reset(self):
+        self.competitions_notify_start_spin.setValue(COMPETITIONS_NOTIFY_START_DEFAULT)
+
     def _on_competitions_notify_end_changed(self, value: int):
         self.config.set("competitions", "notify_window_end", value=value)
+
+    def _on_competitions_notify_end_reset(self):
+        self.competitions_notify_end_spin.setValue(COMPETITIONS_NOTIFY_END_DEFAULT)
 
     def _on_competition_sound_repeat_toggled(self, checked: bool):
         self.config.set("sound", "competition_repeat_enabled", value=checked)
 
     def _on_competition_sound_repeat_interval_changed(self, value: int):
         self.config.set("sound", "competition_repeat_interval", value=value)
+
+    def _on_competition_sound_repeat_interval_reset(self):
+        self.competition_sound_repeat_interval_spin.setValue(COMPETITION_SOUND_REPEAT_INTERVAL_DEFAULT)
 
     def _on_notification_position_changed(self, text: str):
         self.config.set("ui", "notification_position", value=text.lower())
