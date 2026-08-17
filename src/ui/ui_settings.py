@@ -364,13 +364,15 @@ class SoundSelectorWidget(QWidget):
             return
 
         current_path = self.user_dir / file_name
-        new_stem, ok = QInputDialog.getText(
-            self,
-            "Rename sound",
-            "New file name:",
-            text=self._display_name(file_name),
-        )
-        if not ok or not new_stem.strip():
+        dialog = QInputDialog(self)
+        dialog.setWindowTitle("Rename sound")
+        dialog.setLabelText("New file name:")
+        dialog.setTextValue(self._display_name(file_name))
+        dialog.resize(400, dialog.sizeHint().height())
+        if not dialog.exec():
+            return
+        new_stem = dialog.textValue()
+        if not new_stem.strip():
             return
 
         clean_name = new_stem.strip().strip("\\/")
