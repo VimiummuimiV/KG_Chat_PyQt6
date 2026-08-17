@@ -126,16 +126,26 @@ class MessageListModel(QAbstractListModel):
             self._messages.pop(index)
             self.endRemoveRows()
    
-    def update_message_by_game_id(self, game_id: int, body: str, players: Optional[List[str]] = None) -> Optional[int]:
-        """Update a competition message's body (and optionally its player chips) in place. Returns its row, or None."""
+    def _find_competition_row(self, game_id: int) -> Optional[int]:
         for row in range(len(self._messages) - 1, -1, -1):
             msg = self._messages[row]
             if msg.is_competition and msg.competition_game_id == game_id:
-                msg.body = body
-                if players is not None:
-                    msg.competition_players = players
                 return row
         return None
+
+    def update_message_by_game_id(self, game_id: int, body: str, players: Optional[List[str]] = None) -> Optional[int]:
+        """Update a competition message's body (and optionally its player chips) in place. Returns its row, or None."""
+        row = self._find_competition_row(game_id)
+        if row is not None:
+            msg = self._messages[row]
+            msg.body = body
+            if players is not None:
+                msg.competition_players = players
+        return row
+
+    def find_competition_message_row(self, game_id: int) -> Optional[int]:
+        """Find row of a competition message by game_id. Returns row index or None."""
+        return self._find_competition_row(game_id)
 
     def get_all_messages(self) -> List[MessageData]:
         return self._messages.copy()

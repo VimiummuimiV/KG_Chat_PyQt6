@@ -1542,6 +1542,8 @@ class ChatWindow(QWidget):
             mw = getattr(self, "messages_widget", None)
             if mw and hasattr(mw, "clear_competition_messages"):
                 mw.clear_competition_messages(gid)
+                # Scroll to bottom to show current chat after competition message is removed
+                QTimer.singleShot(50, lambda: scroll(mw.scroll_area, mode="bottom"))
             self._competition_live.pop(gid, None)
             alert_timer = self._competition_alert_timers.pop(gid, None)
             if alert_timer:
@@ -1684,6 +1686,13 @@ class ChatWindow(QWidget):
         # Competition sound plays regardless of window focus, like ban sound
         self._play_competition_sound()
         self._start_competition_sound_repeat()
+
+        # Scroll to competition message to make it visible
+        mw = getattr(self, "messages_widget", None)
+        if mw and hasattr(mw, "list_view") and hasattr(mw, "model"):
+            row = mw.model.find_competition_message_row(gid)
+            if row is not None:
+                QTimer.singleShot(50, lambda r=row, lv=mw.list_view: scroll(lv, mode="middle", target_row=r))
 
         # Same rule as chat messages: notify only when window is not focused
         if not self.isActiveWindow():
