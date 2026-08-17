@@ -8,4 +8,4 @@ playsound3
 gTTS
 yt-dlp
 keyboard
-websocket
+websocket-client
