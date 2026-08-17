@@ -612,22 +612,12 @@ class SettingsWidget(QWidget):
         self.competitions_notify_window_checkbox = self._add_checkbox(
             section, "Only alert during allowed hours", self._on_competitions_notify_window_toggled
         )
-        notify_hours_row = QHBoxLayout()
-        notify_hours_row.setSpacing(self._spacing())
-        notify_hours_row.addWidget(QLabel("From"))
-        self.competitions_notify_start_spin = QSpinBox()
-        self.competitions_notify_start_spin.setRange(0, 23)
-        self.competitions_notify_start_spin.setSuffix(":00")
-        self.competitions_notify_start_spin.valueChanged.connect(self._on_competitions_notify_start_changed)
-        notify_hours_row.addWidget(self.competitions_notify_start_spin)
-        notify_hours_row.addWidget(QLabel("to"))
-        self.competitions_notify_end_spin = QSpinBox()
-        self.competitions_notify_end_spin.setRange(0, 23)
-        self.competitions_notify_end_spin.setSuffix(":00")
-        self.competitions_notify_end_spin.valueChanged.connect(self._on_competitions_notify_end_changed)
-        notify_hours_row.addWidget(self.competitions_notify_end_spin)
-        notify_hours_row.addStretch(1)
-        section.addLayout(notify_hours_row)
+        self.competitions_notify_start_spin = self._add_slider_spin_row(
+            section, "From", 0, 24, self._on_competitions_notify_start_changed
+        )
+        self.competitions_notify_end_spin = self._add_slider_spin_row(
+            section, "To", 0, 24, self._on_competitions_notify_end_changed
+        )
 
         log_header_row = QHBoxLayout()
         log_header_row.addStretch(1)
@@ -733,7 +723,9 @@ class SettingsWidget(QWidget):
             bool(self.config.get("competitions", "notify_window_enabled"))
         )
         self.competitions_notify_start_spin.setValue(int(self.config.get("competitions", "notify_window_start") or 0))
-        self.competitions_notify_end_spin.setValue(int(self.config.get("competitions", "notify_window_end") or 23))
+        self.competitions_notify_start_spin._slider.setValue(self.competitions_notify_start_spin.value())
+        self.competitions_notify_end_spin.setValue(int(self.config.get("competitions", "notify_window_end") or 24))
+        self.competitions_notify_end_spin._slider.setValue(self.competitions_notify_end_spin.value())
 
         position = (self.config.get("ui", "notification_position") or "right").capitalize()
         idx = self.notification_position_combo.findText(position)
