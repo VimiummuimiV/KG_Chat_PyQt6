@@ -141,9 +141,9 @@
     "play_mention_sound_always": false,
     "competition_sound_force": true,
     "selected": {
-      "mention": "mention.mp3",
+      "mention": "mention_1.mp3",
       "competition": "competition.mp3",
-      "ban": "banned.mp3"
+      "ban": "bullet_hit.mp3"
     }
   },
   "notification": {

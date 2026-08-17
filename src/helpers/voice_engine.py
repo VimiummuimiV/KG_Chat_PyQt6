@@ -253,7 +253,7 @@ def play_sound(sound_path: str, volume: float = 1.0, config=None, force: bool = 
         with _sound_lock:
             cancel_current_sound()
             try:
-                _sound_proc = subprocess.Popen(
+                proc = subprocess.Popen(
                     [
                         sys.executable,
                         '-c',
@@ -265,7 +265,7 @@ def play_sound(sound_path: str, volume: float = 1.0, config=None, force: bool = 
                     stderr=subprocess.DEVNULL,
                     stdin=subprocess.DEVNULL,
                 )
-                _sound_proc.wait()
+                _sound_proc = proc
             except Exception as e:
                 print(f'Sound error: {e}')
                 try:
@@ -275,8 +275,17 @@ def play_sound(sound_path: str, volume: float = 1.0, config=None, force: bool = 
                         app.beep()
                 except Exception:
                     pass
-            finally:
-                if _sound_proc is not None and _sound_proc.poll() is not None:
+                return
+
+        # Wait outside the lock, otherwise it's held for the whole playback
+        # and a new play_sound() call can't interrupt this one - it just queues.
+        try:
+            proc.wait()
+        except Exception:
+            pass
+        finally:
+            with _sound_lock:
+                if _sound_proc is proc:
                     _sound_proc = None
 
     threading.Thread(target=_play, daemon=True).start()
