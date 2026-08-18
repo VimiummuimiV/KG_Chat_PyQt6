@@ -2,6 +2,25 @@
 import colorsys
 
 
+def blend_hex_colors(base_hex: str, accent_hex: str, ratio: float = 0.15) -> str:
+    """Blend two hex colors by a small ratio, keeping the result in hex format."""
+    base_hex = base_hex.lstrip('#')
+    accent_hex = accent_hex.lstrip('#')
+
+    if len(base_hex) == 3:
+        base_hex = ''.join(ch * 2 for ch in base_hex)
+    if len(accent_hex) == 3:
+        accent_hex = ''.join(ch * 2 for ch in accent_hex)
+
+    mixed = []
+    for i in range(0, 6, 2):
+        base_channel = int(base_hex[i:i + 2], 16)
+        accent_channel = int(accent_hex[i:i + 2], 16)
+        mixed.append(round(base_channel + (accent_channel - base_channel) * ratio))
+
+    return '#' + ''.join(f'{value:02X}' for value in mixed)
+
+
 def hsl_to_hex(h: float, s: float, l: float) -> str:
     """Convert HSL to hex color
     

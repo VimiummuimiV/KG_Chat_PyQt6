@@ -14,6 +14,7 @@ from helpers.fonts import get_font, FontType
 from helpers.startup_manager import StartupManager
 from helpers.voice_engine import play_sound
 from helpers.data import get_data_dir
+from helpers.color_utils import blend_hex_colors
 
 NOTIFICATION_WIDTH_DEFAULT = 550
 COMPETITIONS_ALERT_LEAD_DEFAULT = 0
@@ -868,10 +869,13 @@ class SettingsWidget(QWidget):
 
     def _apply_competitions_log_theme(self):
         c = self._competitions_log_colors()
-        accent = self._competitions_accent_color or "transparent"
+        accent = self._competitions_accent_color or c["default"]
+        is_dark = (self.config.get("ui", "theme") or "dark") == "dark"
+        container_bg = "#000000" if is_dark else "#FFFFFF"
+        mix_ratio = 0.10 if is_dark else 0.30
+        mixed_bg = blend_hex_colors(container_bg, accent, mix_ratio)
         self.competitions_log.setStyleSheet(
-            f"QTextEdit {{ background-color: {c['bg']}; color: {c['fg']}; "
-            f"border: none; border-left: 3px solid {accent}; border-radius: 0; }}"
+            f"QTextEdit {{ background-color: {mixed_bg}; color: {c['fg']}; border: none; }}"
         )
 
     def _colorize_log_line(self, line: str) -> str:
