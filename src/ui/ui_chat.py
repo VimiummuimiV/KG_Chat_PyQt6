@@ -95,6 +95,7 @@ class ChatWindow(QWidget):
         # Live-updating competition messages: game_id -> {mult, url, begintime, players}
         self._competition_live = {}
         self._competition_alert_timers = {}  # game_id -> pending lead-time alert QTimer
+        self._competition_focus_gid = None  # keep this row centered while chips grow after alert
         self._competition_countdown_timer = QTimer(self)
         self._competition_countdown_timer.timeout.connect(self._tick_competition_countdowns)
         self._competition_sound_repeat_timer = QTimer(self)
@@ -1514,6 +1515,8 @@ class ChatWindow(QWidget):
                 mw.clear_competition_messages(gid)
             self._competition_live.pop(gid, None)
             self._competition_notified.discard(gid)
+            if self._competition_focus_gid == gid:
+                self._competition_focus_gid = None
             timer = self._competition_alert_timers.pop(gid, None)
             if timer:
                 timer.stop()
@@ -1525,6 +1528,7 @@ class ChatWindow(QWidget):
         self._competition_countdown_timer.stop()
         self._competition_sound_repeat_timer.stop()
         self._competition_live.clear()
+        self._competition_focus_gid = None
         for timer in self._competition_alert_timers.values():
             timer.stop()
         self._competition_alert_timers.clear()
@@ -1577,6 +1581,8 @@ class ChatWindow(QWidget):
                 # Scroll to bottom to show current chat after competition message is removed
                 QTimer.singleShot(50, lambda: scroll(mw.scroll_area, mode="bottom"))
             self._competition_live.pop(gid, None)
+            if self._competition_focus_gid == gid:
+                self._competition_focus_gid = None
             alert_timer = self._competition_alert_timers.pop(gid, None)
             if alert_timer:
                 alert_timer.stop()
@@ -1677,7 +1683,11 @@ class ChatWindow(QWidget):
         sb = mw.list_view.verticalScrollBar()
         at_bottom = (sb.maximum() - sb.value()) <= 100
         mw.update_competition_message(gid, header, names)
-        if at_bottom:
+        if self._competition_focus_gid == gid:
+            row = mw.model.find_competition_message_row(gid)
+            if row is not None:
+                QTimer.singleShot(0, lambda r=row, lv=mw.list_view: scroll(lv, mode="middle", target_row=r))
+        elif at_bottom:
             QTimer.singleShot(0, lambda: scroll(mw.scroll_area, mode="bottom"))
 
         popup = popup_manager.find_by_tag(f"competition:{gid}")
@@ -1724,7 +1734,8 @@ class ChatWindow(QWidget):
         self._play_competition_sound()
         self._start_competition_sound_repeat()
 
-        # Scroll to competition message to make it visible
+        # Scroll to competition message and keep it centered while chips grow
+        self._competition_focus_gid = gid
         mw = getattr(self, "messages_widget", None)
         if mw and hasattr(mw, "list_view") and hasattr(mw, "model"):
             row = mw.model.find_competition_message_row(gid)
