@@ -1577,7 +1577,7 @@ class ChatWindow(QWidget):
         if begintime:
             remaining = max(0, round(begintime - datetime.now().timestamp()))
             parts.append(f"⏱️ {remaining // 60:02d}:{remaining % 60:02d}")
-        parts.append(f"👥 {count}")
+        parts.append(f"🗿 {count}")
         return " ".join(parts)
 
     @staticmethod
