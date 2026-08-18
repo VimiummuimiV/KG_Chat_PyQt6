@@ -446,6 +446,7 @@ class SettingsWidget(QWidget):
 
     back_requested = pyqtSignal()
     sound_changed = pyqtSignal()
+    competition_log_clear_requested = pyqtSignal()
 
     def __init__(self, config, icons_path: Path):
         super().__init__()
@@ -649,11 +650,19 @@ class SettingsWidget(QWidget):
         log_label.setFont(get_font(FontType.UI))
         log_header_row.addWidget(log_label)
         log_header_row.addStretch(1)
+
         self.copy_log_button = create_icon_button(
             self.icons_path, "copy.svg", "Copy log", size_type="small", config=self.config
         )
         self.copy_log_button.clicked.connect(self._on_copy_log_clicked)
         log_header_row.addWidget(self.copy_log_button)
+
+        self.clear_log_button = create_icon_button(
+            self.icons_path, "trash.svg", "Clear log", size_type="small", config=self.config
+        )
+        self.clear_log_button.clicked.connect(self._on_clear_log_clicked)
+        log_header_row.addWidget(self.clear_log_button)
+
         section.addLayout(log_header_row)
 
         self.competitions_log = QTextEdit()
@@ -953,6 +962,10 @@ class SettingsWidget(QWidget):
 
     def _on_copy_log_clicked(self):
         QApplication.clipboard().setText(self.competitions_log.toPlainText())
+
+    def _on_clear_log_clicked(self):
+        self.competitions_log.clear()
+        self.competition_log_clear_requested.emit()
 
     def _on_min_multiplier_changed(self, text: str):
         self.config.set("competitions", "min_multiplier", value=text)

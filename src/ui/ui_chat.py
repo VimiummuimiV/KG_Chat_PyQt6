@@ -84,6 +84,7 @@ class ChatWindow(QWidget):
         self.races_listener = None
         self._competition_notified = set()  # game_ids already announced this session
         self._competition_log_lines = []
+        self._competition_log_status = {}  # game_id -> last logged status (dedupe)
         self._races_status = "disconnected"
         self._pending_competitions = []  # queued while chat history isn't ready yet
         self._chat_ready = False  # True once initial history has settled once
@@ -1487,6 +1488,7 @@ class ChatWindow(QWidget):
             self._competition_notified.clear()
             self._pending_competitions.clear()
             self._competition_log_lines.clear()
+            self._competition_log_status.clear()
             self._remove_competition_messages()
             self._reset_competition_live_state()
             self._on_races_status("disconnected")
@@ -1562,8 +1564,9 @@ class ChatWindow(QWidget):
         gid, mult, url, tag = self._competition_fields(info)
         status = info.get("status") or "?"
 
-        # settings log: all statuses
-        self._append_competition_log(f"{mult} #{gid} {status}")
+        if self._competition_log_status.get(gid) != status:
+            self._competition_log_status[gid] = status
+            self._append_competition_log(f"{mult} #{gid} {status}")
 
         if status == "racing":
             if tag:
@@ -1785,6 +1788,9 @@ class ChatWindow(QWidget):
         ):
             sw.append_competition_log(entry)
 
+    def clear_competition_log(self):
+        self._competition_log_lines.clear()
+        self._competition_log_status.clear()
 
     def _sync_competitions_settings_ui(self):
         """Restore full session log + indicator into settings."""
@@ -2353,6 +2359,9 @@ class ChatWindow(QWidget):
                 self._on_min_multiplier_changed
             )
             self.settings_widget.sound_changed.connect(self._setup_sounds)
+            self.settings_widget.competition_log_clear_requested.connect(
+                self.clear_competition_log
+            )
             self.stacked_widget.addWidget(self.settings_widget)
         else:
             # Reflect any state changed elsewhere (tray menu, hotkeys) since it was last shown

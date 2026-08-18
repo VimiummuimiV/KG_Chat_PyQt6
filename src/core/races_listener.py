@@ -267,6 +267,7 @@ class RacesListener(QObject):
         status = game.get("status")
         mult = game.get("multiplier") or "?"
         if status not in _TRACKED_STATUSES or not self.passes_filter(mult):
+            game.pop("_emitted_status", None)
             return
         if game.get("_emitted_status") == status:
             return
