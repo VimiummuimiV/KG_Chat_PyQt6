@@ -1,149 +1,147 @@
-"""Color utilities for HSL manipulation"""
+"""Color utilities — conversions, blending, and app palette helpers."""
 import colorsys
 
 
-def blend_hex_colors(base_hex: str, accent_hex: str, ratio: float = 0.15) -> str:
-    """Blend two hex colors by a small ratio, keeping the result in hex format."""
-    base_hex = base_hex.lstrip('#')
-    accent_hex = accent_hex.lstrip('#')
+def hex_to_rgb(hex_color: str) -> tuple:
+    hex_color = hex_color.lstrip("#")
+    if len(hex_color) == 3:
+        hex_color = "".join(c * 2 for c in hex_color)
+    return tuple(int(hex_color[i : i + 2], 16) for i in (0, 2, 4))
 
-    if len(base_hex) == 3:
-        base_hex = ''.join(ch * 2 for ch in base_hex)
-    if len(accent_hex) == 3:
-        accent_hex = ''.join(ch * 2 for ch in accent_hex)
 
-    mixed = []
-    for i in range(0, 6, 2):
-        base_channel = int(base_hex[i:i + 2], 16)
-        accent_channel = int(accent_hex[i:i + 2], 16)
-        mixed.append(round(base_channel + (accent_channel - base_channel) * ratio))
+def rgb_to_hex(rgb: tuple) -> str:
+    return "#{:02x}{:02x}{:02x}".format(int(rgb[0]), int(rgb[1]), int(rgb[2]))
 
-    return '#' + ''.join(f'{value:02X}' for value in mixed)
+
+def rgb_to_hsl(rgb: tuple) -> tuple:
+    """RGB (0-255) → HSL (h 0-360, s 0-1, l 0-1)."""
+    r, g, b = [x / 255.0 for x in rgb]
+    max_val, min_val = max(r, g, b), min(r, g, b)
+    diff = max_val - min_val
+    l = (max_val + min_val) / 2.0
+
+    if diff == 0:
+        return (0, 0, l)
+
+    s = diff / (2.0 - max_val - min_val) if l > 0.5 else diff / (max_val + min_val)
+
+    if max_val == r:
+        h = ((g - b) / diff + (6 if g < b else 0)) / 6.0
+    elif max_val == g:
+        h = ((b - r) / diff + 2) / 6.0
+    else:
+        h = ((r - g) / diff + 4) / 6.0
+
+    return (h * 360, s, l)
+
+
+def hsl_to_rgb(hsl: tuple) -> tuple:
+    """HSL (h 0-360, s 0-1, l 0-1) → RGB (0-255)."""
+    h, s, l = hsl
+    h = h / 360.0
+
+    if s == 0:
+        v = int(l * 255)
+        return (v, v, v)
+
+    def hue_to_rgb(p, q, t):
+        t = t + 1 if t < 0 else t - 1 if t > 1 else t
+        if t < 1 / 6:
+            return p + (q - p) * 6 * t
+        if t < 1 / 2:
+            return q
+        if t < 2 / 3:
+            return p + (q - p) * (2 / 3 - t) * 6
+        return p
+
+    q = l * (1 + s) if l < 0.5 else l + s - l * s
+    p = 2 * l - q
+    return (
+        round(hue_to_rgb(p, q, h + 1 / 3) * 255),
+        round(hue_to_rgb(p, q, h) * 255),
+        round(hue_to_rgb(p, q, h - 1 / 3) * 255),
+    )
 
 
 def hsl_to_hex(h: float, s: float, l: float) -> str:
-    """Convert HSL to hex color
-    
-    Args:
-        h: Hue (0-360)
-        s: Saturation (0-100)
-        l: Lightness (0-100)
-    
-    Returns:
-        Hex color string like '#FF0000'
-    """
-    # Normalize to 0-1 range
-    h_norm = h / 360.0
-    s_norm = s / 100.0
-    l_norm = l / 100.0
-    
-    # Convert to RGB
-    r, g, b = colorsys.hls_to_rgb(h_norm, l_norm, s_norm)
-    
-    # Convert to 0-255 range and format as hex
+    """HSL (h 0-360, s 0-100, l 0-100) → hex."""
+    r, g, b = colorsys.hls_to_rgb(h / 360.0, l / 100.0, s / 100.0)
     return f"#{int(r * 255):02X}{int(g * 255):02X}{int(b * 255):02X}"
 
 
+def blend_hex_colors(base_hex: str, accent_hex: str, ratio: float = 0.15) -> str:
+    """Blend two hex colors by ratio toward accent."""
+    br, bg, bb = hex_to_rgb(base_hex)
+    ar, ag, ab = hex_to_rgb(accent_hex)
+    return rgb_to_hex((
+        round(br + (ar - br) * ratio),
+        round(bg + (ag - bg) * ratio),
+        round(bb + (ab - bb) * ratio),
+    ))
+
+
 def get_private_message_colors(config, is_dark_theme: bool) -> dict:
-    # Read only hue and saturation from config
     hue = config.get("ui", "private_message_color", "hue") or 0
     saturation = config.get("ui", "private_message_color", "saturation") or 75
-    
-    # Derive lightness values based on theme
     if is_dark_theme:
-        # Dark theme: light text on dark backgrounds
-        lightness_values = {
-            "text": 75,          # Light & readable text
-            "input_bg": 15,      # Dark background
-            "input_border": 35   # Medium contrast border
-        }
+        lightness_values = {"text": 75, "input_bg": 15, "input_border": 35}
     else:
-        # Light theme: dark text on light backgrounds
-        lightness_values = {
-            "text": 35,          # Dark & readable text
-            "input_bg": 85,      # Light background
-            "input_border": 55   # Medium contrast border
-        }
-    
-    # Generate all colors
-    return {
-        key: hsl_to_hex(hue, saturation, lightness)
-        for key, lightness in lightness_values.items()
-    }
+        lightness_values = {"text": 35, "input_bg": 85, "input_border": 55}
+    return {key: hsl_to_hex(hue, saturation, lightness) for key, lightness in lightness_values.items()}
 
 
 def get_ban_message_colors(config, is_dark_theme: bool) -> dict:
-    # Read only hue and saturation from config
-    hue = config.get("ui", "ban_message_color", "hue") or 170 
+    hue = config.get("ui", "ban_message_color", "hue") or 170
     saturation = config.get("ui", "ban_message_color", "saturation") or 75
-    
-    # Derive lightness values based on theme
-    if is_dark_theme:
-        # Dark theme: light text on dark backgrounds
-        lightness_values = {
-            "text": 75,          # Light & readable text
-        }
-    else:
-        # Light theme: dark text on light backgrounds
-        lightness_values = {
-            "text": 35,          # Dark & readable text
-        }
-    
-    # Generate all colors
-    return {
-        key: hsl_to_hex(hue, saturation, lightness)
-        for key, lightness in lightness_values.items()
-    }
+    lightness_values = {"text": 75 if is_dark_theme else 35}
+    return {key: hsl_to_hex(hue, saturation, lightness) for key, lightness in lightness_values.items()}
 
 
 def get_system_message_colors(config, is_dark_theme: bool) -> dict:
-    # Read only hue and saturation from config
     hue = config.get("ui", "system_message_color", "hue") or 240
     saturation = config.get("ui", "system_message_color", "saturation") or 0
-    
-    # Derive lightness values based on theme
-    if is_dark_theme:
-        # Dark theme: light gray text
-        lightness_values = {
-            "text": 60,          # Medium-light gray
-        }
-    else:
-        # Light theme: dark gray text
-        lightness_values = {
-            "text": 50,          # Medium gray
-        }
-    
-    # Generate all colors
-    return {
-        key: hsl_to_hex(hue, saturation, lightness)
-        for key, lightness in lightness_values.items()
-    }
+    lightness_values = {"text": 60 if is_dark_theme else 50}
+    return {key: hsl_to_hex(hue, saturation, lightness) for key, lightness in lightness_values.items()}
 
 
 def get_mention_color(is_dark_theme: bool) -> str:
-    """Get mention highlight color based on theme"""
     return "#00FF00" if is_dark_theme else "#008000"
 
 
 def get_competition_message_colors(config, is_dark_theme: bool) -> dict:
-    # Read only hue and saturation from config
     hue = config.get("ui", "competition_message_color", "hue") or 45
     saturation = config.get("ui", "competition_message_color", "saturation") or 80
+    lightness_values = {"text": 75 if is_dark_theme else 40}
+    return {key: hsl_to_hex(hue, saturation, lightness) for key, lightness in lightness_values.items()}
 
-    # Derive lightness values based on theme
-    if is_dark_theme:
-        # Dark theme: light text on dark backgrounds
-        lightness_values = {
-            "text": 75,          # Light & readable text
-        }
+
+# level (1-9) → rank base color from klavogonki titles
+RANK_LEVEL_COLORS = {
+    1: "#06B4E9",  # Экстракибер
+    2: "#5681FF",  # Кибергонщик
+    3: "#B543F5",  # Супермен
+    4: "#DA0543",  # Маньяк
+    5: "#FF8C00",  # Гонщик
+    6: "#C1AA00",  # Профи
+    7: "#2DAB4F",  # Таксист
+    8: "#61B5B3",  # Любитель
+    9: "#AFAFAF",  # Новичок
+}
+
+
+def get_rank_chip_colors(level, is_dark: bool) -> tuple:
+    """Return (bg_hex, fg_hex) for a player chip, adapted to theme from rank color."""
+    try:
+        level = int(level)
+    except (TypeError, ValueError):
+        level = None
+    base = RANK_LEVEL_COLORS.get(level, "#888888")
+    h, s, _ = rgb_to_hsl(hex_to_rgb(base))
+    s = min(1.0, s * 0.85)
+    if is_dark:
+        bg = rgb_to_hex(hsl_to_rgb((h, s, 0.22)))
+        fg = rgb_to_hex(hsl_to_rgb((h, min(1.0, s * 0.65), 0.82)))
     else:
-        # Light theme: dark text on light backgrounds
-        lightness_values = {
-            "text": 40,          # Dark & readable text
-        }
-
-    # Generate all colors
-    return {
-        key: hsl_to_hex(hue, saturation, lightness)
-        for key, lightness in lightness_values.items()
-    }
+        bg = rgb_to_hex(hsl_to_rgb((h, max(0.12, s * 0.30), 0.90)))
+        fg = rgb_to_hex(hsl_to_rgb((h, min(1.0, s * 0.80), 0.30)))
+    return bg, fg

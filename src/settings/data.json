@@ -3727,5 +3727,9 @@
   "842220": {"login": "Limchik", "background": "#777777", "light": "#767676", "dark": "#858585"},
   "768271": {"login": "RedDeat", "background": "#7C7C7C", "light": "#767676", "dark": "#858585"},
   "842221": {"login": "Awersin", "background": "#777777", "light": "#767676", "dark": "#858585"},
-  "842223": {"login": "salfetka522", "background": "#777777", "light": "#767676", "dark": "#858585"}
+  "842223": {"login": "salfetka522", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "842224": {"login": "sankrip", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "735765": {"login": "onaudalila", "background": "#171DB7", "light": "#171DB7", "dark": "#7479ee"},
+  "238240": {"login": "ятвоютрубушатал", "background": "#a59b06", "light": "#807905", "dark": "#a59b06"},
+  "471178": {"login": "Сима44", "background": "#44b223", "light": "#34871b", "dark": "#44b223"}
 }

@@ -12,7 +12,8 @@ from helpers.color_utils import (
     get_ban_message_colors,
     get_system_message_colors,
     get_competition_message_colors,
-    get_mention_color
+    get_mention_color,
+    get_rank_chip_colors,
 )
 from helpers.fonts import get_font, FontType
 from helpers.mention_parser import parse_mentions
@@ -426,16 +427,22 @@ class MessageRenderer(QObject):
         
         return link_rects
     
-    def calculate_chips_height(self, names: List[str], width: int) -> int:
+    @staticmethod
+    def _chip_label(player) -> str:
+        if isinstance(player, dict):
+            return player.get("name") or "?"
+        return str(player)
+
+    def calculate_chips_height(self, players: list, width: int) -> int:
         """Height needed for the wrapping row of user chips."""
-        if not names or width <= 0:
+        if not players or width <= 0:
             return 0
         fm = QFontMetrics(self.body_font)
         chip_height = fm.height() + 6
         row_width = 0
         rows = 1
-        for name in names:
-            chip_width = fm.horizontalAdvance(name) + 16
+        for player in players:
+            chip_width = fm.horizontalAdvance(self._chip_label(player)) + 16
             if row_width and row_width + self.CHIP_GAP + chip_width > width:
                 rows += 1
                 row_width = chip_width
@@ -443,27 +450,28 @@ class MessageRenderer(QObject):
                 row_width += (self.CHIP_GAP if row_width else 0) + chip_width
         return rows * chip_height + (rows - 1) * self.CHIP_GAP
 
-    def paint_chips(self, painter: QPainter, x: int, y: int, width: int, names: List[str], is_dark: bool) -> int:
+    def paint_chips(self, painter: QPainter, x: int, y: int, width: int, players: list, is_dark: bool) -> int:
         """Paint usernames as pill-shaped chips in a wrapping flow. Returns the block height used."""
-        if not names or width <= 0:
+        if not players or width <= 0:
             return 0
         fm = QFontMetrics(self.body_font)
         painter.setFont(self.body_font)
         chip_height = fm.height() + 6
-        bg_color = QColor("#3A3A3A" if is_dark else "#E0E0E0")
-        fg_color = QColor("#DDDDDD" if is_dark else "#333333")
         current_x, current_y = x, y
 
-        for name in names:
+        for player in players:
+            name = self._chip_label(player)
+            level = player.get("level") if isinstance(player, dict) else None
+            bg_hex, fg_hex = get_rank_chip_colors(level, is_dark)
             chip_width = fm.horizontalAdvance(name) + 16
             if current_x > x and current_x + chip_width > x + width:
                 current_y += chip_height + self.CHIP_GAP
                 current_x = x
             chip_rect = QRect(current_x, current_y, chip_width, chip_height)
             painter.setPen(Qt.PenStyle.NoPen)
-            painter.setBrush(bg_color)
+            painter.setBrush(QColor(bg_hex))
             painter.drawRoundedRect(chip_rect, chip_height // 2, chip_height // 2)
-            painter.setPen(fg_color)
+            painter.setPen(QColor(fg_hex))
             painter.drawText(chip_rect, Qt.AlignmentFlag.AlignCenter, name)
             current_x += chip_width + self.CHIP_GAP
 

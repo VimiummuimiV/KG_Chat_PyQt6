@@ -7,7 +7,6 @@ from PyQt6.QtWidgets import QStyledItemDelegate, QStyleOptionViewItem, QApplicat
 from PyQt6.QtCore import Qt, QSize, QRect, QModelIndex, pyqtSignal, QTimer, QEvent
 from PyQt6.QtGui import QPainter, QFontMetrics, QColor, QCursor, QMouseEvent, QKeySequence
 
-from helpers.color_contrast import optimize_color_contrast
 from components.messages_separator import NewMessagesSeparator, ChatlogDateSeparator
 from helpers.emoticons import EmoticonManager
 from helpers.fonts import get_font, FontType

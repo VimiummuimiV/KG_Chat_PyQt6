@@ -283,9 +283,14 @@ class RacesListener(QObject):
             entry = players.pop(slot, {})  # re-insert to move to the end (arrival order)
             if "name" in diff:
                 entry["name"] = diff["name"]
+            if "level" in diff:
+                entry["level"] = diff["level"]
             user = diff.get("user")
-            if isinstance(user, dict) and user.get("login"):
-                entry["login"] = user["login"]
+            if isinstance(user, dict):
+                if user.get("login"):
+                    entry["login"] = user["login"]
+                if "level" in user:
+                    entry["level"] = user["level"]
             players[slot] = entry
 
         if game.get("status") == "waiting" and self.passes_filter(game.get("multiplier") or "?"):

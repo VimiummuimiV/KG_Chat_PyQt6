@@ -20,7 +20,7 @@ class MessageData:
     is_system: bool = False
     is_competition: bool = False
     competition_game_id: Optional[int] = None
-    competition_players: Optional[List[str]] = None
+    competition_players: Optional[list] = None  # [{name, level}, ...] or legacy [str]
     is_new_messages_marker: bool = False
    
     def get_time_str(self) -> str:

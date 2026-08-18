@@ -1618,6 +1618,16 @@ class ChatWindow(QWidget):
         return " ".join(parts)
 
     @staticmethod
+    def _player_chips(players: list) -> list:
+        return [
+            {
+                "name": p.get("name") or p.get("login") or "?",
+                "level": p.get("level"),
+            }
+            for p in players
+        ]
+
+    @staticmethod
     def _player_names(players: list) -> list:
         return [p.get("name") or p.get("login") or "?" for p in players]
 
@@ -1628,7 +1638,7 @@ class ChatWindow(QWidget):
         self._competition_live[gid] = {
             "mult": mult, "url": url, "begintime": begintime, "players": players,
         }
-        names = self._player_names(players)
+        chips = self._player_chips(players)
         header = self._format_competition_header(mult, url, begintime, len(players))
         try:
             msg = Message(
@@ -1637,7 +1647,7 @@ class ChatWindow(QWidget):
             )
             msg.is_competition = True
             msg.competition_game_id = gid
-            msg.competition_players = names
+            msg.competition_players = chips
             self.add_local_message(msg)
         except Exception as e:
             print(f"[races] local message error: {e}")
@@ -1678,11 +1688,12 @@ class ChatWindow(QWidget):
         if live is None or not mw:
             return
         players = live.get("players") or []
-        names = self._player_names(players)
+        chips = self._player_chips(players)
+        names = [c["name"] for c in chips]
         header = self._format_competition_header(live["mult"], live["url"], live.get("begintime"), len(players))
         sb = mw.list_view.verticalScrollBar()
         at_bottom = (sb.maximum() - sb.value()) <= 100
-        mw.update_competition_message(gid, header, names)
+        mw.update_competition_message(gid, header, chips)
         if self._competition_focus_gid == gid:
             row = mw.model.find_competition_message_row(gid)
             if row is not None:
