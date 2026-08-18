@@ -114,7 +114,10 @@ class RacesListener(QObject):
         self.min_multiplier = "x1+"
 
     def set_min_multiplier(self, value: str):
+        """Re-check already tracked games so a looser filter surfaces them immediately."""
         self.min_multiplier = value or "x1+"
+        for gid, game in self._games.items():
+            self._maybe_emit(gid, game)
 
     def _passes_filter(self, mult: str) -> bool:
         need = _MULT_ORDER.get(self.min_multiplier.rstrip("+"), 1)
@@ -259,7 +262,9 @@ class RacesListener(QObject):
         for key, value in fields.items():
             if value is not None:
                 game[key] = value
+        self._maybe_emit(gid, game)
 
+    def _maybe_emit(self, gid, game: dict):
         status = game.get("status")
         mult = game.get("multiplier") or "?"
         if status not in _TRACKED_STATUSES or not self._passes_filter(mult):

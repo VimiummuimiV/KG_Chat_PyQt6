@@ -20,7 +20,7 @@
   "542059": {"login": "Примус_починяю", "background": "#650CFF", "light": "#650CFF", "dark": "#9c64ff"},
   "501294": {"login": "_noragami", "background": "#0B00AD", "light": "#0B00AD", "dark": "#7a72ff"},
   "840336": {"login": "plevik", "background": "#777777", "light": "#767676", "dark": "#858585"},
-  "840288": {"login": "ЗАЧИНЩИКСОБЫТИЙ", "background": "#D35F0C", "light": "#c2570b", "dark": "#d9620c"},
+  "840288": {"login": "ЗАЧИНЩИКСОБЫТИЙ", "background": "#c0560b", "light": "#c0560b", "dark": "#da610c"},
   "111001": {"login": "un4given", "background": "#000000", "light": "#000000", "dark": "#858585"},
   "487708": {"login": "foggystyle", "background": "#0A1A56", "light": "#0A1A56", "dark": "#607eed"},
   "840370": {"login": "Sayan701", "background": "#777777", "light": "#767676", "dark": "#858585"},
@@ -3688,5 +3688,11 @@
   "577511": {"login": "Avash", "background": "#777777", "light": "#767676", "dark": "#858585"},
   "842194": {"login": "alexgur", "background": "#777777", "light": "#767676", "dark": "#858585"},
   "451094": {"login": "Mkesha", "background": "#FF007F", "light": "#e70073", "dark": "#ff0f87"},
-  "842196": {"login": "chinatown", "background": "#777777", "light": "#767676", "dark": "#858585"}
+  "842196": {"login": "chinatown", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "842198": {"login": "delikotez1", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "842199": {"login": "dkuzminykh", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "836675": {"login": "lonelygenocide", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "842212": {"login": "bezlikiy812", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "779419": {"login": "Мыха", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "541739": {"login": "yurgen55", "background": "#2251C9", "light": "#2251C9", "dark": "#5a81e3"}
 }
