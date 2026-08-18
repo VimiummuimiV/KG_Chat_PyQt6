@@ -142,7 +142,7 @@
     "competition_sound_force": true,
     "selected": {
       "mention": "tick_short.mp3",
-      "competition": "kalimba_pluck_run.mp3",
+      "competition": "long_tone.mp3",
       "ban": "bullet_hit.mp3"
     },
     "competition_repeat_interval": 5,
