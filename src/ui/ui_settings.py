@@ -26,8 +26,8 @@ COMPETITIONS_LOG_HEIGHT_COLLAPSED = 32
 
 CONNECTION_STATES = {
     "connected": "#2ecc71",
-    "connecting": "#f39c12",
-    "reconnecting": "#f39c12",
+    "connecting": "#f1c40f",
+    "reconnecting": "#e67e22",
 }
 
 COMPETITIONS_LOG_COLORS = {
