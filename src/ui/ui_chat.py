@@ -1630,6 +1630,8 @@ class ChatWindow(QWidget):
             }
             for p in players
         ]
+        if self.config.get("competitions", "sort_players_by_level"):
+            chips.sort(key=lambda c: c.get("level") or 0, reverse=True)
         limit = int(self.config.get("competitions", "max_player_chips") or 20)
         if limit > 0 and len(chips) > limit:
             return chips[:limit] + [{"name": "…", "level": None}]
@@ -2399,6 +2401,9 @@ class ChatWindow(QWidget):
                 lambda _=None: self.refresh_competition_player_display()
             )
             self.settings_widget.max_player_chips_spin.valueChanged.connect(
+                lambda _=None: self.refresh_competition_player_display()
+            )
+            self.settings_widget.sort_players_by_level_checkbox.toggled.connect(
                 lambda _=None: self.refresh_competition_player_display()
             )
             self.settings_widget.sound_changed.connect(self._setup_sounds)

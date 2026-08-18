@@ -139,8 +139,8 @@ def get_rank_chip_colors(level, is_dark: bool) -> tuple:
     h, s, _ = rgb_to_hsl(hex_to_rgb(base))
     s = min(1.0, s * 0.85)
     if is_dark:
-        bg = rgb_to_hex(hsl_to_rgb((h, s, 0.22)))
-        fg = rgb_to_hex(hsl_to_rgb((h, min(1.0, s * 0.65), 0.82)))
+        bg = rgb_to_hex(hsl_to_rgb((h, s, 0.36)))
+        fg = rgb_to_hex(hsl_to_rgb((h, min(1.0, s * 0.55), 0.90)))
     else:
         bg = rgb_to_hex(hsl_to_rgb((h, max(0.12, s * 0.30), 0.90)))
         fg = rgb_to_hex(hsl_to_rgb((h, min(1.0, s * 0.80), 0.30)))

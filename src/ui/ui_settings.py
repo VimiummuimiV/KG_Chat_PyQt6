@@ -688,6 +688,9 @@ class SettingsWidget(QWidget):
             self._on_max_player_chips_changed,
             on_reset=self._on_max_player_chips_reset, default=COMPETITIONS_MAX_PLAYER_CHIPS_DEFAULT
         )
+        self.sort_players_by_level_checkbox = self._add_checkbox(
+            section, "Sort player chips by rank", self._on_sort_players_by_level_toggled
+        )
 
         self.competitions_alert_lead_spin = self._add_slider_spin_row(
             section, "Alert lead time before start (sec)", 0, 300,
@@ -753,7 +756,7 @@ class SettingsWidget(QWidget):
             self.clear_private_checkbox, self.youtube_checkbox,
             self.track_competitions_checkbox, self.competitions_bypass_mute_checkbox,
             self.competitions_force_sound_checkbox, self.min_multiplier_combo,
-            self.show_players_checkbox, self.max_player_chips_spin,
+            self.show_players_checkbox, self.max_player_chips_spin, self.sort_players_by_level_checkbox,
             self.competitions_alert_lead_spin, self.competitions_notify_window_checkbox,
             self.competitions_notify_start_spin, self.competitions_notify_end_spin,
             self.notification_position_combo, self.notification_width_spin,
@@ -792,8 +795,8 @@ class SettingsWidget(QWidget):
         self.show_players_checkbox.setChecked(True if show_players is None else bool(show_players))
         self.max_player_chips_spin.setValue(int(self.config.get("competitions", "max_player_chips") or COMPETITIONS_MAX_PLAYER_CHIPS_DEFAULT))
         self.max_player_chips_spin._slider.setValue(self.max_player_chips_spin.value())
-        self.max_player_chips_spin.setEnabled(self.show_players_checkbox.isChecked())
-        self.max_player_chips_spin._slider.setEnabled(self.show_players_checkbox.isChecked())
+        self.sort_players_by_level_checkbox.setChecked(bool(self.config.get("competitions", "sort_players_by_level")))
+        self._set_players_controls_enabled(self.show_players_checkbox.isChecked())
 
         self.competitions_alert_lead_spin.setValue(int(self.config.get("competitions", "alert_lead_seconds") or COMPETITIONS_ALERT_LEAD_DEFAULT))
         self.competitions_alert_lead_spin._slider.setValue(self.competitions_alert_lead_spin.value())
@@ -805,6 +808,7 @@ class SettingsWidget(QWidget):
         self.competitions_notify_start_spin._slider.setValue(self.competitions_notify_start_spin.value())
         self.competitions_notify_end_spin.setValue(int(self.config.get("competitions", "notify_window_end") or COMPETITIONS_NOTIFY_END_DEFAULT))
         self.competitions_notify_end_spin._slider.setValue(self.competitions_notify_end_spin.value())
+        self._set_notify_window_controls_enabled(self.competitions_notify_window_checkbox.isChecked())
 
         position = (self.config.get("ui", "notification_position") or "right").capitalize()
         idx = self.notification_position_combo.findText(position)
@@ -821,6 +825,7 @@ class SettingsWidget(QWidget):
             int(self.config.get("sound", "competition_repeat_interval") or COMPETITION_SOUND_REPEAT_INTERVAL_DEFAULT)
         )
         self.competition_sound_repeat_interval_spin._slider.setValue(self.competition_sound_repeat_interval_spin.value())
+        self._set_spin_enabled(self.competition_sound_repeat_interval_spin, self.competition_sound_repeat_checkbox.isChecked())
 
         for widget in widgets:
             widget.blockSignals(False)
@@ -988,16 +993,31 @@ class SettingsWidget(QWidget):
     def _on_min_multiplier_changed(self, text: str):
         self.config.set("competitions", "min_multiplier", value=text)
 
+    def _set_spin_enabled(self, spin, enabled: bool):
+        spin.setEnabled(enabled)
+        if hasattr(spin, "_slider"):
+            spin._slider.setEnabled(enabled)
+
+    def _set_players_controls_enabled(self, enabled: bool):
+        self._set_spin_enabled(self.max_player_chips_spin, enabled)
+        self.sort_players_by_level_checkbox.setEnabled(enabled)
+
+    def _set_notify_window_controls_enabled(self, enabled: bool):
+        self._set_spin_enabled(self.competitions_notify_start_spin, enabled)
+        self._set_spin_enabled(self.competitions_notify_end_spin, enabled)
+
     def _on_show_players_toggled(self, checked: bool):
         self.config.set("competitions", "show_players", value=checked)
-        self.max_player_chips_spin.setEnabled(checked)
-        self.max_player_chips_spin._slider.setEnabled(checked)
+        self._set_players_controls_enabled(checked)
 
     def _on_max_player_chips_changed(self, value: int):
         self.config.set("competitions", "max_player_chips", value=value)
 
     def _on_max_player_chips_reset(self):
         self.max_player_chips_spin.setValue(COMPETITIONS_MAX_PLAYER_CHIPS_DEFAULT)
+
+    def _on_sort_players_by_level_toggled(self, checked: bool):
+        self.config.set("competitions", "sort_players_by_level", value=checked)
 
     def _on_competitions_alert_lead_changed(self, value: int):
         self.config.set("competitions", "alert_lead_seconds", value=value)
@@ -1007,6 +1027,7 @@ class SettingsWidget(QWidget):
 
     def _on_competitions_notify_window_toggled(self, checked: bool):
         self.config.set("competitions", "notify_window_enabled", value=checked)
+        self._set_notify_window_controls_enabled(checked)
 
     def _on_competitions_notify_start_changed(self, value: int):
         self.config.set("competitions", "notify_window_start", value=value)
@@ -1022,6 +1043,7 @@ class SettingsWidget(QWidget):
 
     def _on_competition_sound_repeat_toggled(self, checked: bool):
         self.config.set("sound", "competition_repeat_enabled", value=checked)
+        self._set_spin_enabled(self.competition_sound_repeat_interval_spin, checked)
 
     def _on_competition_sound_repeat_interval_changed(self, value: int):
         self.config.set("sound", "competition_repeat_interval", value=value)

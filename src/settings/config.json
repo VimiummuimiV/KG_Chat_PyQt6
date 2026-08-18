@@ -175,7 +175,8 @@
     "notify_window_start": 6,
     "notify_window_end": 24,
     "alert_lead_seconds": 20,
-    "max_player_chips": 20,
-    "show_players": true
+    "max_player_chips": 10,
+    "show_players": true,
+    "sort_players_by_level": true
   }
 }
