@@ -115,17 +115,17 @@ def get_competition_message_colors(config, is_dark_theme: bool) -> dict:
     return {key: hsl_to_hex(hue, saturation, lightness) for key, lightness in lightness_values.items()}
 
 
-# level (1-9) → rank base color from klavogonki titles
+# level (1-9) → rank base color
 RANK_LEVEL_COLORS = {
-    1: "#06B4E9",  # Экстракибер
-    2: "#5681FF",  # Кибергонщик
-    3: "#B543F5",  # Супермен
-    4: "#DA0543",  # Маньяк
+    1: "#AFAFAF",  # Новичок
+    2: "#61B5B3",  # Любитель
+    3: "#2DAB4F",  # Таксист
+    4: "#C1AA00",  # Профи
     5: "#FF8C00",  # Гонщик
-    6: "#C1AA00",  # Профи
-    7: "#2DAB4F",  # Таксист
-    8: "#61B5B3",  # Любитель
-    9: "#AFAFAF",  # Новичок
+    6: "#DA0543",  # Маньяк
+    7: "#B543F5",  # Супермен
+    8: "#5681FF",  # Кибергонщик
+    9: "#06B4E9",  # Экстракибер
 }
 
 
