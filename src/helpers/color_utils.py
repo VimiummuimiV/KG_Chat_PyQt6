@@ -80,28 +80,31 @@ def blend_hex_colors(base_hex: str, accent_hex: str, ratio: float = 0.15) -> str
     ))
 
 
-def get_private_message_colors(config, is_dark_theme: bool) -> dict:
-    hue = config.get("ui", "private_message_color", "hue") or 0
-    saturation = config.get("ui", "private_message_color", "saturation") or 75
-    if is_dark_theme:
-        lightness_values = {"text": 75, "input_bg": 15, "input_border": 35}
-    else:
-        lightness_values = {"text": 35, "input_bg": 85, "input_border": 55}
+def _themed_hsl_colors(config, section, default_hue, default_sat, is_dark_theme,
+                        dark_values, light_values) -> dict:
+    """Shared lookup for the get_*_message_colors helpers below."""
+    hue = config.get("ui", section, "hue") or default_hue
+    saturation = config.get("ui", section, "saturation") or default_sat
+    lightness_values = dark_values if is_dark_theme else light_values
     return {key: hsl_to_hex(hue, saturation, lightness) for key, lightness in lightness_values.items()}
+
+
+def get_private_message_colors(config, is_dark_theme: bool) -> dict:
+    return _themed_hsl_colors(
+        config, "private_message_color", 0, 75, is_dark_theme,
+        {"text": 75, "input_bg": 15, "input_border": 35},
+        {"text": 35, "input_bg": 85, "input_border": 55},
+    )
 
 
 def get_ban_message_colors(config, is_dark_theme: bool) -> dict:
-    hue = config.get("ui", "ban_message_color", "hue") or 170
-    saturation = config.get("ui", "ban_message_color", "saturation") or 75
-    lightness_values = {"text": 75 if is_dark_theme else 35}
-    return {key: hsl_to_hex(hue, saturation, lightness) for key, lightness in lightness_values.items()}
+    return _themed_hsl_colors(config, "ban_message_color", 170, 75, is_dark_theme,
+                               {"text": 75}, {"text": 35})
 
 
 def get_system_message_colors(config, is_dark_theme: bool) -> dict:
-    hue = config.get("ui", "system_message_color", "hue") or 240
-    saturation = config.get("ui", "system_message_color", "saturation") or 0
-    lightness_values = {"text": 60 if is_dark_theme else 50}
-    return {key: hsl_to_hex(hue, saturation, lightness) for key, lightness in lightness_values.items()}
+    return _themed_hsl_colors(config, "system_message_color", 240, 0, is_dark_theme,
+                               {"text": 60}, {"text": 50})
 
 
 def get_mention_color(is_dark_theme: bool) -> str:
@@ -109,10 +112,8 @@ def get_mention_color(is_dark_theme: bool) -> str:
 
 
 def get_competition_message_colors(config, is_dark_theme: bool) -> dict:
-    hue = config.get("ui", "competition_message_color", "hue") or 45
-    saturation = config.get("ui", "competition_message_color", "saturation") or 80
-    lightness_values = {"text": 75 if is_dark_theme else 40}
-    return {key: hsl_to_hex(hue, saturation, lightness) for key, lightness in lightness_values.items()}
+    return _themed_hsl_colors(config, "competition_message_color", 45, 80, is_dark_theme,
+                               {"text": 75}, {"text": 40})
 
 
 # level (1-9) → rank base color
@@ -129,19 +130,33 @@ RANK_LEVEL_COLORS = {
 }
 
 
+# dark/light knobs for get_rank_chip_colors: canvas color, bg/border blend
+# ratios (+ cool-hue boost), saturation multiplier, and lightness formula
+_RANK_CHIP_THEME = {
+    True: dict(canvas="#141414", bg_a=0.22, bg_cool=0.5, bd_a=0.40, bd_cool=1.0,
+               s_mul=0.95, l=lambda l, cool: min(0.78, max(l, 0.55) + cool)),
+    False: dict(canvas="#F5F5F5", bg_a=0.18, bg_cool=0.3, bd_a=0.35, bd_cool=0.5,
+                s_mul=0.90, l=lambda l, cool: max(0.22, min(l, 0.40) - cool * 0.5)),
+}
+
+
 def get_rank_chip_colors(level, is_dark: bool) -> tuple:
-    """Return (bg_hex, fg_hex) for a player chip, adapted to theme from rank color."""
+    """Return (bg_hex, fg_hex, border_hex) for a player chip.
+
+    Dark theme: muted tinted fill, full-intensity rank text, mid border.
+    Blue/violet hues get a small lightness boost (harder for the eye).
+    """
     try:
         level = int(level)
     except (TypeError, ValueError):
         level = None
     base = RANK_LEVEL_COLORS.get(level, "#888888")
-    h, s, _ = rgb_to_hsl(hex_to_rgb(base))
-    s = min(1.0, s * 0.85)
-    if is_dark:
-        bg = rgb_to_hex(hsl_to_rgb((h, s, 0.36)))
-        fg = rgb_to_hex(hsl_to_rgb((h, min(1.0, s * 0.55), 0.90)))
-    else:
-        bg = rgb_to_hex(hsl_to_rgb((h, max(0.12, s * 0.30), 0.90)))
-        fg = rgb_to_hex(hsl_to_rgb((h, min(1.0, s * 0.80), 0.30)))
-    return bg, fg
+    h, s, l = rgb_to_hsl(hex_to_rgb(base))
+    # blue → violet: ~210–300° — weak perceived brightness
+    cool = 0.08 if 200 <= h <= 300 else 0.0
+
+    t = _RANK_CHIP_THEME[is_dark]
+    bg = blend_hex_colors(t["canvas"], base, t["bg_a"] + cool * t["bg_cool"])
+    border = blend_hex_colors(t["canvas"], base, t["bd_a"] + cool * t["bd_cool"])
+    fg = rgb_to_hex(hsl_to_rgb((h, min(1.0, s * t["s_mul"]), t["l"](l, cool))))
+    return bg, fg, border

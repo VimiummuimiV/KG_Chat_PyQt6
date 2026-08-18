@@ -462,13 +462,13 @@ class MessageRenderer(QObject):
         for player in players:
             name = self._chip_label(player)
             level = player.get("level") if isinstance(player, dict) else None
-            bg_hex, fg_hex = get_rank_chip_colors(level, is_dark)
+            bg_hex, fg_hex, border_hex = get_rank_chip_colors(level, is_dark)
             chip_width = fm.horizontalAdvance(name) + 16
             if current_x > x and current_x + chip_width > x + width:
                 current_y += chip_height + self.CHIP_GAP
                 current_x = x
             chip_rect = QRect(current_x, current_y, chip_width, chip_height)
-            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setPen(QColor(border_hex))
             painter.setBrush(QColor(bg_hex))
             painter.drawRoundedRect(chip_rect, chip_height // 2, chip_height // 2)
             painter.setPen(QColor(fg_hex))
