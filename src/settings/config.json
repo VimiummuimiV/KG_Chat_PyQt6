@@ -81,6 +81,7 @@
     "emoticon_selector_visible": false,
     "always_on_top": false,
     "recent_emoticons": [
+      "sick",
       "uzi",
       "carpet",
       "vdv",
@@ -99,8 +100,7 @@
       "pirate",
       "pirates",
       "gangster",
-      "barret",
-      "confuse"
+      "barret"
     ],
     "window": {
       "width": null,
@@ -146,7 +146,7 @@
       "ban": "bullet_hit.mp3"
     },
     "competition_repeat_interval": 5,
-    "competition_repeat_enabled": true
+    "competition_repeat_enabled": false
   },
   "notification": {
     "mode": "replace",

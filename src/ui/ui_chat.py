@@ -1491,6 +1491,34 @@ class ChatWindow(QWidget):
             self._reset_competition_live_state()
             self._on_races_status("disconnected")
 
+    def _on_min_multiplier_changed(self, text: str):
+        if self.races_listener:
+            self.races_listener.set_min_multiplier(text)
+        self.prune_competitions_by_filter()
+
+    def prune_competitions_by_filter(self):
+        """Drop live competition messages that no longer pass the current min_multiplier."""
+        if not self.races_listener:
+            return
+        to_remove = [
+            gid for gid, live in self._competition_live.items()
+            if not self.races_listener.passes_filter(live.get("mult") or "?")
+        ]
+        if not to_remove:
+            return
+        mw = getattr(self, "messages_widget", None)
+        for gid in to_remove:
+            if mw and hasattr(mw, "clear_competition_messages"):
+                mw.clear_competition_messages(gid)
+            self._competition_live.pop(gid, None)
+            self._competition_notified.discard(gid)
+            timer = self._competition_alert_timers.pop(gid, None)
+            if timer:
+                timer.stop()
+            popup_manager.close_by_tag(f"competition:{gid}")
+        if mw:
+            QTimer.singleShot(50, lambda: scroll(mw.scroll_area, mode="bottom"))
+
     def _reset_competition_live_state(self):
         self._competition_countdown_timer.stop()
         self._competition_sound_repeat_timer.stop()
@@ -1643,7 +1671,11 @@ class ChatWindow(QWidget):
         players = live.get("players") or []
         names = self._player_names(players)
         header = self._format_competition_header(live["mult"], live["url"], live.get("begintime"), len(players))
+        sb = mw.list_view.verticalScrollBar()
+        at_bottom = (sb.maximum() - sb.value()) <= 100
         mw.update_competition_message(gid, header, names)
+        if at_bottom:
+            QTimer.singleShot(0, lambda: scroll(mw.scroll_area, mode="bottom"))
 
         popup = popup_manager.find_by_tag(f"competition:{gid}")
         if popup:
@@ -2318,7 +2350,7 @@ class ChatWindow(QWidget):
             self.settings_widget.back_requested.connect(self.show_messages_view)
             self.settings_widget.track_competitions_checkbox.toggled.connect(self.set_track_competitions)
             self.settings_widget.min_multiplier_combo.currentTextChanged.connect(
-                lambda t: self.races_listener and self.races_listener.set_min_multiplier(t)
+                self._on_min_multiplier_changed
             )
             self.settings_widget.sound_changed.connect(self._setup_sounds)
             self.stacked_widget.addWidget(self.settings_widget)

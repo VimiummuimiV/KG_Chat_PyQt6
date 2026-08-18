@@ -24,6 +24,37 @@ COMPETITION_SOUND_REPEAT_INTERVAL_DEFAULT = 15
 COMPETITIONS_LOG_HEIGHT = 300
 COMPETITIONS_LOG_HEIGHT_COLLAPSED = 32
 
+CONNECTION_STATES = {
+    "connected": "#2ecc71",
+    "connecting": "#f39c12",
+    "reconnecting": "#f39c12",
+}
+
+COMPETITIONS_LOG_COLORS = {
+    "dark": {
+        "bg": "#1E1E1E",
+        "fg": "#D4D4D4",
+        "ws": "#888888",
+        "waiting": "#4EC9B0",
+        "paused": "#DCDCAA",
+        "racing": "#569CD6",
+        "finished": "#6A9955",
+        "error": "#F44747",
+        "default": "#D4D4D4",
+    },
+    "light": {
+        "bg": "#FFFFFF",
+        "fg": "#333333",
+        "ws": "#6A6A6A",
+        "waiting": "#0E8A6A",
+        "paused": "#8A7A00",
+        "racing": "#1A6FB5",
+        "finished": "#2E7D32",
+        "error": "#C62828",
+        "default": "#333333",
+    },
+}
+
 
 # kind == folder name == config key: "mention" | "ban" | "competition"
 
@@ -416,12 +447,6 @@ class SettingsWidget(QWidget):
     back_requested = pyqtSignal()
     sound_changed = pyqtSignal()
 
-    _CONNECTION_STATES = {
-        "connected": ("#2ecc71", "Connected"),
-        "connecting": ("#f39c12", "Connecting..."),
-        "reconnecting": ("#f39c12", "Reconnecting..."),
-    }
-
     def __init__(self, config, icons_path: Path):
         super().__init__()
         self.config = config
@@ -618,32 +643,11 @@ class SettingsWidget(QWidget):
             section, "Track rating competitions", self._on_track_competitions_toggled
         )
 
-        self.min_multiplier_combo = self._add_combo_row(
-            section, "Minimum multiplier", ["x1+", "x2+", "x3+", "x5+"],
-            self._on_min_multiplier_changed
-        )
-
-        self.competitions_alert_lead_spin = self._add_slider_spin_row(
-            section, "Alert lead time before start (sec)", 0, 300,
-            self._on_competitions_alert_lead_changed,
-            on_reset=self._on_competitions_alert_lead_reset, default=COMPETITIONS_ALERT_LEAD_DEFAULT
-        )
-
-        # Gates both sound and pop-up alerts, so it lives at the feature level
-        # rather than under a single delivery channel.
-        self.competitions_notify_window_checkbox = self._add_checkbox(
-            section, "Only alert during allowed hours", self._on_competitions_notify_window_toggled
-        )
-        self.competitions_notify_start_spin = self._add_slider_spin_row(
-            section, "From", 0, 24, self._on_competitions_notify_start_changed,
-            on_reset=self._on_competitions_notify_start_reset, default=COMPETITIONS_NOTIFY_START_DEFAULT
-        )
-        self.competitions_notify_end_spin = self._add_slider_spin_row(
-            section, "To", 0, 24, self._on_competitions_notify_end_changed,
-            on_reset=self._on_competitions_notify_end_reset, default=COMPETITIONS_NOTIFY_END_DEFAULT
-        )
-
         log_header_row = QHBoxLayout()
+        log_header_row.setSpacing(self._spacing())
+        log_label = QLabel("WebSocket Log")
+        log_label.setFont(get_font(FontType.UI))
+        log_header_row.addWidget(log_label)
         log_header_row.addStretch(1)
         self.copy_log_button = create_icon_button(
             self.icons_path, "copy.svg", "Copy log", size_type="small", config=self.config
@@ -660,6 +664,29 @@ class SettingsWidget(QWidget):
         self.competitions_log.setAcceptRichText(True)
         self._apply_competitions_log_theme()
         section.addWidget(self.competitions_log)
+
+        self.min_multiplier_combo = self._add_combo_row(
+            section, "Minimum multiplier", ["x1+", "x2+", "x3+", "x5+"],
+            self._on_min_multiplier_changed
+        )
+
+        self.competitions_alert_lead_spin = self._add_slider_spin_row(
+            section, "Alert lead time before start (sec)", 0, 300,
+            self._on_competitions_alert_lead_changed,
+            on_reset=self._on_competitions_alert_lead_reset, default=COMPETITIONS_ALERT_LEAD_DEFAULT
+        )
+
+        self.competitions_notify_window_checkbox = self._add_checkbox(
+            section, "Only alert during allowed hours", self._on_competitions_notify_window_toggled
+        )
+        self.competitions_notify_start_spin = self._add_slider_spin_row(
+            section, "From", 0, 24, self._on_competitions_notify_start_changed,
+            on_reset=self._on_competitions_notify_start_reset, default=COMPETITIONS_NOTIFY_START_DEFAULT
+        )
+        self.competitions_notify_end_spin = self._add_slider_spin_row(
+            section, "To", 0, 24, self._on_competitions_notify_end_changed,
+            on_reset=self._on_competitions_notify_end_reset, default=COMPETITIONS_NOTIFY_END_DEFAULT
+        )
 
     def _build_sound_section(self):
         section = self._create_section("Sound")
@@ -822,7 +849,6 @@ class SettingsWidget(QWidget):
         """
         if not enabled:
             self._competitions_accent_color = self._competitions_log_colors()["error"]
-            self.competitions_log.setToolTip("Tracking disabled")
             self._apply_competitions_log_theme()
             self.competitions_log.setEnabled(False)
             self.competitions_log.setFixedHeight(COMPETITIONS_LOG_HEIGHT_COLLAPSED)
@@ -836,36 +862,14 @@ class SettingsWidget(QWidget):
             self.competitions_log.setHtml(self._status_log_html("Tracking enabled", "enabled"))
 
         state = connection or "connecting"
-        color, tooltip = self._CONNECTION_STATES.get(state, self._CONNECTION_STATES["reconnecting"])
-        self._competitions_accent_color = color
-        self.competitions_log.setToolTip(tooltip)
+        self._competitions_accent_color = CONNECTION_STATES.get(
+            state, CONNECTION_STATES["reconnecting"]
+        )
         self._apply_competitions_log_theme()
 
     def _competitions_log_colors(self) -> dict:
-        is_dark = (self.config.get("ui", "theme") or "dark") == "dark"
-        if is_dark:
-            return {
-                "bg": "#1E1E1E",
-                "fg": "#D4D4D4",
-                "ws": "#888888",
-                "waiting": "#4EC9B0",
-                "paused": "#DCDCAA",
-                "racing": "#569CD6",
-                "finished": "#6A9955",
-                "error": "#F44747",
-                "default": "#D4D4D4",
-            }
-        return {
-            "bg": "#FFFFFF",
-            "fg": "#333333",
-            "ws": "#6A6A6A",
-            "waiting": "#0E8A6A",
-            "paused": "#8A7A00",
-            "racing": "#1A6FB5",
-            "finished": "#2E7D32",
-            "error": "#C62828",
-            "default": "#333333",
-        }
+        theme = self.config.get("ui", "theme") or "dark"
+        return COMPETITIONS_LOG_COLORS["dark" if theme == "dark" else "light"]
 
     def _apply_competitions_log_theme(self):
         c = self._competitions_log_colors()
