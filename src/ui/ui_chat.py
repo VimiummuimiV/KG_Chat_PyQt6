@@ -1720,7 +1720,7 @@ class ChatWindow(QWidget):
 
         popup = popup_manager.find_by_tag(f"competition:{gid}")
         if popup:
-            popup.update_message(header, names)
+            popup.update_message(header, chips)
 
     def _schedule_competition_alert(self, gid: int, mult: str, url: str, tag: str, begintime):
         """Fire the popup/sound alert immediately, or delayed to `alert_lead_seconds` before start."""
@@ -1755,8 +1755,9 @@ class ChatWindow(QWidget):
             return
         live = self._competition_live.get(gid, {})
         players = live.get("players") or []
-        names = self._player_names(players)
-        header = self._format_competition_header(mult, url, live.get("begintime"), len(players))
+        chips = self._player_chips(players)
+        shown = None if not chips else sum(1 for c in chips if c.get("name") != "…")
+        header = self._format_competition_header(mult, url, live.get("begintime"), len(players), shown)
 
         # Competition sound plays regardless of window focus, like ban sound
         self._play_competition_sound()
@@ -1785,7 +1786,7 @@ class ChatWindow(QWidget):
                     is_competition=True,
                     window_show_callback=self._show_and_focus_window,
                     tag=tag,
-                    players=names,
+                    players=chips,
                 )
             except Exception as e:
                 print(f"[races] notification error: {e}")

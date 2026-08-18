@@ -36,7 +36,7 @@ class NotificationData:
     is_competition: bool = False
     timestamp: Optional[datetime] = None
     tag: Optional[str] = None
-    players: Optional[List[str]] = None
+    players: Optional[list] = None
 
 
 class MessageBodyWidget(QWidget):
@@ -46,7 +46,7 @@ class MessageBodyWidget(QWidget):
 
     def __init__(self, message_renderer: MessageRenderer, text: str, 
                  is_private: bool = False, is_ban: bool = False, is_system: bool = False,
-                 is_competition: bool = False, players: Optional[List[str]] = None):
+                 is_competition: bool = False, players: Optional[list] = None):
         super().__init__()
         self.message_renderer = message_renderer
         self.text = MessageRenderer._emoji_prefix(text, is_private, is_ban, is_system, is_competition)
@@ -77,7 +77,7 @@ class MessageBodyWidget(QWidget):
             height += 6 + self.message_renderer.calculate_chips_height(self.players, width)
         return height
 
-    def update_content(self, text: str, players: Optional[List[str]] = None):
+    def update_content(self, text: str, players: Optional[list] = None):
         """Update text and player chips in place, without recreating the notification."""
         self.text = MessageRenderer._emoji_prefix(text, self.is_private, self.is_ban, self.is_system, self.is_competition)
         if players is not None:
@@ -366,7 +366,7 @@ class PopupNotification(QWidget):
         QTimer.singleShot(0, self._animate_in)
         self._start_cursor_monitoring()
   
-    def update_message(self, text: str, players: Optional[List[str]] = None):
+    def update_message(self, text: str, players: Optional[list] = None):
         """Update the body text (and player chips) in place, no new popup created."""
         if self.message_widget:
             self.message_widget.update_content(text, players)
