@@ -21,6 +21,7 @@ COMPETITIONS_ALERT_LEAD_DEFAULT = 0
 COMPETITIONS_NOTIFY_START_DEFAULT = 0
 COMPETITIONS_NOTIFY_END_DEFAULT = 24
 COMPETITION_SOUND_REPEAT_INTERVAL_DEFAULT = 15
+COMPETITIONS_MAX_PLAYER_CHIPS_DEFAULT = 20
 COMPETITIONS_LOG_HEIGHT = 300
 COMPETITIONS_LOG_HEIGHT_COLLAPSED = 32
 
@@ -679,6 +680,15 @@ class SettingsWidget(QWidget):
             self._on_min_multiplier_changed
         )
 
+        self.show_players_checkbox = self._add_checkbox(
+            section, "Show player chips", self._on_show_players_toggled
+        )
+        self.max_player_chips_spin = self._add_slider_spin_row(
+            section, "Max player chips", 1, 100,
+            self._on_max_player_chips_changed,
+            on_reset=self._on_max_player_chips_reset, default=COMPETITIONS_MAX_PLAYER_CHIPS_DEFAULT
+        )
+
         self.competitions_alert_lead_spin = self._add_slider_spin_row(
             section, "Alert lead time before start (sec)", 0, 300,
             self._on_competitions_alert_lead_changed,
@@ -743,6 +753,7 @@ class SettingsWidget(QWidget):
             self.clear_private_checkbox, self.youtube_checkbox,
             self.track_competitions_checkbox, self.competitions_bypass_mute_checkbox,
             self.competitions_force_sound_checkbox, self.min_multiplier_combo,
+            self.show_players_checkbox, self.max_player_chips_spin,
             self.competitions_alert_lead_spin, self.competitions_notify_window_checkbox,
             self.competitions_notify_start_spin, self.competitions_notify_end_spin,
             self.notification_position_combo, self.notification_width_spin,
@@ -776,6 +787,13 @@ class SettingsWidget(QWidget):
         min_m = self.config.get("competitions", "min_multiplier") or "x1+"
         idx = self.min_multiplier_combo.findText(min_m)
         self.min_multiplier_combo.setCurrentIndex(idx if idx >= 0 else 0)
+
+        show_players = self.config.get("competitions", "show_players")
+        self.show_players_checkbox.setChecked(True if show_players is None else bool(show_players))
+        self.max_player_chips_spin.setValue(int(self.config.get("competitions", "max_player_chips") or COMPETITIONS_MAX_PLAYER_CHIPS_DEFAULT))
+        self.max_player_chips_spin._slider.setValue(self.max_player_chips_spin.value())
+        self.max_player_chips_spin.setEnabled(self.show_players_checkbox.isChecked())
+        self.max_player_chips_spin._slider.setEnabled(self.show_players_checkbox.isChecked())
 
         self.competitions_alert_lead_spin.setValue(int(self.config.get("competitions", "alert_lead_seconds") or COMPETITIONS_ALERT_LEAD_DEFAULT))
         self.competitions_alert_lead_spin._slider.setValue(self.competitions_alert_lead_spin.value())
@@ -969,6 +987,17 @@ class SettingsWidget(QWidget):
 
     def _on_min_multiplier_changed(self, text: str):
         self.config.set("competitions", "min_multiplier", value=text)
+
+    def _on_show_players_toggled(self, checked: bool):
+        self.config.set("competitions", "show_players", value=checked)
+        self.max_player_chips_spin.setEnabled(checked)
+        self.max_player_chips_spin._slider.setEnabled(checked)
+
+    def _on_max_player_chips_changed(self, value: int):
+        self.config.set("competitions", "max_player_chips", value=value)
+
+    def _on_max_player_chips_reset(self):
+        self.max_player_chips_spin.setValue(COMPETITIONS_MAX_PLAYER_CHIPS_DEFAULT)
 
     def _on_competitions_alert_lead_changed(self, value: int):
         self.config.set("competitions", "alert_lead_seconds", value=value)
