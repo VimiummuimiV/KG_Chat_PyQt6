@@ -657,7 +657,7 @@ class ChatWindow(QWidget):
         # Explicitly take focus on ChatWindow so the scroll area inside the selector
         # doesn't capture arrow keys before keyPressEvent sees them.
         if self.emoticon_selector.isVisible():
-            self.input_field.clearFocus()
+            self._active_input_field().clearFocus()
             self.setFocus()
  
     def _current_game_room(self):
@@ -675,6 +675,13 @@ class ChatWindow(QWidget):
                 return gr.input_field
         return self.input_field
 
+    def _active_emoticon_button(self):
+        """Emoticon button of the active room (game tab or General)."""
+        gr = self._current_game_room()
+        if gr is not None and getattr(gr, 'emoticon_button', None) is not None:
+            return gr.emoticon_button
+        return self.emoticon_button
+
     def _on_emoticon_selected(self, emoticon_name: str):
         """Insert emoticon into the active input field."""
         field = self._active_input_field()
@@ -690,7 +697,7 @@ class ChatWindow(QWidget):
             self._active_input_field().setFocus()
 
     def _position_emoticon_selector(self):
-        """Place selector aligned to emoticon button (simple, predictable)."""
+        """Place selector aligned to the active room's emoticon button."""
         if not hasattr(self, 'emoticon_selector'):
             return
 
@@ -706,13 +713,13 @@ class ChatWindow(QWidget):
         w = PANEL_WIDTH
         self.emoticon_selector.setFixedSize(w, h)
 
-        # Align selector right edge to emoticon button right edge
-        btn_global = self.emoticon_button.mapToGlobal(self.emoticon_button.rect().topRight())
-        btn_top_right = self.mapFromGlobal(btn_global)
+        # Align to the button of the current tab (General or game room).
+        # General's button is inside a hidden tab while a game room is active,
+        # so its geometry is unreliable until that tab has been shown at least once.
+        btn = self._active_emoticon_button()
+        btn_top_right = self.mapFromGlobal(btn.mapToGlobal(btn.rect().topRight()))
         x = btn_top_right.x() - w
-
-        # Place above input area with small margin and keep on-screen
-        y = max(16, self.height() - self.input_container.height() - h - 16)
+        y = max(16, btn_top_right.y() - h - 8)
         x = max(8, min(x, self.width() - w - 8))
 
         self.emoticon_selector.move(x, y)
@@ -796,9 +803,10 @@ class ChatWindow(QWidget):
                     gp = event.globalPosition().toPoint() if hasattr(event, 'globalPosition') else event.globalPos()
                     w = QApplication.widgetAt(gp)
                     # Walk up parents to see if click landed inside selector or on the button
+                    btn = self._active_emoticon_button()
                     inside = False
                     while w:
-                        if w == self.emoticon_selector or w == self.emoticon_button:
+                        if w == self.emoticon_selector or w == btn:
                             inside = True
                             break
                         w = w.parentWidget()
