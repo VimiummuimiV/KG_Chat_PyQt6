@@ -2212,6 +2212,7 @@ class ChatWindow(QWidget):
                     msg, display_body, is_ban, is_system, is_initial,
                     room_jid=gr.room_jid, add_message_fn=gr.add_message,
                     source_label=self._room_source_label(gr),
+                    game_id=gid,
                 )
                 return
 
@@ -2262,12 +2263,13 @@ class ChatWindow(QWidget):
         """Room badge for game/competition notifications."""
         return "🏁" if gr.room_label == "Competition" else "🎮"
 
-    def _notify_incoming_message(self, msg, display_body, is_ban, is_system, is_initial, room_jid=None, add_message_fn=None, source_label=None):
+    def _notify_incoming_message(self, msg, display_body, is_ban, is_system, is_initial, room_jid=None, add_message_fn=None, source_label=None, game_id=None):
         """TTS, effect sounds, and popup — shared by general and game-room messages.
 
         room_jid/add_message_fn: route a popup reply back to the originating
         game room instead of General.
-        source_label: optional room badge in the notification header."""
+        source_label: optional room badge in the notification header.
+        game_id: originating game-room tab to activate on notification click."""
         if is_initial:
             return
 
@@ -2317,7 +2319,7 @@ class ChatWindow(QWidget):
                         pass
                     timer.stop()
                     if not self.isActiveWindow():
-                        self._show_notification(msg, display_body, is_ban, is_system, room_jid=room_jid, add_message_fn=add_message_fn, source_label=source_label)
+                        self._show_notification(msg, display_body, is_ban, is_system, room_jid=room_jid, add_message_fn=add_message_fn, source_label=source_label, game_id=game_id)
 
                 def on_ready(url):
                     pending.discard(url)
@@ -2328,7 +2330,7 @@ class ChatWindow(QWidget):
                 timer.timeout.connect(show_now)
                 timer.start(2000)
             else:
-                self._show_notification(msg, display_body, is_ban, is_system, room_jid=room_jid, add_message_fn=add_message_fn, source_label=source_label)
+                self._show_notification(msg, display_body, is_ban, is_system, room_jid=room_jid, add_message_fn=add_message_fn, source_label=source_label, game_id=game_id)
 
     def _show_and_focus_window(self, game_id=None):
         """Show/focus the chat window; switch to the originating room tab if any."""
@@ -2345,13 +2347,13 @@ class ChatWindow(QWidget):
             else:
                 self.room_tabs.setCurrentIndex(0)
 
-    def _show_notification(self, msg, display_body, is_ban, is_system, room_jid=None, add_message_fn=None, source_label=None):
+    def _show_notification(self, msg, display_body, is_ban, is_system, room_jid=None, add_message_fn=None, source_label=None, game_id=None):
         """Show notification.
 
         room_jid: originating game room jid (None = General).
         add_message_fn: local echo target for a typed reply.
-        source_label: optional room badge in the notification header."""
-        gid = self._game_id_from_jid(room_jid) if room_jid else None
+        source_label: optional room badge in the notification header.
+        game_id: originating game-room tab to activate on click (None = General)."""
         try:
             show_notification(
                 title=msg.login,
@@ -2362,7 +2364,7 @@ class ChatWindow(QWidget):
                 emoticon_manager=self.emoticon_manager,
                 local_message_callback=add_message_fn or self.add_local_message,
                 account=self.account,
-                window_show_callback=lambda g=gid: self._show_and_focus_window(g),
+                window_show_callback=lambda g=game_id: self._show_and_focus_window(g),
                 is_private=getattr(msg, 'is_private', False),
                 recipient_jid=msg.from_jid if getattr(msg, 'is_private', False) else None,
                 room_jid=room_jid,
