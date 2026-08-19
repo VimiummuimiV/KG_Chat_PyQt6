@@ -1411,16 +1411,18 @@ class ChatWindow(QWidget):
                 self.input_field.setFocus()
             if self._general_unread:
                 self._set_general_unread(False)
-            # Heights go stale while General is hidden in QTabWidget
-            if hasattr(self, 'messages_widget') and self.messages_widget:
-                self.messages_widget._force_recalculate()
-                QTimer.singleShot(0, self.messages_widget._force_recalculate)
         else:
             w = self.room_tabs.widget(index)
-            if isinstance(w, GameRoomWidget) and w.input_field:
-                w.input_field.setFocus()
-            if isinstance(w, GameRoomWidget) and w.game_id in self._unread_rooms:
-                self._set_room_unread(w.game_id, False)
+            if isinstance(w, GameRoomWidget):
+                if w.input_field:
+                    w.input_field.setFocus()
+                if w.game_id in self._unread_rooms:
+                    self._set_room_unread(w.game_id, False)
+        # sizeHints go stale while a tab is hidden in QTabWidget
+        mw = self._active_messages_widget()
+        if mw:
+            mw._force_recalculate()
+            QTimer.singleShot(0, mw._force_recalculate)
 
     def _join_game_room(self, game_id, room_jid: str, widget=None):
         client = self.xmpp_client
@@ -1702,12 +1704,18 @@ class ChatWindow(QWidget):
         """Scroll a list view to a specific row, centered."""
         QTimer.singleShot(delay, lambda: scroll(view, mode="middle", target_row=row))
 
+    def _active_messages_widget(self):
+        """MessagesWidget of the current tab (game room or General)."""
+        gr = self._current_game_room()
+        return gr.messages_widget if gr else self.messages_widget
+
     def _complete_resize_recalculation(self):
         """Complete resize with aggressive recalculation"""
         current = self.stacked_widget.currentWidget()
         if current == self.messages_splitter:
-            self.messages_widget._force_recalculate()
-            self._scroll_to_bottom(self.messages_widget.list_view)
+            mw = self._active_messages_widget()
+            mw._force_recalculate()
+            self._scroll_to_bottom(mw.list_view)
         elif current == self.chatlog_widget and self.chatlog_widget:
             self.chatlog_widget._force_recalculate()
             self._scroll_to_bottom(self.chatlog_widget.list_view)

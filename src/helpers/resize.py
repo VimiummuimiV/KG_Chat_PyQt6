@@ -3,18 +3,16 @@ from PyQt6.QtCore import QTimer
 
 
 def recalculate_layout(chat_window):
-    """
-    Force layout recalculation after userlist visibility change.
-    Ensures messages recalculate when available width changes.
-    """
+    """Force layout recalculation after userlist visibility / width change."""
     current_view = chat_window.stacked_widget.currentWidget()
-    
-    if current_view == chat_window.messages_widget:
-        chat_window.messages_widget._force_recalculate()
-        QTimer.singleShot(50, lambda: chat_window.messages_widget._force_recalculate())
+
+    if current_view == chat_window.messages_splitter:
+        mw = chat_window._active_messages_widget()
+        mw._force_recalculate()
+        QTimer.singleShot(50, mw._force_recalculate)
     elif current_view == chat_window.chatlog_widget and chat_window.chatlog_widget:
         chat_window.chatlog_widget._force_recalculate()
-        QTimer.singleShot(50, lambda: chat_window.chatlog_widget._force_recalculate())
+        QTimer.singleShot(50, chat_window.chatlog_widget._force_recalculate)
 
 
 def handle_chat_resize(chat_window, width: int):

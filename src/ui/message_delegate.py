@@ -294,7 +294,14 @@ class MessageDelegate(QStyledItemDelegate):
         if getattr(msg, 'is_new_messages_marker', False):
             return QSize(option.rect.width(), NewMessagesSeparator.get_height())
 
-        width = option.rect.width() if option.rect.width() > 0 else 800
+        width = option.rect.width()
+        if width <= 0 and self.list_view is not None:
+            try:
+                width = self.list_view.viewport().width()
+            except RuntimeError:
+                width = 0
+        if width <= 0:
+            width = 800
         row = index.row()
         height = self._calculate_compact_height(msg, width, row) if self.compact_mode else self._calculate_normal_height(msg, width, row)
         return QSize(width, height)

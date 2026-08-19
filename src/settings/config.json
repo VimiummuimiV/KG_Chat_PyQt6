@@ -81,6 +81,8 @@
     "emoticon_selector_visible": false,
     "always_on_top": false,
     "recent_emoticons": [
+      "first",
+      "ghost",
       "grats",
       "vpered",
       "carpet",
@@ -98,9 +100,7 @@
       "kidtruck",
       "spider",
       "terminator",
-      "ghost",
-      "death",
-      "pirate"
+      "death"
     ],
     "window": {
       "width": null,
@@ -139,18 +139,18 @@
     "tts_enabled": false,
     "effects_enabled": true,
     "play_mention_sound_always": false,
-    "competition_sound_force": true,
+    "competition_sound_force": false,
     "selected": {
       "mention": "tick_short.mp3",
-      "competition": "long_tone.mp3",
+      "competition": "kalimba_pluck_run.mp3",
       "ban": "bullet_hit.mp3"
     },
     "competition_repeat_interval": 5,
     "competition_repeat_enabled": false
   },
   "notification": {
-    "mode": "stack",
-    "muted": false,
+    "mode": "replace",
+    "muted": true,
     "competitions_bypass_mute": true
   },
   "startup": {
@@ -170,7 +170,7 @@
   },
   "competitions": {
     "enabled": true,
-    "min_multiplier": "x1+",
+    "min_multiplier": "x2+",
     "notify_window_enabled": false,
     "notify_window_start": 6,
     "notify_window_end": 24,
