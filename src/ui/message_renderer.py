@@ -4,7 +4,7 @@ from pathlib import Path
 import re
 
 from PyQt6.QtCore import Qt, QRect, QSize, pyqtSignal, QObject, QTimer
-from PyQt6.QtGui import QPainter, QFontMetrics, QColor, QPixmap, QMovie
+from PyQt6.QtGui import QPainter, QPen, QFontMetrics, QColor, QPixmap, QMovie
 from PyQt6.QtWidgets import QApplication
 
 from helpers.color_utils import (
@@ -459,6 +459,8 @@ class MessageRenderer(QObject):
         chip_height = fm.height() + 6
         current_x, current_y = x, y
 
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
         for player in players:
             name = self._chip_label(player)
             level = player.get("level") if isinstance(player, dict) else None
@@ -468,9 +470,13 @@ class MessageRenderer(QObject):
                 current_y += chip_height + self.CHIP_GAP
                 current_x = x
             chip_rect = QRect(current_x, current_y, chip_width, chip_height)
-            painter.setPen(QColor(border_hex))
+
+            pen = QPen(QColor(border_hex))
+            pen.setWidth(2)
+            painter.setPen(pen)
             painter.setBrush(QColor(bg_hex))
             painter.drawRoundedRect(chip_rect, chip_height // 2, chip_height // 2)
+
             painter.setPen(QColor(fg_hex))
             painter.drawText(chip_rect, Qt.AlignmentFlag.AlignCenter, name)
             current_x += chip_width + self.CHIP_GAP

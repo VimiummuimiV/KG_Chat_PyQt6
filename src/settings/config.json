@@ -146,7 +146,7 @@
       "ban": "bullet_hit.mp3"
     },
     "competition_repeat_interval": 5,
-    "competition_repeat_enabled": true
+    "competition_repeat_enabled": false
   },
   "notification": {
     "mode": "stack",
@@ -170,7 +170,7 @@
   },
   "competitions": {
     "enabled": true,
-    "min_multiplier": "x2+",
+    "min_multiplier": "x1+",
     "notify_window_enabled": false,
     "notify_window_start": 6,
     "notify_window_end": 24,

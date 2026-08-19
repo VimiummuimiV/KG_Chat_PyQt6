@@ -123,25 +123,34 @@ def get_game_message_colors(config, is_dark_theme: bool) -> dict:
 
 # level (1-9) → rank base color
 RANK_LEVEL_COLORS = {
-    1: "#AFAFAF",  # Новичок
-    2: "#61B5B3",  # Любитель
-    3: "#2DAB4F",  # Таксист
-    4: "#C1AA00",  # Профи
-    5: "#FF8C00",  # Гонщик
-    6: "#DA0543",  # Маньяк
-    7: "#B543F5",  # Супермен
-    8: "#5681FF",  # Кибергонщик
-    9: "#06B4E9",  # Экстракибер
+    1: "#A6A6A6",  # Новичок
+    2: "#5EB3B1",  # Любитель
+    3: "#32BE58",  # Таксист
+    4: "#BCA600",  # Профи
+    5: "#F98900",  # Гонщик
+    6: "#FC7EA2",  # Маньяк
+    7: "#D088F9",  # Супермен
+    8: "#83A3FF",  # Кибергонщик
+    9: "#06B2E7",  # Экстракибер
 }
 
 
-# dark/light knobs for get_rank_chip_colors: canvas color, bg/border blend
-# ratios (+ cool-hue boost), saturation multiplier, and lightness formula
+# dark/light knobs for get_rank_chip_colors
 _RANK_CHIP_THEME = {
-    True: dict(canvas="#141414", bg_a=0.22, bg_cool=0.5, bd_a=0.40, bd_cool=1.0,
-               s_mul=0.95, l=lambda l, cool: min(0.78, max(l, 0.55) + cool)),
-    False: dict(canvas="#F5F5F5", bg_a=0.18, bg_cool=0.3, bd_a=0.35, bd_cool=0.5,
-                s_mul=0.90, l=lambda l, cool: max(0.22, min(l, 0.40) - cool * 0.5)),
+    True: dict(
+        canvas="#141414",
+        bg_a=0.22,
+        bd_a=0.40,
+        s_mul=0.95,
+        l=lambda l: min(0.78, max(l, 0.55)),
+    ),
+    False: dict(
+        canvas="#F5F5F5",
+        bg_a=0.18,
+        bd_a=0.35,
+        s_mul=0.90,
+        l=lambda l: max(0.22, min(l, 0.40)),
+    ),
 }
 
 
@@ -149,7 +158,7 @@ def get_rank_chip_colors(level, is_dark: bool) -> tuple:
     """Return (bg_hex, fg_hex, border_hex) for a player chip.
 
     Dark theme: muted tinted fill, full-intensity rank text, mid border.
-    Blue/violet hues get a small lightness boost (harder for the eye).
+    Colors are pre-calibrated for equal perceived lightness.
     """
     try:
         level = int(level)
@@ -157,11 +166,9 @@ def get_rank_chip_colors(level, is_dark: bool) -> tuple:
         level = None
     base = RANK_LEVEL_COLORS.get(level, "#888888")
     h, s, l = rgb_to_hsl(hex_to_rgb(base))
-    # blue → violet: ~210–300° — weak perceived brightness
-    cool = 0.08 if 200 <= h <= 300 else 0.0
 
     t = _RANK_CHIP_THEME[is_dark]
-    bg = blend_hex_colors(t["canvas"], base, t["bg_a"] + cool * t["bg_cool"])
-    border = blend_hex_colors(t["canvas"], base, t["bd_a"] + cool * t["bd_cool"])
-    fg = rgb_to_hex(hsl_to_rgb((h, min(1.0, s * t["s_mul"]), t["l"](l, cool))))
+    bg = blend_hex_colors(t["canvas"], base, t["bg_a"])
+    border = blend_hex_colors(t["canvas"], base, t["bd_a"])
+    fg = rgb_to_hex(hsl_to_rgb((h, min(1.0, s * t["s_mul"]), t["l"](l))))
     return bg, fg, border
