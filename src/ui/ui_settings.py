@@ -16,7 +16,7 @@ from helpers.voice_engine import play_sound
 from helpers.data import get_data_dir
 from helpers.color_utils import blend_hex_colors
 
-NOTIFICATION_WIDTH_DEFAULT = 565
+NOTIFICATION_WIDTH_DEFAULT = 550 
 COMPETITIONS_ALERT_LEAD_DEFAULT = 0
 COMPETITIONS_NOTIFY_START_DEFAULT = 0
 COMPETITIONS_NOTIFY_END_DEFAULT = 24
