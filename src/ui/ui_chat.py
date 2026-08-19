@@ -1104,6 +1104,7 @@ class ChatWindow(QWidget):
                 self.user_list_widget.isVisible()
             )
 
+        self.messages_widget._force_recalculate()
         self._scroll_to_bottom(self.messages_widget.list_view)
         # If parsing ongoing, show status widget
         if self.chatlog_widget and self.chatlog_widget.parser_widget.is_parsing:
@@ -1716,6 +1717,8 @@ class ChatWindow(QWidget):
             mw = self._active_messages_widget()
             mw._force_recalculate()
             self._scroll_to_bottom(mw.list_view)
+            if self.chatlog_split_widget:
+                self.chatlog_split_widget._force_recalculate()
         elif current == self.chatlog_widget and self.chatlog_widget:
             self.chatlog_widget._force_recalculate()
             self._scroll_to_bottom(self.chatlog_widget.list_view)

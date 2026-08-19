@@ -78,6 +78,9 @@ def handle_chat_resize(chat_window, width: int):
         if chat_window.chatlog_widget:
             chat_window.chatlog_widget.set_compact_mode(is_compact)
             chat_window.chatlog_widget.set_compact_layout(is_compact)
+        if getattr(chat_window, 'chatlog_split_widget', None):
+            chat_window.chatlog_split_widget.set_compact_mode(is_compact)
+            chat_window.chatlog_split_widget.set_compact_layout(is_compact)
         QTimer.singleShot(150, chat_window._complete_resize_recalculation)
     else:
         QTimer.singleShot(50, chat_window._complete_resize_recalculation)
