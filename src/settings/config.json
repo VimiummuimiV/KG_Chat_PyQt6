@@ -178,6 +178,6 @@
     "max_player_chips": 20,
     "show_players": true,
     "sort_players_by_level": true,
-    "show_cost": true
+    "show_cost": false
   }
 }
