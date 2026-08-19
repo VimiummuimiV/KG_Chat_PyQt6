@@ -136,7 +136,7 @@
     }
   },
   "sound": {
-    "tts_enabled": true,
+    "tts_enabled": false,
     "effects_enabled": true,
     "play_mention_sound_always": false,
     "competition_sound_force": true,
