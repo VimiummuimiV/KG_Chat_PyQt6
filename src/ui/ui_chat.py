@@ -1909,11 +1909,11 @@ class ChatWindow(QWidget):
         cost=None,
     ) -> str:
         parts = [mult]
-        if url:
-            parts.append(url)
         show_cost = self.config.get("competitions", "show_cost")
         if show_cost is not False and cost is not None and cost != "" and cost != 0:
             parts.append(f"💰 {cost}")
+        if url:
+            parts.append(url)
         if begintime:
             remaining = max(0, round(begintime - datetime.now().timestamp()))
             parts.append(f"⏱️ {remaining // 60:02d}:{remaining % 60:02d}")
