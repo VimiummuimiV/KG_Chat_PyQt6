@@ -146,7 +146,7 @@
       "ban": "bullet_hit.mp3"
     },
     "competition_repeat_interval": 5,
-    "competition_repeat_enabled": false
+    "competition_repeat_enabled": true
   },
   "notification": {
     "mode": "stack",
@@ -170,12 +170,12 @@
   },
   "competitions": {
     "enabled": true,
-    "min_multiplier": "x1+",
+    "min_multiplier": "x2+",
     "notify_window_enabled": false,
     "notify_window_start": 6,
     "notify_window_end": 24,
     "alert_lead_seconds": 20,
-    "max_player_chips": 10,
+    "max_player_chips": 20,
     "show_players": true,
     "sort_players_by_level": true
   }
