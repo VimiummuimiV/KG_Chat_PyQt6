@@ -615,7 +615,7 @@ class SettingsWidget(QWidget):
         )
 
     def _build_chat_section(self):
-        section = self._create_section("💬 Chat")
+        section = self._create_section("🗯️ Chat")
         self.clear_private_checkbox = self._add_checkbox(
             section, "Clear private messages on exit", self._on_clear_private_toggled
         )
