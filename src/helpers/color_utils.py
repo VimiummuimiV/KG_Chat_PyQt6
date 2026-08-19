@@ -116,6 +116,11 @@ def get_competition_message_colors(config, is_dark_theme: bool) -> dict:
                                {"text": 75}, {"text": 40})
 
 
+def get_game_message_colors(config, is_dark_theme: bool) -> dict:
+    return _themed_hsl_colors(config, "game_message_color", 215, 75, is_dark_theme,
+                               {"text": 75}, {"text": 40})
+
+
 # level (1-9) → rank base color
 RANK_LEVEL_COLORS = {
     1: "#AFAFAF",  # Новичок
