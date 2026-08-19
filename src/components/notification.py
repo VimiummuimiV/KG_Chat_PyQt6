@@ -32,6 +32,7 @@ class NotificationData:
     is_private: bool = False
     recipient_jid: Optional[str] = None
     room_jid: Optional[str] = None
+    source_label: Optional[str] = None
     is_ban: bool = False
     is_system: bool = False
     is_competition: bool = False
@@ -246,6 +247,14 @@ class PopupNotification(QWidget):
         if not data.is_system:
             top_row.addSpacing(self.spacing)
             top_row.addWidget(self.username_label, stretch=0)
+
+        self.source_label = None
+        if data.source_label:
+            self.source_label = QLabel(data.source_label)
+            self.source_label.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+            top_row.addSpacing(self.spacing)
+            top_row.addWidget(self.source_label, stretch=0)
+
         top_row.addStretch(1)
       
         # Buttons container (right side)

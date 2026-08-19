@@ -460,6 +460,8 @@ class ChatWindow(QWidget):
         self.game_rooms = {}  # game_id -> GameRoomWidget
         self.room_tabs = None  # QTabWidget; General is always tab 0 when present
         self.general_body = None
+        self._unread_rooms = set()  # game_ids with a "●" unread marker on their tab
+        self._general_unread = False  # "●" on General when messages arrive while on a game tab
 
         self.stacked_widget.addWidget(self.messages_splitter)
         self.chatlog_widget = None
@@ -1339,8 +1341,27 @@ class ChatWindow(QWidget):
         self.room_tabs.deleteLater()
         self.room_tabs = None
         self.general_body = None
+        self._general_unread = False
         self.setUpdatesEnabled(True)
         self.messages_widget._force_recalculate()
+
+    def _set_room_unread(self, gid, unread: bool):
+        """Set/clear "●" on a game-room tab. No-op if the tab isn't open."""
+        widget = self.game_rooms.get(gid)
+        if not widget or not self.room_tabs:
+            return
+        idx = self.room_tabs.indexOf(widget)
+        if idx < 0:
+            return
+        self._unread_rooms.add(gid) if unread else self._unread_rooms.discard(gid)
+        self.room_tabs.setTabText(idx, ("● " if gid in self._unread_rooms else "") + widget.tab_title())
+
+    def _set_general_unread(self, unread: bool):
+        """Set/clear "●" on the General tab."""
+        if not self.room_tabs:
+            return
+        self._general_unread = unread
+        self.room_tabs.setTabText(0, ("● " if unread else "") + "General")
 
     def _on_room_tab_close_requested(self, index: int):
         if index <= 0:
@@ -1356,10 +1377,14 @@ class ChatWindow(QWidget):
         if index <= 0:
             if hasattr(self, 'input_field') and self.input_field:
                 self.input_field.setFocus()
+            if self._general_unread:
+                self._set_general_unread(False)
         else:
             w = self.room_tabs.widget(index)
             if isinstance(w, GameRoomWidget) and w.input_field:
                 w.input_field.setFocus()
+            if isinstance(w, GameRoomWidget) and w.game_id in self._unread_rooms:
+                self._set_room_unread(w.game_id, False)
 
     def _join_game_room(self, game_id, room_jid: str, widget=None):
         client = self.xmpp_client
@@ -1396,6 +1421,7 @@ class ChatWindow(QWidget):
         widget = self.game_rooms.pop(game_id, None)
         if not widget:
             return
+        self._unread_rooms.discard(game_id)
         self._leave_game_room(game_id=game_id, room_jid=widget.room_jid)
         idx = self.room_tabs.indexOf(widget) if self.room_tabs else -1
         if idx >= 0:
@@ -2180,9 +2206,12 @@ class ChatWindow(QWidget):
                 msg.is_private = False
                 display_body, is_system = format_me_action(msg.body, msg.login)
                 gr.add_message(msg)
+                if not is_initial and self._current_game_room() is not gr:
+                    self._set_room_unread(gid, True)
                 self._notify_incoming_message(
                     msg, display_body, is_ban, is_system, is_initial,
                     room_jid=gr.room_jid, add_message_fn=gr.add_message,
+                    source_label=self._room_source_label(gr),
                 )
                 return
 
@@ -2218,18 +2247,27 @@ class ChatWindow(QWidget):
         # Add original message to widget (delegate will format it)
         self.messages_widget.add_message(msg)
 
+        # Mark General tab unread when the user is currently on a game-room tab
+        if not is_initial and self.room_tabs and self.room_tabs.currentIndex() > 0:
+            self._set_general_unread(True)
+
         # Increment unread count if window is hidden and not initial load
         if not is_initial and not self.isVisible() and self.app_controller:
             self.app_controller.increment_unread()
 
         self._notify_incoming_message(msg, display_body, is_ban, is_system, is_initial)
 
-    def _notify_incoming_message(self, msg, display_body, is_ban, is_system, is_initial, room_jid=None, add_message_fn=None):
+    @staticmethod
+    def _room_source_label(gr) -> str:
+        """Room badge for game/competition notifications."""
+        return "🏆" if gr.room_label == "Competition" else "🎮"
+
+    def _notify_incoming_message(self, msg, display_body, is_ban, is_system, is_initial, room_jid=None, add_message_fn=None, source_label=None):
         """TTS, effect sounds, and popup — shared by general and game-room messages.
 
-        room_jid/add_message_fn: set for game-room messages so a reply typed
-        in the popup goes back to that room (and is echoed into that room's
-        widget) instead of falling through to General."""
+        room_jid/add_message_fn: route a popup reply back to the originating
+        game room instead of General.
+        source_label: optional room badge in the notification header."""
         if is_initial:
             return
 
@@ -2279,7 +2317,7 @@ class ChatWindow(QWidget):
                         pass
                     timer.stop()
                     if not self.isActiveWindow():
-                        self._show_notification(msg, display_body, is_ban, is_system, room_jid=room_jid, add_message_fn=add_message_fn)
+                        self._show_notification(msg, display_body, is_ban, is_system, room_jid=room_jid, add_message_fn=add_message_fn, source_label=source_label)
 
                 def on_ready(url):
                     pending.discard(url)
@@ -2290,7 +2328,7 @@ class ChatWindow(QWidget):
                 timer.timeout.connect(show_now)
                 timer.start(2000)
             else:
-                self._show_notification(msg, display_body, is_ban, is_system, room_jid=room_jid, add_message_fn=add_message_fn)
+                self._show_notification(msg, display_body, is_ban, is_system, room_jid=room_jid, add_message_fn=add_message_fn, source_label=source_label)
 
     def _show_and_focus_window(self):
         if not self.isVisible():
@@ -2301,13 +2339,12 @@ class ChatWindow(QWidget):
         if self.stacked_widget.currentWidget() is not self.messages_splitter:
             self.show_messages_view()
 
-    def _show_notification(self, msg, display_body, is_ban, is_system, room_jid=None, add_message_fn=None):
+    def _show_notification(self, msg, display_body, is_ban, is_system, room_jid=None, add_message_fn=None, source_label=None):
         """Show notification.
 
-        room_jid: originating game room's jid, so a groupchat reply is sent
-        there instead of defaulting to General. None for General messages.
-        add_message_fn: where to echo a typed reply locally — the room's own
-        widget for game rooms, else General's."""
+        room_jid: originating game room jid (None = General).
+        add_message_fn: local echo target for a typed reply.
+        source_label: optional room badge in the notification header."""
         try:
             show_notification(
                 title=msg.login,
@@ -2322,6 +2359,7 @@ class ChatWindow(QWidget):
                 is_private=getattr(msg, 'is_private', False),
                 recipient_jid=msg.from_jid if getattr(msg, 'is_private', False) else None,
                 room_jid=room_jid,
+                source_label=source_label,
                 is_ban=is_ban,
                 is_system=is_system
             )
