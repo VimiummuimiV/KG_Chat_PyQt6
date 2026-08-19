@@ -1379,6 +1379,10 @@ class ChatWindow(QWidget):
                 self.input_field.setFocus()
             if self._general_unread:
                 self._set_general_unread(False)
+            # Heights go stale while General is hidden in QTabWidget
+            if hasattr(self, 'messages_widget') and self.messages_widget:
+                self.messages_widget._force_recalculate()
+                QTimer.singleShot(0, self.messages_widget._force_recalculate)
         else:
             w = self.room_tabs.widget(index)
             if isinstance(w, GameRoomWidget) and w.input_field:
