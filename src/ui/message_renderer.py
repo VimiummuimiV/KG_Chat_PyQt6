@@ -454,6 +454,8 @@ class MessageRenderer(QObject):
         """Paint usernames as pill-shaped chips in a wrapping flow. Returns the block height used."""
         if not players or width <= 0:
             return 0
+        border = 2
+        inset = border // 2
         fm = QFontMetrics(self.body_font)
         painter.setFont(self.body_font)
         chip_height = fm.height() + 6
@@ -472,10 +474,11 @@ class MessageRenderer(QObject):
             chip_rect = QRect(current_x, current_y, chip_width, chip_height)
 
             pen = QPen(QColor(border_hex))
-            pen.setWidth(2)
+            pen.setWidth(border)
             painter.setPen(pen)
             painter.setBrush(QColor(bg_hex))
-            painter.drawRoundedRect(chip_rect, chip_height // 2, chip_height // 2)
+            r = chip_rect.adjusted(inset, inset, -inset, -inset)
+            painter.drawRoundedRect(r, max(0, chip_height // 2 - inset), max(0, chip_height // 2 - inset))
 
             painter.setPen(QColor(fg_hex))
             painter.drawText(chip_rect, Qt.AlignmentFlag.AlignCenter, name)
