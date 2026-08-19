@@ -603,7 +603,7 @@ class SettingsWidget(QWidget):
         self._sections_layout.addStretch(1)
 
     def _build_startup_section(self):
-        section = self._create_section("Startup")
+        section = self._create_section("🚀 Startup")
         self.auto_login_checkbox = self._add_checkbox(
             section, "Auto-login on startup", self._on_auto_login_toggled
         )
@@ -615,7 +615,7 @@ class SettingsWidget(QWidget):
         )
 
     def _build_chat_section(self):
-        section = self._create_section("Chat")
+        section = self._create_section("💬 Chat")
         self.clear_private_checkbox = self._add_checkbox(
             section, "Clear private messages on exit", self._on_clear_private_toggled
         )
@@ -624,7 +624,7 @@ class SettingsWidget(QWidget):
         )
 
     def _build_notifications_section(self):
-        section = self._create_section("Notifications")
+        section = self._create_section("⚠️ Notifications")
         self.notification_position_combo = self._add_combo_row(
             section, "Notification position", ["Right", "Left", "Center"],
             self._on_notification_position_changed
@@ -639,7 +639,7 @@ class SettingsWidget(QWidget):
         )
 
     def _build_competitions_section(self):
-        section = self._create_section("Competitions")
+        section = self._create_section("🏆 Competitions")
 
         self.track_competitions_checkbox = self._add_checkbox(
             section, "Track rating competitions", self._on_track_competitions_toggled
@@ -647,7 +647,7 @@ class SettingsWidget(QWidget):
 
         log_header_row = QHBoxLayout()
         log_header_row.setSpacing(self._spacing())
-        log_label = QLabel("WebSocket Log")
+        log_label = QLabel("📜 WebSocket Log")
         log_label.setFont(get_font(FontType.UI))
         log_header_row.addWidget(log_label)
         log_header_row.addStretch(1)
@@ -711,7 +711,7 @@ class SettingsWidget(QWidget):
         )
 
     def _build_sound_section(self):
-        section = self._create_section("Sound")
+        section = self._create_section("🔊 Sound")
         self.mention_always_checkbox = self._add_checkbox(
             section, "Always play mention sound", self._on_mention_always_toggled
         )
