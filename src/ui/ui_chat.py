@@ -1899,10 +1899,21 @@ class ChatWindow(QWidget):
 
         self._announce_competition(info)
 
-    def _format_competition_header(self, mult: str, url: str, begintime, total: int, shown: int | None = None) -> str:
+    def _format_competition_header(
+        self,
+        mult: str,
+        url: str,
+        begintime,
+        total: int,
+        shown: int | None = None,
+        cost=None,
+    ) -> str:
         parts = [mult]
         if url:
             parts.append(url)
+        show_cost = self.config.get("competitions", "show_cost")
+        if show_cost is not False and cost is not None and cost != "" and cost != 0:
+            parts.append(f"💰 {cost}")
         if begintime:
             remaining = max(0, round(begintime - datetime.now().timestamp()))
             parts.append(f"⏱️ {remaining // 60:02d}:{remaining % 60:02d}")
@@ -1937,13 +1948,17 @@ class ChatWindow(QWidget):
     def _announce_competition(self, info: dict):
         gid, mult, url, tag = self._competition_fields(info)
         begintime = info.get("begintime")
+        cost = info.get("competition_cost")
         players = info.get("players") or []
         self._competition_live[gid] = {
-            "mult": mult, "url": url, "begintime": begintime, "players": players,
+            "mult": mult, "url": url, "begintime": begintime,
+            "players": players, "cost": cost,
         }
         chips = self._player_chips(players)
         shown = None if not chips else sum(1 for c in chips if c.get("name") != "…")
-        header = self._format_competition_header(mult, url, begintime, len(players), shown)
+        header = self._format_competition_header(
+            mult, url, begintime, len(players), shown, cost=cost
+        )
         try:
             msg = Message(
                 from_jid="", body=header, msg_type="groupchat",
@@ -2000,7 +2015,10 @@ class ChatWindow(QWidget):
         chips = self._player_chips(players)
         names = [c["name"] for c in chips if c.get("name") != "…"]
         shown = None if not chips else len(names)
-        header = self._format_competition_header(live["mult"], live["url"], live.get("begintime"), len(players), shown)
+        header = self._format_competition_header(
+            live["mult"], live["url"], live.get("begintime"), len(players), shown,
+            cost=live.get("cost"),
+        )
         sb = mw.list_view.verticalScrollBar()
         at_bottom = (sb.maximum() - sb.value()) <= 100
         mw.update_competition_message(gid, header, chips)
@@ -2050,7 +2068,10 @@ class ChatWindow(QWidget):
         players = live.get("players") or []
         chips = self._player_chips(players)
         shown = None if not chips else sum(1 for c in chips if c.get("name") != "…")
-        header = self._format_competition_header(mult, url, live.get("begintime"), len(players), shown)
+        header = self._format_competition_header(
+            mult, url, live.get("begintime"), len(players), shown,
+            cost=live.get("cost"),
+        )
 
         # Competition sound plays regardless of window focus, like ban sound
         self._play_competition_sound()
@@ -2790,6 +2811,9 @@ class ChatWindow(QWidget):
             self.settings_widget.track_competitions_checkbox.toggled.connect(self.set_track_competitions)
             self.settings_widget.min_multiplier_combo.currentTextChanged.connect(
                 self._on_min_multiplier_changed
+            )
+            self.settings_widget.show_cost_checkbox.toggled.connect(
+                lambda _=None: self.refresh_competition_player_display()
             )
             self.settings_widget.show_players_checkbox.toggled.connect(
                 lambda _=None: self.refresh_competition_player_display()

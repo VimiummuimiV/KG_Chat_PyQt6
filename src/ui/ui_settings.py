@@ -680,6 +680,10 @@ class SettingsWidget(QWidget):
             self._on_min_multiplier_changed
         )
 
+        self.show_cost_checkbox = self._add_checkbox(
+            section, "Show competition cost", self._on_show_cost_toggled
+        )
+
         self.show_players_checkbox = self._add_checkbox(
             section, "Show player chips", self._on_show_players_toggled
         )
@@ -756,6 +760,7 @@ class SettingsWidget(QWidget):
             self.clear_private_checkbox, self.youtube_checkbox,
             self.track_competitions_checkbox, self.competitions_bypass_mute_checkbox,
             self.competitions_force_sound_checkbox, self.min_multiplier_combo,
+            self.show_cost_checkbox,
             self.show_players_checkbox, self.max_player_chips_spin, self.sort_players_by_level_checkbox,
             self.competitions_alert_lead_spin, self.competitions_notify_window_checkbox,
             self.competitions_notify_start_spin, self.competitions_notify_end_spin,
@@ -790,6 +795,9 @@ class SettingsWidget(QWidget):
         min_m = self.config.get("competitions", "min_multiplier") or "x1+"
         idx = self.min_multiplier_combo.findText(min_m)
         self.min_multiplier_combo.setCurrentIndex(idx if idx >= 0 else 0)
+
+        show_cost = self.config.get("competitions", "show_cost")
+        self.show_cost_checkbox.setChecked(True if show_cost is None else bool(show_cost))
 
         show_players = self.config.get("competitions", "show_players")
         self.show_players_checkbox.setChecked(True if show_players is None else bool(show_players))
@@ -1005,6 +1013,9 @@ class SettingsWidget(QWidget):
     def _set_notify_window_controls_enabled(self, enabled: bool):
         self._set_spin_enabled(self.competitions_notify_start_spin, enabled)
         self._set_spin_enabled(self.competitions_notify_end_spin, enabled)
+
+    def _on_show_cost_toggled(self, checked: bool):
+        self.config.set("competitions", "show_cost", value=checked)
 
     def _on_show_players_toggled(self, checked: bool):
         self.config.set("competitions", "show_players", value=checked)

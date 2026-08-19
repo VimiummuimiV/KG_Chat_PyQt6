@@ -177,6 +177,7 @@
     "alert_lead_seconds": 20,
     "max_player_chips": 20,
     "show_players": true,
-    "sort_players_by_level": true
+    "sort_players_by_level": true,
+    "show_cost": true
   }
 }

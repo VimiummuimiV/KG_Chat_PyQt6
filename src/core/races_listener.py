@@ -75,6 +75,50 @@ def _to_epoch(value):
     return None
 
 
+def _extract_players(data: dict) -> dict | None:
+    """Build slot→player map from a full game payload (initList / gameCreated); None when no roster present."""
+    info, _ = _info_and_params(data)
+    raw = None
+    for src in (data, info or {}):
+        if not isinstance(src, dict):
+            continue
+        if "players" in src:
+            raw = src["players"]
+            break
+    if raw is None:
+        return None
+
+    result: dict = {}
+    if isinstance(raw, dict):
+        items = raw.items()
+    elif isinstance(raw, list):
+        items = enumerate(raw)
+    else:
+        return None
+
+    for slot, entry in items:
+        if not isinstance(entry, dict):
+            continue
+        if entry.get("leave"):
+            continue
+        player: dict = {}
+        if "name" in entry:
+            player["name"] = entry["name"]
+        if "level" in entry:
+            player["level"] = entry["level"]
+        user = entry.get("user")
+        if isinstance(user, dict):
+            if user.get("login"):
+                player["login"] = user["login"]
+            if "level" in user and "level" not in player:
+                player["level"] = user["level"]
+        if not player.get("name") and player.get("login"):
+            player["name"] = player["login"]
+        if player.get("name") or player.get("login"):
+            result[slot] = player
+    return result
+
+
 def _game_fields(data: dict) -> dict | None:
     """Field subset for gameCreated / initList entries, keyed for merging into game state."""
     info, params = _info_and_params(data)
@@ -83,7 +127,7 @@ def _game_fields(data: dict) -> dict | None:
     gid = info.get("id") or data.get("id")
     if not gid:
         return None
-    return {
+    fields = {
         "game_id": gid,
         "status": info.get("status") or "?",
         "multiplier": _multiplier(data),
@@ -97,6 +141,12 @@ def _game_fields(data: dict) -> dict | None:
         "endtime": _to_epoch(info.get("endtime")),
         "url": _game_url(gid),
     }
+    # Seed roster from full payload when present (initList / gameCreated).
+    # Without this, connecting mid-wait only sees players who join *after* subscribe.
+    players = _extract_players(data)
+    if players is not None:
+        fields["_players_seed"] = players
+    return fields
 
 
 class RacesListener(QObject):
@@ -211,6 +261,7 @@ class RacesListener(QObject):
             self._merge_and_emit(gmid, {
                 "status": "waiting",
                 "multiplier": _multiplier(data),
+                "competition_cost": data.get("competition_cost"),
                 "timeout": data.get("timeout"),
                 "level_from": data.get("level_from"),
                 "level_to": data.get("level_to"),
@@ -258,9 +309,17 @@ class RacesListener(QObject):
             game = {"players": {}}
             self._games[gid] = game
             self._trim_games()
+        seed = fields.pop("_players_seed", None)
         for key, value in fields.items():
             if value is not None:
                 game[key] = value
+        # Apply initial roster only when we have no live playerUpdated diffs yet,
+        # or when the seed is strictly larger (reconnect / late initList).
+        if seed is not None:
+            current = game.get("players") or {}
+            if not current or len(seed) >= len(current):
+                game["players"] = seed
+                self._emit_players_if_visible(gid, game)
         self._maybe_emit(gid, game)
 
     def _maybe_emit(self, gid, game: dict):
@@ -293,6 +352,9 @@ class RacesListener(QObject):
                     entry["level"] = user["level"]
             players[slot] = entry
 
+        self._emit_players_if_visible(gid, game)
+
+    def _emit_players_if_visible(self, gid, game: dict):
         if game.get("status") == "waiting" and self.passes_filter(game.get("multiplier") or "?"):
             self.players_changed.emit(gid, self._ordered_players(game))
 
