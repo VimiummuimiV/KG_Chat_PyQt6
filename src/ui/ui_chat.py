@@ -467,7 +467,7 @@ class ChatWindow(QWidget):
         self.chatlog_widget = None
         self.chatlog_userlist_widget = None
         self.pre_profile_view = None  # 'messages' or 'chatlog' - where to return after profile/pronunciation/ban-list views
-        self._return_room_gid = None  # game_id to restore after profile/private opened from a room tab
+        self._restore_room_gid = None  # game_id of room tab to reopen after profile/private...
 
         # Input area
         self.input_container = QWidget()
@@ -774,7 +774,8 @@ class ChatWindow(QWidget):
                     else:
                         self.show_messages_view()
                 else:
-                    self.show_messages_view()
+                    # Profile / settings / ban / pronun → messages, restore room tab if any
+                    self._on_stacked_back()
                 return True
         
         # Handle mouse button presses/releases for navigation and focus reclaim
@@ -916,13 +917,13 @@ class ChatWindow(QWidget):
         if self.room_tabs is not None and self.room_tabs.currentIndex() != 0:
             w = self.room_tabs.currentWidget()
             if isinstance(w, GameRoomWidget):
-                self._return_room_gid = w.game_id
+                self._restore_room_gid = w.game_id
             self.room_tabs.setCurrentIndex(0)
 
-    def _restore_return_room(self):
-        """Return to the game-room tab captured by _ensure_general_tab_visible, if still open."""
-        gid = self._return_room_gid
-        self._return_room_gid = None
+    def _restore_room_tab(self):
+        """Re-select the game-room tab we left when opening a General stacked view."""
+        gid = self._restore_room_gid
+        self._restore_room_gid = None
         if gid is None or not self.room_tabs:
             return
         w = self.game_rooms.get(gid)
@@ -1010,7 +1011,7 @@ class ChatWindow(QWidget):
         self.set_connection_status(self.windowTitle().split(' - ')[-1] if ' - ' in self.windowTitle() else 'Online')
     
         print("🔓 Exited private mode")
-        self._restore_return_room()
+        self._restore_room_tab()
 
     def _clear_private_messages(self):
         """Clear all private messages from the messages widget"""
@@ -2807,7 +2808,7 @@ class ChatWindow(QWidget):
     def _on_stacked_back(self):
         """Leave a stacked view and restore room tab if any."""
         self.show_messages_view()
-        self._restore_return_room()
+        self._restore_room_tab()
     
     def show_pronunciation_view(self):
         """Show pronunciation management view"""
