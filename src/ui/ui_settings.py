@@ -16,7 +16,7 @@ from helpers.voice_engine import play_sound
 from helpers.data import get_data_dir
 from helpers.color_utils import blend_hex_colors
 
-NOTIFICATION_WIDTH_DEFAULT = 550
+NOTIFICATION_WIDTH_DEFAULT = 565
 COMPETITIONS_ALERT_LEAD_DEFAULT = 0
 COMPETITIONS_NOTIFY_START_DEFAULT = 0
 COMPETITIONS_NOTIFY_END_DEFAULT = 24
@@ -630,7 +630,7 @@ class SettingsWidget(QWidget):
             self._on_notification_position_changed
         )
         self.notification_width_spin = self._add_slider_spin_row(
-            section, "Notification width", 250, 1000, self._on_notification_width_changed,
+            section, "Notification width", NOTIFICATION_WIDTH_DEFAULT, 1000, self._on_notification_width_changed,
             on_reset=self._on_notification_width_reset, default=NOTIFICATION_WIDTH_DEFAULT
         )
 

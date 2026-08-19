@@ -2260,7 +2260,7 @@ class ChatWindow(QWidget):
     @staticmethod
     def _room_source_label(gr) -> str:
         """Room badge for game/competition notifications."""
-        return "🏆" if gr.room_label == "Competition" else "🎮"
+        return "🏁" if gr.room_label == "Competition" else "🎮"
 
     def _notify_incoming_message(self, msg, display_body, is_ban, is_system, is_initial, room_jid=None, add_message_fn=None, source_label=None):
         """TTS, effect sounds, and popup — shared by general and game-room messages.
@@ -2330,7 +2330,8 @@ class ChatWindow(QWidget):
             else:
                 self._show_notification(msg, display_body, is_ban, is_system, room_jid=room_jid, add_message_fn=add_message_fn, source_label=source_label)
 
-    def _show_and_focus_window(self):
+    def _show_and_focus_window(self, game_id=None):
+        """Show/focus the chat window; switch to the originating room tab if any."""
         if not self.isVisible():
             self.show()
         self.setWindowState(self.windowState() & ~Qt.WindowState.WindowMinimized | Qt.WindowState.WindowActive)
@@ -2338,6 +2339,11 @@ class ChatWindow(QWidget):
         self.raise_()
         if self.stacked_widget.currentWidget() is not self.messages_splitter:
             self.show_messages_view()
+        if self.room_tabs:
+            if game_id is not None and game_id in self.game_rooms:
+                self.room_tabs.setCurrentWidget(self.game_rooms[game_id])
+            else:
+                self.room_tabs.setCurrentIndex(0)
 
     def _show_notification(self, msg, display_body, is_ban, is_system, room_jid=None, add_message_fn=None, source_label=None):
         """Show notification.
@@ -2345,6 +2351,7 @@ class ChatWindow(QWidget):
         room_jid: originating game room jid (None = General).
         add_message_fn: local echo target for a typed reply.
         source_label: optional room badge in the notification header."""
+        gid = self._game_id_from_jid(room_jid) if room_jid else None
         try:
             show_notification(
                 title=msg.login,
@@ -2355,7 +2362,7 @@ class ChatWindow(QWidget):
                 emoticon_manager=self.emoticon_manager,
                 local_message_callback=add_message_fn or self.add_local_message,
                 account=self.account,
-                window_show_callback=self._show_and_focus_window,
+                window_show_callback=lambda g=gid: self._show_and_focus_window(g),
                 is_private=getattr(msg, 'is_private', False),
                 recipient_jid=msg.from_jid if getattr(msg, 'is_private', False) else None,
                 room_jid=room_jid,
