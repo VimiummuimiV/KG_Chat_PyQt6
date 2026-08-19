@@ -149,6 +149,13 @@ class NoWheelSlider(QSlider):
         event.ignore()
 
 
+class NoWheelComboBox(QComboBox):
+    """QComboBox that ignores mouse wheel events, letting the parent scroll area handle scrolling instead."""
+
+    def wheelEvent(self, event):
+        event.ignore()
+
+
 class SoundSelectorWidget(QWidget):
     """Selector for one notification sound type.
 
@@ -181,7 +188,7 @@ class SoundSelectorWidget(QWidget):
         self.prev_button.clicked.connect(self._on_prev)
         layout.addWidget(self.prev_button)
 
-        self.combo = QComboBox()
+        self.combo = NoWheelComboBox()
         self.combo.setFont(get_font(FontType.UI))
         self.combo.currentIndexChanged.connect(self._on_combo_changed)
         self.combo.setMinimumWidth(180)
@@ -495,7 +502,7 @@ class SettingsWidget(QWidget):
         label.setFont(get_font(FontType.UI))
         row.addWidget(label, stretch=1)
 
-        combo = QComboBox()
+        combo = NoWheelComboBox()
         combo.setFont(get_font(FontType.UI))
         combo.addItems(items)
         combo.setFixedWidth(160)
