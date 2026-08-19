@@ -12,6 +12,7 @@ from helpers.create import create_icon_button, HoverIconButton, _render_svg_icon
 from helpers.load import make_rounded_pixmap
 from helpers.fonts import get_font, FontType
 from helpers.input_activity import cursor_moved_or_key_pressed
+from helpers.color_utils import get_game_message_colors
 from ui.message_renderer import MessageRenderer
 from ui.ui_emoticon_selector import release_selector
 
@@ -196,19 +197,38 @@ class PopupNotification(QWidget):
         top_row.setSpacing(0)
         top_row.setContentsMargins(0, 0, 0, 0)
       
-        # Username label (left side) - hide for system messages
-        username_color = data.cache.get_username_color(data.title, is_dark) if data.cache else "#AAAAAA"
+        # Source accent
+        kind = data.source_label
+        if not kind and data.is_competition:
+            kind = "competition"
+        if kind == "competition":
+            accent = self.message_renderer.competition_colors["text"]
+        elif kind == "game":
+            accent = get_game_message_colors(data.config, is_dark)["text"]
+        else:
+            accent = None
+
+        # Title
+        if kind == "competition":
+            username_color = accent
+        elif data.cache:
+            username_color = data.cache.get_username_color(data.title, is_dark)
+        else:
+            username_color = "#AAAAAA"
         self.username_label = QLabel(f"<b>{data.title}</b>")
         self.username_label.setStyleSheet(f"color: {username_color};")
         self.username_label.setFont(get_font(FontType.TEXT))
         self.username_label.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         
-        # Timestamp label - always shown
+        # Timestamp
         ts_str = (data.timestamp or datetime.now()).strftime("%H:%M:%S")
         self.timestamp_label = QLabel(ts_str)
-        ts_color = self.message_renderer.get_timestamp_color(
-            data.is_ban, data.is_private, data.is_system, data.is_competition
-        )
+        if accent:
+            ts_color = accent
+        else:
+            ts_color = self.message_renderer.get_timestamp_color(
+                data.is_ban, data.is_private, data.is_system, data.is_competition
+            )
         self.timestamp_label.setStyleSheet(f"color: {ts_color};")
         self.timestamp_label.setFont(get_font(FontType.TEXT))
         self.timestamp_label.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
@@ -247,13 +267,6 @@ class PopupNotification(QWidget):
         if not data.is_system:
             top_row.addSpacing(self.spacing)
             top_row.addWidget(self.username_label, stretch=0)
-
-        self.source_label = None
-        if data.source_label:
-            self.source_label = QLabel(data.source_label)
-            self.source_label.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-            top_row.addSpacing(self.spacing)
-            top_row.addWidget(self.source_label, stretch=0)
 
         top_row.addStretch(1)
       
