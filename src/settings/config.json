@@ -81,26 +81,26 @@
     "emoticon_selector_visible": false,
     "always_on_top": false,
     "recent_emoticons": [
-      "sick",
-      "uzi",
+      "vpered",
       "carpet",
+      "pirates",
+      "barret",
+      "dwarf",
+      "comandos",
+      "uzi",
+      "boredom",
+      "sick",
       "vdv",
       "spiteful",
-      "boredom",
-      "comandos",
       "badcomp",
-      "vpered",
       "clapping",
       "kidtruck",
-      "dwarf",
       "spider",
       "terminator",
       "ghost",
       "death",
       "pirate",
-      "pirates",
-      "gangster",
-      "barret"
+      "gangster"
     ],
     "window": {
       "width": null,
@@ -149,8 +149,8 @@
     "competition_repeat_enabled": false
   },
   "notification": {
-    "mode": "replace",
-    "muted": true,
+    "mode": "stack",
+    "muted": false,
     "competitions_bypass_mute": true
   },
   "startup": {

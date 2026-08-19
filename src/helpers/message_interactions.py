@@ -12,7 +12,8 @@ class MessageInteractions(QObject):
     for username/timestamp clicks, based on the delegate's click_rects."""
 
     timestamp_left_clicked = pyqtSignal(str)   # date_str ("%Y-%m-%d")
-    timestamp_right_clicked = pyqtSignal(str)  # date_str ("%Y-%m-%d")
+    timestamp_right_clicked = pyqtSignal(str)  # date_str ("%Y-%m-%d") — normal messages
+    competition_timestamp_right_clicked = pyqtSignal(object)  # msg with is_competition — open game (competition) room
     username_left_clicked = pyqtSignal(str, bool)         # username, is_double_click
     username_right_clicked = pyqtSignal(object, object)   # msg, global_pos
     username_ctrl_clicked = pyqtSignal(str)   # Ctrl+LMB → enter private
@@ -83,7 +84,11 @@ class MessageInteractions(QObject):
                 self.timestamp_left_clicked.emit(date_str)
                 return True
             elif event.button() == Qt.MouseButton.RightButton:
-                self.timestamp_right_clicked.emit(date_str)
+                # Competition messages → open game room split; others → chatlog split
+                if getattr(msg, 'is_competition', False) and getattr(msg, 'competition_game_id', None):
+                    self.competition_timestamp_right_clicked.emit(msg)
+                else:
+                    self.timestamp_right_clicked.emit(date_str)
                 return True
 
         return False

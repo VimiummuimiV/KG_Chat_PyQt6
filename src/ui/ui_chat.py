@@ -5,7 +5,7 @@ from pathlib import Path
 from datetime import datetime
 from PyQt6.QtWidgets import(
     QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QTextEdit, QApplication, QMenu,
-    QStackedWidget, QStatusBar, QLabel, QProgressBar, QPushButton, QMessageBox, QSplitter
+    QStackedWidget, QStatusBar, QLabel, QProgressBar, QPushButton, QMessageBox, QSplitter, QTabWidget, QTabBar
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QObject, QTimer, QEvent
 from PyQt6.QtGui import QAction, QCursor
@@ -33,6 +33,7 @@ from themes.theme import ThemeManager
 from core.xmpp import XMPPClient
 from core.messages import Message
 from ui.ui_messages import MessagesWidget
+from ui.ui_gameroom import GameRoomWidget
 from ui.ui_userlist import UserListWidget
 from ui.ui_chatlog import ChatlogWidget
 from ui.ui_chatlog_userlist import ChatlogUserlistWidget
@@ -456,6 +457,10 @@ class ChatWindow(QWidget):
         self.messages_splitter.addWidget(self.messages_widget)
         self.chatlog_split_widget = None  # the split-pane ChatlogWidget, when open
 
+        self.game_rooms = {}  # game_id -> GameRoomWidget
+        self.room_tabs = None  # QTabWidget; General is always tab 0 when present
+        self.general_body = None
+
         self.stacked_widget.addWidget(self.messages_splitter)
         self.chatlog_widget = None
         self.chatlog_userlist_widget = None
@@ -510,6 +515,7 @@ class ChatWindow(QWidget):
         self.user_list_widget.profile_requested.connect(self.show_profile_view)
         self.user_list_widget.private_chat_requested.connect(self.enter_private_mode)
         self.user_list_widget.paste_requested.connect(self._paste_username_to_input)
+        self.user_list_widget.open_game_requested.connect(self._open_game_room_by_id)
 
         messages_userlist_visible = self.config.get("ui", "messages_userlist_visible")
         userlist_visible = messages_userlist_visible if messages_userlist_visible is not None else True
@@ -624,6 +630,9 @@ class ChatWindow(QWidget):
      
         self.messages_widget.timestamp_left_clicked.connect(self.show_chatlog_view)
         self.messages_widget.timestamp_right_clicked.connect(self.show_chatlog_split_view)
+        self.messages_widget.competition_timestamp_right_clicked.connect(
+            lambda msg: self.show_game_room_split(msg, room_label="Competition")
+        )
         self.messages_widget.username_left_clicked.connect(self._on_username_left_click)
         self.messages_widget.username_right_clicked.connect(self._on_username_right_click)
         self.messages_widget.username_ctrl_clicked.connect(self._on_username_ctrl_click)
@@ -653,26 +662,34 @@ class ChatWindow(QWidget):
             self.input_field.clearFocus()
             self.setFocus()
  
+    def _current_game_room(self):
+        """GameRoomWidget of the currently selected tab, or None if General."""
+        if not self.room_tabs or self.room_tabs.currentIndex() <= 0:
+            return None
+        w = self.room_tabs.currentWidget()
+        return w if isinstance(w, GameRoomWidget) else None
+
+    def _active_input_field(self):
+        """Input that should receive typed/emoticon text."""
+        gr = self._current_game_room()
+        if gr is not None and getattr(gr, 'input_field', None) is not None:
+            if gr.input_field.hasFocus() or not self.input_field.hasFocus():
+                return gr.input_field
+        return self.input_field
+
     def _on_emoticon_selected(self, emoticon_name: str):
-        """Handle emoticon selection"""
-        # Insert emoticon code at cursor position
-        cursor_pos = self.input_field.cursorPosition()
-        current_text = self.input_field.text()
+        """Insert emoticon into the active input field."""
+        field = self._active_input_field()
+        cursor_pos = field.cursorPosition()
+        current_text = field.text() or ""
         emoticon_code = f":{emoticon_name}: "
-     
-        new_text = current_text[:cursor_pos] + emoticon_code + current_text[cursor_pos:]
-        self.input_field.setText(new_text)
-     
-        # Move cursor after inserted emoticon
-        self.input_field.setCursorPosition(cursor_pos + len(emoticon_code))
-     
-        # Defer by one event-loop tick so the selector has already hidden
-        # (or stayed open on Shift) before we check visibility.
+        field.setText(current_text[:cursor_pos] + emoticon_code + current_text[cursor_pos:])
+        field.setCursorPosition(cursor_pos + len(emoticon_code))
         QTimer.singleShot(0, self._refocus_if_selector_closed)
- 
+
     def _refocus_if_selector_closed(self):
         if not (hasattr(self, 'emoticon_selector') and self.emoticon_selector.isVisible()):
-            self.input_field.setFocus()
+            self._active_input_field().setFocus()
 
     def _position_emoticon_selector(self):
         """Place selector aligned to emoticon button (simple, predictable)."""
@@ -861,7 +878,7 @@ class ChatWindow(QWidget):
 
         # Trigger an initial resize handler so UI elements (userlist, button panel)
         # reflect the current width immediately on first show
-        QTimer.singleShot(50, lambda: handle_chat_resize(self, self.width()))
+        QTimer.singleShot(50, lambda: self._apply_resize(self.width()))
 
         # Clear the showing flag after a short delay so subsequent user-initiated resize/move
         # events will be persisted normally
@@ -887,6 +904,10 @@ class ChatWindow(QWidget):
         # Exit private mode if active
         if self.private_mode:
             self.exit_private_mode()
+
+        if self.game_rooms:
+            for gid in list(self.game_rooms.keys()):
+                self._close_game_room_tab(gid)
 
     def _is_connected(self):
         """Check if XMPP client is connected"""
@@ -1055,8 +1076,7 @@ class ChatWindow(QWidget):
                 self.user_list_widget.isVisible()
             )
 
-        QTimer.singleShot(50, lambda: scroll(self.messages_widget.scroll_area, mode="bottom"))
-
+        self._scroll_to_bottom(self.messages_widget.list_view)
         # If parsing ongoing, show status widget
         if self.chatlog_widget and self.chatlog_widget.parser_widget.is_parsing:
             self.start_parse_status()
@@ -1185,6 +1205,229 @@ class ChatWindow(QWidget):
         widget.setParent(None)
         widget.deleteLater()
 
+
+    def _open_game_room_by_id(self, game_id):
+        class _Fake:
+            pass
+        fake = _Fake()
+        try:
+            fake.competition_game_id = int(game_id)
+        except (TypeError, ValueError):
+            return
+        self.show_game_room_split(fake)
+
+    def show_game_room_split(self, msg, room_label: str = "Game"):
+        """Open or focus a game-room tab.
+
+        room_label: "Game" (default, opened via a live game_id) or
+        "Competition" (opened via RMB on a competition announcement timestamp).
+        """
+        gid = getattr(msg, 'competition_game_id', None)
+        if not gid:
+            return
+        try:
+            gid = int(gid)
+        except (TypeError, ValueError):
+            return
+
+        if self.chatlog_split_widget:
+            self._close_chatlog_split_view()
+
+        # Already open → just switch to it
+        if gid in self.game_rooms:
+            self.room_tabs.setCurrentWidget(self.game_rooms[gid])
+            return
+
+        self._ensure_room_tabs()
+
+        widget = GameRoomWidget(
+            self.config, self.emoticon_manager, self.icons_path,
+            account=self.account, ban_manager=self.ban_manager,
+            game_id=gid, room_label=room_label, parent=self,
+        )
+        widget.send_requested.connect(lambda text, w=widget: self._send_game_room_message(text, w))
+        widget.profile_requested.connect(self.show_profile_view)
+        widget.private_chat_requested.connect(self.enter_private_mode)
+        widget.paste_requested.connect(self._paste_username_to_input)
+        widget.open_game_requested.connect(self._open_game_room_by_id)
+        widget.emoticon_requested.connect(lambda w=widget: self._on_game_room_emoticon_requested(w))
+        widget.username_left_clicked.connect(self._on_username_left_click)
+        widget.username_right_clicked.connect(
+            lambda msg, pos, w=widget.messages_widget: self._on_username_right_click(msg, pos, w)
+        )
+        widget.username_ctrl_clicked.connect(self._on_username_ctrl_click)
+        widget.username_shift_clicked.connect(self._on_username_shift_click)
+
+        self.game_rooms[gid] = widget
+        widget.set_compact_mode(self.width() <= 1000)  # match current window width immediately
+        idx = self.room_tabs.addTab(widget, widget.tab_title())
+        self.room_tabs.setCurrentIndex(idx)
+        self._join_game_room(gid, widget.room_jid, widget)
+
+    def _ensure_room_tabs(self):
+        """Create QTabWidget once; wrap existing general content as non-closable tab 0."""
+        if self.room_tabs is not None:
+            return
+
+        self.general_body = QWidget()
+        gen_layout = QHBoxLayout()
+        gen_layout.setContentsMargins(0, 0, 0, 0)
+        gen_layout.setSpacing(self.config.get("ui", "spacing", "widget_content") or 6)
+        self.general_body.setLayout(gen_layout)
+
+        while self.content_layout.count():
+            # Capture the stretch factor (e.g. left pane vs userlist) before
+            # takeAt(0) removes it — otherwise panes reset to equal width.
+            stretch = self.content_layout.stretch(0)
+            item = self.content_layout.takeAt(0)
+            if item.widget():
+                gen_layout.addWidget(item.widget())
+            elif item.layout():
+                gen_layout.addLayout(item.layout())
+            gen_layout.setStretch(gen_layout.count() - 1, stretch)
+
+        self.room_tabs = QTabWidget()
+        self.room_tabs.setDocumentMode(True)
+        self.room_tabs.setMovable(True)
+        self.room_tabs.setTabsClosable(True)
+        self.room_tabs.tabCloseRequested.connect(self._on_room_tab_close_requested)
+        self.room_tabs.currentChanged.connect(self._on_room_tab_changed)
+
+        self.room_tabs.addTab(self.general_body, "General")
+        # General is permanent — hide its close button
+        self.room_tabs.tabBar().setTabButton(0, QTabBar.ButtonPosition.RightSide, None)
+        # Also prevent closing via middle-click etc. by ignoring in handler
+
+        self.content_layout.addWidget(self.room_tabs)
+
+    def _collapse_room_tabs(self):
+        """Reverse of _ensure_room_tabs: once no game-room tabs remain, unwrap
+        General back into content_layout directly so the tab bar doesn't sit
+        there taking up space for a single permanent tab."""
+        if self.room_tabs is None:
+            return
+
+        gen_layout = self.general_body.layout()
+        while gen_layout.count():
+            stretch = gen_layout.stretch(0)
+            item = gen_layout.takeAt(0)
+            if item.widget():
+                self.content_layout.addWidget(item.widget())
+            elif item.layout():
+                self.content_layout.addLayout(item.layout())
+            self.content_layout.setStretch(self.content_layout.count() - 1, stretch)
+
+        self.content_layout.removeWidget(self.room_tabs)
+        self.room_tabs.deleteLater()
+        self.room_tabs = None
+        self.general_body = None
+
+    def _on_room_tab_close_requested(self, index: int):
+        if index <= 0:
+            return  # General never closes
+        widget = self.room_tabs.widget(index)
+        if not isinstance(widget, GameRoomWidget):
+            return
+        gid = widget.game_id
+        self._close_game_room_tab(gid)
+
+    def _on_room_tab_changed(self, index: int):
+        # Optional: focus the input of the newly selected pane
+        if index <= 0:
+            if hasattr(self, 'input_field') and self.input_field:
+                self.input_field.setFocus()
+        else:
+            w = self.room_tabs.widget(index)
+            if isinstance(w, GameRoomWidget) and w.input_field:
+                w.input_field.setFocus()
+
+    def _join_game_room(self, game_id, room_jid: str, widget=None):
+        client = self.xmpp_client
+        target = widget or self.game_rooms.get(game_id)
+        if not client or not client.sid:
+            if target:
+                target.set_status("Not connected")
+            return
+        try:
+            client.join_room(room_jid, game_id=str(game_id))
+            if target:
+                target.set_status(f"In game #{game_id}")
+        except Exception as e:
+            print(f"⚠️ Game room join error: {e}")
+            if target:
+                target.set_status(f"Join error: {e}")
+
+    def _leave_game_room(self, game_id=None, room_jid=None):
+        client = self.xmpp_client
+        if not client:
+            return
+        jid = room_jid
+        if not jid and game_id is not None:
+            gr = self.game_rooms.get(game_id)
+            jid = gr.room_jid if gr else XMPPClient.game_room_jid(game_id)
+        if not jid:
+            return
+        try:
+            client.leave_room(jid)
+        except Exception as e:
+            print(f"⚠️ Leave game room: {e}")
+
+    def _close_game_room_tab(self, game_id):
+        widget = self.game_rooms.pop(game_id, None)
+        if not widget:
+            return
+        self._leave_game_room(game_id=game_id, room_jid=widget.room_jid)
+        idx = self.room_tabs.indexOf(widget) if self.room_tabs else -1
+        if idx >= 0:
+            self.room_tabs.removeTab(idx)
+        widget.cleanup()
+        widget.setParent(None)
+        widget.deleteLater()
+
+        # Last game room closed → collapse back to plain General view,
+        # so a lone permanent tab doesn't waste vertical space.
+        if not self.game_rooms:
+            self._collapse_room_tabs()
+
+    def _on_game_room_emoticon_requested(self, widget=None):
+        gr = widget or self._current_game_room()
+        if gr and gr.input_field:
+            gr.input_field.setFocus()
+        self._toggle_emoticon_selector()
+
+    def _send_game_room_message(self, text: str, widget=None):
+        gr = widget or self._current_game_room()
+        if not gr or not self.xmpp_client:
+            return
+        room_jid = gr.room_jid
+        if not room_jid:
+            return
+        own_user = None
+        for user in self.xmpp_client.user_list.get_all():
+            if user.login == self.account.get('chat_username'):
+                own_user = user
+                break
+        chunks = self._chunk_message(text, 300)
+        for i, chunk in enumerate(chunks):
+            own_msg = Message(
+                from_jid=self.xmpp_client.jid,
+                body=chunk,
+                msg_type='groupchat',
+                login=self.account.get('chat_username'),
+                avatar=None,
+                background=own_user.background if own_user else None,
+                timestamp=datetime.now(),
+                initial=False,
+            )
+            own_msg.is_private = False
+            gr.add_message(own_msg)
+            delay = i * 0.8
+            threading.Timer(
+                delay,
+                self.xmpp_client.send_message,
+                args=(chunk, room_jid, 'groupchat'),
+            ).start()
+
     def _get_hovered_chatlog_widget(self):
         """Return the ChatlogWidget (main or split) currently under the mouse cursor.
         Returns None if no suitable chatlog widget is hovered."""
@@ -1299,9 +1542,30 @@ class ChatWindow(QWidget):
         if self.chatlog_userlist_widget:
             self.chatlog_userlist_widget.update_filter_state(usernames)
 
+    def _apply_resize(self, width: int):
+        """handle_chat_resize only knows about the main chat's userlist/messages
+        (it predates game-room tabs), so sync the same compact-width behaviour
+        to any open game rooms here instead of teaching resize.py about tabs."""
+        handle_chat_resize(self, width)
+        self._sync_game_room_compact_state(width)
+
+    def _sync_game_room_compact_state(self, width: int):
+        """Apply the compact-mode / userlist auto-hide threshold to every open
+        game-room tab, same 1000px breakpoint as the main chat."""
+        if not self.game_rooms:
+            return
+        is_compact = width <= 1000
+        if is_compact != getattr(self, '_game_rooms_were_compact', is_compact):
+            # Crossing the threshold re-enables auto-hide, same as the main chat
+            for gr in self.game_rooms.values():
+                gr.auto_hide_userlist = True
+        self._game_rooms_were_compact = is_compact
+        for gr in self.game_rooms.values():
+            gr.set_compact_mode(is_compact)
+
     def resizeEvent(self, event):
         super().resizeEvent(event)
-        handle_chat_resize(self, self.width())
+        self._apply_resize(self.width())
 
         self._update_geometry_on_manual_change()
 
@@ -1373,15 +1637,25 @@ class ChatWindow(QWidget):
         if self.window_size_manager.has_saved_size() or cur != self._calculate_default_geometry():
             self.window_size_manager.update_geometry(*cur)
 
+    def _scroll_to_bottom(self, view, delay: int = 50):
+        """Scroll a list view to bottom after `delay` ms (lets layout settle first).
+        Small shared helper — this exact QTimer+lambda+scroll pattern was repeated
+        all over the file for messages/chatlog/competition scroll-to-bottom calls."""
+        QTimer.singleShot(delay, lambda: scroll(view, mode="bottom"))
+
+    def _scroll_to_row(self, view, row: int, delay: int = 0):
+        """Scroll a list view to a specific row, centered."""
+        QTimer.singleShot(delay, lambda: scroll(view, mode="middle", target_row=row))
+
     def _complete_resize_recalculation(self):
         """Complete resize with aggressive recalculation"""
         current = self.stacked_widget.currentWidget()
         if current == self.messages_splitter:
             self.messages_widget._force_recalculate()
-            QTimer.singleShot(50, lambda: scroll(self.messages_widget.scroll_area, mode="bottom"))
+            self._scroll_to_bottom(self.messages_widget.list_view)
         elif current == self.chatlog_widget and self.chatlog_widget:
             self.chatlog_widget._force_recalculate()
-            QTimer.singleShot(50, lambda: scroll(self.chatlog_widget.list_view, mode="bottom"))
+            self._scroll_to_bottom(self.chatlog_widget.list_view)
 
     def connect_xmpp(self):
         def _worker():
@@ -1522,7 +1796,7 @@ class ChatWindow(QWidget):
                 timer.stop()
             popup_manager.close_by_tag(f"competition:{gid}")
         if mw:
-            QTimer.singleShot(50, lambda: scroll(mw.scroll_area, mode="bottom"))
+            self._scroll_to_bottom(mw.list_view)
 
     def _reset_competition_live_state(self):
         self._competition_countdown_timer.stop()
@@ -1579,7 +1853,7 @@ class ChatWindow(QWidget):
             if mw and hasattr(mw, "clear_competition_messages"):
                 mw.clear_competition_messages(gid)
                 # Scroll to bottom to show current chat after competition message is removed
-                QTimer.singleShot(50, lambda: scroll(mw.scroll_area, mode="bottom"))
+                self._scroll_to_bottom(mw.list_view)
             self._competition_live.pop(gid, None)
             if self._competition_focus_gid == gid:
                 self._competition_focus_gid = None
@@ -1714,9 +1988,9 @@ class ChatWindow(QWidget):
         if self._competition_focus_gid == gid:
             row = mw.model.find_competition_message_row(gid)
             if row is not None:
-                QTimer.singleShot(0, lambda r=row, lv=mw.list_view: scroll(lv, mode="middle", target_row=r))
+                self._scroll_to_row(mw.list_view, row)
         elif at_bottom:
-            QTimer.singleShot(0, lambda: scroll(mw.scroll_area, mode="bottom"))
+            self._scroll_to_bottom(mw.list_view, delay=0)
 
         popup = popup_manager.find_by_tag(f"competition:{gid}")
         if popup:
@@ -1769,7 +2043,7 @@ class ChatWindow(QWidget):
         if mw and hasattr(mw, "list_view") and hasattr(mw, "model"):
             row = mw.model.find_competition_message_row(gid)
             if row is not None:
-                QTimer.singleShot(50, lambda r=row, lv=mw.list_view: scroll(lv, mode="middle", target_row=r))
+                QTimer.singleShot(50, lambda r=row: self._scroll_to_row(mw.list_view, r))
 
         # Same rule as chat messages: notify only when window is not focused
         if not self.isActiveWindow():
@@ -1872,11 +2146,52 @@ class ChatWindow(QWidget):
         
         return False
 
+    def _is_from_game_room(self, from_jid: str) -> bool:
+        if not from_jid:
+            return False
+        bare = from_jid.split('/')[0]
+        return bare.startswith('game') and '@conference.jabber.klavogonki.ru' in bare
+
+    def _game_id_from_jid(self, from_jid: str):
+        try:
+            bare = from_jid.split('/')[0]
+            local = bare.split('@')[0]
+            if local.startswith('game'):
+                return int(local[4:])
+        except Exception:
+            pass
+        return None
+
     def on_message(self, msg):
         # Check if initial load
         is_initial = getattr(msg, 'initial', False)
+
+        from_jid = getattr(msg, 'from_jid', '') or ''
+        if self.game_rooms and self._is_from_game_room(from_jid):
+            gid = self._game_id_from_jid(from_jid)
+            gr = self.game_rooms.get(gid) if gid is not None else None
+            if gr is not None:
+                body = (msg.body or '').strip()
+                if 'not anonymous' in body.lower():
+                    return
+                if msg.login == self.account.get('chat_username') and not is_initial:
+                    return
+                if msg.login:
+                    user_id, _ = extract_user_data_from_jid(from_jid)
+                    if self._is_user_banned(user_id, msg.login):
+                        return
+                    if user_id:
+                        self.cache.update_user(user_id, msg.login)
+                is_ban = self._is_ban_message(msg)
+                msg.is_ban = is_ban
+                msg.is_private = False
+                display_body, is_system = format_me_action(msg.body, msg.login)
+                gr.add_message(msg)
+                self._notify_incoming_message(msg, display_body, is_ban, is_system, is_initial)
+                return
+
         if is_initial:
-            self._history_settle_timer.start(self._HISTORY_SETTLE_MS)  # keeps pushing back until history goes quiet
+            self._history_settle_timer.start(self._HISTORY_SETTLE_MS)
 
         # Skip own messages (server echoes groupchat messages back)
         if msg.login == self.account.get('chat_username') and not is_initial:
@@ -1911,72 +2226,71 @@ class ChatWindow(QWidget):
         if not is_initial and not self.isVisible() and self.app_controller:
             self.app_controller.increment_unread()
 
-        # Only speak if not initial load, has login, and window not active
-        if not is_initial and msg.login and not self.isActiveWindow():
+        self._notify_incoming_message(msg, display_body, is_ban, is_system, is_initial)
+
+    def _notify_incoming_message(self, msg, display_body, is_ban, is_system, is_initial):
+        """TTS, effect sounds, and popup — shared by general and game-room messages."""
+        if is_initial:
+            return
+
+        if msg.login and not self.isActiveWindow():
             tts_enabled = self.config.get("sound", "tts_enabled")
             if tts_enabled:
                 # Update voice engine state
                 self.voice_engine.set_enabled(True)
-                my_username = self.account.get('chat_username', '')
-                
                 self.voice_engine.speak_message(
                     username=msg.login,
                     message=display_body,
-                    my_username=my_username,
+                    my_username=self.account.get('chat_username', ''),
                     is_initial=is_initial,
-                    is_private=msg.is_private,
+                    is_private=getattr(msg, 'is_private', False),
                     is_ban=is_ban,
-                    is_system=is_system
+                    is_system=is_system,
                 )
             else:
                 # Ensure voice engine is disabled
                 self.voice_engine.set_enabled(False)
 
-        # Only show notifications when not initial load.
-        # Ban sound should play always for ban messages, regardless of focus.
-        # Mention sound can still play while focused if the config overrides it.
-        if not is_initial:
-            if is_ban:
-                self._play_ban_sound()
+        if is_ban:
+            self._play_ban_sound()
 
-            play_mention_sound_always = self.config.get("sound", "play_mention_sound_always") or False
-            # Play mention sound if message mentions me and either window not active or config overrides it to always play
-            if self._message_mentions_me(msg) and (not self.isActiveWindow() or play_mention_sound_always):
-                self._play_mention_sound()
+        play_mention_sound_always = self.config.get("sound", "play_mention_sound_always") or False
+        # Play mention sound if message mentions me and either window not active or config overrides it to always play
+        if self._message_mentions_me(msg) and (not self.isActiveWindow() or play_mention_sound_always):
+            self._play_mention_sound()
 
-            # Only show notifications when the window is not active
-            if not self.isActiveWindow():
-                # Check if YouTube URLs need time to cache
-                from core.youtube import YOUTUBE_URL_PATTERN, get_cached_info, youtube_signals
-                uncached = [m.group(0) for m in YOUTUBE_URL_PATTERN.finditer(msg.body) 
-                           if not (get_cached_info(m.group(0)) or (None, False))[1]]
-                
-                if uncached:
-                    # Wait for signal with timeout
-                    pending = set(uncached)
-                    timer = QTimer(self)
-                    timer.setSingleShot(True)
-                    
-                    def show_now():
-                        try:
-                            youtube_signals.metadata_cached.disconnect(on_ready)
-                        except:
-                            pass
-                        timer.stop()
-                        # Re-check in case the window was focused during the delay
-                        if not self.isActiveWindow():
-                            self._show_notification(msg, display_body, is_ban, is_system)
-                    
-                    def on_ready(url):
-                        pending.discard(url)
-                        if not pending:
-                            show_now()
-                    
-                    youtube_signals.metadata_cached.connect(on_ready)
-                    timer.timeout.connect(show_now)
-                    timer.start(2000)
-                else:
-                    self._show_notification(msg, display_body, is_ban, is_system)
+        # Only show notifications when the window is not active
+        if not self.isActiveWindow():
+            # Check if YouTube URLs need time to cache
+            from core.youtube import YOUTUBE_URL_PATTERN, get_cached_info, youtube_signals
+            uncached = [
+                m.group(0) for m in YOUTUBE_URL_PATTERN.finditer(msg.body or '')
+                if not (get_cached_info(m.group(0)) or (None, False))[1]
+            ]
+            if uncached:
+                pending = set(uncached)
+                timer = QTimer(self)
+                timer.setSingleShot(True)
+
+                def show_now():
+                    try:
+                        youtube_signals.metadata_cached.disconnect(on_ready)
+                    except Exception:
+                        pass
+                    timer.stop()
+                    if not self.isActiveWindow():
+                        self._show_notification(msg, display_body, is_ban, is_system)
+
+                def on_ready(url):
+                    pending.discard(url)
+                    if not pending:
+                        show_now()
+
+                youtube_signals.metadata_cached.connect(on_ready)
+                timer.timeout.connect(show_now)
+                timer.start(2000)
+            else:
+                self._show_notification(msg, display_body, is_ban, is_system)
 
     def _show_and_focus_window(self):
         if not self.isVisible():
@@ -2000,8 +2314,8 @@ class ChatWindow(QWidget):
                 local_message_callback=self.add_local_message,
                 account=self.account,
                 window_show_callback=self._show_and_focus_window,
-                is_private=msg.is_private,
-                recipient_jid=msg.from_jid if msg.is_private else None,
+                is_private=getattr(msg, 'is_private', False),
+                recipient_jid=msg.from_jid if getattr(msg, 'is_private', False) else None,
                 is_ban=is_ban,
                 is_system=is_system
             )
@@ -2051,6 +2365,26 @@ class ChatWindow(QWidget):
         if pres and pres.login:
             if self._is_user_banned(pres.user_id, pres.login):
                 return  # Silently drop banned user's presence
+
+        from_jid = getattr(pres, 'from_jid', '') or ''
+        is_game = self._is_from_game_room(from_jid)
+
+        if is_game and self.game_rooms:
+            gid = self._game_id_from_jid(from_jid)
+            gr = self.game_rooms.get(gid) if gid is not None else None
+            if gr is not None:
+                if pres.presence_type == 'available':
+                    if pres.login and pres.user_id:
+                        self.cache.update_user(pres.user_id, pres.login, pres.background)
+                    if pres.user_id and pres.avatar:
+                        self.cache.ensure_avatar(
+                            pres.user_id, pres.avatar,
+                            gr.user_list_widget.on_avatar_updated
+                        )
+                    gr.add_users(presence=pres)
+                elif pres.presence_type == 'unavailable':
+                    gr.remove_users(presence=pres)
+                return
     
         if pres and pres.presence_type == 'available':
             if pres.login and pres.user_id:
@@ -2329,7 +2663,7 @@ class ChatWindow(QWidget):
             self.button_panel.set_button_state(self.button_panel.toggle_userlist_button, visible)
 
         # Force resize handler to sync everything
-        QTimer.singleShot(10, lambda: handle_chat_resize(self, width))
+        QTimer.singleShot(10, lambda: self._apply_resize(width))
     
         # Force recalculation after visibility change
         QTimer.singleShot(20, lambda: recalculate_layout(self))
@@ -2445,24 +2779,19 @@ class ChatWindow(QWidget):
         self.input_field.setFocus()
 
     def _paste_username_to_input(self, username: str):
-        """Paste username from userlist context menu into input field at cursor position."""
-        if not hasattr(self, 'input_field') or not self.input_field:
+        """Paste username into the active input field (game room or general)."""
+        field = self._active_input_field() if hasattr(self, '_active_input_field') else self.input_field
+        if not field:
             return
-        
-        cursor_pos = self.input_field.cursorPosition()
-        current = self.input_field.text() or ""
-        
-        # Add comma + space if it makes sense (common in multi-recipient)
-        to_insert = username
+        cursor_pos = field.cursorPosition()
+        current = field.text() or ""
         if current.strip() and not current.strip().endswith((',', ' ')):
             to_insert = f", {username}"
         else:
             to_insert = f"{username}, "
-        
-        new_text = current[:cursor_pos] + to_insert + current[cursor_pos:]
-        self.input_field.setText(new_text)
-        self.input_field.setCursorPosition(cursor_pos + len(to_insert))
-        self.input_field.setFocus()
+        field.setText(current[:cursor_pos] + to_insert + current[cursor_pos:])
+        field.setCursorPosition(cursor_pos + len(to_insert))
+        field.setFocus()
 
     def _resolve_user_then(self, username: str, callback):
         """Resolve user_id for username: userlist → cache → API fallback (threaded)."""
@@ -2511,7 +2840,7 @@ class ChatWindow(QWidget):
             menu.addSeparator()
 
             # Copy username
-            copy_act = menu.addAction(icon("clipboard.svg"), "Copy username")
+            copy_username_act = menu.addAction(icon("clipboard.svg"), "Copy username")
 
             # Copy user ID
             copy_id_act = menu.addAction(icon("hashtag.svg"), "Copy ID")
@@ -2545,7 +2874,7 @@ class ChatWindow(QWidget):
                 username = getattr(msg, 'login', None) or getattr(msg, 'username', None)
                 if username:
                     self._resolve_user_then(username, lambda jid, login, uid: self.enter_private_mode(jid, login, uid))
-            elif act == copy_act:
+            elif act == copy_username_act:
                 username = getattr(msg, 'login', None) or getattr(msg, 'username', None)
                 if username:
                     QApplication.clipboard().setText(username)
@@ -2956,7 +3285,11 @@ class ChatWindow(QWidget):
          
             if self.chatlog_widget and self.stacked_widget.currentWidget() == self.chatlog_widget:
                 self.chatlog_widget._force_recalculate()
-         
+
+            # Re-theme open game rooms
+            for gr in self.game_rooms.values():
+                gr.update_theme()
+
             QApplication.processEvents()
         except Exception as e:
             print(f"Theme toggle error: {e}")
@@ -2997,6 +3330,8 @@ class ChatWindow(QWidget):
             self.messages_widget.cleanup()
         if self.chatlog_split_widget:
             self.chatlog_split_widget.cleanup()
+        for gid in list(self.game_rooms.keys()):
+            self._close_game_room_tab(gid)
         if self.chatlog_widget:
             self.chatlog_widget.cleanup()
 

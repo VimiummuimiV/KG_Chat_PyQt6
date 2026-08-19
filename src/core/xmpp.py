@@ -207,8 +207,8 @@ class XMPPClient:
                 self._last_error = error_str
             return False
    
-    def join_room(self, room_jid, nickname=None):
-        """Join MUC room"""
+    def join_room(self, room_jid, nickname=None, game_id: str = None):
+        """Join MUC room (general or game)"""
         if not hasattr(self, '_joined_rooms'):
             self._joined_rooms = set()
         if room_jid in self._joined_rooms:
@@ -242,6 +242,10 @@ class XMPPClient:
         bg = self._get_effective_background()
         if bg:
             ET.SubElement(user, 'background').text = bg
+
+        # Game rooms include <game_id> in the userdata x element
+        if game_id is not None:
+            ET.SubElement(x_data, 'game_id').text = str(game_id)
        
         try:
             response = self.send_request(self.build_body(children=[presence]), verbose=False, timeout=15)
@@ -250,12 +254,41 @@ class XMPPClient:
             self._process_response(response, is_initial_roster=True)
             self.initial_roster_received = True
             self._joined_rooms.add(room_jid)
-            print(f"✅ Joined room")
+            print(f"✅ Joined room: {room_jid}")
            
         except requests.Timeout:
             print("❌ Join timeout")
         except Exception as e:
             print(f"❌ Join error: {e}")
+
+    def leave_room(self, room_jid, nickname=None):
+        """Leave a MUC room by sending unavailable presence."""
+        if not hasattr(self, '_joined_rooms'):
+            self._joined_rooms = set()
+        if room_jid not in self._joined_rooms:
+            return
+        if self.connected_account is None or not self.sid:
+            return
+        if nickname is None:
+            nickname = f"{self.connected_account['user_id']}#{self.connected_account['chat_username']}"
+        self.rid += 1
+        presence = ET.Element('presence', {
+            'xmlns': 'jabber:client',
+            'to': f'{room_jid}/{nickname}',
+            'type': 'unavailable'
+        })
+        try:
+            self.send_request(self.build_body(children=[presence]), verbose=False, timeout=5)
+            self._joined_rooms.discard(room_jid)
+            print(f"👋 Left room: {room_jid}")
+        except Exception as e:
+            print(f"⚠️ Leave room error: {e}")
+            self._joined_rooms.discard(room_jid)
+
+    @staticmethod
+    def game_room_jid(game_id) -> str:
+        """Build JID for a race/competition room"""
+        return f"game{game_id}@conference.jabber.klavogonki.ru"
    
     def send_message(self, body: str, to_jid: str = None, msg_type: str = 'groupchat'):
         """Send message - supports both groupchat and private chat"""

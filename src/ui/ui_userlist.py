@@ -13,7 +13,7 @@ from helpers.create import _render_svg_icon, get_user_svg_color
 from helpers.cache import get_cache
 from helpers.fonts import get_font, FontType
 from helpers.scroll.auto_scroll import AutoScroller
-from components.user_context_menu import show_user_context_menu, PROFILE, PRIVATE, PASTE_USERNAME, COPY_USERNAME, COPY_ID
+from components.user_context_menu import show_user_context_menu, PROFILE, PRIVATE, PASTE_USERNAME, COPY_USERNAME, COPY_ID, OPEN_GAME
 from core.userlist import ChatUser
 
 
@@ -24,7 +24,8 @@ class UserWidget(QWidget):
     
     profile_requested = pyqtSignal(str, str, str)  # jid, username, user_id
     private_chat_requested = pyqtSignal(str, str, str)  # jid, username, user_id
-    paste_requested = pyqtSignal(str) # username
+    paste_requested = pyqtSignal(str)  # username
+    open_game_requested = pyqtSignal(str)  # game_id
 
     def __init__(self, user, config, icons_path, is_dark_theme, counter=None):
         super().__init__()
@@ -151,8 +152,11 @@ class UserWidget(QWidget):
         super().mousePressEvent(event)
 
     def contextMenuEvent(self, event):
-        """RMB → Profile / Private Chat / Copy Username / Copy ID menu"""
-        action = show_user_context_menu(self.icons_path, self, QCursor.pos())
+        """RMB → Profile / Private / Paste / Copy / Open game chat (if in race)"""
+        has_game = bool(getattr(self.user, 'game_id', None))
+        action = show_user_context_menu(
+            self.icons_path, self, QCursor.pos(), has_game=has_game
+        )
         if action == PROFILE:
             self.profile_requested.emit(self.user.jid, self.user.login, self.user.user_id)
         elif action == PRIVATE:
@@ -163,6 +167,8 @@ class UserWidget(QWidget):
             QApplication.clipboard().setText(self.user.login)
         elif action == COPY_ID:
             QApplication.clipboard().setText(str(self.user.user_id or ""))
+        elif action == OPEN_GAME and has_game:
+            self.open_game_requested.emit(str(self.user.game_id))
 
 
 class UserListWidget(QWidget):
@@ -170,7 +176,8 @@ class UserListWidget(QWidget):
     
     profile_requested = pyqtSignal(str, str, str)
     private_chat_requested = pyqtSignal(str, str, str)
-    paste_requested = pyqtSignal(str) # username
+    paste_requested = pyqtSignal(str)  # username
+    open_game_requested = pyqtSignal(str)  # game_id
 
     def __init__(self, config, input_field=None, ban_manager=None):
         super().__init__()
@@ -325,6 +332,12 @@ class UserListWidget(QWidget):
         # Update counters for all
         for user in users:
             self._update_counter(user)
+
+        def _wire(widget):
+            widget.profile_requested.connect(self.profile_requested.emit)
+            widget.private_chat_requested.connect(self.private_chat_requested.emit)
+            widget.paste_requested.connect(self.paste_requested.emit)
+            widget.open_game_requested.connect(self.open_game_requested.emit)
         
         if bulk:
             # Clear all widgets safely
@@ -351,9 +364,7 @@ class UserListWidget(QWidget):
             for user in in_chat:
                 try:
                     widget = UserWidget(user, self.config, self.icons_path, self.is_dark_theme)
-                    widget.profile_requested.connect(self.profile_requested.emit)
-                    widget.private_chat_requested.connect(self.private_chat_requested.emit)
-                    widget.paste_requested.connect(self.paste_requested.emit)
+                    _wire(widget)
                     self.chat_container.addWidget(widget)
                     self.user_widgets[user.jid] = widget
                 except Exception as e:
@@ -364,9 +375,7 @@ class UserListWidget(QWidget):
                 try:
                     counter = self.user_game_state.get(user.login, {}).get('counter', 1)
                     widget = UserWidget(user, self.config, self.icons_path, self.is_dark_theme, counter)
-                    widget.profile_requested.connect(self.profile_requested.emit)
-                    widget.private_chat_requested.connect(self.private_chat_requested.emit)
-                    widget.paste_requested.connect(self.paste_requested.emit)
+                    _wire(widget)
                     self.game_container.addWidget(widget)
                     self.user_widgets[user.jid] = widget
                 except Exception as e:
@@ -394,9 +403,7 @@ class UserListWidget(QWidget):
             # Create widget
             try:
                 widget = UserWidget(user, self.config, self.icons_path, self.is_dark_theme, counter)
-                widget.profile_requested.connect(self.profile_requested.emit)
-                widget.private_chat_requested.connect(self.private_chat_requested.emit)
-                widget.paste_requested.connect(self.paste_requested.emit)
+                _wire(widget)
                 self.user_widgets[user.jid] = widget
                 
                 # Find sorted position and insert

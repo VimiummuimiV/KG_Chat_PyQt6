@@ -1,0 +1,176 @@
+"""Full game-room pane (messages | userlist + input). Used as a tab page."""
+from pathlib import Path
+
+from PyQt6.QtWidgets import (
+    QWidget, QVBoxLayout, QHBoxLayout, QLineEdit
+)
+from PyQt6.QtCore import Qt, pyqtSignal
+
+from helpers.create import create_icon_button, HoverIconButton
+from helpers.fonts import get_font, FontType, get_userlist_width
+from ui.ui_messages import MessagesWidget
+from ui.ui_userlist import UserListWidget
+from core.xmpp import XMPPClient
+
+
+class GameRoomWidget(QWidget):
+    """Self-contained chat for one gameXXXX@conference room.
+    Layout matches the main general chat body:
+    """
+    close_requested = pyqtSignal()  # unused with tabs; kept for compatibility
+    send_requested = pyqtSignal(str)
+    profile_requested = pyqtSignal(str, str, str)
+    private_chat_requested = pyqtSignal(str, str, str)
+    paste_requested = pyqtSignal(str)
+    open_game_requested = pyqtSignal(str)
+    emoticon_requested = pyqtSignal()
+    username_left_clicked = pyqtSignal(str, bool)
+    username_right_clicked = pyqtSignal(object, object)
+    username_ctrl_clicked = pyqtSignal(str)
+    username_shift_clicked = pyqtSignal(str)
+
+    def __init__(
+        self,
+        config,
+        emoticon_manager,
+        icons_path: Path,
+        account=None,
+        ban_manager=None,
+        game_id=None,
+        room_label: str = "Game",
+        parent=None,
+    ):
+        super().__init__(parent)
+        self.config = config
+        self.emoticon_manager = emoticon_manager
+        self.icons_path = icons_path
+        self.account = account
+        self.ban_manager = ban_manager
+        self.game_id = game_id
+        self.room_label = room_label  # "Game" or "Competition" — cosmetic, set once at open time
+        self.room_jid = XMPPClient.game_room_jid(game_id) if game_id else None
+        self.auto_hide_userlist = True  # reset to True whenever the compact threshold is crossed
+        self._init_ui()
+
+    def _init_ui(self):
+        root = QVBoxLayout()
+        root.setContentsMargins(0, 0, 0, 0)
+        root.setSpacing(self.config.get("ui", "spacing", "widget_elements") or 6)
+        self.setLayout(root)
+
+        body = QHBoxLayout()
+        body.setContentsMargins(0, 0, 0, 0)
+        body.setSpacing(self.config.get("ui", "spacing", "widget_content") or 6)
+
+        left = QVBoxLayout()
+        left.setContentsMargins(0, 0, 0, 0)
+        left.setSpacing(self.config.get("ui", "spacing", "widget_elements") or 6)
+
+        my_username = self.account.get("chat_username") if self.account else None
+        self.messages_widget = MessagesWidget(
+            self.config, self.emoticon_manager, my_username=my_username
+        )
+        self.messages_widget.username_left_clicked.connect(self.username_left_clicked.emit)
+        self.messages_widget.username_right_clicked.connect(self.username_right_clicked.emit)
+        self.messages_widget.username_ctrl_clicked.connect(self.username_ctrl_clicked.emit)
+        self.messages_widget.username_shift_clicked.connect(self.username_shift_clicked.emit)
+        left.addWidget(self.messages_widget, stretch=1)
+
+        input_row = QHBoxLayout()
+        input_row.setContentsMargins(0, 0, 0, 0)
+        input_row.setSpacing(self.config.get("ui", "buttons", "spacing") or 8)
+
+        self.input_field = QLineEdit()
+        self.input_field.setFont(get_font(FontType.TEXT))
+        self.input_field.setFixedHeight(48)
+        self.input_field.returnPressed.connect(self._on_send)
+        input_row.addWidget(self.input_field, stretch=1)
+
+        self.send_button = create_icon_button(
+            self.icons_path, "send.svg", "Send", size_type="large", config=self.config
+        )
+        self.send_button.clicked.connect(self._on_send)
+        input_row.addWidget(self.send_button)
+
+        self.emoticon_button = HoverIconButton(
+            self.icons_path,
+            "emotion-normal.svg",
+            "emotion-happy.svg",
+            "Toggle Emoticon Selector",
+        )
+        self.emoticon_button.clicked.connect(self.emoticon_requested.emit)
+        input_row.addWidget(self.emoticon_button)
+
+        left.addLayout(input_row)
+        body.addLayout(left, stretch=3)
+
+        self.user_list_widget = UserListWidget(
+            self.config, input_field=self.input_field, ban_manager=self.ban_manager
+        )
+        self.user_list_widget.profile_requested.connect(self.profile_requested.emit)
+        self.user_list_widget.private_chat_requested.connect(self.private_chat_requested.emit)
+        self.user_list_widget.paste_requested.connect(self.paste_requested.emit)
+        self.user_list_widget.open_game_requested.connect(self.open_game_requested.emit)
+        self.user_list_widget.setFixedWidth(get_userlist_width())
+        body.addWidget(self.user_list_widget)
+
+        root.addLayout(body, stretch=1)
+
+    def tab_title(self) -> str:
+        return f"{self.room_label} #{self.game_id}" if self.game_id else self.room_label
+
+    def _on_send(self):
+        text = self.input_field.text().strip()
+        if not text:
+            return
+        self.input_field.clear()
+        self.send_requested.emit(text)
+
+    def set_game_id(self, game_id):
+        self.game_id = game_id
+        self.room_jid = XMPPClient.game_room_jid(game_id)
+        self.messages_widget.clear()
+        self.user_list_widget.clear_all()
+
+    def set_status(self, text: str):
+        """Store connection status. Deliberately NOT a widget-wide tooltip
+        (self.setToolTip) — that fired on every hover anywhere inside
+        messages/userlist/input, which was obnoxious. ChatWindow applies it
+        as the room's tab tooltip instead (see _set_game_room_status)."""
+        self.status_text = text or ""
+
+    def add_message(self, msg):
+        self.messages_widget.add_message(msg)
+
+    def add_users(self, users=None, presence=None, bulk=False):
+        self.user_list_widget.add_users(users=users, presence=presence, bulk=bulk)
+
+    def remove_users(self, jids=None, presence=None):
+        self.user_list_widget.remove_users(jids=jids, presence=presence)
+
+    def update_theme(self):
+        self.messages_widget.update_theme()
+        self.user_list_widget.update_theme()
+
+    def set_compact_mode(self, compact: bool):
+        """Mirror the main chat's compact-width behaviour, which the central
+        resize handler doesn't know about since room tabs live outside it:
+        shrink the message layout and, unless the user pinned it open here,
+        hide this room's own userlist to free up space."""
+        self.messages_widget.set_compact_mode(compact)
+        if self.auto_hide_userlist:
+            self.user_list_widget.setVisible(not compact)
+
+    def toggle_userlist(self) -> bool:
+        """Manually show/hide this room's userlist; pins the choice so the
+        next resize's auto-hide doesn't immediately override it."""
+        visible = not self.user_list_widget.isVisible()
+        self.user_list_widget.setVisible(visible)
+        self.auto_hide_userlist = False
+        return visible
+
+    def cleanup(self):
+        if hasattr(self, "messages_widget") and self.messages_widget:
+            self.messages_widget.cleanup()
+        if hasattr(self, "user_list_widget") and self.user_list_widget:
+            self.user_list_widget.cleanup()
