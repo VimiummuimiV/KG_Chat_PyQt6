@@ -467,6 +467,7 @@ class ChatWindow(QWidget):
         self.chatlog_widget = None
         self.chatlog_userlist_widget = None
         self.pre_profile_view = None  # 'messages' or 'chatlog' - where to return after profile/pronunciation/ban-list views
+        self._return_room_gid = None  # game_id to restore after profile/private opened from a room tab
 
         # Input area
         self.input_container = QWidget()
@@ -910,9 +911,27 @@ class ChatWindow(QWidget):
         """Check if XMPP client is connected"""
         return self.xmpp_client and hasattr(self.xmpp_client, 'sid') and self.xmpp_client.sid
 
+    def _ensure_general_tab_visible(self):
+        """Switch to General so stacked views/input are visible; remember the room tab."""
+        if self.room_tabs is not None and self.room_tabs.currentIndex() != 0:
+            w = self.room_tabs.currentWidget()
+            if isinstance(w, GameRoomWidget):
+                self._return_room_gid = w.game_id
+            self.room_tabs.setCurrentIndex(0)
+
+    def _restore_return_room(self):
+        """Return to the game-room tab captured by _ensure_general_tab_visible, if still open."""
+        gid = self._return_room_gid
+        self._return_room_gid = None
+        if gid is None or not self.room_tabs:
+            return
+        w = self.game_rooms.get(gid)
+        if w is not None:
+            self.room_tabs.setCurrentWidget(w)
+
     def enter_private_mode(self, jid: str, username: str, user_id: str):
         """Enter private chat mode with a user"""
-    
+        self._ensure_general_tab_visible()
         self.private_mode = True
         # Prefer explicit private recipient JID (user_id#username@domain/web) for private messages
         private_recipient_jid = jid
@@ -991,6 +1010,7 @@ class ChatWindow(QWidget):
         self.set_connection_status(self.windowTitle().split(' - ')[-1] if ' - ' in self.windowTitle() else 'Online')
     
         print("🔓 Exited private mode")
+        self._restore_return_room()
 
     def _clear_private_messages(self):
         """Clear all private messages from the messages widget"""
@@ -1026,6 +1046,7 @@ class ChatWindow(QWidget):
 
     def show_messages_view(self):
         """Switch back to messages and conditionally destroy chatlog widgets"""
+        self._ensure_general_tab_visible()
         # Cleanup and destroy chatlog userlist
         if self.chatlog_userlist_widget:
             try:
@@ -1097,6 +1118,7 @@ class ChatWindow(QWidget):
     def show_chatlog_view(self, timestamp: str = None, reload: bool = True):
         """Open chatlog for today. reload=False just re-shows the existing widget
         as-is (used when returning from the profile view)."""
+        self._ensure_general_tab_visible()
         # Hide messages userlist when in chatlog view
         self.user_list_widget.setVisible(False)
       
@@ -2761,6 +2783,7 @@ class ChatWindow(QWidget):
         """Show profile view for a user"""
         if not user_id:
             return
+        self._ensure_general_tab_visible()
 
         # Remember whether we're coming from the chatlog so "back" can return there
         # instead of always going to messages (which would destroy chatlog_widget).
@@ -2779,39 +2802,47 @@ class ChatWindow(QWidget):
         if self.pre_profile_view == 'chatlog' and self.chatlog_widget:
             self.show_chatlog_view(reload=False)
         else:
-            self.show_messages_view()
+            self._on_stacked_back()
+
+    def _on_stacked_back(self):
+        """Leave a stacked view and restore room tab if any."""
+        self.show_messages_view()
+        self._restore_return_room()
     
     def show_pronunciation_view(self):
         """Show pronunciation management view"""
+        self._ensure_general_tab_visible()
         if not hasattr(self, 'pronunciation_widget') or not self.pronunciation_widget:
             self.pronunciation_widget = PronunciationWidget(
                 self.config, 
                 self.icons_path,
                 self.pronunciation_manager
             )
-            self.pronunciation_widget.back_requested.connect(self.show_messages_view)
+            self.pronunciation_widget.back_requested.connect(self._on_stacked_back)
             self.stacked_widget.addWidget(self.pronunciation_widget)
         
         self.stacked_widget.setCurrentWidget(self.pronunciation_widget)
     
     def show_ban_list_view(self):
         """Show ban list management view"""
+        self._ensure_general_tab_visible()
         if not hasattr(self, 'ban_list_widget') or not self.ban_list_widget:
             self.ban_list_widget = BanListWidget(
                 self.config, 
                 self.icons_path,
                 self.ban_manager
             )
-            self.ban_list_widget.back_requested.connect(self.show_messages_view)
+            self.ban_list_widget.back_requested.connect(self._on_stacked_back)
             self.stacked_widget.addWidget(self.ban_list_widget)
         
         self.stacked_widget.setCurrentWidget(self.ban_list_widget)
 
     def show_settings_view(self):
         """Show the settings view"""
+        self._ensure_general_tab_visible()
         if not hasattr(self, 'settings_widget') or not self.settings_widget:
             self.settings_widget = SettingsWidget(self.config, self.icons_path)
-            self.settings_widget.back_requested.connect(self.show_messages_view)
+            self.settings_widget.back_requested.connect(self._on_stacked_back)
             self.settings_widget.track_competitions_checkbox.toggled.connect(self.set_track_competitions)
             self.settings_widget.min_multiplier_combo.currentTextChanged.connect(
                 self._on_min_multiplier_changed
