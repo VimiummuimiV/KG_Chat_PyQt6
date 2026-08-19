@@ -2260,16 +2260,15 @@ class ChatWindow(QWidget):
 
     @staticmethod
     def _room_source_label(gr) -> str:
-        """Room badge for game/competition notifications."""
-        return "🏁" if gr.room_label == "Competition" else "🎮"
+        """Source kind for notification accent color: 'game' or 'competition'."""
+        return "competition" if gr.room_label == "Competition" else "game"
 
     def _notify_incoming_message(self, msg, display_body, is_ban, is_system, is_initial, room_jid=None, add_message_fn=None, source_label=None, game_id=None):
         """TTS, effect sounds, and popup — shared by general and game-room messages.
 
-        room_jid/add_message_fn: route a popup reply back to the originating
-        game room instead of General.
-        source_label: optional room badge in the notification header.
-        game_id: originating game-room tab to activate on notification click."""
+        room_jid/add_message_fn: route a popup reply back to the originating game room.
+        source_label: 'game'/'competition' — colors the notification timestamp/title.
+        game_id: tab to activate on notification click."""
         if is_initial:
             return
 
@@ -2352,8 +2351,8 @@ class ChatWindow(QWidget):
 
         room_jid: originating game room jid (None = General).
         add_message_fn: local echo target for a typed reply.
-        source_label: optional room badge in the notification header.
-        game_id: originating game-room tab to activate on click (None = General)."""
+        source_label: 'game'/'competition' — accent color for timestamp/title.
+        game_id: tab to activate on click (None = General)."""
         try:
             show_notification(
                 title=msg.login,
