@@ -17,7 +17,6 @@ class GameRoomWidget(QWidget):
     """Self-contained chat for one gameXXXX@conference room.
     Layout matches the main general chat body:
     """
-    close_requested = pyqtSignal()  # unused with tabs; kept for compatibility
     send_requested = pyqtSignal(str)
     profile_requested = pyqtSignal(str, str, str)
     private_chat_requested = pyqtSignal(str, str, str)

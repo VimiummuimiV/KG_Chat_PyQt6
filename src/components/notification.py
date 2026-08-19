@@ -31,6 +31,7 @@ class NotificationData:
     window_show_callback: Optional[Callable] = None
     is_private: bool = False
     recipient_jid: Optional[str] = None
+    room_jid: Optional[str] = None
     is_ban: bool = False
     is_system: bool = False
     is_competition: bool = False
@@ -623,9 +624,11 @@ class PopupNotification(QWidget):
       
         self.reply_field.clear()
       
-        # Determine message type and recipient
+        # Determine message type and recipient. For groupchat, room_jid routes
+        # the reply back to the room the notification came from (e.g. a game
+        # room) — without it, XMPPClient.send_message falls back to General.
         msg_type = 'chat' if self.data.is_private and self.data.recipient_jid else 'groupchat'
-        to_jid = self.data.recipient_jid if msg_type == 'chat' else None
+        to_jid = self.data.recipient_jid if msg_type == 'chat' else self.data.room_jid
       
         # Add message locally to UI
         if self.data.local_message_callback and self.data.account:

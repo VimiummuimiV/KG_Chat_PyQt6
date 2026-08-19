@@ -3330,7 +3330,7 @@
   "841943": {"login": "pocorina", "background": "#777777", "light": "#767676", "dark": "#858585"},
   "841945": {"login": "ibraaa", "background": "#777777", "light": "#767676", "dark": "#858585"},
   "524613": {"login": "rpander", "background": "#777777", "light": "#767676", "dark": "#858585"},
-  "841946": {"login": "TheDekov", "background": "#13a2e4", "light": "#0f7eb2", "dark": "#13a2e4"},
+  "841946": {"login": "TheDekov", "background": "#750209", "light": "#750209", "dark": "#fc333f"},
   "759451": {"login": "ecxopdo", "background": "#777777", "light": "#767676", "dark": "#858585"},
   "841947": {"login": "Гомель", "background": "#777777", "light": "#767676", "dark": "#858585"},
   "143116": {"login": "Батька69", "background": "#37bb49", "light": "#288835", "dark": "#37bb49"},
@@ -3742,5 +3742,6 @@
   "610665": {"login": "biglove", "background": "#000000", "light": "#000000", "dark": "#858585"},
   "837450": {"login": "суперпро20", "background": "#777777", "light": "#767676", "dark": "#858585"},
   "842227": {"login": "gazstyle", "background": "#777777", "light": "#767676", "dark": "#858585"},
-  "152219": {"login": "oligarh83", "background": "#386193", "light": "#386193", "dark": "#5988c0"}
+  "152219": {"login": "oligarh83", "background": "#386193", "light": "#386193", "dark": "#5988c0"},
+  "842229": {"login": "solzh69", "background": "#777777", "light": "#767676", "dark": "#858585"}
 }

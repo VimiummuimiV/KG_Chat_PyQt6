@@ -512,9 +512,7 @@ class ChatWindow(QWidget):
         # User list widget (right side, vertical scrollable)
         self.user_list_widget = UserListWidget(self.config, self.input_field, self.ban_manager)
         # Connect signals for user list actions
-        self.user_list_widget.profile_requested.connect(self.show_profile_view)
-        self.user_list_widget.private_chat_requested.connect(self.enter_private_mode)
-        self.user_list_widget.paste_requested.connect(self._paste_username_to_input)
+        self._wire_userlist_signals(self.user_list_widget)
         self.user_list_widget.open_game_requested.connect(self._open_game_room_by_id)
 
         messages_userlist_visible = self.config.get("ui", "messages_userlist_visible")
@@ -631,12 +629,9 @@ class ChatWindow(QWidget):
         self.messages_widget.timestamp_left_clicked.connect(self.show_chatlog_view)
         self.messages_widget.timestamp_right_clicked.connect(self.show_chatlog_split_view)
         self.messages_widget.competition_timestamp_right_clicked.connect(
-            lambda msg: self.show_game_room_split(msg, room_label="Competition")
+            lambda msg: self.open_game_room_tab(msg, room_label="Competition")
         )
-        self.messages_widget.username_left_clicked.connect(self._on_username_left_click)
-        self.messages_widget.username_right_clicked.connect(self._on_username_right_click)
-        self.messages_widget.username_ctrl_clicked.connect(self._on_username_ctrl_click)
-        self.messages_widget.username_shift_clicked.connect(self._on_username_shift_click)
+        self._wire_username_signals(self.messages_widget)
         self.messages_widget.chatlog_link_clicked.connect(self.show_chatlog_split_view)
     
         self._update_input_style()
@@ -1095,12 +1090,7 @@ class ChatWindow(QWidget):
         widget.set_compact_layout(compact)
         
         # Username click handlers (reuse same logic as live messages)
-        widget.interactions.username_left_clicked.connect(self._on_username_left_click)
-        widget.interactions.username_ctrl_clicked.connect(self._on_username_ctrl_click)
-        widget.interactions.username_shift_clicked.connect(self._on_username_shift_click)
-        widget.interactions.username_right_clicked.connect(
-            lambda msg, pos, w=widget: self._on_username_right_click(msg, pos, w)
-        )
+        self._wire_username_signals(widget.interactions, right_click_widget=widget)
 
     def show_chatlog_view(self, timestamp: str = None, reload: bool = True):
         """Open chatlog for today. reload=False just re-shows the existing widget
@@ -1133,9 +1123,7 @@ class ChatWindow(QWidget):
                 self.ban_manager
             )
             self.chatlog_userlist_widget.filter_requested.connect(self._on_filter_requested)
-            self.chatlog_userlist_widget.profile_requested.connect(self.show_profile_view)
-            self.chatlog_userlist_widget.private_chat_requested.connect(self.enter_private_mode)
-            self.chatlog_userlist_widget.paste_requested.connect(self._paste_username_to_input)
+            self._wire_userlist_signals(self.chatlog_userlist_widget)
             # Insert into userlist_panel before the font slider
             self.userlist_panel.layout().insertWidget(0, self.chatlog_userlist_widget, stretch=1)
       
@@ -1214,9 +1202,9 @@ class ChatWindow(QWidget):
             fake.competition_game_id = int(game_id)
         except (TypeError, ValueError):
             return
-        self.show_game_room_split(fake)
+        self.open_game_room_tab(fake)
 
-    def show_game_room_split(self, msg, room_label: str = "Game"):
+    def open_game_room_tab(self, msg, room_label: str = "Game"):
         """Open or focus a game-room tab.
 
         room_label: "Game" (default, opened via a live game_id) or
@@ -1246,23 +1234,60 @@ class ChatWindow(QWidget):
             game_id=gid, room_label=room_label, parent=self,
         )
         widget.send_requested.connect(lambda text, w=widget: self._send_game_room_message(text, w))
-        widget.profile_requested.connect(self.show_profile_view)
-        widget.private_chat_requested.connect(self.enter_private_mode)
-        widget.paste_requested.connect(self._paste_username_to_input)
+        self._wire_userlist_signals(widget)
         widget.open_game_requested.connect(self._open_game_room_by_id)
         widget.emoticon_requested.connect(lambda w=widget: self._on_game_room_emoticon_requested(w))
-        widget.username_left_clicked.connect(self._on_username_left_click)
-        widget.username_right_clicked.connect(
-            lambda msg, pos, w=widget.messages_widget: self._on_username_right_click(msg, pos, w)
-        )
-        widget.username_ctrl_clicked.connect(self._on_username_ctrl_click)
-        widget.username_shift_clicked.connect(self._on_username_shift_click)
+        self._wire_username_signals(widget, right_click_widget=widget.messages_widget)
 
         self.game_rooms[gid] = widget
         widget.set_compact_mode(self.width() <= 1000)  # match current window width immediately
         idx = self.room_tabs.addTab(widget, widget.tab_title())
         self.room_tabs.setCurrentIndex(idx)
         self._join_game_room(gid, widget.room_jid, widget)
+
+    @staticmethod
+    def _transfer_layout_items(src_layout, dst_layout):
+        """Move every item from src_layout to dst_layout, preserving each
+        item's stretch factor (e.g. left pane vs userlist width). Shared by
+        _ensure_room_tabs and _collapse_room_tabs, which both rewrap the
+        general-chat content between content_layout and general_body's own
+        layout and previously duplicated this loop."""
+        while src_layout.count():
+            # Capture the stretch factor before takeAt(0) removes it —
+            # otherwise panes reset to equal width.
+            stretch = src_layout.stretch(0)
+            item = src_layout.takeAt(0)
+            if item.widget():
+                dst_layout.addWidget(item.widget())
+            elif item.layout():
+                dst_layout.addLayout(item.layout())
+            dst_layout.setStretch(dst_layout.count() - 1, stretch)
+
+    def _wire_userlist_signals(self, userlist):
+        """Connect the profile/private-chat/paste actions shared by every
+        userlist panel — the main userlist, the chatlog userlist, and each
+        game room's own (which just re-emits its internal userlist's
+        signals). open_game_requested is wired separately since only the
+        main userlist and game-room widgets have it."""
+        userlist.profile_requested.connect(self.show_profile_view)
+        userlist.private_chat_requested.connect(self.enter_private_mode)
+        userlist.paste_requested.connect(self._paste_username_to_input)
+
+    def _wire_username_signals(self, source, right_click_widget=None):
+        """Connect username left/ctrl/shift/right click signals to their
+        shared handlers. Used for the general messages view, chatlog
+        widgets, and each game-room tab, which all wire the same four
+        signals to the same handlers.
+
+        right_click_widget: widget passed to _on_username_right_click so
+        context-menu actions (ban, remove messages) apply to the right
+        message list. None lets it default to self.messages_widget."""
+        source.username_left_clicked.connect(self._on_username_left_click)
+        source.username_ctrl_clicked.connect(self._on_username_ctrl_click)
+        source.username_shift_clicked.connect(self._on_username_shift_click)
+        source.username_right_clicked.connect(
+            lambda msg, pos, w=right_click_widget: self._on_username_right_click(msg, pos, w)
+        )
 
     def _ensure_room_tabs(self):
         """Create QTabWidget once; wrap existing general content as non-closable tab 0."""
@@ -1275,16 +1300,13 @@ class ChatWindow(QWidget):
         gen_layout.setSpacing(self.config.get("ui", "spacing", "widget_content") or 6)
         self.general_body.setLayout(gen_layout)
 
-        while self.content_layout.count():
-            # Capture the stretch factor (e.g. left pane vs userlist) before
-            # takeAt(0) removes it — otherwise panes reset to equal width.
-            stretch = self.content_layout.stretch(0)
-            item = self.content_layout.takeAt(0)
-            if item.widget():
-                gen_layout.addWidget(item.widget())
-            elif item.layout():
-                gen_layout.addLayout(item.layout())
-            gen_layout.setStretch(gen_layout.count() - 1, stretch)
+        # Freeze repaints for the whole rewrap: moving widgets out of
+        # content_layout one at a time briefly leaves it under-populated,
+        # and Qt would otherwise paint that intermediate state — visible as
+        # messages_widget flashing evenly stretched for a frame. A single
+        # repaint after everything is back in place avoids that.
+        self.setUpdatesEnabled(False)
+        self._transfer_layout_items(self.content_layout, gen_layout)
 
         self.room_tabs = QTabWidget()
         self.room_tabs.setDocumentMode(True)
@@ -1299,6 +1321,8 @@ class ChatWindow(QWidget):
         # Also prevent closing via middle-click etc. by ignoring in handler
 
         self.content_layout.addWidget(self.room_tabs)
+        self.setUpdatesEnabled(True)
+        self.messages_widget._force_recalculate()
 
     def _collapse_room_tabs(self):
         """Reverse of _ensure_room_tabs: once no game-room tabs remain, unwrap
@@ -1307,20 +1331,16 @@ class ChatWindow(QWidget):
         if self.room_tabs is None:
             return
 
+        self.setUpdatesEnabled(False)
         gen_layout = self.general_body.layout()
-        while gen_layout.count():
-            stretch = gen_layout.stretch(0)
-            item = gen_layout.takeAt(0)
-            if item.widget():
-                self.content_layout.addWidget(item.widget())
-            elif item.layout():
-                self.content_layout.addLayout(item.layout())
-            self.content_layout.setStretch(self.content_layout.count() - 1, stretch)
+        self._transfer_layout_items(gen_layout, self.content_layout)
 
         self.content_layout.removeWidget(self.room_tabs)
         self.room_tabs.deleteLater()
         self.room_tabs = None
         self.general_body = None
+        self.setUpdatesEnabled(True)
+        self.messages_widget._force_recalculate()
 
     def _on_room_tab_close_requested(self, index: int):
         if index <= 0:
@@ -1397,36 +1417,9 @@ class ChatWindow(QWidget):
 
     def _send_game_room_message(self, text: str, widget=None):
         gr = widget or self._current_game_room()
-        if not gr or not self.xmpp_client:
+        if not gr or not self.xmpp_client or not gr.room_jid:
             return
-        room_jid = gr.room_jid
-        if not room_jid:
-            return
-        own_user = None
-        for user in self.xmpp_client.user_list.get_all():
-            if user.login == self.account.get('chat_username'):
-                own_user = user
-                break
-        chunks = self._chunk_message(text, 300)
-        for i, chunk in enumerate(chunks):
-            own_msg = Message(
-                from_jid=self.xmpp_client.jid,
-                body=chunk,
-                msg_type='groupchat',
-                login=self.account.get('chat_username'),
-                avatar=None,
-                background=own_user.background if own_user else None,
-                timestamp=datetime.now(),
-                initial=False,
-            )
-            own_msg.is_private = False
-            gr.add_message(own_msg)
-            delay = i * 0.8
-            threading.Timer(
-                delay,
-                self.xmpp_client.send_message,
-                args=(chunk, room_jid, 'groupchat'),
-            ).start()
+        self._dispatch_chat_message(text, 'groupchat', gr.room_jid, gr.add_message)
 
     def _get_hovered_chatlog_widget(self):
         """Return the ChatlogWidget (main or split) currently under the mouse cursor.
@@ -2187,7 +2180,10 @@ class ChatWindow(QWidget):
                 msg.is_private = False
                 display_body, is_system = format_me_action(msg.body, msg.login)
                 gr.add_message(msg)
-                self._notify_incoming_message(msg, display_body, is_ban, is_system, is_initial)
+                self._notify_incoming_message(
+                    msg, display_body, is_ban, is_system, is_initial,
+                    room_jid=gr.room_jid, add_message_fn=gr.add_message,
+                )
                 return
 
         if is_initial:
@@ -2228,8 +2224,12 @@ class ChatWindow(QWidget):
 
         self._notify_incoming_message(msg, display_body, is_ban, is_system, is_initial)
 
-    def _notify_incoming_message(self, msg, display_body, is_ban, is_system, is_initial):
-        """TTS, effect sounds, and popup — shared by general and game-room messages."""
+    def _notify_incoming_message(self, msg, display_body, is_ban, is_system, is_initial, room_jid=None, add_message_fn=None):
+        """TTS, effect sounds, and popup — shared by general and game-room messages.
+
+        room_jid/add_message_fn: set for game-room messages so a reply typed
+        in the popup goes back to that room (and is echoed into that room's
+        widget) instead of falling through to General."""
         if is_initial:
             return
 
@@ -2279,7 +2279,7 @@ class ChatWindow(QWidget):
                         pass
                     timer.stop()
                     if not self.isActiveWindow():
-                        self._show_notification(msg, display_body, is_ban, is_system)
+                        self._show_notification(msg, display_body, is_ban, is_system, room_jid=room_jid, add_message_fn=add_message_fn)
 
                 def on_ready(url):
                     pending.discard(url)
@@ -2290,7 +2290,7 @@ class ChatWindow(QWidget):
                 timer.timeout.connect(show_now)
                 timer.start(2000)
             else:
-                self._show_notification(msg, display_body, is_ban, is_system)
+                self._show_notification(msg, display_body, is_ban, is_system, room_jid=room_jid, add_message_fn=add_message_fn)
 
     def _show_and_focus_window(self):
         if not self.isVisible():
@@ -2301,8 +2301,13 @@ class ChatWindow(QWidget):
         if self.stacked_widget.currentWidget() is not self.messages_splitter:
             self.show_messages_view()
 
-    def _show_notification(self, msg, display_body, is_ban, is_system):
-        """Show notification"""
+    def _show_notification(self, msg, display_body, is_ban, is_system, room_jid=None, add_message_fn=None):
+        """Show notification.
+
+        room_jid: originating game room's jid, so a groupchat reply is sent
+        there instead of defaulting to General. None for General messages.
+        add_message_fn: where to echo a typed reply locally — the room's own
+        widget for game rooms, else General's."""
         try:
             show_notification(
                 title=msg.login,
@@ -2311,11 +2316,12 @@ class ChatWindow(QWidget):
                 cache=self.cache,
                 config=self.config,
                 emoticon_manager=self.emoticon_manager,
-                local_message_callback=self.add_local_message,
+                local_message_callback=add_message_fn or self.add_local_message,
                 account=self.account,
                 window_show_callback=self._show_and_focus_window,
                 is_private=getattr(msg, 'is_private', False),
                 recipient_jid=msg.from_jid if getattr(msg, 'is_private', False) else None,
+                room_jid=room_jid,
                 is_ban=is_ban,
                 is_system=is_system
             )
@@ -2494,6 +2500,13 @@ class ChatWindow(QWidget):
             msg_type = 'groupchat'
             recipient_jid = None
 
+        self._dispatch_chat_message(text, msg_type, recipient_jid, self.messages_widget.add_message)
+
+    def _dispatch_chat_message(self, text: str, msg_type: str, target_jid, add_message_fn):
+        """Chunk `text`, echo each chunk locally via add_message_fn immediately,
+        then send each chunk to target_jid on a staggered delay. Shared by the
+        general chat's send_message and game rooms' _send_game_room_message so
+        the two don't duplicate the chunk/echo/send dance."""
         # Get own user data
         own_user = None
         for user in self.xmpp_client.user_list.get_all():
@@ -2518,14 +2531,14 @@ class ChatWindow(QWidget):
                 initial=False
             )
             own_msg.is_private = (msg_type == 'chat')
-        
-            self.messages_widget.add_message(own_msg)
-        
+
+            add_message_fn(own_msg)
+
             delay = i * 0.8 # 800ms delay between chunks
             threading.Timer(
                 delay,
                 self.xmpp_client.send_message,
-                args=(chunk, recipient_jid, msg_type)
+                args=(chunk, target_jid, msg_type)
             ).start()
 
     def _chunk_message(self, text: str, max_len: int) -> list:
@@ -3128,7 +3141,10 @@ class ChatWindow(QWidget):
             return None
         # Focus input on (F) key if not focused, for quick access
         if vk == 'focus':
-            self.input_field.setFocus()
+            # Focus the active room's own input, not always General's —
+            # otherwise F kept stealing focus back to General while sitting
+            # in a game/competition tab.
+            self._active_input_field().setFocus()
         # User list toggle (U) — Ctrl+U is handled before the focus guard above
         elif vk == 'userlist':
             self.toggle_user_list()
