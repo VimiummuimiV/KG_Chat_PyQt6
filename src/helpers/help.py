@@ -22,6 +22,7 @@ CHAT_GENERAL_KB = [
     ("R",           "Reset window size"),
     ("C",           "Change username color"),
     ("Shift+C",     "Update color from server"),
+    ("E",           "Open latest competition race in browser"),
     ("X",           "Exit private mode / clear markers"),
     ("Esc",         "Clear input focus"),
 ]
@@ -62,11 +63,16 @@ MSG_USERNAME_MOUSE = [
 
 MSG_TIMESTAMP_MOUSE = [
     ("Left click",       "Open chatlog for that day"),
+    ("Left click 🏆",    "Open competition room chat"),
     ("Right click",      "Open chatlog for that day in split view"),
 ]
 
 MSG_BODY_MOUSE = [
     ("Right click",      "Open selectable text (reply / copy / paste)"),
+]
+
+MSG_COMPETITION_CHIP_MOUSE = [
+    ("Left click",       "View player profile"),
 ]
 
 MSG_URL_MOUSE = [
@@ -184,6 +190,7 @@ CONTEXTS = {
             ("User List Clicks",         None,               USERLIST_MOUSE),
             ("Message Timestamp Clicks", None,               MSG_TIMESTAMP_MOUSE),
             ("Message Username Clicks",  None,               MSG_USERNAME_MOUSE),
+            ("Competition Player Chips", None,               MSG_COMPETITION_CHIP_MOUSE),
             ("Message Body Clicks",      None,               MSG_BODY_MOUSE),
             ("URL Interactions",         None,               MSG_URL_MOUSE),
         ],

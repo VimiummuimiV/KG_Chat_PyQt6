@@ -17,11 +17,12 @@ class MessagesWidget(QWidget):
     """Widget for displaying chat messages with virtual scrolling"""
     timestamp_left_clicked = pyqtSignal(str) # Opens chatlog for current day
     timestamp_right_clicked = pyqtSignal(str) # RMB on timestamp: date_str ("%Y-%m-%d"), opens chatlog as split view
-    competition_timestamp_right_clicked = pyqtSignal(object)  # RMB on competition timestamp → open game room split
+    competition_timestamp_left_clicked = pyqtSignal(object)  # LMB on competition timestamp → open competition room
     username_left_clicked = pyqtSignal(str, bool) # Set username in input field, bool indicates double-click
     username_right_clicked = pyqtSignal(object, object) # Show context menu for user
     username_ctrl_clicked = pyqtSignal(str)   # Ctrl+LMB → enter private
     username_shift_clicked = pyqtSignal(str)  # Shift+LMB → open profile
+    chip_clicked = pyqtSignal(str)  # competition player chip → open profile
     chatlog_link_clicked = pyqtSignal(str, str)  # date_str, time_str ("" if none) - chatlog URL clicked in a message body
 
     def __init__(self, config, emoticon_manager, my_username: str = None):
@@ -49,11 +50,12 @@ class MessagesWidget(QWidget):
         self.interactions = MessageInteractions(self.list_view, self.delegate)
         self.interactions.timestamp_left_clicked.connect(self.timestamp_left_clicked.emit)
         self.interactions.timestamp_right_clicked.connect(self.timestamp_right_clicked.emit)
-        self.interactions.competition_timestamp_right_clicked.connect(self.competition_timestamp_right_clicked.emit)
+        self.interactions.competition_timestamp_left_clicked.connect(self.competition_timestamp_left_clicked.emit)
         self.interactions.username_left_clicked.connect(self.username_left_clicked.emit)
         self.interactions.username_right_clicked.connect(self.username_right_clicked.emit)
         self.interactions.username_ctrl_clicked.connect(self.username_ctrl_clicked.emit)
         self.interactions.username_shift_clicked.connect(self.username_shift_clicked.emit)
+        self.interactions.chip_clicked.connect(self.chip_clicked.emit)
 
     def set_my_username(self, username: str):
         """Set the current user's username for mention highlighting"""

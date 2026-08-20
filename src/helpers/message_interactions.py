@@ -13,11 +13,12 @@ class MessageInteractions(QObject):
 
     timestamp_left_clicked = pyqtSignal(str)   # date_str ("%Y-%m-%d")
     timestamp_right_clicked = pyqtSignal(str)  # date_str ("%Y-%m-%d") — normal messages
-    competition_timestamp_right_clicked = pyqtSignal(object)  # msg with is_competition — open game (competition) room
+    competition_timestamp_left_clicked = pyqtSignal(object)  # msg — open competition room chat
     username_left_clicked = pyqtSignal(str, bool)         # username, is_double_click
     username_right_clicked = pyqtSignal(object, object)   # msg, global_pos
     username_ctrl_clicked = pyqtSignal(str)   # Ctrl+LMB → enter private
     username_shift_clicked = pyqtSignal(str)  # Shift+LMB → open profile
+    chip_clicked = pyqtSignal(str)  # player name from competition chip → open profile
 
     def __init__(self, list_view, delegate, handle_timestamp: bool = True):
         super().__init__(list_view)
@@ -80,16 +81,28 @@ class MessageInteractions(QObject):
         # Check timestamp click
         if self.handle_timestamp and rects['timestamp'].contains(pos):
             date_str = msg.timestamp.strftime("%Y-%m-%d")
+            is_competition = (
+                getattr(msg, 'is_competition', False)
+                and getattr(msg, 'competition_game_id', None)
+            )
             if event.button() == Qt.MouseButton.LeftButton:
-                self.timestamp_left_clicked.emit(date_str)
+                if is_competition:
+                    self.competition_timestamp_left_clicked.emit(msg)
+                else:
+                    self.timestamp_left_clicked.emit(date_str)
                 return True
             elif event.button() == Qt.MouseButton.RightButton:
-                # Competition messages → open game room split; others → chatlog split
-                if getattr(msg, 'is_competition', False) and getattr(msg, 'competition_game_id', None):
-                    self.competition_timestamp_right_clicked.emit(msg)
-                else:
+                # Competition timestamps have no special RMB (race URL is in the body)
+                if not is_competition:
                     self.timestamp_right_clicked.emit(date_str)
                 return True
+
+        # Competition player chips → open profile
+        if event.button() == Qt.MouseButton.LeftButton:
+            for chip_rect, name in rects.get('chips') or []:
+                if chip_rect.contains(pos) and name and name != "…":
+                    self.chip_clicked.emit(name)
+                    return True
 
         return False
 

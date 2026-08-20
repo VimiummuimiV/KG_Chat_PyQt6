@@ -650,9 +650,10 @@ class ChatWindow(QWidget):
      
         self.messages_widget.timestamp_left_clicked.connect(self.show_chatlog_view)
         self.messages_widget.timestamp_right_clicked.connect(self.show_chatlog_split_view)
-        self.messages_widget.competition_timestamp_right_clicked.connect(
+        self.messages_widget.competition_timestamp_left_clicked.connect(
             lambda msg: self.open_game_room_tab(msg, room_label="Competition")
         )
+        self.messages_widget.chip_clicked.connect(self._on_username_shift_click)
         self._wire_username_signals(self.messages_widget)
         self.messages_widget.chatlog_link_clicked.connect(self.show_chatlog_split_view)
     
@@ -1260,6 +1261,22 @@ class ChatWindow(QWidget):
         except (TypeError, ValueError):
             return
         self.open_game_room_tab(fake, room_label=room_label)
+
+    def _open_latest_competition_in_browser(self):
+        """Open the latest live competition race URL (already stored on announce)."""
+        if not self._competition_live:
+            return
+        gid = self._competition_focus_gid
+        if gid not in self._competition_live:
+            gid = max(self._competition_live.keys())
+        url = (self._competition_live.get(gid) or {}).get("url")
+        if not url:
+            return
+        try:
+            from helpers.browser import open_url as open_url_in_browser
+            open_url_in_browser(url, self.config.get("browser"))
+        except Exception as e:
+            print(f"Failed to open competition: {e}")
 
     def open_game_room_tab(self, msg, room_label: str = "Game"):
         """Open or focus a game-room tab.
@@ -3253,6 +3270,7 @@ class ChatWindow(QWidget):
         Qt.Key.Key_D: 'calendar',
         Qt.Key.Key_Space: 'page_down',
         Qt.Key.Key_X: 'exit_private',
+        Qt.Key.Key_E: 'enter_competition',
     }
 
     def keyPressEvent(self, event):
@@ -3370,6 +3388,13 @@ class ChatWindow(QWidget):
                 sel.insert_selected(shift=True); return
         # ───────────────────────────────────────────────────────────────────────
 
+        # E = enter last competition race in browser (works with empty input focused)
+        is_e = (key == Qt.Key.Key_E or event.nativeVirtualKey() == Qt.Key.Key_E) and not ctrl and not shift
+        if is_e:
+            if not focused or not (self._active_input_field().text() or "").strip():
+                self._open_latest_competition_in_browser()
+                return
+
         if not vk or focused:
             return super().keyPressEvent(event)
         def _toggle_view(attr, show_fn):
@@ -3485,6 +3510,9 @@ class ChatWindow(QWidget):
             else:
                 self._clear_private_messages()
             self._clear_new_messages_marker()
+        # Enter last competition race in browser (E)
+        elif vk == 'enter_competition':
+            self._open_latest_competition_in_browser()
 
     def keyReleaseEvent(self, event):
         if event.isAutoRepeat():

@@ -451,16 +451,17 @@ class MessageRenderer(QObject):
                 row_width += (self.CHIP_GAP if row_width else 0) + chip_width
         return rows * chip_height + (rows - 1) * self.CHIP_GAP
 
-    def paint_chips(self, painter: QPainter, x: int, y: int, width: int, players: list, is_dark: bool) -> int:
-        """Paint usernames as pill-shaped chips in a wrapping flow. Returns the block height used."""
+    def paint_chips(self, painter: QPainter, x: int, y: int, width: int, players: list, is_dark: bool):
+        """Paint usernames as pill-shaped chips. Returns (block_height, [(QRect, name), ...])."""
         if not players or width <= 0:
-            return 0
+            return 0, []
         border = 2
         inset = border // 2
         fm = QFontMetrics(self.body_font)
         painter.setFont(self.body_font)
         chip_height = fm.height() + 6
         current_x, current_y = x, y
+        chip_rects = []
 
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
@@ -483,9 +484,10 @@ class MessageRenderer(QObject):
 
             painter.setPen(QColor(fg_hex))
             painter.drawText(chip_rect, Qt.AlignmentFlag.AlignCenter, name)
+            chip_rects.append((chip_rect, name))
             current_x += chip_width + self.CHIP_GAP
 
-        return current_y + chip_height - y
+        return current_y + chip_height - y, chip_rects
 
     def has_animated_emoticons(self, text: str) -> bool:
         """Check if text contains animated emoticons"""

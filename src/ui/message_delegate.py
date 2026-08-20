@@ -375,7 +375,7 @@ class MessageDelegate(QStyledItemDelegate):
         else:
             self.animated_rows.discard(row)
   
-        self.click_rects[row] = {'timestamp': QRect(), 'username': QRect(), 'links': []}
+        self.click_rects[row] = {'timestamp': QRect(), 'username': QRect(), 'links': [], 'chips': []}
   
         painter.save()
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
@@ -475,9 +475,10 @@ class MessageDelegate(QStyledItemDelegate):
         players = getattr(msg, 'competition_players', None)
         if players:
             content_height = self.message_renderer.calculate_content_height(display_body, content_width, row)
-            self.message_renderer.paint_chips(
+            _, chip_rects = self.message_renderer.paint_chips(
                 painter, x, chips_base_y + content_height + self.spacing, width, players, self.is_dark_theme
             )
+            self.click_rects[row]['chips'] = chip_rects
  
     def _refresh_row(self, row: int):
         """Request refresh from background thread - emit signal to main thread"""
@@ -595,9 +596,11 @@ class MessageDelegate(QStyledItemDelegate):
           
             if row in self.click_rects:
                 rects = self.click_rects[row]
+                is_over_chip = any(r.contains(pos) for r, _ in rects.get('chips') or [])
                 is_over_clickable = (
                     rects['timestamp'].contains(pos) or
                     rects['username'].contains(pos) or
+                    is_over_chip or
                     (self.message_renderer and MessageRenderer.is_over_link(rects['links'], pos))
                 )
               

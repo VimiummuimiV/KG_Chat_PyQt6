@@ -76,6 +76,7 @@
     "emoticon_selector_visible": false,
     "always_on_top": false,
     "recent_emoticons": [
+      "cheers",
       "uzi",
       "vdv",
       "comandos",
@@ -94,8 +95,7 @@
       "clapping",
       "kidtruck",
       "spider",
-      "terminator",
-      "death"
+      "terminator"
     ],
     "window": {
       "width": null,
@@ -119,7 +119,7 @@
         "y": 0
       }
     ],
-    "emoticon_last_group": "recent",
+    "emoticon_last_group": "christmas",
     "emoticon_nav_positions": {
       "recent": 0,
       "army": 0,
