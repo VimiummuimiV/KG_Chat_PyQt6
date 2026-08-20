@@ -2220,6 +2220,7 @@ class ChatWindow(QWidget):
                     window_show_callback=self._show_and_focus_window,
                     competition_game_id=gid,
                     open_room_callback=lambda g: self._open_game_room_by_id(g, room_label="Competition"),
+                    profile_callback=self._on_username_shift_click,
                     tag=tag,
                     players=chips,
                 )

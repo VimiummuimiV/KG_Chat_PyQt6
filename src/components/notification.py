@@ -42,6 +42,7 @@ class NotificationData:
     players: Optional[list] = None
     competition_game_id: Optional[int] = None
     open_room_callback: Optional[Callable] = None
+    profile_callback: Optional[Callable] = None  # username → open profile
 
 
 class MessageBodyWidget(QWidget):
@@ -61,6 +62,7 @@ class MessageBodyWidget(QWidget):
         self.is_competition = is_competition
         self.players = players or []
         self.link_rects: List[Tuple[QRect, str, bool]] = []
+        self.chip_rects: List[Tuple[QRect, str]] = []
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setMouseTracking(True)
         # Initial height estimate
@@ -112,9 +114,11 @@ class MessageBodyWidget(QWidget):
 
         if self.players:
             content_height = self.message_renderer.calculate_content_height(self.text, self.width())
-            self.message_renderer.paint_chips(
+            _, self.chip_rects = self.message_renderer.paint_chips(
                 painter, 0, content_height + 6, self.width(), self.players, self.message_renderer.is_dark_theme
             )
+        else:
+            self.chip_rects = []
         
         # Update height if needed
         calculated_height = self._calculate_height(self.width())
@@ -126,14 +130,22 @@ class MessageBodyWidget(QWidget):
         return QSize(width, self._calculate_height(width))
     
     def mouseMoveEvent(self, event):
-        # Update cursor based on whether hovering over link
         is_over_link = MessageRenderer.is_over_link(self.link_rects, event.pos())
-        self.setCursor(QCursor(Qt.CursorShape.PointingHandCursor if is_over_link else Qt.CursorShape.ArrowCursor))
+        is_over_chip = any(r.contains(event.pos()) for r, name in self.chip_rects if name and name != "…")
+        self.setCursor(QCursor(
+            Qt.CursorShape.PointingHandCursor if (is_over_link or is_over_chip)
+            else Qt.CursorShape.ArrowCursor
+        ))
         super().mouseMoveEvent(event)
     
     def get_link_at_pos(self, pos) -> Optional[Tuple[str, bool]]:
-        """Get link at position"""
         return MessageRenderer.get_link_at_pos(self.link_rects, pos)
+
+    def get_chip_at_pos(self, pos) -> Optional[str]:
+        for rect, name in self.chip_rects:
+            if rect.contains(pos) and name and name != "…":
+                return name
+        return None
     
     def cleanup(self):
         """Cleanup animation timer"""
@@ -446,17 +458,28 @@ class PopupNotification(QWidget):
             if self.childAt(event.pos()) in clicked_widgets:
                 return super().mousePressEvent(event)
             
-            # Check if click is on a link in message body
+            # Chip / link clicks in message body
             if self.message_widget:
                 widget_pos = self.message_widget.mapFrom(self, event.pos())
                 if self.message_widget.rect().contains(widget_pos):
+                    chip_name = self.message_widget.get_chip_at_pos(widget_pos)
+                    if chip_name and self.data.profile_callback:
+                        if self.data.window_show_callback:
+                            try:
+                                self.data.window_show_callback()
+                            except Exception:
+                                pass
+                        try:
+                            self.data.profile_callback(chip_name)
+                        except Exception as e:
+                            print(f"Profile from notification chip: {e}")
+                        return
                     link_data = self.message_widget.get_link_at_pos(widget_pos)
                     if link_data:
                         url, is_media = link_data
                         global_pos = self.mapToGlobal(event.pos())
                         is_ctrl = event.modifiers() & Qt.KeyboardModifier.ControlModifier
                         self.message_renderer.handle_link_lmb(url, is_media, global_pos, is_ctrl)
-                        # Don't close notification when link is clicked
                         return
           
             # Show chat window if callback exists
