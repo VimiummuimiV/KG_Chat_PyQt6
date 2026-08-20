@@ -128,6 +128,20 @@
       "girls": 21,
       "halloween": 0,
       "inlove": 0
+    },
+    "settings": {
+      "sections": {
+        "startup": true,
+        "chat": true,
+        "fonts": true,
+        "notifications": true,
+        "competitions": false,
+        "sound": true
+      },
+      "widgets": {
+        "ws_log": false,
+        "font_preview": true
+      }
     }
   },
   "sound": {
