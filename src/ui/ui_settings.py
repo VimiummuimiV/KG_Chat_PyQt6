@@ -1130,7 +1130,8 @@ class SettingsWidget(QWidget):
         self.competitions_log.setTextCursor(cursor)
 
     def update_theme(self):
-        """Re-apply competitions log colors after theme toggle."""
+        """Re-apply theme-dependent colors after a theme toggle (competitions log + font preview)."""
+        self._apply_font_preview_theme()
         if not hasattr(self, "competitions_log"):
             return
         lines = self.competitions_log.toPlainText().splitlines()
