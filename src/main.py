@@ -143,7 +143,11 @@ class Application(QObject):
         menu = QMenu()
         menu.setFont(get_font(FontType.UI))
 
-        # Add menu items
+        show_action = QAction(icon("door-open.svg"), "Show Chat", self.app)
+        show_action.triggered.connect(self._show_from_tray)
+        menu.addAction(show_action)
+        menu.addSeparator()
+
         switch_action = QAction(icon("user-switch.svg"), "Switch Account", self.app)
         switch_action.triggered.connect(self.show_account_switcher)
         menu.addAction(switch_action)
@@ -170,7 +174,7 @@ class Application(QObject):
         menu.addAction(self.ban_list_action)
         
         menu.addSeparator()
-        exit_action = QAction(icon("door-open.svg"), "Exit", self.app)
+        exit_action = QAction(icon("door-closed.svg"), "Exit", self.app)
         exit_action.triggered.connect(self.exit_application)
         menu.addAction(exit_action)
 
@@ -389,17 +393,26 @@ class Application(QObject):
             except Exception as e:
                 print(f"⚠️ Could not force window to foreground: {e}")
 
-    def show_window(self):
-        """Show the active window"""
-        window = self.chat_window if self.chat_window and not self.chat_window.isVisible() else self.account_window
-        if window and not window.isVisible():
+    def _reveal_window(self, window):
+        """Show window if hidden, then raise to foreground."""
+        if not window:
+            return
+        if not window.isVisible():
             window.setWindowOpacity(0)
             window.show()
             QTimer.singleShot(50, lambda: window.setWindowOpacity(1))
-            self._force_window_to_foreground(window)
-            
-            if window == self.chat_window:
-                self.reset_unread()
+        self._force_window_to_foreground(window)
+
+    def show_window(self):
+        """Show and raise the active window (chat preferred, else account)."""
+        window = self.chat_window or self.account_window
+        self._reveal_window(window)
+        if window is self.chat_window:
+            self.reset_unread()
+
+    def _show_from_tray(self):
+        """Tray menu → Show Chat."""
+        self.show_window()
 
     def show_account_switcher(self):
         """Show account switcher window"""
@@ -618,13 +631,8 @@ class Application(QObject):
         return True
 
     def focus_chat_window(self):
-        """Show and focus the chat window if hidden."""
-        if not self.chat_window.isVisible():
-            self.chat_window.setWindowOpacity(0)
-            self.chat_window.show()
-            QTimer.singleShot(50, lambda: self.chat_window.setWindowOpacity(1))
-            self.chat_window.activateWindow()
-            self.chat_window.raise_()
+        """Show and focus the chat window."""
+        self._reveal_window(self.chat_window)
 
     def handle_pronunciation_manager(self):
         """Handle Username Pronunciation from tray menu"""
@@ -696,11 +704,7 @@ class Application(QObject):
                 window._clear_new_messages_marker()
             window.hide()
         else:
-            # Show and bring to foreground
-            window.setWindowOpacity(0)
-            window.show()
-            QTimer.singleShot(50, lambda: window.setWindowOpacity(1))
-            self._force_window_to_foreground(window)
+            self._reveal_window(window)
             if window == self.chat_window:
                 self.reset_unread()
                 # Clear input field to remove any stray characters from hotkey

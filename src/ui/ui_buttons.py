@@ -230,7 +230,7 @@ class ButtonPanel(QWidget):
 
         # Exit application button
         self.exit_button = self._create_button(
-            "door-open.svg",
+            "door-closed.svg",
             "Exit Application",
             lambda: self.exit_requested.emit()
         )
