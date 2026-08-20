@@ -42,7 +42,8 @@ def handle_chat_resize(chat_window, width: int):
     
     # Re-enable auto-hide when crossing the 1000px threshold
     if was_compact != is_compact:
-        setattr(chat_window, auto_hide_attr, True)
+        chat_window.auto_hide_messages_userlist = True
+        chat_window.auto_hide_chatlog_userlist = True
     
     # Get userlist visibility config
     userlist_visible_config = chat_window.config.get("ui", config_key)
@@ -61,12 +62,16 @@ def handle_chat_resize(chat_window, width: int):
         if hasattr(chat_window, 'button_panel') and not chat_window.button_panel.isVisible():
             chat_window.button_panel.setVisible(True)
 
-    # Hide/show userlist_panel at 1000px threshold (same as compact mode)
-    if auto_hide and hasattr(chat_window, 'userlist_panel'):
-        if is_compact:
-            chat_window.userlist_panel.setVisible(False)
-        elif userlist_visible_config:
-            chat_window.userlist_panel.setVisible(True)
+    # Hide/show userlist at 1000px threshold (panel + active list widget)
+    if auto_hide:
+        show = (not is_compact) and userlist_visible_config
+        if hasattr(chat_window, 'userlist_panel'):
+            chat_window.userlist_panel.setVisible(show)
+        if userlist_widget is not None:
+            userlist_widget.setVisible(show)
+        bp = getattr(chat_window, 'button_panel', None)
+        if bp and getattr(bp, 'toggle_userlist_button', None):
+            bp.set_button_state(bp.toggle_userlist_button, show)
     
     # Reposition emoticon selector if visible
     if hasattr(chat_window, 'emoticon_selector') and chat_window.emoticon_selector.isVisible():

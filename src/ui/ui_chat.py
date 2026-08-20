@@ -1087,15 +1087,16 @@ class ChatWindow(QWidget):
 
         self.stacked_widget.setCurrentWidget(self.messages_splitter)
 
-        # Restore messages userlist based on width
+        # Restore messages userlist, respecting compact width threshold
         width = self.width()
         messages_userlist_visible = self.config.get("ui", "messages_userlist_visible")
         if messages_userlist_visible is None:
             messages_userlist_visible = True
+        visible = False if (width <= 1000 and self.auto_hide_messages_userlist) else messages_userlist_visible
 
-        self.user_list_widget.setVisible(messages_userlist_visible)
+        self.user_list_widget.setVisible(visible)
         if hasattr(self, 'userlist_panel'):
-            self.userlist_panel.setVisible(messages_userlist_visible)
+            self.userlist_panel.setVisible(visible)
 
         # Sync button state for messages userlist
         if hasattr(self, 'button_panel'):
@@ -1162,13 +1163,12 @@ class ChatWindow(QWidget):
             # Insert into userlist_panel before the font slider
             self.userlist_panel.layout().insertWidget(0, self.chatlog_userlist_widget, stretch=1)
       
-        # Show chatlog userlist based on config and width
+        # Show chatlog userlist based on config, compact width, and auto-hide
         width = self.width()
         chatlog_userlist_visible = self.config.get("ui", "chatlog_userlist_visible")
         if chatlog_userlist_visible is None:
             chatlog_userlist_visible = True
-      
-        visible = width > 1000 and chatlog_userlist_visible
+        visible = False if (width <= 1000 and self.auto_hide_chatlog_userlist) else chatlog_userlist_visible
         self.chatlog_userlist_widget.setVisible(visible)
         self.userlist_panel.setVisible(visible)
 
