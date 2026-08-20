@@ -144,13 +144,22 @@ class UserWidget(QWidget):
             self._badge_style(is_dark)
     
     def mousePressEvent(self, event):
-        """Handle click events"""
+        """Handle click events.
+
+        Plain click  → Profile
+        Ctrl+click   → Private Chat
+        Middle click → Open game chat (if the user is currently in a race)
+        """
         if event.button() == Qt.MouseButton.LeftButton:
             modifiers = QApplication.keyboardModifiers()
             if modifiers & Qt.KeyboardModifier.ControlModifier:
                 self.private_chat_requested.emit(self.user.jid, self.user.login, self.user.user_id)
             else:
                 self.profile_requested.emit(self.user.jid, self.user.login, self.user.user_id)
+        elif event.button() == Qt.MouseButton.MiddleButton:
+            game_id = getattr(self.user, 'game_id', None)
+            if game_id:
+                self.open_game_requested.emit(str(game_id))
         super().mousePressEvent(event)
 
     def contextMenuEvent(self, event):
