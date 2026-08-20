@@ -211,7 +211,7 @@ class PopupNotification(QWidget):
             accent = None
 
         # Title
-        if kind == "competition":
+        if data.is_competition:
             username_color = accent
         elif data.cache:
             username_color = data.cache.get_username_color(data.title, is_dark)

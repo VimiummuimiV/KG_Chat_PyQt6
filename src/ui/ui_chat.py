@@ -480,8 +480,7 @@ class ChatWindow(QWidget):
         self.game_rooms = {}  # game_id -> GameRoomWidget
         self.room_tabs = None  # QTabWidget; General is always tab 0 when present
         self.general_body = None
-        self._unread_rooms = {}  # game_id -> unread message count
-        self._general_unread = 0  # unread count on General while on a game tab
+        self._unread_rooms = {}  # game_id|None(General) -> unread message count
 
         self.stacked_widget.addWidget(self.messages_splitter)
         self.chatlog_widget = None
@@ -775,8 +774,11 @@ class ChatWindow(QWidget):
                         font_scaler.scale_down()
                         return True
 
-        # Handle Tab key for view switching (or emoticon group cycling when selector is open)
-        if event.type() == QEvent.Type.KeyPress and event.key() in (Qt.Key.Key_Tab, Qt.Key.Key_Backtab):
+        # Handle Tab key for view switching (or emoticon group cycling when selector is open).
+        # Ctrl+Tab/Ctrl+Shift+Tab are room-tab cycling (see keyPressEvent) — let those
+        # through unconsumed instead of switching views.
+        if (event.type() == QEvent.Type.KeyPress and event.key() in (Qt.Key.Key_Tab, Qt.Key.Key_Backtab)
+                and not (event.modifiers() & Qt.KeyboardModifier.ControlModifier)):
             sel = getattr(self, 'emoticon_selector', None)
             if sel and sel.isVisible():
                 # Emoticon selector gets priority: Tab/Shift+Tab cycles through groups
@@ -1398,45 +1400,38 @@ class ChatWindow(QWidget):
         self.room_tabs.deleteLater()
         self.room_tabs = None
         self.general_body = None
-        self._general_unread = 0
+        self._unread_rooms.clear()
         self.setUpdatesEnabled(True)
         self.messages_widget._force_recalculate()
 
-    def _refresh_room_tab_title(self, gid):
+    def _room_tab_index(self, gid):
+        """QTabWidget index for a room, or 0 for General (gid=None). -1 if not open."""
+        if not self.room_tabs:
+            return -1
+        if gid is None:
+            return 0
         widget = self.game_rooms.get(gid)
-        if not widget or not self.room_tabs:
-            return
-        idx = self.room_tabs.indexOf(widget)
+        return self.room_tabs.indexOf(widget) if widget else -1
+
+    def _refresh_tab_title(self, gid):
+        """Repaint the "(N) " unread prefix on a room tab, or General (gid=None)."""
+        idx = self._room_tab_index(gid)
         if idx < 0:
             return
+        base = "General" if gid is None else self.game_rooms[gid].tab_title()
         count = self._unread_rooms.get(gid, 0)
         prefix = f"({count}) " if count else ""
-        self.room_tabs.setTabText(idx, prefix + widget.tab_title())
+        self.room_tabs.setTabText(idx, prefix + base)
 
-    def _refresh_general_tab_title(self):
-        if not self.room_tabs:
-            return
-        count = self._general_unread
-        prefix = f"({count}) " if count else ""
-        self.room_tabs.setTabText(0, prefix + "General")
-
-    def _bump_room_unread(self, gid):
+    def _bump_tab_unread(self, gid):
+        """Increment the unread counter for a room (gid=None for General)."""
         self._unread_rooms[gid] = self._unread_rooms.get(gid, 0) + 1
-        self._refresh_room_tab_title(gid)
+        self._refresh_tab_title(gid)
 
-    def _clear_room_unread(self, gid):
-        if gid in self._unread_rooms:
-            self._unread_rooms.pop(gid, None)
-            self._refresh_room_tab_title(gid)
-
-    def _bump_general_unread(self):
-        self._general_unread += 1
-        self._refresh_general_tab_title()
-
-    def _clear_general_unread(self):
-        if self._general_unread:
-            self._general_unread = 0
-            self._refresh_general_tab_title()
+    def _clear_tab_unread(self, gid):
+        """Clear the unread counter for a room (gid=None for General)."""
+        if self._unread_rooms.pop(gid, 0):
+            self._refresh_tab_title(gid)
 
     def _on_room_tab_close_requested(self, index: int):
         if index <= 0:
@@ -1480,13 +1475,13 @@ class ChatWindow(QWidget):
         if index <= 0:
             if hasattr(self, 'input_field') and self.input_field:
                 self.input_field.setFocus()
-            self._clear_general_unread()
+            self._clear_tab_unread(None)
         else:
             w = self.room_tabs.widget(index)
             if isinstance(w, GameRoomWidget):
                 if w.input_field:
                     w.input_field.setFocus()
-                self._clear_room_unread(w.game_id)
+                self._clear_tab_unread(w.game_id)
         mw = self._active_messages_widget()
         if mw:
             mw._force_recalculate()
@@ -2337,7 +2332,7 @@ class ChatWindow(QWidget):
                 display_body, is_system = format_me_action(msg.body, msg.login)
                 gr.add_message(msg)
                 if not is_initial and self._current_game_room() is not gr:
-                    self._bump_room_unread(gid)
+                    self._bump_tab_unread(gid)
                 self._notify_incoming_message(
                     msg, display_body, is_ban, is_system, is_initial,
                     room_jid=gr.room_jid, add_message_fn=gr.add_message,
@@ -2380,7 +2375,7 @@ class ChatWindow(QWidget):
 
         # Mark General tab unread when the user is currently on a game-room tab
         if not is_initial and self.room_tabs and self.room_tabs.currentIndex() > 0:
-            self._bump_general_unread()
+            self._bump_tab_unread(None)
 
         # Increment unread count if window is hidden and not initial load
         if not is_initial and not self.isVisible() and self.app_controller:
