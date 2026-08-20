@@ -1161,7 +1161,7 @@ class SettingsWidget(QWidget):
         mix_ratio = 0.10 if is_dark else 0.30
         mixed_bg = blend_hex_colors(container_bg, accent, mix_ratio)
         self.competitions_log.setStyleSheet(
-            f"QTextEdit {{ background-color: {mixed_bg}; color: {c['fg']}; border: none; }}"
+            f"QTextEdit {{ background-color: {mixed_bg}; color: {c['fg']}; border: none; padding: 6px 8px; }}"
         )
 
     def _colorize_log_line(self, line: str) -> str:
