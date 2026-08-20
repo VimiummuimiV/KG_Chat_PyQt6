@@ -510,14 +510,14 @@ class SettingsWidget(QWidget):
         section_layout.addWidget(content)
 
         slug = re.sub(r"[^a-z0-9]+", "_", title.lower()).strip("_")
-        self._add_collapse_toggle(header_row, content, f"section_collapsed_{slug}")
+        self._add_collapse_toggle(header_row, content, ("ui", "settings", "sections", slug))
 
         self._sections_layout.addWidget(section)
         return content_layout
 
-    def _add_collapse_toggle(self, header_layout: QHBoxLayout, content: QWidget, config_key: str, default_collapsed: bool = False) -> QToolButton:
-        """Prepend a collapse arrow to header_layout, toggling content visibility and persisting state in config['ui'][config_key]."""
-        stored = self.config.get("ui", config_key)
+    def _add_collapse_toggle(self, header_layout: QHBoxLayout, content: QWidget, config_path: tuple, default_collapsed: bool = False) -> QToolButton:
+        """Prepend a collapse arrow to header_layout, toggling content visibility and persisting state at config_path."""
+        stored = self.config.get(*config_path)
         collapsed = default_collapsed if stored is None else bool(stored)
 
         btn = QToolButton()
@@ -530,7 +530,7 @@ class SettingsWidget(QWidget):
         def _on_toggled(checked):
             content.setVisible(not checked)
             btn.setArrowType(Qt.ArrowType.RightArrow if checked else Qt.ArrowType.DownArrow)
-            self.config.set("ui", config_key, value=checked)
+            self.config.set(*config_path, value=checked)
 
         btn.toggled.connect(_on_toggled)
         header_layout.insertWidget(0, btn)
@@ -743,7 +743,7 @@ class SettingsWidget(QWidget):
         section.addWidget(self.font_preview)
         self._update_font_preview()
 
-        self._add_collapse_toggle(preview_header_row, self.font_preview, "font_preview_collapsed")
+        self._add_collapse_toggle(preview_header_row, self.font_preview, ("ui", "settings", "widgets", "font_preview"))
 
     def _build_notifications_section(self):
         section = self._create_section("⚠️ Notifications")
@@ -798,7 +798,7 @@ class SettingsWidget(QWidget):
         self._apply_competitions_log_theme()
         section.addWidget(self.competitions_log)
 
-        self._add_collapse_toggle(log_header_row, self.competitions_log, "ws_log_collapsed")
+        self._add_collapse_toggle(log_header_row, self.competitions_log, ("ui", "settings", "widgets", "ws_log"))
 
         self.min_multiplier_combo = self._add_combo_row(
             section, "Minimum multiplier", ["x1+", "x2+", "x3+", "x5+"],
