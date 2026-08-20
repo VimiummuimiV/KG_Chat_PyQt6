@@ -1,6 +1,8 @@
 """Application Settings widget"""
-from pathlib import Path
+import re
 import shutil
+from html import escape
+from pathlib import Path
 
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QScrollArea,
@@ -27,6 +29,9 @@ COMPETITION_SOUND_REPEAT_INTERVAL_DEFAULT = 15
 COMPETITIONS_MAX_PLAYER_CHIPS_DEFAULT = 20
 COMPETITIONS_LOG_HEIGHT = 300
 COMPETITIONS_LOG_HEIGHT_COLLAPSED = 32
+
+FONT_PREVIEW_BORDER = 1
+FONT_PREVIEW_PADDING = 6
 
 CONNECTION_STATES = {
     "connected": "#2ecc71",
@@ -270,6 +275,25 @@ class SoundSelectorWidget(QWidget):
             value={k: v for k, v in selected.items() if v is not None},
         )
 
+    def _confirm(self, title: str, text: str) -> bool:
+        reply = QMessageBox.question(
+            self, title, text,
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        return reply == QMessageBox.StandardButton.Yes
+
+    def _require_user_owned(self, title: str, verb: str) -> str | None:
+        """Return the selected file name if it's user-owned, else show why not and return None."""
+        file_name = self._safe_name()
+        if file_name and self._is_user_owned(file_name):
+            return file_name
+        QMessageBox.information(
+            self, title,
+            f"System sounds cannot be {verb}. Only sounds you added can be {verb}.",
+        )
+        return None
+
     def _play_file(self, file_name: str | None):
         """Stop any current effect and play the chosen file (preview ignores mute)."""
         path = self._resolve_path(file_name)
@@ -358,16 +382,10 @@ class SoundSelectorWidget(QWidget):
         dest_name = f"{stem}.mp3"
         dest = self.user_dir / dest_name
 
-        if dest.exists():
-            reply = QMessageBox.question(
-                self,
-                "File exists",
-                f"'{dest_name}' already exists in your sounds. Overwrite?",
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-                QMessageBox.StandardButton.No,
-            )
-            if reply != QMessageBox.StandardButton.Yes:
-                return
+        if dest.exists() and not self._confirm(
+            "File exists", f"'{dest_name}' already exists in your sounds. Overwrite?"
+        ):
+            return
 
         try:
             shutil.copy2(src, dest)
@@ -379,24 +397,12 @@ class SoundSelectorWidget(QWidget):
         self._play_file(dest_name)
 
     def _on_delete(self):
-        file_name = self._safe_name()
-        if not file_name or not self._is_user_owned(file_name):
-            QMessageBox.information(
-                self,
-                "Delete sound",
-                "System sounds cannot be deleted. Only sounds you added can be removed.",
-            )
+        file_name = self._require_user_owned("Delete sound", "deleted")
+        if not file_name:
             return
 
         path = self.user_dir / file_name
-        reply = QMessageBox.question(
-            self,
-            "Delete sound",
-            f"Delete '{file_name}'?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No,
-        )
-        if reply != QMessageBox.StandardButton.Yes:
+        if not self._confirm("Delete sound", f"Delete '{file_name}'?"):
             return
 
         try:
@@ -408,13 +414,8 @@ class SoundSelectorWidget(QWidget):
         self.refresh()
 
     def _on_rename(self):
-        file_name = self._safe_name()
-        if not file_name or not self._is_user_owned(file_name):
-            QMessageBox.information(
-                self,
-                "Rename sound",
-                "System sounds cannot be renamed. Only sounds you added can be renamed.",
-            )
+        file_name = self._require_user_owned("Rename sound", "renamed")
+        if not file_name:
             return
 
         current_path = self.user_dir / file_name
@@ -561,6 +562,13 @@ class SettingsWidget(QWidget):
         spin.valueChanged.connect(sync_from_spin)
         spin._slider = slider
 
+        # Default reset behavior is just "put the default back in the spin box" -
+        # sync_from_spin (above) already propagates that to the slider and fires
+        # on_changed, so callers only need to pass a custom on_reset when a reset
+        # has to do more than restore the default value.
+        if on_reset is None and default is not None:
+            on_reset = lambda: spin.setValue(default)
+
         if on_reset:
             reset_button = create_icon_button(self.icons_path, "reload.svg", "Reset to default", size_type="small", config=self.config)
             reset_button.clicked.connect(on_reset)
@@ -642,20 +650,22 @@ class SettingsWidget(QWidget):
 
     def _build_fonts_section(self):
         section = self._create_section("🅰️ Fonts")
-        families = get_available_font_families() or ["Roboto"]
+        # Combos start empty - refresh() (called right after _setup_ui in
+        # __init__) is the single place that queries available families and
+        # fills them, so there's no point doing it twice on every construction.
         self.ui_font_combo = self._add_combo_row(
-            section, "UI font", families, self._on_ui_font_changed
+            section, "UI font", [], self._on_ui_font_changed
         )
         self.ui_font_size_spin = self._add_slider_spin_row(
             section, "UI size", 10, 18, self._on_ui_font_size_changed,
-            on_reset=self._on_ui_font_size_reset, default=12
+            default=12
         )
         self.text_font_combo = self._add_combo_row(
-            section, "Text font", families, self._on_text_font_changed
+            section, "Text font", [], self._on_text_font_changed
         )
         self.text_font_size_spin = self._add_slider_spin_row(
             section, "Text size", 12, 24, self._on_text_font_size_changed,
-            on_reset=self._on_text_font_size_reset, default=15
+            default=15
         )
         self.ui_font_combo.setFixedWidth(240)
         self.text_font_combo.setFixedWidth(240)
@@ -682,7 +692,7 @@ class SettingsWidget(QWidget):
         )
         self.notification_width_spin = self._add_slider_spin_row(
             section, "Notification width", NOTIFICATION_WIDTH_DEFAULT, 1000, self._on_notification_width_changed,
-            on_reset=self._on_notification_width_reset, default=NOTIFICATION_WIDTH_DEFAULT
+            default=NOTIFICATION_WIDTH_DEFAULT
         )
 
         self.competitions_bypass_mute_checkbox = self._add_checkbox(
@@ -741,7 +751,7 @@ class SettingsWidget(QWidget):
         self.max_player_chips_spin = self._add_slider_spin_row(
             section, "Max player chips", 1, 100,
             self._on_max_player_chips_changed,
-            on_reset=self._on_max_player_chips_reset, default=COMPETITIONS_MAX_PLAYER_CHIPS_DEFAULT
+            default=COMPETITIONS_MAX_PLAYER_CHIPS_DEFAULT
         )
         self.sort_players_by_level_checkbox = self._add_checkbox(
             section, "Sort player chips by rank", self._on_sort_players_by_level_toggled
@@ -750,7 +760,7 @@ class SettingsWidget(QWidget):
         self.competitions_alert_lead_spin = self._add_slider_spin_row(
             section, "Alert lead time before start (sec)", 0, 300,
             self._on_competitions_alert_lead_changed,
-            on_reset=self._on_competitions_alert_lead_reset, default=COMPETITIONS_ALERT_LEAD_DEFAULT
+            default=COMPETITIONS_ALERT_LEAD_DEFAULT
         )
 
         self.competitions_notify_window_checkbox = self._add_checkbox(
@@ -758,11 +768,11 @@ class SettingsWidget(QWidget):
         )
         self.competitions_notify_start_spin = self._add_slider_spin_row(
             section, "From", 0, 24, self._on_competitions_notify_start_changed,
-            on_reset=self._on_competitions_notify_start_reset, default=COMPETITIONS_NOTIFY_START_DEFAULT
+            default=COMPETITIONS_NOTIFY_START_DEFAULT
         )
         self.competitions_notify_end_spin = self._add_slider_spin_row(
             section, "To", 0, 24, self._on_competitions_notify_end_changed,
-            on_reset=self._on_competitions_notify_end_reset, default=COMPETITIONS_NOTIFY_END_DEFAULT
+            default=COMPETITIONS_NOTIFY_END_DEFAULT
         )
 
     def _build_sound_section(self):
@@ -795,7 +805,7 @@ class SettingsWidget(QWidget):
         )
         self.competition_sound_repeat_interval_spin = self._add_slider_spin_row(
             section, "Repeat interval (sec)", 3, 120, self._on_competition_sound_repeat_interval_changed,
-            on_reset=self._on_competition_sound_repeat_interval_reset, default=COMPETITION_SOUND_REPEAT_INTERVAL_DEFAULT
+            default=COMPETITION_SOUND_REPEAT_INTERVAL_DEFAULT
         )
 
     def _on_sound_selection_changed(self, _index: int):
@@ -958,7 +968,8 @@ class SettingsWidget(QWidget):
             bg, fg, border = "#F5F5F5", "#333333", "#CCCCCC"
         self.font_preview.setStyleSheet(
             f"QTextEdit {{ background-color: {bg}; color: {fg}; "
-            f"border: 1px solid {border}; border-radius: 4px; padding: 6px; }}"
+            f"border: {FONT_PREVIEW_BORDER}px solid {border}; border-radius: 4px; "
+            f"padding: {FONT_PREVIEW_PADDING}px; }}"
         )
 
     def _update_font_preview(self):
@@ -969,17 +980,17 @@ class SettingsWidget(QWidget):
         self._fit_font_preview_height()
 
     def _fit_font_preview_height(self):
-        """Grow/shrink preview block to fit content without clipping."""
+        """Grow/shrink preview block to fit content without clipping, keeping the
+        top and bottom gap identical (uses the same border/padding constants as
+        the stylesheet instead of guessed frame/margin values)."""
         preview = self.font_preview
         doc = preview.document()
         width = preview.viewport().width()
         if width < 50:
             width = max(preview.width() - 20, 300)
         doc.setTextWidth(width)
-        margins = preview.contentsMargins()
-        frame = preview.frameWidth() * 2
-        # +8 for stylesheet padding
-        height = int(doc.size().height()) + margins.top() + margins.bottom() + frame + 16
+        vertical_chrome = 2 * (FONT_PREVIEW_BORDER + FONT_PREVIEW_PADDING)
+        height = int(doc.size().height()) + vertical_chrome
         preview.setFixedHeight(max(48, height))
 
     def _apply_font_family(self, kind: str, family: str):
@@ -1010,10 +1021,6 @@ class SettingsWidget(QWidget):
             set_application_font(app)
         self.font_family_changed.emit()
 
-    def _on_ui_font_size_reset(self):
-        self.ui_font_size_spin.setValue(12)
-        self.ui_font_size_spin._slider.setValue(12)
-
     def _on_text_font_size_changed(self, value: int):
         if self.font_scaler:
             self.font_scaler.set_size(value)
@@ -1022,10 +1029,6 @@ class SettingsWidget(QWidget):
             invalidate_font_cache()
             self.font_family_changed.emit()
         self._update_font_preview()
-
-    def _on_text_font_size_reset(self):
-        self.text_font_size_spin.setValue(15)
-        self.text_font_size_spin._slider.setValue(15)
 
     def _on_track_competitions_toggled(self, checked: bool):
         self.config.set("competitions", "enabled", value=checked)
@@ -1085,8 +1088,6 @@ class SettingsWidget(QWidget):
         )
 
     def _colorize_log_line(self, line: str) -> str:
-        from html import escape
-        import re as _re
         c = self._competitions_log_colors()
         low = line.lower()
         if "[ws]" in low or "  ws " in f"  {low}":
@@ -1108,7 +1109,7 @@ class SettingsWidget(QWidget):
             return f"{m.group(1)}<b>{escape(m.group(2))}</b>{m.group(3)}"
 
         html_line = escape(line)
-        html_line = _re.sub(
+        html_line = re.sub(
             r"^(\d{2}:\d{2}:\d{2}\s+)(\[?\w+\+?]?)(\s+)",
             _bold_tag,
             html_line,
@@ -1186,17 +1187,11 @@ class SettingsWidget(QWidget):
     def _on_max_player_chips_changed(self, value: int):
         self.config.set("competitions", "max_player_chips", value=value)
 
-    def _on_max_player_chips_reset(self):
-        self.max_player_chips_spin.setValue(COMPETITIONS_MAX_PLAYER_CHIPS_DEFAULT)
-
     def _on_sort_players_by_level_toggled(self, checked: bool):
         self.config.set("competitions", "sort_players_by_level", value=checked)
 
     def _on_competitions_alert_lead_changed(self, value: int):
         self.config.set("competitions", "alert_lead_seconds", value=value)
-
-    def _on_competitions_alert_lead_reset(self):
-        self.competitions_alert_lead_spin.setValue(COMPETITIONS_ALERT_LEAD_DEFAULT)
 
     def _on_competitions_notify_window_toggled(self, checked: bool):
         self.config.set("competitions", "notify_window_enabled", value=checked)
@@ -1205,14 +1200,8 @@ class SettingsWidget(QWidget):
     def _on_competitions_notify_start_changed(self, value: int):
         self.config.set("competitions", "notify_window_start", value=value)
 
-    def _on_competitions_notify_start_reset(self):
-        self.competitions_notify_start_spin.setValue(COMPETITIONS_NOTIFY_START_DEFAULT)
-
     def _on_competitions_notify_end_changed(self, value: int):
         self.config.set("competitions", "notify_window_end", value=value)
-
-    def _on_competitions_notify_end_reset(self):
-        self.competitions_notify_end_spin.setValue(COMPETITIONS_NOTIFY_END_DEFAULT)
 
     def _on_competition_sound_repeat_toggled(self, checked: bool):
         self.config.set("sound", "competition_repeat_enabled", value=checked)
@@ -1221,17 +1210,11 @@ class SettingsWidget(QWidget):
     def _on_competition_sound_repeat_interval_changed(self, value: int):
         self.config.set("sound", "competition_repeat_interval", value=value)
 
-    def _on_competition_sound_repeat_interval_reset(self):
-        self.competition_sound_repeat_interval_spin.setValue(COMPETITION_SOUND_REPEAT_INTERVAL_DEFAULT)
-
     def _on_notification_position_changed(self, text: str):
         self.config.set("ui", "notification_position", value=text.lower())
 
     def _on_notification_width_changed(self, value: int):
         self.config.set("ui", "notification_width", value=value)
-
-    def _on_notification_width_reset(self):
-        self.notification_width_spin.setValue(NOTIFICATION_WIDTH_DEFAULT)
 
     def _on_mention_always_toggled(self, checked: bool):
         self.config.set("sound", "play_mention_sound_always", value=checked)
