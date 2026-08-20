@@ -107,9 +107,7 @@ class MessageRenderer(QObject):
                 self.image_viewer.show_preview(url, global_pos)
         else:
             # Normal link, media link with Ctrl, or chatlog link with Ctrl: open in browser
-            browser_key = None
-            if self.config:
-                browser_key = self.config.get("ui", "browser")
+            browser_key = self.config.get("browser") if self.config else None
             try:
                 open_url_in_browser(url, browser_key)
             except Exception as e:

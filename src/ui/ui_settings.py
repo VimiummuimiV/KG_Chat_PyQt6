@@ -865,7 +865,7 @@ class SettingsWidget(QWidget):
         self.browser_combo.clear()
         for display_name, key in browsers:
             self.browser_combo.addItem(display_name, key)
-        current_browser = self.config.get("ui", "browser") or "system"
+        current_browser = self.config.get("browser") or "system"
         idx = self.browser_combo.findData(current_browser)
         self.browser_combo.setCurrentIndex(idx if idx >= 0 else 0)
         self.browser_combo.blockSignals(False)
@@ -997,7 +997,7 @@ class SettingsWidget(QWidget):
     def _on_browser_changed(self, _text: str = ""):
         key = self.browser_combo.currentData()
         if key is not None:
-            self.config.set("ui", "browser", value=key)
+            self.config.set("browser", value=key)
 
     def _apply_font_preview_theme(self):
         if not hasattr(self, "font_preview"):

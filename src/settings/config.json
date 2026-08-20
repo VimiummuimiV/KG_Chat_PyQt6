@@ -128,8 +128,7 @@
       "girls": 21,
       "halloween": 0,
       "inlove": 0
-    },
-    "browser": "C:\\Program Files\\Mozilla Firefox\\firefox.exe"
+    }
   },
   "sound": {
     "tts_enabled": false,
@@ -189,5 +188,6 @@
       "size": 18
     },
     "emoji_family": "Noto Color Emoji"
-  }
+  },
+  "browser": "C:\\Program Files\\Mozilla Firefox\\firefox.exe"
 }
