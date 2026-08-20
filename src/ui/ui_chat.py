@@ -2544,8 +2544,8 @@ class ChatWindow(QWidget):
         self._font_size_timer.start(80)
 
     @staticmethod
-    def _set_font_on_tree(root, font, header_font=None):
-        """Apply font to root and children. Labels with fontRole=header keep header size."""
+    def _set_font_on_tree(root, font, header_font=None, text_font=None):
+        """Apply font to root and children. Respects fontRole: header / text."""
         if root is None:
             return
         from PyQt6.QtWidgets import (
@@ -2556,8 +2556,11 @@ class ChatWindow(QWidget):
                  QTextEdit, QAbstractButton, QGroupBox)
         root.setFont(font)
         for w in root.findChildren(types):
-            if header_font is not None and w.property("fontRole") == "header":
+            role = w.property("fontRole")
+            if role == "header" and header_font is not None:
                 w.setFont(header_font)
+            elif role == "text" and text_font is not None:
+                w.setFont(text_font)
             else:
                 w.setFont(font)
         root.update()
@@ -2615,7 +2618,9 @@ class ChatWindow(QWidget):
         # Stacked pages
         header_font = get_font(FontType.HEADER)
         if getattr(self, 'settings_widget', None):
-            self._set_font_on_tree(self.settings_widget, ui_font, header_font)
+            self._set_font_on_tree(self.settings_widget, ui_font, header_font, new_font)
+            if hasattr(self.settings_widget, '_update_font_preview'):
+                self.settings_widget._update_font_preview()
 
         if getattr(self, 'ban_list_widget', None):
             self._set_font_on_tree(self.ban_list_widget, new_font, header_font)
