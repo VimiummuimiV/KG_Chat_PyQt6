@@ -8,6 +8,7 @@ from PyQt6.QtCore import Qt, pyqtSignal
 
 from helpers.create import create_icon_button, HoverIconButton
 from helpers.fonts import get_font, FontType, get_userlist_width
+from helpers.font_scaler import FontScaleSlider
 from ui.ui_messages import MessagesWidget
 from ui.ui_userlist import UserListWidget
 from core.xmpp import XMPPClient
@@ -37,6 +38,7 @@ class GameRoomWidget(QWidget):
         ban_manager=None,
         game_id=None,
         room_label: str = "Game",
+        font_scaler=None,
         parent=None,
     ):
         super().__init__(parent)
@@ -48,6 +50,7 @@ class GameRoomWidget(QWidget):
         self.game_id = game_id
         self.room_label = room_label  # "Game" or "Competition" — cosmetic, set once at open time
         self.room_jid = XMPPClient.game_room_jid(game_id) if game_id else None
+        self.font_scaler = font_scaler
         self.auto_hide_userlist = True  # reset to True whenever the compact threshold is crossed
         self._init_ui()
 
@@ -103,6 +106,12 @@ class GameRoomWidget(QWidget):
         left.addLayout(input_row)
         body.addLayout(left, stretch=3)
 
+        # Right column: userlist + font slider (same layout as general chat)
+        self.userlist_panel = QWidget()
+        ul_layout = QVBoxLayout()
+        ul_layout.setContentsMargins(0, 0, 0, 0)
+        ul_layout.setSpacing(4)
+
         self.user_list_widget = UserListWidget(
             self.config, input_field=self.input_field, ban_manager=self.ban_manager
         )
@@ -110,8 +119,21 @@ class GameRoomWidget(QWidget):
         self.user_list_widget.private_chat_requested.connect(self.private_chat_requested.emit)
         self.user_list_widget.paste_requested.connect(self.paste_requested.emit)
         self.user_list_widget.open_game_requested.connect(self.open_game_requested.emit)
-        self.user_list_widget.setFixedWidth(get_userlist_width())
-        body.addWidget(self.user_list_widget)
+        ul_layout.addWidget(self.user_list_widget, stretch=1)
+
+        if self.font_scaler is not None:
+            self.font_scale_slider = FontScaleSlider(self.font_scaler)
+            self.font_scale_slider.setFixedHeight(self.input_field.minimumHeight())
+            ul_layout.addWidget(self.font_scale_slider)
+            self.font_scaler.font_size_committed.connect(
+                lambda: self.userlist_panel.setFixedWidth(get_userlist_width())
+            )
+        else:
+            self.font_scale_slider = None
+
+        self.userlist_panel.setLayout(ul_layout)
+        self.userlist_panel.setFixedWidth(get_userlist_width())
+        body.addWidget(self.userlist_panel)
 
         root.addLayout(body, stretch=1)
 
@@ -158,13 +180,13 @@ class GameRoomWidget(QWidget):
         hide this room's own userlist to free up space."""
         self.messages_widget.set_compact_mode(compact)
         if self.auto_hide_userlist:
-            self.user_list_widget.setVisible(not compact)
+            self.userlist_panel.setVisible(not compact)
 
     def toggle_userlist(self) -> bool:
         """Manually show/hide this room's userlist; pins the choice so the
         next resize's auto-hide doesn't immediately override it."""
-        visible = not self.user_list_widget.isVisible()
-        self.user_list_widget.setVisible(visible)
+        visible = not self.userlist_panel.isVisible()
+        self.userlist_panel.setVisible(visible)
         self.auto_hide_userlist = False
         return visible
 

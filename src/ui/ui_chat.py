@@ -1263,10 +1263,11 @@ class ChatWindow(QWidget):
 
         self._ensure_room_tabs()
 
+        font_scaler = getattr(self.app_controller, 'font_scaler', None)
         widget = GameRoomWidget(
             self.config, self.emoticon_manager, self.icons_path,
             account=self.account, ban_manager=self.ban_manager,
-            game_id=gid, room_label=room_label, parent=self,
+            game_id=gid, room_label=room_label, font_scaler=font_scaler, parent=self,
         )
         widget.send_requested.connect(lambda text, w=widget: self._send_game_room_message(text, w))
         self._wire_userlist_signals(widget)
@@ -2575,7 +2576,7 @@ class ChatWindow(QWidget):
         _update_userlist_fonts(self.user_list_widget)
         for gr in self.game_rooms.values():
             if gr:
-                _update_userlist_fonts(gr.user_list_widget, fixed_width=True)
+                _update_userlist_fonts(gr.user_list_widget)
         
         if self.chatlog_userlist_widget:
             for user_widget in self.chatlog_userlist_widget.user_widgets.values():
