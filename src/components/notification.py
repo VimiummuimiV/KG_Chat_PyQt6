@@ -40,6 +40,8 @@ class NotificationData:
     timestamp: Optional[datetime] = None
     tag: Optional[str] = None
     players: Optional[list] = None
+    competition_game_id: Optional[int] = None
+    open_room_callback: Optional[Callable] = None
 
 
 class MessageBodyWidget(QWidget):
@@ -286,8 +288,8 @@ class PopupNotification(QWidget):
         self.position_button.clicked.connect(self._on_toggle_position)
         buttons_layout.addWidget(self.position_button)
 
-        # Answer button - hide for ban and system messages
-        if not data.is_ban and not data.is_system:
+        # Answer button - hide for ban, system, and competition messages
+        if not data.is_ban and not data.is_system and not data.is_competition:
             self.answer_button = create_icon_button(
                 self.icons_path, "answer.svg", "Reply",
                 size_type="small", config=data.config
@@ -296,6 +298,16 @@ class PopupNotification(QWidget):
             buttons_layout.addWidget(self.answer_button)
         else:
             self.answer_button = None
+
+        if data.is_competition and data.open_room_callback and data.competition_game_id is not None:
+            self.open_room_button = create_icon_button(
+                self.icons_path, "door-open.svg", "Open competition room",
+                size_type="small", config=data.config
+            )
+            self.open_room_button.clicked.connect(self._on_open_room)
+            buttons_layout.addWidget(self.open_room_button)
+        else:
+            self.open_room_button = None
       
         # Mute button
         self.mute_button = create_icon_button(
@@ -424,6 +436,8 @@ class PopupNotification(QWidget):
             clicked_widgets = [self.close_button, self.mute_button, self.position_button]
             if self.answer_button:
                 clicked_widgets.append(self.answer_button)
+            if self.open_room_button:
+                clicked_widgets.append(self.open_room_button)
             if self.send_button:
                 clicked_widgets.append(self.send_button)
             if self.emoticon_button:
@@ -543,6 +557,20 @@ class PopupNotification(QWidget):
         self.manager.remove_popup(self)
         self.close()
   
+    def _on_open_room(self):
+        gid = self.data.competition_game_id
+        if self.data.window_show_callback:
+            try:
+                self.data.window_show_callback()
+            except Exception as e:
+                print(f"❌ Error showing window: {e}")
+        if self.data.open_room_callback and gid is not None:
+            try:
+                self.data.open_room_callback(gid)
+            except Exception as e:
+                print(f"❌ Error opening room: {e}")
+        self.manager.close_all()
+
     def _on_answer(self):
         """Toggle reply field visibility"""
         if not self.reply_container or not self.reply_field:

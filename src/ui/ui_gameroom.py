@@ -153,13 +153,6 @@ class GameRoomWidget(QWidget):
         self.messages_widget.clear()
         self.user_list_widget.clear_all()
 
-    def set_status(self, text: str):
-        """Store connection status. Deliberately NOT a widget-wide tooltip
-        (self.setToolTip) — that fired on every hover anywhere inside
-        messages/userlist/input, which was obnoxious. ChatWindow applies it
-        as the room's tab tooltip instead (see _set_game_room_status)."""
-        self.status_text = text or ""
-
     def add_message(self, msg):
         self.messages_widget.add_message(msg)
 

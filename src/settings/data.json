@@ -20,7 +20,7 @@
   "542059": {"login": "Примус_починяю", "background": "#650CFF", "light": "#650CFF", "dark": "#9c64ff"},
   "501294": {"login": "_noragami", "background": "#0B00AD", "light": "#0B00AD", "dark": "#7a72ff"},
   "840336": {"login": "plevik", "background": "#777777", "light": "#767676", "dark": "#858585"},
-  "840288": {"login": "ЗАЧИНЩИКСОБЫТИЙ", "background": "#c0560b", "light": "#c0560b", "dark": "#da610c"},
+  "840288": {"login": "ЗАЧИНЩИКСОБЫТИЙ", "background": "#D35F0C", "light": "#c2570b", "dark": "#d9620c"},
   "111001": {"login": "un4given", "background": "#000000", "light": "#000000", "dark": "#858585"},
   "487708": {"login": "foggystyle", "background": "#0A1A56", "light": "#0A1A56", "dark": "#607eed"},
   "840370": {"login": "Sayan701", "background": "#777777", "light": "#767676", "dark": "#858585"},
@@ -3800,5 +3800,16 @@
   "842290": {"login": "sasha-e", "background": "#777777", "light": "#767676", "dark": "#858585"},
   "842291": {"login": "Raid2028", "background": "#777777", "light": "#767676", "dark": "#858585"},
   "517925": {"login": "FAULT70", "background": "#777777", "light": "#767676", "dark": "#858585"},
-  "613087": {"login": "Flash66", "background": "#04dd49", "light": "#02892d", "dark": "#04dd49"}
+  "613087": {"login": "Flash66", "background": "#04dd49", "light": "#02892d", "dark": "#04dd49"},
+  "551836": {"login": "Arishkou", "background": "#757575", "light": "#757575", "dark": "#858585"},
+  "763646": {"login": "ixxxtrovert", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "168101": {"login": "Wiiseacre", "background": "#8a8a90", "light": "#76767d", "dark": "#8a8a90"},
+  "574322": {"login": "forward-ok", "background": "#3232F2", "light": "#3232F2", "dark": "#7676f6"},
+  "799980": {"login": "Ong67", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "842293": {"login": "mokhnatye_balls", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "777756": {"login": "Степус", "background": "#404429", "light": "#404429", "dark": "#818a53"},
+  "441017": {"login": "Теодор", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "842294": {"login": "2612xx14", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "834556": {"login": "dariabara20", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "842295": {"login": "qVSouthVp", "background": "#777777", "light": "#767676", "dark": "#858585"}
 }

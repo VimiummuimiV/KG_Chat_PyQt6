@@ -480,8 +480,8 @@ class ChatWindow(QWidget):
         self.game_rooms = {}  # game_id -> GameRoomWidget
         self.room_tabs = None  # QTabWidget; General is always tab 0 when present
         self.general_body = None
-        self._unread_rooms = set()  # game_ids with a "●" unread marker on their tab
-        self._general_unread = False  # "●" on General when messages arrive while on a game tab
+        self._unread_rooms = {}  # game_id -> unread message count
+        self._general_unread = 0  # unread count on General while on a game tab
 
         self.stacked_widget.addWidget(self.messages_splitter)
         self.chatlog_widget = None
@@ -1249,7 +1249,7 @@ class ChatWindow(QWidget):
         widget.deleteLater()
 
 
-    def _open_game_room_by_id(self, game_id):
+    def _open_game_room_by_id(self, game_id, room_label: str = "Game"):
         class _Fake:
             pass
         fake = _Fake()
@@ -1257,7 +1257,7 @@ class ChatWindow(QWidget):
             fake.competition_game_id = int(game_id)
         except (TypeError, ValueError):
             return
-        self.open_game_room_tab(fake)
+        self.open_game_room_tab(fake, room_label=room_label)
 
     def open_game_room_tab(self, msg, room_label: str = "Game"):
         """Open or focus a game-room tab.
@@ -1297,8 +1297,8 @@ class ChatWindow(QWidget):
 
         self.game_rooms[gid] = widget
         widget.set_compact_mode(self.width() <= 1000)  # match current window width immediately
-        idx = self.room_tabs.addTab(widget, widget.tab_title())
-        self.room_tabs.setCurrentIndex(idx)
+        self.room_tabs.addTab(widget, widget.tab_title())
+        self.room_tabs.setCurrentWidget(widget)
         self._join_game_room(gid, widget.room_jid, widget)
 
     @staticmethod
@@ -1371,10 +1371,13 @@ class ChatWindow(QWidget):
         self.room_tabs.tabCloseRequested.connect(self._on_room_tab_close_requested)
         self.room_tabs.currentChanged.connect(self._on_room_tab_changed)
 
+        tab_bar = self.room_tabs.tabBar()
+        tab_bar.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        tab_bar.customContextMenuRequested.connect(self._on_room_tab_context_menu)
+
         self.room_tabs.addTab(self.general_body, "General")
         # General is permanent — hide its close button
-        self.room_tabs.tabBar().setTabButton(0, QTabBar.ButtonPosition.RightSide, None)
-        # Also prevent closing via middle-click etc. by ignoring in handler
+        tab_bar.setTabButton(0, QTabBar.ButtonPosition.RightSide, None)
 
         self.content_layout.addWidget(self.room_tabs)
         self.setUpdatesEnabled(True)
@@ -1395,27 +1398,45 @@ class ChatWindow(QWidget):
         self.room_tabs.deleteLater()
         self.room_tabs = None
         self.general_body = None
-        self._general_unread = False
+        self._general_unread = 0
         self.setUpdatesEnabled(True)
         self.messages_widget._force_recalculate()
 
-    def _set_room_unread(self, gid, unread: bool):
-        """Set/clear "●" on a game-room tab. No-op if the tab isn't open."""
+    def _refresh_room_tab_title(self, gid):
         widget = self.game_rooms.get(gid)
         if not widget or not self.room_tabs:
             return
         idx = self.room_tabs.indexOf(widget)
         if idx < 0:
             return
-        self._unread_rooms.add(gid) if unread else self._unread_rooms.discard(gid)
-        self.room_tabs.setTabText(idx, ("● " if gid in self._unread_rooms else "") + widget.tab_title())
+        count = self._unread_rooms.get(gid, 0)
+        prefix = f"({count}) " if count else ""
+        self.room_tabs.setTabText(idx, prefix + widget.tab_title())
 
-    def _set_general_unread(self, unread: bool):
-        """Set/clear "●" on the General tab."""
+    def _refresh_general_tab_title(self):
         if not self.room_tabs:
             return
-        self._general_unread = unread
-        self.room_tabs.setTabText(0, ("● " if unread else "") + "General")
+        count = self._general_unread
+        prefix = f"({count}) " if count else ""
+        self.room_tabs.setTabText(0, prefix + "General")
+
+    def _bump_room_unread(self, gid):
+        self._unread_rooms[gid] = self._unread_rooms.get(gid, 0) + 1
+        self._refresh_room_tab_title(gid)
+
+    def _clear_room_unread(self, gid):
+        if gid in self._unread_rooms:
+            self._unread_rooms.pop(gid, None)
+            self._refresh_room_tab_title(gid)
+
+    def _bump_general_unread(self):
+        self._general_unread += 1
+        self._refresh_general_tab_title()
+
+    def _clear_general_unread(self):
+        if self._general_unread:
+            self._general_unread = 0
+            self._refresh_general_tab_title()
 
     def _on_room_tab_close_requested(self, index: int):
         if index <= 0:
@@ -1423,24 +1444,49 @@ class ChatWindow(QWidget):
         widget = self.room_tabs.widget(index)
         if not isinstance(widget, GameRoomWidget):
             return
-        gid = widget.game_id
-        self._close_game_room_tab(gid)
+        self._close_game_room_tab(widget.game_id)
+
+    def _on_room_tab_context_menu(self, pos):
+        if not self.room_tabs:
+            return
+        tab_bar = self.room_tabs.tabBar()
+        index = tab_bar.tabAt(pos)
+        if index < 0:
+            return
+        menu = QMenu(self)
+        if index > 0:
+            menu.addAction("Close", lambda: self._on_room_tab_close_requested(index))
+            menu.addAction("Close others", lambda: self._close_other_room_tabs(index))
+        if self.game_rooms:
+            menu.addAction("Close all rooms", self._close_all_room_tabs)
+        if menu.actions():
+            menu.exec(tab_bar.mapToGlobal(pos))
+
+    def _close_other_room_tabs(self, keep_index: int):
+        if not self.room_tabs:
+            return
+        keep_widget = self.room_tabs.widget(keep_index)
+        for gid in list(self.game_rooms.keys()):
+            widget = self.game_rooms.get(gid)
+            if widget is not None and widget is not keep_widget:
+                self._close_game_room_tab(gid)
+
+    def _close_all_room_tabs(self):
+        for gid in list(self.game_rooms.keys()):
+            self._close_game_room_tab(gid)
 
     def _on_room_tab_changed(self, index: int):
         # Optional: focus the input of the newly selected pane
         if index <= 0:
             if hasattr(self, 'input_field') and self.input_field:
                 self.input_field.setFocus()
-            if self._general_unread:
-                self._set_general_unread(False)
+            self._clear_general_unread()
         else:
             w = self.room_tabs.widget(index)
             if isinstance(w, GameRoomWidget):
                 if w.input_field:
                     w.input_field.setFocus()
-                if w.game_id in self._unread_rooms:
-                    self._set_room_unread(w.game_id, False)
-        # sizeHints go stale while a tab is hidden in QTabWidget
+                self._clear_room_unread(w.game_id)
         mw = self._active_messages_widget()
         if mw:
             mw._force_recalculate()
@@ -1448,19 +1494,12 @@ class ChatWindow(QWidget):
 
     def _join_game_room(self, game_id, room_jid: str, widget=None):
         client = self.xmpp_client
-        target = widget or self.game_rooms.get(game_id)
         if not client or not client.sid:
-            if target:
-                target.set_status("Not connected")
             return
         try:
             client.join_room(room_jid, game_id=str(game_id))
-            if target:
-                target.set_status(f"In game #{game_id}")
         except Exception as e:
             print(f"⚠️ Game room join error: {e}")
-            if target:
-                target.set_status(f"Join error: {e}")
 
     def _leave_game_room(self, game_id=None, room_jid=None):
         client = self.xmpp_client
@@ -1481,7 +1520,7 @@ class ChatWindow(QWidget):
         widget = self.game_rooms.pop(game_id, None)
         if not widget:
             return
-        self._unread_rooms.discard(game_id)
+        self._unread_rooms.pop(game_id, None)
         self._leave_game_room(game_id=game_id, room_jid=widget.room_jid)
         idx = self.room_tabs.indexOf(widget) if self.room_tabs else -1
         if idx >= 0:
@@ -2167,6 +2206,8 @@ class ChatWindow(QWidget):
                     is_system=False,
                     is_competition=True,
                     window_show_callback=self._show_and_focus_window,
+                    competition_game_id=gid,
+                    open_room_callback=lambda g: self._open_game_room_by_id(g, room_label="Competition"),
                     tag=tag,
                     players=chips,
                 )
@@ -2296,7 +2337,7 @@ class ChatWindow(QWidget):
                 display_body, is_system = format_me_action(msg.body, msg.login)
                 gr.add_message(msg)
                 if not is_initial and self._current_game_room() is not gr:
-                    self._set_room_unread(gid, True)
+                    self._bump_room_unread(gid)
                 self._notify_incoming_message(
                     msg, display_body, is_ban, is_system, is_initial,
                     room_jid=gr.room_jid, add_message_fn=gr.add_message,
@@ -2339,7 +2380,7 @@ class ChatWindow(QWidget):
 
         # Mark General tab unread when the user is currently on a game-room tab
         if not is_initial and self.room_tabs and self.room_tabs.currentIndex() > 0:
-            self._set_general_unread(True)
+            self._bump_general_unread()
 
         # Increment unread count if window is hidden and not initial load
         if not is_initial and not self.isVisible() and self.app_controller:
@@ -3220,6 +3261,21 @@ class ChatWindow(QWidget):
         key, mods = event.key(), event.modifiers()
         ctrl  = mods == Qt.KeyboardModifier.ControlModifier
         shift = mods == Qt.KeyboardModifier.ShiftModifier
+        ctrl_held = bool(mods & Qt.KeyboardModifier.ControlModifier)
+        shift_held = bool(mods & Qt.KeyboardModifier.ShiftModifier)
+
+        if ctrl_held and key == Qt.Key.Key_W and not shift_held:
+            gr = self._current_game_room()
+            if gr:
+                self._close_game_room_tab(gr.game_id)
+            return
+
+        if ctrl_held and key in (Qt.Key.Key_Tab, Qt.Key.Key_Backtab):
+            if self.room_tabs and self.room_tabs.count() > 1:
+                delta = -1 if (key == Qt.Key.Key_Backtab or shift_held) else 1
+                count = self.room_tabs.count()
+                self.room_tabs.setCurrentIndex((self.room_tabs.currentIndex() + delta) % count)
+            return
 
         if mods and not ctrl and not shift:
             return super().keyPressEvent(event)
