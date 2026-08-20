@@ -2903,7 +2903,11 @@ class ChatWindow(QWidget):
         """Show the settings view"""
         self._ensure_general_tab_visible()
         if not hasattr(self, 'settings_widget') or not self.settings_widget:
-            self.settings_widget = SettingsWidget(self.config, self.icons_path)
+            self.settings_widget = SettingsWidget(
+                self.config,
+                self.icons_path,
+                font_scaler=getattr(self.app_controller, "font_scaler", None),
+            )
             self.settings_widget.back_requested.connect(self._on_stacked_back)
             self.settings_widget.track_competitions_checkbox.toggled.connect(self.set_track_competitions)
             self.settings_widget.min_multiplier_combo.currentTextChanged.connect(

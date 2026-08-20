@@ -460,10 +460,11 @@ class SettingsWidget(QWidget):
     competition_log_clear_requested = pyqtSignal()
     font_family_changed = pyqtSignal()
 
-    def __init__(self, config, icons_path: Path):
+    def __init__(self, config, icons_path: Path, font_scaler=None):
         super().__init__()
         self.config = config
         self.icons_path = icons_path
+        self.font_scaler = font_scaler
         self.startup_manager = StartupManager()
         self._competitions_accent_color = None
 
@@ -645,16 +646,23 @@ class SettingsWidget(QWidget):
         self.ui_font_combo = self._add_combo_row(
             section, "UI font", families, self._on_ui_font_changed
         )
+        self.ui_font_size_spin = self._add_slider_spin_row(
+            section, "UI size", 10, 18, self._on_ui_font_size_changed,
+            on_reset=self._on_ui_font_size_reset, default=12
+        )
         self.text_font_combo = self._add_combo_row(
             section, "Text font", families, self._on_text_font_changed
         )
-        self.ui_font_combo.setFixedWidth(300)
-        self.text_font_combo.setFixedWidth(300)
+        self.text_font_size_spin = self._add_slider_spin_row(
+            section, "Text size", 12, 24, self._on_text_font_size_changed,
+            on_reset=self._on_text_font_size_reset, default=15
+        )
+        self.ui_font_combo.setFixedWidth(240)
+        self.text_font_combo.setFixedWidth(240)
 
         self.font_preview = QTextEdit()
         self.font_preview.setProperty("fontRole", "text")
         self.font_preview.setReadOnly(True)
-        self.font_preview.setFixedHeight(90)
         self.font_preview.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.font_preview.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.font_preview.setPlainText(
@@ -837,6 +845,24 @@ class SettingsWidget(QWidget):
             idx = combo.findText(current)
             combo.setCurrentIndex(idx if idx >= 0 else 0)
             combo.blockSignals(False)
+
+        ui_size = int(self.config.get("font", "ui", "size") or 12)
+        text_size = (
+            self.font_scaler.get_text_size()
+            if self.font_scaler
+            else int(self.config.get("font", "text", "size") or 15)
+        )
+        for spin, val in (
+            (self.ui_font_size_spin, ui_size),
+            (self.text_font_size_spin, text_size),
+        ):
+            spin.blockSignals(True)
+            spin.setValue(val)
+            spin._slider.blockSignals(True)
+            spin._slider.setValue(val)
+            spin._slider.blockSignals(False)
+            spin.blockSignals(False)
+
         self._update_font_preview()
 
         track = self.config.get("competitions", "enabled")
@@ -940,6 +966,21 @@ class SettingsWidget(QWidget):
             return
         self.font_preview.setFont(get_font(FontType.TEXT))
         self._apply_font_preview_theme()
+        self._fit_font_preview_height()
+
+    def _fit_font_preview_height(self):
+        """Grow/shrink preview block to fit content without clipping."""
+        preview = self.font_preview
+        doc = preview.document()
+        width = preview.viewport().width()
+        if width < 50:
+            width = max(preview.width() - 20, 300)
+        doc.setTextWidth(width)
+        margins = preview.contentsMargins()
+        frame = preview.frameWidth() * 2
+        # +8 for stylesheet padding
+        height = int(doc.size().height()) + margins.top() + margins.bottom() + frame + 16
+        preview.setFixedHeight(max(48, height))
 
     def _apply_font_family(self, kind: str, family: str):
         if not family:
@@ -959,6 +1000,32 @@ class SettingsWidget(QWidget):
 
     def _on_text_font_changed(self, _text: str = ""):
         self._apply_font_family("text", self.text_font_combo.currentText())
+
+    def _on_ui_font_size_changed(self, value: int):
+        self.config.set("font", "ui", "size", value=value)
+        set_config(self.config)
+        invalidate_font_cache()
+        app = QApplication.instance()
+        if app:
+            set_application_font(app)
+        self.font_family_changed.emit()
+
+    def _on_ui_font_size_reset(self):
+        self.ui_font_size_spin.setValue(12)
+        self.ui_font_size_spin._slider.setValue(12)
+
+    def _on_text_font_size_changed(self, value: int):
+        if self.font_scaler:
+            self.font_scaler.set_size(value)
+        else:
+            self.config.set("font", "text", "size", value=value)
+            invalidate_font_cache()
+            self.font_family_changed.emit()
+        self._update_font_preview()
+
+    def _on_text_font_size_reset(self):
+        self.text_font_size_spin.setValue(15)
+        self.text_font_size_spin._slider.setValue(15)
 
     def _on_track_competitions_toggled(self, checked: bool):
         self.config.set("competitions", "enabled", value=checked)
