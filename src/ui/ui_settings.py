@@ -1013,6 +1013,18 @@ class SettingsWidget(QWidget):
         self._apply_font_family("text", self.text_font_combo.currentText())
 
     def _on_ui_font_size_changed(self, value: int):
+        # Debounce: slider fires every step; only persist/apply after idle.
+        if not hasattr(self, "_ui_font_size_timer"):
+            self._ui_font_size_timer = QTimer(self)
+            self._ui_font_size_timer.setSingleShot(True)
+            self._ui_font_size_timer.timeout.connect(self._commit_ui_font_size)
+        self._pending_ui_font_size = value
+        self._ui_font_size_timer.start(80)
+
+    def _commit_ui_font_size(self):
+        value = getattr(self, "_pending_ui_font_size", None)
+        if value is None:
+            return
         self.config.set("font", "ui", "size", value=value)
         set_config(self.config)
         invalidate_font_cache()

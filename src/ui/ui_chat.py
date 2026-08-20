@@ -5,14 +5,21 @@ from pathlib import Path
 from datetime import datetime
 from PyQt6.QtWidgets import(
     QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QTextEdit, QApplication, QMenu,
-    QStackedWidget, QStatusBar, QLabel, QProgressBar, QPushButton, QMessageBox, QSplitter, QTabWidget, QTabBar
+    QStackedWidget, QStatusBar, QLabel, QProgressBar, QPushButton, QMessageBox,
+    QSplitter, QTabWidget, QTabBar
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QObject, QTimer, QEvent
 from PyQt6.QtGui import QAction, QCursor
             
 
 from helpers.config import Config
-from helpers.create import create_icon_button, _render_svg_icon, update_all_icons, set_theme, HoverIconButton
+from helpers.create import (
+    create_icon_button,
+    _render_svg_icon,
+    update_all_icons,
+    set_theme,
+    HoverIconButton
+)
 from helpers.resize import handle_chat_resize, recalculate_layout
 from helpers.color_utils import get_private_message_colors
 from helpers.scroll.scroll import scroll
@@ -23,7 +30,12 @@ from helpers.username_color_manager import(
     update_from_server
 )
 from helpers.emoticons import EmoticonManager
-from helpers.fonts import get_font, FontType, get_userlist_width
+from helpers.fonts import (
+    get_font,
+    FontType,
+    get_userlist_width,
+    set_application_font
+)
 from helpers.font_scaler import FontScaleSlider
 from helpers.voice_engine import get_voice_engine, play_sound
 from helpers.me_action import format_me_action
@@ -155,6 +167,10 @@ class ChatWindow(QWidget):
         self.theme_manager = ThemeManager(self.config)
         self.theme_manager.apply_theme()
         set_theme(self.theme_manager.is_dark())
+        # Theme stylesheet can wipe menu/tooltip font; re-apply UI font after it.
+        app = QApplication.instance()
+        if app:
+            set_application_font(app)
 
         # Initialize voice engine
         self.voice_engine = get_voice_engine()
@@ -3017,6 +3033,7 @@ class ChatWindow(QWidget):
             def icon(name): return _render_svg_icon(self.icons_path / name, 16)
 
             menu = QMenu(self)
+            menu.setFont(get_font(FontType.UI))
 
             # Profile / Private chat
             profile_act = menu.addAction(icon("user.svg"), "Profile")
@@ -3432,7 +3449,11 @@ class ChatWindow(QWidget):
             self.theme_manager.toggle_theme()
             is_dark = self.theme_manager.is_dark()
             set_theme(is_dark)
-         
+            # Theme replaces app stylesheet — restore UI font for menus/tooltips.
+            app = QApplication.instance()
+            if app:
+                set_application_font(app)
+
             # Update theme button icon via button panel
             self.button_panel.update_theme_button_icon()
          

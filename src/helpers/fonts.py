@@ -175,7 +175,11 @@ class FontManager:
 
         font = QFont(family, size, use_weight)
         font.setItalic(italic)
-        font.setFamilies([family, emoji_family])
+        # Emoji fallback only for message text, not UI chrome.
+        if font_type == FontType.TEXT:
+            font.setFamilies([family, emoji_family])
+        else:
+            font.setFamily(family)
         self._font_cache[key] = font
         return font
 
@@ -183,8 +187,11 @@ class FontManager:
         if not self.loaded:
             self._load_config()
 
+        from PyQt6.QtWidgets import QToolTip
+
         default_font = self.get_font(FontType.UI)
         app.setFont(default_font)
+        QToolTip.setFont(default_font)
 
         ui_family = self._get_family("ui")
         ui_font_size = self._get_size("ui", 12)

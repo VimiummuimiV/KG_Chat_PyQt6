@@ -5,6 +5,7 @@ from typing import Optional
 from PyQt6.QtWidgets import QMenu
 
 from helpers.create import _render_svg_icon
+from helpers.fonts import get_font, FontType
 
 # Action ids returned by show_user_context_menu
 PROFILE = "profile"
@@ -34,6 +35,7 @@ def show_user_context_menu(
         return _render_svg_icon(icons_path / name, 16)
 
     menu = QMenu(parent)
+    menu.setFont(get_font(FontType.UI))
 
     profile_act = menu.addAction(icon("user.svg"), "Profile")
     private_act = menu.addAction(icon("private-chat.svg"), "Private Chat")

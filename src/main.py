@@ -23,7 +23,9 @@ from helpers.fonts import (
     load_fonts,
     set_application_font,
     set_font_scaler,
-    set_config
+    set_config,
+    get_font,
+    FontType,
 )
 from helpers.config import Config
 from helpers.username_color_manager import(
@@ -139,6 +141,7 @@ class Application(QObject):
 
         # Create the main menu
         menu = QMenu()
+        menu.setFont(get_font(FontType.UI))
 
         # Add menu items
         switch_action = QAction(icon("user-switch.svg"), "Switch Account", self.app)
