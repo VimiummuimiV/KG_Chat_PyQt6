@@ -128,7 +128,8 @@
       "girls": 21,
       "halloween": 0,
       "inlove": 0
-    }
+    },
+    "browser": "C:\\Program Files\\Mozilla Firefox\\firefox.exe"
   },
   "sound": {
     "tts_enabled": false,

@@ -17,6 +17,7 @@ from helpers.color_utils import (
 )
 from helpers.fonts import get_font, FontType
 from helpers.mention_parser import parse_mentions
+from helpers.browser import open_url as open_url_in_browser
 from core.youtube import is_youtube_url, get_cached_info, fetch_async
 from helpers.image_viewer import ImageHoverView
 from helpers.video_player import VideoPlayer
@@ -106,9 +107,11 @@ class MessageRenderer(QObject):
                 self.image_viewer.show_preview(url, global_pos)
         else:
             # Normal link, media link with Ctrl, or chatlog link with Ctrl: open in browser
-            import webbrowser
+            browser_key = None
+            if self.config:
+                browser_key = self.config.get("ui", "browser")
             try:
-                webbrowser.open(url)
+                open_url_in_browser(url, browser_key)
             except Exception as e:
                 print(f"Failed to open URL: {e}")
     

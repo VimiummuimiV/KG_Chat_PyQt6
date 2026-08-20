@@ -26,6 +26,7 @@ from helpers.startup_manager import StartupManager
 from helpers.voice_engine import play_sound
 from helpers.data import get_data_dir
 from helpers.color_utils import blend_hex_colors
+from helpers.browser import get_available_browsers
 
 NOTIFICATION_WIDTH_DEFAULT = 550 
 COMPETITIONS_ALERT_LEAD_DEFAULT = 0
@@ -653,6 +654,10 @@ class SettingsWidget(QWidget):
         self.youtube_checkbox = self._add_checkbox(
             section, "Enable YouTube link previews", self._on_youtube_toggled
         )
+        self.browser_combo = self._add_combo_row(
+            section, "Open links in", [], self._on_browser_changed
+        )
+        self.browser_combo.setFixedWidth(240)
 
     def _build_fonts_section(self):
         section = self._create_section("🅰️ Fonts")
@@ -830,7 +835,7 @@ class SettingsWidget(QWidget):
         """Reload every control from the current config state."""
         widgets = (
             self.auto_login_checkbox, self.start_minimized_checkbox, self.start_with_system_checkbox,
-            self.clear_private_checkbox, self.youtube_checkbox,
+            self.clear_private_checkbox, self.youtube_checkbox, self.browser_combo,
             self.track_competitions_checkbox, self.competitions_bypass_mute_checkbox,
             self.competitions_force_sound_checkbox, self.min_multiplier_combo,
             self.show_cost_checkbox,
@@ -854,6 +859,16 @@ class SettingsWidget(QWidget):
         self.clear_private_checkbox.setChecked(bool(self.config.get("ui", "clear_private_messages_on_exit")))
         youtube_enabled = self.config.get("ui", "youtube", "enabled")
         self.youtube_checkbox.setChecked(True if youtube_enabled is None else bool(youtube_enabled))
+
+        browsers = get_available_browsers()
+        self.browser_combo.blockSignals(True)
+        self.browser_combo.clear()
+        for display_name, key in browsers:
+            self.browser_combo.addItem(display_name, key)
+        current_browser = self.config.get("ui", "browser") or "system"
+        idx = self.browser_combo.findData(current_browser)
+        self.browser_combo.setCurrentIndex(idx if idx >= 0 else 0)
+        self.browser_combo.blockSignals(False)
 
         families = get_available_font_families() or ["Roboto"]
         for combo, kind in (
@@ -978,6 +993,11 @@ class SettingsWidget(QWidget):
 
     def _on_youtube_toggled(self, checked: bool):
         self.config.set("ui", "youtube", "enabled", value=checked)
+
+    def _on_browser_changed(self, _text: str = ""):
+        key = self.browser_combo.currentData()
+        if key is not None:
+            self.config.set("ui", "browser", value=key)
 
     def _apply_font_preview_theme(self):
         if not hasattr(self, "font_preview"):
