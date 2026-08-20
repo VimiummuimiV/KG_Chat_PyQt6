@@ -2538,32 +2538,44 @@ class ChatWindow(QWidget):
         """Actually apply font size change after debounce"""
         new_font = get_font(FontType.TEXT)
         
-        # Update message delegates AND their renderers
-        for widget in [self.messages_widget, self.chatlog_widget, self.chatlog_split_widget]:
+        # Update message delegates AND their renderers (general + chatlog + game rooms)
+        message_widgets = [self.messages_widget, self.chatlog_widget, self.chatlog_split_widget]
+        message_widgets.extend(
+            gr.messages_widget for gr in self.game_rooms.values() if gr and gr.messages_widget
+        )
+        for widget in message_widgets:
             if widget:
-                widget.delegate.body_font = new_font          # For username + metrics
-                widget.delegate.timestamp_font = new_font      # For timestamp
-                # Also update MessageRenderer font
+                widget.delegate.body_font = new_font
+                widget.delegate.timestamp_font = new_font
                 if widget.delegate.message_renderer:
-                    widget.delegate.message_renderer.body_font = new_font  # For message body
+                    widget.delegate.message_renderer.body_font = new_font
                 widget._force_recalculate()
-        
-        # Update message input field
+
+        # Update message input fields (general + game rooms)
         if self.input_field:
             self.input_field.setFont(new_font)
-        
-        # Update userlist widgets
-        if self.user_list_widget:
-            # Update section labels font size
-            self.user_list_widget.chat_label.setFont(new_font)
-            self.user_list_widget.game_label.setFont(new_font)
-            
-            # Update user widgets
-            for user_widget in self.user_list_widget.user_widgets.values():
+        for gr in self.game_rooms.values():
+            if gr and gr.input_field:
+                gr.input_field.setFont(new_font)
+
+        # Update userlist widgets (general + game rooms)
+        def _update_userlist_fonts(ul, fixed_width=False):
+            if not ul:
+                return
+            ul.chat_label.setFont(new_font)
+            ul.game_label.setFont(new_font)
+            for user_widget in ul.user_widgets.values():
                 user_widget.username_label.setFont(new_font)
                 if user_widget.badge:
                     user_widget.badge.setFont(new_font)
-            self.user_list_widget.update()
+            if fixed_width:
+                ul.setFixedWidth(get_userlist_width())
+            ul.update()
+
+        _update_userlist_fonts(self.user_list_widget)
+        for gr in self.game_rooms.values():
+            if gr:
+                _update_userlist_fonts(gr.user_list_widget, fixed_width=True)
         
         if self.chatlog_userlist_widget:
             for user_widget in self.chatlog_userlist_widget.user_widgets.values():
