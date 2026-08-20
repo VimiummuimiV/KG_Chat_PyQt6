@@ -651,6 +651,21 @@ class SettingsWidget(QWidget):
         self.ui_font_combo.setFixedWidth(300)
         self.text_font_combo.setFixedWidth(300)
 
+        self.font_preview = QTextEdit()
+        self.font_preview.setProperty("fontRole", "text")
+        self.font_preview.setReadOnly(True)
+        self.font_preview.setFixedHeight(90)
+        self.font_preview.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.font_preview.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.font_preview.setPlainText(
+            "Шла Маша по шоссе и сосала сушку\n"
+            "The quick brown fox jumps over the lazy dog\n"
+            "0 1 2 3 4 5 6 7 8 9"
+        )
+        self._apply_font_preview_theme()
+        section.addWidget(self.font_preview)
+        self._update_font_preview()
+
     def _build_notifications_section(self):
         section = self._create_section("⚠️ Notifications")
         self.notification_position_combo = self._add_combo_row(
@@ -822,6 +837,7 @@ class SettingsWidget(QWidget):
             idx = combo.findText(current)
             combo.setCurrentIndex(idx if idx >= 0 else 0)
             combo.blockSignals(False)
+        self._update_font_preview()
 
         track = self.config.get("competitions", "enabled")
         enabled = True if track is None else bool(track)
@@ -906,6 +922,25 @@ class SettingsWidget(QWidget):
     def _on_youtube_toggled(self, checked: bool):
         self.config.set("ui", "youtube", "enabled", value=checked)
 
+    def _apply_font_preview_theme(self):
+        if not hasattr(self, "font_preview"):
+            return
+        theme = self.config.get("ui", "theme") or "dark"
+        if theme == "dark":
+            bg, fg, border = "#1E1E1E", "#D4D4D4", "#3C3C3C"
+        else:
+            bg, fg, border = "#F5F5F5", "#333333", "#CCCCCC"
+        self.font_preview.setStyleSheet(
+            f"QTextEdit {{ background-color: {bg}; color: {fg}; "
+            f"border: 1px solid {border}; border-radius: 4px; padding: 6px; }}"
+        )
+
+    def _update_font_preview(self):
+        if not hasattr(self, "font_preview"):
+            return
+        self.font_preview.setFont(get_font(FontType.TEXT))
+        self._apply_font_preview_theme()
+
     def _apply_font_family(self, kind: str, family: str):
         if not family:
             return
@@ -916,6 +951,7 @@ class SettingsWidget(QWidget):
         app = QApplication.instance()
         if app:
             set_application_font(app)
+        self._update_font_preview()
         self.font_family_changed.emit()
 
     def _on_ui_font_changed(self, _text: str = ""):
