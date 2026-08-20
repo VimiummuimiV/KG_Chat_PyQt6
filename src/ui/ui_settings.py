@@ -7,7 +7,7 @@ from pathlib import Path
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QScrollArea,
     QCheckBox, QComboBox, QSpinBox, QSlider, QMessageBox, QTextEdit,
-    QApplication, QInputDialog, QFileDialog
+    QApplication, QInputDialog, QFileDialog, QToolButton
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QTimer
 
@@ -486,20 +486,55 @@ class SettingsWidget(QWidget):
         return self.config.get("ui", "spacing", "widget_elements") or 6
 
     def _create_section(self, title: str) -> QVBoxLayout:
-        """Create a titled section and append it to the scroll content."""
+        """Create a titled, collapsible section and append it to the scroll content."""
         section = QWidget()
         section_layout = QVBoxLayout()
         section_layout.setContentsMargins(4, 4, 4, 4)
         section_layout.setSpacing(self._spacing())
         section.setLayout(section_layout)
 
+        header_row = QHBoxLayout()
+        header_row.setSpacing(self._spacing())
         label = QLabel(title)
         label.setProperty("fontRole", "header")
         label.setFont(get_font(FontType.HEADER))
-        section_layout.addWidget(label)
+        header_row.addWidget(label)
+        header_row.addStretch(1)
+        section_layout.addLayout(header_row)
+
+        content = QWidget()
+        content_layout = QVBoxLayout()
+        content_layout.setContentsMargins(0, 0, 0, 0)
+        content_layout.setSpacing(self._spacing())
+        content.setLayout(content_layout)
+        section_layout.addWidget(content)
+
+        slug = re.sub(r"[^a-z0-9]+", "_", title.lower()).strip("_")
+        self._add_collapse_toggle(header_row, content, f"section_collapsed_{slug}")
 
         self._sections_layout.addWidget(section)
-        return section_layout
+        return content_layout
+
+    def _add_collapse_toggle(self, header_layout: QHBoxLayout, content: QWidget, config_key: str, default_collapsed: bool = False) -> QToolButton:
+        """Prepend a collapse arrow to header_layout, toggling content visibility and persisting state in config['ui'][config_key]."""
+        stored = self.config.get("ui", config_key)
+        collapsed = default_collapsed if stored is None else bool(stored)
+
+        btn = QToolButton()
+        btn.setCheckable(True)
+        btn.setAutoRaise(True)
+        btn.setArrowType(Qt.ArrowType.RightArrow if collapsed else Qt.ArrowType.DownArrow)
+        btn.setChecked(collapsed)
+        content.setVisible(not collapsed)
+
+        def _on_toggled(checked):
+            content.setVisible(not checked)
+            btn.setArrowType(Qt.ArrowType.RightArrow if checked else Qt.ArrowType.DownArrow)
+            self.config.set("ui", config_key, value=checked)
+
+        btn.toggled.connect(_on_toggled)
+        header_layout.insertWidget(0, btn)
+        return btn
 
     def _add_checkbox(self, section_layout: QVBoxLayout, text: str, on_toggled) -> QCheckBox:
         checkbox = QCheckBox(text)
@@ -685,6 +720,14 @@ class SettingsWidget(QWidget):
         self.text_font_combo.setFixedWidth(240)
         self.emoji_font_combo.setFixedWidth(240)
 
+        preview_header_row = QHBoxLayout()
+        preview_header_row.setSpacing(self._spacing())
+        preview_label = QLabel("🔎 Preview")
+        preview_label.setFont(get_font(FontType.UI))
+        preview_header_row.addWidget(preview_label)
+        preview_header_row.addStretch(1)
+        section.addLayout(preview_header_row)
+
         self.font_preview = QTextEdit()
         self.font_preview.setProperty("fontRole", "text")
         self.font_preview.setReadOnly(True)
@@ -699,6 +742,8 @@ class SettingsWidget(QWidget):
         self._apply_font_preview_theme()
         section.addWidget(self.font_preview)
         self._update_font_preview()
+
+        self._add_collapse_toggle(preview_header_row, self.font_preview, "font_preview_collapsed")
 
     def _build_notifications_section(self):
         section = self._create_section("⚠️ Notifications")
@@ -752,6 +797,8 @@ class SettingsWidget(QWidget):
         self.competitions_log.setAcceptRichText(True)
         self._apply_competitions_log_theme()
         section.addWidget(self.competitions_log)
+
+        self._add_collapse_toggle(log_header_row, self.competitions_log, "ws_log_collapsed")
 
         self.min_multiplier_combo = self._add_combo_row(
             section, "Minimum multiplier", ["x1+", "x2+", "x3+", "x5+"],
