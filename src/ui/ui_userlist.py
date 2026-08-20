@@ -84,9 +84,11 @@ class UserWidget(QWidget):
             self.username_label.setToolTip(self._build_moderator_tooltip(user))
 
         if user.role == 'visitor':
+            emoji_family = (config.get("font", "emoji_family") or "").lower()
+            block_mark = " ⛔" if "segoe" in emoji_family else " 🚫"
             QTimer.singleShot(700, lambda: not sip.isdeleted(self.username_label)
                 and self.user.role == 'visitor' and (
-                    self.username_label.setText(self.username_label.text() + " 🚫") or
+                    self.username_label.setText(self.username_label.text() + block_mark) or
                     self.username_label.setToolTip("Blocked")
                 ))
         
