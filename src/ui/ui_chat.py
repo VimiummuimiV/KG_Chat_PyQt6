@@ -2458,8 +2458,11 @@ class ChatWindow(QWidget):
 
     def _show_and_focus_window(self, game_id=None):
         """Show/focus the chat window; switch to the originating room tab if any."""
-        if not self.isVisible():
+        was_hidden = not self.isVisible()
+        if was_hidden:
+            self.setWindowOpacity(0)
             self.show()
+            QTimer.singleShot(50, lambda: self.setWindowOpacity(1))
         self.setWindowState(self.windowState() & ~Qt.WindowState.WindowMinimized | Qt.WindowState.WindowActive)
         self.activateWindow()
         self.raise_()
