@@ -291,7 +291,7 @@ class PopupNotification(QWidget):
         # Answer button - hide for ban, system, and competition messages
         if not data.is_ban and not data.is_system and not data.is_competition:
             self.answer_button = create_icon_button(
-                self.icons_path, "answer.svg", "Reply",
+                self.icons_path, "reply.svg", "Reply",
                 size_type="small", config=data.config
             )
             self.answer_button.clicked.connect(self._on_answer)
@@ -301,7 +301,7 @@ class PopupNotification(QWidget):
 
         if data.is_competition and data.open_room_callback and data.competition_game_id is not None:
             self.open_room_button = create_icon_button(
-                self.icons_path, "door-open.svg", "Open competition room",
+                self.icons_path, "chat.svg", "Open competition room",
                 size_type="small", config=data.config
             )
             self.open_room_button.clicked.connect(self._on_open_room)
