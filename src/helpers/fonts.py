@@ -33,6 +33,7 @@ class FontManager:
         self.font_scaler = None
         self._font_cache: dict = {}
         self._available_families: list[str] = []
+        self._available_emoji_families: list[str] = []
         self._loaded_dirs: set[str] = set()
         self._initialized = True
 
@@ -102,6 +103,42 @@ class FontManager:
         self._available_families = sorted(found, key=lambda s: s.lower())
         return list(self._available_families)
 
+    def get_available_emoji_families(self) -> list[str]:
+        """Emoji families: real Qt names from fonts/*Emoji* dirs + common system ones."""
+        if self._available_emoji_families:
+            return list(self._available_emoji_families)
+
+        found: set[str] = set()
+
+        # Bundled under fonts/ (folder name has Emoji/Color — e.g. Noto_Color_Emoji)
+        if self.fonts_dir.exists():
+            for d in sorted(self.fonts_dir.iterdir()):
+                if not d.is_dir() or d.name.startswith('.') or not self._is_emoji_dir(d.name):
+                    continue
+                for name in self._load_dir(d.name):
+                    found.add(name)
+
+        # System color-emoji fonts already known to Qt
+        system_names = QFontDatabase.families()
+        system_set = set(system_names)
+        for candidate in (
+            "Noto Color Emoji",
+            "Segoe UI Emoji",
+            "Apple Color Emoji",
+            "Twemoji Mozilla",
+            "Emoji One",
+            "JoyPixels",
+        ):
+            if candidate in system_set:
+                found.add(candidate)
+        for name in system_names:
+            low = name.lower()
+            if "emoji" in low and name not in found:
+                found.add(name)
+
+        self._available_emoji_families = sorted(found, key=lambda s: s.lower())
+        return list(self._available_emoji_families)
+
     def load_fonts(self):
         if self.loaded:
             return True
@@ -119,14 +156,11 @@ class FontManager:
         else:
             print("⚠️ No text fonts found")
 
-        emoji_family = self.config.get("font", "emoji_family") or "Noto Color Emoji"
-        emoji_file = self.fonts_dir / "Noto_Color_Emoji" / "NotoColorEmoji-Regular.ttf"
-        if emoji_file.exists():
-            font_id = QFontDatabase.addApplicationFont(str(emoji_file))
-            if font_id != -1:
-                print(f"✅ Loaded emoji font: {emoji_family}")
+        emoji_families = self.get_available_emoji_families()
+        if emoji_families:
+            print(f"✅ Emoji fonts: {', '.join(emoji_families)}")
         else:
-            print(f"⚠️ Could not load emoji font: {emoji_family}")
+            print("⚠️ No emoji fonts found")
 
         self.loaded = True
         return True
@@ -175,11 +209,8 @@ class FontManager:
 
         font = QFont(family, size, use_weight)
         font.setItalic(italic)
-        # Emoji fallback only for message text, not UI chrome.
-        if font_type == FontType.TEXT:
-            font.setFamilies([family, emoji_family])
-        else:
-            font.setFamily(family)
+        # Primary family + Emoji family fallback
+        font.setFamilies([family, emoji_family])
         self._font_cache[key] = font
         return font
 
@@ -228,6 +259,10 @@ def set_config(config):
 
 def get_available_font_families() -> list[str]:
     return _font_manager.get_available_font_families()
+
+
+def get_available_emoji_families() -> list[str]:
+    return _font_manager.get_available_emoji_families()
 
 
 def ensure_family_loaded(family_name: str) -> bool:

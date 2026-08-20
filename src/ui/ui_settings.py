@@ -13,8 +13,14 @@ from PyQt6.QtCore import Qt, pyqtSignal, QTimer
 
 from helpers.create import create_icon_button
 from helpers.fonts import (
-    get_font, FontType, get_available_font_families,
-    ensure_family_loaded, invalidate_font_cache, set_application_font, set_config,
+    get_font,
+    FontType,
+    get_available_font_families,
+    get_available_emoji_families,
+    ensure_family_loaded,
+    invalidate_font_cache,
+    set_application_font,
+    set_config,
 )
 from helpers.startup_manager import StartupManager
 from helpers.voice_engine import play_sound
@@ -667,8 +673,12 @@ class SettingsWidget(QWidget):
             section, "Text size", 12, 24, self._on_text_font_size_changed,
             default=15
         )
+        self.emoji_font_combo = self._add_combo_row(
+            section, "Emoji font", [], self._on_emoji_font_changed
+        )
         self.ui_font_combo.setFixedWidth(240)
         self.text_font_combo.setFixedWidth(240)
+        self.emoji_font_combo.setFixedWidth(240)
 
         self.font_preview = QTextEdit()
         self.font_preview.setProperty("fontRole", "text")
@@ -678,7 +688,8 @@ class SettingsWidget(QWidget):
         self.font_preview.setPlainText(
             "Шла Маша по шоссе и сосала сушку\n"
             "The quick brown fox jumps over the lazy dog\n"
-            "0 1 2 3 4 5 6 7 8 9"
+            "0 1 2 3 4 5 6 7 8 9\n"
+            "😀 🎉 🚀 ❤️ 👍 🔥 ✨"
         )
         self._apply_font_preview_theme()
         section.addWidget(self.font_preview)
@@ -696,7 +707,8 @@ class SettingsWidget(QWidget):
         )
 
         self.competitions_bypass_mute_checkbox = self._add_checkbox(
-            section, "Notify about competitions even when muted", self._on_competitions_bypass_mute_toggled
+            section, "Notify about competitions even when notifications are disabled",
+            self._on_competitions_bypass_mute_toggled
         )
 
     def _build_competitions_section(self):
@@ -856,6 +868,15 @@ class SettingsWidget(QWidget):
             combo.setCurrentIndex(idx if idx >= 0 else 0)
             combo.blockSignals(False)
 
+        emoji_families = get_available_emoji_families() or ["Noto Color Emoji"]
+        self.emoji_font_combo.blockSignals(True)
+        self.emoji_font_combo.clear()
+        self.emoji_font_combo.addItems(emoji_families)
+        current_emoji = self.config.get("font", "emoji_family") or "Noto Color Emoji"
+        idx = self.emoji_font_combo.findText(current_emoji)
+        self.emoji_font_combo.setCurrentIndex(idx if idx >= 0 else 0)
+        self.emoji_font_combo.blockSignals(False)
+
         ui_size = int(self.config.get("font", "ui", "size") or 12)
         text_size = (
             self.font_scaler.get_text_size()
@@ -1011,6 +1032,19 @@ class SettingsWidget(QWidget):
 
     def _on_text_font_changed(self, _text: str = ""):
         self._apply_font_family("text", self.text_font_combo.currentText())
+
+    def _on_emoji_font_changed(self, _text: str = ""):
+        family = self.emoji_font_combo.currentText()
+        if not family:
+            return
+        self.config.set("font", "emoji_family", value=family)
+        set_config(self.config)
+        invalidate_font_cache()
+        app = QApplication.instance()
+        if app:
+            set_application_font(app)
+        self._update_font_preview()
+        self.font_family_changed.emit()
 
     def _on_ui_font_size_changed(self, value: int):
         # Debounce: slider fires every step; only persist/apply after idle.
