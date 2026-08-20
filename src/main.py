@@ -70,6 +70,19 @@ class Application(QObject):
             )
             sys.exit(0)
 
+        # Initialize settings path
+        self.settings_path = Path(__file__).parent / "settings"
+
+        # Initialize account manager and config
+        self.config_path = self.settings_path / "config.json"
+        self.account_manager = AccountManager(str(self.config_path))
+        self.config = Config(str(self.config_path))
+        set_config(self.config)
+
+        # Initialize font scaler
+        self.font_scaler = FontScaler(self.config)
+        set_font_scaler(self.font_scaler)
+
         load_fonts()
         set_application_font(self.app)
 
@@ -84,19 +97,6 @@ class Application(QObject):
         # Initialize tray badge manager
         self.tray_badge = TrayIconWithBadge(self.icons_path)
         self.unread_count = 0
-
-        # Initialize settings path
-        self.settings_path = Path(__file__).parent / "settings"
-        
-        # Initialize account manager and config
-        self.config_path = self.settings_path / "config.json"
-        self.account_manager = AccountManager(str(self.config_path))
-        self.config = Config(str(self.config_path))
-        set_config(self.config)
-        
-        # Initialize font scaler
-        self.font_scaler = FontScaler(self.config)
-        set_font_scaler(self.font_scaler)
         
         # Initialize pronunciation manager
         self.pronunciation_manager = PronunciationManager(self.settings_path)
