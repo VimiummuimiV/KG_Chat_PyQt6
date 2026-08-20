@@ -48,6 +48,7 @@ CHAT_SCROLL_KB = [
 USERLIST_MOUSE = [
     ("Left click",       "View user profile"),
     ("Ctrl+Click",       "Start private chat"),
+    ("Middle click",     "Open game chat (if in a race)"),
     ("Right click",      "Context menu"),
 ]
 
