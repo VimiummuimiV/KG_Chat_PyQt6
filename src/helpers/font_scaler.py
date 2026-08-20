@@ -5,7 +5,7 @@ from PyQt6.QtGui import QFont
 
 
 class FontScaler(QObject):
-    font_size_changed = pyqtSignal() # Fires immediately on any change (drag/wheel/keyboard)
+    font_size_changed = pyqtSignal()  # Fires immediately on any change (drag/wheel/keyboard)
     font_size_committed = pyqtSignal()  # Fires on release (drag) or after idle (wheel/keyboard)
 
     TEXT_MIN = 12
@@ -16,7 +16,7 @@ class FontScaler(QObject):
         self.config = config
         self._text_size = max(
             self.TEXT_MIN,
-            min(self.TEXT_MAX, self.config.get("ui", "text_font_size") or 17)
+            min(self.TEXT_MAX, self.config.get("font", "text", "size") or 17)
         )
 
         self._save_timer = QTimer(self)
@@ -49,7 +49,7 @@ class FontScaler(QObject):
             self._commit_timer.start(150)
 
     def _do_save(self):
-        self.config.set("ui", "text_font_size", value=self._text_size)
+        self.config.set("font", "text", "size", value=self._text_size)
 
 
 class _SliderWheelFilter(QObject):

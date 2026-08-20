@@ -10,7 +10,10 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, pyqtSignal, QTimer
 
 from helpers.create import create_icon_button
-from helpers.fonts import get_font, FontType
+from helpers.fonts import (
+    get_font, FontType, get_available_font_families,
+    ensure_family_loaded, invalidate_font_cache, set_application_font, set_config,
+)
 from helpers.startup_manager import StartupManager
 from helpers.voice_engine import play_sound
 from helpers.data import get_data_dir
@@ -455,6 +458,7 @@ class SettingsWidget(QWidget):
     back_requested = pyqtSignal()
     sound_changed = pyqtSignal()
     competition_log_clear_requested = pyqtSignal()
+    font_family_changed = pyqtSignal()
 
     def __init__(self, config, icons_path: Path):
         super().__init__()
@@ -481,6 +485,7 @@ class SettingsWidget(QWidget):
         section.setLayout(section_layout)
 
         label = QLabel(title)
+        label.setProperty("fontRole", "header")
         label.setFont(get_font(FontType.HEADER))
         section_layout.addWidget(label)
 
@@ -504,7 +509,9 @@ class SettingsWidget(QWidget):
 
         combo = NoWheelComboBox()
         combo.setFont(get_font(FontType.UI))
+        combo.blockSignals(True)
         combo.addItems(items)
+        combo.blockSignals(False)
         combo.setFixedWidth(160)
         combo.currentTextChanged.connect(on_changed)
         row.addWidget(combo)
@@ -585,6 +592,7 @@ class SettingsWidget(QWidget):
         header_layout.addWidget(self.back_button)
 
         title_label = QLabel("Settings")
+        title_label.setProperty("fontRole", "header")
         title_label.setFont(get_font(FontType.HEADER))
         header_layout.addWidget(title_label, stretch=1)
 
@@ -603,6 +611,7 @@ class SettingsWidget(QWidget):
 
         self._build_startup_section()
         self._build_chat_section()
+        self._build_fonts_section()
         self._build_notifications_section()
         self._build_competitions_section()
         self._build_sound_section()
@@ -629,6 +638,18 @@ class SettingsWidget(QWidget):
         self.youtube_checkbox = self._add_checkbox(
             section, "Enable YouTube link previews", self._on_youtube_toggled
         )
+
+    def _build_fonts_section(self):
+        section = self._create_section("🅰️ Fonts")
+        families = get_available_font_families() or ["Roboto"]
+        self.ui_font_combo = self._add_combo_row(
+            section, "UI font", families, self._on_ui_font_changed
+        )
+        self.text_font_combo = self._add_combo_row(
+            section, "Text font", families, self._on_text_font_changed
+        )
+        self.ui_font_combo.setFixedWidth(300)
+        self.text_font_combo.setFixedWidth(300)
 
     def _build_notifications_section(self):
         section = self._create_section("⚠️ Notifications")
@@ -789,6 +810,19 @@ class SettingsWidget(QWidget):
         youtube_enabled = self.config.get("ui", "youtube", "enabled")
         self.youtube_checkbox.setChecked(True if youtube_enabled is None else bool(youtube_enabled))
 
+        families = get_available_font_families() or ["Roboto"]
+        for combo, kind in (
+            (self.ui_font_combo, "ui"),
+            (self.text_font_combo, "text"),
+        ):
+            combo.blockSignals(True)
+            combo.clear()
+            combo.addItems(families)
+            current = self.config.get("font", kind, "family") or "Roboto"
+            idx = combo.findText(current)
+            combo.setCurrentIndex(idx if idx >= 0 else 0)
+            combo.blockSignals(False)
+
         track = self.config.get("competitions", "enabled")
         enabled = True if track is None else bool(track)
         self.track_competitions_checkbox.setChecked(enabled)
@@ -871,6 +905,24 @@ class SettingsWidget(QWidget):
 
     def _on_youtube_toggled(self, checked: bool):
         self.config.set("ui", "youtube", "enabled", value=checked)
+
+    def _apply_font_family(self, kind: str, family: str):
+        if not family:
+            return
+        self.config.set("font", kind, "family", value=family)
+        set_config(self.config)
+        ensure_family_loaded(family)
+        invalidate_font_cache()
+        app = QApplication.instance()
+        if app:
+            set_application_font(app)
+        self.font_family_changed.emit()
+
+    def _on_ui_font_changed(self, _text: str = ""):
+        self._apply_font_family("ui", self.ui_font_combo.currentText())
+
+    def _on_text_font_changed(self, _text: str = ""):
+        self._apply_font_family("text", self.text_font_combo.currentText())
 
     def _on_track_competitions_toggled(self, checked: bool):
         self.config.set("competitions", "enabled", value=checked)

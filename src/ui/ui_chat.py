@@ -2525,6 +2525,10 @@ class ChatWindow(QWidget):
         users = self.xmpp_client.user_list.get_online()
         self.user_list_widget.add_users(users=users, bulk=True)
 
+    def on_font_family_changed(self):
+        """Apply font family change immediately (no debounce)."""
+        self._apply_font_size_change()
+
     def on_font_size_changed(self):
         """Handle font size changes from font scaler - refresh all text"""
         # Debounce: restart timer on every call so rapid slider moves only
@@ -2535,10 +2539,30 @@ class ChatWindow(QWidget):
             self._font_size_timer.timeout.connect(self._apply_font_size_change)
         self._font_size_timer.start(80)
 
+    @staticmethod
+    def _set_font_on_tree(root, font, header_font=None):
+        """Apply font to root and children. Labels with fontRole=header keep header size."""
+        if root is None:
+            return
+        from PyQt6.QtWidgets import (
+            QLabel, QCheckBox, QComboBox, QLineEdit, QSpinBox,
+            QTextEdit, QAbstractButton, QGroupBox,
+        )
+        types = (QLabel, QCheckBox, QComboBox, QLineEdit, QSpinBox,
+                 QTextEdit, QAbstractButton, QGroupBox)
+        root.setFont(font)
+        for w in root.findChildren(types):
+            if header_font is not None and w.property("fontRole") == "header":
+                w.setFont(header_font)
+            else:
+                w.setFont(font)
+        root.update()
+
     def _apply_font_size_change(self):
-        """Actually apply font size change after debounce"""
+        """Actually apply font size / family change"""
         new_font = get_font(FontType.TEXT)
-        
+        ui_font = get_font(FontType.UI)
+
         # Update message delegates AND their renderers (general + chatlog + game rooms)
         message_widgets = [self.messages_widget, self.chatlog_widget, self.chatlog_split_widget]
         message_widgets.extend(
@@ -2577,39 +2601,34 @@ class ChatWindow(QWidget):
         for gr in self.game_rooms.values():
             if gr:
                 _update_userlist_fonts(gr.user_list_widget)
-        
+
         if self.chatlog_userlist_widget:
             for user_widget in self.chatlog_userlist_widget.user_widgets.values():
                 user_widget.username_label.setFont(new_font)
                 user_widget.count_label.setFont(new_font)
             self.chatlog_userlist_widget.update()
-        
-        # Update profile widget
-        if hasattr(self, 'profile_widget') and self.profile_widget:
-            if self.profile_widget.history_widget:
-                [label.setFont(new_font) for label in self.profile_widget.history_widget.findChildren(QLabel)]
-                self.profile_widget.history_widget._adjust_height()
-            # Rebuild cards so StatCard picks up the new font-scaled min width
-            if hasattr(self.profile_widget, '_cards_data'):
-                self.profile_widget._rebuild_card_layout(getattr(self.profile_widget, '_last_cols', 3))
-            self.profile_widget.update()
-        
-        # Update pronunciation widget inputs
-        if hasattr(self, 'pronunciation_widget') and self.pronunciation_widget:
-            for item in self.pronunciation_widget.items:
-                item.original_input.setFont(new_font)
-                item.pronunciation_input.setFont(new_font)
-            self.pronunciation_widget.update()
-        
-        # Update ban list widget inputs
-        if hasattr(self, 'ban_list_widget') and self.ban_list_widget:
-            # Iterate over both permanent and temporary ban items
-            for item in self.ban_list_widget.perm_items + self.ban_list_widget.temp_items:
-                item.username_input.setFont(new_font)
-                item.user_id_input.setFont(new_font)
-                if hasattr(item, 'duration_button'):
-                    item.duration_button.setFont(new_font)
-            self.ban_list_widget.update()
+
+        # Stacked pages
+        header_font = get_font(FontType.HEADER)
+        if getattr(self, 'settings_widget', None):
+            self._set_font_on_tree(self.settings_widget, ui_font, header_font)
+
+        if getattr(self, 'ban_list_widget', None):
+            self._set_font_on_tree(self.ban_list_widget, new_font, header_font)
+
+        if getattr(self, 'pronunciation_widget', None):
+            self._set_font_on_tree(self.pronunciation_widget, new_font, header_font)
+
+        if getattr(self, 'profile_widget', None):
+            self._set_font_on_tree(self.profile_widget, new_font, header_font)
+            pw = self.profile_widget
+            if getattr(pw, 'history_widget', None):
+                pw.history_widget._adjust_height()
+            if hasattr(pw, '_cards_data'):
+                pw._rebuild_card_layout(getattr(pw, '_last_cols', 3))
+
+        if getattr(self, 'parser_widget', None):
+            self._set_font_on_tree(self.parser_widget, new_font, header_font)
         
 
     def send_message(self):
@@ -2897,6 +2916,7 @@ class ChatWindow(QWidget):
             self.settings_widget.competition_log_clear_requested.connect(
                 self.clear_competition_log
             )
+            self.settings_widget.font_family_changed.connect(self.on_font_family_changed)
             self.stacked_widget.addWidget(self.settings_widget)
         else:
             # Reflect any state changed elsewhere (tray menu, hotkeys) since it was last shown

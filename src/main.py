@@ -19,7 +19,12 @@ sys.path.insert(0, str(src_path if src_path.name == 'src' else src_path / 'src')
 
 from ui.ui_accounts import AccountWindow
 from ui.ui_chat import ChatWindow
-from helpers.fonts import load_fonts, set_application_font, set_font_scaler
+from helpers.fonts import (
+    load_fonts,
+    set_application_font,
+    set_font_scaler,
+    set_config
+)
 from helpers.config import Config
 from helpers.username_color_manager import(
     change_username_color,
@@ -87,6 +92,7 @@ class Application(QObject):
         self.config_path = self.settings_path / "config.json"
         self.account_manager = AccountManager(str(self.config_path))
         self.config = Config(str(self.config_path))
+        set_config(self.config)
         
         # Initialize font scaler
         self.font_scaler = FontScaler(self.config)
