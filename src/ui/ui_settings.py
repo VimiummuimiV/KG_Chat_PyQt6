@@ -1085,6 +1085,9 @@ class SettingsWidget(QWidget):
         app = QApplication.instance()
         if app:
             set_application_font(app)
+        self.competitions_log.setFont(get_font(FontType.UI))
+        if not self.competitions_log.isEnabled():
+            self.competitions_log.setFixedHeight(self._collapsed_log_height())
         self.font_family_changed.emit()
 
     def _on_text_font_size_changed(self, value: int):
@@ -1114,6 +1117,9 @@ class SettingsWidget(QWidget):
         }.get(kind, c["default"])
         return f'<span style="color:{color}"><b>{text}</b></span>'
 
+    def _collapsed_log_height(self) -> int:
+        return max(COMPETITIONS_LOG_HEIGHT_COLLAPSED, self.competitions_log.fontMetrics().height() + 16)
+
     def _update_competitions_status(self, enabled: bool, connection: str | None = None):
         """connection: connecting | connected | disconnected (optional).
         Log text is owned by ChatWindow buffer — do not clear it here when enabled.
@@ -1121,8 +1127,9 @@ class SettingsWidget(QWidget):
         if not enabled:
             self._competitions_accent_color = self._competitions_log_colors()["error"]
             self._apply_competitions_log_theme()
+            self.competitions_log.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
             self.competitions_log.setEnabled(False)
-            self.competitions_log.setFixedHeight(COMPETITIONS_LOG_HEIGHT_COLLAPSED)
+            self.competitions_log.setFixedHeight(self._collapsed_log_height())
             self.competitions_log.setHtml(self._status_log_html("Tracking disabled", "disabled"))
             return
 
@@ -1137,6 +1144,10 @@ class SettingsWidget(QWidget):
             state, CONNECTION_STATES["reconnecting"]
         )
         self._apply_competitions_log_theme()
+        self.competitions_log.setVerticalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAlwaysOff if state == "disconnected"
+            else Qt.ScrollBarPolicy.ScrollBarAsNeeded
+        )
 
     def _competitions_log_colors(self) -> dict:
         theme = self.config.get("ui", "theme") or "dark"
