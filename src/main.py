@@ -239,7 +239,6 @@ class Application(QObject):
     def _setup_notification_menu(self, parent_menu: QMenu, icon):
         """Tray: notifications on/off only. Stack/Replace is chosen in Settings."""
         self.notification_enabled_action = QAction("Notifications", self.app, checkable=True)
-        self.notification_enabled_action.setIcon(icon("notification.svg"))
         muted = self.config.get("notification", "muted") or False
         self.notification_enabled_action.setChecked(not muted)
         self.notification_enabled_action.triggered.connect(self._on_notification_enabled_toggled)
