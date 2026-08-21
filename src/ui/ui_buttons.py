@@ -125,7 +125,7 @@ class ButtonPanel(QWidget):
         enabled = self.config.get("sound", "effects_enabled")
         if enabled is None:
             enabled = True
-        return "Effects Sound: Enabled (M)" if enabled else "Effects Sound: Disabled (M)"
+        return "Sound Effects: Enabled (M)" if enabled else "Sound Effects: Disabled (M)"
     
     def _get_pin_icon(self) -> str:
         """Get current pin icon based on always-on-top state"""

@@ -846,7 +846,12 @@ class SettingsWidget(QWidget):
     def _build_sound_section(self):
         section = self._create_section("🔊 Sound")
         self.mention_always_checkbox = self._add_checkbox(
-            section, "Always play mention sound", self._on_mention_always_toggled
+            section, "Play mention sound even when chat is focused",
+            self._on_mention_always_toggled
+        )
+        self.competition_always_checkbox = self._add_checkbox(
+            section, "Play competition sound even when chat is focused",
+            self._on_competition_always_toggled
         )
 
         self.sound_selectors = {}
@@ -862,11 +867,6 @@ class SettingsWidget(QWidget):
             self.sound_selectors[kind] = selector
             section.addWidget(selector)
 
-        # Competition-sound-specific behavior, grouped together after the selectors
-        self.competitions_force_sound_checkbox = self._add_checkbox(
-            section, "Always play competition sound",
-            self._on_competitions_force_sound_toggled
-        )
         self.competition_sound_repeat_checkbox = self._add_checkbox(
             section, "Repeat competition sound until you're back",
             self._on_competition_sound_repeat_toggled
@@ -889,13 +889,13 @@ class SettingsWidget(QWidget):
             self.clear_private_checkbox, self.youtube_checkbox, self.browser_combo,
             self.track_competitions_checkbox, self.competitions_bypass_mute_checkbox,
             self.mentions_bypass_mute_checkbox,
-            self.competitions_force_sound_checkbox, self.min_multiplier_combo,
+            self.min_multiplier_combo,
             self.show_cost_checkbox,
             self.show_players_checkbox, self.max_player_chips_spin, self.sort_players_by_level_checkbox,
             self.competitions_alert_lead_spin, self.competitions_notify_window_checkbox,
             self.competitions_notify_start_spin, self.competitions_notify_end_spin,
             self.notification_position_combo, self.notification_width_spin,
-            self.mention_always_checkbox,
+            self.mention_always_checkbox, self.competition_always_checkbox,
             self.competition_sound_repeat_checkbox, self.competition_sound_repeat_interval_spin,
         )
         if hasattr(self, "sound_selectors"):
@@ -973,9 +973,6 @@ class SettingsWidget(QWidget):
         self.mentions_bypass_mute_checkbox.setChecked(
             bool(self.config.get("notification", "mentions_bypass_mute"))
         )
-        self.competitions_force_sound_checkbox.setChecked(
-            bool(self.config.get("sound", "competition_sound_force"))
-        )
         min_m = self.config.get("competitions", "min_multiplier") or "x1+"
         idx = self.min_multiplier_combo.findText(min_m)
         self.min_multiplier_combo.setCurrentIndex(idx if idx >= 0 else 0)
@@ -1008,7 +1005,11 @@ class SettingsWidget(QWidget):
         self.notification_width_spin.setValue(int(self.config.get("ui", "notification_width") or NOTIFICATION_WIDTH_DEFAULT))
         self.notification_width_spin._slider.setValue(self.notification_width_spin.value())
 
-        self.mention_always_checkbox.setChecked(bool(self.config.get("sound", "play_mention_sound_always")))
+        mention_always = self.config.get("sound", "play_mention_sound_always")
+        self.mention_always_checkbox.setChecked(False if mention_always is None else bool(mention_always))
+
+        competition_always = self.config.get("sound", "play_competition_sound_always")
+        self.competition_always_checkbox.setChecked(True if competition_always is None else bool(competition_always))
 
         self.competition_sound_repeat_checkbox.setChecked(
             bool(self.config.get("sound", "competition_repeat_enabled"))
@@ -1163,9 +1164,6 @@ class SettingsWidget(QWidget):
 
     def _on_mentions_bypass_mute_toggled(self, checked: bool):
         self.config.set("notification", "mentions_bypass_mute", value=checked)
-
-    def _on_competitions_force_sound_toggled(self, checked: bool):
-        self.config.set("sound", "competition_sound_force", value=checked)
 
     def _status_log_html(self, text: str, kind: str) -> str:
         c = self._competitions_log_colors()
@@ -1354,3 +1352,6 @@ class SettingsWidget(QWidget):
 
     def _on_mention_always_toggled(self, checked: bool):
         self.config.set("sound", "play_mention_sound_always", value=checked)
+
+    def _on_competition_always_toggled(self, checked: bool):
+        self.config.set("sound", "play_competition_sound_always", value=checked)

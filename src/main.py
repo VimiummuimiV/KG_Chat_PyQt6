@@ -219,7 +219,7 @@ class Application(QObject):
         self.sound_menu.addAction(self.voice_sound_action)
         
         # Effects sound toggle action
-        self.effects_sound_action = QAction("Effects Sound", self.app, checkable=True)
+        self.effects_sound_action = QAction("Sound Effects", self.app, checkable=True)
         self.effects_sound_action.triggered.connect(
             lambda: self._on_sound_toggled("effects_enabled", self.effects_sound_action)
         )

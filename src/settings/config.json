@@ -147,15 +147,15 @@
   "sound": {
     "tts_enabled": false,
     "effects_enabled": true,
-    "play_mention_sound_always": false,
-    "competition_sound_force": false,
     "selected": {
       "mention": "tick_short.mp3",
       "competition": "kalimba_pluck_run.mp3",
       "ban": "bullet_hit.mp3"
     },
     "competition_repeat_interval": 5,
-    "competition_repeat_enabled": false
+    "competition_repeat_enabled": false,
+    "play_competition_sound_always": false,
+    "play_mention_sound_always": false
   },
   "notification": {
     "mode": "replace",
