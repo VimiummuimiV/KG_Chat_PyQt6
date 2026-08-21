@@ -761,8 +761,12 @@ class SettingsWidget(QWidget):
             self._on_competitions_bypass_mute_toggled
         )
         self.mentions_bypass_mute_checkbox = self._add_checkbox(
-            section, "Notify about mentions even when notifications are disabled",
+            section, "Notify about mentions and private messages even when notifications are disabled",
             self._on_mentions_bypass_mute_toggled
+        )
+        self.bans_bypass_mute_checkbox = self._add_checkbox(
+            section, "Notify about bans even when notifications are disabled",
+            self._on_bans_bypass_mute_toggled
         )
 
     def _build_competitions_section(self):
@@ -888,7 +892,7 @@ class SettingsWidget(QWidget):
             self.auto_login_checkbox, self.start_minimized_checkbox, self.start_with_system_checkbox,
             self.clear_private_checkbox, self.youtube_checkbox, self.browser_combo,
             self.track_competitions_checkbox, self.competitions_bypass_mute_checkbox,
-            self.mentions_bypass_mute_checkbox,
+            self.mentions_bypass_mute_checkbox, self.bans_bypass_mute_checkbox,
             self.min_multiplier_combo,
             self.show_cost_checkbox,
             self.show_players_checkbox, self.max_player_chips_spin, self.sort_players_by_level_checkbox,
@@ -972,6 +976,9 @@ class SettingsWidget(QWidget):
         )
         self.mentions_bypass_mute_checkbox.setChecked(
             bool(self.config.get("notification", "mentions_bypass_mute"))
+        )
+        self.bans_bypass_mute_checkbox.setChecked(
+            bool(self.config.get("notification", "bans_bypass_mute"))
         )
         min_m = self.config.get("competitions", "min_multiplier") or "x1+"
         idx = self.min_multiplier_combo.findText(min_m)
@@ -1164,6 +1171,9 @@ class SettingsWidget(QWidget):
 
     def _on_mentions_bypass_mute_toggled(self, checked: bool):
         self.config.set("notification", "mentions_bypass_mute", value=checked)
+
+    def _on_bans_bypass_mute_toggled(self, checked: bool):
+        self.config.set("notification", "bans_bypass_mute", value=checked)
 
     def _status_log_html(self, text: str, kind: str) -> str:
         c = self._competitions_log_colors()

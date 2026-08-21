@@ -790,14 +790,15 @@ class PopupManager:
   
     def show_notification(self, data: NotificationData):
         """Create and show notification (unless muted).
-        Competitions / mentions can bypass mute via
-        notification.competitions_bypass_mute / mentions_bypass_mute
+        Competitions / mentions+private / bans can bypass mute via config
         """
         bypass_mute = False
         if data.config:
             if data.is_competition and data.config.get("notification", "competitions_bypass_mute"):
                 bypass_mute = True
-            elif data.is_mention and data.config.get("notification", "mentions_bypass_mute"):
+            elif (data.is_mention or data.is_private) and data.config.get("notification", "mentions_bypass_mute"):
+                bypass_mute = True
+            elif data.is_ban and data.config.get("notification", "bans_bypass_mute"):
                 bypass_mute = True
         if self.muted and not bypass_mute:
             return None

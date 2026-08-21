@@ -2192,9 +2192,12 @@ class ChatWindow(QWidget):
             cost=live.get("cost"),
         )
 
-        # Competition sound plays regardless of window focus, like ban sound
-        self._play_competition_sound()
-        self._start_competition_sound_repeat()
+        play_competition_sound_always = self.config.get("sound", "play_competition_sound_always")
+        if play_competition_sound_always is None:
+            play_competition_sound_always = True
+        if not self.isActiveWindow() or play_competition_sound_always:
+            self._play_competition_sound()
+            self._start_competition_sound_repeat()
 
         # Scroll to competition message and keep it centered while chips grow
         self._competition_focus_gid = gid
@@ -2437,8 +2440,9 @@ class ChatWindow(QWidget):
             self._play_ban_sound()
 
         play_mention_sound_always = self.config.get("sound", "play_mention_sound_always") or False
-        # Play mention sound if message mentions me and either window not active or config overrides it to always play
-        if self._message_mentions_me(msg) and (not self.isActiveWindow() or play_mention_sound_always):
+        # Mention sound for @mentions and private messages; same focus rule
+        is_important = self._message_mentions_me(msg) or getattr(msg, "is_private", False)
+        if is_important and (not self.isActiveWindow() or play_mention_sound_always):
             self._play_mention_sound()
 
         # Only show notifications when the window is not active
@@ -2549,12 +2553,9 @@ class ChatWindow(QWidget):
         self._play_notification_sound(self.ban_sound_path)
 
     def _play_competition_sound(self):
-        """Falls back to mention sound if no dedicated file is present.
-        Can bypass the effects-sound toggle via sound.competition_sound_force
-        in config (set from Settings)."""
+        """Falls back to mention sound if no dedicated file is present."""
         path = self.competition_sound_path or self.mention_sound_path
-        force = self.config.get("sound", "competition_sound_force") or False
-        self._play_notification_sound(path, force=force)
+        self._play_notification_sound(path)
 
     def on_presence(self, pres):
         if not self.xmpp_client or self.initial_roster_loading:
