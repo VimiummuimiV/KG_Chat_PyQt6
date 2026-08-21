@@ -748,7 +748,7 @@ class SettingsWidget(QWidget):
     def _build_notifications_section(self):
         section = self._create_section("⚠️ Notifications")
         self.notification_mode_combo = self._add_combo_row(
-            section, "Notification mode", ["Stack", "Replace"],
+            section, "Notification mode", ["Stack", "Replace", "Scroll"],
             self._on_notification_mode_changed
         )
         self.notification_position_combo = self._add_combo_row(
@@ -1364,7 +1364,7 @@ class SettingsWidget(QWidget):
 
     def _on_notification_mode_changed(self, text: str):
         mode = (text or "stack").lower()
-        if mode not in ("stack", "replace"):
+        if mode not in ("stack", "replace", "scroll"):
             return
         self.config.set("notification", "mode", value=mode)
         from components.notification import popup_manager

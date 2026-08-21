@@ -76,6 +76,9 @@
     "emoticon_selector_visible": false,
     "always_on_top": false,
     "recent_emoticons": [
+      "firework",
+      "confetti",
+      "carpet",
       "moose",
       "cheers",
       "uzi",
@@ -86,16 +89,13 @@
       "first",
       "ghost",
       "grats",
-      "carpet",
       "pirates",
       "dwarf",
       "boredom",
       "sick",
       "spiteful",
       "badcomp",
-      "clapping",
-      "kidtruck",
-      "spider"
+      "clapping"
     ],
     "window": {
       "width": null,
@@ -134,7 +134,7 @@
         "startup": true,
         "chat": true,
         "fonts": true,
-        "notifications": true,
+        "notifications": false,
         "competitions": false,
         "sound": true
       },
@@ -158,8 +158,8 @@
     "play_mention_sound_always": false
   },
   "notification": {
-    "mode": "stack",
-    "muted": true,
+    "mode": "scroll",
+    "muted": false,
     "competitions_bypass_mute": true,
     "mentions_bypass_mute": true,
     "bans_bypass_mute": true

@@ -739,6 +739,14 @@ class PopupNotification(QWidget):
         threading.Thread(target=_send, daemon=True).start()
         QTimer.singleShot(100, self._on_close)
   
+    def wheelEvent(self, event):
+        """Scroll through the notification stack in scroll mode"""
+        if self.manager.notification_mode == "scroll":
+            self.manager.scroll_by(event.angleDelta().y())
+            event.accept()
+        else:
+            super().wheelEvent(event)
+
     def enterEvent(self, event):
         """Mouse entered - stop hiding"""
         self.is_hovered = True
@@ -777,12 +785,20 @@ class PopupManager:
         self.config = None
         self.notification_mode = "stack"
         self.muted = False
+        self.scroll_offset = 0
         self.emoticon_selector = None  # Single shared instance, created on first use
   
     def set_notification_mode(self, mode: str):
-        """Set notification mode: 'stack' or 'replace'"""
-        if mode in ["stack", "replace"]:
+        """Set notification mode: 'stack', 'replace' or 'scroll'"""
+        if mode in ["stack", "replace", "scroll"]:
             self.notification_mode = mode
+
+    def scroll_by(self, delta: int):
+        """Shift the notification stack in scroll mode; clamped in _position_and_cleanup"""
+        if self.notification_mode != "scroll" or not self.popups:
+            return
+        self.scroll_offset = max(0, self.scroll_offset - delta)
+        self._position_and_cleanup()
   
     def set_muted(self, muted: bool):
         """Set muted state"""
@@ -827,6 +843,8 @@ class PopupManager:
         """Remove popup and reposition"""
         if popup in self.popups:
             self.popups.remove(popup)
+            if not self.popups:
+                self.scroll_offset = 0
             self._position_and_cleanup()
   
     def close_all(self):
@@ -834,6 +852,7 @@ class PopupManager:
         for popup in list(self.popups):
             popup.close_immediately()
         self.popups.clear()
+        self.scroll_offset = 0
 
     def close_by_tag(self, tag: str):
         """Close notifications with the given tag"""
@@ -869,18 +888,23 @@ class PopupManager:
         else: # center (default)
             x = screen.x() + (screen.width() - popup_width) // 2
       
+        heights = [p.height() for p in self.popups]
+        total_height = sum(heights) + self.gap * max(0, len(heights) - 1)
+        available_height = screen.height() - 40
+
+        # In scroll mode, clamp offset instead of dropping popups
+        if self.notification_mode == "scroll":
+            max_offset = max(0, total_height - available_height)
+            self.scroll_offset = min(self.scroll_offset, max_offset)
+
         # Position all popups from top down
-        current_y = screen.y() + 20
+        current_y = screen.y() + 20 - (self.scroll_offset if self.notification_mode == "scroll" else 0)
         for popup in self.popups:
             popup.move(x, current_y)
             current_y += popup.height() + self.gap
         
         # Only handle overflow in stack mode
         if self.notification_mode == "stack":
-            heights = [p.height() for p in self.popups]
-            total_height = sum(heights) + self.gap * max(0, len(heights) - 1)
-            available_height = screen.height() - 40
-          
             while total_height > available_height and len(self.popups) > 1:
                 # Find the oldest notification that doesn't have an active reply field
                 removed = False
