@@ -556,7 +556,7 @@ class SettingsWidget(QWidget):
         combo.blockSignals(True)
         combo.addItems(items)
         combo.blockSignals(False)
-        combo.setFixedWidth(160)
+        combo.setFixedWidth(240)
         combo.currentTextChanged.connect(on_changed)
         row.addWidget(combo)
         section_layout.addLayout(row)
@@ -759,6 +759,13 @@ class SettingsWidget(QWidget):
             section, "Notification width", NOTIFICATION_WIDTH_DEFAULT, 1000, self._on_notification_width_changed,
             default=NOTIFICATION_WIDTH_DEFAULT
         )
+        # When to start the auto-hide countdown. Manual = only body click / ×.
+        self.notification_hide_on_combo = self._add_combo_row(
+            section,
+            "Hide notifications on",
+            ["Manual", "Mouse", "Keyboard", "Mouse or Keyboard"],
+            self._on_notification_hide_on_changed,
+        )
 
         self.competitions_bypass_mute_checkbox = self._add_checkbox(
             section, "Notify about competitions even when notifications are disabled",
@@ -903,6 +910,7 @@ class SettingsWidget(QWidget):
             self.competitions_alert_lead_spin, self.competitions_notify_window_checkbox,
             self.competitions_notify_start_spin, self.competitions_notify_end_spin,
             self.notification_mode_combo, self.notification_position_combo, self.notification_width_spin,
+            self.notification_hide_on_combo,
             self.mention_always_checkbox, self.competition_always_checkbox,
             self.competition_sound_repeat_checkbox, self.competition_sound_repeat_interval_spin,
         )
@@ -1019,6 +1027,17 @@ class SettingsWidget(QWidget):
         self.notification_position_combo.setCurrentIndex(idx if idx >= 0 else 0)
         self.notification_width_spin.setValue(int(self.config.get("ui", "notification_width") or NOTIFICATION_WIDTH_DEFAULT))
         self.notification_width_spin._slider.setValue(self.notification_width_spin.value())
+
+        hide_on = self.config.get("notification", "hide_on") or "mouse_keyboard"
+        hide_on_labels = {
+            "manual": "Manual",
+            "mouse": "Mouse",
+            "keyboard": "Keyboard",
+            "mouse_keyboard": "Mouse or Keyboard",
+        }
+        hide_label = hide_on_labels.get(hide_on, "Mouse or Keyboard")
+        idx = self.notification_hide_on_combo.findText(hide_label)
+        self.notification_hide_on_combo.setCurrentIndex(idx if idx >= 0 else 3)
 
         mention_always = self.config.get("sound", "play_mention_sound_always")
         self.mention_always_checkbox.setChecked(False if mention_always is None else bool(mention_always))
@@ -1375,6 +1394,16 @@ class SettingsWidget(QWidget):
 
     def _on_notification_width_changed(self, value: int):
         self.config.set("ui", "notification_width", value=value)
+
+    def _on_notification_hide_on_changed(self, text: str):
+        mapping = {
+            "Manual": "manual",
+            "Mouse": "mouse",
+            "Keyboard": "keyboard",
+            "Mouse or Keyboard": "mouse_keyboard",
+        }
+        value = mapping.get(text, "mouse_keyboard")
+        self.config.set("notification", "hide_on", value=value)
 
     def _on_mention_always_toggled(self, checked: bool):
         self.config.set("sound", "play_mention_sound_always", value=checked)

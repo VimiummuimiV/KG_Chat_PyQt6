@@ -15,6 +15,25 @@ def any_key_pressed() -> bool:
     return False
 
 
-def cursor_moved_or_key_pressed(initial_pos, threshold: int = 50) -> bool:
-    """True once the cursor has moved past threshold px from initial_pos, or a key is down."""
-    return (QCursor.pos() - initial_pos).manhattanLength() > threshold or any_key_pressed()
+def cursor_moved(initial_pos, threshold: int = 50) -> bool:
+    """True once the cursor has moved past threshold px from initial_pos."""
+    return (QCursor.pos() - initial_pos).manhattanLength() > threshold
+
+
+def activity_detected(initial_pos, mode: str = "mouse_keyboard", threshold: int = 50) -> bool:
+    """Whether user activity matching *mode* has occurred.
+
+    mode:
+      - "manual"          — never (caller handles close only)
+      - "mouse"           — cursor movement only
+      - "keyboard"        — any key down only
+      - "mouse_keyboard"  — cursor movement or any key
+    """
+    if mode == "manual":
+        return False
+    if mode == "mouse":
+        return cursor_moved(initial_pos, threshold)
+    if mode == "keyboard":
+        return any_key_pressed()
+    # "mouse_keyboard" (default) and any unknown value
+    return cursor_moved(initial_pos, threshold) or any_key_pressed()

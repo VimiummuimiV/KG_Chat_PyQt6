@@ -119,7 +119,7 @@
         "y": 0
       }
     ],
-    "emoticon_last_group": "christmas",
+    "emoticon_last_group": "recent",
     "emoticon_nav_positions": {
       "recent": 0,
       "army": 0,
@@ -134,8 +134,8 @@
         "startup": true,
         "chat": true,
         "fonts": true,
-        "notifications": false,
-        "competitions": false,
+        "notifications": true,
+        "competitions": true,
         "sound": true
       },
       "widgets": {
@@ -162,7 +162,8 @@
     "muted": false,
     "competitions_bypass_mute": true,
     "mentions_bypass_mute": true,
-    "bans_bypass_mute": true
+    "bans_bypass_mute": true,
+    "hide_on": "mouse"
   },
   "startup": {
     "auto_login": true,

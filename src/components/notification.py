@@ -11,7 +11,7 @@ import threading
 from helpers.create import create_icon_button, HoverIconButton, _render_svg_icon, get_user_svg_color
 from helpers.load import make_rounded_pixmap
 from helpers.fonts import get_font, FontType
-from helpers.input_activity import cursor_moved_or_key_pressed
+from helpers.input_activity import activity_detected
 from helpers.color_utils import get_game_message_colors
 from ui.message_renderer import MessageRenderer
 from ui.ui_emoticon_selector import release_selector
@@ -504,18 +504,31 @@ class PopupNotification(QWidget):
         else:
             super().mousePressEvent(event)
   
+    def _hide_on_mode(self) -> str:
+        """notification.hide_on: manual | mouse | keyboard | mouse_keyboard (default)."""
+        if self.data.config:
+            mode = self.data.config.get("notification", "hide_on")
+            if mode in ("manual", "mouse", "keyboard", "mouse_keyboard"):
+                return mode
+        return "mouse_keyboard"
+
     def _start_cursor_monitoring(self):
-        """Monitor cursor movement or key press to trigger auto-hide"""
+        """Monitor activity (per hide_on setting) to trigger auto-hide.
+        When hide_on is 'manual', skip monitoring — popup stays until the user
+        closes it via body click or the close button.
+        """
+        if self._hide_on_mode() == "manual":
+            return
         self.cursor_check_timer = QTimer(self)
         self.cursor_check_timer.timeout.connect(self._check_cursor_movement)
         self.cursor_check_timer.start(100)
 
     def _check_cursor_movement(self):
-        """Check if cursor moved significantly or any key was pressed"""
+        """Check activity according to hide_on mode; start hide timer when triggered."""
         if self.cursor_moved or self.reply_field_visible:
             return
 
-        if cursor_moved_or_key_pressed(self.initial_cursor_pos):
+        if activity_detected(self.initial_cursor_pos, self._hide_on_mode()):
             self.cursor_moved = True
             self.cursor_check_timer.stop()
             self._start_hide_timer()

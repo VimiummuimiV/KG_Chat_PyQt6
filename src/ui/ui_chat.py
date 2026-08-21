@@ -59,7 +59,7 @@ from helpers.jid_utils import extract_user_data_from_jid
 from ui.ui_buttons import ButtonPanel
 from helpers.help import HelpPanel
 from components.notification import show_notification, popup_manager
-from helpers.input_activity import cursor_moved_or_key_pressed
+from helpers.input_activity import activity_detected
 from core.races_listener import RacesListener
 from components.messages_separator import NewMessagesSeparator
 from components.tag_button import update_all_tag_buttons
@@ -2223,7 +2223,8 @@ class ChatWindow(QWidget):
         self._competition_sound_repeat_timer.start(interval * 1000)
 
     def _on_competition_sound_repeat_tick(self):
-        if cursor_moved_or_key_pressed(self._competition_sound_repeat_cursor_pos):
+        # Always stop on mouse or keyboard — user noticed the alert.
+        if activity_detected(self._competition_sound_repeat_cursor_pos, "mouse_keyboard"):
             self._competition_sound_repeat_timer.stop()
             return
         self._play_competition_sound()
