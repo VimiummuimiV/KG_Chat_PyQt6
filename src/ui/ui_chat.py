@@ -288,67 +288,48 @@ class ChatWindow(QWidget):
             self.button_panel.update_effects_button_icon()
 
     def on_toggle_notification(self):
-        """Cycle through notification states: Stack → Replace → Muted → Stack"""
-        current_mode = self.config.get("notification", "mode") or "stack"
+        """Toggle notifications muted on/off. Stack/Replace is chosen in Settings."""
         current_muted = self.config.get("notification", "muted") or False
-        
-        # Determine next state in cycle
-        if current_muted:
-            # Muted → Stack (unmute and reset to stack)
-            new_mode = "stack"
-            new_muted = False
-        elif current_mode == "stack":
-            # Stack → Replace
-            new_mode = "replace"
-            new_muted = False
-        else:  # replace
-            # Replace → Muted
-            new_mode = "replace"  # Keep mode, just mute
-            new_muted = True
-        
-        self.apply_notification_state(new_mode, new_muted)
+        self.apply_notification_muted(not current_muted)
 
-    def apply_notification_state(self, new_mode: str, new_muted: bool):
-        """Set notification mode/muted to explicit values. Shared by the panel button and Settings."""
-        # Persist centrally via app controller so tray stays in sync
+    def apply_notification_muted(self, muted: bool):
+        """Set notification muted state. Shared by the panel button and tray."""
         config = self.app_controller.config if self.app_controller else self.config
-        config.set("notification", "mode", value=new_mode)
-        config.set("notification", "muted", value=new_muted)
-        
-        # Update local config data to keep in sync
+        config.set("notification", "muted", value=muted)
+
         if self.app_controller:
             self.config.data = self.app_controller.config.data
-        
-        # Update tray menu state immediately
-        if self.app_controller and hasattr(self.app_controller, 'update_notification_menu'):
+
+        if self.app_controller and hasattr(self.app_controller, "update_notification_menu"):
             self.app_controller.update_notification_menu()
-        
-        # Update popup_manager
-        popup_manager.set_notification_mode(new_mode)
-        popup_manager.set_muted(new_muted)
-        
-        # Update button visual
+
+        popup_manager.set_muted(muted)
         self.button_panel.update_notification_button_icon()
-        
-        # Log state change
-        state_text = "Muted" if new_muted else f"{new_mode.capitalize()} mode"
-        print(f"🔔 Notifications: {state_text}")
+        print(f"🔔 Notifications: {'Disabled' if muted else 'Enabled'}")
+
+    def apply_notification_mode(self, mode: str):
+        """Set stack/replace mode (Settings only)."""
+        if mode not in ("stack", "replace"):
+            return
+        config = self.app_controller.config if self.app_controller else self.config
+        config.set("notification", "mode", value=mode)
+        if self.app_controller:
+            self.config.data = self.app_controller.config.data
+        popup_manager.set_notification_mode(mode)
+        self.button_panel.update_notification_button_icon()
 
     def update_notification_button_state(self):
         """Sync notification button visual to config state"""
-        if getattr(self, 'button_panel', None) and getattr(self.button_panel, 'notification_button', None):
+        if getattr(self, "button_panel", None) and getattr(self.button_panel, "notification_button", None):
             self.button_panel.update_notification_button_icon()
 
     def sync_notification_state(self):
         """Sync notification state from config - updates button and popup_manager"""
-        # Update config data first
         if self.app_controller:
             self.config.data = self.app_controller.config.data
-        
-        # Update button icon to match new state
+
         self.update_notification_button_state()
-        
-        # Update popup_manager to match config
+
         mode = self.config.get("notification", "mode") or "stack"
         muted = self.config.get("notification", "muted") or False
         popup_manager.set_notification_mode(mode)

@@ -89,29 +89,11 @@ class ButtonPanel(QWidget):
         self.add_button(button)
         return button
     
-    def _get_notification_icon(self) -> str:
-        """Get current notification icon based on state"""
-        mode = self.config.get("notification", "mode") or "stack"
-        muted = self.config.get("notification", "muted") or False
-        
-        if muted:
-            return "notification-disabled.svg"
-        elif mode == "replace":
-            return "notification-replace-mode.svg"
-        else:  # stack
-            return "notification-stack-mode.svg"
-    
     def _get_notification_tooltip(self) -> str:
-        """Get current notification tooltip based on state"""
-        mode = self.config.get("notification", "mode") or "stack"
         muted = self.config.get("notification", "muted") or False
-        
         if muted:
-            return "Notifications: Muted (N)"
-        elif mode == "replace":
-            return "Notifications: Replace (N)"
-        else:  # stack
-            return "Notifications: Stack (N)"
+            return "Notifications: Disabled (N)"
+        return "Notifications: Enabled (N)"
     
     def _get_effects_icon(self) -> str:
         """Get current effects icon based on state"""
@@ -179,14 +161,14 @@ class ButtonPanel(QWidget):
             lambda: self.toggle_effects_requested.emit()
         )
 
-        # Notification toggle button (3-state cycle: Stack → Replace → Muted)
-        notification_icon = self._get_notification_icon()
-        notification_tooltip = self._get_notification_tooltip()
+        # Notification mute toggle (on/off); single icon, dimmed when disabled
         self.notification_button = self._create_button(
-            notification_icon,
-            notification_tooltip,
+            "notification.svg",
+            self._get_notification_tooltip(),
             lambda: self.toggle_notification_requested.emit()
         )
+        muted = self.config.get("notification", "muted") or False
+        self.set_button_state(self.notification_button, not muted)
 
         # Color picker button
         self.color_button = self._create_button(
@@ -264,22 +246,12 @@ class ButtonPanel(QWidget):
         self.theme_button.setToolTip("Switch to Light Mode (Ctrl+T)" if is_dark else "Switch to Dark Mode (Ctrl+T)")
     
     def update_notification_button_icon(self):
-        """Update notification button icon after state change"""
+        """Dim notification button when muted; keep the same notification.svg icon."""
         if not self.notification_button:
             return
-        
-        new_icon_name = self._get_notification_icon()
-        new_tooltip = self._get_notification_tooltip()
-        
-        # Update icon name
-        self.notification_button._icon_name = new_icon_name
-        
-        # Render and set the new icon
-        new_icon = _render_svg_icon(self.icons_path / new_icon_name, self.notification_button._icon_size)
-        self.notification_button.setIcon(new_icon)
-        
-        # Update tooltip
-        self.notification_button.setToolTip(new_tooltip)
+        muted = self.config.get("notification", "muted") or False
+        self.set_button_state(self.notification_button, not muted)
+        self.notification_button.setToolTip(self._get_notification_tooltip())
     
     def update_effects_button_icon(self):
         """Update effects button icon after state change"""

@@ -747,6 +747,10 @@ class SettingsWidget(QWidget):
 
     def _build_notifications_section(self):
         section = self._create_section("⚠️ Notifications")
+        self.notification_mode_combo = self._add_combo_row(
+            section, "Notification mode", ["Stack", "Replace"],
+            self._on_notification_mode_changed
+        )
         self.notification_position_combo = self._add_combo_row(
             section, "Notification position", ["Right", "Left", "Center"],
             self._on_notification_position_changed
@@ -898,7 +902,7 @@ class SettingsWidget(QWidget):
             self.show_players_checkbox, self.max_player_chips_spin, self.sort_players_by_level_checkbox,
             self.competitions_alert_lead_spin, self.competitions_notify_window_checkbox,
             self.competitions_notify_start_spin, self.competitions_notify_end_spin,
-            self.notification_position_combo, self.notification_width_spin,
+            self.notification_mode_combo, self.notification_position_combo, self.notification_width_spin,
             self.mention_always_checkbox, self.competition_always_checkbox,
             self.competition_sound_repeat_checkbox, self.competition_sound_repeat_interval_spin,
         )
@@ -1005,6 +1009,10 @@ class SettingsWidget(QWidget):
         self.competitions_notify_end_spin.setValue(int(self.config.get("competitions", "notify_window_end") or COMPETITIONS_NOTIFY_END_DEFAULT))
         self.competitions_notify_end_spin._slider.setValue(self.competitions_notify_end_spin.value())
         self._set_notify_window_controls_enabled(self.competitions_notify_window_checkbox.isChecked())
+
+        mode = (self.config.get("notification", "mode") or "stack").capitalize()
+        idx = self.notification_mode_combo.findText(mode)
+        self.notification_mode_combo.setCurrentIndex(idx if idx >= 0 else 0)
 
         position = (self.config.get("ui", "notification_position") or "right").capitalize()
         idx = self.notification_position_combo.findText(position)
@@ -1353,6 +1361,14 @@ class SettingsWidget(QWidget):
 
     def _on_competition_sound_repeat_interval_changed(self, value: int):
         self.config.set("sound", "competition_repeat_interval", value=value)
+
+    def _on_notification_mode_changed(self, text: str):
+        mode = (text or "stack").lower()
+        if mode not in ("stack", "replace"):
+            return
+        self.config.set("notification", "mode", value=mode)
+        from components.notification import popup_manager
+        popup_manager.set_notification_mode(mode)
 
     def _on_notification_position_changed(self, text: str):
         self.config.set("ui", "notification_position", value=text.lower())

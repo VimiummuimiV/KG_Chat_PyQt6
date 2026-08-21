@@ -7,7 +7,7 @@ from PyQt6.QtWidgets import(
     QWidget, QApplication, QSystemTrayIcon,
     QMenu, QMessageBox
 )
-from PyQt6.QtGui import QFont, QIcon, QAction, QActionGroup, QPixmap, QPainter, QColor
+from PyQt6.QtGui import QFont, QIcon, QAction, QPixmap, QPainter, QColor
 from PyQt6.QtCore import Qt, QLockFile, QDir, pyqtSignal, QObject, pyqtSlot, QMetaObject, QTimer
 from PyQt6.QtSvg import QSvgRenderer
 
@@ -118,10 +118,7 @@ class Application(QObject):
         self.effects_sound_action = None
         self.pronunciation_action = None
 
-        self.notification_menu = None
-        self.notification_stack_action = None
-        self.notification_replace_action = None
-        self.notification_muted_action = None
+        self.notification_enabled_action = None
 
         self.ban_list_action = None
         
@@ -240,42 +237,13 @@ class Application(QObject):
         self.update_sound_menu()
 
     def _setup_notification_menu(self, parent_menu: QMenu, icon):
-        """Setup notification management submenu with radio-style exclusive options"""
-        self.notification_menu = parent_menu.addMenu("Notification")
-        self.notification_menu.setIcon(icon("notification-stack-mode.svg"))
-
-        # Exclusive action group — only one can be checked at a time (radio buttons)
-        group = QActionGroup(self.app)
-        group.setExclusive(True)
-
-        self.notification_stack_action = QAction("Stack", self.app, checkable=True)
-        self.notification_replace_action = QAction("Replace", self.app, checkable=True)
-        self.notification_muted_action = QAction("Muted", self.app, checkable=True)
-
-        for action in (self.notification_stack_action,
-                       self.notification_replace_action,
-                       self.notification_muted_action):
-            group.addAction(action)
-            self.notification_menu.addAction(action)
-
-        # Set initial checked state BEFORE connecting signals so no handler fires
-        mode = self.config.get("notification", "mode") or "stack"
+        """Tray: notifications on/off only. Stack/Replace is chosen in Settings."""
+        self.notification_enabled_action = QAction("Notifications", self.app, checkable=True)
+        self.notification_enabled_action.setIcon(icon("notification.svg"))
         muted = self.config.get("notification", "muted") or False
-        if muted:
-            self.notification_muted_action.setChecked(True)
-        elif mode == "replace":
-            self.notification_replace_action.setChecked(True)
-        else:
-            self.notification_stack_action.setChecked(True)
-
-        # Connect signals only after initial state is set
-        # triggered passes checked=True only for the newly selected item; ignore uncheck events
-        self.notification_stack_action.triggered.connect(
-            lambda checked: self._on_notification_option_selected("stack", False) if checked else None)
-        self.notification_replace_action.triggered.connect(
-            lambda checked: self._on_notification_option_selected("replace", False) if checked else None)
-        self.notification_muted_action.triggered.connect(
-            lambda checked: self._on_notification_option_selected("stack", True) if checked else None)
+        self.notification_enabled_action.setChecked(not muted)
+        self.notification_enabled_action.triggered.connect(self._on_notification_enabled_toggled)
+        parent_menu.addAction(self.notification_enabled_action)
 
     def update_color_menu(self):
         """Update the color menu to show/hide Reset option based on custom_background"""
@@ -303,17 +271,13 @@ class Application(QObject):
         self.effects_sound_action.setChecked(effects_enabled)
 
     def update_notification_menu(self):
-        """Update notification menu radio buttons to reflect current config state.
-        Safe to call at any time - triggered only fires for checked=True items."""
-        mode = self.config.get("notification", "mode") or "stack"
+        """Sync tray Notifications checkbox with config muted state."""
+        if not self.notification_enabled_action:
+            return
         muted = self.config.get("notification", "muted") or False
-
-        if muted:
-            self.notification_muted_action.setChecked(True)
-        elif mode == "replace":
-            self.notification_replace_action.setChecked(True)
-        else:
-            self.notification_stack_action.setChecked(True)
+        self.notification_enabled_action.blockSignals(True)
+        self.notification_enabled_action.setChecked(not muted)
+        self.notification_enabled_action.blockSignals(False)
 
     def _on_sound_toggled(self, config_key: str, action: QAction):
         """Handle sound toggle from tray menu"""
@@ -331,18 +295,19 @@ class Application(QObject):
             if config_key == 'effects_enabled' and hasattr(self.chat_window, 'update_effects_button_state'):
                 self.chat_window.update_effects_button_state()
 
-    def _on_notification_option_selected(self, mode: str, muted: bool):
-        """Handle notification option selection from tray menu"""
-        self.config.set("notification", "mode", value=mode)
+    def _on_notification_enabled_toggled(self, checked: bool):
+        """Tray Notifications checkbox: checked = enabled (not muted)."""
+        muted = not checked
         self.config.set("notification", "muted", value=muted)
 
         if self.chat_window:
             self.chat_window.config.data = self.config.data
-            if hasattr(self.chat_window, 'sync_notification_state'):
+            if hasattr(self.chat_window, "apply_notification_muted"):
+                self.chat_window.apply_notification_muted(muted)
+            elif hasattr(self.chat_window, "sync_notification_state"):
                 self.chat_window.sync_notification_state()
-
-        popup_manager.set_notification_mode(mode)
-        popup_manager.set_muted(muted)
+        else:
+            popup_manager.set_muted(muted)
 
     def _get_app_icon(self):
         """Get the main application icon - chat.ico for taskbar/dock"""
