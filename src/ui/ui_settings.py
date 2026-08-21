@@ -849,7 +849,7 @@ class SettingsWidget(QWidget):
         )
 
         self.competitions_alert_lead_spin = self._add_slider_spin_row(
-            section, "Alert lead time before start (sec)", 0, 300,
+            section, "Alert lead time before start (seconds)", 0, 300,
             self._on_competitions_alert_lead_changed,
             default=COMPETITIONS_ALERT_LEAD_DEFAULT
         )
@@ -895,7 +895,7 @@ class SettingsWidget(QWidget):
             self._on_competition_sound_repeat_toggled
         )
         self.competition_sound_repeat_interval_spin = self._add_slider_spin_row(
-            section, "Repeat interval (sec)", 3, 120, self._on_competition_sound_repeat_interval_changed,
+            section, "Repeat interval (seconds)", 3, 120, self._on_competition_sound_repeat_interval_changed,
             default=COMPETITION_SOUND_REPEAT_INTERVAL_DEFAULT
         )
 

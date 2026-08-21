@@ -185,5 +185,6 @@
   "421133": {"login": "RadioMix", "background": "#c4719e", "light": "#b8538a", "dark": "#c4719e"},
   "570549": {"login": "LittleBigRace", "background": "#D43E68", "light": "#d43d67", "dark": "#da587d"},
   "773639": {"login": "Q_Robot", "background": "#777777", "light": "#767676", "dark": "#858585"},
-  "435692": {"login": "Jh14", "background": "#C4151C", "light": "#C4151C", "dark": "#ec4b51"}
+  "435692": {"login": "Jh14", "background": "#C4151C", "light": "#C4151C", "dark": "#ec4b51"},
+  "5818": {"login": "SemRunner", "background": "#000000", "light": "#000000", "dark": "#858585"}
 }
