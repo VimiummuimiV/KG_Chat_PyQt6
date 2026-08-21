@@ -2515,7 +2515,8 @@ class ChatWindow(QWidget):
                 room_jid=room_jid,
                 source_label=source_label,
                 is_ban=is_ban,
-                is_system=is_system
+                is_system=is_system,
+                is_mention=self._message_mentions_me(msg),
             )
         except Exception as e:
             print(f"Notification error: {e}")

@@ -37,6 +37,7 @@ class NotificationData:
     is_ban: bool = False
     is_system: bool = False
     is_competition: bool = False
+    is_mention: bool = False
     timestamp: Optional[datetime] = None
     tag: Optional[str] = None
     players: Optional[list] = None
@@ -789,12 +790,15 @@ class PopupManager:
   
     def show_notification(self, data: NotificationData):
         """Create and show notification (unless muted).
-        Rating-competition notifications can be allowed to bypass mute via
-        notification.competitions_bypass_mute in config.
+        Competitions / mentions can bypass mute via
+        notification.competitions_bypass_mute / mentions_bypass_mute
         """
-        bypass_mute = data.is_competition and data.config and data.config.get(
-            "notification", "competitions_bypass_mute"
-        )
+        bypass_mute = False
+        if data.config:
+            if data.is_competition and data.config.get("notification", "competitions_bypass_mute"):
+                bypass_mute = True
+            elif data.is_mention and data.config.get("notification", "mentions_bypass_mute"):
+                bypass_mute = True
         if self.muted and not bypass_mute:
             return None
        

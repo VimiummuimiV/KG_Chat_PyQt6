@@ -134,9 +134,9 @@
         "startup": true,
         "chat": true,
         "fonts": true,
-        "notifications": true,
+        "notifications": false,
         "competitions": false,
-        "sound": true
+        "sound": false
       },
       "widgets": {
         "ws_log": false,
@@ -158,9 +158,10 @@
     "competition_repeat_enabled": false
   },
   "notification": {
-    "mode": "stack",
-    "muted": false,
-    "competitions_bypass_mute": true
+    "mode": "replace",
+    "muted": true,
+    "competitions_bypass_mute": true,
+    "mentions_bypass_mute": true
   },
   "startup": {
     "auto_login": true,
@@ -179,11 +180,11 @@
   },
   "competitions": {
     "enabled": true,
-    "min_multiplier": "x1+",
+    "min_multiplier": "x2+",
     "notify_window_enabled": false,
     "notify_window_start": 6,
     "notify_window_end": 24,
-    "alert_lead_seconds": 20,
+    "alert_lead_seconds": 30,
     "max_player_chips": 20,
     "show_players": true,
     "sort_players_by_level": true,

@@ -760,6 +760,10 @@ class SettingsWidget(QWidget):
             section, "Notify about competitions even when notifications are disabled",
             self._on_competitions_bypass_mute_toggled
         )
+        self.mentions_bypass_mute_checkbox = self._add_checkbox(
+            section, "Notify about mentions even when notifications are disabled",
+            self._on_mentions_bypass_mute_toggled
+        )
 
     def _build_competitions_section(self):
         section = self._create_section("🏆 Competitions")
@@ -884,6 +888,7 @@ class SettingsWidget(QWidget):
             self.auto_login_checkbox, self.start_minimized_checkbox, self.start_with_system_checkbox,
             self.clear_private_checkbox, self.youtube_checkbox, self.browser_combo,
             self.track_competitions_checkbox, self.competitions_bypass_mute_checkbox,
+            self.mentions_bypass_mute_checkbox,
             self.competitions_force_sound_checkbox, self.min_multiplier_combo,
             self.show_cost_checkbox,
             self.show_players_checkbox, self.max_player_chips_spin, self.sort_players_by_level_checkbox,
@@ -964,6 +969,9 @@ class SettingsWidget(QWidget):
         self._update_competitions_status(enabled, None if not enabled else "connecting")
         self.competitions_bypass_mute_checkbox.setChecked(
             bool(self.config.get("notification", "competitions_bypass_mute"))
+        )
+        self.mentions_bypass_mute_checkbox.setChecked(
+            bool(self.config.get("notification", "mentions_bypass_mute"))
         )
         self.competitions_force_sound_checkbox.setChecked(
             bool(self.config.get("sound", "competition_sound_force"))
@@ -1152,6 +1160,9 @@ class SettingsWidget(QWidget):
 
     def _on_competitions_bypass_mute_toggled(self, checked: bool):
         self.config.set("notification", "competitions_bypass_mute", value=checked)
+
+    def _on_mentions_bypass_mute_toggled(self, checked: bool):
+        self.config.set("notification", "mentions_bypass_mute", value=checked)
 
     def _on_competitions_force_sound_toggled(self, checked: bool):
         self.config.set("sound", "competition_sound_force", value=checked)
