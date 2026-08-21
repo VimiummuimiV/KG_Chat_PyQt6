@@ -134,9 +134,9 @@
         "startup": true,
         "chat": true,
         "fonts": true,
-        "notifications": false,
+        "notifications": true,
         "competitions": false,
-        "sound": false
+        "sound": true
       },
       "widgets": {
         "ws_log": false,
@@ -154,14 +154,15 @@
     },
     "competition_repeat_interval": 5,
     "competition_repeat_enabled": false,
-    "play_competition_sound_always": false,
+    "play_competition_sound_always": true,
     "play_mention_sound_always": false
   },
   "notification": {
     "mode": "replace",
     "muted": true,
     "competitions_bypass_mute": true,
-    "mentions_bypass_mute": true
+    "mentions_bypass_mute": true,
+    "bans_bypass_mute": true
   },
   "startup": {
     "auto_login": true,
