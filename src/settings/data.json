@@ -253,5 +253,9 @@
   "186903": {"login": "Yanka_Q_11", "background": "#FF0295", "light": "#e40085", "dark": "#FF0295"},
   "841676": {"login": "rashidrkrk", "background": "#777777", "light": "#767676", "dark": "#858585"},
   "375474": {"login": "клавоинка", "background": "#A30630", "light": "#A30630", "dark": "#f83468"},
-  "653943": {"login": "Nkey", "background": "#777777", "light": "#767676", "dark": "#858585"}
+  "653943": {"login": "Nkey", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "691522": {"login": "restricted", "background": "#AF00A4", "light": "#AF00A4", "dark": "#ee00df"},
+  "753100": {"login": "ReaperMean", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "765180": {"login": "Goxa313", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "765179": {"login": "Goxa312", "background": "#777777", "light": "#767676", "dark": "#858585"}
 }
