@@ -2045,6 +2045,26 @@ class ChatWindow(QWidget):
     def _player_names(players: list) -> list:
         return [p.get("name") or p.get("login") or "?" for p in players]
 
+    def _competition_chips_and_header(self, mult: str, url: str, begintime, players: list, cost=None):
+        """Build player chips + formatted header from raw competition fields."""
+        chips = self._player_chips(players)
+        shown = None if not chips else sum(1 for c in chips if c.get("name") != "…")
+        header = self._format_competition_header(
+            mult, url, begintime, len(players), shown, cost=cost
+        )
+        return chips, header
+
+    def _make_competition_message(self, gid: int, header: str, chips: list) -> "Message":
+        """Build a local system chat message for a competition announcement/update."""
+        msg = Message(
+            from_jid="", body=header, msg_type="groupchat",
+            login="Система", timestamp=datetime.now(),
+        )
+        msg.is_competition = True
+        msg.competition_game_id = gid
+        msg.competition_players = chips
+        return msg
+
     def _announce_competition(self, info: dict):
         gid, mult, url, tag = self._competition_fields(info)
         begintime = info.get("begintime")
@@ -2054,19 +2074,9 @@ class ChatWindow(QWidget):
             "mult": mult, "url": url, "begintime": begintime,
             "players": players, "cost": cost,
         }
-        chips = self._player_chips(players)
-        shown = None if not chips else sum(1 for c in chips if c.get("name") != "…")
-        header = self._format_competition_header(
-            mult, url, begintime, len(players), shown, cost=cost
-        )
+        chips, header = self._competition_chips_and_header(mult, url, begintime, players, cost=cost)
         try:
-            msg = Message(
-                from_jid="", body=header, msg_type="groupchat",
-                login="Система", timestamp=datetime.now(),
-            )
-            msg.is_competition = True
-            msg.competition_game_id = gid
-            msg.competition_players = chips
+            msg = self._make_competition_message(gid, header, chips)
             self.add_local_message(msg)
         except Exception as e:
             print(f"[races] local message error: {e}")
@@ -2106,18 +2116,42 @@ class ChatWindow(QWidget):
         for gid in list(self._competition_live.keys()):
             self._refresh_competition_message(gid)
 
+    def _scroll_to_competition_message(self, gid: int):
+        """Scroll to competition message and keep it centered while chips grow (alert action)."""
+        self._competition_focus_gid = gid
+        mw = getattr(self, "messages_widget", None)
+        if not mw or not hasattr(mw, "list_view") or not hasattr(mw, "model"):
+            return
+        row = mw.model.find_competition_message_row(gid)
+        if row is not None:
+            self._scroll_to_row(mw.list_view, row, delay=50)
+
+    def _move_competition_message_to_end(self, gid: int):
+        """Remove the competition message and re-append it at the bottom (alert action)."""
+        live = self._competition_live.get(gid)
+        mw = getattr(self, "messages_widget", None)
+        if live is None or not mw:
+            return
+        players = live.get("players") or []
+        chips, header = self._competition_chips_and_header(
+            live["mult"], live["url"], live.get("begintime"), players, cost=live.get("cost")
+        )
+        try:
+            mw.clear_competition_messages(gid)
+            msg = self._make_competition_message(gid, header, chips)
+            self.add_local_message(msg)
+            self._scroll_to_bottom(mw.list_view)
+        except Exception as e:
+            print(f"[races] move competition message error: {e}")
+
     def _refresh_competition_message(self, gid: int):
         live = self._competition_live.get(gid)
         mw = getattr(self, "messages_widget", None)
         if live is None or not mw:
             return
         players = live.get("players") or []
-        chips = self._player_chips(players)
-        names = [c["name"] for c in chips if c.get("name") != "…"]
-        shown = None if not chips else len(names)
-        header = self._format_competition_header(
-            live["mult"], live["url"], live.get("begintime"), len(players), shown,
-            cost=live.get("cost"),
+        chips, header = self._competition_chips_and_header(
+            live["mult"], live["url"], live.get("begintime"), players, cost=live.get("cost")
         )
         sb = mw.list_view.verticalScrollBar()
         at_bottom = (sb.maximum() - sb.value()) <= 100
@@ -2166,11 +2200,8 @@ class ChatWindow(QWidget):
             return
         live = self._competition_live.get(gid, {})
         players = live.get("players") or []
-        chips = self._player_chips(players)
-        shown = None if not chips else sum(1 for c in chips if c.get("name") != "…")
-        header = self._format_competition_header(
-            mult, url, live.get("begintime"), len(players), shown,
-            cost=live.get("cost"),
+        chips, header = self._competition_chips_and_header(
+            mult, url, live.get("begintime"), players, cost=live.get("cost")
         )
 
         play_competition_sound_always = self.config.get("sound", "play_competition_sound_always")
@@ -2180,13 +2211,13 @@ class ChatWindow(QWidget):
             self._play_competition_sound()
             self._start_competition_sound_repeat()
 
-        # Scroll to competition message and keep it centered while chips grow
-        self._competition_focus_gid = gid
-        mw = getattr(self, "messages_widget", None)
-        if mw and hasattr(mw, "list_view") and hasattr(mw, "model"):
-            row = mw.model.find_competition_message_row(gid)
-            if row is not None:
-                QTimer.singleShot(50, lambda r=row: self._scroll_to_row(mw.list_view, r))
+        # Bring competition message into view (config: scroll | move)
+        alert_action = self.config.get("competitions", "alert_chat_action") or "scroll"
+        if alert_action == "move":
+            self._competition_focus_gid = None
+            self._move_competition_message_to_end(gid)
+        else:
+            self._scroll_to_competition_message(gid)
 
         # Same rule as chat messages: notify only when window is not focused
         if not self.isActiveWindow():

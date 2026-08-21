@@ -854,6 +854,14 @@ class SettingsWidget(QWidget):
             default=COMPETITIONS_ALERT_LEAD_DEFAULT
         )
 
+        # How the competition chat message is brought into view on alert
+        self.alert_chat_action_combo = self._add_combo_row(
+            section,
+            "On alert in chat",
+            ["Scroll to message", "Move to bottom"],
+            self._on_alert_chat_action_changed,
+        )
+
         self.competitions_notify_window_checkbox = self._add_checkbox(
             section, "Only alert during allowed hours", self._on_competitions_notify_window_toggled
         )
@@ -915,7 +923,8 @@ class SettingsWidget(QWidget):
             self.min_multiplier_combo,
             self.show_cost_checkbox,
             self.show_players_checkbox, self.max_player_chips_spin, self.sort_players_by_level_checkbox,
-            self.competitions_alert_lead_spin, self.competitions_notify_window_checkbox,
+            self.competitions_alert_lead_spin, self.alert_chat_action_combo,
+            self.competitions_notify_window_checkbox,
             self.competitions_notify_start_spin, self.competitions_notify_end_spin,
             self.notification_mode_combo, self.notification_position_combo, self.notification_width_spin,
             self.notification_hide_on_combo, self.notification_duration_spin,
@@ -1016,6 +1025,14 @@ class SettingsWidget(QWidget):
 
         self.competitions_alert_lead_spin.setValue(int(self.config.get("competitions", "alert_lead_seconds") or COMPETITIONS_ALERT_LEAD_DEFAULT))
         self.competitions_alert_lead_spin._slider.setValue(self.competitions_alert_lead_spin.value())
+
+        alert_action = self.config.get("competitions", "alert_chat_action") or "scroll"
+        alert_label = {
+            "scroll": "Scroll to message",
+            "move": "Move to bottom",
+        }.get(alert_action, "Scroll to message")
+        idx = self.alert_chat_action_combo.findText(alert_label)
+        self.alert_chat_action_combo.setCurrentIndex(idx if idx >= 0 else 0)
 
         self.competitions_notify_window_checkbox.setChecked(
             bool(self.config.get("competitions", "notify_window_enabled"))
@@ -1375,6 +1392,14 @@ class SettingsWidget(QWidget):
 
     def _on_competitions_alert_lead_changed(self, value: int):
         self.config.set("competitions", "alert_lead_seconds", value=value)
+
+    def _on_alert_chat_action_changed(self, text: str):
+        mapping = {
+            "Scroll to message": "scroll",
+            "Move to bottom": "move",
+        }
+        value = mapping.get(text, "scroll")
+        self.config.set("competitions", "alert_chat_action", value=value)
 
     def _on_competitions_notify_window_toggled(self, checked: bool):
         self.config.set("competitions", "notify_window_enabled", value=checked)
