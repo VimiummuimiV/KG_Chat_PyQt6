@@ -334,7 +334,18 @@ class ProfileWidget(QWidget):
             QDesktopServices.openUrl(QUrl(f"https://klavogonki.ru/u/#/{self.current_user_id}/"))
 
     def load_profile(self, user_id: int, username: str):
-        """Load and display user profile data"""
+        """Load and display user profile data.
+
+        Skip network/UI reset when the same user is already loaded — repeated
+        clicks from the userlist (or elsewhere) must not re-fetch.
+        """
+        if self.current_user_id == user_id:
+            # Keep title in sync in case the login string changed
+            self.current_username = username
+            self.title_label.setText(username)
+            self.open_profile_button.setEnabled(True)
+            return
+
         self.current_user_id = user_id
         self.current_username = username
         self.title_label.setText(username)

@@ -159,7 +159,7 @@
   },
   "notification": {
     "mode": "scroll",
-    "muted": false,
+    "muted": true,
     "competitions_bypass_mute": true,
     "mentions_bypass_mute": true,
     "bans_bypass_mute": true,

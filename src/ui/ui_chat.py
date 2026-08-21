@@ -2902,6 +2902,15 @@ class ChatWindow(QWidget):
         """Show profile view for a user"""
         if not user_id:
             return
+
+        uid = int(user_id)
+
+        # Already viewing this profile — do not reset pre_profile_view or re-fetch
+        if (hasattr(self, 'profile_widget') and self.profile_widget
+                and self.stacked_widget.currentWidget() is self.profile_widget
+                and self.profile_widget.current_user_id == uid):
+            return
+
         self._ensure_general_tab_visible()
 
         # Remember whether we're coming from the chatlog so "back" can return there
@@ -2913,7 +2922,7 @@ class ChatWindow(QWidget):
             self.profile_widget.back_requested.connect(self._on_back)
             self.stacked_widget.addWidget(self.profile_widget)
 
-        self.profile_widget.load_profile(int(user_id), username)
+        self.profile_widget.load_profile(uid, username)
         self.stacked_widget.setCurrentWidget(self.profile_widget)
 
     def _on_back(self):
