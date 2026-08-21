@@ -946,5 +946,12 @@ popup_manager = PopupManager()
 
 
 def show_notification(**kwargs):
+    # Resolve duration from config (seconds → ms) when the caller didn't pass one.
+    if "duration" not in kwargs:
+        cfg = kwargs.get("config")
+        secs = cfg.get("notification", "duration") if cfg else None
+        if secs is None:
+            secs = 5
+        kwargs["duration"] = max(1, int(secs)) * 1000
     data = NotificationData(**kwargs)
     return popup_manager.show_notification(data)

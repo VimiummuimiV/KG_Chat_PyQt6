@@ -135,7 +135,7 @@
         "chat": true,
         "fonts": true,
         "notifications": true,
-        "competitions": true,
+        "competitions": false,
         "sound": true
       },
       "widgets": {
@@ -163,7 +163,8 @@
     "competitions_bypass_mute": true,
     "mentions_bypass_mute": true,
     "bans_bypass_mute": true,
-    "hide_on": "mouse"
+    "hide_on": "mouse",
+    "duration": 5
   },
   "startup": {
     "auto_login": true,

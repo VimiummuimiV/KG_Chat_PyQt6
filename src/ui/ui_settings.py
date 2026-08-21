@@ -28,7 +28,8 @@ from helpers.data import get_data_dir
 from helpers.color_utils import blend_hex_colors
 from helpers.browser import get_available_browsers
 
-NOTIFICATION_WIDTH_DEFAULT = 550 
+NOTIFICATION_WIDTH_DEFAULT = 550
+NOTIFICATION_DURATION_DEFAULT = 5  # seconds 
 COMPETITIONS_ALERT_LEAD_DEFAULT = 0
 COMPETITIONS_NOTIFY_START_DEFAULT = 0
 COMPETITIONS_NOTIFY_END_DEFAULT = 24
@@ -766,6 +767,13 @@ class SettingsWidget(QWidget):
             ["Manual", "Mouse", "Keyboard", "Mouse or Keyboard"],
             self._on_notification_hide_on_changed,
         )
+        self.notification_duration_spin = self._add_slider_spin_row(
+            section,
+            "Auto-hide delay (seconds)",
+            1, 60,
+            self._on_notification_duration_changed,
+            default=NOTIFICATION_DURATION_DEFAULT,
+        )
 
         self.competitions_bypass_mute_checkbox = self._add_checkbox(
             section, "Notify about competitions even when notifications are disabled",
@@ -910,7 +918,7 @@ class SettingsWidget(QWidget):
             self.competitions_alert_lead_spin, self.competitions_notify_window_checkbox,
             self.competitions_notify_start_spin, self.competitions_notify_end_spin,
             self.notification_mode_combo, self.notification_position_combo, self.notification_width_spin,
-            self.notification_hide_on_combo,
+            self.notification_hide_on_combo, self.notification_duration_spin,
             self.mention_always_checkbox, self.competition_always_checkbox,
             self.competition_sound_repeat_checkbox, self.competition_sound_repeat_interval_spin,
         )
@@ -1038,6 +1046,10 @@ class SettingsWidget(QWidget):
         hide_label = hide_on_labels.get(hide_on, "Mouse or Keyboard")
         idx = self.notification_hide_on_combo.findText(hide_label)
         self.notification_hide_on_combo.setCurrentIndex(idx if idx >= 0 else 3)
+
+        duration = int(self.config.get("notification", "duration") or NOTIFICATION_DURATION_DEFAULT)
+        self.notification_duration_spin.setValue(duration)
+        self.notification_duration_spin._slider.setValue(duration)
 
         mention_always = self.config.get("sound", "play_mention_sound_always")
         self.mention_always_checkbox.setChecked(False if mention_always is None else bool(mention_always))
@@ -1404,6 +1416,9 @@ class SettingsWidget(QWidget):
         }
         value = mapping.get(text, "mouse_keyboard")
         self.config.set("notification", "hide_on", value=value)
+
+    def _on_notification_duration_changed(self, value: int):
+        self.config.set("notification", "duration", value=value)
 
     def _on_mention_always_toggled(self, checked: bool):
         self.config.set("sound", "play_mention_sound_always", value=checked)
