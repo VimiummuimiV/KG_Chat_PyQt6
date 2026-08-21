@@ -2137,6 +2137,10 @@ class ChatWindow(QWidget):
             live["mult"], live["url"], live.get("begintime"), players, cost=live.get("cost")
         )
         try:
+            row = mw.model.find_competition_message_row(gid)
+            if row is not None and row == mw.model.rowCount() - 1:
+                mw.update_competition_message(gid, header, chips)
+                return
             mw.clear_competition_messages(gid)
             msg = self._make_competition_message(gid, header, chips)
             self.add_local_message(msg)
