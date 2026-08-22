@@ -891,7 +891,7 @@ class SettingsWidget(QWidget):
     def _build_user_tracker_section(self):
         section = self._create_section("🗿 User Tracker")
         self.tracker_enabled_checkbox = self._add_checkbox(
-            section, "Track selected users join and leave",
+            section, "Track selected users",
             self._on_tracker_enabled_toggled
         )
         self.tracker_retention_spin = self._add_slider_spin_row(
