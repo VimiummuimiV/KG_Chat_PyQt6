@@ -7,16 +7,16 @@ from typing import Dict, Optional
 class PronunciationManager:
     """Manages username pronunciation mappings for TTS"""
     
-    def __init__(self, settings_path: Path):
-        self.settings_path = settings_path / "pronunciation.json"
+    def __init__(self, data_path: Path):
+        self.file_path = data_path / "pronunciation.json"
         self.mappings: Dict[str, str] = {}
         self.load()
     
     def load(self):
         """Load pronunciation mappings from JSON file"""
-        if self.settings_path.exists():
+        if self.file_path.exists():
             try:
-                with open(self.settings_path, 'r', encoding='utf-8') as f:
+                with open(self.file_path, 'r', encoding='utf-8') as f:
                     self.mappings = json.load(f)
             except Exception as e:
                 print(f"Error loading pronunciation mappings: {e}")
@@ -27,7 +27,7 @@ class PronunciationManager:
     def save(self):
         """Save pronunciation mappings to JSON file"""
         try:
-            with open(self.settings_path, 'w', encoding='utf-8') as f:
+            with open(self.file_path, 'w', encoding='utf-8') as f:
                 json.dump(self.mappings, f, indent=2, ensure_ascii=False)
         except Exception as e:
             print(f"Error saving pronunciation mappings: {e}")

@@ -13,7 +13,17 @@ from helpers.create import _render_svg_icon, get_user_svg_color
 from helpers.cache import get_cache
 from helpers.fonts import get_font, FontType
 from helpers.scroll.auto_scroll import AutoScroller
-from components.user_context_menu import show_user_context_menu, PROFILE, PRIVATE, PASTE_USERNAME, COPY_USERNAME, COPY_ID, OPEN_GAME
+from components.user_context_menu import (
+    show_user_context_menu,
+    PROFILE,
+    PRIVATE,
+    PASTE_USERNAME,
+    COPY_USERNAME,
+    COPY_ID,
+    OPEN_GAME,
+    TRACK,
+    UNTRACK
+)
 from core.userlist import ChatUser
 
 
@@ -26,6 +36,7 @@ class UserWidget(QWidget):
     private_chat_requested = pyqtSignal(str, str, str)  # jid, username, user_id
     paste_requested = pyqtSignal(str)  # username
     open_game_requested = pyqtSignal(str)  # game_id
+    track_requested = pyqtSignal(str, str, bool)  # user_id, login, track
 
     def __init__(self, user, config, icons_path, is_dark_theme, counter=None):
         super().__init__()
@@ -163,10 +174,16 @@ class UserWidget(QWidget):
         super().mousePressEvent(event)
 
     def contextMenuEvent(self, event):
-        """RMB → Profile / Private / Paste / Copy / Open game chat (if in race)"""
         has_game = bool(getattr(self.user, 'game_id', None))
+        tracker = getattr(self, 'user_tracker', None)
+        is_tracked = bool(
+            tracker and tracker.is_tracked(
+                user_id=self.user.user_id, login=self.user.login
+            )
+        )
         action = show_user_context_menu(
-            self.icons_path, self, QCursor.pos(), has_game=has_game
+            self.icons_path, self, QCursor.pos(),
+            has_game=has_game, is_tracked=is_tracked, show_track=True
         )
         if action == PROFILE:
             self.profile_requested.emit(self.user.jid, self.user.login, self.user.user_id)
@@ -180,6 +197,10 @@ class UserWidget(QWidget):
             QApplication.clipboard().setText(str(self.user.user_id or ""))
         elif action == OPEN_GAME and has_game:
             self.open_game_requested.emit(str(self.user.game_id))
+        elif action == TRACK:
+            self.track_requested.emit(str(self.user.user_id or ""), self.user.login, True)
+        elif action == UNTRACK:
+            self.track_requested.emit(str(self.user.user_id or ""), self.user.login, False)
 
 
 class UserListWidget(QWidget):
@@ -189,12 +210,14 @@ class UserListWidget(QWidget):
     private_chat_requested = pyqtSignal(str, str, str)
     paste_requested = pyqtSignal(str)  # username
     open_game_requested = pyqtSignal(str)  # game_id
+    track_requested = pyqtSignal(str, str, bool)  # user_id, login, track
 
-    def __init__(self, config, input_field=None, ban_manager=None):
+    def __init__(self, config, input_field=None, ban_manager=None, user_tracker=None):
         super().__init__()
         self.config = config
         self.input_field = input_field
         self.ban_manager = ban_manager
+        self.user_tracker = user_tracker
         self.user_widgets = {}
         self.user_game_state = {}
         self.cache = get_cache()
@@ -345,10 +368,12 @@ class UserListWidget(QWidget):
             self._update_counter(user)
 
         def _wire(widget):
+            widget.user_tracker = self.user_tracker
             widget.profile_requested.connect(self.profile_requested.emit)
             widget.private_chat_requested.connect(self.private_chat_requested.emit)
             widget.paste_requested.connect(self.paste_requested.emit)
             widget.open_game_requested.connect(self.open_game_requested.emit)
+            widget.track_requested.connect(self.track_requested.emit)
         
         if bulk:
             # Clear all widgets safely

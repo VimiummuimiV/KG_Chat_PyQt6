@@ -12,7 +12,7 @@ from helpers.color_contrast import optimize_color_contrast
 class CacheManager:
     """Thread-safe singleton cache manager for avatars and user data.
 
-    Persistent store: settings/data.json  —  keyed by user_id (permanent).
+    Persistent store: data/users.json  —  keyed by user_id (permanent).
     Schema per entry: { login, background?, light?, dark? }
 
     Rules on upsert (update_user):
@@ -40,7 +40,7 @@ class CacheManager:
         self._data: Dict[str, Dict] = {}          # user_id → {login, background?, light?, dark?}
         self._avatar_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="cache_avatar_loader")
         self._cache_lock = threading.Lock()
-        self._data_path = Path(__file__).parent.parent / "settings" / "data.json"
+        self._data_path = Path(__file__).parent.parent / "data" / "users.json"
         self._initialized = True
         self._load_data()
 
@@ -64,7 +64,7 @@ class CacheManager:
             )
             self._data_path.write_text(f'{{\n{lines}\n}}', encoding='utf-8')
         except Exception as e:
-            print(f"Error saving data.json: {e}")
+            print(f"Error saving users.json: {e}")
 
     # ── User data API ─────────────────────────────────────────────────────────
 

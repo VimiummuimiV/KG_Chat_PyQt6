@@ -53,6 +53,7 @@ from ui.ui_profile import ProfileWidget
 from ui.ui_emoticon_selector import EmoticonSelectorWidget, PANEL_WIDTH
 from ui.ui_pronunciation import PronunciationWidget
 from ui.ui_banlist import BanListWidget
+from ui.ui_user_tracker import UserTrackerWidget
 from ui.ui_settings import SettingsWidget, get_sound_path
 from helpers.duration_dialog import DurationDialog
 from helpers.jid_utils import extract_user_data_from_jid
@@ -80,13 +81,15 @@ class ChatWindow(QWidget):
         account=None,
         app_controller=None,
         pronunciation_manager=None,
-        ban_manager=None
+        ban_manager=None,
+        user_tracker=None
         ):
         super().__init__()
         self._dispatch.connect(lambda f: f())
         self.app_controller = app_controller
         self.pronunciation_manager = pronunciation_manager
         self.ban_manager = ban_manager
+        self.user_tracker = user_tracker
         self.tray_mode = False
         self.really_close = False
         self.account = account
@@ -513,7 +516,7 @@ class ChatWindow(QWidget):
         self.input_top_layout.addWidget(self.emoticon_button)
     
         # User list widget (right side, vertical scrollable)
-        self.user_list_widget = UserListWidget(self.config, self.input_field, self.ban_manager)
+        self.user_list_widget = UserListWidget(self.config, self.input_field, self.ban_manager, self.user_tracker)
         # Connect signals for user list actions
         self._wire_userlist_signals(self.user_list_widget)
         self.user_list_widget.open_game_requested.connect(self._open_game_room_by_id)
@@ -555,6 +558,7 @@ class ChatWindow(QWidget):
         self.button_panel.toggle_userlist_requested.connect(self.toggle_user_list)
         self.button_panel.switch_account_requested.connect(self._on_switch_account)
         self.button_panel.show_banlist_requested.connect(self.show_ban_list_view)
+        self.button_panel.show_tracker_requested.connect(self.show_user_tracker_view)
         self.button_panel.toggle_voice_requested.connect(self.on_toggle_voice_sound)
         self.button_panel.pronunciation_requested.connect(self.show_pronunciation_view)
         self.button_panel.toggle_effects_requested.connect(self.on_toggle_effects_sound)
@@ -1160,7 +1164,8 @@ class ChatWindow(QWidget):
             self.chatlog_userlist_widget = ChatlogUserlistWidget(
                 self.config,
                 self.icons_path,
-                self.ban_manager
+                self.ban_manager,
+                self.user_tracker,
             )
             self.chatlog_userlist_widget.filter_requested.connect(self._on_filter_requested)
             self._wire_userlist_signals(self.chatlog_userlist_widget)
@@ -1287,6 +1292,7 @@ class ChatWindow(QWidget):
         widget = GameRoomWidget(
             self.config, self.emoticon_manager, self.icons_path,
             account=self.account, ban_manager=self.ban_manager,
+            user_tracker=self.user_tracker,
             game_id=gid, room_label=room_label, font_scaler=font_scaler, parent=self,
         )
         widget.send_requested.connect(lambda text, w=widget: self._send_game_room_message(text, w))
@@ -1328,6 +1334,7 @@ class ChatWindow(QWidget):
         userlist.profile_requested.connect(self.show_profile_view)
         userlist.private_chat_requested.connect(self.enter_private_mode)
         userlist.paste_requested.connect(self._paste_username_to_input)
+        userlist.track_requested.connect(self._on_track_user_requested)
 
     def _wire_username_signals(self, source, right_click_widget=None):
         """Connect username left/ctrl/shift/right click signals to their
@@ -2614,6 +2621,51 @@ class ChatWindow(QWidget):
         elif pres and pres.presence_type == 'unavailable':
             self.user_list_widget.remove_users(presence=pres)
 
+        # User tracker (general room only, selected users)
+        if (self.user_tracker and self.user_tracker.is_enabled()
+                and pres and pres.login
+                and not is_game
+                and pres.presence_type in ('available', 'unavailable')):
+            my_name = (self.account or {}).get('chat_username', '')
+            if pres.login != my_name:
+                event_type = 'join' if pres.presence_type == 'available' else 'left'
+                # Same gate as competitions / message popups: no toast (and no
+                # history spam) until initial roster + history have settled.
+                startup = (
+                    not getattr(self, '_chat_ready', False)
+                    or getattr(self, 'initial_roster_loading', False)
+                    or (
+                        getattr(self, '_history_settle_timer', None) is not None
+                        and self._history_settle_timer.isActive()
+                    )
+                )
+                if startup:
+                    self.user_tracker.seed_state(pres.user_id, pres.login, event_type)
+                else:
+                    event = self.user_tracker.record_event(pres.user_id, pres.login, event_type)
+                    if event:
+                        w = getattr(self, 'user_tracker_widget', None)
+                        if w is not None and self.stacked_widget.currentWidget() is w:
+                            w.append_event(event)
+                        avatar_pix = None
+                        if pres.user_id and hasattr(self, 'cache') and self.cache:
+                            try:
+                                avatar_pix = self.cache.get_avatar(str(pres.user_id))
+                            except Exception:
+                                avatar_pix = None
+                        from components.notification import popup_manager
+                        event_ts = event.get('ts')
+                        login = pres.login
+                        popup_manager.show_presence(
+                            login,
+                            is_join=(event_type == 'join'),
+                            avatar_pixmap=avatar_pix,
+                            config=self.config,
+                            cache=getattr(self, 'cache', None),
+                            on_click=lambda l=login, ts=event_ts: self._on_presence_notification_click(l, ts),
+                            event_ts=event_ts,
+                        )
+
     def on_bulk_update_complete(self):
         self._history_settle_timer.start(self._HISTORY_SETTLE_MS)  # fallback in case no history messages follow
         if not self.xmpp_client:
@@ -2716,6 +2768,9 @@ class ChatWindow(QWidget):
 
         if getattr(self, 'ban_list_widget', None):
             self._set_font_on_tree(self.ban_list_widget, new_font, header_font)
+
+        if getattr(self, 'user_tracker_widget', None):
+            self._set_font_on_tree(self.user_tracker_widget, new_font, header_font)
 
         if getattr(self, 'pronunciation_widget', None):
             self._set_font_on_tree(self.pronunciation_widget, new_font, header_font)
@@ -3000,6 +3055,37 @@ class ChatWindow(QWidget):
         
         self.stacked_widget.setCurrentWidget(self.ban_list_widget)
 
+
+
+    def _on_presence_notification_click(self, login: str, event_ts=None):
+        action = self.config.get("user_tracker", "click_action") or "history"
+        if action == "chat":
+            self._show_and_focus_window()
+            return
+        self._open_tracker_history_event(login, event_ts)
+
+    def _open_tracker_history_event(self, login: str, event_ts=None):
+        self._show_and_focus_window()
+        self.show_user_tracker_view()
+        w = getattr(self, 'user_tracker_widget', None)
+        if w is not None:
+            w.reveal_event(login, event_ts)
+
+    def show_user_tracker_view(self):
+        self._ensure_general_tab_visible()
+        if not hasattr(self, 'user_tracker_widget') or not self.user_tracker_widget:
+            self.user_tracker_widget = UserTrackerWidget(
+                self.config,
+                self.icons_path,
+                self.user_tracker
+            )
+            self.user_tracker_widget.back_requested.connect(self._on_stacked_back)
+            self.stacked_widget.addWidget(self.user_tracker_widget)
+        else:
+            self.user_tracker_widget.refresh()
+        self.stacked_widget.setCurrentWidget(self.user_tracker_widget)
+
+
     def show_settings_view(self):
         """Show the settings view"""
         self._ensure_general_tab_visible()
@@ -3132,6 +3218,22 @@ class ChatWindow(QWidget):
             # Copy user ID
             copy_id_act = menu.addAction(icon("hashtag.svg"), "Copy ID")
 
+            username_for_track = getattr(msg, 'login', None) or getattr(msg, 'username', None)
+            jid_for_track = getattr(msg, 'from_jid', None)
+            from helpers.jid_utils import extract_user_data_from_jid
+            uid_for_track, _ = extract_user_data_from_jid(jid_for_track) if jid_for_track else (None, None)
+            if not uid_for_track and username_for_track and hasattr(self, 'cache'):
+                uid_for_track = self.cache.get_user_id(username_for_track)
+            is_tracked = bool(
+                self.user_tracker and self.user_tracker.is_tracked(
+                    user_id=uid_for_track, login=username_for_track
+                )
+            )
+            if is_tracked:
+                track_act = menu.addAction(icon("user-minus.svg"), "Untrack user")
+            else:
+                track_act = menu.addAction(icon("user-add.svg"), "Track user")
+
             menu.addSeparator()
 
             # Permanent ban action
@@ -3169,6 +3271,12 @@ class ChatWindow(QWidget):
                 username = getattr(msg, 'login', None) or getattr(msg, 'username', None)
                 user_id = self.cache.get_user_id(username) if username else None
                 QApplication.clipboard().setText(str(user_id or ""))
+            elif act == track_act:
+                self._on_track_user_requested(
+                    str(uid_for_track or ""),
+                    username_for_track or "",
+                    not is_tracked,
+                )
             elif act == perm_act:
                 # Permanent ban
                 self._ban_user_from_msg(msg, permanent=True, widget=source_widget)
@@ -3193,6 +3301,31 @@ class ChatWindow(QWidget):
         except Exception as e:
             print(f"Context menu error: {e}")
     
+
+    def _on_track_user_requested(self, user_id: str, login: str, track: bool):
+        if not self.user_tracker:
+            return
+        if track:
+            uid = user_id
+            if not uid and login:
+                from ui.ui_banlist import validate_username_and_get_id
+                uid = validate_username_and_get_id(login) or ""
+            if not uid or not login:
+                QMessageBox.warning(self, "Error", f"Could not resolve user for tracking")
+                return
+            self.user_tracker.add_selected(str(uid), login)
+        else:
+            if user_id:
+                self.user_tracker.remove_selected(str(user_id))
+            elif login:
+                for uid, name in list(self.user_tracker.get_selected().items()):
+                    if name == login:
+                        self.user_tracker.remove_selected(uid)
+                        break
+        w = getattr(self, 'user_tracker_widget', None)
+        if w is not None:
+            w.refresh()
+
     def _ban_user_from_msg(self, msg, permanent: bool = True, duration: int = None, widget=None):
         """Perform ban: update BanManager, remove messages, remove userlist entry"""
         widget = widget or self.messages_widget
@@ -3389,6 +3522,14 @@ class ChatWindow(QWidget):
                 self.show_chatlog_view()
             if self.chatlog_widget and not self.chatlog_widget.parser_visible:
                 self.chatlog_widget._toggle_parser()
+            return
+        # Ctrl+Shift+U open user tracker
+        if ctrl_held and shift_held and (key == Qt.Key.Key_U or event.nativeVirtualKey() == Qt.Key.Key_U):
+            current = self.stacked_widget.currentWidget()
+            if getattr(self, 'user_tracker_widget', None) and current is self.user_tracker_widget:
+                self._on_stacked_back()
+            else:
+                self.show_user_tracker_view()
             return
         # Ctrl+U switch account
         if ctrl and (key == Qt.Key.Key_U or event.nativeVirtualKey() == Qt.Key.Key_U):
@@ -3600,6 +3741,9 @@ class ChatWindow(QWidget):
 
             if getattr(self, "settings_widget", None):
                 self.settings_widget.update_theme()
+
+            if getattr(self, "user_tracker_widget", None):
+                self.user_tracker_widget.update_theme()
          
             self.messages_widget.rebuild_messages()
          

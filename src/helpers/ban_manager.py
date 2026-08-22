@@ -8,16 +8,16 @@ from typing import Dict, Optional, Set
 class BanManager:
     """Manages banned users (permanent + temporary in unified structure)"""
     
-    def __init__(self, settings_path: Path):
-        self.settings_path = settings_path / "banlist.json"
+    def __init__(self, data_path: Path):
+        self.file_path = data_path / "banlist.json"
         self.bans: Dict[str, Dict] = {}  # {user_id: {username, expires_at?}}
         self.load()
     
     def load(self):
         """Load bans from JSON"""
-        if self.settings_path.exists():
+        if self.file_path.exists():
             try:
-                with open(self.settings_path, 'r', encoding='utf-8') as f:
+                with open(self.file_path, 'r', encoding='utf-8') as f:
                     self.bans = json.load(f)
                 self._purge_expired()
             except Exception as e:
@@ -29,7 +29,7 @@ class BanManager:
     def save(self):
         """Save bans to JSON"""
         try:
-            with open(self.settings_path, 'w', encoding='utf-8') as f:
+            with open(self.file_path, 'w', encoding='utf-8') as f:
                 json.dump(self.bans, f, indent=2, ensure_ascii=False)
         except Exception as e:
             print(f"Error saving ban list: {e}")

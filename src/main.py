@@ -35,6 +35,7 @@ from helpers.username_color_manager import(
 )
 from helpers.pronunciation_manager import PronunciationManager
 from helpers.ban_manager import BanManager
+from helpers.user_tracker import UserTracker
 from helpers.font_scaler import FontScaler
 from core.accounts import AccountManager
 from components.tray_badge import TrayIconWithBadge
@@ -75,6 +76,9 @@ class Application(QObject):
         # Initialize settings path
         self.settings_path = Path(__file__).parent / "settings"
 
+        # Initialize data path
+        self.data_path = Path(__file__).parent / "data"
+
         # Initialize account manager and config
         self.config_path = self.settings_path / "config.json"
         self.account_manager = AccountManager(str(self.config_path))
@@ -101,10 +105,11 @@ class Application(QObject):
         self.unread_count = 0
         
         # Initialize pronunciation manager
-        self.pronunciation_manager = PronunciationManager(self.settings_path)
-        
+        self.pronunciation_manager = PronunciationManager(self.data_path)
         # Initialize ban manager
-        self.ban_manager = BanManager(self.settings_path)
+        self.ban_manager = BanManager(self.data_path)
+        # Initialize user tracker
+        self.user_tracker = UserTracker(self.data_path, self.config)
 
         self.account_window = None
         self.chat_window = None
@@ -481,7 +486,8 @@ class Application(QObject):
             account=account, 
             app_controller=self,
             pronunciation_manager=self.pronunciation_manager,
-            ban_manager=self.ban_manager
+            ban_manager=self.ban_manager,
+            user_tracker=self.user_tracker
         )
         self.chat_window.set_tray_mode(True)
         

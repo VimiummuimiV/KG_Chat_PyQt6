@@ -7,7 +7,11 @@ from PyQt6.QtWidgets import(
 from PyQt6.QtCore import Qt, QEvent, pyqtSignal
 
 from helpers.config import Config
-from helpers.create import create_icon_button, _render_svg_icon
+from helpers.create import (
+    create_icon_button,
+    _render_svg_icon,
+    set_visual_active
+)
 from helpers.scroll.scrollable_buttons import ScrollableButtonContainer
 
 
@@ -18,6 +22,7 @@ class ButtonPanel(QWidget):
     toggle_userlist_requested = pyqtSignal()
     switch_account_requested = pyqtSignal()
     show_banlist_requested = pyqtSignal()
+    show_tracker_requested = pyqtSignal()
     toggle_voice_requested = pyqtSignal()
     pronunciation_requested = pyqtSignal()
     toggle_effects_requested = pyqtSignal()
@@ -46,6 +51,7 @@ class ButtonPanel(QWidget):
         self.toggle_userlist_button = None
         self.switch_account_button = None
         self.ban_button = None
+        self.tracker_button = None
         self.voice_button = None
         self.effects_button = None
         self.notification_button = None
@@ -143,6 +149,13 @@ class ButtonPanel(QWidget):
             lambda: self.show_banlist_requested.emit()
         )
 
+        self.tracker_button = self._create_button(
+            "user-received.svg",
+            "User Tracker (Ctrl+Shift+U)",
+            lambda: self.show_tracker_requested.emit()
+        )
+
+
         # Voice toggle button
         self.voice_button = self._create_button(
             "user-voice.svg",
@@ -227,17 +240,7 @@ class ButtonPanel(QWidget):
     
     def set_button_state(self, button, is_active: bool):
         """Set visual state for any button without disabling it"""
-        if not button:
-            return
-        
-        button._is_visually_active = is_active
-        
-        if is_active:
-            button.setGraphicsEffect(None)
-        else:
-            opacity_effect = QGraphicsOpacityEffect()
-            opacity_effect.setOpacity(0.5)
-            button.setGraphicsEffect(opacity_effect)
+        set_visual_active(button, is_active)
     
     def update_theme_button_icon(self):
         """Update theme button icon after theme change"""

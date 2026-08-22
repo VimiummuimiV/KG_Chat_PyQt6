@@ -13,8 +13,10 @@ PRIVATE = "private"
 PASTE_USERNAME = "paste_username"
 COPY_USERNAME = "copy_username"
 COPY_ID = "copy_id"
-FILTER = "filter"          # chatlog userlist: filter messages by this user
-OPEN_GAME = "open_game"    # open game room chat for this user's game_id
+FILTER = "filter"        # chatlog userlist: filter messages by this user
+OPEN_GAME = "open_game"  # open game room chat for this user's game_id
+TRACK = "track"
+UNTRACK = "untrack"
 
 
 def show_user_context_menu(
@@ -24,13 +26,9 @@ def show_user_context_menu(
     *,
     has_game: bool = False,
     show_filter: bool = False,
+    is_tracked: bool = False,
+    show_track: bool = True,
 ) -> Optional[str]:
-    """Show the user context menu and return the chosen action id, or None.
-
-    has_game:    show "Open game chat" (user is in a race)
-    show_filter: show "Filter" (chatlog userlist context)
-    """
-
     def icon(name: str):
         return _render_svg_icon(icons_path / name, 16)
 
@@ -44,6 +42,14 @@ def show_user_context_menu(
     paste_act = menu.addAction(icon("add-circle.svg"), "Paste Username")
     copy_username_act = menu.addAction(icon("clipboard.svg"), "Copy Username")
     copy_id_act = menu.addAction(icon("hashtag.svg"), "Copy ID")
+
+    track_act = None
+    if show_track:
+        menu.addSeparator()
+        if is_tracked:
+            track_act = menu.addAction(icon("user-minus.svg"), "Untrack user")
+        else:
+            track_act = menu.addAction(icon("user-add.svg"), "Track user")
 
     filter_act = None
     if show_filter:
@@ -68,6 +74,8 @@ def show_user_context_menu(
         return COPY_USERNAME
     if chosen is copy_id_act:
         return COPY_ID
+    if track_act is not None and chosen is track_act:
+        return UNTRACK if is_tracked else TRACK
     if filter_act is not None and chosen is filter_act:
         return FILTER
     if open_game_act is not None and chosen is open_game_act:

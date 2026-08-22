@@ -23,6 +23,7 @@ class GameRoomWidget(QWidget):
     private_chat_requested = pyqtSignal(str, str, str)
     paste_requested = pyqtSignal(str)
     open_game_requested = pyqtSignal(str)
+    track_requested = pyqtSignal(str, str, bool)
     emoticon_requested = pyqtSignal()
     username_left_clicked = pyqtSignal(str, bool)
     username_right_clicked = pyqtSignal(object, object)
@@ -36,6 +37,7 @@ class GameRoomWidget(QWidget):
         icons_path: Path,
         account=None,
         ban_manager=None,
+        user_tracker=None,
         game_id=None,
         room_label: str = "Game",
         font_scaler=None,
@@ -47,6 +49,7 @@ class GameRoomWidget(QWidget):
         self.icons_path = icons_path
         self.account = account
         self.ban_manager = ban_manager
+        self.user_tracker = user_tracker
         self.game_id = game_id
         self.room_label = room_label  # "Game" or "Competition" — cosmetic, set once at open time
         self.room_jid = XMPPClient.game_room_jid(game_id) if game_id else None
@@ -113,12 +116,14 @@ class GameRoomWidget(QWidget):
         ul_layout.setSpacing(4)
 
         self.user_list_widget = UserListWidget(
-            self.config, input_field=self.input_field, ban_manager=self.ban_manager
+            self.config, input_field=self.input_field, ban_manager=self.ban_manager,
+            user_tracker=self.user_tracker
         )
         self.user_list_widget.profile_requested.connect(self.profile_requested.emit)
         self.user_list_widget.private_chat_requested.connect(self.private_chat_requested.emit)
         self.user_list_widget.paste_requested.connect(self.paste_requested.emit)
         self.user_list_widget.open_game_requested.connect(self.open_game_requested.emit)
+        self.user_list_widget.track_requested.connect(self.track_requested.emit)
         ul_layout.addWidget(self.user_list_widget, stretch=1)
 
         if self.font_scaler is not None:

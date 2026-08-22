@@ -29,7 +29,8 @@ from helpers.color_utils import blend_hex_colors
 from helpers.browser import get_available_browsers
 
 NOTIFICATION_WIDTH_DEFAULT = 550
-NOTIFICATION_DURATION_DEFAULT = 5  # seconds 
+NOTIFICATION_DURATION_DEFAULT = 5  # seconds
+NOTIFICATION_FADE_MS_DEFAULT = 300 
 COMPETITIONS_ALERT_LEAD_DEFAULT = 0
 COMPETITIONS_NOTIFY_START_DEFAULT = 0
 COMPETITIONS_NOTIFY_END_DEFAULT = 24
@@ -666,6 +667,7 @@ class SettingsWidget(QWidget):
         self._build_fonts_section()
         self._build_notifications_section()
         self._build_competitions_section()
+        self._build_user_tracker_section()
         self._build_sound_section()
 
         self._sections_layout.addStretch(1)
@@ -774,6 +776,13 @@ class SettingsWidget(QWidget):
             self._on_notification_duration_changed,
             default=NOTIFICATION_DURATION_DEFAULT,
         )
+        self.notification_fade_spin = self._add_slider_spin_row(
+            section,
+            "Fade duration (ms)",
+            50, 2000,
+            self._on_notification_fade_changed,
+            default=NOTIFICATION_FADE_MS_DEFAULT,
+        )
 
         self.competitions_bypass_mute_checkbox = self._add_checkbox(
             section, "Notify about competitions even when notifications are disabled",
@@ -786,6 +795,10 @@ class SettingsWidget(QWidget):
         self.bans_bypass_mute_checkbox = self._add_checkbox(
             section, "Notify about bans even when notifications are disabled",
             self._on_bans_bypass_mute_toggled
+        )
+        self.tracker_notify_checkbox = self._add_checkbox(
+            section, "Notify about tracked user join and leave even when notifications are disabled",
+            self._on_tracker_notify_toggled
         )
 
     def _build_competitions_section(self):
@@ -874,6 +887,24 @@ class SettingsWidget(QWidget):
             default=COMPETITIONS_NOTIFY_END_DEFAULT
         )
 
+
+    def _build_user_tracker_section(self):
+        section = self._create_section("🗿 User Tracker")
+        self.tracker_enabled_checkbox = self._add_checkbox(
+            section, "Track selected users join and leave",
+            self._on_tracker_enabled_toggled
+        )
+        self.tracker_retention_spin = self._add_slider_spin_row(
+            section, "History retention (hours)", 1, 168,
+            self._on_tracker_retention_changed, default=24
+        )
+        self.tracker_click_combo = self._add_combo_row(
+            section,
+            "On notification click",
+            ["Open history", "Show chat"],
+            self._on_tracker_click_action_changed,
+        )
+
     def _build_sound_section(self):
         section = self._create_section("🔊 Sound")
         self.mention_always_checkbox = self._add_checkbox(
@@ -920,6 +951,7 @@ class SettingsWidget(QWidget):
             self.clear_private_checkbox, self.youtube_checkbox, self.browser_combo,
             self.track_competitions_checkbox, self.competitions_bypass_mute_checkbox,
             self.mentions_bypass_mute_checkbox, self.bans_bypass_mute_checkbox,
+            self.tracker_notify_checkbox, self.tracker_enabled_checkbox,
             self.min_multiplier_combo,
             self.show_cost_checkbox,
             self.show_players_checkbox, self.max_player_chips_spin, self.sort_players_by_level_checkbox,
@@ -927,7 +959,7 @@ class SettingsWidget(QWidget):
             self.competitions_notify_window_checkbox,
             self.competitions_notify_start_spin, self.competitions_notify_end_spin,
             self.notification_mode_combo, self.notification_position_combo, self.notification_width_spin,
-            self.notification_hide_on_combo, self.notification_duration_spin,
+            self.notification_hide_on_combo, self.notification_duration_spin, self.notification_fade_spin,
             self.mention_always_checkbox, self.competition_always_checkbox,
             self.competition_sound_repeat_checkbox, self.competition_sound_repeat_interval_spin,
         )
@@ -1009,6 +1041,24 @@ class SettingsWidget(QWidget):
         self.bans_bypass_mute_checkbox.setChecked(
             bool(self.config.get("notification", "bans_bypass_mute"))
         )
+        self.tracker_notify_checkbox.setChecked(
+            bool(self.config.get("notification", "tracked_bypass_mute"))
+        )
+        self.tracker_enabled_checkbox.setChecked(
+            bool(self.config.get("user_tracker", "enabled")
+                 if self.config.get("user_tracker", "enabled") is not None else True)
+        )
+        retention = self.config.get("user_tracker", "retention_hours")
+        try:
+            retention = int(retention) if retention is not None else 24
+        except (TypeError, ValueError):
+            retention = 24
+        self.tracker_retention_spin.setValue(max(1, min(168, retention)))
+        click = self.config.get("user_tracker", "click_action") or "history"
+        click_label = "Show chat" if click == "chat" else "Open history"
+        idx = self.tracker_click_combo.findText(click_label)
+        self.tracker_click_combo.setCurrentIndex(idx if idx >= 0 else 0)
+
         min_m = self.config.get("competitions", "min_multiplier") or "x1+"
         idx = self.min_multiplier_combo.findText(min_m)
         self.min_multiplier_combo.setCurrentIndex(idx if idx >= 0 else 0)
@@ -1064,9 +1114,22 @@ class SettingsWidget(QWidget):
         idx = self.notification_hide_on_combo.findText(hide_label)
         self.notification_hide_on_combo.setCurrentIndex(idx if idx >= 0 else 3)
 
-        duration = int(self.config.get("notification", "duration") or NOTIFICATION_DURATION_DEFAULT)
+        duration_ms = self.config.get("notification", "duration_ms")
+        try:
+            duration_ms = int(duration_ms) if duration_ms is not None else NOTIFICATION_DURATION_DEFAULT * 1000
+        except (TypeError, ValueError):
+            duration_ms = NOTIFICATION_DURATION_DEFAULT * 1000
+        duration = max(1, round(duration_ms / 1000))
         self.notification_duration_spin.setValue(duration)
         self.notification_duration_spin._slider.setValue(duration)
+        fade_ms = self.config.get("notification", "fade_ms")
+        try:
+            fade_ms = int(fade_ms) if fade_ms is not None else NOTIFICATION_FADE_MS_DEFAULT
+        except (TypeError, ValueError):
+            fade_ms = NOTIFICATION_FADE_MS_DEFAULT
+        fade_ms = max(50, min(2000, fade_ms))
+        self.notification_fade_spin.setValue(fade_ms)
+        self.notification_fade_spin._slider.setValue(fade_ms)
 
         mention_always = self.config.get("sound", "play_mention_sound_always")
         self.mention_always_checkbox.setChecked(False if mention_always is None else bool(mention_always))
@@ -1230,6 +1293,19 @@ class SettingsWidget(QWidget):
 
     def _on_bans_bypass_mute_toggled(self, checked: bool):
         self.config.set("notification", "bans_bypass_mute", value=checked)
+
+    def _on_tracker_notify_toggled(self, checked: bool):
+        self.config.set("notification", "tracked_bypass_mute", value=checked)
+
+    def _on_tracker_enabled_toggled(self, checked: bool):
+        self.config.set("user_tracker", "enabled", value=checked)
+
+    def _on_tracker_retention_changed(self, value: int):
+        self.config.set("user_tracker", "retention_hours", value=int(value))
+
+    def _on_tracker_click_action_changed(self, text: str):
+        value = "chat" if text == "Show chat" else "history"
+        self.config.set("user_tracker", "click_action", value=value)
 
     def _status_log_html(self, text: str, kind: str) -> str:
         c = self._competitions_log_colors()
@@ -1443,7 +1519,10 @@ class SettingsWidget(QWidget):
         self.config.set("notification", "hide_on", value=value)
 
     def _on_notification_duration_changed(self, value: int):
-        self.config.set("notification", "duration", value=value)
+        self.config.set("notification", "duration_ms", value=int(value) * 1000)
+
+    def _on_notification_fade_changed(self, value: int):
+        self.config.set("notification", "fade_ms", value=int(value))
 
     def _on_mention_always_toggled(self, checked: bool):
         self.config.set("sound", "play_mention_sound_always", value=checked)

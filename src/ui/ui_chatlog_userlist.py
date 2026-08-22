@@ -10,7 +10,17 @@ from helpers.load import make_rounded_pixmap
 from helpers.cache import get_cache
 from helpers.fonts import get_font, FontType
 from helpers.scroll.auto_scroll import AutoScroller
-from components.user_context_menu import show_user_context_menu, PROFILE, PRIVATE, PASTE_USERNAME, COPY_USERNAME, COPY_ID, FILTER
+from components.user_context_menu import (
+    show_user_context_menu,
+    PROFILE,
+    PRIVATE,
+    PASTE_USERNAME,
+    COPY_USERNAME,
+    COPY_ID,
+    FILTER,
+    TRACK,
+    UNTRACK
+)
 
 
 class ChatlogUserWidget(QWidget):
@@ -22,11 +32,13 @@ class ChatlogUserWidget(QWidget):
     profile_requested = pyqtSignal(str, str, str)  # jid, username, user_id
     private_chat_requested = pyqtSignal(str, str, str)  # jid, username, user_id
     paste_requested = pyqtSignal(str) # username
+    track_requested = pyqtSignal(str, str, bool)  # user_id, login, track
 
-    def __init__(self, username, msg_count, config, icons_path, user_id=None):
+    def __init__(self, username, msg_count, config, icons_path, user_id=None, user_tracker=None):
         super().__init__()
         self.username = username
         self.user_id = user_id
+        self.user_tracker = user_tracker
         self.icons_path = icons_path
         self.is_filtered = False
         self._cache = get_cache()
@@ -107,8 +119,15 @@ class ChatlogUserWidget(QWidget):
         super().mousePressEvent(event)
 
     def contextMenuEvent(self, event):
-        """RMB → Profile / Private Chat / Copy Username / Copy ID / Filter by User menu"""
-        action = show_user_context_menu(self.icons_path, self, QCursor.pos(), show_filter=True)
+        is_tracked = bool(
+            self.user_tracker and self.user_tracker.is_tracked(
+                user_id=self.user_id, login=self.username
+            )
+        )
+        action = show_user_context_menu(
+            self.icons_path, self, QCursor.pos(),
+            show_filter=True, is_tracked=is_tracked, show_track=True,
+        )
         if action == PROFILE:
             self.profile_requested.emit("", self.username, self.user_id or "")
         elif action == PRIVATE:
@@ -120,8 +139,11 @@ class ChatlogUserWidget(QWidget):
         elif action == COPY_ID:
             QApplication.clipboard().setText(str(self.user_id or ""))
         elif action == FILTER:
-            # Reuse the same single-select filter logic as a plain LMB click
             self.clicked.emit(self.username, False)
+        elif action == TRACK:
+            self.track_requested.emit(str(self.user_id or ""), self.username, True)
+        elif action == UNTRACK:
+            self.track_requested.emit(str(self.user_id or ""), self.username, False)
 
 
 class ChatlogUserlistWidget(QWidget):
@@ -131,13 +153,15 @@ class ChatlogUserlistWidget(QWidget):
     profile_requested = pyqtSignal(str, str, str)  # jid, username, user_id
     private_chat_requested = pyqtSignal(str, str, str)  # jid, username, user_id
     paste_requested = pyqtSignal(str) # username
+    track_requested = pyqtSignal(str, str, bool)
 
-    def __init__(self, config, icons_path, ban_manager=None):
+    def __init__(self, config, icons_path, ban_manager=None, user_tracker=None):
         super().__init__()
         self.config = config
         self.icons_path = icons_path
         self.cache = get_cache()
         self.ban_manager = ban_manager
+        self.user_tracker = user_tracker
         self.show_banned = False  # Track if we should show banned users
         self.user_widgets = {}  # username -> widget
         self.filtered_usernames = set()
@@ -264,11 +288,12 @@ class ChatlogUserlistWidget(QWidget):
         for username, count in sorted_users:
             try:
                 user_id = self.cache.get_user_id(username)
-                widget = ChatlogUserWidget(username, count, self.config, self.icons_path, user_id)
+                widget = ChatlogUserWidget(username, count, self.config, self.icons_path, user_id, self.user_tracker)
                 widget.clicked.connect(self._handle_user_click)
                 widget.profile_requested.connect(self.profile_requested.emit)
                 widget.private_chat_requested.connect(self.private_chat_requested.emit)
                 widget.paste_requested.connect(self.paste_requested.emit)
+                widget.track_requested.connect(self.track_requested.emit)
                 widget.set_filtered(username in self.filtered_usernames)
                 self.user_widgets[username] = widget
                 self.user_layout.insertWidget(self.user_layout.count() - 1, widget)

@@ -1,6 +1,6 @@
 from pathlib import Path
 import re
-from PyQt6.QtWidgets import QPushButton
+from PyQt6.QtWidgets import QGraphicsOpacityEffect, QPushButton
 from PyQt6.QtGui import QIcon, QPixmap, QPainter
 from PyQt6.QtCore import QSize, Qt
 from PyQt6.QtSvg import QSvgRenderer
@@ -98,6 +98,20 @@ def create_icon_button(
 def create_disabled_icon(icons_path: Path, icon_name: str, icon_size: int) -> QIcon:
     """Render an icon in the muted gray tone used for a disabled button state"""
     return _render_svg_icon(icons_path / icon_name, icon_size, color=_COLOR_GRAY)
+
+
+def set_visual_active(widget, is_active: bool, opacity: float = 0.5):
+    """Dim widget when inactive"""
+    if widget is None:
+        return
+    widget._is_visually_active = is_active
+    if is_active:
+        widget.setGraphicsEffect(None)
+    else:
+        effect = QGraphicsOpacityEffect(widget)
+        effect.setOpacity(opacity)
+        widget.setGraphicsEffect(effect)
+
 
 class HoverIconButton(QPushButton):
     """Icon button that changes icon on hover"""

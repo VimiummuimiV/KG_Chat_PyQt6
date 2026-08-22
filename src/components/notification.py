@@ -17,12 +17,133 @@ from ui.message_renderer import MessageRenderer
 from ui.ui_emoticon_selector import release_selector
 
 
+FADE_DURATION_MS_DEFAULT = 300
+NOTIFICATION_DURATION_MS_DEFAULT = 5000
+
+
+def _resolve_fade_ms(config=None) -> int:
+    if config is not None:
+        value = config.get("notification", "fade_ms")
+        if value is not None:
+            try:
+                return max(50, min(2000, int(value)))
+            except (TypeError, ValueError):
+                pass
+    return FADE_DURATION_MS_DEFAULT
+
+
+def _resolve_duration_ms(config=None) -> int:
+    """Auto-hide duration in ms, from config('notification', 'duration_ms')."""
+    if config is not None:
+        value = config.get("notification", "duration_ms")
+        if value is not None:
+            try:
+                return max(1000, int(value))
+            except (TypeError, ValueError):
+                pass
+    return NOTIFICATION_DURATION_MS_DEFAULT
+
+
+def _fade_opacity(widget, start: float, end: float, on_finished=None, duration_ms=None):
+    """Shared windowOpacity animation for notification popups."""
+    if duration_ms is None:
+        cfg = getattr(widget, "config", None)
+        if cfg is None:
+            data = getattr(widget, "data", None)
+            cfg = getattr(data, "config", None) if data is not None else None
+        if cfg is None:
+            manager = getattr(widget, "manager", None)
+            cfg = getattr(manager, "config", None) if manager is not None else None
+        duration_ms = _resolve_fade_ms(cfg)
+    anim = QPropertyAnimation(widget, b"windowOpacity")
+    anim.setDuration(int(duration_ms))
+    anim.setStartValue(start)
+    anim.setEndValue(end)
+    if on_finished is not None:
+        anim.finished.connect(on_finished)
+    anim.start()
+    return anim
+
+
+def _hold_all_popups(manager):
+    """Stop hide timers / fade-outs and restore full opacity on the whole stack."""
+    for p in manager.popups:
+        if getattr(p, "hide_timer", None) and p.hide_timer.isActive():
+            p.hide_timer.stop()
+        fade = getattr(p, "fade_out", None)
+        if fade is not None and fade.state() == QPropertyAnimation.State.Running:
+            fade.stop()
+        p.setWindowOpacity(1.0)
+
+
+def _resume_all_hide_timers(manager):
+    """Restart auto-hide on every popup when none are hovered."""
+    if any(getattr(p, "is_hovered", False) for p in manager.popups):
+        return
+    for p in manager.popups:
+        if getattr(p, "cursor_moved", False) and not getattr(p, "reply_field_visible", False):
+            start = getattr(p, "_start_hide_timer", None)
+            if start:
+                start()
+
+
+def _setup_popup_window(widget):
+    """Frameless, always-on-top, click-through-to-show popup chrome shared by all toasts."""
+    widget.setWindowFlags(
+        Qt.WindowType.FramelessWindowHint |
+        Qt.WindowType.Tool |
+        Qt.WindowType.WindowStaysOnTopHint
+    )
+    widget.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
+    widget.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+    widget.setMouseTracking(True)
+
+
+def _paint_rounded_background(widget, radius: int = 10):
+    """Shared rounded-rect background painter for popup widgets."""
+    painter = QPainter(widget)
+    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+    path = QPainterPath()
+    path.addRoundedRect(widget.rect().toRectF(), radius, radius)
+    painter.fillPath(path, widget.palette().window())
+    painter.setPen(widget.palette().mid().color())
+    painter.drawPath(path)
+
+
+def _resolve_margin_spacing(config) -> Tuple[int, int]:
+    """(margin, spacing) for popup layouts, from config with shared defaults."""
+    margin = (config.get("ui", "margins", "notification") if config else None) or 8
+    spacing = (config.get("ui", "spacing", "widget_elements") if config else None) or 4
+    return margin, spacing
+
+
+def _safe_call(fn, *args, err_msg: str = "Callback error"):
+    """Invoke an optional callback, swallowing and logging any exception."""
+    if fn is None:
+        return
+    try:
+        fn(*args)
+    except Exception as e:
+        print(f"❌ {err_msg}: {e}")
+
+
+def _svg_avatar_pixmap(icons_path, size: int, color=None):
+    """Fallback user-icon pixmap rendered at the given size."""
+    icon = _render_svg_icon(icons_path / "user.svg", size, color) if color is not None \
+        else _render_svg_icon(icons_path / "user.svg", size)
+    return icon.pixmap(QSize(size, size))
+
+def _icon_btn(self, icon_name: str, tooltip: str, size_type: str = "small"):
+    """Shortcut for the repeated create_icon_button(self.icons_path, ..., config=self.data.config) calls."""
+    return create_icon_button(self.icons_path, icon_name, tooltip, size_type=size_type, config=self.data.config)
+
+
 @dataclass
 class NotificationData:
     """Encapsulates all notification parameters to avoid code duplication"""
     title: str
     message: str
-    duration: int = 5000
+    duration: int = NOTIFICATION_DURATION_MS_DEFAULT
     xmpp_client: Optional[Any] = None
     cache: Optional[Any] = None
     config: Optional[Any] = None
@@ -171,18 +292,10 @@ class PopupNotification(QWidget):
         self.icons_path = Path(__file__).parent.parent / "icons"
       
         # Window setup
-        self.setWindowFlags(
-            Qt.WindowType.FramelessWindowHint |
-            Qt.WindowType.Tool |
-            Qt.WindowType.WindowStaysOnTopHint
-        )
-        self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
-        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-        self.setMouseTracking(True)
+        _setup_popup_window(self)
       
         # Get spacing/margin from config
-        self.margin = data.config.get("ui", "margins", "notification") if data.config else 8
-        self.spacing = data.config.get("ui", "spacing", "widget_elements") if data.config else 4
+        self.margin, self.spacing = _resolve_margin_spacing(data.config)
         margin = self.margin
         spacing = self.spacing
       
@@ -264,16 +377,10 @@ class PopupNotification(QWidget):
                 if cached_avatar:
                     self.avatar_label.setPixmap(make_rounded_pixmap(cached_avatar, AVATAR_SIZE, 8))
                 else:
-                    self.avatar_label.setPixmap(
-                        _render_svg_icon(self.icons_path / "user.svg", SVG_AVATAR_SIZE, svg_color)
-                        .pixmap(QSize(SVG_AVATAR_SIZE, SVG_AVATAR_SIZE))
-                    )
+                    self.avatar_label.setPixmap(_svg_avatar_pixmap(self.icons_path, SVG_AVATAR_SIZE, svg_color))
                     data.cache.load_avatar_async(user_id, self._on_avatar_loaded)
             else:
-                self.avatar_label.setPixmap(
-                    _render_svg_icon(self.icons_path / "user.svg", SVG_AVATAR_SIZE, svg_color)
-                    .pixmap(QSize(SVG_AVATAR_SIZE, SVG_AVATAR_SIZE))
-                )
+                self.avatar_label.setPixmap(_svg_avatar_pixmap(self.icons_path, SVG_AVATAR_SIZE, svg_color))
 
         if not data.is_system:
             top_row.addWidget(self.avatar_label, stretch=0)
@@ -294,47 +401,34 @@ class PopupNotification(QWidget):
         # Position toggle button
         current_position = data.config.get("ui", "notification_position") if data.config else "right"
         position_icons = {"left": "align-left.svg", "center": "align-center.svg", "right": "align-right.svg"}
-        self.position_button = create_icon_button(
-            self.icons_path, position_icons.get(current_position or "right", "align-right.svg"), "Toggle Position",
-            size_type="small", config=data.config
+        self.position_button = self._icon_btn(
+            position_icons.get(current_position or "right", "align-right.svg"), "Toggle Position"
         )
         self.position_button.clicked.connect(self._on_toggle_position)
         buttons_layout.addWidget(self.position_button)
 
         # Answer button - hide for ban, system, and competition messages
         if not data.is_ban and not data.is_system and not data.is_competition:
-            self.answer_button = create_icon_button(
-                self.icons_path, "reply.svg", "Reply",
-                size_type="small", config=data.config
-            )
+            self.answer_button = self._icon_btn("reply.svg", "Reply")
             self.answer_button.clicked.connect(self._on_answer)
             buttons_layout.addWidget(self.answer_button)
         else:
             self.answer_button = None
 
         if data.is_competition and data.open_room_callback and data.competition_game_id is not None:
-            self.open_room_button = create_icon_button(
-                self.icons_path, "chat.svg", "Open competition room",
-                size_type="small", config=data.config
-            )
+            self.open_room_button = self._icon_btn("chat.svg", "Open competition room")
             self.open_room_button.clicked.connect(self._on_open_room)
             buttons_layout.addWidget(self.open_room_button)
         else:
             self.open_room_button = None
       
         # Mute button
-        self.mute_button = create_icon_button(
-            self.icons_path, "shut-down.svg", "Mute Notifications",
-            size_type="small", config=data.config
-        )
+        self.mute_button = self._icon_btn("shut-down.svg", "Mute Notifications")
         self.mute_button.clicked.connect(self._on_mute)
         buttons_layout.addWidget(self.mute_button)
       
         # Close button
-        self.close_button = create_icon_button(
-            self.icons_path, "close.svg", "Close",
-            size_type="small", config=data.config
-        )
+        self.close_button = self._icon_btn("close.svg", "Close")
         self.close_button.clicked.connect(self.manager.close_all)
         buttons_layout.addWidget(self.close_button)
       
@@ -380,10 +474,7 @@ class PopupNotification(QWidget):
             self.reply_field.returnPressed.connect(self._on_send_reply)
             reply_layout.addWidget(self.reply_field, stretch=1)
           
-            self.send_button = create_icon_button(
-                self.icons_path, "send.svg", "Send",
-                size_type="large", config=data.config
-            )
+            self.send_button = self._icon_btn("send.svg", "Send", size_type="large")
             self.send_button.clicked.connect(self._on_send_reply)
             reply_layout.addWidget(self.send_button)
           
@@ -434,13 +525,7 @@ class PopupNotification(QWidget):
 
     def paintEvent(self, event):
         """Custom paint for rounded corners"""
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        path = QPainterPath()
-        path.addRoundedRect(self.rect().toRectF(), 10, 10)
-        painter.fillPath(path, self.palette().window())
-        painter.setPen(self.palette().mid().color())
-        painter.drawPath(path)
+        _paint_rounded_background(self)
   
     def mousePressEvent(self, event):
         """Handle clicks: buttons, links, or show window"""
@@ -470,10 +555,7 @@ class PopupNotification(QWidget):
                                 self.data.window_show_callback()
                             except Exception:
                                 pass
-                        try:
-                            self.data.profile_callback(chip_name)
-                        except Exception as e:
-                            print(f"Profile from notification chip: {e}")
+                        _safe_call(self.data.profile_callback, chip_name, err_msg="Profile from notification chip")
                         return
                     link_data = self.message_widget.get_link_at_pos(widget_pos)
                     if link_data:
@@ -484,11 +566,7 @@ class PopupNotification(QWidget):
                         return
           
             # Show chat window if callback exists
-            if self.data.window_show_callback:
-                try:
-                    self.data.window_show_callback()
-                except Exception as e:
-                    print(f"❌ Error showing window: {e}")
+            _safe_call(self.data.window_show_callback, err_msg="Error showing window")
           
             self.manager.close_all()
         elif event.button() == Qt.MouseButton.RightButton:
@@ -543,11 +621,7 @@ class PopupNotification(QWidget):
   
     def _animate_in(self):
         """Fade in animation"""
-        self.fade_in = QPropertyAnimation(self, b"windowOpacity")
-        self.fade_in.setDuration(300)
-        self.fade_in.setStartValue(0.0)
-        self.fade_in.setEndValue(1.0)
-        self.fade_in.start()
+        self.fade_in = _fade_opacity(self, 0.0, 1.0)
   
     def _animate_out(self, force: bool = False):
         """Fade out animation.
@@ -559,13 +633,7 @@ class PopupNotification(QWidget):
             return
         if self.hide_timer and self.hide_timer.isActive():
             self.hide_timer.stop()
-
-        self.fade_out = QPropertyAnimation(self, b"windowOpacity")
-        self.fade_out.setDuration(300)
-        self.fade_out.setStartValue(self.windowOpacity())
-        self.fade_out.setEndValue(0.0)
-        self.fade_out.finished.connect(self._on_close)
-        self.fade_out.start()
+        self.fade_out = _fade_opacity(self, self.windowOpacity(), 0.0, self._on_close)
   
     def _release_emoticon_selector(self):
         """Remove the borrowed selector from this popup's layout and release ownership."""
@@ -596,16 +664,9 @@ class PopupNotification(QWidget):
   
     def _on_open_room(self):
         gid = self.data.competition_game_id
-        if self.data.window_show_callback:
-            try:
-                self.data.window_show_callback()
-            except Exception as e:
-                print(f"❌ Error showing window: {e}")
-        if self.data.open_room_callback and gid is not None:
-            try:
-                self.data.open_room_callback(gid)
-            except Exception as e:
-                print(f"❌ Error opening room: {e}")
+        _safe_call(self.data.window_show_callback, err_msg="Error showing window")
+        if gid is not None:
+            _safe_call(self.data.open_room_callback, gid, err_msg="Error opening room")
         self.manager.close_all()
 
     def _on_answer(self):
@@ -664,10 +725,7 @@ class PopupNotification(QWidget):
         # Update icon on all popup position buttons for consistency
         for popup in self.manager.popups:
             if hasattr(popup, 'position_button'):
-                new_btn = create_icon_button(
-                    self.icons_path, icons[new_pos], "Toggle Position",
-                    size_type="small", config=self.data.config
-                )
+                new_btn = self._icon_btn(icons[new_pos], "Toggle Position")
                 popup.position_button.setIcon(new_btn.icon())
                 new_btn.deleteLater()
         self.manager._position_and_cleanup()
@@ -761,33 +819,162 @@ class PopupNotification(QWidget):
             super().wheelEvent(event)
 
     def enterEvent(self, event):
-        """Mouse entered - stop hiding"""
+        """Mouse entered - stop hiding for the whole stack"""
         self.is_hovered = True
-        for p in self.manager.popups:
-            if p.hide_timer and p.hide_timer.isActive():
-                p.hide_timer.stop()
-            if hasattr(p, 'fade_out') and p.fade_out.state() == QPropertyAnimation.State.Running:
-                p.fade_out.stop()
-            p.setWindowOpacity(1.0)
+        fading = getattr(self, "fade_out", None)
+        was_fading = (
+            fading is not None
+            and fading.state() == QPropertyAnimation.State.Running
+        )
+        _hold_all_popups(self.manager)
+        if was_fading:
+            self.fade_reveal = _fade_opacity(self, self.windowOpacity(), 1.0)
+
+    def leaveEvent(self, event):
+        """Mouse left - restart hide timer on the whole stack"""
+        self.is_hovered = False
+        _resume_all_hide_timers(self.manager)
+
+
+class PresenceMiniPopup(QWidget):
+    """Compact join/left notification — same chrome/hover rules as PopupNotification."""
+
+    def __init__(self, manager, login: str, is_join: bool, avatar_pixmap=None,
+                 config=None, duration_ms: int = NOTIFICATION_DURATION_MS_DEFAULT, on_click=None, event_ts=None,
+                 cache=None):
+        super().__init__()
+        self.manager = manager
+        self.config = config
+        self.reply_field_visible = False
+        self.is_hovered = False
+        self.cursor_moved = False
+        self.data = None
+        self.on_click = on_click
+        self.event_ts = event_ts
+        self.login = login
+        self.is_join = is_join
+        self.duration = duration_ms
+        self.hide_timer = None
+        self.icons_path = Path(__file__).parent.parent / "icons"
+
+        _setup_popup_window(self)
+
+        margin, spacing = _resolve_margin_spacing(config)
+
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(margin, margin, margin, margin)
+        layout.setSpacing(spacing)
+
+        AVATAR_SIZE = 36
+        SVG_AVATAR_SIZE = 24
+
+        avatar = QLabel()
+        avatar.setFixedSize(AVATAR_SIZE, AVATAR_SIZE)
+        avatar.setStyleSheet("background: transparent; border: none; padding: 0; margin: 0;")
+        avatar.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        if avatar_pixmap is not None and not avatar_pixmap.isNull():
+            avatar.setPixmap(make_rounded_pixmap(avatar_pixmap, AVATAR_SIZE, 8))
+        else:
+            avatar.setPixmap(_svg_avatar_pixmap(self.icons_path, SVG_AVATAR_SIZE))
+        layout.addWidget(avatar)
+
+        ts = QLabel(datetime.now().strftime("%H:%M:%S"))
+        ts.setFont(get_font(FontType.TEXT))
+        ts.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        ts.setStyleSheet("color: #888;")
+        layout.addWidget(ts)
+
+        badge = QLabel("join" if is_join else "left")
+        badge.setFont(get_font(FontType.UI))
+        badge.setFixedWidth(40)
+        badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        if is_join:
+            badge.setStyleSheet(
+                "QLabel { background: #2d6a4f; color: #d8f3dc; border-radius: 4px; padding: 2px 4px; }"
+            )
+        else:
+            badge.setStyleSheet(
+                "QLabel { background: #6a2d2d; color: #f3d8d8; border-radius: 4px; padding: 2px 4px; }"
+            )
+        layout.addWidget(badge)
+
+        name = QLabel(f"<b>{login}</b>")
+        name.setFont(get_font(FontType.TEXT))
+        name.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        is_dark = (config.get("ui", "theme") == "dark") if config else True
+        if cache is not None:
+            username_color = cache.get_username_color(login, is_dark)
+        else:
+            username_color = "#AAAAAA"
+        name.setStyleSheet(f"color: {username_color}; background: transparent;")
+        layout.addWidget(name, stretch=1)
+
+        self.close_button = self._icon_btn("close.svg", "Close")
+        self.close_button.clicked.connect(self.close_immediately)
+        layout.addWidget(self.close_button)
+
+        self.adjustSize()
+        self.setFixedHeight(max(AVATAR_SIZE + margin * 2, self.sizeHint().height()))
+        self.setMinimumWidth(min(360, self.sizeHint().width() + 20))
+
+        self.setWindowOpacity(0.0)
+        self.show()
+        QTimer.singleShot(0, self._animate_in)
+        self._start_hide_timer()
+
+    def paintEvent(self, event):
+        _paint_rounded_background(self)
+
+    def _animate_in(self):
+        self.fade_in = _fade_opacity(self, 0.0, 1.0)
+
+    def _start_hide_timer(self):
+        if self.is_hovered or self.reply_field_visible:
+            return
         if self.hide_timer and self.hide_timer.isActive():
             self.hide_timer.stop()
-        if hasattr(self, 'fade_out') and self.fade_out.state() == QPropertyAnimation.State.Running:
-            self.fade_out.stop()
-            self.fade_reveal = QPropertyAnimation(self, b"windowOpacity")
-            self.fade_reveal.setDuration(300)
-            self.fade_reveal.setStartValue(self.windowOpacity())
-            self.fade_reveal.setEndValue(1.0)
-            self.fade_reveal.start()
-        else:
-            self.setWindowOpacity(1.0)
-  
+        self.hide_timer = QTimer(self)
+        self.hide_timer.setSingleShot(True)
+        self.hide_timer.timeout.connect(self._animate_out)
+        self.hide_timer.start(self.duration)
+
+    def _animate_out(self, force: bool = False):
+        if self.is_hovered and not force:
+            return
+        if self.hide_timer and self.hide_timer.isActive():
+            self.hide_timer.stop()
+        self.fade_out = _fade_opacity(self, self.windowOpacity(), 0.0, self._on_close)
+
+    def enterEvent(self, event):
+        self.is_hovered = True
+        _hold_all_popups(self.manager)
+
     def leaveEvent(self, event):
-        """Mouse left - restart hide timer"""
         self.is_hovered = False
-        if not any(p.is_hovered for p in self.manager.popups):
-            for p in self.manager.popups:
-                if p.cursor_moved and not p.reply_field_visible:
-                    p._start_hide_timer()
+        _resume_all_hide_timers(self.manager)
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            if self.childAt(event.pos()) is self.close_button:
+                return super().mousePressEvent(event)
+            if self.on_click:
+                _safe_call(self.on_click, err_msg="Presence notification click")
+            self.manager.close_all()
+            return
+        super().mousePressEvent(event)
+
+    def close_immediately(self):
+        if self.hide_timer and self.hide_timer.isActive():
+            self.hide_timer.stop()
+        fade = getattr(self, "fade_out", None)
+        if fade is not None and fade.state() == QPropertyAnimation.State.Running:
+            fade.stop()
+        self._on_close()
+
+    def _on_close(self):
+        self.manager.remove_popup(self)
+        self.close()
+        self.deleteLater()
 
 
 class PopupManager:
@@ -816,6 +1003,25 @@ class PopupManager:
     def set_muted(self, muted: bool):
         """Set muted state"""
         self.muted = muted
+
+    def show_presence(self, login: str, is_join: bool, avatar_pixmap=None, config=None,
+                      on_click=None, event_ts=None, cache=None):
+        """Compact join/left toast. When muted, only if tracked_bypass_mute."""
+        cfg = config or self.config
+        bypass = bool(cfg and cfg.get("notification", "tracked_bypass_mute"))
+        if self.muted and not bypass:
+            return None
+        self.config = cfg
+        duration_ms = _resolve_duration_ms(cfg)
+        popup = PresenceMiniPopup(
+            self, login, is_join, avatar_pixmap=avatar_pixmap,
+            config=cfg, duration_ms=duration_ms,
+            on_click=on_click, event_ts=event_ts, cache=cache,
+        )
+        self.popups.append(popup)
+        self._position_and_cleanup()
+        return popup
+
   
     def show_notification(self, data: NotificationData):
         """Create and show notification (unless muted).
@@ -881,26 +1087,22 @@ class PopupManager:
             return None
         return next((p for p in self.popups if getattr(p.data, "tag", None) == tag), None)
   
+    def _popup_x(self, screen, position: str, popup_width: int) -> int:
+        if position == "left":
+            return screen.x() + 20
+        if position == "right":
+            return screen.x() + screen.width() - popup_width - 20
+        return screen.x() + (screen.width() - popup_width) // 2
+
     def _position_and_cleanup(self):
         """Position all popups and handle overflow"""
         if not self.popups:
             return
-      
+
         screen = self.popups[0].screen().availableGeometry()
-      
-        # Get notification position from config (default "center")
         position = self.config.get("ui", "notification_position") if self.config else "center"
         position = (position or "center").lower()
-      
-        # Calculate x position based on setting (use first popup's width)
-        popup_width = self.popups[0].width()
-        if position == "left":
-            x = screen.x() + 20
-        elif position == "right":
-            x = screen.x() + screen.width() - popup_width - 20
-        else: # center (default)
-            x = screen.x() + (screen.width() - popup_width) // 2
-      
+
         heights = [p.height() for p in self.popups]
         total_height = sum(heights) + self.gap * max(0, len(heights) - 1)
         available_height = screen.height() - 40
@@ -913,6 +1115,7 @@ class PopupManager:
         # Position all popups from top down
         current_y = screen.y() + 20 - (self.scroll_offset if self.notification_mode == "scroll" else 0)
         for popup in self.popups:
+            x = self._popup_x(screen, position, popup.width())
             popup.move(x, current_y)
             current_y += popup.height() + self.gap
         
@@ -937,6 +1140,7 @@ class PopupManager:
                 # Reposition remaining popups
                 current_y = screen.y() + 20
                 for popup in self.popups:
+                    x = self._popup_x(screen, position, popup.width())
                     popup.move(x, current_y)
                     current_y += popup.height() + self.gap
 
@@ -948,10 +1152,6 @@ popup_manager = PopupManager()
 def show_notification(**kwargs):
     # Resolve duration from config (seconds → ms) when the caller didn't pass one.
     if "duration" not in kwargs:
-        cfg = kwargs.get("config")
-        secs = cfg.get("notification", "duration") if cfg else None
-        if secs is None:
-            secs = 5
-        kwargs["duration"] = max(1, int(secs)) * 1000
+        kwargs["duration"] = _resolve_duration_ms(kwargs.get("config"))
     data = NotificationData(**kwargs)
     return popup_manager.show_notification(data)

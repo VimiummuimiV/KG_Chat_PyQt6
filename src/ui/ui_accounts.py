@@ -210,7 +210,7 @@ class AccountWindow(QWidget):
 
         # Add user button
         self.add_user_button = create_icon_button(
-            self.icons_path, "add-user.svg", tooltip="Add account (A)"
+            self.icons_path, "user-add.svg", tooltip="Add account (A)"
         )
         self.add_user_button.clicked.connect(self.show_create_page)
         self.add_user_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)

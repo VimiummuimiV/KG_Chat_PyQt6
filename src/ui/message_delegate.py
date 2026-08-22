@@ -8,6 +8,7 @@ from PyQt6.QtCore import Qt, QSize, QRect, QModelIndex, pyqtSignal, QTimer, QEve
 from PyQt6.QtGui import QPainter, QFontMetrics, QColor, QCursor, QMouseEvent, QKeySequence
 
 from components.messages_separator import NewMessagesSeparator, ChatlogDateSeparator
+from helpers.flash_highlight import highlight_fill_color
 from helpers.emoticons import EmoticonManager
 from helpers.fonts import get_font, FontType
 from helpers.me_action import format_me_action
@@ -382,9 +383,10 @@ class MessageDelegate(QStyledItemDelegate):
 
         # Draw highlight overlay if this row is highlighted
         if row == self.highlighted_row and self.highlight_opacity > 0:
-            highlight_color = QColor("#4DA6FF" if self.is_dark_theme else "#0066CC")
-            highlight_color.setAlphaF(self.highlight_opacity * 0.15)
-            painter.fillRect(option.rect, highlight_color)
+            painter.fillRect(
+                option.rect,
+                highlight_fill_color(self.is_dark_theme, self.highlight_opacity),
+            )
   
         self._paint_message(painter, option.rect, msg, row, self.compact_mode)
   
