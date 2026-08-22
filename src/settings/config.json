@@ -137,7 +137,7 @@
         "notifications": true,
         "competitions": true,
         "sound": true,
-        "user_tracker": true
+        "user_tracker": false
       },
       "widgets": {
         "ws_log": false,

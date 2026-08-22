@@ -1,6 +1,9 @@
 """Reusable scroll buttons panel (top/bottom full + page up/down) for list views"""
 from pathlib import Path
-from PyQt6.QtWidgets import QListView, QWidget, QVBoxLayout, QGraphicsOpacityEffect, QAbstractItemView, QApplication
+from PyQt6.QtWidgets import (
+    QListView, QScrollArea, QWidget, QVBoxLayout,
+    QGraphicsOpacityEffect, QAbstractItemView, QApplication
+)
 from PyQt6.QtCore import Qt, QObject, QTimer, QPropertyAnimation, QEvent, QPoint, pyqtSignal
 from helpers.config import Config
 from helpers.create import create_icon_button, create_disabled_icon
@@ -32,9 +35,9 @@ class ScrollButtonsPanel(QObject):
     """
     clicked_scroll = pyqtSignal(str)  # emits the action that was triggered: top/page_up/page_down/bottom
 
-    def __init__(self, list_view: QListView, parent=None):
+    def __init__(self, list_view, parent=None):
         super().__init__(parent)  # Parent the QObject properly
-        self.list_view = list_view
+        self.list_view = list_view  # QListView or QScrollArea
 
         # Paths
         base_path = Path(__file__).parent.parent.parent
@@ -144,28 +147,32 @@ class ScrollButtonsPanel(QObject):
         self.clicked_scroll.emit(action)
 
     def _page_scroll(self, direction: int):
-        """Scroll by one page of whole rows, so the row landing at the viewport edge
-        is always fully visible - never cropped like raw pixel-based page stepping would be."""
-        model = self.list_view.model()
-        if not model or not model.rowCount():
+        """Scroll by one page. For QListView uses whole rows; for QScrollArea uses scrollbar page step."""
+        if isinstance(self.list_view, QListView):
+            model = self.list_view.model()
+            if not model or not model.rowCount():
+                return
+            viewport = self.list_view.viewport()
+            top_index = self.list_view.indexAt(viewport.rect().topLeft())
+            if not top_index.isValid():
+                return
+            bottom_index = self.list_view.indexAt(QPoint(1, viewport.height() - 1))
+            bottom_row = bottom_index.row() if bottom_index.isValid() else model.rowCount() - 1
+            page_rows = max(1, bottom_row - top_index.row())
+            last_row = model.rowCount() - 1
+            if direction > 0:
+                target_row = min(top_index.row() + page_rows, last_row)
+            else:
+                target_row = max(top_index.row() - page_rows, 0)
+            self.list_view.scrollTo(model.index(target_row, 0), QAbstractItemView.ScrollHint.PositionAtTop)
             return
 
-        viewport = self.list_view.viewport()
-        top_index = self.list_view.indexAt(viewport.rect().topLeft())
-        if not top_index.isValid():
+        # QScrollArea (and similar): pixel page step via scrollbar
+        sb = self.list_view.verticalScrollBar()
+        if not sb:
             return
-        bottom_index = self.list_view.indexAt(QPoint(1, viewport.height() - 1))
-        bottom_row = bottom_index.row() if bottom_index.isValid() else model.rowCount() - 1
-
-        page_rows = max(1, bottom_row - top_index.row())
-        last_row = model.rowCount() - 1
-
-        if direction > 0:  # page down: reveal the next unseen chunk below
-            target_row = min(top_index.row() + page_rows, last_row)
-        else:  # page up: reveal the previous chunk above
-            target_row = max(top_index.row() - page_rows, 0)
-
-        self.list_view.scrollTo(model.index(target_row, 0), QAbstractItemView.ScrollHint.PositionAtTop)
+        step = sb.pageStep() or max(1, self.list_view.viewport().height() - 20)
+        sb.setValue(sb.value() + direction * step)
 
     def _update_position(self):
         """Right-align the container, centered vertically in the viewport - a single

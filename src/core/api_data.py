@@ -79,6 +79,20 @@ def get_exact_user_id_by_name(username: str) -> Optional[int]:
         print(f"Error getting user ID: {e}")
         return None
 
+
+def validate_username_and_get_id(username: str) -> Optional[str]:
+    """Validate username via API and return user_id as str, or None if not found."""
+    if not username or not isinstance(username, str):
+        return None
+    username = username.strip()
+    if not username:
+        return None
+    try:
+        user_id = get_exact_user_id_by_name(username)
+        return str(user_id) if user_id else None
+    except Exception:
+        return None
+
 def get_all_user_ids_by_name(username: str) -> List[int]:
     """Get all user IDs matching username via search API"""
     try:

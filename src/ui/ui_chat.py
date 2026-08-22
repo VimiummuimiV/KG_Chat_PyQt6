@@ -64,6 +64,7 @@ from helpers.input_activity import activity_detected
 from core.races_listener import RacesListener
 from components.messages_separator import NewMessagesSeparator
 from components.tag_button import update_all_tag_buttons
+from core.api_data import validate_username_and_get_id
 
 
 class SignalEmitter(QObject):
@@ -2629,20 +2630,14 @@ class ChatWindow(QWidget):
             my_name = (self.account or {}).get('chat_username', '')
             if pres.login != my_name:
                 event_type = 'join' if pres.presence_type == 'available' else 'left'
-                # Same gate as competitions / message popups: no toast (and no
-                # history spam) until initial roster + history have settled.
-                startup = (
-                    not getattr(self, '_chat_ready', False)
-                    or getattr(self, 'initial_roster_loading', False)
-                    or (
-                        getattr(self, '_history_settle_timer', None) is not None
-                        and self._history_settle_timer.isActive()
-                    )
-                )
-                if startup:
-                    self.user_tracker.seed_state(pres.user_id, pres.login, event_type)
+                game_id = getattr(pres, 'game_id', None)
+                # Same gate as competitions / message popups
+                if not self._chat_ready or self.initial_roster_loading or self._history_settle_timer.isActive():
+                    self.user_tracker.seed_state(pres.user_id, pres.login, event_type, game_id=game_id)
                 else:
-                    event = self.user_tracker.record_event(pres.user_id, pres.login, event_type)
+                    event = self.user_tracker.record_event(
+                        pres.user_id, pres.login, event_type, game_id=game_id,
+                    )
                     if event:
                         w = getattr(self, 'user_tracker_widget', None)
                         if w is not None and self.stacked_widget.currentWidget() is w:
@@ -2653,17 +2648,17 @@ class ChatWindow(QWidget):
                                 avatar_pix = self.cache.get_avatar(str(pres.user_id))
                             except Exception:
                                 avatar_pix = None
-                        from components.notification import popup_manager
                         event_ts = event.get('ts')
                         login = pres.login
                         popup_manager.show_presence(
                             login,
-                            is_join=(event_type == 'join'),
+                            event_type=event.get('type', event_type),
                             avatar_pixmap=avatar_pix,
                             config=self.config,
                             cache=getattr(self, 'cache', None),
                             on_click=lambda l=login, ts=event_ts: self._on_presence_notification_click(l, ts),
                             event_ts=event_ts,
+                            game_id=event.get('game_id'),
                         )
 
     def on_bulk_update_complete(self):
@@ -3220,7 +3215,6 @@ class ChatWindow(QWidget):
 
             username_for_track = getattr(msg, 'login', None) or getattr(msg, 'username', None)
             jid_for_track = getattr(msg, 'from_jid', None)
-            from helpers.jid_utils import extract_user_data_from_jid
             uid_for_track, _ = extract_user_data_from_jid(jid_for_track) if jid_for_track else (None, None)
             if not uid_for_track and username_for_track and hasattr(self, 'cache'):
                 uid_for_track = self.cache.get_user_id(username_for_track)
@@ -3308,7 +3302,6 @@ class ChatWindow(QWidget):
         if track:
             uid = user_id
             if not uid and login:
-                from ui.ui_banlist import validate_username_and_get_id
                 uid = validate_username_and_get_id(login) or ""
             if not uid or not login:
                 QMessageBox.warning(self, "Error", f"Could not resolve user for tracking")
@@ -3344,7 +3337,6 @@ class ChatWindow(QWidget):
         
         # Validate username via API to get correct user_id
         if username and not user_id:
-            from ui.ui_banlist import validate_username_and_get_id
             user_id = validate_username_and_get_id(username)
         
         if not user_id:

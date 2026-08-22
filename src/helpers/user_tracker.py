@@ -1,8 +1,11 @@
-"""User join/left tracker"""
+"""User join/left/game tracker"""
 import json
 import time
 from pathlib import Path
 from typing import Dict, List, Optional
+
+
+EVENT_TYPES = ("join", "left", "game")
 
 
 class UserTracker:
@@ -14,8 +17,8 @@ class UserTracker:
         self.selected: Dict[str, str] = {}
         self.frozen: set = set()
         self.events: List[dict] = []
-        # user_id -> 'join' | 'left'  (last recorded transition)
         self._last_state: Dict[str, str] = {}
+        self._last_game: Dict[str, Optional[str]] = {}
         self.load()
 
     def load(self):
@@ -34,22 +37,40 @@ class UserTracker:
                 self.frozen = set()
                 self.events = []
                 self._last_state = {}
+                self._last_game = {}
         else:
             self.selected = {}
             self.frozen = set()
             self.events = []
             self._last_state = {}
+            self._last_game = {}
 
     def _rebuild_last_state(self):
         self._last_state = {}
+        self._last_game = {}
         for event in self.events:
             key = self._key(event.get('user_id'), event.get('login'))
-            if key and event.get('type') in ('join', 'left'):
-                self._last_state[key] = event['type']
+            if not key:
+                continue
+            et = event.get('type') or ''
+            if et == 'left':
+                self._last_state[key] = 'left'
+                self._last_game[key] = None
+            elif et == 'join':
+                self._last_state[key] = 'join'
+            elif et == 'game':
+                self._last_state[key] = 'join'
+                self._last_game[key] = str(event['game_id']) if event.get('game_id') else None
 
     def _key(self, user_id: str = None, login: str = None) -> str:
-        if user_id:
-            return f"id:{user_id}"
+        uid = str(user_id) if user_id else None
+        if not uid and login:
+            for sid, name in self.selected.items():
+                if name == login:
+                    uid = str(sid)
+                    break
+        if uid:
+            return f"id:{uid}"
         if login:
             return f"login:{login}"
         return ""
@@ -141,18 +162,34 @@ class UserTracker:
         self.frozen.clear()
         self.save()
 
-    def seed_state(self, user_id: str, login: str, event_type: str):
-        """Set last known presence without writing a history event (initial roster)."""
-        if event_type not in ("join", "left") or not login:
+    def seed_state(self, user_id: str, login: str, event_type: str, game_id: str = None):
+        et = event_type
+        if et not in ("join", "left") or not login:
             return
         if not self.is_tracked(user_id=user_id, login=login):
             return
         key = self._key(user_id, login)
-        if key:
-            self._last_state[key] = event_type
+        if not key:
+            return
+        self._last_state[key] = et
+        self._last_game[key] = str(game_id) if (et == "join" and game_id) else None
 
-    def record_event(self, user_id: str, login: str, event_type: str) -> Optional[dict]:
-        if event_type not in ("join", "left"):
+    def _append(self, user_id: str, login: str, event_type: str, game_id: str = None) -> dict:
+        event = {
+            'user_id': str(user_id) if user_id else '',
+            'login': login,
+            'type': event_type,
+            'ts': time.time(),
+        }
+        if game_id:
+            event['game_id'] = str(game_id)
+        self.events.append(event)
+        return event
+
+    def record_event(self, user_id: str, login: str, event_type: str,
+                     game_id: str = None) -> Optional[dict]:
+        et = event_type
+        if et not in ("join", "left"):
             return None
         if not login:
             return None
@@ -163,20 +200,37 @@ class UserTracker:
         if not key:
             return None
 
-        # Ignore duplicate presence (XMPP often re-sends available without unavailable)
-        if self._last_state.get(key) == event_type:
-            return None
+        new_gid = str(game_id) if game_id else None
+        old_gid = self._last_game.get(key)
+        old_gid = str(old_gid) if old_gid else None
+        last = self._last_state.get(key)
+        event = None
 
-        event = {
-            'user_id': str(user_id) if user_id else '',
-            'login': login,
-            'type': event_type,
-            'ts': time.time(),
-        }
-        self.events.append(event)
-        self._last_state[key] = event_type
-        self.prune(save=False)
-        self.save()
+        if et == "left":
+            if last == "left":
+                return None
+            event = self._append(user_id, login, "left")
+            self._last_state[key] = "left"
+            self._last_game[key] = None
+        else:
+            if last != "join":
+                if new_gid:
+                    event = self._append(user_id, login, "game", game_id=new_gid)
+                else:
+                    event = self._append(user_id, login, "join")
+                self._last_state[key] = "join"
+                self._last_game[key] = new_gid
+            elif new_gid and new_gid != old_gid:
+                event = self._append(user_id, login, "game", game_id=new_gid)
+                self._last_game[key] = new_gid
+            else:
+                if new_gid is None and old_gid:
+                    self._last_game[key] = None
+                return None
+
+        if event:
+            self.prune(save=False)
+            self.save()
         return event
 
     def get_events(self) -> List[dict]:
@@ -186,6 +240,7 @@ class UserTracker:
     def clear_events(self):
         self.events.clear()
         self._last_state.clear()
+        self._last_game.clear()
         self.save()
 
     def prune(self, save: bool = True):

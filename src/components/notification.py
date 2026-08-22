@@ -11,6 +11,7 @@ import threading
 from helpers.create import create_icon_button, HoverIconButton, _render_svg_icon, get_user_svg_color
 from helpers.load import make_rounded_pixmap
 from helpers.fonts import get_font, FontType
+from components.presence_badge import make_presence_badge
 from helpers.input_activity import activity_detected
 from helpers.color_utils import get_game_message_colors
 from ui.message_renderer import MessageRenderer
@@ -850,20 +851,22 @@ class PopupNotification(QWidget):
 class PresenceMiniPopup(QWidget):
     """Compact join/left notification — same chrome/hover rules as PopupNotification."""
 
-    def __init__(self, manager, login: str, is_join: bool, avatar_pixmap=None,
+    def __init__(self, manager, login: str, event_type: str = 'join', avatar_pixmap=None,
                  config=None, duration_ms: int = NOTIFICATION_DURATION_MS_DEFAULT, on_click=None, event_ts=None,
-                 cache=None):
+                 cache=None, game_id=None):
         super().__init__()
         self.manager = manager
         self.config = config
         self.reply_field_visible = False
         self.is_hovered = False
-        self.cursor_moved = False
+        # True so _resume_all_hide_timers restarts duration after hover
+        # (presence toasts hide by timer, not by mouse/keyboard activity gate)
+        self.cursor_moved = True
         self.data = None
         self.on_click = on_click
         self.event_ts = event_ts
         self.login = login
-        self.is_join = is_join
+        self.event_type = event_type
         self.duration = duration_ms
         self.hide_timer = None
         self.icons_path = Path(__file__).parent.parent / "icons"
@@ -889,19 +892,14 @@ class PresenceMiniPopup(QWidget):
         ts.setStyleSheet("color: #888;")
         layout.addWidget(ts)
 
-        badge = QLabel("join" if is_join else "left")
-        badge.setFont(get_font(FontType.UI))
-        badge.setFixedWidth(40)
-        badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        if is_join:
-            badge.setStyleSheet(
-                "QLabel { background: #2d6a4f; color: #d8f3dc; border-radius: 4px; padding: 2px 4px; }"
-            )
-        else:
-            badge.setStyleSheet(
-                "QLabel { background: #6a2d2d; color: #f3d8d8; border-radius: 4px; padding: 2px 4px; }"
-            )
-        layout.addWidget(badge)
+        layout.addWidget(make_presence_badge(event_type))
+
+        if game_id and event_type == 'game':
+            gid = QLabel(f'#{game_id}')
+            gid.setFont(get_font(FontType.UI))
+            gid.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+            gid.setStyleSheet('color: #888;')
+            layout.addWidget(gid)
 
         name = QLabel(f"<b>{login}</b>")
         name.setFont(get_font(FontType.TEXT))
@@ -1009,9 +1007,12 @@ class PopupManager:
         """Set muted state"""
         self.muted = muted
 
-    def show_presence(self, login: str, is_join: bool, avatar_pixmap=None, config=None,
-                      on_click=None, event_ts=None, cache=None):
-        """Compact join/left toast. When muted, only if tracked_bypass_mute."""
+    def show_presence(self, login: str, event_type: str = 'join', avatar_pixmap=None, config=None,
+                      on_click=None, event_ts=None, cache=None, game_id=None, is_join=None):
+        """Compact presence toast. When muted, only if tracked_bypass_mute.
+        is_join kept for backward compat → maps to join/left."""
+        if is_join is not None and event_type == 'join':
+            event_type = 'join' if is_join else 'left'
         cfg = config or self.config
         bypass = bool(cfg and cfg.get("notification", "tracked_bypass_mute"))
         if self.muted and not bypass:
@@ -1019,9 +1020,9 @@ class PopupManager:
         self.config = cfg
         duration_ms = _resolve_duration_ms(cfg)
         popup = PresenceMiniPopup(
-            self, login, is_join, avatar_pixmap=avatar_pixmap,
+            self, login, event_type=event_type, avatar_pixmap=avatar_pixmap,
             config=cfg, duration_ms=duration_ms,
-            on_click=on_click, event_ts=event_ts, cache=cache,
+            on_click=on_click, event_ts=event_ts, cache=cache, game_id=game_id,
         )
         self.popups.append(popup)
         self._position_and_cleanup()

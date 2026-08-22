@@ -13,7 +13,7 @@ from helpers.create import create_icon_button
 from helpers.fonts import get_font, FontType
 from helpers.ban_manager import BanManager
 from helpers.duration_dialog import DurationDialog
-from core.api_data import get_exact_user_id_by_name
+from core.api_data import validate_username_and_get_id
 
 
 def format_time_remaining(seconds: int) -> str:
@@ -46,20 +46,6 @@ def format_time_remaining(seconds: int) -> str:
         return f"{m}m"
     else:
         return f"{s}s"
-
-
-def validate_username_and_get_id(username: str):
-    """Validate username via API and return user_id (or None if not found)"""
-    if not username or not isinstance(username, str):
-        return None
-    username = username.strip()
-    if not username:
-        return None
-    try:
-        user_id = get_exact_user_id_by_name(username)
-        return str(user_id) if user_id else None
-    except Exception:
-        return None
 
 
 class BanItemWidget(QWidget):

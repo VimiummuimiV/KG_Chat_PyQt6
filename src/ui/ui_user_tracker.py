@@ -16,20 +16,8 @@ from helpers.cache import get_cache
 from helpers.flash_highlight import FlashHighlight
 from helpers.scroll.auto_scroll import AutoScroller
 from helpers.scroll.scroll_buttons import ScrollButtonsPanel
-from core.api_data import get_exact_user_id_by_name
-
-
-def validate_username_and_get_id(username: str):
-    if not username or not isinstance(username, str):
-        return None
-    username = username.strip()
-    if not username:
-        return None
-    try:
-        user_id = get_exact_user_id_by_name(username)
-        return str(user_id) if user_id else None
-    except Exception:
-        return None
+from core.api_data import validate_username_and_get_id
+from components.presence_badge import make_presence_badge
 
 
 class TrackedUserItem(QWidget):
@@ -207,28 +195,24 @@ class EventRow(QFrame):
         layout.addWidget(time_label)
 
         event_type = event.get('type', '')
-        is_join = event_type == 'join'
-        badge = QLabel("join" if is_join else "left")
-        badge.setFont(get_font(FontType.UI))
-        badge.setFixedWidth(40)
-        badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        if is_join:
-            badge.setStyleSheet(
-                "QLabel { background: #2d6a4f; color: #d8f3dc; border-radius: 4px; padding: 2px 6px; }"
-            )
-        else:
-            badge.setStyleSheet(
-                "QLabel { background: #6a2d2d; color: #f3d8d8; border-radius: 4px; padding: 2px 6px; }"
-            )
-        layout.addWidget(badge)
+        layout.addWidget(make_presence_badge(event_type))
 
         self.name_label = QLabel(self.login)
         self.name_label.setFont(get_font(FontType.TEXT))
-        self.name_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        self.name_label.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Preferred)
         self.name_label.setCursor(Qt.CursorShape.PointingHandCursor)
         self.name_label.mousePressEvent = self._on_name_click  # type: ignore
         self._apply_name_color()
-        layout.addWidget(self.name_label, stretch=1)
+        layout.addWidget(self.name_label)
+
+        game_id = event.get('game_id')
+        if game_id and event_type == 'game':
+            gid_label = QLabel(f'#{game_id}')
+            gid_label.setFont(get_font(FontType.UI))
+            gid_label.setStyleSheet('color: #888;')
+            layout.addWidget(gid_label)
+
+        layout.addStretch(1)
 
     def _apply_name_color(self):
         is_dark = self.config.get("ui", "theme") == "dark"
