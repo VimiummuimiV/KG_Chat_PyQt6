@@ -17,7 +17,7 @@ from helpers.flash_highlight import FlashHighlight
 from helpers.scroll.auto_scroll import AutoScroller
 from helpers.scroll.scroll_buttons import ScrollButtonsPanel
 from core.api_data import validate_username_and_get_id
-from components.presence_badge import make_presence_badge
+from components.presence_badge import make_presence_badge, make_game_id_label
 
 
 class TrackedUserItem(QWidget):
@@ -205,11 +205,8 @@ class EventRow(QFrame):
         self._apply_name_color()
         layout.addWidget(self.name_label)
 
-        game_id = event.get('game_id')
-        if game_id and event_type == 'game':
-            gid_label = QLabel(f'#{game_id}')
-            gid_label.setFont(get_font(FontType.UI))
-            gid_label.setStyleSheet('color: #888;')
+        gid_label = make_game_id_label(event_type, event.get('game_id'))
+        if gid_label is not None:
             layout.addWidget(gid_label)
 
         layout.addStretch(1)

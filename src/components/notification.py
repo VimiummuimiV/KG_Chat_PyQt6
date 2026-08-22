@@ -11,7 +11,7 @@ import threading
 from helpers.create import create_icon_button, HoverIconButton, _render_svg_icon, get_user_svg_color
 from helpers.load import make_rounded_pixmap
 from helpers.fonts import get_font, FontType
-from components.presence_badge import make_presence_badge
+from components.presence_badge import make_presence_badge, make_game_id_label
 from helpers.input_activity import activity_detected
 from helpers.color_utils import get_game_message_colors
 from ui.message_renderer import MessageRenderer
@@ -894,11 +894,8 @@ class PresenceMiniPopup(QWidget):
 
         layout.addWidget(make_presence_badge(event_type))
 
-        if game_id and event_type == 'game':
-            gid = QLabel(f'#{game_id}')
-            gid.setFont(get_font(FontType.UI))
-            gid.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-            gid.setStyleSheet('color: #888;')
+        gid = make_game_id_label(event_type, game_id)
+        if gid is not None:
             layout.addWidget(gid)
 
         name = QLabel(f"<b>{login}</b>")

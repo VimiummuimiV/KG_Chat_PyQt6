@@ -1,4 +1,5 @@
 """Shared presence event badge (join / left / game)."""
+from typing import Optional
 from PyQt6.QtWidgets import QLabel
 from PyQt6.QtCore import Qt
 from helpers.fonts import get_font, FontType
@@ -23,3 +24,14 @@ def make_presence_badge(event_type: str) -> QLabel:
         f"QLabel {{ background: {bg}; color: {fg}; border-radius: 4px; padding: 2px 6px; }}"
     )
     return badge
+
+
+def make_game_id_label(event_type: str, game_id) -> Optional[QLabel]:
+    """#game_id label for game events, or None."""
+    if not game_id or event_type != "game":
+        return None
+    label = QLabel(f"#{game_id}")
+    label.setFont(get_font(FontType.UI))
+    label.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+    label.setStyleSheet("color: #888;")
+    return label
