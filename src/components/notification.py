@@ -133,9 +133,25 @@ def _svg_avatar_pixmap(icons_path, size: int, color=None):
         else _render_svg_icon(icons_path / "user.svg", size)
     return icon.pixmap(QSize(size, size))
 
-def _icon_btn(self, icon_name: str, tooltip: str, size_type: str = "small"):
-    """Shortcut for the repeated create_icon_button(self.icons_path, ..., config=self.data.config) calls."""
-    return create_icon_button(self.icons_path, icon_name, tooltip, size_type=size_type, config=self.data.config)
+
+def _make_avatar_label(size: int = 36) -> QLabel:
+    """Styled, fixed-size avatar placeholder shared by all popup layouts."""
+    label = QLabel()
+    label.setFixedSize(size, size)
+    label.setStyleSheet("background: transparent; border: none; padding: 0; margin: 0;")
+    label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+    return label
+
+
+def _avatar_pixmap(icons_path, raw_pixmap, size: int = 36, svg_size: int = 24, color=None):
+    """Rounded real avatar if one is available, else the SVG fallback icon."""
+    if raw_pixmap is not None and not raw_pixmap.isNull():
+        return make_rounded_pixmap(raw_pixmap, size, 8)
+    return _svg_avatar_pixmap(icons_path, svg_size, color)
+
+def _icon_btn(icons_path, icon_name: str, tooltip: str, config, size_type: str = "small"):
+    """Shortcut for the repeated create_icon_button(icons_path, ..., config=config) calls."""
+    return create_icon_button(icons_path, icon_name, tooltip, size_type=size_type, config=config)
 
 
 @dataclass
@@ -365,22 +381,16 @@ class PopupNotification(QWidget):
         AVATAR_SIZE = 36
         SVG_AVATAR_SIZE = 24
 
-        self.avatar_label = QLabel()
-        self.avatar_label.setFixedSize(AVATAR_SIZE, AVATAR_SIZE)
-        self.avatar_label.setStyleSheet("background: transparent; border: none; padding: 0; margin: 0;")
-        self.avatar_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.avatar_label = _make_avatar_label(AVATAR_SIZE)
         if not data.is_system and data.cache:
             user_id = data.cache.get_user_id(data.title)
             svg_color = get_user_svg_color(data.cache.has_user(user_id), is_dark)
-            if user_id:
-                cached_avatar = data.cache.get_avatar(user_id)
-                if cached_avatar:
-                    self.avatar_label.setPixmap(make_rounded_pixmap(cached_avatar, AVATAR_SIZE, 8))
-                else:
-                    self.avatar_label.setPixmap(_svg_avatar_pixmap(self.icons_path, SVG_AVATAR_SIZE, svg_color))
-                    data.cache.load_avatar_async(user_id, self._on_avatar_loaded)
-            else:
-                self.avatar_label.setPixmap(_svg_avatar_pixmap(self.icons_path, SVG_AVATAR_SIZE, svg_color))
+            cached_avatar = data.cache.get_avatar(user_id) if user_id else None
+            self.avatar_label.setPixmap(
+                _avatar_pixmap(self.icons_path, cached_avatar, AVATAR_SIZE, SVG_AVATAR_SIZE, svg_color)
+            )
+            if user_id and not cached_avatar:
+                data.cache.load_avatar_async(user_id, self._on_avatar_loaded)
 
         if not data.is_system:
             top_row.addWidget(self.avatar_label, stretch=0)
@@ -401,34 +411,35 @@ class PopupNotification(QWidget):
         # Position toggle button
         current_position = data.config.get("ui", "notification_position") if data.config else "right"
         position_icons = {"left": "align-left.svg", "center": "align-center.svg", "right": "align-right.svg"}
-        self.position_button = self._icon_btn(
-            position_icons.get(current_position or "right", "align-right.svg"), "Toggle Position"
+        self.position_button = _icon_btn(
+            self.icons_path, position_icons.get(current_position or "right", "align-right.svg"),
+            "Toggle Position", data.config
         )
         self.position_button.clicked.connect(self._on_toggle_position)
         buttons_layout.addWidget(self.position_button)
 
         # Answer button - hide for ban, system, and competition messages
         if not data.is_ban and not data.is_system and not data.is_competition:
-            self.answer_button = self._icon_btn("reply.svg", "Reply")
+            self.answer_button = _icon_btn(self.icons_path, "reply.svg", "Reply", data.config)
             self.answer_button.clicked.connect(self._on_answer)
             buttons_layout.addWidget(self.answer_button)
         else:
             self.answer_button = None
 
         if data.is_competition and data.open_room_callback and data.competition_game_id is not None:
-            self.open_room_button = self._icon_btn("chat.svg", "Open competition room")
+            self.open_room_button = _icon_btn(self.icons_path, "chat.svg", "Open competition room", data.config)
             self.open_room_button.clicked.connect(self._on_open_room)
             buttons_layout.addWidget(self.open_room_button)
         else:
             self.open_room_button = None
       
         # Mute button
-        self.mute_button = self._icon_btn("shut-down.svg", "Mute Notifications")
+        self.mute_button = _icon_btn(self.icons_path, "shut-down.svg", "Mute Notifications", data.config)
         self.mute_button.clicked.connect(self._on_mute)
         buttons_layout.addWidget(self.mute_button)
       
         # Close button
-        self.close_button = self._icon_btn("close.svg", "Close")
+        self.close_button = _icon_btn(self.icons_path, "close.svg", "Close", data.config)
         self.close_button.clicked.connect(self.manager.close_all)
         buttons_layout.addWidget(self.close_button)
       
@@ -474,7 +485,7 @@ class PopupNotification(QWidget):
             self.reply_field.returnPressed.connect(self._on_send_reply)
             reply_layout.addWidget(self.reply_field, stretch=1)
           
-            self.send_button = self._icon_btn("send.svg", "Send", size_type="large")
+            self.send_button = _icon_btn(self.icons_path, "send.svg", "Send", data.config, size_type="large")
             self.send_button.clicked.connect(self._on_send_reply)
             reply_layout.addWidget(self.send_button)
           
@@ -725,7 +736,7 @@ class PopupNotification(QWidget):
         # Update icon on all popup position buttons for consistency
         for popup in self.manager.popups:
             if hasattr(popup, 'position_button'):
-                new_btn = self._icon_btn(icons[new_pos], "Toggle Position")
+                new_btn = _icon_btn(self.icons_path, icons[new_pos], "Toggle Position", self.data.config)
                 popup.position_button.setIcon(new_btn.icon())
                 new_btn.deleteLater()
         self.manager._position_and_cleanup()
@@ -868,14 +879,8 @@ class PresenceMiniPopup(QWidget):
         AVATAR_SIZE = 36
         SVG_AVATAR_SIZE = 24
 
-        avatar = QLabel()
-        avatar.setFixedSize(AVATAR_SIZE, AVATAR_SIZE)
-        avatar.setStyleSheet("background: transparent; border: none; padding: 0; margin: 0;")
-        avatar.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        if avatar_pixmap is not None and not avatar_pixmap.isNull():
-            avatar.setPixmap(make_rounded_pixmap(avatar_pixmap, AVATAR_SIZE, 8))
-        else:
-            avatar.setPixmap(_svg_avatar_pixmap(self.icons_path, SVG_AVATAR_SIZE))
+        avatar = _make_avatar_label(AVATAR_SIZE)
+        avatar.setPixmap(_avatar_pixmap(self.icons_path, avatar_pixmap, AVATAR_SIZE, SVG_AVATAR_SIZE))
         layout.addWidget(avatar)
 
         ts = QLabel(datetime.now().strftime("%H:%M:%S"))
@@ -909,8 +914,8 @@ class PresenceMiniPopup(QWidget):
         name.setStyleSheet(f"color: {username_color}; background: transparent;")
         layout.addWidget(name, stretch=1)
 
-        self.close_button = self._icon_btn("close.svg", "Close")
-        self.close_button.clicked.connect(self.close_immediately)
+        self.close_button = _icon_btn(self.icons_path, "close.svg", "Close", config)
+        self.close_button.clicked.connect(self.manager.close_all)
         layout.addWidget(self.close_button)
 
         self.adjustSize()
