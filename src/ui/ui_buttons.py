@@ -151,7 +151,7 @@ class ButtonPanel(QWidget):
         )
 
         self.tracker_button = self._create_button(
-            "user-start.svg",
+            "user-star.svg",
             "User Tracker (Ctrl+Shift+U)",
             lambda: self.show_tracker_requested.emit()
         )
