@@ -903,7 +903,10 @@ class SettingsWidget(QWidget):
             section, "Show unread badge on tracker button",
             self._on_tracker_badge_toggled
         )
-
+        self.tracker_badge_size_spin = self._add_slider_spin_row(
+            section, "Badge font size", 6, 14,
+            self._on_tracker_badge_size_changed, default=9
+        )
         # Tracked event types — same pills as tracker filter bar
         events_row = QHBoxLayout()
         events_row.setSpacing(8)
@@ -914,7 +917,6 @@ class SettingsWidget(QWidget):
         self.tracker_events_bar.changed.connect(self._on_tracker_events_changed)
         events_row.addWidget(self.tracker_events_bar, stretch=1)
         section.addLayout(events_row)
-
         self.tracker_retention_spin = self._add_slider_spin_row(
             section, "History retention (hours)", 1, 168,
             self._on_tracker_retention_changed, default=24
@@ -1084,6 +1086,12 @@ class SettingsWidget(QWidget):
         self.tracker_badge_checkbox.setChecked(
             True if tracker_badge is None else bool(tracker_badge)
         )
+        badge_size = self.config.get("user_tracker", "badge_font_size")
+        try:
+            badge_size = int(badge_size) if badge_size is not None else 9
+        except (TypeError, ValueError):
+            badge_size = 9
+        self.tracker_badge_size_spin.setValue(max(6, min(14, badge_size)))
         track_events = self.config.get("user_tracker", "track_events")
         if not track_events:
             track_events = list(EVENT_TYPES)
@@ -1350,6 +1358,9 @@ class SettingsWidget(QWidget):
 
     def _on_tracker_badge_toggled(self, checked: bool):
         self.config.set("user_tracker", "show_badge", value=checked)
+
+    def _on_tracker_badge_size_changed(self, value: int):
+        self.config.set("user_tracker", "badge_font_size", value=int(value))
 
     def _on_tracker_events_changed(self, types):
         # Keep at least one type enabled

@@ -276,7 +276,12 @@ class ButtonPanel(QWidget):
             self._tracker_badge.hide()
             self.tracker_button.setToolTip(base if n <= 0 else f"{base} — {n} new")
             return
-        apply_counter_style(self._tracker_badge, self._tracker_last_type)
+        size = self.config.get("user_tracker", "badge_font_size")
+        try:
+            size = int(size) if size is not None else 9
+        except (TypeError, ValueError):
+            size = 9
+        apply_counter_style(self._tracker_badge, self._tracker_last_type, font_size=size)
         self._tracker_badge.setText("99+" if n > 99 else str(n))
         self._tracker_badge.adjustSize()
         self._tracker_badge.move(1, self.tracker_button.height() - self._tracker_badge.height() - 1)
