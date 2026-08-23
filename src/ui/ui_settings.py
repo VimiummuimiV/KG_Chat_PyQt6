@@ -797,7 +797,7 @@ class SettingsWidget(QWidget):
             self._on_bans_bypass_mute_toggled
         )
         self.tracker_notify_checkbox = self._add_checkbox(
-            section, "Notify about tracked user join and leave even when notifications are disabled",
+            section, "Notify about tracked user even when notifications are disabled",
             self._on_tracker_notify_toggled
         )
 
