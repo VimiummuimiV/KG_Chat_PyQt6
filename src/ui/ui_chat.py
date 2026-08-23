@@ -10,6 +10,8 @@ from PyQt6.QtWidgets import(
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QObject, QTimer, QEvent
 from PyQt6.QtGui import QAction, QCursor
+import random
+import string
             
 
 from helpers.config import Config
@@ -83,12 +85,15 @@ class JoinRoomDialog(QDialog):
     """Styled replacement for the plain QInputDialog room prompt, matching
     the emoji-header + icon-button look of the account manager window."""
 
+    _NAME_LENGTH = 8
+
     def __init__(self, config, icons_path: Path, parent=None):
         super().__init__(parent)
         self.config = config
         self.icons_path = icons_path
         self.setWindowTitle("Join / Create Room")
         self.setMinimumWidth(280)
+        self.setMaximumWidth(280)
         self.setFont(get_font(FontType.UI))
 
         margin = self.config.get("ui", "margins", "widget") or 15
@@ -102,31 +107,50 @@ class JoinRoomDialog(QDialog):
         header.setFont(get_font(FontType.HEADER))
         layout.addWidget(header)
 
-        hint = QLabel("Room name — created automatically if it doesn't exist yet.")
-        hint.setFont(get_font(FontType.TEXT))
-        hint.setWordWrap(True)
-        layout.addWidget(hint)
-
         self.name_input = QLineEdit()
         self.name_input.setPlaceholderText("Room name")
-        self.name_input.setFixedHeight(48)
+
+        input_height = 48
+
+        self.name_input.setFixedHeight(input_height)
         self.name_input.setFont(get_font(FontType.UI))
+        self.name_input.setStyleSheet(
+            f"height: {input_height}px !important; padding: 0px 8px;"
+        )
         self.name_input.returnPressed.connect(self.accept)
         layout.addWidget(self.name_input)
 
         actions_row = QHBoxLayout()
         actions_row.setSpacing(self.config.get("ui", "buttons", "spacing") or 8)
 
-        cancel_button = create_icon_button(self.icons_path, "go-back.svg", "Cancel (Esc)", config=self.config)
+        cancel_button = create_icon_button(
+            self.icons_path, "go-back.svg", "Cancel (Esc)", config=self.config
+        )
         cancel_button.clicked.connect(self.reject)
         actions_row.addWidget(cancel_button)
 
-        join_button = create_icon_button(self.icons_path, "chat-new.svg", "Join / Create (Enter)", config=self.config)
+        gen_button = create_icon_button(
+            self.icons_path, "dice-3.svg", "Generate random name", config=self.config
+        )
+        gen_button.clicked.connect(self._generate_name)
+        actions_row.addWidget(gen_button)
+
+        join_button = create_icon_button(
+            self.icons_path, "login.svg", "Join / Create (Enter)", config=self.config
+        )
         join_button.clicked.connect(self.accept)
         actions_row.addWidget(join_button)
 
         layout.addLayout(actions_row)
         self.name_input.setFocus()
+
+    def _generate_name(self):
+        """Fill the input with a random lowercase alphanumeric room name."""
+        alphabet = string.ascii_lowercase + string.digits
+        name = "".join(random.choices(alphabet, k=self._NAME_LENGTH))
+        self.name_input.setText(name)
+        self.name_input.setFocus()
+        self.name_input.selectAll()
 
     def room_name(self) -> str:
         return self.name_input.text().strip().lower()
