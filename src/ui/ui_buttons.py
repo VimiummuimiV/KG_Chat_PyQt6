@@ -156,8 +156,7 @@ class ButtonPanel(QWidget):
             lambda: self.show_tracker_requested.emit()
         )
         self._tracker_unread = 0
-        badge_parent = self.tracker_button.parentWidget() or self
-        self._tracker_badge = QLabel(badge_parent)
+        self._tracker_badge = QLabel(self.tracker_button)
         self._tracker_badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._tracker_badge.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
         self._tracker_badge.setStyleSheet(
@@ -278,12 +277,7 @@ class ButtonPanel(QWidget):
             return
         self._tracker_badge.setText("99+" if n > 99 else str(n))
         self._tracker_badge.adjustSize()
-        pos = self.tracker_button.pos()
-        bh = self._tracker_badge.height()
-        self._tracker_badge.move(
-            pos.x() + 1,
-            pos.y() + self.tracker_button.height() - bh // 2,
-        )
+        self._tracker_badge.move(1, self.tracker_button.height() - self._tracker_badge.height() - 1)
         self._tracker_badge.show()
         self._tracker_badge.raise_()
         self.tracker_button.setToolTip(f"{base} — {n} new")

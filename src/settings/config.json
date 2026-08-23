@@ -134,10 +134,10 @@
         "startup": true,
         "chat": true,
         "fonts": true,
-        "notifications": false,
+        "notifications": true,
         "competitions": true,
         "sound": true,
-        "user_tracker": false
+        "user_tracker": true
       },
       "widgets": {
         "ws_log": false,
@@ -213,7 +213,9 @@
   "user_tracker": {
     "retention_hours": 24,
     "enabled": true,
-    "click_action": "history",
-    "notifications": false
+    "click_action": "chat",
+    "notifications": false,
+    "show_badge": true,
+    "default_tab": "history"
   }
 }

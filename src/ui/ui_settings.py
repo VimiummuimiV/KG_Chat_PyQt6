@@ -906,6 +906,12 @@ class SettingsWidget(QWidget):
             section, "History retention (hours)", 1, 168,
             self._on_tracker_retention_changed, default=24
         )
+        self.tracker_default_tab_combo = self._add_combo_row(
+            section,
+            "Default tab on open",
+            ["Tracked", "History"],
+            self._on_tracker_default_tab_changed,
+        )
         self.tracker_click_combo = self._add_combo_row(
             section,
             "On notification click",
@@ -1071,6 +1077,11 @@ class SettingsWidget(QWidget):
         except (TypeError, ValueError):
             retention = 24
         self.tracker_retention_spin.setValue(max(1, min(168, retention)))
+        default_tab = self.config.get("user_tracker", "default_tab") or "tracked"
+        tab_label = "History" if default_tab == "history" else "Tracked"
+        idx = self.tracker_default_tab_combo.findText(tab_label)
+        self.tracker_default_tab_combo.setCurrentIndex(idx if idx >= 0 else 0)
+
         click = self.config.get("user_tracker", "click_action") or "history"
         click_label = "Show chat" if click == "chat" else "Open history"
         idx = self.tracker_click_combo.findText(click_label)
@@ -1325,6 +1336,10 @@ class SettingsWidget(QWidget):
 
     def _on_tracker_retention_changed(self, value: int):
         self.config.set("user_tracker", "retention_hours", value=int(value))
+
+    def _on_tracker_default_tab_changed(self, text: str):
+        value = "history" if text == "History" else "tracked"
+        self.config.set("user_tracker", "default_tab", value=value)
 
     def _on_tracker_click_action_changed(self, text: str):
         value = "chat" if text == "Show chat" else "history"

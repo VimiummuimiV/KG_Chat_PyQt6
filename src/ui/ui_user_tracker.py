@@ -262,6 +262,7 @@ class UserTrackerWidget(QWidget):
         self._setup_ui()
         self._load_selected()
         self._rebuild_events()
+        self._apply_default_tab()
         self._on_tab_changed(self.tabs.currentIndex())
 
     def _setup_ui(self):
@@ -568,9 +569,14 @@ class UserTrackerWidget(QWidget):
         QTimer.singleShot(50, lambda: self.events_scroll.ensureWidgetVisible(target, 0, 40))
         QTimer.singleShot(200, target.flash)
 
+    def _apply_default_tab(self):
+        tab = self.config.get("user_tracker", "default_tab") or "tracked"
+        self.tabs.setCurrentIndex(1 if tab == "history" else 0)
+
     def refresh(self):
         self._load_selected()
         self._rebuild_events()
+        self._apply_default_tab()
         self._on_tab_changed(self.tabs.currentIndex())
 
     def cleanup(self):
