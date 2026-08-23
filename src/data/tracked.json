@@ -10,7 +10,8 @@
     "797440": "icytouch",
     "123190": "Переборыч",
     "370997": "Хеопс",
-    "770303": "TolikWorkaholic"
+    "770303": "TolikWorkaholic",
+    "840288": "ЗАЧИНЩИКСОБЫТИЙ"
   },
   "frozen": [],
   "events": [
@@ -452,6 +453,189 @@
       "login": "un4given",
       "type": "join",
       "ts": 1787510459.7844734
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "left",
+      "ts": 1787510501.2513278
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "game",
+      "ts": 1787510502.5901928,
+      "game_id": "108595"
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "left",
+      "ts": 1787510521.3346784
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "game",
+      "ts": 1787510521.8063486,
+      "game_id": "108599"
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "left",
+      "ts": 1787510563.0774102
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "game",
+      "ts": 1787510563.5349128,
+      "game_id": "108607"
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "left",
+      "ts": 1787510587.2795455
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "game",
+      "ts": 1787510587.7499614,
+      "game_id": "108610"
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "left",
+      "ts": 1787510635.847623
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "join",
+      "ts": 1787510636.3093603
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "left",
+      "ts": 1787510645.5182915
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "game",
+      "ts": 1787510646.522344,
+      "game_id": "108619"
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "left",
+      "ts": 1787510683.2668438
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "join",
+      "ts": 1787510683.7367713
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "left",
+      "ts": 1787510694.503892
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "game",
+      "ts": 1787510694.9819727,
+      "game_id": "108629"
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "left",
+      "ts": 1787510715.1133232
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "game",
+      "ts": 1787510715.5808485,
+      "game_id": "108635"
+    },
+    {
+      "user_id": "840288",
+      "login": "ЗАЧИНЩИКСОБЫТИЙ",
+      "type": "join",
+      "ts": 1787511221.1097422
+    },
+    {
+      "user_id": "840288",
+      "login": "ЗАЧИНЩИКСОБЫТИЙ",
+      "type": "left",
+      "ts": 1787511228.7993364
+    },
+    {
+      "user_id": "840288",
+      "login": "ЗАЧИНЩИКСОБЫТИЙ",
+      "type": "join",
+      "ts": 1787511229.0945306
+    },
+    {
+      "user_id": "840288",
+      "login": "ЗАЧИНЩИКСОБЫТИЙ",
+      "type": "left",
+      "ts": 1787511234.4637861
+    },
+    {
+      "user_id": "840288",
+      "login": "ЗАЧИНЩИКСОБЫТИЙ",
+      "type": "join",
+      "ts": 1787511234.752159
+    },
+    {
+      "user_id": "840288",
+      "login": "ЗАЧИНЩИКСОБЫТИЙ",
+      "type": "join",
+      "ts": 1787511269.1188276
+    },
+    {
+      "user_id": "840288",
+      "login": "ЗАЧИНЩИКСОБЫТИЙ",
+      "type": "join",
+      "ts": 1787511273.5735765
+    },
+    {
+      "user_id": "840288",
+      "login": "ЗАЧИНЩИКСОБЫТИЙ",
+      "type": "join",
+      "ts": 1787511278.482715
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "game",
+      "ts": 1787511338.3670194,
+      "game_id": "108746"
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "left",
+      "ts": 1787511363.8164897
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "game",
+      "ts": 1787511364.2784467,
+      "game_id": "108752"
     }
   ]
 }

@@ -96,6 +96,13 @@ class UserTracker:
     def set_enabled(self, enabled: bool):
         self.config.set("user_tracker", "enabled", value=bool(enabled))
 
+    def tracked_event_types(self) -> set:
+        """Which event types to record. Default: join, left, game."""
+        value = self.config.get("user_tracker", "track_events")
+        if not value:
+            return {"join", "left", "game"}
+        return {t for t in value if t in ("join", "left", "game")}
+
     def retention_hours(self) -> int:
         value = self.config.get("user_tracker", "retention_hours")
         try:
@@ -229,6 +236,11 @@ class UserTracker:
                 return None
 
         if event:
+            if event.get("type") not in self.tracked_event_types():
+                # State already updated; drop the event from history
+                if self.events and self.events[-1] is event:
+                    self.events.pop()
+                return None
             self.prune(save=False)
             self.save()
         return event

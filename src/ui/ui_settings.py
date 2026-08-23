@@ -12,6 +12,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, pyqtSignal, QTimer
 
 from helpers.create import create_icon_button
+from components.presence_badge import TypeFilterBar, EVENT_TYPES
 from helpers.fonts import (
     get_font,
     FontType,
@@ -902,6 +903,18 @@ class SettingsWidget(QWidget):
             section, "Show unread badge on tracker button",
             self._on_tracker_badge_toggled
         )
+
+        # Tracked event types — same pills as tracker filter bar
+        events_row = QHBoxLayout()
+        events_row.setSpacing(8)
+        events_label = QLabel("Track events:")
+        events_label.setFont(get_font(FontType.UI))
+        events_row.addWidget(events_label)
+        self.tracker_events_bar = TypeFilterBar(empty_means_all=False)
+        self.tracker_events_bar.changed.connect(self._on_tracker_events_changed)
+        events_row.addWidget(self.tracker_events_bar, stretch=1)
+        section.addLayout(events_row)
+
         self.tracker_retention_spin = self._add_slider_spin_row(
             section, "History retention (hours)", 1, 168,
             self._on_tracker_retention_changed, default=24
@@ -1071,6 +1084,10 @@ class SettingsWidget(QWidget):
         self.tracker_badge_checkbox.setChecked(
             True if tracker_badge is None else bool(tracker_badge)
         )
+        track_events = self.config.get("user_tracker", "track_events")
+        if not track_events:
+            track_events = list(EVENT_TYPES)
+        self.tracker_events_bar.set_active_types(track_events)
         retention = self.config.get("user_tracker", "retention_hours")
         try:
             retention = int(retention) if retention is not None else 24
@@ -1333,6 +1350,15 @@ class SettingsWidget(QWidget):
 
     def _on_tracker_badge_toggled(self, checked: bool):
         self.config.set("user_tracker", "show_badge", value=checked)
+
+    def _on_tracker_events_changed(self, types):
+        # Keep at least one type enabled
+        active = list(types) if types else list(EVENT_TYPES)
+        if not types:
+            self.tracker_events_bar.set_active_types(EVENT_TYPES)
+            active = list(EVENT_TYPES)
+        self.config.set("user_tracker", "track_events", value=active)
+
 
     def _on_tracker_retention_changed(self, value: int):
         self.config.set("user_tracker", "retention_hours", value=int(value))

@@ -27,7 +27,7 @@ from core.api_data import validate_username_and_get_id
 from components.presence_badge import (
     make_presence_badge,
     make_game_id_label,
-    TypeFilterBadge,
+    TypeFilterBar,
     EVENT_TYPES
 )
 from components.user_count_row import UserCountRow
@@ -327,7 +327,6 @@ class UserTrackerWidget(QWidget):
         self.filtered_logins = set()
         self.filtered_types = set()  # empty = all types
         self.chip_widgets = {}  # login -> TrackerUserChip
-        self.type_filter_badges = {}  # event_type -> TypeFilterBadge
         userlist_visible = config.get("ui", "userlist", "tracker")
         self.userlist_visible = True if userlist_visible is None else bool(userlist_visible)
         self._setup_ui()
@@ -467,16 +466,9 @@ class UserTrackerWidget(QWidget):
         self.filter_scroll.setWidget(filter_container)
         filter_panel_layout.addWidget(self.filter_scroll, stretch=1)
 
-        type_row = QHBoxLayout()
-        type_row.setContentsMargins(4, 0, 4, 4)
-        type_row.setSpacing(4)
-        for et in EVENT_TYPES:
-            badge = TypeFilterBadge(et)
-            badge.clicked.connect(self._handle_type_filter_click)
-            self.type_filter_badges[et] = badge
-            type_row.addWidget(badge)
-        type_row.addStretch()
-        filter_panel_layout.addLayout(type_row)
+        self.type_filter_bar = TypeFilterBar(empty_means_all=True)
+        self.type_filter_bar.changed.connect(self._on_type_filter_changed)
+        filter_panel_layout.addWidget(self.type_filter_bar)
 
         history_row.addWidget(self.filter_panel)
 
@@ -600,11 +592,12 @@ class UserTrackerWidget(QWidget):
         self.events_layout.addWidget(self._empty_label)
 
     def _scroll_history_to_bottom(self, force: bool = False):
-        """Scroll to bottom via helpers.scroll; only if near bottom unless force."""
+        """Scroll to bottom via helpers.scroll; only if near bottom unless force.
+        delay lets layout settle so rapid consecutive appends still reach the true bottom."""
         sb = self.events_scroll.verticalScrollBar()
         if not force and (sb.maximum() - sb.value()) > 100:
             return
-        scroll(self.events_scroll, mode="bottom", delay=0)
+        scroll(self.events_scroll, mode="bottom", delay=10)
 
     def _update_info_label(self):
         total = 0
@@ -651,6 +644,7 @@ class UserTrackerWidget(QWidget):
         self._update_chip_highlights()
 
     def _handle_type_filter_click(self, event_type: str, ctrl_pressed: bool):
+        """Badge click in event list — same semantics as TypeFilterBar."""
         if not event_type:
             return
         if ctrl_pressed:
@@ -659,24 +653,24 @@ class UserTrackerWidget(QWidget):
             else:
                 self.filtered_types.add(event_type)
         else:
-            # badge in list / single panel click: toggle single type
             if self.filtered_types == {event_type}:
                 self.filtered_types = set()
             else:
                 self.filtered_types = {event_type}
+        self.type_filter_bar.set_active_types(self.filtered_types)
         self._update_filter_button()
-        self._update_type_filter_badges()
         self._apply_event_filter()
 
-    def _update_type_filter_badges(self):
-        for et, badge in self.type_filter_badges.items():
-            badge.set_active(et in self.filtered_types)
+    def _on_type_filter_changed(self, types):
+        self.filtered_types = set(types)
+        self._update_filter_button()
+        self._apply_event_filter()
 
     def _clear_filter(self):
         self.filtered_logins.clear()
         self.filtered_types.clear()
+        self.type_filter_bar.set_active_types(())
         self._update_filter_button()
-        self._update_type_filter_badges()
         self._apply_event_filter()
         self._update_chip_highlights()
 
@@ -798,13 +792,15 @@ class UserTrackerWidget(QWidget):
             self.events_layout.removeWidget(self._empty_label)
             self._empty_label.deleteLater()
             self._empty_label = None
+        sb = self.events_scroll.verticalScrollBar()
+        near_bottom = (sb.maximum() - sb.value()) <= 100
         row = self._make_event_row(event)
         by_user = not self.filtered_logins or row.login in self.filtered_logins
         by_type = not self.filtered_types or row.event_type in self.filtered_types
         row.setVisible(by_user and by_type)
         self.events_layout.addWidget(row)
-        if row.isVisible():
-            QTimer.singleShot(0, lambda: self._scroll_history_to_bottom(force=False))
+        if row.isVisible() and near_bottom:
+            self._scroll_history_to_bottom(force=True)
         self._bump_chip_count(event)
         self._update_info_label()
 
@@ -846,7 +842,6 @@ class UserTrackerWidget(QWidget):
             if hasattr(item, "apply_theme"):
                 item.apply_theme()
         self._rebuild_filter_chips()
-        self._update_type_filter_badges()
 
     def reveal_event(self, login: str, event_ts: float = None):
         """Switch to History, scroll to matching event, flash highlight."""
@@ -855,8 +850,8 @@ class UserTrackerWidget(QWidget):
         if self.filtered_logins or self.filtered_types:
             self.filtered_logins.clear()
             self.filtered_types.clear()
+            self.type_filter_bar.set_active_types(())
             self._update_filter_button()
-            self._update_type_filter_badges()
             self._apply_event_filter()
             self._update_chip_highlights()
 

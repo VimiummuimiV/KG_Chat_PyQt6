@@ -219,7 +219,12 @@
     "click_action": "chat",
     "notifications": false,
     "show_badge": true,
-    "default_tab": "history"
+    "default_tab": "history",
+    "track_events": [
+      "left",
+      "join",
+      "game"
+    ]
   },
   "join_room": {
     "remember": true,
