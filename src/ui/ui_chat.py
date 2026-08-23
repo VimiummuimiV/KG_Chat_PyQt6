@@ -86,18 +86,22 @@ class JoinRoomDialog(QDialog):
     the emoji-header + icon-button look of the account manager window."""
 
     _NAME_LENGTH = 8
+    _WINDOW_WIDTH = 280
 
     def __init__(self, config, icons_path: Path, parent=None):
         super().__init__(parent)
         self.config = config
         self.icons_path = icons_path
         self.setWindowTitle("Join / Create Room")
-        self.setMinimumWidth(280)
-        self.setMaximumWidth(280)
+        self.setMinimumWidth(self._WINDOW_WIDTH)
+        self.setMaximumWidth(self._WINDOW_WIDTH)
         self.setFont(get_font(FontType.UI))
 
-        margin = self.config.get("ui", "margins", "widget") or 15
-        spacing = self.config.get("ui", "spacing", "widget_elements") or 10
+        margin = 15
+        spacing = 10
+        button_spacing = 8
+        input_height = 48
+
         layout = QVBoxLayout()
         layout.setSpacing(spacing)
         layout.setContentsMargins(margin, margin, margin, margin)
@@ -109,9 +113,6 @@ class JoinRoomDialog(QDialog):
 
         self.name_input = QLineEdit()
         self.name_input.setPlaceholderText("Room name")
-
-        input_height = 48
-
         self.name_input.setFixedHeight(input_height)
         self.name_input.setFont(get_font(FontType.UI))
         self.name_input.setStyleSheet(
@@ -121,7 +122,7 @@ class JoinRoomDialog(QDialog):
         layout.addWidget(self.name_input)
 
         actions_row = QHBoxLayout()
-        actions_row.setSpacing(self.config.get("ui", "buttons", "spacing") or 8)
+        actions_row.setSpacing(button_spacing)
 
         cancel_button = create_icon_button(
             self.icons_path, "go-back.svg", "Cancel (Esc)", config=self.config
@@ -143,6 +144,21 @@ class JoinRoomDialog(QDialog):
 
         layout.addLayout(actions_row)
         self.name_input.setFocus()
+
+        # Fixed height — same approach as AccountManager._adjust_window_height
+        # margins (top+bottom) + label + spacing + input + spacing + buttons + padding
+        label_height = 35
+        button_padding = 10
+        total_height = (
+            margin * 2
+            + label_height
+            + spacing
+            + input_height
+            + spacing
+            + input_height  # button row roughly matches input height
+            + button_padding
+        )
+        self.setFixedHeight(total_height)
 
     def _generate_name(self):
         """Fill the input with a random lowercase alphanumeric room name."""
