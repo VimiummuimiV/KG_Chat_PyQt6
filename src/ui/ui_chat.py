@@ -2829,6 +2829,8 @@ class ChatWindow(QWidget):
                         w = getattr(self, 'user_tracker_widget', None)
                         if w is not None and self.stacked_widget.currentWidget() is w:
                             w.append_event(event)
+                        else:
+                            self.button_panel.bump_tracker_unread()
                         avatar_pix = None
                         if pres.user_id and hasattr(self, 'cache') and self.cache:
                             try:
@@ -3267,6 +3269,7 @@ class ChatWindow(QWidget):
         else:
             self.user_tracker_widget.refresh()
         self.stacked_widget.setCurrentWidget(self.user_tracker_widget)
+        self.button_panel.clear_tracker_unread()
 
 
     def show_settings_view(self):

@@ -1,7 +1,7 @@
 """Scrollable side button panel for ChatWindow"""
 from pathlib import Path
 from PyQt6.QtWidgets import(
-    QWidget, QVBoxLayout, QFrame,
+    QWidget, QVBoxLayout, QFrame, QLabel,
     QGraphicsOpacityEffect, QApplication, QMessageBox
 )
 from PyQt6.QtCore import Qt, QEvent, pyqtSignal
@@ -155,6 +155,14 @@ class ButtonPanel(QWidget):
             "User Tracker (Ctrl+Shift+U)",
             lambda: self.show_tracker_requested.emit()
         )
+        self._tracker_unread = 0
+        self._tracker_badge = QLabel(self.tracker_button)
+        self._tracker_badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._tracker_badge.setStyleSheet(
+            "QLabel { background: #a8c090; color: #1a2a12; border-radius: 3px;"
+            " padding: 0 2px; font-size: 9px; font-weight: bold; min-width: 12px; }"
+        )
+        self._tracker_badge.hide()
 
         self.join_room_button = self._create_button(
             "chat-new.svg",
@@ -247,7 +255,30 @@ class ButtonPanel(QWidget):
     def set_button_state(self, button, is_active: bool):
         """Set visual state for any button without disabling it"""
         set_visual_active(button, is_active)
-    
+
+    def bump_tracker_unread(self):
+        self._tracker_unread += 1
+        self._refresh_tracker_badge()
+
+    def clear_tracker_unread(self):
+        self._tracker_unread = 0
+        self._refresh_tracker_badge()
+
+    def _refresh_tracker_badge(self):
+        n = self._tracker_unread
+        base = "User Tracker (Ctrl+Shift+U)"
+        if n <= 0:
+            self._tracker_badge.hide()
+            self.tracker_button.setToolTip(base)
+            return
+        self._tracker_badge.setText("99+" if n > 99 else str(n))
+        self._tracker_badge.adjustSize()
+        bh = self.tracker_button.height()
+        self._tracker_badge.move(2, bh - self._tracker_badge.height() - 2)
+        self._tracker_badge.show()
+        self._tracker_badge.raise_()
+        self.tracker_button.setToolTip(f"{base} — {n} new")
+
     def update_theme_button_icon(self):
         """Update theme button icon after theme change"""
         is_dark = self.theme_manager.is_dark()
@@ -340,5 +371,4 @@ class ButtonPanel(QWidget):
         return super().eventFilter(obj, event)
     
     def update_theme(self):
-        """Update theme for all buttons in the panel"""
         pass
