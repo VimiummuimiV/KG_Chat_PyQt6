@@ -601,7 +601,7 @@ class UserTrackerWidget(QWidget):
         self._empty_label = None
 
     def _show_empty(self):
-        self._empty_label = QLabel("No events yet")
+        self._empty_label = QLabel("No events")
         self._empty_label.setFont(get_font(FontType.UI))
         self._empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._empty_label.setStyleSheet("color: #888;")
