@@ -1,4 +1,4 @@
-"""Full game-room pane (messages | userlist + input). Used as a tab page."""
+"""Full room pane. Used as a tab page for both game/competition rooms and custom rooms."""
 from pathlib import Path
 
 from PyQt6.QtWidgets import (
@@ -14,8 +14,9 @@ from ui.ui_userlist import UserListWidget
 from core.xmpp import XMPPClient
 
 
-class GameRoomWidget(QWidget):
-    """Self-contained chat for one gameXXXX@conference room.
+class RoomWidget(QWidget):
+    """Self-contained chat for one MUC room — either a gameXXXX@conference
+    game/competition room or a custom room.
     Layout matches the main general chat body:
     """
     send_requested = pyqtSignal(str)
@@ -39,6 +40,7 @@ class GameRoomWidget(QWidget):
         ban_manager=None,
         user_tracker=None,
         game_id=None,
+        room_name: str = None,
         room_label: str = "Game",
         font_scaler=None,
         parent=None,
@@ -51,8 +53,13 @@ class GameRoomWidget(QWidget):
         self.ban_manager = ban_manager
         self.user_tracker = user_tracker
         self.game_id = game_id
-        self.room_label = room_label  # "Game" or "Competition" — cosmetic, set once at open time
-        self.room_jid = XMPPClient.game_room_jid(game_id) if game_id else None
+        self.room_name = (room_name or "").strip().lower() or None
+        if self.room_name:
+            self.room_label = room_label if room_label and room_label != "Game" else self.room_name
+            self.room_jid = XMPPClient.custom_room_jid(self.room_name)
+        else:
+            self.room_label = room_label  # "Game" or "Competition" — cosmetic, set once at open time
+            self.room_jid = XMPPClient.game_room_jid(game_id) if game_id else None
         self.font_scaler = font_scaler
         self.auto_hide_userlist = True  # reset to True whenever the compact threshold is crossed
         self._init_ui()
@@ -143,6 +150,8 @@ class GameRoomWidget(QWidget):
         root.addLayout(body, stretch=1)
 
     def tab_title(self) -> str:
+        if self.room_name:
+            return self.room_label
         return f"{self.room_label} #{self.game_id}" if self.game_id else self.room_label
 
     def _on_send(self):

@@ -212,7 +212,7 @@
   },
   "user_tracker": {
     "retention_hours": 24,
-    "enabled": true,
+    "enabled": false,
     "click_action": "history"
   }
 }

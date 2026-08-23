@@ -289,6 +289,12 @@ class XMPPClient:
     def game_room_jid(game_id) -> str:
         """Build JID for a race/competition room"""
         return f"game{game_id}@conference.jabber.klavogonki.ru"
+
+    @staticmethod
+    def custom_room_jid(room_name: str) -> str:
+        """Build JID for a custom MUC room (created automatically on join if missing)"""
+        name = (room_name or "").strip().lower()
+        return f"{name}@conference.jabber.klavogonki.ru"
    
     def send_message(self, body: str, to_jid: str = None, msg_type: str = 'groupchat'):
         """Send message - supports both groupchat and private chat"""

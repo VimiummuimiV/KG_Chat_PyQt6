@@ -374,5 +374,9 @@
   "830318": {"login": "vila", "background": "#777777", "light": "#767676", "dark": "#858585"},
   "801472": {"login": "bless4myway", "background": "#777777", "light": "#767676", "dark": "#858585"},
   "504763": {"login": "mindiadum", "background": "#777777", "light": "#767676", "dark": "#858585"},
-  "532470": {"login": "Vitmalok", "background": "#5aa177", "light": "#498260", "dark": "#5aa177"}
+  "532470": {"login": "Vitmalok", "background": "#5aa177", "light": "#498260", "dark": "#5aa177"},
+  "524001": {"login": "Megaklaviator", "background": "#5D00FF", "light": "#5D00FF", "dark": "#9c64ff"},
+  "630377": {"login": "katetime2000", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "833405": {"login": "l1n", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "629464": {"login": "zoi4", "background": "#F80F71", "light": "#e80766", "dark": "#f92a81"}
 }
