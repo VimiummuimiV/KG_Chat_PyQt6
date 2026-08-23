@@ -440,11 +440,10 @@ class UserTrackerWidget(QWidget):
         self.tabs.addTab(history_page, "History")
 
     def toggle_userlist(self) -> bool:
-        """Toggle the history filter sidebar; returns new visibility state."""
+        """Toggle the history filter sidebar (driven by shared U button)."""
         self.userlist_visible = not self.userlist_visible
         self.config.set("ui", "userlist", "tracker", value=self.userlist_visible)
         self.filter_scroll.setVisible(self.userlist_visible and bool(self.chip_widgets))
-        set_visual_active(self.userlist_toggle_button, self.userlist_visible)
         return self.userlist_visible
 
     def _on_tab_changed(self, index: int):
@@ -773,6 +772,7 @@ class UserTrackerWidget(QWidget):
         self.tabs.setCurrentIndex(1 if tab == "history" else 0)
 
     def refresh(self):
+        """Full rebuild — track/untrack from outside, settings, etc."""
         self._load_selected()
         self._rebuild_events()
         self._apply_default_tab()

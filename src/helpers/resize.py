@@ -13,7 +13,7 @@ def recalculate_layout(chat_window):
     elif current_view == chat_window.chatlog_widget and chat_window.chatlog_widget:
         chat_window.chatlog_widget._force_recalculate()
         QTimer.singleShot(50, chat_window.chatlog_widget._force_recalculate)
-    elif getattr(chat_window, 'user_tracker_widget', None) and current_view == chat_window.user_tracker_widget:
+    elif current_view is getattr(chat_window, 'user_tracker_widget', None):
         chat_window.user_tracker_widget._recalculate_layout()
         QTimer.singleShot(50, chat_window.user_tracker_widget._recalculate_layout)
 
@@ -29,10 +29,7 @@ def handle_chat_resize(chat_window, width: int):
     # Determine current view and corresponding widgets/settings
     current_view = chat_window.stacked_widget.currentWidget()
     is_chatlog_view = (current_view == chat_window.chatlog_widget)
-    is_tracker_view = (
-        getattr(chat_window, 'user_tracker_widget', None) is not None
-        and current_view == chat_window.user_tracker_widget
-    )
+    is_tracker_view = current_view is getattr(chat_window, 'user_tracker_widget', None)
 
     if is_chatlog_view:
         userlist_widget = chat_window.chatlog_userlist_widget
