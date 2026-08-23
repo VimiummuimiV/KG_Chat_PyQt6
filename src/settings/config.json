@@ -169,7 +169,8 @@
     "bans_bypass_mute": true,
     "hide_on": "mouse",
     "fade_ms": 300,
-    "duration_ms": 5000
+    "duration_ms": 5000,
+    "tracked_bypass_mute": true
   },
   "startup": {
     "auto_login": true,
@@ -217,7 +218,7 @@
     "retention_hours": 24,
     "enabled": true,
     "click_action": "chat",
-    "notifications": false,
+    "notifications": true,
     "show_badge": true,
     "default_tab": "history",
     "track_events": [
@@ -225,7 +226,8 @@
       "join",
       "game"
     ],
-    "badge_font_size": 14
+    "badge_font_size": 11,
+    "notifications_auto_hide": true
   },
   "join_room": {
     "remember": true,

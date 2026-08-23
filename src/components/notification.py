@@ -293,12 +293,106 @@ class MessageBodyWidget(QWidget):
             self.animation_timer = None
 
 
-class PopupNotification(QWidget):
+class _AutoHidePopupMixin:
+    """Shared hover/cursor-tracking/fade/hide-timer behavior for popup widgets.
+    Host class must set: manager, config, duration, is_hovered, cursor_moved,
+    reply_field_visible, initial_cursor_pos, hide_timer, cursor_check_timer."""
+
+    def _self_hides_after_duration(self) -> bool:
+        """Override to ignore hide_on and close purely after duration."""
+        return False
+
+    def _hide_on_mode(self) -> str:
+        """notification.hide_on: manual | mouse | keyboard | mouse_keyboard (default)."""
+        if self.config:
+            mode = self.config.get("notification", "hide_on")
+            if mode in ("manual", "mouse", "keyboard", "mouse_keyboard"):
+                return mode
+        return "mouse_keyboard"
+
+    def _start_cursor_monitoring(self):
+        """Monitor activity (per hide_on setting) to trigger auto-hide."""
+        if self._self_hides_after_duration():
+            self.cursor_moved = True
+            self._start_hide_timer()
+            return
+        if self._hide_on_mode() == "manual":
+            return
+        self.cursor_check_timer = QTimer(self)
+        self.cursor_check_timer.timeout.connect(self._check_cursor_movement)
+        self.cursor_check_timer.start(100)
+
+    def _check_cursor_movement(self):
+        if self.cursor_moved or self.reply_field_visible:
+            return
+        if activity_detected(self.initial_cursor_pos, self._hide_on_mode()):
+            self.cursor_moved = True
+            self.cursor_check_timer.stop()
+            self._start_hide_timer()
+
+    def _start_hide_timer(self):
+        if self.is_hovered or self.reply_field_visible:
+            return
+        if self.hide_timer and self.hide_timer.isActive():
+            self.hide_timer.stop()
+        self.hide_timer = QTimer(self)
+        self.hide_timer.setSingleShot(True)
+        self.hide_timer.timeout.connect(self._animate_out)
+        self.hide_timer.start(self.duration)
+
+    def _animate_in(self):
+        self.fade_in = _fade_opacity(self, 0.0, 1.0)
+
+    def _animate_out(self, force: bool = False):
+        if self.reply_field_visible or (self.is_hovered and not force):
+            return
+        if self.hide_timer and self.hide_timer.isActive():
+            self.hide_timer.stop()
+        self.fade_out = _fade_opacity(self, self.windowOpacity(), 0.0, self._on_close)
+
+    def paintEvent(self, event):
+        _paint_rounded_background(self)
+
+    def enterEvent(self, event):
+        self.is_hovered = True
+        _hold_all_popups(self.manager)
+
+    def leaveEvent(self, event):
+        self.is_hovered = False
+        _resume_all_hide_timers(self.manager)
+
+    def _cleanup_widgets(self):
+        """Override for widgets owning extra resources (e.g. emoticon selector)."""
+        pass
+
+    def close_immediately(self):
+        """Close notification immediately without animation. Doesn't touch
+        manager.popups - callers manage the list themselves."""
+        if self.hide_timer and self.hide_timer.isActive():
+            self.hide_timer.stop()
+        if self.cursor_check_timer and self.cursor_check_timer.isActive():
+            self.cursor_check_timer.stop()
+        fade = getattr(self, "fade_out", None)
+        if fade is not None and fade.state() == QPropertyAnimation.State.Running:
+            fade.stop()
+        self._cleanup_widgets()
+        self.close()
+
+    def _on_close(self):
+        self._cleanup_widgets()
+        self.manager.remove_popup(self)
+        self.close()
+        self.deleteLater()
+
+
+class PopupNotification(_AutoHidePopupMixin, QWidget):
   
     def __init__(self, data: NotificationData, manager, width: int):
         super().__init__()
         self.data = data
         self.manager = manager
+        self.config = data.config
+        self.duration = data.duration
         self.is_hovered = False
         self.cursor_moved = False
         self.initial_cursor_pos = QCursor.pos()
@@ -535,10 +629,6 @@ class PopupNotification(QWidget):
         except RuntimeError:
             pass  # Widget deleted before callback fired
 
-    def paintEvent(self, event):
-        """Custom paint for rounded corners"""
-        _paint_rounded_background(self)
-  
     def mousePressEvent(self, event):
         """Handle clicks: buttons, links, or show window"""
         if event.button() == Qt.MouseButton.LeftButton:
@@ -594,59 +684,6 @@ class PopupNotification(QWidget):
         else:
             super().mousePressEvent(event)
   
-    def _hide_on_mode(self) -> str:
-        """notification.hide_on: manual | mouse | keyboard | mouse_keyboard (default)."""
-        if self.data.config:
-            mode = self.data.config.get("notification", "hide_on")
-            if mode in ("manual", "mouse", "keyboard", "mouse_keyboard"):
-                return mode
-        return "mouse_keyboard"
-
-    def _start_cursor_monitoring(self):
-        """Monitor activity (per hide_on setting) to trigger auto-hide.
-        When hide_on is 'manual', skip monitoring — popup stays until the user
-        closes it via body click or the close button.
-        """
-        if self._hide_on_mode() == "manual":
-            return
-        self.cursor_check_timer = QTimer(self)
-        self.cursor_check_timer.timeout.connect(self._check_cursor_movement)
-        self.cursor_check_timer.start(100)
-
-    def _check_cursor_movement(self):
-        """Check activity according to hide_on mode; start hide timer when triggered."""
-        if self.cursor_moved or self.reply_field_visible:
-            return
-
-        if activity_detected(self.initial_cursor_pos, self._hide_on_mode()):
-            self.cursor_moved = True
-            self.cursor_check_timer.stop()
-            self._start_hide_timer()
-  
-    def _start_hide_timer(self):
-        """Start auto-hide timer"""
-        if not self.is_hovered and not self.reply_field_visible:
-            self.hide_timer = QTimer(self)
-            self.hide_timer.setSingleShot(True)
-            self.hide_timer.timeout.connect(self._animate_out)
-            self.hide_timer.start(self.data.duration)
-  
-    def _animate_in(self):
-        """Fade in animation"""
-        self.fade_in = _fade_opacity(self, 0.0, 1.0)
-  
-    def _animate_out(self, force: bool = False):
-        """Fade out animation.
-        force=True bypasses the hover check (used for tag-based closes, e.g.
-        race status changes). An open reply field always blocks the close,
-        so we never yank the popup out from under the user mid-reply.
-        """
-        if self.reply_field_visible or (self.is_hovered and not force):
-            return
-        if self.hide_timer and self.hide_timer.isActive():
-            self.hide_timer.stop()
-        self.fade_out = _fade_opacity(self, self.windowOpacity(), 0.0, self._on_close)
-  
     def _release_emoticon_selector(self):
         """Remove the borrowed selector from this popup's layout and release ownership."""
         sel = self.manager.emoticon_selector
@@ -658,21 +695,6 @@ class PopupNotification(QWidget):
         self._release_emoticon_selector()
         if self.message_widget:
             self.message_widget.cleanup()
-  
-    def close_immediately(self):
-        """Close notification immediately without animation"""
-        if self.hide_timer and self.hide_timer.isActive():
-            self.hide_timer.stop()
-        if self.cursor_check_timer and self.cursor_check_timer.isActive():
-            self.cursor_check_timer.stop()
-        self._cleanup_widgets()
-        self.close()
-  
-    def _on_close(self):
-        """Close notification"""
-        self._cleanup_widgets()
-        self.manager.remove_popup(self)
-        self.close()
   
     def _on_open_room(self):
         gid = self.data.competition_game_id
@@ -830,25 +852,7 @@ class PopupNotification(QWidget):
         else:
             super().wheelEvent(event)
 
-    def enterEvent(self, event):
-        """Mouse entered - stop hiding for the whole stack"""
-        self.is_hovered = True
-        fading = getattr(self, "fade_out", None)
-        was_fading = (
-            fading is not None
-            and fading.state() == QPropertyAnimation.State.Running
-        )
-        _hold_all_popups(self.manager)
-        if was_fading:
-            self.fade_reveal = _fade_opacity(self, self.windowOpacity(), 1.0)
-
-    def leaveEvent(self, event):
-        """Mouse left - restart hide timer on the whole stack"""
-        self.is_hovered = False
-        _resume_all_hide_timers(self.manager)
-
-
-class PresenceMiniPopup(QWidget):
+class PresenceMiniPopup(_AutoHidePopupMixin, QWidget):
     """Compact join/left notification — same chrome/hover rules as PopupNotification."""
 
     def __init__(self, manager, login: str, event_type: str = 'join', avatar_pixmap=None,
@@ -859,9 +863,9 @@ class PresenceMiniPopup(QWidget):
         self.config = config
         self.reply_field_visible = False
         self.is_hovered = False
-        # True so _resume_all_hide_timers restarts duration after hover
-        # (presence toasts hide by timer, not by mouse/keyboard activity gate)
-        self.cursor_moved = True
+        self.cursor_moved = False
+        self.cursor_check_timer = None
+        self.initial_cursor_pos = QCursor.pos()
         self.data = None
         self.on_click = on_click
         self.event_ts = event_ts
@@ -920,38 +924,11 @@ class PresenceMiniPopup(QWidget):
         self.setWindowOpacity(0.0)
         self.show()
         QTimer.singleShot(0, self._animate_in)
-        self._start_hide_timer()
+        self._start_cursor_monitoring()
 
-    def paintEvent(self, event):
-        _paint_rounded_background(self)
-
-    def _animate_in(self):
-        self.fade_in = _fade_opacity(self, 0.0, 1.0)
-
-    def _start_hide_timer(self):
-        if self.is_hovered or self.reply_field_visible:
-            return
-        if self.hide_timer and self.hide_timer.isActive():
-            self.hide_timer.stop()
-        self.hide_timer = QTimer(self)
-        self.hide_timer.setSingleShot(True)
-        self.hide_timer.timeout.connect(self._animate_out)
-        self.hide_timer.start(self.duration)
-
-    def _animate_out(self, force: bool = False):
-        if self.is_hovered and not force:
-            return
-        if self.hide_timer and self.hide_timer.isActive():
-            self.hide_timer.stop()
-        self.fade_out = _fade_opacity(self, self.windowOpacity(), 0.0, self._on_close)
-
-    def enterEvent(self, event):
-        self.is_hovered = True
-        _hold_all_popups(self.manager)
-
-    def leaveEvent(self, event):
-        self.is_hovered = False
-        _resume_all_hide_timers(self.manager)
+    def _self_hides_after_duration(self) -> bool:
+        """user_tracker.notifications_auto_hide: ignore hide_on, close after duration."""
+        return bool(self.config and self.config.get("user_tracker", "notifications_auto_hide"))
 
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
@@ -962,19 +939,6 @@ class PresenceMiniPopup(QWidget):
             self.manager.close_all()
             return
         super().mousePressEvent(event)
-
-    def close_immediately(self):
-        if self.hide_timer and self.hide_timer.isActive():
-            self.hide_timer.stop()
-        fade = getattr(self, "fade_out", None)
-        if fade is not None and fade.state() == QPropertyAnimation.State.Running:
-            fade.stop()
-        self._on_close()
-
-    def _on_close(self):
-        self.manager.remove_popup(self)
-        self.close()
-        self.deleteLater()
 
 
 class PopupManager:
