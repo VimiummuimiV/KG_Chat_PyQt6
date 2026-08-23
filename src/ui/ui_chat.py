@@ -93,8 +93,7 @@ class JoinRoomDialog(QDialog):
         self.config = config
         self.icons_path = icons_path
         self.setWindowTitle("Join / Create Room")
-        self.setMinimumWidth(self._WINDOW_WIDTH)
-        self.setMaximumWidth(self._WINDOW_WIDTH)
+        self.setFixedWidth(self._WINDOW_WIDTH)
         self.setFont(get_font(FontType.UI))
 
         margin = 15
