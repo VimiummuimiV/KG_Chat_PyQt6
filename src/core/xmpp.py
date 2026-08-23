@@ -10,6 +10,7 @@ from datetime import datetime
 from .accounts import AccountManager
 from .userlist import UserList
 from .messages import MessageParser
+from helpers.jid_utils import MUC_DOMAIN
 
 class XMPPClient:
     """XMPP BOSH Client"""
@@ -288,13 +289,13 @@ class XMPPClient:
     @staticmethod
     def game_room_jid(game_id) -> str:
         """Build JID for a race/competition room"""
-        return f"game{game_id}@conference.jabber.klavogonki.ru"
+        return f"game{game_id}@{MUC_DOMAIN}"
 
     @staticmethod
     def custom_room_jid(room_name: str) -> str:
         """Build JID for a custom MUC room (created automatically on join if missing)"""
         name = (room_name or "").strip().lower()
-        return f"{name}@conference.jabber.klavogonki.ru"
+        return f"{name}@{MUC_DOMAIN}"
    
     def send_message(self, body: str, to_jid: str = None, msg_type: str = 'groupchat'):
         """Send message - supports both groupchat and private chat"""

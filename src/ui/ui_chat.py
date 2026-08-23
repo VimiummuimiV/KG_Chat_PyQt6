@@ -56,7 +56,12 @@ from ui.ui_banlist import BanListWidget
 from ui.ui_user_tracker import UserTrackerWidget
 from ui.ui_settings import SettingsWidget, get_sound_path
 from helpers.duration_dialog import DurationDialog
-from helpers.jid_utils import extract_user_data_from_jid
+from helpers.jid_utils import (
+    extract_user_data_from_jid,
+    is_from_game_room,
+    game_id_from_jid,
+    custom_room_name_from_jid,
+)
 from ui.ui_buttons import ButtonPanel
 from helpers.help import HelpPanel
 from components.notification import show_notification, popup_manager
@@ -734,17 +739,17 @@ class ChatWindow(QWidget):
 
     def _active_input_field(self):
         """Input that should receive typed/emoticon text."""
-        gr = self._current_room()
-        if gr is not None and getattr(gr, 'input_field', None) is not None:
-            if gr.input_field.hasFocus() or not self.input_field.hasFocus():
-                return gr.input_field
+        room = self._current_room()
+        if room is not None and getattr(room, 'input_field', None) is not None:
+            if room.input_field.hasFocus() or not self.input_field.hasFocus():
+                return room.input_field
         return self.input_field
 
     def _active_emoticon_button(self):
         """Emoticon button of the active room (game tab or General)."""
-        gr = self._current_room()
-        if gr is not None and getattr(gr, 'emoticon_button', None) is not None:
-            return gr.emoticon_button
+        room = self._current_room()
+        if room is not None and getattr(room, 'emoticon_button', None) is not None:
+            return room.emoticon_button
         return self.emoticon_button
 
     def _on_emoticon_selected(self, emoticon_name: str):
@@ -1681,16 +1686,16 @@ class ChatWindow(QWidget):
         self._close_room_tab(self.game_rooms, game_id, game_id)
 
     def _on_room_emoticon_requested(self, widget=None):
-        gr = widget or self._current_room()
-        if gr and gr.input_field:
-            gr.input_field.setFocus()
+        room = widget or self._current_room()
+        if room and room.input_field:
+            room.input_field.setFocus()
         self._toggle_emoticon_selector()
 
     def _send_room_message(self, text: str, widget=None):
-        gr = widget or self._current_room()
-        if not gr or not self.xmpp_client or not gr.room_jid:
+        room = widget or self._current_room()
+        if not room or not self.xmpp_client or not room.room_jid:
             return
-        self._dispatch_chat_message(text, 'groupchat', gr.room_jid, gr.add_message)
+        self._dispatch_chat_message(text, 'groupchat', room.room_jid, room.add_message)
 
     def _get_hovered_chatlog_widget(self):
         """Return the ChatlogWidget (main or split) currently under the mouse cursor.
@@ -1821,11 +1826,11 @@ class ChatWindow(QWidget):
             return
         is_compact = width <= 1000
         if is_compact != getattr(self, '_rooms_were_compact', is_compact):
-            for gr in all_rooms:
-                gr.auto_hide_userlist = True
+            for room in all_rooms:
+                room.auto_hide_userlist = True
         self._rooms_were_compact = is_compact
-        for gr in all_rooms:
-            gr.set_compact_mode(is_compact)
+        for room in all_rooms:
+            room.set_compact_mode(is_compact)
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
@@ -1913,8 +1918,8 @@ class ChatWindow(QWidget):
 
     def _active_messages_widget(self):
         """MessagesWidget of the current tab (game room or General)."""
-        gr = self._current_room()
-        return gr.messages_widget if gr else self.messages_widget
+        room = self._current_room()
+        return room.messages_widget if room else self.messages_widget
 
     def _complete_resize_recalculation(self):
         """Complete resize with aggressive recalculation"""
@@ -2481,47 +2486,20 @@ class ChatWindow(QWidget):
         
         return False
 
-    def _is_from_game_room(self, from_jid: str) -> bool:
-        if not from_jid:
-            return False
-        bare = from_jid.split('/')[0]
-        return bare.startswith('game') and '@conference.jabber.klavogonki.ru' in bare
-
-    def _game_id_from_jid(self, from_jid: str):
-        try:
-            bare = from_jid.split('/')[0]
-            local = bare.split('@')[0]
-            if local.startswith('game'):
-                return int(local[4:])
-        except Exception:
-            pass
-        return None
-
-    def _custom_room_name_from_jid(self, from_jid: str):
-        if not from_jid:
-            return None
-        bare = from_jid.split('/')[0]
-        if '@conference.jabber.klavogonki.ru' not in bare:
-            return None
-        local = bare.split('@')[0]
-        if local.startswith('game') or local == 'general':
-            return None
-        return local
-
     def _room_for_jid(self, from_jid: str):
         """Resolve an incoming stanza's from_jid to its open room widget.
         Returns (widget, unread_key, game_id) or (None, None, None) if the
         jid isn't a currently-open game or custom room."""
-        if self.game_rooms and self._is_from_game_room(from_jid):
-            gid = self._game_id_from_jid(from_jid)
-            gr = self.game_rooms.get(gid) if gid is not None else None
-            if gr is not None:
-                return gr, gid, gid
+        if self.game_rooms and is_from_game_room(from_jid):
+            gid = game_id_from_jid(from_jid)
+            room = self.game_rooms.get(gid) if gid is not None else None
+            if room is not None:
+                return room, gid, gid
         if self.custom_rooms:
-            cname = self._custom_room_name_from_jid(from_jid)
-            gr = self.custom_rooms.get(cname) if cname else None
-            if gr is not None:
-                return gr, f"c:{cname}", None
+            cname = custom_room_name_from_jid(from_jid)
+            room = self.custom_rooms.get(cname) if cname else None
+            if room is not None:
+                return room, f"c:{cname}", None
         return None, None, None
 
     def on_message(self, msg):
@@ -2529,8 +2507,8 @@ class ChatWindow(QWidget):
         is_initial = getattr(msg, 'initial', False)
 
         from_jid = getattr(msg, 'from_jid', '') or ''
-        gr, unread_key, game_id = self._room_for_jid(from_jid)
-        if gr is not None:
+        room, unread_key, game_id = self._room_for_jid(from_jid)
+        if room is not None:
             body = (msg.body or '').strip()
             if 'not anonymous' in body.lower():
                 return
@@ -2546,13 +2524,13 @@ class ChatWindow(QWidget):
             msg.is_ban = is_ban
             msg.is_private = False
             display_body, is_system = format_me_action(msg.body, msg.login)
-            gr.add_message(msg)
-            if not is_initial and self._current_room() is not gr:
+            room.add_message(msg)
+            if not is_initial and self._current_room() is not room:
                 self._bump_tab_unread(unread_key)
             self._notify_incoming_message(
                 msg, display_body, is_ban, is_system, is_initial,
-                room_jid=gr.room_jid, add_message_fn=gr.add_message,
-                source_label=self._room_source_label(gr),
+                room_jid=room.room_jid, add_message_fn=room.add_message,
+                source_label=self._room_source_label(room),
                 game_id=game_id,
             )
             return
@@ -2600,11 +2578,11 @@ class ChatWindow(QWidget):
         self._notify_incoming_message(msg, display_body, is_ban, is_system, is_initial)
 
     @staticmethod
-    def _room_source_label(gr) -> str:
+    def _room_source_label(room) -> str:
         """Source kind for notification accent color: 'game', 'competition' or 'room'."""
-        if getattr(gr, 'room_name', None):
+        if getattr(room, 'room_name', None):
             return "room"
-        return "competition" if gr.room_label == "Competition" else "game"
+        return "competition" if room.room_label == "Competition" else "game"
 
     def _notify_incoming_message(self, msg, display_body, is_ban, is_system, is_initial, room_jid=None, add_message_fn=None, source_label=None, game_id=None):
         """TTS, effect sounds, and popup — shared by general and game-room messages.
@@ -2764,21 +2742,21 @@ class ChatWindow(QWidget):
                 return  # Silently drop banned user's presence
 
         from_jid = getattr(pres, 'from_jid', '') or ''
-        is_game = self._is_from_game_room(from_jid)
+        is_game = is_from_game_room(from_jid)
 
-        gr, _, _ = self._room_for_jid(from_jid)
-        if gr is not None:
+        room, _, _ = self._room_for_jid(from_jid)
+        if room is not None:
             if pres.presence_type == 'available':
                 if pres.login and pres.user_id:
                     self.cache.update_user(pres.user_id, pres.login, pres.background)
                 if pres.user_id and pres.avatar:
                     self.cache.ensure_avatar(
                         pres.user_id, pres.avatar,
-                        gr.user_list_widget.on_avatar_updated
+                        room.user_list_widget.on_avatar_updated
                     )
-                gr.add_users(presence=pres)
+                room.add_users(presence=pres)
             elif pres.presence_type == 'unavailable':
-                gr.remove_users(presence=pres)
+                room.remove_users(presence=pres)
             return
     
         if pres and pres.presence_type == 'available':
@@ -2883,7 +2861,7 @@ class ChatWindow(QWidget):
         message_widgets = [self.messages_widget, self.chatlog_widget, self.chatlog_split_widget]
         all_room_widgets = self._all_room_widgets()
         message_widgets.extend(
-            gr.messages_widget for gr in all_room_widgets if gr and gr.messages_widget
+            room.messages_widget for room in all_room_widgets if room and room.messages_widget
         )
         for widget in message_widgets:
             if widget:
@@ -2896,9 +2874,9 @@ class ChatWindow(QWidget):
         # Update message input fields (general + game rooms + custom rooms)
         if self.input_field:
             self.input_field.setFont(new_font)
-        for gr in all_room_widgets:
-            if gr and gr.input_field:
-                gr.input_field.setFont(new_font)
+        for room in all_room_widgets:
+            if room and room.input_field:
+                room.input_field.setFont(new_font)
 
         # Update userlist widgets (general + game rooms + custom rooms)
         def _update_userlist_fonts(ul, fixed_width=False):
@@ -2915,9 +2893,9 @@ class ChatWindow(QWidget):
             ul.update()
 
         _update_userlist_fonts(self.user_list_widget)
-        for gr in all_room_widgets:
-            if gr:
-                _update_userlist_fonts(gr.user_list_widget)
+        for room in all_room_widgets:
+            if room:
+                _update_userlist_fonts(room.user_list_widget)
 
         if self.chatlog_userlist_widget:
             for user_widget in self.chatlog_userlist_widget.user_widgets.values():
@@ -3606,9 +3584,9 @@ class ChatWindow(QWidget):
         shift_held = bool(mods & Qt.KeyboardModifier.ShiftModifier)
 
         if ctrl_held and key == Qt.Key.Key_W and not shift_held:
-            gr = self._current_room()
-            if gr:
-                self._close_game_room_tab(gr.game_id)
+            room = self._current_room()
+            if room:
+                self._close_game_room_tab(room.game_id)
             return
 
         if ctrl_held and key in (Qt.Key.Key_Tab, Qt.Key.Key_Backtab):
@@ -3914,8 +3892,8 @@ class ChatWindow(QWidget):
                 self.chatlog_widget._force_recalculate()
 
             # Re-theme open game rooms and custom rooms
-            for gr in self._all_room_widgets():
-                gr.update_theme()
+            for room in self._all_room_widgets():
+                room.update_theme()
 
             QApplication.processEvents()
         except Exception as e:
