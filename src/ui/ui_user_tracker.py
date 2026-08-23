@@ -22,6 +22,7 @@ from helpers.cache import get_cache
 from helpers.flash_highlight import FlashHighlight
 from helpers.scroll.auto_scroll import AutoScroller
 from helpers.scroll.scroll_buttons import ScrollButtonsPanel
+from helpers.scroll.scroll import scroll
 from core.api_data import validate_username_and_get_id
 from components.presence_badge import make_presence_badge, make_game_id_label
 from components.user_count_row import UserCountRow
@@ -346,7 +347,14 @@ class UserTrackerWidget(QWidget):
 
         title_label = QLabel("User Tracker")
         title_label.setFont(get_font(FontType.HEADER))
-        header_layout.addWidget(title_label, stretch=1)
+        header_layout.addWidget(title_label)
+
+        self.info_label = QLabel("")
+        self.info_label.setFont(get_font(FontType.UI))
+        self.info_label.setStyleSheet("color: #888;")
+        self.info_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        self.info_label.setVisible(False)
+        header_layout.addWidget(self.info_label, stretch=1)
 
         self.add_user_button = create_icon_button(
             self.icons_path, "add.svg", "Add user", config=self.config
@@ -451,6 +459,9 @@ class UserTrackerWidget(QWidget):
         self.add_user_button.setVisible(is_tracked)
         self.clear_history_button.setVisible(not is_tracked)
         self.clear_filter_button.setVisible(not is_tracked and bool(self.filtered_logins))
+        self.info_label.setVisible(not is_tracked)
+        if not is_tracked:
+            self._update_info_label()
         if is_tracked and self.user_items:
             QTimer.singleShot(0, self._recalculate_layout)
 
@@ -551,9 +562,33 @@ class UserTrackerWidget(QWidget):
         self._empty_label.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
         self.events_layout.addWidget(self._empty_label)
 
-    def _scroll_history_to_bottom(self):
+    def _scroll_history_to_bottom(self, force: bool = False):
+        """Scroll to bottom via helpers.scroll; only if near bottom unless force."""
         sb = self.events_scroll.verticalScrollBar()
-        sb.setValue(sb.maximum())
+        if not force and (sb.maximum() - sb.value()) > 100:
+            return
+        scroll(self.events_scroll, mode="bottom", delay=0)
+
+    def _update_info_label(self):
+        total = 0
+        shown = 0
+        for i in range(self.events_layout.count()):
+            w = self.events_layout.itemAt(i).widget()
+            if isinstance(w, EventRow):
+                total += 1
+                if w.isVisible():
+                    shown += 1
+        if total == 0:
+            self.info_label.setText("No events")
+        elif self.filtered_logins and shown != total:
+            names = ", ".join(sorted(self.filtered_logins))
+            self.info_label.setText(f"Showing {shown}/{total} events (users: {names})")
+        elif self.filtered_logins:
+            names = ", ".join(sorted(self.filtered_logins))
+            self.info_label.setText(f"Showing {shown}/{total} events (users: {names})")
+        else:
+            self.info_label.setText(f"{total} events")
+
 
     def _make_event_row(self, event: dict) -> EventRow:
         row = EventRow(self.config, event)
@@ -600,8 +635,9 @@ class UserTrackerWidget(QWidget):
             self.events_layout.addWidget(self._make_event_row(event))
         self._apply_event_filter()
         if events:
-            QTimer.singleShot(0, self._scroll_history_to_bottom)
+            QTimer.singleShot(0, lambda: self._scroll_history_to_bottom(force=True))
         self._rebuild_filter_chips()
+        self._update_info_label()
 
     def _apply_event_filter(self):
         """Show/hide existing event rows in place - no widget recreation."""
@@ -619,6 +655,8 @@ class UserTrackerWidget(QWidget):
             self._empty_label = None
         if not has_visible:
             self._show_empty()
+        self._update_info_label()
+
 
     def _update_chip_highlights(self):
         """Update filter highlight on existing chips - no widget recreation."""
@@ -682,6 +720,8 @@ class UserTrackerWidget(QWidget):
             self.filter_chips_layout.removeWidget(chip)
             chip.deleteLater()
         self.filter_scroll.setVisible(self.userlist_visible and bool(self.chip_widgets))
+        self._update_info_label()
+
 
     def append_event(self, event: dict):
         if self._empty_label is not None:
@@ -692,8 +732,9 @@ class UserTrackerWidget(QWidget):
         row.setVisible(not self.filtered_logins or row.login in self.filtered_logins)
         self.events_layout.addWidget(row)
         if row.isVisible():
-            QTimer.singleShot(0, self._scroll_history_to_bottom)
+            QTimer.singleShot(0, lambda: self._scroll_history_to_bottom(force=False))
         self._bump_chip_count(event)
+        self._update_info_label()
 
     def _bump_chip_count(self, event: dict):
         """Update or create the one affected chip in place - no rebuild of the rest.

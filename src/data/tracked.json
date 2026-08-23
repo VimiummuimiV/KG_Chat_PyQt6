@@ -13,5 +13,18 @@
     "770303": "TolikWorkaholic"
   },
   "frozen": [],
-  "events": []
+  "events": [
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "left",
+      "ts": 1787508488.9595568
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "join",
+      "ts": 1787508489.4271424
+    }
+  ]
 }
