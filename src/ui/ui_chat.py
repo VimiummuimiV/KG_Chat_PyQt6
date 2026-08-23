@@ -10,8 +10,6 @@ from PyQt6.QtWidgets import(
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QObject, QTimer, QEvent
 from PyQt6.QtGui import QAction, QCursor
-import random
-import string
             
 
 from helpers.config import Config
@@ -57,7 +55,7 @@ from ui.ui_pronunciation import PronunciationWidget
 from ui.ui_banlist import BanListWidget
 from ui.ui_user_tracker import UserTrackerWidget
 from ui.ui_settings import SettingsWidget, get_sound_path
-from helpers.duration_dialog import DurationDialog
+from ui.dialogs.duration_dialog import DurationDialog
 from helpers.jid_utils import (
     extract_user_data_from_jid,
     is_from_game_room,
@@ -65,6 +63,7 @@ from helpers.jid_utils import (
     custom_room_name_from_jid,
 )
 from ui.ui_buttons import ButtonPanel
+from ui.dialogs.join_room_dialog import JoinRoomDialog
 from helpers.help import HelpPanel
 from components.notification import show_notification, popup_manager
 from helpers.input_activity import activity_detected
@@ -73,100 +72,11 @@ from components.messages_separator import NewMessagesSeparator
 from components.tag_button import update_all_tag_buttons
 from core.api_data import validate_username_and_get_id
 
-
 class SignalEmitter(QObject):
     message_received = pyqtSignal(object)
     presence_received = pyqtSignal(object)
     bulk_update_complete = pyqtSignal()
     connection_changed = pyqtSignal(str)
-
-
-class JoinRoomDialog(QDialog):
-    """Styled replacement for the plain QInputDialog room prompt, matching
-    the emoji-header + icon-button look of the account manager window."""
-
-    _NAME_LENGTH = 8
-    _WINDOW_WIDTH = 280
-
-    def __init__(self, config, icons_path: Path, parent=None):
-        super().__init__(parent)
-        self.config = config
-        self.icons_path = icons_path
-        self.setWindowTitle("Join / Create Room")
-        self.setFixedWidth(self._WINDOW_WIDTH)
-        self.setFont(get_font(FontType.UI))
-
-        margin = 15
-        spacing = 10
-        button_spacing = 8
-        input_height = 48
-
-        layout = QVBoxLayout()
-        layout.setSpacing(spacing)
-        layout.setContentsMargins(margin, margin, margin, margin)
-        self.setLayout(layout)
-
-        header = QLabel("🚪 Join / Create Room")
-        header.setFont(get_font(FontType.HEADER))
-        layout.addWidget(header)
-
-        self.name_input = QLineEdit()
-        self.name_input.setPlaceholderText("Room name")
-        self.name_input.setFixedHeight(input_height)
-        self.name_input.setFont(get_font(FontType.UI))
-        self.name_input.setStyleSheet(
-            f"QLineEdit {{ height: {input_height}px; padding: 0px 8px; }}"
-        )
-        self.name_input.returnPressed.connect(self.accept)
-        layout.addWidget(self.name_input)
-
-        actions_row = QHBoxLayout()
-        actions_row.setSpacing(button_spacing)
-
-        cancel_button = create_icon_button(
-            self.icons_path, "go-back.svg", "Cancel (Esc)", config=self.config
-        )
-        cancel_button.clicked.connect(self.reject)
-        actions_row.addWidget(cancel_button)
-
-        gen_button = create_icon_button(
-            self.icons_path, "dice-3.svg", "Generate random name", config=self.config
-        )
-        gen_button.clicked.connect(self._generate_name)
-        actions_row.addWidget(gen_button)
-
-        join_button = create_icon_button(
-            self.icons_path, "login.svg", "Join / Create (Enter)", config=self.config
-        )
-        join_button.clicked.connect(self.accept)
-        actions_row.addWidget(join_button)
-
-        layout.addLayout(actions_row)
-        self.name_input.setFocus()
-
-        # Fixed height — same approach as AccountManager._adjust_window_height
-        label_height = 35
-        button_padding = 10
-        total_height = (
-            margin * 2
-            + label_height
-            + spacing
-            + input_height
-            + spacing
-            + input_height
-            + button_padding
-        )
-        self.setFixedHeight(total_height)
-
-    def _generate_name(self):
-        alphabet = string.ascii_lowercase + string.digits
-        name = "".join(random.choices(alphabet, k=self._NAME_LENGTH))
-        self.name_input.setText(name)
-        self.name_input.setFocus()
-        self.name_input.selectAll()
-
-    def room_name(self) -> str:
-        return self.name_input.text().strip().lower()
 
 class ChatWindow(QWidget):
     _dispatch = pyqtSignal(object)  # thread-safe main-thread callable dispatch
@@ -251,7 +161,6 @@ class ChatWindow(QWidget):
         if track is None or track:
             # defer start until event loop is running
             QTimer.singleShot(0, lambda: self.set_track_competitions(True))
-
 
         # Initialize emoticon manager
         emoticons_path = Path(__file__).parent.parent / "emoticons"
@@ -1342,7 +1251,6 @@ class ChatWindow(QWidget):
         widget.setParent(None)
         widget.deleteLater()
 
-
     def _open_game_room_by_id(self, game_id, room_label: str = "Game"):
         class _Fake:
             pass
@@ -1436,6 +1344,8 @@ class ChatWindow(QWidget):
         if room_name == "general":
             QMessageBox.information(self, "Room", "You are already in the General room.")
             return
+        if dialog.should_remember():
+            dialog.remember_name(room_name)
         self.open_custom_room_tab(room_name)
 
     def open_custom_room_tab(self, room_name: str):
@@ -2294,7 +2204,6 @@ class ChatWindow(QWidget):
 
         QTimer.singleShot(ms_to_next_second, _aligned_start)
 
-
     def refresh_competition_player_display(self):
         for gid in list(self._competition_live.keys()):
             self._refresh_competition_message(gid)
@@ -2499,7 +2408,6 @@ class ChatWindow(QWidget):
             sw.competitions_log.setEnabled(True)
             if hasattr(sw, "set_competition_log_lines"):
                 sw.set_competition_log_lines(list(self._competition_log_lines))
-
 
     def add_local_message(self, msg):
         self.messages_widget.add_message(msg)
@@ -3240,8 +3148,6 @@ class ChatWindow(QWidget):
         
         self.stacked_widget.setCurrentWidget(self.ban_list_widget)
 
-
-
     def _on_presence_notification_click(self, login: str, event_ts=None):
         action = self.config.get("user_tracker", "click_action") or "history"
         if action == "chat":
@@ -3270,7 +3176,6 @@ class ChatWindow(QWidget):
             self.user_tracker_widget.refresh()
         self.stacked_widget.setCurrentWidget(self.user_tracker_widget)
         self.button_panel.clear_tracker_unread()
-
 
     def show_settings_view(self):
         """Show the settings view"""

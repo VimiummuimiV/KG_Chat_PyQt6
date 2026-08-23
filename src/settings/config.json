@@ -217,5 +217,11 @@
     "notifications": false,
     "show_badge": true,
     "default_tab": "history"
+  },
+  "join_room": {
+    "remember": true,
+    "saved": [
+      "mosie"
+    ]
   }
 }

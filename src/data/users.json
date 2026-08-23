@@ -382,5 +382,7 @@
   "390675": {"login": "dagandrew", "background": "#FF0707", "light": "#ee0000", "dark": "#ff2e2e"},
   "320816": {"login": "_Mira_", "background": "#4C363C", "light": "#4C363C", "dark": "#a17b85"},
   "519431": {"login": "-Pavel_", "background": "#000000", "light": "#000000", "dark": "#858585"},
-  "516743": {"login": "roskoshny_", "background": "#020000", "light": "#020000", "dark": "#ff2e2e"}
+  "516743": {"login": "roskoshny_", "background": "#020000", "light": "#020000", "dark": "#ff2e2e"},
+  "314121": {"login": "ssa774", "background": "#14A5D1", "light": "#1080a3", "dark": "#14A5D1"},
+  "346928": {"login": "Аурика", "background": "#b353ef", "light": "#aa40ed", "dark": "#b659f0"}
 }

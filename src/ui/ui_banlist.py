@@ -12,7 +12,7 @@ import time
 from helpers.create import create_icon_button
 from helpers.fonts import get_font, FontType
 from helpers.ban_manager import BanManager
-from helpers.duration_dialog import DurationDialog
+from ui.dialogs.duration_dialog import DurationDialog
 from core.api_data import validate_username_and_get_id
 
 
