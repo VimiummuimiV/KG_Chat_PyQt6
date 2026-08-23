@@ -2739,7 +2739,7 @@ class ChatWindow(QWidget):
                         if w is not None and self.stacked_widget.currentWidget() is w:
                             w.append_event(event)
                         else:
-                            self.button_panel.bump_tracker_unread()
+                            self.button_panel.bump_tracker_unread(event.get('type'))
                         avatar_pix = None
                         if pres.user_id and hasattr(self, 'cache') and self.cache:
                             try:
@@ -3194,7 +3194,7 @@ class ChatWindow(QWidget):
         width = self.width()
         tracker_userlist_visible = self.user_tracker_widget.userlist_visible
         show = False if (width <= 1000 and self.auto_hide_tracker_userlist) else tracker_userlist_visible
-        self.user_tracker_widget.filter_scroll.setVisible(
+        self.user_tracker_widget.filter_panel.setVisible(
             show and bool(self.user_tracker_widget.chip_widgets)
         )
         if hasattr(self, 'button_panel'):

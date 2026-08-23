@@ -22,7 +22,8 @@ class ThemeManager:
             stylesheet += """
                 QListView,
                 QScrollArea,
-                QFrame {
+                QFrame,
+                QTabWidget::pane {
                     border: 1px solid transparent !important;
                 }
             """

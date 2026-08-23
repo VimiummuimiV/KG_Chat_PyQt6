@@ -7,6 +7,7 @@ from PyQt6.QtWidgets import(
 from PyQt6.QtCore import Qt, QEvent, pyqtSignal
 
 from helpers.config import Config
+from components.presence_badge import apply_counter_style
 from helpers.create import (
     create_icon_button,
     _render_svg_icon,
@@ -156,13 +157,11 @@ class ButtonPanel(QWidget):
             lambda: self.show_tracker_requested.emit()
         )
         self._tracker_unread = 0
+        self._tracker_last_type = "join"
         self._tracker_badge = QLabel(self.tracker_button)
         self._tracker_badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._tracker_badge.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
-        self._tracker_badge.setStyleSheet(
-            "QLabel { background: #a8c090; color: #1a2a12; border-radius: 3px;"
-            " padding: 0 3px; font-size: 9px; font-weight: bold; }"
-        )
+        apply_counter_style(self._tracker_badge, "join")
         self._tracker_badge.hide()
 
         self.join_room_button = self._create_button(
@@ -257,8 +256,10 @@ class ButtonPanel(QWidget):
         """Set visual state for any button without disabling it"""
         set_visual_active(button, is_active)
 
-    def bump_tracker_unread(self):
+    def bump_tracker_unread(self, event_type: str = None):
         self._tracker_unread += 1
+        if event_type:
+            self._tracker_last_type = event_type
         self._refresh_tracker_badge()
 
     def clear_tracker_unread(self):
@@ -275,6 +276,7 @@ class ButtonPanel(QWidget):
             self._tracker_badge.hide()
             self.tracker_button.setToolTip(base if n <= 0 else f"{base} — {n} new")
             return
+        apply_counter_style(self._tracker_badge, self._tracker_last_type)
         self._tracker_badge.setText("99+" if n > 99 else str(n))
         self._tracker_badge.adjustSize()
         self._tracker_badge.move(1, self.tracker_button.height() - self._tracker_badge.height() - 1)
