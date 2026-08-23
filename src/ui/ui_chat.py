@@ -3299,6 +3299,9 @@ class ChatWindow(QWidget):
                 lambda _=None: self.refresh_competition_player_display()
             )
             self.settings_widget.sound_changed.connect(self._setup_sounds)
+            self.settings_widget.tracker_badge_checkbox.toggled.connect(
+                lambda _=None: self.button_panel._refresh_tracker_badge()
+            )
             self.settings_widget.competition_log_clear_requested.connect(
                 self.clear_competition_log
             )
