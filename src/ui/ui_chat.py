@@ -146,7 +146,6 @@ class JoinRoomDialog(QDialog):
         self.name_input.setFocus()
 
         # Fixed height — same approach as AccountManager._adjust_window_height
-        # margins (top+bottom) + label + spacing + input + spacing + buttons + padding
         label_height = 35
         button_padding = 10
         total_height = (
@@ -155,13 +154,12 @@ class JoinRoomDialog(QDialog):
             + spacing
             + input_height
             + spacing
-            + input_height  # button row roughly matches input height
+            + input_height
             + button_padding
         )
         self.setFixedHeight(total_height)
 
     def _generate_name(self):
-        """Fill the input with a random lowercase alphanumeric room name."""
         alphabet = string.ascii_lowercase + string.digits
         name = "".join(random.choices(alphabet, k=self._NAME_LENGTH))
         self.name_input.setText(name)
@@ -1461,17 +1459,10 @@ class ChatWindow(QWidget):
         self.room_tabs.setCurrentWidget(widget)
         self._join_room(widget.room_jid)
 
-        # Shareable link for other clients of the same app
-        link = f"room:{room_name}"
+        # Silently put plain room name on the clipboard (no dialog)
         clipboard = QApplication.clipboard()
         if clipboard:
-            clipboard.setText(link)
-        QMessageBox.information(
-            self,
-            "Room ready",
-            f"Joined room «{room_name}».\n\nShareable link copied to clipboard:\n{link}\n\n"
-            f"JID: {widget.room_jid}",
-        )
+            clipboard.setText(room_name)
 
     def _close_custom_room_tab(self, room_name: str):
         self._close_room_tab(self.custom_rooms, room_name, f"c:{room_name}")
@@ -1635,6 +1626,15 @@ class ChatWindow(QWidget):
         if index < 0:
             return
         menu = QMenu(self)
+        widget = self.room_tabs.widget(index)
+        # Custom rooms: allow copying the plain room name
+        if isinstance(widget, RoomWidget) and widget.room_name:
+            name = widget.room_name
+            menu.addAction(
+                "Copy room name",
+                lambda n=name: QApplication.clipboard().setText(n),
+            )
+            menu.addSeparator()
         if index > 0:
             menu.addAction("Close", lambda: self._on_room_tab_close_requested(index))
             menu.addAction("Close others", lambda: self._close_other_room_tabs(index))
