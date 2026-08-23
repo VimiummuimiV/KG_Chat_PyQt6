@@ -310,6 +310,7 @@ class TrackerUserChip(UserCountRow):
             icons_path, "trash.svg", "Remove history for this user",
             size_type="small", config=config
         )
+        self.delete_button.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         self.delete_button.clicked.connect(lambda: self.delete_requested.emit(self.login))
         self.layout().addWidget(self.delete_button)
 

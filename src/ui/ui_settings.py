@@ -905,7 +905,7 @@ class SettingsWidget(QWidget):
             self._on_tracker_badge_toggled
         )
         self.tracker_badge_size_spin = self._add_slider_spin_row(
-            section, "Badge font size", 6, 14,
+            section, "Badge font size", 8, 18,
             self._on_tracker_badge_size_changed, default=9
         )
         # Tracked event types — same pills as tracker filter bar
@@ -1092,7 +1092,7 @@ class SettingsWidget(QWidget):
             badge_size = int(badge_size) if badge_size is not None else 9
         except (TypeError, ValueError):
             badge_size = 9
-        self.tracker_badge_size_spin.setValue(max(6, min(14, badge_size)))
+        self.tracker_badge_size_spin.setValue(max(8, min(18, badge_size)))
         track_events = self.config.get("user_tracker", "track_events")
         if not track_events:
             track_events = list(EVENT_TYPES)
@@ -1353,6 +1353,7 @@ class SettingsWidget(QWidget):
 
     def _on_tracker_enabled_toggled(self, checked: bool):
         self.config.set("user_tracker", "enabled", value=checked)
+        self.tracker_badge_style_changed.emit()
 
     def _on_tracker_notifications_toggled(self, checked: bool):
         self.config.set("user_tracker", "notifications", value=checked)

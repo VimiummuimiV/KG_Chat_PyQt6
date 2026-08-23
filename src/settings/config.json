@@ -225,7 +225,7 @@
       "join",
       "game"
     ],
-    "badge_font_size": 9
+    "badge_font_size": 14
   },
   "join_room": {
     "remember": true,

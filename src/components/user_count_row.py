@@ -1,5 +1,5 @@
 """Shared row widget: avatar + colored username + count, with filter highlight and click-to-filter."""
-from PyQt6.QtWidgets import QWidget, QHBoxLayout, QLabel
+from PyQt6.QtWidgets import QWidget, QHBoxLayout, QLabel, QSizePolicy
 from PyQt6.QtCore import Qt, QSize, pyqtSignal
 from PyQt6.QtGui import QCursor
 
@@ -57,12 +57,19 @@ class UserCountRow(QWidget):
         self.username_label = QLabel(username)
         self.username_label.setFont(get_font(FontType.TEXT))
         self.username_label.setStyleSheet(f"color: {self._cache.get_username_color(username, is_dark)};")
-        layout.addWidget(self.username_label, stretch=1)  # absorbs slack so count stays tight
+        self.username_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        self.username_label.setMinimumWidth(20)
+        self.username_label.setTextFormat(Qt.TextFormat.PlainText)
+        # Elide long names so trailing count/buttons aren't clipped when panel is narrow
+        self.username_label.setWordWrap(False)
+        layout.addWidget(self.username_label, stretch=1)
 
         count_color = "#CCCCCC" if is_dark else "#666666"
         self.count_label = QLabel(str(count))
         self.count_label.setFont(get_font(FontType.TEXT))
         self.count_label.setStyleSheet(f"color: {count_color};")
+        self.count_label.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Preferred)
+        self.count_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         layout.addWidget(self.count_label)
 
     def _on_avatar_loaded(self, user_id: str, pixmap):

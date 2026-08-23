@@ -44,7 +44,7 @@ def make_presence_badge(event_type: str) -> QLabel:
 def apply_counter_style(label: QLabel, event_type: str = "join", font_size: int = 9):
     """Style a small unread counter with the same palette as presence badges."""
     _, bg, fg = presence_badge_style(event_type or "join")
-    label.setStyleSheet(_counter_css(bg, fg, max(6, min(16, int(font_size)))))
+    label.setStyleSheet(_counter_css(bg, fg, max(8, min(18, int(font_size)))))
 
 
 def toggle_filter_value(current: Set[str], value: str, ctrl_pressed: bool, always_multi: bool = False) -> Set[str]:

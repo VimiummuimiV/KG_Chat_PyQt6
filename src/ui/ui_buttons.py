@@ -163,6 +163,7 @@ class ButtonPanel(QWidget):
         self._tracker_badge.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
         apply_counter_style(self._tracker_badge, "join")
         self._tracker_badge.hide()
+        self._apply_tracker_enabled_state()
 
         self.join_room_button = self._create_button(
             "chat-new.svg",
@@ -256,7 +257,21 @@ class ButtonPanel(QWidget):
         """Set visual state for any button without disabling it"""
         set_visual_active(button, is_active)
 
+    def _tracker_enabled(self) -> bool:
+        value = self.config.get("user_tracker", "enabled")
+        return True if value is None else bool(value)
+
+    def _apply_tracker_enabled_state(self):
+        enabled = self._tracker_enabled()
+        set_visual_active(self.tracker_button, enabled)
+        if not enabled:
+            self._tracker_badge.hide()
+        else:
+            self._refresh_tracker_badge()
+
     def bump_tracker_unread(self, event_type: str = None):
+        if not self._tracker_enabled():
+            return
         self._tracker_unread += 1
         if event_type:
             self._tracker_last_type = event_type
@@ -267,25 +282,27 @@ class ButtonPanel(QWidget):
         self._refresh_tracker_badge()
 
     def refresh_tracker_badge_style(self):
-        """Re-apply badge visibility/size/color - call when related settings change,
-        so an already-visible badge updates without waiting for the next event."""
-        self._refresh_tracker_badge()
+        """Re-apply dim/badge after settings change (enabled, show_badge, size)."""
+        self._apply_tracker_enabled_state()
 
     def _refresh_tracker_badge(self):
         n = self._tracker_unread
         base = "User Tracker (Ctrl+Shift+U)"
+        enabled = self._tracker_enabled()
         show = self.config.get("user_tracker", "show_badge")
         if show is None:
             show = True
-        if n <= 0 or not show:
+        if not enabled or n <= 0 or not show:
             self._tracker_badge.hide()
-            self.tracker_button.setToolTip(base if n <= 0 else f"{base} — {n} new")
+            tip = base if not enabled else (base if n <= 0 else f"{base} — {n} new")
+            self.tracker_button.setToolTip(tip if enabled else f"{base} — tracking disabled")
             return
         size = self.config.get("user_tracker", "badge_font_size")
         try:
             size = int(size) if size is not None else 9
         except (TypeError, ValueError):
             size = 9
+        size = max(8, min(18, size))
         apply_counter_style(self._tracker_badge, self._tracker_last_type, font_size=size)
         self._tracker_badge.setText("99+" if n > 99 else str(n))
         self._tracker_badge.adjustSize()
