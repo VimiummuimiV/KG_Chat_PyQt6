@@ -891,8 +891,12 @@ class SettingsWidget(QWidget):
     def _build_user_tracker_section(self):
         section = self._create_section("🗿 User Tracker")
         self.tracker_enabled_checkbox = self._add_checkbox(
-            section, "Track selected users",
+            section, "Track users",
             self._on_tracker_enabled_toggled
+        )
+        self.tracker_notifications_checkbox = self._add_checkbox(
+            section, "Show notifications",
+            self._on_tracker_notifications_toggled
         )
         self.tracker_retention_spin = self._add_slider_spin_row(
             section, "History retention (hours)", 1, 168,
@@ -952,6 +956,7 @@ class SettingsWidget(QWidget):
             self.track_competitions_checkbox, self.competitions_bypass_mute_checkbox,
             self.mentions_bypass_mute_checkbox, self.bans_bypass_mute_checkbox,
             self.tracker_notify_checkbox, self.tracker_enabled_checkbox,
+            self.tracker_notifications_checkbox,
             self.min_multiplier_combo,
             self.show_cost_checkbox,
             self.show_players_checkbox, self.max_player_chips_spin, self.sort_players_by_level_checkbox,
@@ -1047,6 +1052,10 @@ class SettingsWidget(QWidget):
         self.tracker_enabled_checkbox.setChecked(
             bool(self.config.get("user_tracker", "enabled")
                  if self.config.get("user_tracker", "enabled") is not None else True)
+        )
+        tracker_notify = self.config.get("user_tracker", "notifications")
+        self.tracker_notifications_checkbox.setChecked(
+            True if tracker_notify is None else bool(tracker_notify)
         )
         retention = self.config.get("user_tracker", "retention_hours")
         try:
@@ -1299,6 +1308,9 @@ class SettingsWidget(QWidget):
 
     def _on_tracker_enabled_toggled(self, checked: bool):
         self.config.set("user_tracker", "enabled", value=checked)
+
+    def _on_tracker_notifications_toggled(self, checked: bool):
+        self.config.set("user_tracker", "notifications", value=checked)
 
     def _on_tracker_retention_changed(self, value: int):
         self.config.set("user_tracker", "retention_hours", value=int(value))

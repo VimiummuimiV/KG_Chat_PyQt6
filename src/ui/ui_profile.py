@@ -4,13 +4,14 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
     QScrollArea, QGridLayout, QFrame, QSizePolicy
 )
-from PyQt6.QtCore import Qt, pyqtSignal, QTimer, pyqtSlot, QUrl
-from PyQt6.QtGui import QPixmap, QFont, QDesktopServices
+from PyQt6.QtCore import Qt, pyqtSignal, QTimer, pyqtSlot
+from PyQt6.QtGui import QPixmap, QFont
 
 from helpers.create import create_icon_button
 from helpers.load import make_rounded_pixmap
 from helpers.cache import get_cache
 from helpers.fonts import get_font, FontType
+from helpers.browser import open_url as open_url_in_browser
 from core.api_data import(
     get_user_summary_by_id,
     get_user_index_data_by_id,
@@ -329,9 +330,11 @@ class ProfileWidget(QWidget):
         self.avatar_label.setStyleSheet(style)
     
     def _open_profile_in_browser(self):
-        """Open current user's profile in the default browser"""
         if self.current_user_id:
-            QDesktopServices.openUrl(QUrl(f"https://klavogonki.ru/u/#/{self.current_user_id}/"))
+            open_url_in_browser(
+                f"https://klavogonki.ru/u/#/{self.current_user_id}/",
+                self.config.get("browser") if self.config else None,
+            )
 
     def load_profile(self, user_id: int, username: str):
         """Load and display user profile data.

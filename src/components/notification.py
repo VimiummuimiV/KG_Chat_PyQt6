@@ -1011,6 +1011,8 @@ class PopupManager:
         if is_join is not None and event_type == 'join':
             event_type = 'join' if is_join else 'left'
         cfg = config or self.config
+        if cfg is not None and cfg.get("user_tracker", "notifications") is False:
+            return None
         bypass = bool(cfg and cfg.get("notification", "tracked_bypass_mute"))
         if self.muted and not bypass:
             return None
