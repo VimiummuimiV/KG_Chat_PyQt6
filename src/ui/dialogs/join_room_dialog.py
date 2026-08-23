@@ -211,4 +211,6 @@ class JoinRoomDialog(QDialog):
             return
         saved = [n for n in self._load_saved() if n != name]
         self.config.set("join_room", "saved", value=saved)
+        if self.room_name() == name:
+            self.name_input.clear()
         self._populate_saved()
