@@ -273,11 +273,26 @@ def invalidate_font_cache():
     _font_manager._invalidate_cache()
 
 
+def _current_text_size(base_size: int = 16) -> int:
+    if _font_manager.font_scaler:
+        return _font_manager.font_scaler.get_text_size()
+    if _font_manager.config:
+        return _font_manager._get_size("text", base_size)
+    return base_size
+
+
 def get_userlist_width() -> int:
-    current_size = _font_manager.font_scaler.get_text_size() if _font_manager.font_scaler else (
-        _font_manager._get_size("text", 16) if _font_manager.config else 16
-    )
     base_size = 16
     base_width = 380
-    scaled_width = int(base_width * (current_size / base_size))
+    scaled_width = int(base_width * (_current_text_size(base_size) / base_size))
     return max(200, min(500, scaled_width))
+
+
+def get_scaled_width(base_width: int, base_size: int = 16, min_width: int = None, max_width: int = None) -> int:
+    """Scale a pixel width proportionally to the current text font size (for fixed-width inputs/fields)."""
+    scaled = int(base_width * (_current_text_size(base_size) / base_size))
+    if min_width is not None:
+        scaled = max(min_width, scaled)
+    if max_width is not None:
+        scaled = min(max_width, scaled)
+    return scaled

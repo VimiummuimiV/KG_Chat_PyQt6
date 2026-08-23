@@ -1,6 +1,7 @@
 """User Tracker UI — tracked users + join/left history"""
 from pathlib import Path
 from datetime import datetime
+from collections import Counter
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
     QScrollArea, QMessageBox, QFrame, QTabWidget, QSizePolicy, QGridLayout
@@ -10,7 +11,12 @@ from PyQt6.QtSvg import QSvgRenderer
 from PyQt6.QtGui import QPixmap, QPainter
 
 from helpers.create import create_icon_button, set_visual_active
-from helpers.fonts import get_font, FontType
+from helpers.fonts import (
+    get_font,
+    FontType,
+    get_userlist_width,
+    get_scaled_width
+)
 from helpers.user_tracker import UserTracker
 from helpers.cache import get_cache
 from helpers.flash_highlight import FlashHighlight
@@ -18,10 +24,16 @@ from helpers.scroll.auto_scroll import AutoScroller
 from helpers.scroll.scroll_buttons import ScrollButtonsPanel
 from core.api_data import validate_username_and_get_id
 from components.presence_badge import make_presence_badge, make_game_id_label
+from components.user_count_row import UserCountRow
 
 
 class TrackedUserItem(QWidget):
     remove_requested = pyqtSignal(object)
+
+    USERNAME_BASE_WIDTH = 220
+    USER_ID_BASE_WIDTH = 125
+    ARROW_WIDTH = 26
+    BUTTON_WIDTH = 48  # freeze + remove buttons
 
     def __init__(self, config, icons_path: Path, username="", user_id=""):
         super().__init__()
@@ -45,7 +57,8 @@ class TrackedUserItem(QWidget):
         self.username_input.setText(username)
         self.username_input.setFont(get_font(FontType.TEXT))
         self.username_input.setFixedHeight(input_height)
-        self.username_input.setFixedWidth(220)
+        self._username_width = get_scaled_width(self.USERNAME_BASE_WIDTH)
+        self.username_input.setFixedWidth(self._username_width)
         self.username_input.editingFinished.connect(self._validate)
         layout.addWidget(self.username_input)
 
@@ -70,7 +83,8 @@ class TrackedUserItem(QWidget):
         self.user_id_input.setText(user_id)
         self.user_id_input.setFont(get_font(FontType.TEXT))
         self.user_id_input.setFixedHeight(input_height)
-        self.user_id_input.setFixedWidth(125)
+        self._user_id_width = get_scaled_width(self.USER_ID_BASE_WIDTH)
+        self.user_id_input.setFixedWidth(self._user_id_width)
         self.user_id_input.setReadOnly(True)
         layout.addWidget(self.user_id_input)
 
@@ -88,12 +102,27 @@ class TrackedUserItem(QWidget):
         self.remove_button.clicked.connect(lambda: self.remove_requested.emit(self))
         layout.addWidget(self.remove_button)
 
-        total_width = 220 + 26 + 125 + 48 + 48 + spacing * 4
-        self.setFixedWidth(total_width)
+        self._spacing = spacing
+        self._update_total_width()
         self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
 
         if username and not user_id:
             self._validate()
+
+    def _update_total_width(self):
+        total_width = (
+            self._username_width + self.ARROW_WIDTH + self._user_id_width
+            + self.BUTTON_WIDTH * 2 + self._spacing * 4
+        )
+        self.setFixedWidth(total_width)
+
+    def update_font_scale(self):
+        """Re-scale fixed-width fields when text font size changes (called on font_size_committed)."""
+        self._username_width = get_scaled_width(self.USERNAME_BASE_WIDTH)
+        self._user_id_width = get_scaled_width(self.USER_ID_BASE_WIDTH)
+        self.username_input.setFixedWidth(self._username_width)
+        self.user_id_input.setFixedWidth(self._user_id_width)
+        self._update_total_width()
 
     def _validate(self):
         username = self.username_input.text().strip()
@@ -158,7 +187,7 @@ class TrackedUserItem(QWidget):
 
 
 class EventRow(QFrame):
-    filter_clicked = pyqtSignal(str)
+    filter_clicked = pyqtSignal(str, bool)
 
     def __init__(self, config, event: dict):
         super().__init__()
@@ -225,7 +254,8 @@ class EventRow(QFrame):
             event.ignore()
             return
         if event.button() == Qt.MouseButton.LeftButton and self.login:
-            self.filter_clicked.emit(self.login)
+            ctrl_pressed = bool(event.modifiers() & Qt.KeyboardModifier.ControlModifier)
+            self.filter_clicked.emit(self.login, ctrl_pressed)
 
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.MiddleButton:
@@ -248,14 +278,24 @@ class EventRow(QFrame):
         self._flash.paint_overlay(painter, self._hl_overlay.rect())
 
 
+class TrackerUserChip(UserCountRow):
+    """History filter chip: avatar + login + event count, orange highlight when filtered"""
+
+    def __init__(self, config, icons_path: Path, login: str, count: int, user_id: str = None):
+        super().__init__(login, count, config, icons_path, user_id,
+                          margins=(2, 0, 2, 0), filter_radius=6)
+        self.login = login  # alias kept for readability at call sites (== self.username)
+
+
 class UserTrackerWidget(QWidget):
     back_requested = pyqtSignal()
 
-    def __init__(self, config, icons_path: Path, user_tracker: UserTracker):
+    def __init__(self, config, icons_path: Path, user_tracker: UserTracker, font_scaler=None):
         super().__init__()
         self.config = config
         self.icons_path = icons_path
         self.user_tracker = user_tracker
+        self.font_scaler = font_scaler
         self.user_items = []
         self._empty_label = None
         self.filtered_logins = set()
@@ -264,6 +304,15 @@ class UserTrackerWidget(QWidget):
         self._rebuild_events()
         self._apply_default_tab()
         self._on_tab_changed(self.tabs.currentIndex())
+        if self.font_scaler is not None:
+            self.font_scaler.font_size_committed.connect(self._on_font_size_committed)
+
+    def _on_font_size_committed(self):
+        self.filter_scroll.setFixedWidth(get_userlist_width())
+        for item in self.user_items:
+            item.update_font_scale()
+        if self.user_items:
+            self._recalculate_layout()
 
     def _setup_ui(self):
         window_margin = self.config.get("ui", "margins", "window") or 10
@@ -342,6 +391,10 @@ class UserTrackerWidget(QWidget):
         history_layout.setContentsMargins(4, 4, 4, 4)
         history_layout.setSpacing(6)
 
+        history_row = QHBoxLayout()
+        history_row.setSpacing(6)
+        history_layout.addLayout(history_row, stretch=1)
+
         self.events_scroll = QScrollArea()
         self.events_scroll.setWidgetResizable(True)
         self.events_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
@@ -352,10 +405,26 @@ class UserTrackerWidget(QWidget):
         self.events_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         self.events_container.setLayout(self.events_layout)
         self.events_scroll.setWidget(self.events_container)
-        history_layout.addWidget(self.events_scroll, stretch=1)
+        history_row.addWidget(self.events_scroll, stretch=1)
 
         self.history_scroll_buttons = ScrollButtonsPanel(self.events_scroll, parent=self.events_scroll)
         self.history_auto_scroller = AutoScroller(self.events_scroll)
+
+        self.filter_scroll = QScrollArea()
+        self.filter_scroll.setWidgetResizable(True)
+        self.filter_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.filter_scroll.setVisible(False)
+        self.filter_scroll.setFixedWidth(get_userlist_width())
+        filter_container = QWidget()
+        self.filter_chips_layout = QVBoxLayout()
+        self.filter_chips_layout.setContentsMargins(4, 4, 4, 4)
+        self.filter_chips_layout.setSpacing(2)
+        filter_container.setLayout(self.filter_chips_layout)
+        self.filter_chips_layout.addStretch()
+        self.filter_scroll.setWidget(filter_container)
+        history_row.addWidget(self.filter_scroll)
+
+        self.filter_auto_scroller = AutoScroller(self.filter_scroll)
 
         self.tabs.addTab(history_page, "History")
 
@@ -468,14 +537,20 @@ class UserTrackerWidget(QWidget):
 
     def _make_event_row(self, event: dict) -> EventRow:
         row = EventRow(self.config, event)
-        row.filter_clicked.connect(self._toggle_filter_login)
+        row.filter_clicked.connect(self._handle_filter_click)
         return row
 
-    def _toggle_filter_login(self, login: str):
-        if login in self.filtered_logins:
-            self.filtered_logins.discard(login)
+    def _handle_filter_click(self, login: str, ctrl_pressed: bool):
+        if ctrl_pressed:
+            if login in self.filtered_logins:
+                self.filtered_logins.discard(login)
+            else:
+                self.filtered_logins.add(login)
         else:
-            self.filtered_logins.add(login)
+            if self.filtered_logins == {login}:
+                self.filtered_logins = set()
+            else:
+                self.filtered_logins = {login}
         self._update_filter_button()
         self._rebuild_events()
 
@@ -502,10 +577,33 @@ class UserTrackerWidget(QWidget):
         ]
         if not events:
             self._show_empty()
-            return
-        for event in events:
-            self.events_layout.addWidget(self._make_event_row(event))
-        QTimer.singleShot(0, self._scroll_history_to_bottom)
+        else:
+            for event in events:
+                self.events_layout.addWidget(self._make_event_row(event))
+            QTimer.singleShot(0, self._scroll_history_to_bottom)
+        self._rebuild_filter_chips()
+
+    def _rebuild_filter_chips(self):
+        while self.filter_chips_layout.count() > 1:
+            item = self.filter_chips_layout.takeAt(0)
+            widget = item.widget()
+            if widget:
+                widget.deleteLater()
+
+        events = self.user_tracker.get_events()
+        counts = Counter(e.get('login') for e in events if e.get('login'))
+        user_ids = {}
+        for e in events:
+            login = e.get('login')
+            if login and login not in user_ids and e.get('user_id'):
+                user_ids[login] = e['user_id']
+
+        self.filter_scroll.setVisible(bool(counts))
+        for login, count in sorted(counts.items(), key=lambda x: (-x[1], x[0].lower())):
+            chip = TrackerUserChip(self.config, self.icons_path, login, count, user_ids.get(login))
+            chip.set_filtered(login in self.filtered_logins)
+            chip.clicked.connect(self._handle_filter_click)
+            self.filter_chips_layout.insertWidget(self.filter_chips_layout.count() - 1, chip)
 
     def append_event(self, event: dict):
         if not self._event_matches_filter(event):
@@ -516,6 +614,7 @@ class UserTrackerWidget(QWidget):
             self._empty_label = None
         self.events_layout.addWidget(self._make_event_row(event))
         QTimer.singleShot(0, self._scroll_history_to_bottom)
+        self._rebuild_filter_chips()
 
     def _clear_history(self):
         reply = QMessageBox.question(
@@ -536,6 +635,7 @@ class UserTrackerWidget(QWidget):
         for item in self.user_items:
             if hasattr(item, "apply_theme"):
                 item.apply_theme()
+        self._rebuild_filter_chips()
 
     def reveal_event(self, login: str, event_ts: float = None):
         """Switch to History, scroll to matching event, flash highlight."""
@@ -586,3 +686,5 @@ class UserTrackerWidget(QWidget):
             self.history_scroll_buttons.cleanup()
         if getattr(self, "history_auto_scroller", None):
             self.history_auto_scroller.cleanup()
+        if getattr(self, "filter_auto_scroller", None):
+            self.filter_auto_scroller.cleanup()

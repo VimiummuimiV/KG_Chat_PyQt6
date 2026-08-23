@@ -2,14 +2,14 @@
 from pathlib import Path
 from collections import Counter
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QScrollArea, QApplication
-from PyQt6.QtCore import Qt, QSize, pyqtSignal
-from PyQt6.QtGui import QFont, QCursor
+from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtGui import QCursor
 
-from helpers.create import create_icon_button, _render_svg_icon, get_user_svg_color
-from helpers.load import make_rounded_pixmap
+from helpers.create import create_icon_button
 from helpers.cache import get_cache
 from helpers.fonts import get_font, FontType
 from helpers.scroll.auto_scroll import AutoScroller
+from components.user_count_row import UserCountRow
 from components.user_context_menu import (
     show_user_context_menu,
     PROFILE,
@@ -23,100 +23,17 @@ from components.user_context_menu import (
 )
 
 
-class ChatlogUserWidget(QWidget):
-    """Single user widget for chatlog"""
-    AVATAR_SIZE = 36
-    SVG_AVATAR_SIZE = 24
+class ChatlogUserWidget(UserCountRow):
+    """Single user widget for chatlog - adds context menu (profile/private/track/etc) on top of the base row"""
 
-    clicked = pyqtSignal(str, bool)  # username, ctrl_pressed
     profile_requested = pyqtSignal(str, str, str)  # jid, username, user_id
     private_chat_requested = pyqtSignal(str, str, str)  # jid, username, user_id
     paste_requested = pyqtSignal(str) # username
     track_requested = pyqtSignal(str, str, bool)  # user_id, login, track
 
     def __init__(self, username, msg_count, config, icons_path, user_id=None, user_tracker=None):
-        super().__init__()
-        self.username = username
-        self.user_id = user_id
+        super().__init__(username, msg_count, config, icons_path, user_id)
         self.user_tracker = user_tracker
-        self.icons_path = icons_path
-        self.is_filtered = False
-        self._cache = get_cache()
-        
-        layout = QHBoxLayout()
-        layout.setContentsMargins(2, 0, 2, 0)
-        layout.setSpacing(6)
-        self.setLayout(layout)
-        
-        self.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
-
-        # Avatar
-        self.avatar_label = QLabel()
-        self.avatar_label.setFixedSize(self.AVATAR_SIZE, self.AVATAR_SIZE)
-        self.avatar_label.setStyleSheet("background: transparent; border: none; padding: 0; margin: 0;")
-        self.avatar_label.setScaledContents(False)
-        self.avatar_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-
-        is_dark = config.get("ui", "theme") == "dark"
-        svg_color = get_user_svg_color(self._cache.has_user(user_id), is_dark)
-
-        if user_id:
-            cached_avatar = self._cache.get_avatar(user_id)
-            if cached_avatar:
-                self.avatar_label.setPixmap(make_rounded_pixmap(cached_avatar, self.AVATAR_SIZE, 8))
-            else:
-                self.avatar_label.setPixmap(
-                    _render_svg_icon(icons_path / "user.svg", self.SVG_AVATAR_SIZE, svg_color)
-                    .pixmap(QSize(self.SVG_AVATAR_SIZE, self.SVG_AVATAR_SIZE))
-                )
-                self._cache.load_avatar_async(user_id, self._on_avatar_loaded)
-        else:
-            self.avatar_label.setPixmap(
-                _render_svg_icon(icons_path / "user.svg", self.SVG_AVATAR_SIZE, svg_color)
-                .pixmap(QSize(self.SVG_AVATAR_SIZE, self.SVG_AVATAR_SIZE))
-            )
-
-        layout.addWidget(self.avatar_label)
-        
-        text_color = self._cache.get_username_color(username, is_dark)
-        
-        self.username_label = QLabel(username)
-        self.username_label.setStyleSheet(f"color: {text_color};")
-        self.username_label.setFont(get_font(FontType.TEXT))
-        layout.addWidget(self.username_label, stretch=1)
-        
-        # Message count - use neutral theme color (not username color)
-        count_color = "#CCCCCC" if is_dark else "#666666"
-        self.count_label = QLabel(f"{msg_count}")
-        self.count_label.setFont(get_font(FontType.TEXT))
-        self.count_label.setStyleSheet(f"color: {count_color};")
-        layout.addWidget(self.count_label)
-    
-    def update_color(self, color: str):
-        """Update count label color (neutral theme color); username re-reads from cache."""
-        self.count_label.setStyleSheet(f"color: {color};")
-
-    def _on_avatar_loaded(self, user_id: str, pixmap):
-        """Callback fired by load_avatar_async when disk file is found"""
-        try:
-            if user_id == self.user_id and self.avatar_label:
-                self.avatar_label.setPixmap(make_rounded_pixmap(pixmap, self.AVATAR_SIZE, 8))
-        except RuntimeError:
-            pass
-    
-    def set_filtered(self, filtered: bool):
-        """Update visual state when filtered"""
-        self.is_filtered = filtered
-        if filtered:
-            self.setStyleSheet("background-color: rgba(226, 135, 67, 0.2); border-radius: 4px;")
-        else:
-            self.setStyleSheet("")
-    
-    def mousePressEvent(self, event):
-        if event.button() == Qt.MouseButton.LeftButton:
-            ctrl_pressed = event.modifiers() & Qt.KeyboardModifier.ControlModifier
-            self.clicked.emit(self.username, bool(ctrl_pressed))
-        super().mousePressEvent(event)
 
     def contextMenuEvent(self, event):
         is_tracked = bool(
