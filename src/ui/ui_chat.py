@@ -115,7 +115,7 @@ class JoinRoomDialog(QDialog):
         self.name_input.setFixedHeight(input_height)
         self.name_input.setFont(get_font(FontType.UI))
         self.name_input.setStyleSheet(
-            f"height: {input_height}px !important; padding: 0px 8px;"
+            f"QLineEdit {{ height: {input_height}px; padding: 0px 8px; }}"
         )
         self.name_input.returnPressed.connect(self.accept)
         layout.addWidget(self.name_input)
