@@ -514,13 +514,13 @@ class SettingsWidget(QWidget):
         section_layout.addWidget(content)
 
         slug = re.sub(r"[^a-z0-9]+", "_", title.lower()).strip("_")
-        self._add_collapse_toggle(header_row, content, ("ui", "settings", "sections", slug))
+        self._add_collapse_toggle(header_row, content, ("ui", "settings", "sections", slug), section=True)
 
         self._sections_layout.addWidget(section)
         return content_layout
 
-    def _add_collapse_toggle(self, header_layout: QHBoxLayout, content: QWidget, config_path: tuple, default_collapsed: bool = False) -> QToolButton:
-        """Prepend a collapse arrow to header_layout, toggling content visibility and persisting state at config_path."""
+    def _add_collapse_toggle(self, header_layout: QHBoxLayout, content: QWidget, config_path: tuple,
+                               default_collapsed: bool = False, *, section: bool = False) -> QToolButton:
         stored = self.config.get(*config_path)
         collapsed = default_collapsed if stored is None else bool(stored)
 
@@ -531,14 +531,31 @@ class SettingsWidget(QWidget):
         btn.setChecked(collapsed)
         content.setVisible(not collapsed)
 
+        btn._section_content = content
+        btn._section_config_path = config_path
+
         def _on_toggled(checked):
             content.setVisible(not checked)
             btn.setArrowType(Qt.ArrowType.RightArrow if checked else Qt.ArrowType.DownArrow)
             self.config.set(*config_path, value=checked)
+            if section and not checked and self._accordion_enabled():
+                for other in self._section_toggles:
+                    if other is not btn and not other.isChecked():
+                        other.blockSignals(True)
+                        other.setChecked(True)
+                        other.setArrowType(Qt.ArrowType.RightArrow)
+                        other._section_content.setVisible(False)
+                        self.config.set(*other._section_config_path, value=True)
+                        other.blockSignals(False)
 
         btn.toggled.connect(_on_toggled)
         header_layout.insertWidget(0, btn)
+        if section:
+            self._section_toggles.append(btn)
         return btn
+
+    def _accordion_enabled(self) -> bool:
+        return bool(self.config.get("ui", "settings", "accordion"))
 
     def _add_checkbox(self, section_layout: QVBoxLayout, text: str, on_toggled) -> QCheckBox:
         checkbox = QCheckBox(text)
@@ -662,6 +679,7 @@ class SettingsWidget(QWidget):
         self._sections_layout.setSpacing(self.config.get("ui", "spacing", "section_gap") or 12)
         self._sections_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         content.setLayout(self._sections_layout)
+        self._section_toggles = []
         self.scroll.setWidget(content)
 
         self._build_startup_section()
@@ -676,6 +694,10 @@ class SettingsWidget(QWidget):
 
     def _build_startup_section(self):
         section = self._create_section("🚀 Startup")
+        self.settings_accordion_checkbox = self._add_checkbox(
+            section, "Accordion sections (opening one collapses others)",
+            self._on_settings_accordion_toggled
+        )
         self.auto_login_checkbox = self._add_checkbox(
             section, "Auto-login on startup", self._on_auto_login_toggled
         )
@@ -981,7 +1003,7 @@ class SettingsWidget(QWidget):
     def refresh(self):
         """Reload every control from the current config state."""
         widgets = (
-            self.auto_login_checkbox, self.start_minimized_checkbox, self.start_with_system_checkbox,
+            self.settings_accordion_checkbox, self.auto_login_checkbox, self.start_minimized_checkbox, self.start_with_system_checkbox,
             self.clear_private_checkbox, self.youtube_checkbox, self.browser_combo,
             self.track_competitions_checkbox, self.competitions_bypass_mute_checkbox,
             self.mentions_bypass_mute_checkbox, self.bans_bypass_mute_checkbox,
@@ -1004,6 +1026,9 @@ class SettingsWidget(QWidget):
         for widget in widgets:
             widget.blockSignals(True)
 
+        self.settings_accordion_checkbox.setChecked(
+            bool(self.config.get("ui", "settings", "accordion"))
+        )
         self.auto_login_checkbox.setChecked(bool(self.config.get("startup", "auto_login")))
         self.start_minimized_checkbox.setChecked(bool(self.config.get("startup", "start_minimized")))
         self.start_with_system_checkbox.setChecked(self.startup_manager.is_enabled())
@@ -1213,6 +1238,9 @@ class SettingsWidget(QWidget):
     # ------------------------------------------------------------------ #
     # Handlers
     # ------------------------------------------------------------------ #
+    def _on_settings_accordion_toggled(self, checked: bool):
+        self.config.set("ui", "settings", "accordion", value=checked)
+
     def _on_auto_login_toggled(self, checked: bool):
         self.config.set("startup", "auto_login", value=checked)
 

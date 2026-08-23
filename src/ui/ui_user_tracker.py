@@ -820,6 +820,8 @@ class UserTrackerWidget(QWidget):
         self._update_filter_panel_visibility()
 
     def _clear_history(self):
+        if not self.user_tracker.get_events():
+            return
         reply = QMessageBox.question(
             self, "Clear History",
             "Clear all join/left history?",

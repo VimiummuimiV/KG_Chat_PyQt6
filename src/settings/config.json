@@ -140,7 +140,8 @@
       "widgets": {
         "ws_log": false,
         "font_preview": true
-      }
+      },
+      "accordion": true
     },
     "userlist": {
       "tracker": true,
