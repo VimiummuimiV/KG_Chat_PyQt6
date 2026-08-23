@@ -127,6 +127,7 @@ class ChatWindow(QWidget):
         self.initial_roster_loading = False
         self.auto_hide_messages_userlist = True
         self.auto_hide_chatlog_userlist = True
+        self.auto_hide_tracker_userlist = True
 
         # Track window show/reset state to avoid persisting programmatic geometry
         self._showing_window = False
@@ -527,7 +528,7 @@ class ChatWindow(QWidget):
         self._wire_userlist_signals(self.user_list_widget)
         self.user_list_widget.open_game_requested.connect(self._open_game_room_by_id)
 
-        messages_userlist_visible = self.config.get("ui", "messages_userlist_visible")
+        messages_userlist_visible = self.config.get("ui", "userlist", "messages")
         userlist_visible = messages_userlist_visible if messages_userlist_visible is not None else True
         self.user_list_widget.setVisible(userlist_visible)
 
@@ -602,7 +603,7 @@ class ChatWindow(QWidget):
         self._hover_reveal = False
      
         # Initialize userlist button state
-        messages_userlist_visible = self.config.get("ui", "messages_userlist_visible")
+        messages_userlist_visible = self.config.get("ui", "userlist", "messages")
         if messages_userlist_visible is not None:
             self.button_panel.set_button_state(self.button_panel.toggle_userlist_button, messages_userlist_visible)
         else:
@@ -1111,7 +1112,7 @@ class ChatWindow(QWidget):
 
         # Restore messages userlist, respecting compact width threshold
         width = self.width()
-        messages_userlist_visible = self.config.get("ui", "messages_userlist_visible")
+        messages_userlist_visible = self.config.get("ui", "userlist", "messages")
         if messages_userlist_visible is None:
             messages_userlist_visible = True
         visible = False if (width <= 1000 and self.auto_hide_messages_userlist) else messages_userlist_visible
@@ -1188,7 +1189,7 @@ class ChatWindow(QWidget):
       
         # Show chatlog userlist based on config, compact width, and auto-hide
         width = self.width()
-        chatlog_userlist_visible = self.config.get("ui", "chatlog_userlist_visible")
+        chatlog_userlist_visible = self.config.get("ui", "userlist", "chatlog")
         if chatlog_userlist_visible is None:
             chatlog_userlist_visible = True
         visible = False if (width <= 1000 and self.auto_hide_chatlog_userlist) else chatlog_userlist_visible
@@ -3050,20 +3051,27 @@ class ChatWindow(QWidget):
     
         current_view = self.stacked_widget.currentWidget()
         is_chatlog_view = (current_view == self.chatlog_widget)
+        is_tracker_view = (
+            getattr(self, 'user_tracker_widget', None) is not None
+            and current_view == self.user_tracker_widget
+        )
         width = self.width()
-    
-        if is_chatlog_view and self.chatlog_userlist_widget:
+
+        if is_tracker_view:
+            visible = self.user_tracker_widget.toggle_userlist()
+            self.auto_hide_tracker_userlist = False
+        elif is_chatlog_view and self.chatlog_userlist_widget:
             visible = not self.chatlog_userlist_widget.isVisible()
             self.chatlog_userlist_widget.setVisible(visible)
             self.userlist_panel.setVisible(visible)
-            self.config.set("ui", "chatlog_userlist_visible", value=visible)
+            self.config.set("ui", "userlist", "chatlog", value=visible)
             self.auto_hide_chatlog_userlist = False
         else:
             visible = not self.user_list_widget.isVisible()
             self.user_list_widget.setVisible(visible)
             if hasattr(self, 'userlist_panel'):
                 self.userlist_panel.setVisible(visible)
-            self.config.set("ui", "messages_userlist_visible", value=visible)
+            self.config.set("ui", "userlist", "messages", value=visible)
             self.auto_hide_messages_userlist = False
     
         # Update button visual state
@@ -3168,7 +3176,8 @@ class ChatWindow(QWidget):
             self.user_tracker_widget = UserTrackerWidget(
                 self.config,
                 self.icons_path,
-                self.user_tracker
+                self.user_tracker,
+                font_scaler=getattr(self.app_controller, "font_scaler", None)
             )
             self.user_tracker_widget.back_requested.connect(self._on_stacked_back)
             self.stacked_widget.addWidget(self.user_tracker_widget)
@@ -3176,6 +3185,20 @@ class ChatWindow(QWidget):
             self.user_tracker_widget.refresh()
         self.stacked_widget.setCurrentWidget(self.user_tracker_widget)
         self.button_panel.clear_tracker_unread()
+
+        # The shared messages/chatlog userlist panel doesn't apply to tracker view
+        if hasattr(self, 'userlist_panel'):
+            self.userlist_panel.setVisible(False)
+
+        # Show tracker userlist based on config, compact width, and auto-hide
+        width = self.width()
+        tracker_userlist_visible = self.user_tracker_widget.userlist_visible
+        show = False if (width <= 1000 and self.auto_hide_tracker_userlist) else tracker_userlist_visible
+        self.user_tracker_widget.filter_scroll.setVisible(
+            show and bool(self.user_tracker_widget.chip_widgets)
+        )
+        if hasattr(self, 'button_panel'):
+            self.button_panel.set_button_state(self.button_panel.toggle_userlist_button, show)
 
     def show_settings_view(self):
         """Show the settings view"""

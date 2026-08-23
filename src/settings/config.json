@@ -20,8 +20,6 @@
     "lang": "en"
   },
   "ui": {
-    "messages_userlist_visible": true,
-    "chatlog_userlist_visible": true,
     "chatlog_search_visible": false,
     "theme": "dark",
     "notification_width": 550,
@@ -143,6 +141,11 @@
         "ws_log": false,
         "font_preview": true
       }
+    },
+    "userlist": {
+      "tracker": false,
+      "messages": true,
+      "chatlog": true
     }
   },
   "sound": {
@@ -202,7 +205,7 @@
       "family": "Segoe UI"
     },
     "text": {
-      "size": 24,
+      "size": 15,
       "family": "Open Sans"
     },
     "header": {

@@ -10,702 +10,1300 @@
     "797440": "icytouch",
     "123190": "Переборыч",
     "370997": "Хеопс",
-    "770303": "TolikWorkaholic",
-    "840288": "ЗАЧИНЩИКСОБЫТИЙ",
-    "815689": "I_can",
-    "256825": "-IL-",
-    "547549": "Im_not_a_robot",
-    "404685": "Auril"
+    "770303": "TolikWorkaholic"
   },
   "frozen": [],
   "events": [
     {
-      "user_id": "840288",
-      "login": "ЗАЧИНЩИКСОБЫТИЙ",
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "left",
+      "ts": 1787498932.316533
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "game",
+      "ts": 1787498932.7694428,
+      "game_id": "106445"
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "left",
+      "ts": 1787498965.514666
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
       "type": "join",
-      "ts": 1787462884.2622154
+      "ts": 1787498966.514536
     },
     {
-      "user_id": "840288",
-      "login": "ЗАЧИНЩИКСОБЫТИЙ",
+      "user_id": "111001",
+      "login": "un4given",
       "type": "left",
-      "ts": 1787463285.1293805
+      "ts": 1787498989.7405202
     },
     {
-      "user_id": "840288",
-      "login": "ЗАЧИНЩИКСОБЫТИЙ",
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "game",
+      "ts": 1787498990.2320704,
+      "game_id": "106366"
+    },
+    {
+      "user_id": "732377",
+      "login": "Пьяный_Качок",
       "type": "join",
-      "ts": 1787463285.4126692
+      "ts": 1787499039.1150522
     },
     {
-      "user_id": "815689",
-      "login": "I_can",
+      "user_id": "111001",
+      "login": "un4given",
       "type": "left",
-      "ts": 1787463294.4495292
+      "ts": 1787499094.2670116
     },
     {
-      "user_id": "815689",
-      "login": "I_can",
-      "type": "game",
-      "ts": 1787463301.8972776,
-      "game_id": "100794"
-    },
-    {
-      "user_id": "256825",
-      "login": "-IL-",
-      "type": "left",
-      "ts": 1787463315.130317
-    },
-    {
-      "user_id": "256825",
-      "login": "-IL-",
+      "user_id": "111001",
+      "login": "un4given",
       "type": "join",
-      "ts": 1787463316.8930883
+      "ts": 1787499094.9174232
     },
     {
-      "user_id": "256825",
-      "login": "-IL-",
+      "user_id": "111001",
+      "login": "un4given",
       "type": "left",
-      "ts": 1787463322.6709356
+      "ts": 1787499104.01858
     },
     {
-      "user_id": "256825",
-      "login": "-IL-",
+      "user_id": "111001",
+      "login": "un4given",
       "type": "game",
-      "ts": 1787463322.9222062,
-      "game_id": "100797"
+      "ts": 1787499104.4695575,
+      "game_id": "106467"
     },
     {
-      "user_id": "815689",
-      "login": "I_can",
+      "user_id": "111001",
+      "login": "un4given",
       "type": "left",
-      "ts": 1787463362.3568945
+      "ts": 1787499157.8506393
     },
     {
-      "user_id": "815689",
-      "login": "I_can",
+      "user_id": "111001",
+      "login": "un4given",
       "type": "game",
-      "ts": 1787463362.616113,
-      "game_id": "100797"
+      "ts": 1787499158.3120248,
+      "game_id": "106479"
     },
     {
-      "user_id": "256825",
-      "login": "-IL-",
+      "user_id": "111001",
+      "login": "un4given",
       "type": "left",
-      "ts": 1787463423.5450392
+      "ts": 1787499176.481035
     },
     {
-      "user_id": "256825",
-      "login": "-IL-",
+      "user_id": "111001",
+      "login": "un4given",
       "type": "game",
-      "ts": 1787463423.7915125,
-      "game_id": "100807"
+      "ts": 1787499176.9249878,
+      "game_id": "106484"
     },
     {
-      "user_id": "815689",
-      "login": "I_can",
+      "user_id": "111001",
+      "login": "un4given",
       "type": "left",
-      "ts": 1787463424.2821202
+      "ts": 1787499189.408079
     },
     {
-      "user_id": "815689",
-      "login": "I_can",
+      "user_id": "111001",
+      "login": "un4given",
       "type": "game",
-      "ts": 1787463427.6609538,
-      "game_id": "100807"
+      "ts": 1787499189.8702648,
+      "game_id": "106487"
     },
     {
-      "user_id": "815689",
-      "login": "I_can",
+      "user_id": "111001",
+      "login": "un4given",
       "type": "left",
-      "ts": 1787463526.1309793
+      "ts": 1787499208.511529
     },
     {
-      "user_id": "256825",
-      "login": "-IL-",
-      "type": "left",
-      "ts": 1787463526.3102937
-    },
-    {
-      "user_id": "256825",
-      "login": "-IL-",
+      "user_id": "111001",
+      "login": "un4given",
       "type": "game",
-      "ts": 1787463526.4916704,
-      "game_id": "100818"
+      "ts": 1787499209.5238025,
+      "game_id": "106491"
     },
     {
-      "user_id": "815689",
-      "login": "I_can",
-      "type": "game",
-      "ts": 1787463529.202678,
-      "game_id": "100818"
-    },
-    {
-      "user_id": "404685",
-      "login": "Auril",
+      "user_id": "111001",
+      "login": "un4given",
       "type": "left",
-      "ts": 1787463598.7597852
+      "ts": 1787499238.9748127
     },
     {
-      "user_id": "404685",
-      "login": "Auril",
+      "user_id": "111001",
+      "login": "un4given",
       "type": "game",
-      "ts": 1787463599.0329359,
-      "game_id": "100773"
+      "ts": 1787499239.4298103,
+      "game_id": "106499"
     },
     {
-      "user_id": "815689",
-      "login": "I_can",
+      "user_id": "111001",
+      "login": "un4given",
       "type": "left",
-      "ts": 1787463610.945184
+      "ts": 1787499260.4330158
     },
     {
-      "user_id": "256825",
-      "login": "-IL-",
-      "type": "left",
-      "ts": 1787463612.4983113
-    },
-    {
-      "user_id": "256825",
-      "login": "-IL-",
+      "user_id": "111001",
+      "login": "un4given",
       "type": "game",
-      "ts": 1787463612.7412927,
-      "game_id": "100825"
+      "ts": 1787499260.8938687,
+      "game_id": "106503"
     },
     {
-      "user_id": "815689",
-      "login": "I_can",
-      "type": "game",
-      "ts": 1787463615.028189,
-      "game_id": "100773"
-    },
-    {
-      "user_id": "404685",
-      "login": "Auril",
+      "user_id": "111001",
+      "login": "un4given",
       "type": "left",
-      "ts": 1787463684.5087314
+      "ts": 1787499274.8741183
     },
     {
-      "user_id": "404685",
-      "login": "Auril",
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "game",
+      "ts": 1787499275.3214593,
+      "game_id": "106507"
+    },
+    {
+      "user_id": "732377",
+      "login": "Пьяный_Качок",
+      "type": "left",
+      "ts": 1787499290.8929913
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "left",
+      "ts": 1787499299.2477622
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "game",
+      "ts": 1787499299.7162511,
+      "game_id": "106511"
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "left",
+      "ts": 1787499329.1196187
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
       "type": "join",
-      "ts": 1787463684.772257
+      "ts": 1787499329.7049541
     },
     {
-      "user_id": "256825",
-      "login": "-IL-",
-      "type": "left",
-      "ts": 1787463685.9765277
-    },
-    {
-      "user_id": "256825",
-      "login": "-IL-",
-      "type": "game",
-      "ts": 1787463686.2293472,
-      "game_id": "100832"
-    },
-    {
-      "user_id": "815689",
-      "login": "I_can",
-      "type": "game",
-      "ts": 1787463689.0587566,
-      "game_id": "100832"
-    },
-    {
-      "user_id": "815689",
-      "login": "I_can",
-      "type": "left",
-      "ts": 1787463756.7833838
-    },
-    {
-      "user_id": "256825",
-      "login": "-IL-",
-      "type": "left",
-      "ts": 1787463759.9644883
-    },
-    {
-      "user_id": "256825",
-      "login": "-IL-",
-      "type": "game",
-      "ts": 1787463760.2166317,
-      "game_id": "100839"
-    },
-    {
-      "user_id": "815689",
-      "login": "I_can",
-      "type": "game",
-      "ts": 1787463762.2992315,
-      "game_id": "100839"
-    },
-    {
-      "user_id": "256825",
-      "login": "-IL-",
-      "type": "left",
-      "ts": 1787463856.8939767
-    },
-    {
-      "user_id": "256825",
-      "login": "-IL-",
-      "type": "game",
-      "ts": 1787463857.1449075,
-      "game_id": "100851"
-    },
-    {
-      "user_id": "815689",
-      "login": "I_can",
-      "type": "left",
-      "ts": 1787463857.7131786
-    },
-    {
-      "user_id": "815689",
-      "login": "I_can",
-      "type": "game",
-      "ts": 1787463860.5841641,
-      "game_id": "100851"
-    },
-    {
-      "user_id": "256825",
-      "login": "-IL-",
-      "type": "left",
-      "ts": 1787463916.8628
-    },
-    {
-      "user_id": "256825",
-      "login": "-IL-",
-      "type": "game",
-      "ts": 1787463917.1100583,
-      "game_id": "100857"
-    },
-    {
-      "user_id": "815689",
-      "login": "I_can",
-      "type": "left",
-      "ts": 1787463922.6000566
-    },
-    {
-      "user_id": "815689",
-      "login": "I_can",
-      "type": "game",
-      "ts": 1787463922.857952,
-      "game_id": "100857"
-    },
-    {
-      "user_id": "256825",
-      "login": "-IL-",
-      "type": "left",
-      "ts": 1787463988.7705948
-    },
-    {
-      "user_id": "256825",
-      "login": "-IL-",
-      "type": "game",
-      "ts": 1787463989.1327024,
-      "game_id": "100865"
-    },
-    {
-      "user_id": "815689",
-      "login": "I_can",
-      "type": "left",
-      "ts": 1787463994.5951238
-    },
-    {
-      "user_id": "815689",
-      "login": "I_can",
-      "type": "game",
-      "ts": 1787463994.8604832,
-      "game_id": "100865"
-    },
-    {
-      "user_id": "840288",
-      "login": "ЗАЧИНЩИКСОБЫТИЙ",
-      "type": "left",
-      "ts": 1787463998.2850711
-    },
-    {
-      "user_id": "840288",
-      "login": "ЗАЧИНЩИКСОБЫТИЙ",
+      "user_id": "732377",
+      "login": "Пьяный_Качок",
       "type": "join",
-      "ts": 1787463998.5730648
+      "ts": 1787499341.7085476
     },
     {
-      "user_id": "840288",
-      "login": "ЗАЧИНЩИКСОБЫТИЙ",
+      "user_id": "111001",
+      "login": "un4given",
       "type": "left",
-      "ts": 1787464004.3149993
+      "ts": 1787499349.855718
     },
     {
-      "user_id": "840288",
-      "login": "ЗАЧИНЩИКСОБЫТИЙ",
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "game",
+      "ts": 1787499350.3077319,
+      "game_id": "106527"
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "left",
+      "ts": 1787499364.4122891
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "game",
+      "ts": 1787499364.8637064,
+      "game_id": "106532"
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "left",
+      "ts": 1787499381.8612354
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "game",
+      "ts": 1787499382.3257935,
+      "game_id": "106533"
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "left",
+      "ts": 1787499398.9039922
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "game",
+      "ts": 1787499399.3732412,
+      "game_id": "106541"
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "left",
+      "ts": 1787499420.4414916
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "game",
+      "ts": 1787499420.902814,
+      "game_id": "106545"
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "left",
+      "ts": 1787499454.3632517
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "game",
+      "ts": 1787499454.8200605,
+      "game_id": "106554"
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "left",
+      "ts": 1787499473.308618
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "game",
+      "ts": 1787499473.7686272,
+      "game_id": "106559"
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "left",
+      "ts": 1787499496.951189
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "game",
+      "ts": 1787499497.413409,
+      "game_id": "106564"
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "left",
+      "ts": 1787499523.8198602
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "game",
+      "ts": 1787499524.2815037,
+      "game_id": "106572"
+    },
+    {
+      "user_id": "732377",
+      "login": "Пьяный_Качок",
+      "type": "left",
+      "ts": 1787499526.9533517
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "left",
+      "ts": 1787499572.1922913
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
       "type": "join",
-      "ts": 1787464004.6083257
+      "ts": 1787499572.729329
     },
     {
-      "user_id": "840288",
-      "login": "ЗАЧИНЩИКСОБЫТИЙ",
-      "type": "left",
-      "ts": 1787464013.9107585
-    },
-    {
-      "user_id": "840288",
-      "login": "ЗАЧИНЩИКСОБЫТИЙ",
+      "user_id": "732377",
+      "login": "Пьяный_Качок",
       "type": "join",
-      "ts": 1787464014.192801
+      "ts": 1787499578.4991386
     },
     {
-      "user_id": "840288",
-      "login": "ЗАЧИНЩИКСОБЫТИЙ",
+      "user_id": "111001",
+      "login": "un4given",
       "type": "left",
-      "ts": 1787464017.5078187
+      "ts": 1787499599.3583257
     },
     {
-      "user_id": "840288",
-      "login": "ЗАЧИНЩИКСОБЫТИЙ",
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "game",
+      "ts": 1787499599.8059592,
+      "game_id": "106586"
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "left",
+      "ts": 1787499628.507872
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "game",
+      "ts": 1787499628.9794278,
+      "game_id": "106594"
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "left",
+      "ts": 1787499656.5283835
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "game",
+      "ts": 1787499656.9860458,
+      "game_id": "106599"
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "left",
+      "ts": 1787499688.753874
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "game",
+      "ts": 1787499689.3454936,
+      "game_id": "106607"
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "left",
+      "ts": 1787499702.227465
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "game",
+      "ts": 1787499702.697516,
+      "game_id": "106611"
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "left",
+      "ts": 1787499728.2782419
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "game",
+      "ts": 1787499728.7379694,
+      "game_id": "106618"
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "left",
+      "ts": 1787499743.2359948
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "game",
+      "ts": 1787499743.709889,
+      "game_id": "106620"
+    },
+    {
+      "user_id": "732377",
+      "login": "Пьяный_Качок",
+      "type": "left",
+      "ts": 1787499748.757239
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "left",
+      "ts": 1787499776.5055227
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "game",
+      "ts": 1787499776.966328,
+      "game_id": "106630"
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "left",
+      "ts": 1787499807.0553424
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
       "type": "join",
-      "ts": 1787464017.7936883
+      "ts": 1787499808.3949807
     },
     {
-      "user_id": "840288",
-      "login": "ЗАЧИНЩИКСОБЫТИЙ",
+      "user_id": "111001",
+      "login": "un4given",
       "type": "left",
-      "ts": 1787464021.4398365
+      "ts": 1787499822.7089124
     },
     {
-      "user_id": "840288",
-      "login": "ЗАЧИНЩИКСОБЫТИЙ",
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "game",
+      "ts": 1787499823.1676672,
+      "game_id": "106639"
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "left",
+      "ts": 1787499840.5919564
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "game",
+      "ts": 1787499841.0649052,
+      "game_id": "106643"
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "left",
+      "ts": 1787499886.7359762
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "game",
+      "ts": 1787499887.2099698,
+      "game_id": "106652"
+    },
+    {
+      "user_id": "732377",
+      "login": "Пьяный_Качок",
       "type": "join",
-      "ts": 1787464021.7289183
+      "ts": 1787499904.3976538
     },
     {
-      "user_id": "815689",
-      "login": "I_can",
+      "user_id": "111001",
+      "login": "un4given",
       "type": "left",
-      "ts": 1787464093.6033974
+      "ts": 1787499923.2839377
     },
     {
-      "user_id": "256825",
-      "login": "-IL-",
-      "type": "left",
-      "ts": 1787464094.8795435
-    },
-    {
-      "user_id": "256825",
-      "login": "-IL-",
+      "user_id": "111001",
+      "login": "un4given",
       "type": "game",
-      "ts": 1787464095.1278,
-      "game_id": "100877"
+      "ts": 1787499923.7572064,
+      "game_id": "106664"
     },
     {
-      "user_id": "815689",
-      "login": "I_can",
-      "type": "game",
-      "ts": 1787464100.1112227,
-      "game_id": "100877"
-    },
-    {
-      "user_id": "256825",
-      "login": "-IL-",
+      "user_id": "111001",
+      "login": "un4given",
       "type": "left",
-      "ts": 1787464162.473868
+      "ts": 1787499946.6623166
     },
     {
-      "user_id": "256825",
-      "login": "-IL-",
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "game",
+      "ts": 1787499947.1331258,
+      "game_id": "106669"
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "left",
+      "ts": 1787499959.8646293
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "game",
+      "ts": 1787499960.3291962,
+      "game_id": "106671"
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "left",
+      "ts": 1787499982.173843
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "game",
+      "ts": 1787499982.640783,
+      "game_id": "106676"
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "left",
+      "ts": 1787499995.5231166
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "game",
+      "ts": 1787499995.9203906,
+      "game_id": "106681"
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "left",
+      "ts": 1787500016.6043103
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "game",
+      "ts": 1787500017.0814986,
+      "game_id": "106687"
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "left",
+      "ts": 1787500040.6775742
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "game",
+      "ts": 1787500041.1538053,
+      "game_id": "106693"
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "left",
+      "ts": 1787500054.5268352
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "game",
+      "ts": 1787500054.991743,
+      "game_id": "106694"
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "left",
+      "ts": 1787500083.8720794
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "game",
+      "ts": 1787500084.3396747,
+      "game_id": "106699"
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "left",
+      "ts": 1787500101.3840375
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "game",
+      "ts": 1787500101.844082,
+      "game_id": "106701"
+    },
+    {
+      "user_id": "732377",
+      "login": "Пьяный_Качок",
+      "type": "left",
+      "ts": 1787500109.412917
+    },
+    {
+      "user_id": "732377",
+      "login": "Пьяный_Качок",
       "type": "join",
-      "ts": 1787464162.7530642
+      "ts": 1787500109.723017
     },
     {
-      "user_id": "256825",
-      "login": "-IL-",
+      "user_id": "111001",
+      "login": "un4given",
       "type": "left",
-      "ts": 1787464164.4589803
+      "ts": 1787500123.3982692
     },
     {
-      "user_id": "256825",
-      "login": "-IL-",
+      "user_id": "111001",
+      "login": "un4given",
       "type": "game",
-      "ts": 1787464164.723523,
-      "game_id": "100829"
+      "ts": 1787500123.878427,
+      "game_id": "106709"
     },
     {
-      "user_id": "815689",
-      "login": "I_can",
+      "user_id": "111001",
+      "login": "un4given",
       "type": "left",
-      "ts": 1787464165.1007562
+      "ts": 1787500149.5465136
     },
     {
-      "user_id": "815689",
-      "login": "I_can",
+      "user_id": "111001",
+      "login": "un4given",
       "type": "game",
-      "ts": 1787464202.1131113,
-      "game_id": "100829"
+      "ts": 1787500150.0055141,
+      "game_id": "106718"
     },
     {
-      "user_id": "256825",
-      "login": "-IL-",
+      "user_id": "732377",
+      "login": "Пьяный_Качок",
       "type": "left",
-      "ts": 1787464292.1943002
+      "ts": 1787500153.4005704
     },
     {
-      "user_id": "256825",
-      "login": "-IL-",
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "left",
+      "ts": 1787500195.8373857
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "game",
+      "ts": 1787500196.3088005,
+      "game_id": "106728"
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "left",
+      "ts": 1787500209.8719394
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "game",
+      "ts": 1787500210.3363006,
+      "game_id": "106730"
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "left",
+      "ts": 1787500277.192795
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "game",
+      "ts": 1787500277.740752,
+      "game_id": "106748"
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "left",
+      "ts": 1787500295.7914128
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "game",
+      "ts": 1787500296.4291396,
+      "game_id": "106756"
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "left",
+      "ts": 1787500313.059154
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "game",
+      "ts": 1787500313.5156941,
+      "game_id": "106761"
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "left",
+      "ts": 1787500329.7371929
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "game",
+      "ts": 1787500330.1891265,
+      "game_id": "106765"
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "left",
+      "ts": 1787500346.9578962
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "game",
+      "ts": 1787500347.410962,
+      "game_id": "106769"
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "left",
+      "ts": 1787500362.3172882
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "game",
+      "ts": 1787500362.77316,
+      "game_id": "106772"
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "left",
+      "ts": 1787500378.3654733
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "game",
+      "ts": 1787500381.4466286,
+      "game_id": "106777"
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "left",
+      "ts": 1787500401.3473659
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "game",
+      "ts": 1787500401.8188689,
+      "game_id": "106784"
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "left",
+      "ts": 1787500419.9955752
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "game",
+      "ts": 1787500420.4653351,
+      "game_id": "106790"
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "left",
+      "ts": 1787500452.047606
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "game",
+      "ts": 1787500452.51763,
+      "game_id": "106794"
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "left",
+      "ts": 1787500479.2531831
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "game",
+      "ts": 1787500479.879169,
+      "game_id": "106801"
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "left",
+      "ts": 1787500511.5485742
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "game",
+      "ts": 1787500512.018848,
+      "game_id": "106813"
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "left",
+      "ts": 1787500529.1709723
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "game",
+      "ts": 1787500529.647194,
+      "game_id": "106816"
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "left",
+      "ts": 1787500546.6815205
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "game",
+      "ts": 1787500547.2884603,
+      "game_id": "106820"
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "left",
+      "ts": 1787500567.2655776
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "game",
+      "ts": 1787500567.7376518,
+      "game_id": "106825"
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "left",
+      "ts": 1787500581.1136718
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "game",
+      "ts": 1787500581.5751245,
+      "game_id": "106828"
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "left",
+      "ts": 1787500607.5710623
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "game",
+      "ts": 1787500608.045251,
+      "game_id": "106836"
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "left",
+      "ts": 1787500622.8825293
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "game",
+      "ts": 1787500623.350773,
+      "game_id": "106841"
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "left",
+      "ts": 1787500709.7337222
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "game",
+      "ts": 1787500710.0701299,
+      "game_id": "106862"
+    },
+    {
+      "user_id": "732377",
+      "login": "Пьяный_Качок",
       "type": "join",
-      "ts": 1787464292.4337173
+      "ts": 1787500733.4245365
     },
     {
-      "user_id": "256825",
-      "login": "-IL-",
+      "user_id": "111001",
+      "login": "un4given",
       "type": "left",
-      "ts": 1787464305.9392843
+      "ts": 1787500734.8828
     },
     {
-      "user_id": "256825",
-      "login": "-IL-",
+      "user_id": "111001",
+      "login": "un4given",
       "type": "game",
-      "ts": 1787464306.1943505,
-      "game_id": "100896"
+      "ts": 1787500735.3499956,
+      "game_id": "106868"
     },
     {
-      "user_id": "815689",
-      "login": "I_can",
+      "user_id": "111001",
+      "login": "un4given",
       "type": "left",
-      "ts": 1787464313.0556617
+      "ts": 1787500765.2166672
     },
     {
-      "user_id": "815689",
-      "login": "I_can",
-      "type": "game",
-      "ts": 1787464313.3209724,
-      "game_id": "100896"
-    },
-    {
-      "user_id": "256825",
-      "login": "-IL-",
-      "type": "left",
-      "ts": 1787464422.3624525
-    },
-    {
-      "user_id": "256825",
-      "login": "-IL-",
-      "type": "game",
-      "ts": 1787464422.6250436,
-      "game_id": "100906"
-    },
-    {
-      "user_id": "815689",
-      "login": "I_can",
-      "type": "left",
-      "ts": 1787464422.979168
-    },
-    {
-      "user_id": "815689",
-      "login": "I_can",
-      "type": "game",
-      "ts": 1787464426.673119,
-      "game_id": "100906"
-    },
-    {
-      "user_id": "256825",
-      "login": "-IL-",
-      "type": "left",
-      "ts": 1787464500.0791101
-    },
-    {
-      "user_id": "256825",
-      "login": "-IL-",
-      "type": "game",
-      "ts": 1787464500.3352823,
-      "game_id": "100915"
-    },
-    {
-      "user_id": "815689",
-      "login": "I_can",
-      "type": "left",
-      "ts": 1787464513.72127
-    },
-    {
-      "user_id": "815689",
-      "login": "I_can",
-      "type": "game",
-      "ts": 1787464518.0749977,
-      "game_id": "100915"
-    },
-    {
-      "user_id": "256825",
-      "login": "-IL-",
-      "type": "left",
-      "ts": 1787464580.867592
-    },
-    {
-      "user_id": "256825",
-      "login": "-IL-",
-      "type": "game",
-      "ts": 1787464582.8650632,
-      "game_id": "100922"
-    },
-    {
-      "user_id": "815689",
-      "login": "I_can",
-      "type": "left",
-      "ts": 1787464587.9997168
-    },
-    {
-      "user_id": "815689",
-      "login": "I_can",
-      "type": "game",
-      "ts": 1787464588.2533846,
-      "game_id": "100922"
-    },
-    {
-      "user_id": "256825",
-      "login": "-IL-",
-      "type": "left",
-      "ts": 1787465268.567444
-    },
-    {
-      "user_id": "256825",
-      "login": "-IL-",
-      "type": "game",
-      "ts": 1787465269.558973,
-      "game_id": "100973"
-    },
-    {
-      "user_id": "815689",
-      "login": "I_can",
-      "type": "left",
-      "ts": 1787465270.1296842
-    },
-    {
-      "user_id": "815689",
-      "login": "I_can",
-      "type": "game",
-      "ts": 1787465274.132131,
-      "game_id": "100973"
-    },
-    {
-      "user_id": "840288",
-      "login": "ЗАЧИНЩИКСОБЫТИЙ",
-      "type": "left",
-      "ts": 1787465317.048088
-    },
-    {
-      "user_id": "840288",
-      "login": "ЗАЧИНЩИКСОБЫТИЙ",
+      "user_id": "111001",
+      "login": "un4given",
       "type": "join",
-      "ts": 1787465317.330995
+      "ts": 1787500765.681154
     },
     {
-      "user_id": "840288",
-      "login": "ЗАЧИНЩИКСОБЫТИЙ",
+      "user_id": "111001",
+      "login": "un4given",
       "type": "left",
-      "ts": 1787465326.594223
+      "ts": 1787500773.509867
     },
     {
-      "user_id": "840288",
-      "login": "ЗАЧИНЩИКСОБЫТИЙ",
+      "user_id": "732377",
+      "login": "Пьяный_Качок",
+      "type": "left",
+      "ts": 1787500773.6944695
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "game",
+      "ts": 1787500774.0632913,
+      "game_id": "106744"
+    },
+    {
+      "user_id": "159823",
+      "login": "манерный",
+      "type": "left",
+      "ts": 1787500781.138623
+    },
+    {
+      "user_id": "159823",
+      "login": "манерный",
+      "type": "game",
+      "ts": 1787500781.4020486,
+      "game_id": "106744"
+    },
+    {
+      "user_id": "159823",
+      "login": "манерный",
+      "type": "left",
+      "ts": 1787500783.3342965
+    },
+    {
+      "user_id": "159823",
+      "login": "манерный",
       "type": "join",
-      "ts": 1787465326.879936
+      "ts": 1787500783.521873
     },
     {
-      "user_id": "256825",
-      "login": "-IL-",
+      "user_id": "159823",
+      "login": "манерный",
       "type": "left",
-      "ts": 1787465345.4790742
+      "ts": 1787500784.872514
     },
     {
-      "user_id": "256825",
-      "login": "-IL-",
+      "user_id": "159823",
+      "login": "манерный",
       "type": "game",
-      "ts": 1787465345.7252126,
-      "game_id": "100982"
+      "ts": 1787500788.7201874,
+      "game_id": "106744"
     },
     {
-      "user_id": "815689",
-      "login": "I_can",
+      "user_id": "111001",
+      "login": "un4given",
       "type": "left",
-      "ts": 1787465353.0275638
+      "ts": 1787500872.9112124
     },
     {
-      "user_id": "815689",
-      "login": "I_can",
-      "type": "game",
-      "ts": 1787465356.6285243,
-      "game_id": "100982"
-    },
-    {
-      "user_id": "815689",
-      "login": "I_can",
-      "type": "left",
-      "ts": 1787465403.576938
-    },
-    {
-      "user_id": "256825",
-      "login": "-IL-",
-      "type": "left",
-      "ts": 1787465404.924195
-    },
-    {
-      "user_id": "256825",
-      "login": "-IL-",
+      "user_id": "111001",
+      "login": "un4given",
       "type": "join",
-      "ts": 1787465405.169539
+      "ts": 1787500873.4721437
     },
     {
-      "user_id": "256825",
-      "login": "-IL-",
+      "user_id": "111001",
+      "login": "un4given",
       "type": "left",
-      "ts": 1787465406.657955
+      "ts": 1787500881.0547738
     },
     {
-      "user_id": "256825",
-      "login": "-IL-",
+      "user_id": "111001",
+      "login": "un4given",
       "type": "game",
-      "ts": 1787465406.9175348,
-      "game_id": "100942"
+      "ts": 1787500881.5159316,
+      "game_id": "106899"
     },
     {
-      "user_id": "815689",
-      "login": "I_can",
-      "type": "game",
-      "ts": 1787465407.5101166,
-      "game_id": "100942"
-    },
-    {
-      "user_id": "256825",
-      "login": "-IL-",
-      "type": "left",
-      "ts": 1787465568.5091004
-    },
-    {
-      "user_id": "256825",
-      "login": "-IL-",
+      "user_id": "732377",
+      "login": "Пьяный_Качок",
       "type": "join",
-      "ts": 1787465568.76399
+      "ts": 1787500888.5852315
     },
     {
-      "user_id": "256825",
-      "login": "-IL-",
+      "user_id": "111001",
+      "login": "un4given",
       "type": "left",
-      "ts": 1787465570.2851963
+      "ts": 1787500923.6388614
     },
     {
-      "user_id": "256825",
-      "login": "-IL-",
-      "type": "game",
-      "ts": 1787465570.5353787,
-      "game_id": "101004"
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "join",
+      "ts": 1787500924.0982242
     },
     {
-      "user_id": "815689",
-      "login": "I_can",
+      "user_id": "159823",
+      "login": "манерный",
       "type": "left",
-      "ts": 1787465572.7539954
+      "ts": 1787500925.6253414
     },
     {
-      "user_id": "815689",
-      "login": "I_can",
+      "user_id": "732377",
+      "login": "Пьяный_Качок",
+      "type": "left",
+      "ts": 1787500962.3018997
+    },
+    {
+      "user_id": "770303",
+      "login": "TolikWorkaholic",
+      "type": "join",
+      "ts": 1787501052.6000838
+    },
+    {
+      "user_id": "770303",
+      "login": "TolikWorkaholic",
+      "type": "left",
+      "ts": 1787501109.5802684
+    },
+    {
+      "user_id": "159823",
+      "login": "манерный",
+      "type": "join",
+      "ts": 1787501126.6271868
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "left",
+      "ts": 1787501376.60794
+    },
+    {
+      "user_id": "770303",
+      "login": "TolikWorkaholic",
+      "type": "join",
+      "ts": 1787501994.2934113
+    },
+    {
+      "user_id": "770303",
+      "login": "TolikWorkaholic",
+      "type": "left",
+      "ts": 1787502028.3281438
+    },
+    {
+      "user_id": "770303",
+      "login": "TolikWorkaholic",
+      "type": "join",
+      "ts": 1787502028.6567976
+    },
+    {
+      "user_id": "770303",
+      "login": "TolikWorkaholic",
+      "type": "left",
+      "ts": 1787502117.0113888
+    },
+    {
+      "user_id": "770303",
+      "login": "TolikWorkaholic",
+      "type": "join",
+      "ts": 1787502164.5074613
+    },
+    {
+      "user_id": "770303",
+      "login": "TolikWorkaholic",
+      "type": "left",
+      "ts": 1787502204.2337143
+    },
+    {
+      "user_id": "732377",
+      "login": "Пьяный_Качок",
+      "type": "join",
+      "ts": 1787504409.628633
+    },
+    {
+      "user_id": "732377",
+      "login": "Пьяный_Качок",
+      "type": "left",
+      "ts": 1787504462.7063732
+    },
+    {
+      "user_id": "159823",
+      "login": "манерный",
+      "type": "left",
+      "ts": 1787504499.0488696
+    },
+    {
+      "user_id": "159823",
+      "login": "манерный",
       "type": "game",
-      "ts": 1787465577.1079533,
-      "game_id": "101004"
+      "ts": 1787504505.5882626,
+      "game_id": "107501"
+    },
+    {
+      "user_id": "159823",
+      "login": "манерный",
+      "type": "left",
+      "ts": 1787504653.6775143
+    },
+    {
+      "user_id": "159823",
+      "login": "манерный",
+      "type": "join",
+      "ts": 1787504653.8588266
+    },
+    {
+      "user_id": "159823",
+      "login": "манерный",
+      "type": "left",
+      "ts": 1787505040.0621037
+    },
+    {
+      "user_id": "159823",
+      "login": "манерный",
+      "type": "game",
+      "ts": 1787505046.567167,
+      "game_id": "107631"
+    },
+    {
+      "user_id": "159823",
+      "login": "манерный",
+      "type": "left",
+      "ts": 1787505164.460039
+    },
+    {
+      "user_id": "159823",
+      "login": "манерный",
+      "type": "join",
+      "ts": 1787505164.6468062
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "join",
+      "ts": 1787505216.9883244
+    },
+    {
+      "user_id": "732377",
+      "login": "Пьяный_Качок",
+      "type": "join",
+      "ts": 1787505311.656619
+    },
+    {
+      "user_id": "732377",
+      "login": "Пьяный_Качок",
+      "type": "left",
+      "ts": 1787505406.1871538
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "left",
+      "ts": 1787505496.6248477
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "game",
+      "ts": 1787505519.5109496,
+      "game_id": "107718"
+    },
+    {
+      "user_id": "732377",
+      "login": "Пьяный_Качок",
+      "type": "join",
+      "ts": 1787505546.1820476
+    },
+    {
+      "user_id": "732377",
+      "login": "Пьяный_Качок",
+      "type": "left",
+      "ts": 1787505559.5961525
+    },
+    {
+      "user_id": "732377",
+      "login": "Пьяный_Качок",
+      "type": "join",
+      "ts": 1787505632.8135326
+    },
+    {
+      "user_id": "159823",
+      "login": "манерный",
+      "type": "left",
+      "ts": 1787505633.5495548
+    },
+    {
+      "user_id": "732377",
+      "login": "Пьяный_Качок",
+      "type": "left",
+      "ts": 1787505635.4447727
+    },
+    {
+      "user_id": "159823",
+      "login": "манерный",
+      "type": "game",
+      "ts": 1787505638.8410122,
+      "game_id": "107718"
+    },
+    {
+      "user_id": "111001",
+      "login": "un4given",
+      "type": "join",
+      "ts": 1787506138.6621294
     }
   ]
 }

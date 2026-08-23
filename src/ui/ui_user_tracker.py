@@ -281,10 +281,18 @@ class EventRow(QFrame):
 class TrackerUserChip(UserCountRow):
     """History filter chip: avatar + login + event count, orange highlight when filtered"""
 
+    delete_requested = pyqtSignal(str)  # login
+
     def __init__(self, config, icons_path: Path, login: str, count: int, user_id: str = None):
         super().__init__(login, count, config, icons_path, user_id,
                           margins=(2, 0, 2, 0), filter_radius=6)
         self.login = login  # alias kept for readability at call sites (== self.username)
+        self.delete_button = create_icon_button(
+            icons_path, "trash.svg", "Remove history for this user",
+            size_type="small", config=config
+        )
+        self.delete_button.clicked.connect(lambda: self.delete_requested.emit(self.login))
+        self.layout().addWidget(self.delete_button)
 
 
 class UserTrackerWidget(QWidget):
@@ -299,6 +307,9 @@ class UserTrackerWidget(QWidget):
         self.user_items = []
         self._empty_label = None
         self.filtered_logins = set()
+        self.chip_widgets = {}  # login -> TrackerUserChip
+        userlist_visible = config.get("ui", "userlist", "tracker")
+        self.userlist_visible = True if userlist_visible is None else bool(userlist_visible)
         self._setup_ui()
         self._load_selected()
         self._rebuild_events()
@@ -428,11 +439,21 @@ class UserTrackerWidget(QWidget):
 
         self.tabs.addTab(history_page, "History")
 
+    def toggle_userlist(self) -> bool:
+        """Toggle the history filter sidebar; returns new visibility state."""
+        self.userlist_visible = not self.userlist_visible
+        self.config.set("ui", "userlist", "tracker", value=self.userlist_visible)
+        self.filter_scroll.setVisible(self.userlist_visible and bool(self.chip_widgets))
+        set_visual_active(self.userlist_toggle_button, self.userlist_visible)
+        return self.userlist_visible
+
     def _on_tab_changed(self, index: int):
         is_tracked = index == 0
         self.add_user_button.setVisible(is_tracked)
         self.clear_history_button.setVisible(not is_tracked)
         self.clear_filter_button.setVisible(not is_tracked and bool(self.filtered_logins))
+        if is_tracked and self.user_items:
+            QTimer.singleShot(0, self._recalculate_layout)
 
     def _load_selected(self):
         for item in list(self.user_items):
@@ -510,6 +531,11 @@ class UserTrackerWidget(QWidget):
         super().resizeEvent(event)
         QTimer.singleShot(50, self._recalculate_layout)
 
+    def showEvent(self, event):
+        super().showEvent(event)
+        if self.user_items:
+            QTimer.singleShot(0, self._recalculate_layout)
+
     def _clear_events_layout(self):
         while self.events_layout.count():
             child = self.events_layout.takeAt(0)
@@ -530,11 +556,6 @@ class UserTrackerWidget(QWidget):
         sb = self.events_scroll.verticalScrollBar()
         sb.setValue(sb.maximum())
 
-    def _event_matches_filter(self, event: dict) -> bool:
-        if not self.filtered_logins:
-            return True
-        return event.get('login') in self.filtered_logins
-
     def _make_event_row(self, event: dict) -> EventRow:
         row = EventRow(self.config, event)
         row.filter_clicked.connect(self._handle_filter_click)
@@ -552,12 +573,14 @@ class UserTrackerWidget(QWidget):
             else:
                 self.filtered_logins = {login}
         self._update_filter_button()
-        self._rebuild_events()
+        self._apply_event_filter()
+        self._update_chip_highlights()
 
     def _clear_filter(self):
         self.filtered_logins.clear()
         self._update_filter_button()
-        self._rebuild_events()
+        self._apply_event_filter()
+        self._update_chip_highlights()
 
     def _update_filter_button(self):
         active = bool(self.filtered_logins)
@@ -570,18 +593,38 @@ class UserTrackerWidget(QWidget):
             self.clear_filter_button.setToolTip("Clear history filter")
 
     def _rebuild_events(self):
+        """Full teardown/rebuild - use only when the whole event list needs reloading
+        (open/refresh, clear history). Everything else updates widgets in place."""
         self._clear_events_layout()
-        events = [
-            e for e in self.user_tracker.get_events()
-            if self._event_matches_filter(e)
-        ]
-        if not events:
-            self._show_empty()
-        else:
-            for event in events:
-                self.events_layout.addWidget(self._make_event_row(event))
+        events = self.user_tracker.get_events()
+        for event in events:
+            self.events_layout.addWidget(self._make_event_row(event))
+        self._apply_event_filter()
+        if events:
             QTimer.singleShot(0, self._scroll_history_to_bottom)
         self._rebuild_filter_chips()
+
+    def _apply_event_filter(self):
+        """Show/hide existing event rows in place - no widget recreation."""
+        has_visible = False
+        for i in range(self.events_layout.count()):
+            widget = self.events_layout.itemAt(i).widget()
+            if isinstance(widget, EventRow):
+                visible = not self.filtered_logins or widget.login in self.filtered_logins
+                widget.setVisible(visible)
+                has_visible = has_visible or visible
+
+        if self._empty_label is not None:
+            self.events_layout.removeWidget(self._empty_label)
+            self._empty_label.deleteLater()
+            self._empty_label = None
+        if not has_visible:
+            self._show_empty()
+
+    def _update_chip_highlights(self):
+        """Update filter highlight on existing chips - no widget recreation."""
+        for login, chip in self.chip_widgets.items():
+            chip.set_filtered(login in self.filtered_logins)
 
     def _rebuild_filter_chips(self):
         while self.filter_chips_layout.count() > 1:
@@ -589,6 +632,7 @@ class UserTrackerWidget(QWidget):
             widget = item.widget()
             if widget:
                 widget.deleteLater()
+        self.chip_widgets = {}
 
         events = self.user_tracker.get_events()
         counts = Counter(e.get('login') for e in events if e.get('login'))
@@ -598,23 +642,77 @@ class UserTrackerWidget(QWidget):
             if login and login not in user_ids and e.get('user_id'):
                 user_ids[login] = e['user_id']
 
-        self.filter_scroll.setVisible(bool(counts))
+        self.filter_scroll.setVisible(self.userlist_visible and bool(counts))
         for login, count in sorted(counts.items(), key=lambda x: (-x[1], x[0].lower())):
             chip = TrackerUserChip(self.config, self.icons_path, login, count, user_ids.get(login))
             chip.set_filtered(login in self.filtered_logins)
             chip.clicked.connect(self._handle_filter_click)
+            chip.delete_requested.connect(self._handle_chip_delete_requested)
             self.filter_chips_layout.insertWidget(self.filter_chips_layout.count() - 1, chip)
+            self.chip_widgets[login] = chip
+
+    def _handle_chip_delete_requested(self, login: str):
+        reply = QMessageBox.question(
+            self, "Remove History",
+            f"Remove all history for {login}?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+        self.user_tracker.remove_user_events(login)
+        self.filtered_logins.discard(login)
+        self._update_filter_button()
+        self._remove_login_from_view(login)
+
+    def _remove_login_from_view(self, login: str):
+        """Remove only this login's rows/chip in place - no rebuild of the rest."""
+        has_visible = False
+        for i in reversed(range(self.events_layout.count())):
+            widget = self.events_layout.itemAt(i).widget()
+            if isinstance(widget, EventRow):
+                if widget.login == login:
+                    self.events_layout.removeWidget(widget)
+                    widget.deleteLater()
+                elif widget.isVisible():
+                    has_visible = True
+        if not has_visible and self._empty_label is None:
+            self._show_empty()
+
+        chip = self.chip_widgets.pop(login, None)
+        if chip is not None:
+            self.filter_chips_layout.removeWidget(chip)
+            chip.deleteLater()
+        self.filter_scroll.setVisible(self.userlist_visible and bool(self.chip_widgets))
 
     def append_event(self, event: dict):
-        if not self._event_matches_filter(event):
-            return
         if self._empty_label is not None:
             self.events_layout.removeWidget(self._empty_label)
             self._empty_label.deleteLater()
             self._empty_label = None
-        self.events_layout.addWidget(self._make_event_row(event))
-        QTimer.singleShot(0, self._scroll_history_to_bottom)
-        self._rebuild_filter_chips()
+        row = self._make_event_row(event)
+        row.setVisible(not self.filtered_logins or row.login in self.filtered_logins)
+        self.events_layout.addWidget(row)
+        if row.isVisible():
+            QTimer.singleShot(0, self._scroll_history_to_bottom)
+        self._bump_chip_count(event)
+
+    def _bump_chip_count(self, event: dict):
+        """Update or create the one affected chip in place - no rebuild of the rest.
+        New/updated chips aren't re-sorted live; order settles on the next full rebuild."""
+        login = event.get('login')
+        if not login:
+            return
+        chip = self.chip_widgets.get(login)
+        if chip is not None:
+            chip.count_label.setText(str(int(chip.count_label.text()) + 1))
+            return
+        chip = TrackerUserChip(self.config, self.icons_path, login, 1, event.get('user_id') or None)
+        chip.set_filtered(login in self.filtered_logins)
+        chip.clicked.connect(self._handle_filter_click)
+        chip.delete_requested.connect(self._handle_chip_delete_requested)
+        self.filter_chips_layout.insertWidget(0, chip)
+        self.chip_widgets[login] = chip
+        self.filter_scroll.setVisible(self.userlist_visible and bool(self.chip_widgets))
 
     def _clear_history(self):
         reply = QMessageBox.question(
@@ -644,7 +742,8 @@ class UserTrackerWidget(QWidget):
         if self.filtered_logins:
             self.filtered_logins.clear()
             self._update_filter_button()
-            self._rebuild_events()
+            self._apply_event_filter()
+            self._update_chip_highlights()
 
         target = None
         for i in range(self.events_layout.count()):

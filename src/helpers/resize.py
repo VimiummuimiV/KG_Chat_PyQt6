@@ -13,6 +13,9 @@ def recalculate_layout(chat_window):
     elif current_view == chat_window.chatlog_widget and chat_window.chatlog_widget:
         chat_window.chatlog_widget._force_recalculate()
         QTimer.singleShot(50, chat_window.chatlog_widget._force_recalculate)
+    elif getattr(chat_window, 'user_tracker_widget', None) and current_view == chat_window.user_tracker_widget:
+        chat_window.user_tracker_widget._recalculate_layout()
+        QTimer.singleShot(50, chat_window.user_tracker_widget._recalculate_layout)
 
 
 def handle_chat_resize(chat_window, width: int):
@@ -26,14 +29,18 @@ def handle_chat_resize(chat_window, width: int):
     # Determine current view and corresponding widgets/settings
     current_view = chat_window.stacked_widget.currentWidget()
     is_chatlog_view = (current_view == chat_window.chatlog_widget)
-    
+    is_tracker_view = (
+        getattr(chat_window, 'user_tracker_widget', None) is not None
+        and current_view == chat_window.user_tracker_widget
+    )
+
     if is_chatlog_view:
         userlist_widget = chat_window.chatlog_userlist_widget
-        config_key = "chatlog_userlist_visible"
+        config_key = "chatlog"
         auto_hide_attr = "auto_hide_chatlog_userlist"
-    else:
+    elif not is_tracker_view:
         userlist_widget = chat_window.user_list_widget
-        config_key = "messages_userlist_visible"
+        config_key = "messages"
         auto_hide_attr = "auto_hide_messages_userlist"
     
     # Check compact mode transition (1000px threshold)
@@ -44,14 +51,7 @@ def handle_chat_resize(chat_window, width: int):
     if was_compact != is_compact:
         chat_window.auto_hide_messages_userlist = True
         chat_window.auto_hide_chatlog_userlist = True
-    
-    # Get userlist visibility config
-    userlist_visible_config = chat_window.config.get("ui", config_key)
-    if userlist_visible_config is None:
-        userlist_visible_config = True
-    
-    # Apply auto-hide logic for userlists
-    auto_hide = getattr(chat_window, auto_hide_attr)
+        chat_window.auto_hide_tracker_userlist = True
     
     # Handle button panel visibility
     if width < 500:
@@ -62,16 +62,30 @@ def handle_chat_resize(chat_window, width: int):
         if hasattr(chat_window, 'button_panel') and not chat_window.button_panel.isVisible():
             chat_window.button_panel.setVisible(True)
 
-    # Hide/show userlist at 1000px threshold (panel + active list widget)
-    if auto_hide:
-        show = (not is_compact) and userlist_visible_config
-        if hasattr(chat_window, 'userlist_panel'):
-            chat_window.userlist_panel.setVisible(show)
-        if userlist_widget is not None:
-            userlist_widget.setVisible(show)
+    # Hide/show userlist at 1000px threshold
+    if is_tracker_view:
+        tracker = chat_window.user_tracker_widget
+        auto_hide = chat_window.auto_hide_tracker_userlist
+        show = False if (is_compact and auto_hide) else tracker.userlist_visible
+        tracker.filter_scroll.setVisible(show and bool(tracker.chip_widgets))
         bp = getattr(chat_window, 'button_panel', None)
         if bp and getattr(bp, 'toggle_userlist_button', None):
             bp.set_button_state(bp.toggle_userlist_button, show)
+    else:
+        userlist_visible_config = chat_window.config.get("ui", "userlist", config_key)
+        if userlist_visible_config is None:
+            userlist_visible_config = True
+        auto_hide = getattr(chat_window, auto_hide_attr)
+
+        if auto_hide:
+            show = (not is_compact) and userlist_visible_config
+            if hasattr(chat_window, 'userlist_panel'):
+                chat_window.userlist_panel.setVisible(show)
+            if userlist_widget is not None:
+                userlist_widget.setVisible(show)
+            bp = getattr(chat_window, 'button_panel', None)
+            if bp and getattr(bp, 'toggle_userlist_button', None):
+                bp.set_button_state(bp.toggle_userlist_button, show)
     
     # Reposition emoticon selector if visible
     if hasattr(chat_window, 'emoticon_selector') and chat_window.emoticon_selector.isVisible():

@@ -237,6 +237,16 @@ class UserTracker:
         self.prune()
         return list(self.events)
 
+    def remove_user_events(self, login: str) -> int:
+        """Remove all history events for a given login. Returns number of removed events."""
+        before = len(self.events)
+        self.events = [e for e in self.events if e.get('login') != login]
+        removed = before - len(self.events)
+        if removed:
+            self._rebuild_last_state()
+            self.save()
+        return removed
+
     def clear_events(self):
         self.events.clear()
         self._last_state.clear()
