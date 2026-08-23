@@ -28,7 +28,8 @@ from components.presence_badge import (
     make_presence_badge,
     make_game_id_label,
     TypeFilterBar,
-    EVENT_TYPES
+    EVENT_TYPES,
+    toggle_filter_value
 )
 from components.user_count_row import UserCountRow
 
@@ -327,6 +328,7 @@ class UserTrackerWidget(QWidget):
         self.filtered_logins = set()
         self.filtered_types = set()  # empty = all types
         self.chip_widgets = {}  # login -> TrackerUserChip
+        self._history_pinned = True  # auto-follow new events while scrolled to bottom
         userlist_visible = config.get("ui", "userlist", "tracker")
         self.userlist_visible = True if userlist_visible is None else bool(userlist_visible)
         self._setup_ui()
@@ -446,6 +448,9 @@ class UserTrackerWidget(QWidget):
 
         self.history_scroll_buttons = ScrollButtonsPanel(self.events_scroll, parent=self.events_scroll)
         self.history_auto_scroller = AutoScroller(self.events_scroll)
+        history_sb = self.events_scroll.verticalScrollBar()
+        history_sb.valueChanged.connect(self._on_history_scroll_value_changed)
+        history_sb.rangeChanged.connect(self._on_history_scroll_range_changed)
 
         self.filter_panel = QWidget()
         self.filter_panel.setFixedWidth(get_userlist_width())
@@ -480,8 +485,19 @@ class UserTrackerWidget(QWidget):
         """Toggle the history filter sidebar (driven by shared U button)."""
         self.userlist_visible = not self.userlist_visible
         self.config.set("ui", "userlist", "tracker", value=self.userlist_visible)
-        self.filter_panel.setVisible(self.userlist_visible and bool(self.chip_widgets))
+        self._update_filter_panel_visibility()
         return self.userlist_visible
+
+    def _update_filter_panel_visibility(self):
+        self.filter_panel.setVisible(self.userlist_visible and bool(self.chip_widgets))
+
+    def _make_chip(self, login: str, count: int, user_id: str = None) -> "TrackerUserChip":
+        chip = TrackerUserChip(self.config, self.icons_path, login, count, user_id)
+        chip.set_filtered(login in self.filtered_logins)
+        chip.clicked.connect(self._handle_filter_click)
+        chip.delete_requested.connect(self._handle_chip_delete_requested)
+        self.chip_widgets[login] = chip
+        return chip
 
     def _on_tab_changed(self, index: int):
         is_tracked = index == 0
@@ -591,12 +607,21 @@ class UserTrackerWidget(QWidget):
         self._empty_label.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
         self.events_layout.addWidget(self._empty_label)
 
-    def _scroll_history_to_bottom(self, force: bool = False):
-        """Scroll to bottom via helpers.scroll; only if near bottom unless force.
-        delay lets layout settle so rapid consecutive appends still reach the true bottom."""
+    def _on_history_scroll_value_changed(self, value: int):
+        """Track whether the user is pinned to the bottom. Only fires on an actual
+        value change (user drag or our own scroll), so it can't drift out of sync
+        while new rows are queued up faster than layout can settle."""
         sb = self.events_scroll.verticalScrollBar()
-        if not force and (sb.maximum() - sb.value()) > 100:
-            return
+        self._history_pinned = (sb.maximum() - value) <= 100
+
+    def _on_history_scroll_range_changed(self, minimum: int, maximum: int):
+        """Content height changed (row added/removed) - snap to the new bottom if pinned."""
+        if self._history_pinned:
+            self.events_scroll.verticalScrollBar().setValue(maximum)
+
+    def _scroll_history_to_bottom(self):
+        """Explicit jump to bottom, e.g. on open/rebuild, regardless of prior scroll position."""
+        self._history_pinned = True
         scroll(self.events_scroll, mode="bottom", delay=10)
 
     def _update_info_label(self):
@@ -611,13 +636,9 @@ class UserTrackerWidget(QWidget):
         if total == 0:
             self.info_label.setText("No events")
             return
-        parts = []
-        if self.filtered_logins:
-            parts.append(", ".join(sorted(self.filtered_logins)))
-        if self.filtered_types:
-            parts.append("/".join(t.upper() for t in sorted(self.filtered_types)))
-        if parts:
-            self.info_label.setText(f"Showing {shown}/{total} events ({' · '.join(parts)})")
+        desc = self._filter_description()
+        if desc:
+            self.info_label.setText(f"Showing {shown}/{total} events ({desc})")
         else:
             self.info_label.setText(f"{total} events")
 
@@ -629,16 +650,7 @@ class UserTrackerWidget(QWidget):
         return row
 
     def _handle_filter_click(self, login: str, ctrl_pressed: bool):
-        if ctrl_pressed:
-            if login in self.filtered_logins:
-                self.filtered_logins.discard(login)
-            else:
-                self.filtered_logins.add(login)
-        else:
-            if self.filtered_logins == {login}:
-                self.filtered_logins = set()
-            else:
-                self.filtered_logins = {login}
+        self.filtered_logins = toggle_filter_value(self.filtered_logins, login, ctrl_pressed)
         self._update_filter_button()
         self._apply_event_filter()
         self._update_chip_highlights()
@@ -647,16 +659,7 @@ class UserTrackerWidget(QWidget):
         """Badge click in event list — same semantics as TypeFilterBar."""
         if not event_type:
             return
-        if ctrl_pressed:
-            if event_type in self.filtered_types:
-                self.filtered_types.discard(event_type)
-            else:
-                self.filtered_types.add(event_type)
-        else:
-            if self.filtered_types == {event_type}:
-                self.filtered_types = set()
-            else:
-                self.filtered_types = {event_type}
+        self.filtered_types = toggle_filter_value(self.filtered_types, event_type, ctrl_pressed)
         self.type_filter_bar.set_active_types(self.filtered_types)
         self._update_filter_button()
         self._apply_event_filter()
@@ -674,19 +677,21 @@ class UserTrackerWidget(QWidget):
         self._apply_event_filter()
         self._update_chip_highlights()
 
+    def _filter_description(self) -> str:
+        parts = []
+        if self.filtered_logins:
+            parts.append(", ".join(sorted(self.filtered_logins)))
+        if self.filtered_types:
+            parts.append("/".join(t.upper() for t in sorted(self.filtered_types)))
+        return " · ".join(parts)
+
     def _update_filter_button(self):
         active = bool(self.filtered_logins) or bool(self.filtered_types)
         on_history = self.tabs.currentIndex() == 1
         self.clear_filter_button.setVisible(on_history and active)
-        if active:
-            parts = []
-            if self.filtered_logins:
-                parts.append(", ".join(sorted(self.filtered_logins)))
-            if self.filtered_types:
-                parts.append("/".join(t.upper() for t in sorted(self.filtered_types)))
-            self.clear_filter_button.setToolTip("Clear filter: " + " · ".join(parts))
-        else:
-            self.clear_filter_button.setToolTip("Clear history filter")
+        self.clear_filter_button.setToolTip(
+            f"Clear filter: {self._filter_description()}" if active else "Clear history filter"
+        )
 
     def _rebuild_events(self):
         """Full teardown/rebuild - use only when the whole event list needs reloading
@@ -697,7 +702,7 @@ class UserTrackerWidget(QWidget):
             self.events_layout.addWidget(self._make_event_row(event))
         self._apply_event_filter()
         if events:
-            QTimer.singleShot(0, lambda: self._scroll_history_to_bottom(force=True))
+            QTimer.singleShot(0, self._scroll_history_to_bottom)
         self._rebuild_filter_chips()
         self._update_info_label()
 
@@ -743,14 +748,10 @@ class UserTrackerWidget(QWidget):
             if login and login not in user_ids and e.get('user_id'):
                 user_ids[login] = e['user_id']
 
-        self.filter_panel.setVisible(self.userlist_visible and bool(counts))
         for login, count in sorted(counts.items(), key=lambda x: (-x[1], x[0].lower())):
-            chip = TrackerUserChip(self.config, self.icons_path, login, count, user_ids.get(login))
-            chip.set_filtered(login in self.filtered_logins)
-            chip.clicked.connect(self._handle_filter_click)
-            chip.delete_requested.connect(self._handle_chip_delete_requested)
+            chip = self._make_chip(login, count, user_ids.get(login))
             self.filter_chips_layout.insertWidget(self.filter_chips_layout.count() - 1, chip)
-            self.chip_widgets[login] = chip
+        self._update_filter_panel_visibility()
 
     def _handle_chip_delete_requested(self, login: str):
         reply = QMessageBox.question(
@@ -783,24 +784,23 @@ class UserTrackerWidget(QWidget):
         if chip is not None:
             self.filter_chips_layout.removeWidget(chip)
             chip.deleteLater()
-        self.filter_panel.setVisible(self.userlist_visible and bool(self.chip_widgets))
+        self._update_filter_panel_visibility()
         self._update_info_label()
 
 
     def append_event(self, event: dict):
+        """Row is added to a QVBoxLayout inside the scroll area; the rangeChanged
+        listener (see _setup_ui) keeps the view pinned to the bottom automatically
+        while the user is scrolled down, so no manual scroll call is needed here."""
         if self._empty_label is not None:
             self.events_layout.removeWidget(self._empty_label)
             self._empty_label.deleteLater()
             self._empty_label = None
-        sb = self.events_scroll.verticalScrollBar()
-        near_bottom = (sb.maximum() - sb.value()) <= 100
         row = self._make_event_row(event)
         by_user = not self.filtered_logins or row.login in self.filtered_logins
         by_type = not self.filtered_types or row.event_type in self.filtered_types
         row.setVisible(by_user and by_type)
         self.events_layout.addWidget(row)
-        if row.isVisible() and near_bottom:
-            self._scroll_history_to_bottom(force=True)
         self._bump_chip_count(event)
         self._update_info_label()
 
@@ -814,13 +814,9 @@ class UserTrackerWidget(QWidget):
         if chip is not None:
             chip.count_label.setText(str(int(chip.count_label.text()) + 1))
             return
-        chip = TrackerUserChip(self.config, self.icons_path, login, 1, event.get('user_id') or None)
-        chip.set_filtered(login in self.filtered_logins)
-        chip.clicked.connect(self._handle_filter_click)
-        chip.delete_requested.connect(self._handle_chip_delete_requested)
+        chip = self._make_chip(login, 1, event.get('user_id') or None)
         self.filter_chips_layout.insertWidget(0, chip)
-        self.chip_widgets[login] = chip
-        self.filter_panel.setVisible(self.userlist_visible and bool(self.chip_widgets))
+        self._update_filter_panel_visibility()
 
     def _clear_history(self):
         reply = QMessageBox.question(
@@ -848,12 +844,7 @@ class UserTrackerWidget(QWidget):
         self.tabs.setCurrentIndex(1)
         # Clear filter so the row is visible
         if self.filtered_logins or self.filtered_types:
-            self.filtered_logins.clear()
-            self.filtered_types.clear()
-            self.type_filter_bar.set_active_types(())
-            self._update_filter_button()
-            self._apply_event_filter()
-            self._update_chip_highlights()
+            self._clear_filter()
 
         target = None
         for i in range(self.events_layout.count()):

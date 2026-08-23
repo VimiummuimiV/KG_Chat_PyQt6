@@ -470,6 +470,7 @@ class SettingsWidget(QWidget):
     sound_changed = pyqtSignal()
     competition_log_clear_requested = pyqtSignal()
     font_family_changed = pyqtSignal()
+    tracker_badge_style_changed = pyqtSignal()
 
     def __init__(self, config, icons_path: Path, font_scaler=None):
         super().__init__()
@@ -1358,9 +1359,11 @@ class SettingsWidget(QWidget):
 
     def _on_tracker_badge_toggled(self, checked: bool):
         self.config.set("user_tracker", "show_badge", value=checked)
+        self.tracker_badge_style_changed.emit()
 
     def _on_tracker_badge_size_changed(self, value: int):
         self.config.set("user_tracker", "badge_font_size", value=int(value))
+        self.tracker_badge_style_changed.emit()
 
     def _on_tracker_events_changed(self, types):
         # Keep at least one type enabled

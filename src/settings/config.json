@@ -224,7 +224,8 @@
       "left",
       "join",
       "game"
-    ]
+    ],
+    "badge_font_size": 9
   },
   "join_room": {
     "remember": true,

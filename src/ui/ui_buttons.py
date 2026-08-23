@@ -266,6 +266,11 @@ class ButtonPanel(QWidget):
         self._tracker_unread = 0
         self._refresh_tracker_badge()
 
+    def refresh_tracker_badge_style(self):
+        """Re-apply badge visibility/size/color - call when related settings change,
+        so an already-visible badge updates without waiting for the next event."""
+        self._refresh_tracker_badge()
+
     def _refresh_tracker_badge(self):
         n = self._tracker_unread
         base = "User Tracker (Ctrl+Shift+U)"

@@ -47,6 +47,18 @@ def apply_counter_style(label: QLabel, event_type: str = "join", font_size: int 
     label.setStyleSheet(_counter_css(bg, fg, max(6, min(16, int(font_size)))))
 
 
+def toggle_filter_value(current: Set[str], value: str, ctrl_pressed: bool, always_multi: bool = False) -> Set[str]:
+    """Shared single-click-exclusive / ctrl-multi-toggle semantics for filter sets."""
+    if ctrl_pressed or always_multi:
+        updated = set(current)
+        if value in updated:
+            updated.discard(value)
+        else:
+            updated.add(value)
+        return updated
+    return set() if current == {value} else {value}
+
+
 def set_badge_active(badge: QLabel, active: bool, dim: float = 0.4):
     """Dim inactive filter pills; full opacity when active."""
     if active:
@@ -119,25 +131,12 @@ class TypeFilterBar(QWidget):
 
     def _sync(self):
         for et, badge in self.badges.items():
-            if self.empty_means_all:
-                badge.set_active(et in self._active)
-            else:
-                # settings: active = enabled; if empty treat as none enabled
-                badge.set_active(et in self._active)
+            badge.set_active(et in self._active)
 
     def _on_click(self, event_type: str, ctrl_pressed: bool):
-        if ctrl_pressed or not self.empty_means_all:
-            # multi-toggle (settings always multi; filter with Ctrl)
-            if event_type in self._active:
-                self._active.discard(event_type)
-            else:
-                self._active.add(event_type)
-        else:
-            # filter single-click: exclusive toggle
-            if self._active == {event_type}:
-                self._active = set()
-            else:
-                self._active = {event_type}
+        self._active = toggle_filter_value(
+            self._active, event_type, ctrl_pressed, always_multi=not self.empty_means_all
+        )
         self._sync()
         self.changed.emit(self.active_types())
 
