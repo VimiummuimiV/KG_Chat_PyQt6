@@ -57,6 +57,7 @@ class JoinRoomDialog(QDialog):
 
         self.saved_combo = QComboBox()
         self.saved_combo.setFont(get_font(FontType.UI))
+        self.saved_combo.setFixedHeight(input_height)
         self.saved_combo.setEditable(False)
         self.saved_combo.addItem("Saved rooms…", None)
         for name in self._load_saved():
@@ -113,6 +114,12 @@ class JoinRoomDialog(QDialog):
         gen_button.clicked.connect(self._generate_name)
         actions_row.addWidget(gen_button)
 
+        delete_button = create_icon_button(
+            self.icons_path, "trash.svg", "Remove from saved", config=self.config
+        )
+        delete_button.clicked.connect(self._delete_saved)
+        actions_row.addWidget(delete_button)
+
         join_button = create_icon_button(
             self.icons_path, "login.svg", "Join / Create (Enter)", config=self.config
         )
@@ -124,7 +131,7 @@ class JoinRoomDialog(QDialog):
 
         label_height = 35
         slider_row = 28
-        combo_row = 32
+        combo_row = input_height
         check_row = 28
         button_padding = 10
         total_height = (
@@ -196,3 +203,17 @@ class JoinRoomDialog(QDialog):
             return
         saved.append(name)
         self.config.set("join_room", "saved", value=saved)
+
+    def _delete_saved(self):
+        name = self.saved_combo.currentData() or self.room_name()
+        if not name or not self.config:
+            return
+        saved = [n for n in self._load_saved() if n != name]
+        self.config.set("join_room", "saved", value=saved)
+        self.saved_combo.blockSignals(True)
+        self.saved_combo.clear()
+        self.saved_combo.addItem("Saved rooms…", None)
+        for n in saved:
+            self.saved_combo.addItem(n, n)
+        self.saved_combo.setCurrentIndex(0)
+        self.saved_combo.blockSignals(False)

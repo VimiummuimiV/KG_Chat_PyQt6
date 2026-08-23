@@ -220,8 +220,6 @@
   },
   "join_room": {
     "remember": true,
-    "saved": [
-      "mosie"
-    ]
+    "saved": []
   }
 }
