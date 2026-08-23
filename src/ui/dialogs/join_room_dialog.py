@@ -39,6 +39,8 @@ class JoinRoomDialog(QDialog):
         layout = QVBoxLayout()
         layout.setSpacing(spacing)
         layout.setContentsMargins(margin, margin, margin, margin)
+        # Let the dialog size itself to fit visible widgets automatically
+        layout.setSizeConstraint(QVBoxLayout.SizeConstraint.SetFixedSize)
         self.setLayout(layout)
 
         header = QLabel("🚪 Join / Create Room")
@@ -59,9 +61,10 @@ class JoinRoomDialog(QDialog):
         self.saved_combo.setFont(get_font(FontType.UI))
         self.saved_combo.setFixedHeight(input_height)
         self.saved_combo.setEditable(False)
-        self.saved_combo.addItem("Saved rooms…", None)
-        for name in self._load_saved():
-            self.saved_combo.addItem(name, name)
+        self.saved_combo.setStyleSheet(
+            f"QComboBox {{ height: {input_height}px; padding: 0px 8px; }}"
+        )
+        self.saved_combo.setPlaceholderText("Saved rooms")
         self.saved_combo.currentIndexChanged.connect(self._on_saved_picked)
         layout.addWidget(self.saved_combo)
 
@@ -114,11 +117,11 @@ class JoinRoomDialog(QDialog):
         gen_button.clicked.connect(self._generate_name)
         actions_row.addWidget(gen_button)
 
-        delete_button = create_icon_button(
+        self.delete_button = create_icon_button(
             self.icons_path, "trash.svg", "Remove from saved", config=self.config
         )
-        delete_button.clicked.connect(self._delete_saved)
-        actions_row.addWidget(delete_button)
+        self.delete_button.clicked.connect(self._delete_saved)
+        actions_row.addWidget(self.delete_button)
 
         join_button = create_icon_button(
             self.icons_path, "login.svg", "Join / Create (Enter)", config=self.config
@@ -127,29 +130,9 @@ class JoinRoomDialog(QDialog):
         actions_row.addWidget(join_button)
 
         layout.addLayout(actions_row)
-        self.name_input.setFocus()
 
-        label_height = 35
-        slider_row = 28
-        combo_row = input_height
-        check_row = 28
-        button_padding = 10
-        total_height = (
-            margin * 2
-            + label_height
-            + spacing
-            + input_height
-            + spacing
-            + combo_row
-            + spacing
-            + slider_row
-            + spacing
-            + check_row
-            + spacing
-            + input_height
-            + button_padding
-        )
-        self.setFixedHeight(total_height)
+        self._populate_saved()
+        self.name_input.setFocus()
 
     def _load_saved(self) -> list:
         if not self.config:
@@ -165,6 +148,23 @@ class JoinRoomDialog(QDialog):
                 seen.add(name)
                 out.append(name)
         return out
+
+    def _populate_saved(self):
+        """Rebuild the saved-rooms combo and show/hide it and the delete
+        button depending on whether any saved names exist. The dialog's
+        SetFixedSize constraint takes care of resizing the window."""
+        saved = self._load_saved()
+        has_saved = bool(saved)
+
+        self.saved_combo.blockSignals(True)
+        self.saved_combo.clear()
+        for name in saved:
+            self.saved_combo.addItem(name, name)
+        self.saved_combo.setCurrentIndex(-1)
+        self.saved_combo.blockSignals(False)
+
+        self.saved_combo.setVisible(has_saved)
+        self.delete_button.setVisible(has_saved)
 
     def _on_saved_picked(self, index: int):
         name = self.saved_combo.itemData(index)
@@ -203,6 +203,7 @@ class JoinRoomDialog(QDialog):
             return
         saved.append(name)
         self.config.set("join_room", "saved", value=saved)
+        self._populate_saved()
 
     def _delete_saved(self):
         name = self.saved_combo.currentData() or self.room_name()
@@ -210,10 +211,4 @@ class JoinRoomDialog(QDialog):
             return
         saved = [n for n in self._load_saved() if n != name]
         self.config.set("join_room", "saved", value=saved)
-        self.saved_combo.blockSignals(True)
-        self.saved_combo.clear()
-        self.saved_combo.addItem("Saved rooms…", None)
-        for n in saved:
-            self.saved_combo.addItem(n, n)
-        self.saved_combo.setCurrentIndex(0)
-        self.saved_combo.blockSignals(False)
+        self._populate_saved()

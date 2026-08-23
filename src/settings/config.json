@@ -220,6 +220,7 @@
   },
   "join_room": {
     "remember": true,
-    "saved": []
+    "saved": [],
+    "random_name_length": 10
   }
 }
