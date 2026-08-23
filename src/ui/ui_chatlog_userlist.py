@@ -97,7 +97,7 @@ class ChatlogUserlistWidget(QWidget):
         button_layout.setContentsMargins(0, 0, 0, 0)
         self.clear_filter_btn = create_icon_button(
             icons_path,
-            "go-back.svg",
+            "filter.svg",
             "Clear filter and show all users",
             size_type="large",
             config=config

@@ -223,9 +223,9 @@
     "show_badge": true,
     "default_tab": "history",
     "track_events": [
+      "game",
       "left",
-      "join",
-      "game"
+      "join"
     ],
     "badge_font_size": 11,
     "notifications_auto_hide": true

@@ -634,15 +634,13 @@ class Application(QObject):
             return
             
         try:
-            # Platform-specific modifier check with Windows API for reliability
+            mod = 'command' if sys.platform == 'darwin' else 'super'
             if sys.platform == 'win32':
                 win_pressed = any(ctypes.windll.user32.GetAsyncKeyState(vk) & 0x8000 for vk in [0x5B, 0x5C])
                 if not win_pressed or any(ctypes.windll.user32.GetAsyncKeyState(vk) & 0x8000 for vk in [0x12, 0x11, 0x10]):
                     return
-            else:
-                mod = 'command' if sys.platform == 'darwin' else 'super'
-                if not keyboard.is_pressed(mod) or any(keyboard.is_pressed(k) for k in ['alt', 'ctrl', 'shift']):
-                    return
+            elif not keyboard.is_pressed(mod) or any(keyboard.is_pressed(k) for k in ['alt', 'ctrl', 'shift']):
+                return
             
             # Debounce (150ms)
             current_time = time.time()
