@@ -3569,7 +3569,7 @@ class ChatWindow(QWidget):
                 self.room_tabs.setCurrentIndex((self.room_tabs.currentIndex() + delta) % count)
             return
 
-        if mods and not ctrl and not shift:
+        if mods and not ctrl_held and not shift_held:
             return super().keyPressEvent(event)
 
         focused_widget = QApplication.focusWidget()
