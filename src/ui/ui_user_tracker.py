@@ -31,7 +31,6 @@ from helpers.scroll.scroll import scroll
 from core.api_data import validate_username_and_get_id
 from components.presence_badge import (
     TypeFilterBar,
-    EVENT_TYPES,
     toggle_filter_value,
     presence_badge_style
 )
@@ -39,7 +38,7 @@ from components.user_count_row import UserCountRow
 
 
 class TrackerEventModel(QAbstractListModel):
-    """Model for join/left/game tracker events - handles data only, no rendering"""
+    """Model for join/left/game tracker events - data only, no rendering"""
 
     def __init__(self):
         super().__init__()
@@ -113,7 +112,10 @@ class TrackerEventFilterProxy(QSortFilterProxyModel):
 
     def filterAcceptsRow(self, source_row: int, source_parent: QModelIndex) -> bool:
         source_model = self.sourceModel()
-        event = source_model.data(source_model.index(source_row, 0, source_parent), Qt.ItemDataRole.DisplayRole)
+        event = source_model.data(
+            source_model.index(source_row, 0, source_parent),
+            Qt.ItemDataRole.DisplayRole,
+        )
         if not event:
             return True
         if self.filtered_logins and event.get('login') not in self.filtered_logins:
@@ -124,7 +126,7 @@ class TrackerEventFilterProxy(QSortFilterProxyModel):
 
 
 class TrackerEventDelegate(QStyledItemDelegate):
-    """Delegate for rendering tracker events (time, type badge, username, game id) with virtual scrolling"""
+    """Renders tracker events (time, type badge, username, game id) with virtual scrolling"""
 
     filter_clicked = pyqtSignal(str, bool)       # login, ctrl_pressed
     type_filter_clicked = pyqtSignal(str, bool)  # event_type, ctrl_pressed
@@ -161,6 +163,10 @@ class TrackerEventDelegate(QStyledItemDelegate):
     def cleanup(self):
         self.highlight_timer.stop()
         self.list_view = None
+        self.click_rects.clear()
+
+    def clear_click_rects(self):
+        self.click_rects.clear()
 
     def update_theme(self):
         theme = self.config.get("ui", "theme") or "dark"
@@ -170,6 +176,7 @@ class TrackerEventDelegate(QStyledItemDelegate):
     def update_fonts(self):
         """Call after text font size change so row heights and paint use the new size."""
         self._reload_fonts()
+        self.click_rects.clear()
         if self.list_view is not None:
             try:
                 self.list_view.scheduleDelayedItemsLayout()
@@ -220,7 +227,11 @@ class TrackerEventDelegate(QStyledItemDelegate):
         painter.setPen(QColor("#888888"))
         ts_fm = QFontMetrics(self.time_font)
         ts_width = ts_fm.horizontalAdvance(time_text)
-        painter.drawText(QRect(x, y, ts_width, h), Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, time_text)
+        painter.drawText(
+            QRect(x, y, ts_width, h),
+            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
+            time_text,
+        )
         x += ts_width + self.spacing
 
         event_type = event.get('type', '') or ''
@@ -245,7 +256,11 @@ class TrackerEventDelegate(QStyledItemDelegate):
         painter.setPen(QColor(name_color))
         name_width = name_fm.horizontalAdvance(login)
         name_rect = QRect(x, y, name_width, h)
-        painter.drawText(name_rect, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, login)
+        painter.drawText(
+            name_rect,
+            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
+            login,
+        )
         self.click_rects[row]['username'] = name_rect
         x += name_width + self.spacing
 
@@ -255,7 +270,11 @@ class TrackerEventDelegate(QStyledItemDelegate):
             painter.setFont(self.gid_font)
             painter.setPen(QColor("#888888"))
             gid_width = QFontMetrics(self.gid_font).horizontalAdvance(gid_text)
-            painter.drawText(QRect(x, y, gid_width, h), Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, gid_text)
+            painter.drawText(
+                QRect(x, y, gid_width, h),
+                Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
+                gid_text,
+            )
 
         painter.restore()
 
@@ -468,8 +487,10 @@ class TrackerUserChip(UserCountRow):
     delete_requested = pyqtSignal(str)
 
     def __init__(self, config, icons_path: Path, login: str, count: int, user_id: str = None):
-        super().__init__(login, count, config, icons_path, user_id,
-                          margins=(2, 0, 2, 0), filter_radius=6)
+        super().__init__(
+            login, count, config, icons_path, user_id,
+            margins=(2, 0, 2, 0), filter_radius=6,
+        )
         self.login = login
         self.delete_button = create_icon_button(
             icons_path, "trash.svg", "Remove history for this user",
@@ -682,7 +703,9 @@ class UserTrackerWidget(QWidget):
         is_tracked = index == 0
         self.add_user_button.setVisible(is_tracked)
         self.clear_history_button.setVisible(not is_tracked)
-        self.clear_filter_button.setVisible(not is_tracked and (bool(self.filtered_logins) or bool(self.filtered_types)))
+        self.clear_filter_button.setVisible(
+            not is_tracked and (bool(self.filtered_logins) or bool(self.filtered_types))
+        )
         self.info_label.setVisible(not is_tracked)
         if not is_tracked:
             self._update_info_label()
@@ -834,6 +857,7 @@ class UserTrackerWidget(QWidget):
     def _rebuild_events(self):
         events = self.user_tracker.get_events()
         self.history_model.set_events(events)
+        self.history_delegate.clear_click_rects()
         self._apply_event_filter()
         if events:
             QTimer.singleShot(0, self._scroll_history_to_bottom)
@@ -842,6 +866,7 @@ class UserTrackerWidget(QWidget):
 
     def _apply_event_filter(self):
         self.history_proxy.set_filters(self.filtered_logins, self.filtered_types)
+        self.history_delegate.clear_click_rects()
         self._update_history_empty_state()
         self._update_info_label()
 
@@ -885,6 +910,7 @@ class UserTrackerWidget(QWidget):
 
     def _remove_login_from_view(self, login: str):
         self.history_model.remove_login(login)
+        self.history_delegate.clear_click_rects()
         self._update_history_empty_state()
 
         chip = self.chip_widgets.pop(login, None)
