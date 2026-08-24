@@ -150,10 +150,10 @@ class TrackerEventDelegate(QStyledItemDelegate):
         self._reload_fonts()
 
     def _reload_fonts(self):
-        self.time_font = get_font(FontType.UI)
-        self.badge_font = get_font(FontType.UI)
+        self.time_font = get_font(FontType.TEXT)
+        self.badge_font = get_font(FontType.TEXT)
         self.name_font = get_font(FontType.TEXT)
-        self.gid_font = get_font(FontType.UI)
+        self.gid_font = get_font(FontType.TEXT)
 
     def set_list_view(self, list_view):
         self.list_view = list_view
