@@ -77,15 +77,15 @@ class UserTracker:
 
     def save(self):
         try:
+            if self.events:
+                lines = ",\n".join("    " + json.dumps(e, ensure_ascii=False) for e in self.events)
+                events_json = f"[\n{lines}\n  ]"
+            else:
+                events_json = "[]"
+            data = {'selected': self.selected, 'frozen': sorted(self.frozen), 'events': '__EVENTS__'}
+            content = json.dumps(data, indent=2, ensure_ascii=False).replace('"__EVENTS__"', events_json)
             with open(self.file_path, 'w', encoding='utf-8') as f:
-                json.dump(
-                    {
-                        'selected': self.selected,
-                        'frozen': sorted(self.frozen),
-                        'events': self.events,
-                    },
-                    f, indent=2, ensure_ascii=False
-                )
+                f.write(content)
         except Exception as e:
             print(f"Error saving user tracker: {e}")
 
