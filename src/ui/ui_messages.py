@@ -167,7 +167,7 @@ class MessagesWidget(QWidget):
         self.model.clear_presence_messages()
 
     def _on_presence_log_clicked(self, row: int):
-        self.model.remove_message_at(row)
+        self.model.clear_presence_messages()
 
     def clear_private_messages(self):
         """Clear all private messages"""
