@@ -14,7 +14,7 @@ from helpers.cache import get_cache
 from helpers.fonts import get_font, FontType
 from helpers.scroll.auto_scroll import AutoScroller
 from components.context_menu.userlist import (
-    show_user_context_menu,
+    show_userlist_context_menu,
     PROFILE,
     PRIVATE,
     PASTE_USERNAME,
@@ -183,7 +183,7 @@ class UserWidget(QWidget):
         )
         my_username = getattr(self, 'my_username', None)
         is_own_user = bool(my_username) and self.user.login == my_username
-        action = show_user_context_menu(
+        action = show_userlist_context_menu(
             self.icons_path, self, QCursor.pos(),
             has_game=has_game, is_tracked=is_tracked, show_track=not is_own_user
         )

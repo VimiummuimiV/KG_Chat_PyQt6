@@ -1,7 +1,6 @@
 """Context menus for userlist rows and message usernames."""
 from components.context_menu.userlist import (
     show_userlist_context_menu,
-    show_user_context_menu,
     PROFILE,
     PRIVATE,
     PASTE_USERNAME,
@@ -24,7 +23,6 @@ from components.context_menu.message import (
 
 __all__ = [
     "show_userlist_context_menu",
-    "show_user_context_menu",
     "show_message_user_context_menu",
     "PROFILE",
     "PRIVATE",

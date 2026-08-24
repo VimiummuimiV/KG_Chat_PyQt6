@@ -11,7 +11,7 @@ from helpers.fonts import get_font, FontType
 from helpers.scroll.auto_scroll import AutoScroller
 from components.user_count_row import UserCountRow
 from components.context_menu.userlist import (
-    show_user_context_menu,
+    show_userlist_context_menu,
     PROFILE,
     PRIVATE,
     PASTE_USERNAME,
@@ -43,7 +43,7 @@ class ChatlogUserWidget(UserCountRow):
             )
         )
         is_own_user = bool(self.my_username) and self.username == self.my_username
-        action = show_user_context_menu(
+        action = show_userlist_context_menu(
             self.icons_path, self, QCursor.pos(),
             show_filter=True, is_tracked=is_tracked, show_track=not is_own_user,
         )
