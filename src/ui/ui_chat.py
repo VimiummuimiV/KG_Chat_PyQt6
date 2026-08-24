@@ -3400,10 +3400,9 @@ class ChatWindow(QWidget):
                 if ok:
                     self._ban_user_from_msg(msg, permanent=False, duration=seconds, widget=source_widget)
             elif action == REMOVE_PRESENCE:
-                if hasattr(source_widget, 'clear_presence_messages'):
-                    source_widget.clear_presence_messages()
-                elif hasattr(source_widget, 'model'):
-                    source_widget.model.clear_presence_messages()
+                row = getattr(msg, 'presence_row', None)
+                if row is not None and hasattr(source_widget, 'model'):
+                    source_widget.model.remove_message_at(row)
             elif action == REMOVE_MESSAGE:
                 self._remove_message(msg, single=True, widget=source_widget)
             elif action == REMOVE_UP:

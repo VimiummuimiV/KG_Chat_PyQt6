@@ -23,13 +23,13 @@ def presence_entries_to_text(entries: List[dict]) -> str:
     parts = []
     for entry in entries:
         last = entry.get('last')
-        badges = ' '.join(
-            (
-                f"[{presence_badge_style(et)[0]}{'●' if et == last else ''}]"
-                if entry['counts'][et] == 1
-                else f"[{presence_badge_style(et)[0]} {entry['counts'][et]}{'●' if et == last else ''}]"
-            )
-            for et in EVENT_TYPES if entry['counts'].get(et)
-        )
-        parts.append(f"{entry['login']} {badges}".strip())
+        badges = []
+        for et in EVENT_TYPES:
+            c = entry['counts'].get(et)
+            if not c:
+                continue
+            label = presence_badge_style(et)[0]
+            mark = '●' if et == last else ''
+            badges.append(f"[{label}{mark}]" if c == 1 else f"[{label} {c}{mark}]")
+        parts.append(f"{entry['login']} {' '.join(badges)}".strip())
     return ' · '.join(parts)
