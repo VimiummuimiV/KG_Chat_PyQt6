@@ -19,6 +19,7 @@ from components.context_menu.message import (
     REMOVE_UP,
     REMOVE_DOWN,
     REMOVE_ALL,
+    REMOVE_PRESENCE,
 )
 
 __all__ = [
@@ -39,4 +40,5 @@ __all__ = [
     "REMOVE_UP",
     "REMOVE_DOWN",
     "REMOVE_ALL",
+    "REMOVE_PRESENCE",
 ]

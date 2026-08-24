@@ -83,6 +83,7 @@ from components.context_menu.message import (
     REMOVE_UP,
     REMOVE_DOWN,
     REMOVE_ALL,
+    REMOVE_PRESENCE,
 )
 from components.tag_button import update_all_tag_buttons
 from core.api_data import validate_username_and_get_id
@@ -3364,6 +3365,7 @@ class ChatWindow(QWidget):
                 self.user_tracker and self.user_tracker.is_tracked(user_id=uid, login=username)
             )
             is_own = bool(username) and username == self.my_username
+            is_presence = bool(getattr(msg, 'is_presence_log', False))
 
             action = show_message_user_context_menu(
                 self.icons_path, self, global_pos,
@@ -3371,6 +3373,8 @@ class ChatWindow(QWidget):
                 show_track=not is_own,
                 show_ban=not is_own,
                 show_private=not is_own,
+                show_message_removes=not is_presence,
+                show_presence_remove=is_presence,
             )
             if not action:
                 return
@@ -3395,6 +3399,10 @@ class ChatWindow(QWidget):
                 seconds, ok = DurationDialog.get_duration(self, default_seconds=3600)
                 if ok:
                     self._ban_user_from_msg(msg, permanent=False, duration=seconds, widget=source_widget)
+            elif action == REMOVE_PRESENCE:
+                row = getattr(msg, 'presence_row', None)
+                if row is not None and hasattr(source_widget, 'model'):
+                    source_widget.model.remove_message_at(row)
             elif action == REMOVE_MESSAGE:
                 self._remove_message(msg, single=True, widget=source_widget)
             elif action == REMOVE_UP:

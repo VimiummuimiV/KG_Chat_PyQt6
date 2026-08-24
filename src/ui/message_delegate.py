@@ -394,7 +394,7 @@ class MessageDelegate(QStyledItemDelegate):
         else:
             self.animated_rows.discard(row)
   
-        self.click_rects[row] = {'timestamp': QRect(), 'username': QRect(), 'links': [], 'chips': []}
+        self.click_rects[row] = {'timestamp': QRect(), 'username': QRect(), 'links': [], 'chips': [], 'presence_users': []}
   
         painter.save()
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
@@ -438,12 +438,13 @@ class MessageDelegate(QStyledItemDelegate):
             cx = x + ts_w + self.spacing
             cy, cw = y, rect.width() - (cx - rect.x()) - self.padding
 
-        self.message_renderer.paint_presence_entries(
+        _, user_rects = self.message_renderer.paint_presence_entries(
             painter, cx, cy, cw,
             getattr(msg, 'presence_entries', None) or [],
             lambda login: self._get_username_color(login, None),
             line_height=line_h,
         )
+        self.click_rects[row]['presence_users'] = user_rects
 
     def _paint_message(self, painter: QPainter, rect: QRect, msg, row: int, compact: bool):
         """Paint message in either compact or normal mode"""
@@ -603,10 +604,12 @@ class MessageDelegate(QStyledItemDelegate):
                         self.message_renderer.copy_and_highlight(url)
                 return True
 
-            # JOIN/LEFT/GAME summary: any click on the body (not the timestamp) clears it
+            # Presence log: LMB outside a username dismisses the whole summary row
             if getattr(msg, 'is_presence_log', False):
                 if button == Qt.MouseButton.LeftButton:
-                    self.presence_log_clicked.emit(row)
+                    over_user = any(r.contains(pos) for r, _ in rects.get('presence_users') or [])
+                    if not over_user:
+                        self.presence_log_clicked.emit(row)
                 return True
 
             if rects['username'].contains(pos) and button == Qt.MouseButton.LeftButton:
@@ -658,11 +661,13 @@ class MessageDelegate(QStyledItemDelegate):
             if row in self.click_rects:
                 rects = self.click_rects[row]
                 is_over_chip = any(r.contains(pos) for r, _ in rects.get('chips') or [])
+                is_over_presence_user = any(r.contains(pos) for r, _ in rects.get('presence_users') or [])
                 msg = index.data(Qt.ItemDataRole.DisplayRole)
                 is_over_clickable = (
                     rects['timestamp'].contains(pos) or
                     rects['username'].contains(pos) or
                     is_over_chip or
+                    is_over_presence_user or
                     bool(getattr(msg, 'is_presence_log', False)) or
                     (self.message_renderer and MessageRenderer.is_over_link(rects['links'], pos))
                 )

@@ -4,6 +4,8 @@ Hit-tests clicks against a MessageDelegate's click_rects (username/timestamp
 regions) and emits signals for them. Shared by MessagesWidget (realtime chat)
 and ChatlogWidget so this logic isn't duplicated across views.
 """
+from types import SimpleNamespace
+
 from PyQt6.QtCore import QObject, Qt, QEvent, pyqtSignal
 
 
@@ -44,6 +46,24 @@ class MessageInteractions(QObject):
             return False
         return super().eventFilter(obj, event)
 
+    def _handle_username_click(self, event, identifier: str, right_click_target):
+        """Shared LMB modifier dispatch (ctrl/shift/plain) and RMB emit,
+        used for both regular usernames and presence-log usernames."""
+        if event.button() == Qt.MouseButton.LeftButton:
+            mods = event.modifiers()
+            if mods & Qt.KeyboardModifier.ControlModifier:
+                self.username_ctrl_clicked.emit(identifier)
+            elif mods & Qt.KeyboardModifier.ShiftModifier:
+                self.username_shift_clicked.emit(identifier)
+            else:
+                self.username_left_clicked.emit(identifier, False)
+            return True
+        elif event.button() == Qt.MouseButton.RightButton:
+            global_pos = self.list_view.viewport().mapToGlobal(event.pos())
+            self.username_right_clicked.emit(right_click_target, global_pos)
+            return True
+        return False
+
     def _handle_mouse_press(self, event):
         """Handle single mouse clicks"""
         index = self.list_view.indexAt(event.pos())
@@ -62,20 +82,20 @@ class MessageInteractions(QObject):
         rects = self.delegate.click_rects[row]
         pos = event.pos()
 
+        # Presence-log username (multi-user summary row)
+        for name_rect, login in rects.get('presence_users') or []:
+            if not name_rect.contains(pos) or not login:
+                continue
+            proxy = SimpleNamespace(
+                login=login, username=login, from_jid=None,
+                is_presence_log=True, presence_row=row,
+            )
+            if self._handle_username_click(event, login, proxy):
+                return True
+
         # Check username click
         if rects['username'].contains(pos):
-            if event.button() == Qt.MouseButton.LeftButton:
-                mods = event.modifiers()
-                if mods & Qt.KeyboardModifier.ControlModifier:
-                    self.username_ctrl_clicked.emit(msg.username)
-                elif mods & Qt.KeyboardModifier.ShiftModifier:
-                    self.username_shift_clicked.emit(msg.username)
-                else:
-                    self.username_left_clicked.emit(msg.username, False)
-                return True
-            elif event.button() == Qt.MouseButton.RightButton:
-                global_pos = self.list_view.viewport().mapToGlobal(pos)
-                self.username_right_clicked.emit(msg, global_pos)
+            if self._handle_username_click(event, msg.username, msg):
                 return True
 
         # Check timestamp click

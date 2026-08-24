@@ -538,15 +538,17 @@ class MessageRenderer(QObject):
         return lines * line_h + (lines - 1) * self.PRESENCE_LINE_GAP
 
     def paint_presence_entries(self, painter: QPainter, x: int, y: int, width: int,
-                               entries: list, get_username_color, line_height: int = 0) -> QRect:
+                               entries: list, get_username_color, line_height: int = 0):
+        """Paint presence groups. Returns (bbox, [(name_rect, login), ...])."""
         if not entries or width <= 0:
-            return QRect(x, y, max(width, 0), 0)
+            return QRect(x, y, max(width, 0), 0), []
 
         fm = QFontMetrics(self.body_font)
         painter.setFont(self.body_font)
         line_h = line_height if line_height > 0 else self._presence_line_height(fm)
         badge_h = min(self._presence_line_height(fm), line_h)
         cx, cy = x, y
+        user_rects = []
 
         for entry in entries:
             ew = self._presence_entry_width(entry, fm)
@@ -555,9 +557,12 @@ class MessageRenderer(QObject):
                 cy += line_h + self.PRESENCE_LINE_GAP
 
             login = entry.get('login', '')
+            name_w = fm.horizontalAdvance(login)
+            name_rect = QRect(cx, cy, name_w, line_h)
             painter.setPen(QColor(get_username_color(login)))
             painter.drawText(cx, cy + (line_h - fm.height()) // 2 + fm.ascent(), login)
-            cx += fm.horizontalAdvance(login) + self.PRESENCE_NAME_GAP
+            user_rects.append((name_rect, login))
+            cx += name_w + self.PRESENCE_NAME_GAP
 
             for event_type in EVENT_TYPES:
                 count = entry.get('counts', {}).get(event_type)
@@ -575,7 +580,7 @@ class MessageRenderer(QObject):
 
             cx += self.PRESENCE_GROUP_GAP
 
-        return QRect(x, y, width, (cy - y) + line_h)
+        return QRect(x, y, width, (cy - y) + line_h), user_rects
 
     def has_animated_emoticons(self, text: str) -> bool:
         """Check if text contains animated emoticons"""

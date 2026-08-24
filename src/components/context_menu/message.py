@@ -19,6 +19,7 @@ REMOVE_MESSAGE = "remove_message"
 REMOVE_UP = "remove_up"
 REMOVE_DOWN = "remove_down"
 REMOVE_ALL = "remove_all"
+REMOVE_PRESENCE = "remove_presence"
 
 
 def show_message_user_context_menu(
@@ -30,6 +31,8 @@ def show_message_user_context_menu(
     show_track: bool = True,
     show_ban: bool = True,
     show_private: bool = True,
+    show_message_removes: bool = True,
+    show_presence_remove: bool = False,
 ) -> Optional[str]:
     def icon(name: str):
         return _render_svg_icon(icons_path / name, 16)
@@ -60,11 +63,16 @@ def show_message_user_context_menu(
         perm_act = menu.addAction(icon("prohibited.svg"), "Ban permanently")
         temp_act = menu.addAction(icon("forbidden.svg"), "Ban temporarily")
 
-    menu.addSeparator()
-    remove_msg_act = menu.addAction(icon("delete-back.svg"), "Remove this message")
-    remove_up_act = menu.addAction(icon("delete-bin-up.svg"), "Remove from here upward")
-    remove_down_act = menu.addAction(icon("delete-bin-down.svg"), "Remove from here downward")
-    remove_all_act = menu.addAction(icon("delete-bin.svg"), "Remove all messages")
+    remove_msg_act = remove_up_act = remove_down_act = remove_all_act = presence_remove_act = None
+    if show_presence_remove:
+        menu.addSeparator()
+        presence_remove_act = menu.addAction(icon("delete-back.svg"), "Remove this presence log")
+    elif show_message_removes:
+        menu.addSeparator()
+        remove_msg_act = menu.addAction(icon("delete-back.svg"), "Remove this message")
+        remove_up_act = menu.addAction(icon("delete-bin-up.svg"), "Remove from here upward")
+        remove_down_act = menu.addAction(icon("delete-bin-down.svg"), "Remove from here downward")
+        remove_all_act = menu.addAction(icon("delete-bin.svg"), "Remove all messages")
 
     chosen = menu.exec(global_pos)
     if chosen is None:
@@ -83,12 +91,14 @@ def show_message_user_context_menu(
         return BAN_PERMANENT
     if temp_act is not None and chosen is temp_act:
         return BAN_TEMPORARY
-    if chosen is remove_msg_act:
+    if presence_remove_act is not None and chosen is presence_remove_act:
+        return REMOVE_PRESENCE
+    if remove_msg_act is not None and chosen is remove_msg_act:
         return REMOVE_MESSAGE
-    if chosen is remove_up_act:
+    if remove_up_act is not None and chosen is remove_up_act:
         return REMOVE_UP
-    if chosen is remove_down_act:
+    if remove_down_act is not None and chosen is remove_down_act:
         return REMOVE_DOWN
-    if chosen is remove_all_act:
+    if remove_all_act is not None and chosen is remove_all_act:
         return REMOVE_ALL
     return None
