@@ -185,7 +185,8 @@ class UserWidget(QWidget):
         is_own_user = bool(my_username) and self.user.login == my_username
         action = show_userlist_context_menu(
             self.icons_path, self, QCursor.pos(),
-            has_game=has_game, is_tracked=is_tracked, show_track=not is_own_user
+            has_game=has_game, is_tracked=is_tracked,
+            show_track=not is_own_user, show_private=not is_own_user,
         )
         if action == PROFILE:
             self.profile_requested.emit(self.user.jid, self.user.login, self.user.user_id)

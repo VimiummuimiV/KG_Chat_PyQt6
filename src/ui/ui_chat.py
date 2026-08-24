@@ -3370,6 +3370,7 @@ class ChatWindow(QWidget):
                 is_tracked=is_tracked,
                 show_track=not is_own,
                 show_ban=not is_own,
+                show_private=not is_own,
             )
             if not action:
                 return

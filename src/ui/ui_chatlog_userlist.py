@@ -45,7 +45,8 @@ class ChatlogUserWidget(UserCountRow):
         is_own_user = bool(self.my_username) and self.username == self.my_username
         action = show_userlist_context_menu(
             self.icons_path, self, QCursor.pos(),
-            show_filter=True, is_tracked=is_tracked, show_track=not is_own_user,
+            show_filter=True, is_tracked=is_tracked,
+            show_track=not is_own_user, show_private=not is_own_user,
         )
         if action == PROFILE:
             self.profile_requested.emit("", self.username, self.user_id or "")

@@ -27,6 +27,7 @@ def show_userlist_context_menu(
     show_filter: bool = False,
     is_tracked: bool = False,
     show_track: bool = True,
+    show_private: bool = True,
 ) -> Optional[str]:
     def icon(name: str):
         return _render_svg_icon(icons_path / name, 16)
@@ -35,7 +36,9 @@ def show_userlist_context_menu(
     menu.setFont(get_font(FontType.UI))
 
     profile_act = menu.addAction(icon("user.svg"), "Profile")
-    private_act = menu.addAction(icon("private-chat.svg"), "Private Chat")
+    private_act = None
+    if show_private:
+        private_act = menu.addAction(icon("private-chat.svg"), "Private Chat")
     menu.addSeparator()
 
     paste_act = menu.addAction(icon("add-circle.svg"), "Paste Username")
@@ -65,7 +68,7 @@ def show_userlist_context_menu(
         return None
     if chosen is profile_act:
         return PROFILE
-    if chosen is private_act:
+    if private_act is not None and chosen is private_act:
         return PRIVATE
     if chosen is paste_act:
         return PASTE_USERNAME
@@ -80,4 +83,3 @@ def show_userlist_context_menu(
     if open_game_act is not None and chosen is open_game_act:
         return OPEN_GAME
     return None
-

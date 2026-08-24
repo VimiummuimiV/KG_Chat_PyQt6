@@ -29,6 +29,7 @@ def show_message_user_context_menu(
     is_tracked: bool = False,
     show_track: bool = True,
     show_ban: bool = True,
+    show_private: bool = True,
 ) -> Optional[str]:
     def icon(name: str):
         return _render_svg_icon(icons_path / name, 16)
@@ -37,7 +38,9 @@ def show_message_user_context_menu(
     menu.setFont(get_font(FontType.UI))
 
     profile_act = menu.addAction(icon("user.svg"), "Profile")
-    private_act = menu.addAction(icon("private-chat.svg"), "Private Chat")
+    private_act = None
+    if show_private:
+        private_act = menu.addAction(icon("private-chat.svg"), "Private Chat")
     menu.addSeparator()
 
     copy_username_act = menu.addAction(icon("clipboard.svg"), "Copy username")
@@ -68,7 +71,7 @@ def show_message_user_context_menu(
         return None
     if chosen is profile_act:
         return PROFILE
-    if chosen is private_act:
+    if private_act is not None and chosen is private_act:
         return PRIVATE
     if chosen is copy_username_act:
         return COPY_USERNAME
