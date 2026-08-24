@@ -23,7 +23,7 @@ CHAT_GENERAL_KB = [
     ("C",           "Change username color"),
     ("Shift+C",     "Update color from server"),
     ("E",           "Open latest competition race in browser"),
-    ("X",           "Exit private mode / clear markers"),
+    ("X",           "Exit private chat / Clear markers, presence"),
     ("Esc",         "Clear input focus"),
 ]
 

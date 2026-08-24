@@ -510,6 +510,7 @@ class MessageRenderer(QObject):
     def _presence_entry_width(self, entry: dict, fm: QFontMetrics) -> int:
         w = fm.horizontalAdvance(entry.get('login', '')) + self.PRESENCE_NAME_GAP
         last = entry.get('last')
+        dot = max(4, fm.height() // 3)
         for event_type in EVENT_TYPES:
             count = entry.get('counts', {}).get(event_type)
             if not count:
@@ -517,7 +518,7 @@ class MessageRenderer(QObject):
             text, _, _ = self._presence_badge(event_type, count)
             w += fm.horizontalAdvance(text) + self.PRESENCE_BADGE_PAD_X + self.PRESENCE_BADGE_GAP
             if event_type == last:
-                w += self.PRESENCE_LAST_DOT + 4
+                w += dot + 4
         return w
 
     def _presence_line_count(self, entries: list, width: int, fm: QFontMetrics) -> int:
@@ -569,6 +570,7 @@ class MessageRenderer(QObject):
             cx += name_w + self.PRESENCE_NAME_GAP
 
             last = entry.get('last')
+            dot = max(4, fm.height() // 3)
             for event_type in EVENT_TYPES:
                 count = entry.get('counts', {}).get(event_type)
                 if not count:
@@ -576,7 +578,7 @@ class MessageRenderer(QObject):
                 text, bg, fg = self._presence_badge(event_type, count)
                 text_w = fm.horizontalAdvance(text)
                 is_last = event_type == last
-                bw = text_w + self.PRESENCE_BADGE_PAD_X + (self.PRESENCE_LAST_DOT + 4 if is_last else 0)
+                bw = text_w + self.PRESENCE_BADGE_PAD_X + (dot + 4 if is_last else 0)
                 badge_rect = QRect(cx, cy + (line_h - badge_h) // 2, bw, badge_h)
 
                 painter.setPen(Qt.PenStyle.NoPen)
@@ -592,12 +594,11 @@ class MessageRenderer(QObject):
                 )
 
                 if is_last:
-                    d = self.PRESENCE_LAST_DOT
                     painter.setBrush(QColor(fg))
                     painter.drawEllipse(
-                        badge_rect.right() - d - 4,
-                        badge_rect.y() + (badge_rect.height() - d) // 2,
-                        d, d,
+                        badge_rect.right() - dot - 4,
+                        badge_rect.y() + (badge_rect.height() - dot) // 2,
+                        dot, dot,
                     )
 
                 cx += bw + self.PRESENCE_BADGE_GAP

@@ -3784,13 +3784,14 @@ class ChatWindow(QWidget):
             cw = self.chatlog_widget
             if cw and self.stacked_widget.currentWidget() == cw:
                 cw._show_calendar()
-        # Exit private mode / clear private messages / clear new messages marker (X)
+        # Exit private mode / clear private messages / clear new messages marker and presence logs (X)
         elif vk == 'exit_private':
             if self.private_mode:
                 self.exit_private_mode()
             else:
                 self._clear_private_messages()
             self._clear_new_messages_marker()
+            self.messages_widget.clear_presence_messages()
         # Enter last competition race in browser (E)
         elif vk == 'enter_competition':
             self._open_latest_competition_in_browser()
