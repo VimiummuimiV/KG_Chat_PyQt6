@@ -69,6 +69,21 @@ from components.notification import show_notification, popup_manager
 from helpers.input_activity import activity_detected
 from core.races_listener import RacesListener
 from components.messages_separator import NewMessagesSeparator
+from components.context_menu.message import (
+    show_message_user_context_menu,
+    PROFILE as MSG_PROFILE,
+    PRIVATE as MSG_PRIVATE,
+    COPY_USERNAME as MSG_COPY_USERNAME,
+    COPY_ID as MSG_COPY_ID,
+    TRACK as MSG_TRACK,
+    UNTRACK as MSG_UNTRACK,
+    BAN_PERMANENT,
+    BAN_TEMPORARY,
+    REMOVE_MESSAGE,
+    REMOVE_UP,
+    REMOVE_DOWN,
+    REMOVE_ALL,
+)
 from components.tag_button import update_all_tag_buttons
 from core.api_data import validate_username_and_get_id
 
@@ -3336,108 +3351,57 @@ class ChatWindow(QWidget):
         self._resolve_user_then(username, lambda jid, login, uid: self.show_profile_view(jid, login, uid))
 
     def _on_username_right_click(self, msg, global_pos, source_widget=None):
-        """Show context menu when username is right-clicked in messages or chatlog"""
+        """Show context menu when username is right-clicked in messages or chatlog."""
         source_widget = source_widget or self.messages_widget
         try:
-            def icon(name): return _render_svg_icon(self.icons_path / name, 16)
+            username = getattr(msg, 'login', None) or getattr(msg, 'username', None)
+            jid = getattr(msg, 'from_jid', None)
+            uid, _ = extract_user_data_from_jid(jid) if jid else (None, None)
+            if not uid and username and hasattr(self, 'cache'):
+                uid = self.cache.get_user_id(username)
 
-            menu = QMenu(self)
-            menu.setFont(get_font(FontType.UI))
-
-            # Profile / Private chat
-            profile_act = menu.addAction(icon("user.svg"), "Profile")
-            private_act = menu.addAction(icon("private-chat.svg"), "Private Chat")
-
-            menu.addSeparator()
-
-            # Copy username
-            copy_username_act = menu.addAction(icon("clipboard.svg"), "Copy username")
-
-            # Copy user ID
-            copy_id_act = menu.addAction(icon("hashtag.svg"), "Copy ID")
-
-            username_for_track = getattr(msg, 'login', None) or getattr(msg, 'username', None)
-            jid_for_track = getattr(msg, 'from_jid', None)
-            uid_for_track, _ = extract_user_data_from_jid(jid_for_track) if jid_for_track else (None, None)
-            if not uid_for_track and username_for_track and hasattr(self, 'cache'):
-                uid_for_track = self.cache.get_user_id(username_for_track)
             is_tracked = bool(
-                self.user_tracker and self.user_tracker.is_tracked(
-                    user_id=uid_for_track, login=username_for_track
-                )
+                self.user_tracker and self.user_tracker.is_tracked(user_id=uid, login=username)
             )
-            is_own_user = bool(username_for_track) and username_for_track == self.my_username
-            track_act = None
-            if not is_own_user:
-                if is_tracked:
-                    track_act = menu.addAction(icon("user-minus.svg"), "Untrack user")
-                else:
-                    track_act = menu.addAction(icon("user-add.svg"), "Track user")
+            is_own = bool(username) and username == self.my_username
 
-            menu.addSeparator()
-
-            # Permanent ban action
-            perm_act = menu.addAction(icon("prohibited.svg"), "Ban permanently")
-
-            # Temporary ban action
-            temp_act = menu.addAction(icon("forbidden.svg"), "Ban temporarily")
-
-            # Separator
-            menu.addSeparator()
-
-            # Message removal actions
-            remove_msg_act  = menu.addAction(icon("delete-back.svg"),     "Remove this message")
-            remove_up_act   = menu.addAction(icon("delete-bin-up.svg"),   "Remove from here upward")
-            remove_down_act = menu.addAction(icon("delete-bin-down.svg"), "Remove from here downward")
-            remove_all_act  = menu.addAction(icon("delete-bin.svg"),      "Remove all messages")
-            
-            act = menu.exec(global_pos)
-            if not act:
+            action = show_message_user_context_menu(
+                self.icons_path, self, global_pos,
+                is_tracked=is_tracked,
+                show_track=not is_own,
+                show_ban=not is_own,
+            )
+            if not action:
                 return
-            
-            if act == profile_act:
-                username = getattr(msg, 'login', None) or getattr(msg, 'username', None)
+
+            if action == MSG_PROFILE:
                 if username:
                     self._resolve_user_then(username, lambda jid, login, uid: self.show_profile_view(jid, login, uid))
-            elif act == private_act:
-                username = getattr(msg, 'login', None) or getattr(msg, 'username', None)
+            elif action == MSG_PRIVATE:
                 if username:
                     self._resolve_user_then(username, lambda jid, login, uid: self.enter_private_mode(jid, login, uid))
-            elif act == copy_username_act:
-                username = getattr(msg, 'login', None) or getattr(msg, 'username', None)
+            elif action == MSG_COPY_USERNAME:
                 if username:
                     QApplication.clipboard().setText(username)
-            elif act == copy_id_act:
-                username = getattr(msg, 'login', None) or getattr(msg, 'username', None)
+            elif action == MSG_COPY_ID:
                 user_id = self.cache.get_user_id(username) if username else None
                 QApplication.clipboard().setText(str(user_id or ""))
-            elif track_act is not None and act == track_act:
-                self._on_track_user_requested(
-                    str(uid_for_track or ""),
-                    username_for_track or "",
-                    not is_tracked,
-                )
-            elif act == perm_act:
-                # Permanent ban
+            elif action in (MSG_TRACK, MSG_UNTRACK):
+                self._on_track_user_requested(str(uid or ""), username or "", action == MSG_TRACK)
+            elif action == BAN_PERMANENT:
                 self._ban_user_from_msg(msg, permanent=True, widget=source_widget)
-            elif act == temp_act:
-                # Show duration dialog
+            elif action == BAN_TEMPORARY:
                 seconds, ok = DurationDialog.get_duration(self, default_seconds=3600)
                 if ok:
                     self._ban_user_from_msg(msg, permanent=False, duration=seconds, widget=source_widget)
-            elif act == remove_msg_act:
-                # Remove single message
+            elif action == REMOVE_MESSAGE:
                 self._remove_message(msg, single=True, widget=source_widget)
-            elif act == remove_up_act:
-                # Remove messages from start to this message
+            elif action == REMOVE_UP:
                 self._remove_message(msg, direction="up", widget=source_widget)
-            elif act == remove_down_act:
-                # Remove messages from this message to end
+            elif action == REMOVE_DOWN:
                 self._remove_message(msg, direction="down", widget=source_widget)
-            elif act == remove_all_act:
-                # Remove all messages from user
+            elif action == REMOVE_ALL:
                 self._remove_message(msg, single=False, widget=source_widget)
-        
         except Exception as e:
             print(f"Context menu error: {e}")
     

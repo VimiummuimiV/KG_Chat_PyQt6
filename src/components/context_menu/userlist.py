@@ -1,4 +1,4 @@
-"""Shared context menu for user rows (general + game-room + chatlog userlists)."""
+"""Context menu for userlist rows (general, game-room, chatlog)."""
 from pathlib import Path
 from typing import Optional
 
@@ -7,19 +7,18 @@ from PyQt6.QtWidgets import QMenu
 from helpers.create import _render_svg_icon
 from helpers.fonts import get_font, FontType
 
-# Action ids returned by show_user_context_menu
 PROFILE = "profile"
 PRIVATE = "private"
 PASTE_USERNAME = "paste_username"
 COPY_USERNAME = "copy_username"
 COPY_ID = "copy_id"
-FILTER = "filter"        # chatlog userlist: filter messages by this user
-OPEN_GAME = "open_game"  # open game room chat for this user's game_id
+FILTER = "filter"
+OPEN_GAME = "open_game"
 TRACK = "track"
 UNTRACK = "untrack"
 
 
-def show_user_context_menu(
+def show_userlist_context_menu(
     icons_path: Path,
     parent,
     global_pos,
@@ -81,3 +80,4 @@ def show_user_context_menu(
     if open_game_act is not None and chosen is open_game_act:
         return OPEN_GAME
     return None
+

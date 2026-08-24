@@ -13,7 +13,7 @@ from helpers.create import _render_svg_icon, get_user_svg_color
 from helpers.cache import get_cache
 from helpers.fonts import get_font, FontType
 from helpers.scroll.auto_scroll import AutoScroller
-from components.user_context_menu import (
+from components.context_menu.userlist import (
     show_user_context_menu,
     PROFILE,
     PRIVATE,
