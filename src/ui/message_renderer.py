@@ -510,7 +510,7 @@ class MessageRenderer(QObject):
     def _presence_entry_width(self, entry: dict, fm: QFontMetrics) -> int:
         w = fm.horizontalAdvance(entry.get('login', '')) + self.PRESENCE_NAME_GAP
         last = entry.get('last')
-        dot = max(4, fm.height() // 3)
+        dot = max(3, fm.height() // 4)
         for event_type in EVENT_TYPES:
             count = entry.get('counts', {}).get(event_type)
             if not count:
@@ -570,7 +570,7 @@ class MessageRenderer(QObject):
             cx += name_w + self.PRESENCE_NAME_GAP
 
             last = entry.get('last')
-            dot = max(4, fm.height() // 3)
+            dot = max(3, fm.height() // 4)
             for event_type in EVENT_TYPES:
                 count = entry.get('counts', {}).get(event_type)
                 if not count:
