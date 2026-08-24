@@ -207,7 +207,12 @@ class ChatWindow(QWidget):
         self.parse_progress_bar = None
         self.parse_current_label = None
 
+    @property
+    def my_username(self):
+        return (self.account or {}).get('chat_username') or None
+
     def set_tray_mode(self, enabled: bool):
+
         self.tray_mode = enabled
 
     def on_change_username_color(self):
@@ -402,7 +407,7 @@ class ChatWindow(QWidget):
             setattr(self, attr, str(path) if path else None)
 
     def _init_ui(self):
-        window_title = f"Chat - {self.account['chat_username']}" if self.account else "Chat"
+        window_title = f"Chat - {self.my_username}" if self.my_username else "Chat"
         self.setWindowTitle(window_title)
         geo = QApplication.primaryScreen().availableGeometry()
       
@@ -458,8 +463,7 @@ class ChatWindow(QWidget):
         self.stacked_widget = QStackedWidget()
         left_layout.addWidget(self.stacked_widget, stretch=1)
 
-        my_username = self.account.get('chat_username') if self.account else None
-        self.messages_widget = MessagesWidget(self.config, self.emoticon_manager, my_username=my_username)
+        self.messages_widget = MessagesWidget(self.config, self.emoticon_manager, my_username=self.my_username)
 
         # Splitter so a chatlog can be shown alongside the live messages view
         # (RMB on a timestamp), without leaving/replacing the messages view itself
@@ -523,7 +527,9 @@ class ChatWindow(QWidget):
         self.input_top_layout.addWidget(self.emoticon_button)
     
         # User list widget (right side, vertical scrollable)
-        self.user_list_widget = UserListWidget(self.config, self.input_field, self.ban_manager, self.user_tracker)
+        self.user_list_widget = UserListWidget(
+            self.config, self.input_field, self.ban_manager, self.user_tracker, my_username=self.my_username
+        )
         # Connect signals for user list actions
         self._wire_userlist_signals(self.user_list_widget)
         self.user_list_widget.open_game_requested.connect(self._open_game_room_by_id)
@@ -1010,7 +1016,7 @@ class ChatWindow(QWidget):
         QTimer.singleShot(0, self.input_field.setFocus)
     
         # Update window title
-        base = f"Chat - {self.account['chat_username']}" if self.account else "Chat"
+        base = f"Chat - {self.my_username}" if self.my_username else "Chat"
         status = self.windowTitle().split(' - ')[-1] if ' - ' in self.windowTitle() else ""
         if status in ['Online', 'Offline', 'Connecting']:
             self.setWindowTitle(f"{base} - Private with {username} - {status}")
@@ -1181,6 +1187,7 @@ class ChatWindow(QWidget):
                 self.icons_path,
                 self.ban_manager,
                 self.user_tracker,
+                my_username=self.my_username,
             )
             self.chatlog_userlist_widget.filter_requested.connect(self._on_filter_requested)
             self._wire_userlist_signals(self.chatlog_userlist_widget)
@@ -2460,7 +2467,7 @@ class ChatWindow(QWidget):
             body = (msg.body or '').strip()
             if 'not anonymous' in body.lower():
                 return
-            if msg.login == self.account.get('chat_username') and not is_initial:
+            if msg.login == self.my_username and not is_initial:
                 return
             if msg.login:
                 user_id, _ = extract_user_data_from_jid(from_jid)
@@ -2487,7 +2494,7 @@ class ChatWindow(QWidget):
             self._history_settle_timer.start(self._HISTORY_SETTLE_MS)
 
         # Skip own messages (server echoes groupchat messages back)
-        if msg.login == self.account.get('chat_username') and not is_initial:
+        if msg.login == self.my_username and not is_initial:
             return
 
         # CHECK IF USER IS BANNED - BLOCK IMMEDIATELY
@@ -2549,7 +2556,7 @@ class ChatWindow(QWidget):
                 self.voice_engine.speak_message(
                     username=msg.login,
                     message=display_body,
-                    my_username=self.account.get('chat_username', ''),
+                    my_username=self.my_username or '',
                     is_initial=is_initial,
                     is_private=getattr(msg, 'is_private', False),
                     is_ban=is_ban,
@@ -2651,7 +2658,7 @@ class ChatWindow(QWidget):
     def _message_mentions_me(self, msg):
         if not self.account or not msg.body:
             return False
-        my_username = self.account.get('chat_username', '').lower()
+        my_username = (self.my_username or '').lower()
         if not my_username:
             return False
         pattern = r'\b' + re.escape(my_username) + r'\b'
@@ -2718,16 +2725,14 @@ class ChatWindow(QWidget):
         elif pres and pres.presence_type == 'unavailable':
             self.user_list_widget.remove_users(presence=pres)
 
-        # User tracker (general room only, selected users)
+        # User tracker + optional chat presence log (tracked users only)
         if (self.user_tracker and self.user_tracker.is_enabled()
                 and pres and pres.login
                 and not is_game
                 and pres.presence_type in ('available', 'unavailable')):
-            my_name = (self.account or {}).get('chat_username', '')
-            if pres.login != my_name:
+            if pres.login != self.my_username:
                 event_type = 'join' if pres.presence_type == 'available' else 'left'
                 game_id = getattr(pres, 'game_id', None)
-                # Same gate as competitions / message popups
                 if not self._chat_ready or self.initial_roster_loading or self._history_settle_timer.isActive():
                     self.user_tracker.seed_state(pres.user_id, pres.login, event_type, game_id=game_id)
                 else:
@@ -2740,6 +2745,10 @@ class ChatWindow(QWidget):
                             w.append_event(event)
                         else:
                             self.button_panel.bump_tracker_unread(event.get('type'))
+                        if self._chat_presence_log_enabled():
+                            self.messages_widget.record_presence_event(
+                                pres.login, event.get('type', event_type)
+                            )
                         avatar_pix = None
                         if pres.user_id and hasattr(self, 'cache') and self.cache:
                             try:
@@ -2906,7 +2915,7 @@ class ChatWindow(QWidget):
         # Get own user data
         own_user = None
         for user in self.xmpp_client.user_list.get_all():
-            if self.account.get('chat_username') in user.jid or user.login == self.account.get('chat_username'):
+            if (self.my_username and self.my_username in user.jid) or user.login == self.my_username:
                 own_user = user
                 break
 
@@ -2920,7 +2929,7 @@ class ChatWindow(QWidget):
                 from_jid=self.xmpp_client.jid,
                 body=chunk,
                 msg_type=msg_type,
-                login=self.account.get('chat_username'),
+                login=self.my_username,
                 avatar=None,
                 background=own_user.background if own_user else None,
                 timestamp=datetime.now(),
@@ -2979,7 +2988,7 @@ class ChatWindow(QWidget):
     def set_connection_status(self, status: str):
         status = (status or '').lower()
         text = {'connecting': 'Connecting', 'online': 'Online'}.get(status, 'Offline')
-        base = f"Chat - {self.account['chat_username']}" if self.account else "Chat"
+        base = f"Chat - {self.my_username}" if self.my_username else "Chat"
 
         # Preserve private mode in title
         if self.private_mode and self.private_chat_username:
@@ -3156,7 +3165,16 @@ class ChatWindow(QWidget):
         
         self.stacked_widget.setCurrentWidget(self.ban_list_widget)
 
+    def _chat_presence_log_enabled(self) -> bool:
+        val = self.config.get("user_tracker", "chat_log")
+        return True if val is None else bool(val)
+
+    def set_chat_presence_log_enabled(self, enabled: bool):
+        if not enabled and self.messages_widget:
+            self.messages_widget.clear_presence_messages()
+
     def _on_presence_notification_click(self, login: str, event_ts=None):
+
         action = self.config.get("user_tracker", "click_action") or "history"
         if action == "chat":
             self._show_and_focus_window()
@@ -3229,6 +3247,9 @@ class ChatWindow(QWidget):
             self.settings_widget.sound_changed.connect(self._setup_sounds)
             self.settings_widget.tracker_badge_style_changed.connect(
                 self.button_panel.refresh_tracker_badge_style
+            )
+            self.settings_widget.tracker_chat_log_changed.connect(
+                self.set_chat_presence_log_enabled
             )
             self.settings_widget.competition_log_clear_requested.connect(
                 self.clear_competition_log
@@ -3345,10 +3366,13 @@ class ChatWindow(QWidget):
                     user_id=uid_for_track, login=username_for_track
                 )
             )
-            if is_tracked:
-                track_act = menu.addAction(icon("user-minus.svg"), "Untrack user")
-            else:
-                track_act = menu.addAction(icon("user-add.svg"), "Track user")
+            is_own_user = bool(username_for_track) and username_for_track == self.my_username
+            track_act = None
+            if not is_own_user:
+                if is_tracked:
+                    track_act = menu.addAction(icon("user-minus.svg"), "Untrack user")
+                else:
+                    track_act = menu.addAction(icon("user-add.svg"), "Track user")
 
             menu.addSeparator()
 
@@ -3387,7 +3411,7 @@ class ChatWindow(QWidget):
                 username = getattr(msg, 'login', None) or getattr(msg, 'username', None)
                 user_id = self.cache.get_user_id(username) if username else None
                 QApplication.clipboard().setText(str(user_id or ""))
-            elif act == track_act:
+            elif track_act is not None and act == track_act:
                 self._on_track_user_requested(
                     str(uid_for_track or ""),
                     username_for_track or "",

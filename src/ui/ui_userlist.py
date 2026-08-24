@@ -181,9 +181,11 @@ class UserWidget(QWidget):
                 user_id=self.user.user_id, login=self.user.login
             )
         )
+        my_username = getattr(self, 'my_username', None)
+        is_own_user = bool(my_username) and self.user.login == my_username
         action = show_user_context_menu(
             self.icons_path, self, QCursor.pos(),
-            has_game=has_game, is_tracked=is_tracked, show_track=True
+            has_game=has_game, is_tracked=is_tracked, show_track=not is_own_user
         )
         if action == PROFILE:
             self.profile_requested.emit(self.user.jid, self.user.login, self.user.user_id)
@@ -212,12 +214,13 @@ class UserListWidget(QWidget):
     open_game_requested = pyqtSignal(str)  # game_id
     track_requested = pyqtSignal(str, str, bool)  # user_id, login, track
 
-    def __init__(self, config, input_field=None, ban_manager=None, user_tracker=None):
+    def __init__(self, config, input_field=None, ban_manager=None, user_tracker=None, my_username=None):
         super().__init__()
         self.config = config
         self.input_field = input_field
         self.ban_manager = ban_manager
         self.user_tracker = user_tracker
+        self.my_username = my_username
         self.user_widgets = {}
         self.user_game_state = {}
         self.cache = get_cache()
@@ -369,6 +372,7 @@ class UserListWidget(QWidget):
 
         def _wire(widget):
             widget.user_tracker = self.user_tracker
+            widget.my_username = self.my_username
             widget.profile_requested.connect(self.profile_requested.emit)
             widget.private_chat_requested.connect(self.private_chat_requested.emit)
             widget.paste_requested.connect(self.paste_requested.emit)

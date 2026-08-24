@@ -1,5 +1,6 @@
 """Messages display widget"""
 from datetime import datetime
+from types import SimpleNamespace
 
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QListView
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal
@@ -12,6 +13,7 @@ from ui.message_delegate import MessageDelegate
 from helpers.message_interactions import MessageInteractions
 from helpers.fonts import get_font, FontType
 from helpers.scroll.scroll_buttons import ScrollButtonsPanel
+from helpers.presence_log import add_presence_entry, presence_entries_to_text
 
 class MessagesWidget(QWidget):
     """Widget for displaying chat messages with virtual scrolling"""
@@ -56,6 +58,7 @@ class MessagesWidget(QWidget):
         self.interactions.username_ctrl_clicked.connect(self.username_ctrl_clicked.emit)
         self.interactions.username_shift_clicked.connect(self.username_shift_clicked.emit)
         self.interactions.chip_clicked.connect(self.chip_clicked.emit)
+        self.delegate.presence_log_clicked.connect(self._on_presence_log_clicked)
 
     def set_my_username(self, username: str):
         """Set the current user's username for mention highlighting"""
@@ -128,15 +131,44 @@ class MessagesWidget(QWidget):
             is_competition=getattr(msg, 'is_competition', False),
             competition_game_id=getattr(msg, 'competition_game_id', None),
             competition_players=getattr(msg, 'competition_players', None),
+            is_presence_log=getattr(msg, 'is_presence_log', False),
+            presence_entries=getattr(msg, 'presence_entries', None),
         )
         sb = self.list_view.verticalScrollBar()
         at_bottom = (sb.maximum() - sb.value()) <= 100
 
-        self.model.add_message(msg_data)
+        row = self.model.add_message(msg_data)
 
         if at_bottom:
             QTimer.singleShot(0, lambda: scroll(self.list_view, mode="bottom", delay=100))
+        return row
    
+    def record_presence_event(self, login: str, event_type: str):
+        open_row = self.model.get_open_presence_log_row()
+        if open_row is not None:
+            current = self.model.get_message_at(open_row)
+            entries = add_presence_entry(list(current.presence_entries or []), login, event_type)
+            self.model.update_presence_entries(open_row, entries, presence_entries_to_text(entries))
+            sb = self.list_view.verticalScrollBar()
+            if (sb.maximum() - sb.value()) <= 100:
+                QTimer.singleShot(0, lambda: scroll(self.list_view, mode="bottom", delay=50))
+            return
+
+        entries = add_presence_entry([], login, event_type)
+        self.add_message(SimpleNamespace(
+            timestamp=datetime.now(),
+            login=None,
+            body=presence_entries_to_text(entries),
+            is_presence_log=True,
+            presence_entries=entries,
+        ))
+
+    def clear_presence_messages(self):
+        self.model.clear_presence_messages()
+
+    def _on_presence_log_clicked(self, row: int):
+        self.model.remove_message_at(row)
+
     def clear_private_messages(self):
         """Clear all private messages"""
         self.model.clear_private_messages()

@@ -471,6 +471,7 @@ class SettingsWidget(QWidget):
     competition_log_clear_requested = pyqtSignal()
     font_family_changed = pyqtSignal()
     tracker_badge_style_changed = pyqtSignal()
+    tracker_chat_log_changed = pyqtSignal(bool)
 
     def __init__(self, config, icons_path: Path, font_scaler=None):
         super().__init__()
@@ -919,12 +920,16 @@ class SettingsWidget(QWidget):
             self._on_tracker_enabled_toggled
         )
         self.tracker_notifications_checkbox = self._add_checkbox(
-            section, "Show notifications",
+            section, "Show events in notifications",
             self._on_tracker_notifications_toggled
         )
         self.tracker_notifications_auto_hide_checkbox = self._add_checkbox(
             section, "Auto-hide notifications after duration (ignore mouse/keyboard rules)",
             self._on_tracker_notifications_auto_hide_toggled
+        )
+        self.tracker_chat_log_checkbox = self._add_checkbox(
+            section, "Show events in chat",
+            self._on_tracker_chat_log_toggled
         )
         self.tracker_badge_checkbox = self._add_checkbox(
             section, "Show unread badge on tracker button",
@@ -1003,12 +1008,14 @@ class SettingsWidget(QWidget):
     def refresh(self):
         """Reload every control from the current config state."""
         widgets = (
-            self.settings_accordion_checkbox, self.auto_login_checkbox, self.start_minimized_checkbox, self.start_with_system_checkbox,
+            self.settings_accordion_checkbox, self.auto_login_checkbox,
+            self.start_minimized_checkbox, self.start_with_system_checkbox,
             self.clear_private_checkbox, self.youtube_checkbox, self.browser_combo,
             self.track_competitions_checkbox, self.competitions_bypass_mute_checkbox,
             self.mentions_bypass_mute_checkbox, self.bans_bypass_mute_checkbox,
             self.tracker_notify_checkbox, self.tracker_enabled_checkbox,
-            self.tracker_notifications_checkbox, self.tracker_notifications_auto_hide_checkbox, self.tracker_badge_checkbox,
+            self.tracker_notifications_checkbox, self.tracker_notifications_auto_hide_checkbox,
+            self.tracker_chat_log_checkbox, self.tracker_badge_checkbox,
             self.min_multiplier_combo,
             self.show_cost_checkbox,
             self.show_players_checkbox, self.max_player_chips_spin, self.sort_players_by_level_checkbox,
@@ -1115,6 +1122,12 @@ class SettingsWidget(QWidget):
         self.tracker_notifications_auto_hide_checkbox.setChecked(
             bool(self.config.get("user_tracker", "notifications_auto_hide"))
         )
+        self.tracker_notifications_auto_hide_checkbox.setEnabled(
+            self.tracker_notifications_checkbox.isChecked()
+        )
+        chat_log = self.config.get("user_tracker", "chat_log")
+        self.tracker_chat_log_checkbox.setChecked(True if chat_log is None else bool(chat_log))
+
         tracker_badge = self.config.get("user_tracker", "show_badge")
         self.tracker_badge_checkbox.setChecked(
             True if tracker_badge is None else bool(tracker_badge)
@@ -1392,9 +1405,14 @@ class SettingsWidget(QWidget):
 
     def _on_tracker_notifications_toggled(self, checked: bool):
         self.config.set("user_tracker", "notifications", value=checked)
+        self.tracker_notifications_auto_hide_checkbox.setEnabled(checked)
 
     def _on_tracker_notifications_auto_hide_toggled(self, checked: bool):
         self.config.set("user_tracker", "notifications_auto_hide", value=checked)
+
+    def _on_tracker_chat_log_toggled(self, checked: bool):
+        self.config.set("user_tracker", "chat_log", value=checked)
+        self.tracker_chat_log_changed.emit(checked)
 
     def _on_tracker_badge_toggled(self, checked: bool):
         self.config.set("user_tracker", "show_badge", value=checked)

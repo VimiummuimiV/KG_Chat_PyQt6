@@ -64,6 +64,10 @@ class RoomWidget(QWidget):
         self.auto_hide_userlist = True  # reset to True whenever the compact threshold is crossed
         self._init_ui()
 
+    @property
+    def my_username(self):
+        return (self.account or {}).get("chat_username") or None
+
     def _init_ui(self):
         root = QVBoxLayout()
         root.setContentsMargins(0, 0, 0, 0)
@@ -78,9 +82,8 @@ class RoomWidget(QWidget):
         left.setContentsMargins(0, 0, 0, 0)
         left.setSpacing(self.config.get("ui", "spacing", "widget_elements") or 6)
 
-        my_username = self.account.get("chat_username") if self.account else None
         self.messages_widget = MessagesWidget(
-            self.config, self.emoticon_manager, my_username=my_username
+            self.config, self.emoticon_manager, my_username=self.my_username
         )
         self.messages_widget.username_left_clicked.connect(self.username_left_clicked.emit)
         self.messages_widget.username_right_clicked.connect(self.username_right_clicked.emit)
@@ -124,7 +127,7 @@ class RoomWidget(QWidget):
 
         self.user_list_widget = UserListWidget(
             self.config, input_field=self.input_field, ban_manager=self.ban_manager,
-            user_tracker=self.user_tracker
+            user_tracker=self.user_tracker, my_username=self.my_username
         )
         self.user_list_widget.profile_requested.connect(self.profile_requested.emit)
         self.user_list_widget.private_chat_requested.connect(self.private_chat_requested.emit)

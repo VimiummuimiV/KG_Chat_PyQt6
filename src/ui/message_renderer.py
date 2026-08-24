@@ -15,6 +15,7 @@ from helpers.color_utils import (
     get_mention_color,
     get_rank_chip_colors,
 )
+from components.presence_badge import presence_badge_style, EVENT_TYPES
 from helpers.fonts import get_font, FontType
 from helpers.mention_parser import parse_mentions
 from helpers.browser import open_url as open_url_in_browser
@@ -488,6 +489,93 @@ class MessageRenderer(QObject):
             current_x += chip_width + self.CHIP_GAP
 
         return current_y + chip_height - y, chip_rects
+
+    PRESENCE_GROUP_GAP = 12
+    PRESENCE_BADGE_GAP = 4
+    PRESENCE_LINE_GAP = 2
+    PRESENCE_BADGE_PAD_X = 12
+    PRESENCE_NAME_GAP = 8
+
+    @staticmethod
+    def _presence_badge(event_type: str, count: int):
+        label, bg, fg = presence_badge_style(event_type)
+        text = label if count == 1 else f"{label} {count}"
+        return text, bg, fg
+
+    def _presence_line_height(self, fm: QFontMetrics = None) -> int:
+        fm = fm or QFontMetrics(self.body_font)
+        return fm.height() + 4
+
+    def _presence_entry_width(self, entry: dict, fm: QFontMetrics) -> int:
+        w = fm.horizontalAdvance(entry.get('login', '')) + self.PRESENCE_NAME_GAP
+        for event_type in EVENT_TYPES:
+            count = entry.get('counts', {}).get(event_type)
+            if not count:
+                continue
+            text, _, _ = self._presence_badge(event_type, count)
+            w += fm.horizontalAdvance(text) + self.PRESENCE_BADGE_PAD_X + self.PRESENCE_BADGE_GAP
+        return w
+
+    def _presence_line_count(self, entries: list, width: int, fm: QFontMetrics) -> int:
+        if width <= 0:
+            return 1
+        lines, row_w = 1, 0
+        for entry in entries:
+            ew = self._presence_entry_width(entry, fm)
+            if row_w and row_w + self.PRESENCE_GROUP_GAP + ew > width:
+                lines += 1
+                row_w = ew
+            else:
+                row_w += (self.PRESENCE_GROUP_GAP if row_w else 0) + ew
+        return lines
+
+    def calculate_presence_entries_height(self, entries: list, width: int = 0) -> int:
+        if not entries:
+            return 0
+        fm = QFontMetrics(self.body_font)
+        line_h = self._presence_line_height(fm)
+        lines = self._presence_line_count(entries, width, fm)
+        return lines * line_h + (lines - 1) * self.PRESENCE_LINE_GAP
+
+    def paint_presence_entries(self, painter: QPainter, x: int, y: int, width: int,
+                               entries: list, get_username_color, line_height: int = 0) -> QRect:
+        if not entries or width <= 0:
+            return QRect(x, y, max(width, 0), 0)
+
+        fm = QFontMetrics(self.body_font)
+        painter.setFont(self.body_font)
+        line_h = line_height if line_height > 0 else self._presence_line_height(fm)
+        badge_h = min(self._presence_line_height(fm), line_h)
+        cx, cy = x, y
+
+        for entry in entries:
+            ew = self._presence_entry_width(entry, fm)
+            if cx > x and cx + ew > x + width:
+                cx = x
+                cy += line_h + self.PRESENCE_LINE_GAP
+
+            login = entry.get('login', '')
+            painter.setPen(QColor(get_username_color(login)))
+            painter.drawText(cx, cy + (line_h - fm.height()) // 2 + fm.ascent(), login)
+            cx += fm.horizontalAdvance(login) + self.PRESENCE_NAME_GAP
+
+            for event_type in EVENT_TYPES:
+                count = entry.get('counts', {}).get(event_type)
+                if not count:
+                    continue
+                text, bg, fg = self._presence_badge(event_type, count)
+                bw = fm.horizontalAdvance(text) + self.PRESENCE_BADGE_PAD_X
+                badge_rect = QRect(cx, cy + (line_h - badge_h) // 2, bw, badge_h)
+                painter.setPen(Qt.PenStyle.NoPen)
+                painter.setBrush(QColor(bg))
+                painter.drawRoundedRect(badge_rect, 4, 4)
+                painter.setPen(QColor(fg))
+                painter.drawText(badge_rect, Qt.AlignmentFlag.AlignCenter, text)
+                cx += bw + self.PRESENCE_BADGE_GAP
+
+            cx += self.PRESENCE_GROUP_GAP
+
+        return QRect(x, y, width, (cy - y) + line_h)
 
     def has_animated_emoticons(self, text: str) -> bool:
         """Check if text contains animated emoticons"""

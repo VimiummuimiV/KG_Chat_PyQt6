@@ -137,6 +137,7 @@ class MessageDelegate(QStyledItemDelegate):
     separator_clicked = pyqtSignal(str)  # date_str of clicked chatlog date separator
     timestamp_clicked = pyqtSignal(str)  # full chatlog URL for the clicked message
     chatlog_link_clicked = pyqtSignal(str, str)  # date_str, time_str ("" if none) - chatlog URL clicked in a message body
+    presence_log_clicked = pyqtSignal(int)
  
     def __init__(
         self,
@@ -304,8 +305,25 @@ class MessageDelegate(QStyledItemDelegate):
         if width <= 0:
             width = 800
         row = index.row()
-        height = self._calculate_compact_height(msg, width, row) if self.compact_mode else self._calculate_normal_height(msg, width, row)
+        if getattr(msg, 'is_presence_log', False):
+            height = self._presence_log_height(msg, width)
+        else:
+            height = self._calculate_compact_height(msg, width, row) if self.compact_mode else self._calculate_normal_height(msg, width, row)
         return QSize(width, height)
+
+    def _presence_log_height(self, msg, width: int) -> int:
+        if not self.message_renderer:
+            return 50
+        fm = QFontMetrics(self.body_font)
+        ts_fm = QFontMetrics(self.timestamp_font)
+        line_h = max(fm.height(), ts_fm.height())
+        entries = getattr(msg, 'presence_entries', None) or []
+        ts_w = ts_fm.horizontalAdvance(msg.get_time_str()) + self.spacing
+        content_w = max(width - 2 * self.padding - (0 if self.compact_mode else ts_w), 50)
+        content_h = self.message_renderer.calculate_presence_entries_height(entries, content_w)
+        if self.compact_mode:
+            return min(self.padding + line_h + 2 + content_h + self.padding, 500)
+        return min(max(line_h, content_h) + 2 * self.padding, 500)
  
     def _calculate_compact_height(self, msg, width: int, row: Optional[int] = None) -> int:
         if not self.message_renderer:
@@ -388,10 +406,45 @@ class MessageDelegate(QStyledItemDelegate):
                 highlight_fill_color(self.is_dark_theme, self.highlight_opacity),
             )
   
-        self._paint_message(painter, option.rect, msg, row, self.compact_mode)
+        if getattr(msg, 'is_presence_log', False):
+            self._paint_presence_log(painter, option.rect, msg, row, self.compact_mode)
+        else:
+            self._paint_message(painter, option.rect, msg, row, self.compact_mode)
   
         painter.restore()
- 
+
+    def _paint_presence_log(self, painter: QPainter, rect: QRect, msg, row: int, compact: bool):
+        if not self.message_renderer:
+            return
+
+        x, y = rect.x() + self.padding, rect.y() + self.padding
+        width = rect.width() - 2 * self.padding
+        ts_fm = QFontMetrics(self.timestamp_font)
+        line_h = max(QFontMetrics(self.body_font).height(), ts_fm.height())
+        time_str = msg.get_time_str()
+        ts_w = ts_fm.horizontalAdvance(time_str)
+
+        painter.setFont(self.timestamp_font)
+        painter.setPen(QColor(self.message_renderer.system_colors["text"]))
+        ts_rect = QRect(x, y, ts_w, line_h)
+        painter.drawText(ts_rect, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, time_str)
+        self.click_rects[row]['timestamp'] = ts_rect
+        self.click_rects[row]['username'] = QRect()
+        self.click_rects[row]['links'] = []
+
+        if compact:
+            cx, cy, cw = x, y + line_h + 2, width
+        else:
+            cx = x + ts_w + self.spacing
+            cy, cw = y, rect.width() - (cx - rect.x()) - self.padding
+
+        self.message_renderer.paint_presence_entries(
+            painter, cx, cy, cw,
+            getattr(msg, 'presence_entries', None) or [],
+            lambda login: self._get_username_color(login, None),
+            line_height=line_h,
+        )
+
     def _paint_message(self, painter: QPainter, rect: QRect, msg, row: int, compact: bool):
         """Paint message in either compact or normal mode"""
         if not self.message_renderer:
@@ -550,6 +603,12 @@ class MessageDelegate(QStyledItemDelegate):
                         self.message_renderer.copy_and_highlight(url)
                 return True
 
+            # JOIN/LEFT/GAME summary: any click on the body (not the timestamp) clears it
+            if getattr(msg, 'is_presence_log', False):
+                if button == Qt.MouseButton.LeftButton:
+                    self.presence_log_clicked.emit(row)
+                return True
+
             if rects['username'].contains(pos) and button == Qt.MouseButton.LeftButton:
                 return True
 
@@ -599,10 +658,12 @@ class MessageDelegate(QStyledItemDelegate):
             if row in self.click_rects:
                 rects = self.click_rects[row]
                 is_over_chip = any(r.contains(pos) for r, _ in rects.get('chips') or [])
+                msg = index.data(Qt.ItemDataRole.DisplayRole)
                 is_over_clickable = (
                     rects['timestamp'].contains(pos) or
                     rects['username'].contains(pos) or
                     is_over_chip or
+                    bool(getattr(msg, 'is_presence_log', False)) or
                     (self.message_renderer and MessageRenderer.is_over_link(rects['links'], pos))
                 )
               

@@ -31,9 +31,10 @@ class ChatlogUserWidget(UserCountRow):
     paste_requested = pyqtSignal(str) # username
     track_requested = pyqtSignal(str, str, bool)  # user_id, login, track
 
-    def __init__(self, username, msg_count, config, icons_path, user_id=None, user_tracker=None):
+    def __init__(self, username, msg_count, config, icons_path, user_id=None, user_tracker=None, my_username=None):
         super().__init__(username, msg_count, config, icons_path, user_id)
         self.user_tracker = user_tracker
+        self.my_username = my_username
 
     def contextMenuEvent(self, event):
         is_tracked = bool(
@@ -41,9 +42,10 @@ class ChatlogUserWidget(UserCountRow):
                 user_id=self.user_id, login=self.username
             )
         )
+        is_own_user = bool(self.my_username) and self.username == self.my_username
         action = show_user_context_menu(
             self.icons_path, self, QCursor.pos(),
-            show_filter=True, is_tracked=is_tracked, show_track=True,
+            show_filter=True, is_tracked=is_tracked, show_track=not is_own_user,
         )
         if action == PROFILE:
             self.profile_requested.emit("", self.username, self.user_id or "")
@@ -72,13 +74,14 @@ class ChatlogUserlistWidget(QWidget):
     paste_requested = pyqtSignal(str) # username
     track_requested = pyqtSignal(str, str, bool)
 
-    def __init__(self, config, icons_path, ban_manager=None, user_tracker=None):
+    def __init__(self, config, icons_path, ban_manager=None, user_tracker=None, my_username=None):
         super().__init__()
         self.config = config
         self.icons_path = icons_path
         self.cache = get_cache()
         self.ban_manager = ban_manager
         self.user_tracker = user_tracker
+        self.my_username = my_username
         self.show_banned = False  # Track if we should show banned users
         self.user_widgets = {}  # username -> widget
         self.filtered_usernames = set()
@@ -205,7 +208,9 @@ class ChatlogUserlistWidget(QWidget):
         for username, count in sorted_users:
             try:
                 user_id = self.cache.get_user_id(username)
-                widget = ChatlogUserWidget(username, count, self.config, self.icons_path, user_id, self.user_tracker)
+                widget = ChatlogUserWidget(
+                    username, count, self.config, self.icons_path, user_id, self.user_tracker, self.my_username
+                )
                 widget.clicked.connect(self._handle_user_click)
                 widget.profile_requested.connect(self.profile_requested.emit)
                 widget.private_chat_requested.connect(self.private_chat_requested.emit)

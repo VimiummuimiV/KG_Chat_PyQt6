@@ -219,7 +219,7 @@
     "retention_hours": 24,
     "enabled": true,
     "click_action": "chat",
-    "notifications": true,
+    "notifications": false,
     "show_badge": true,
     "default_tab": "history",
     "track_events": [
@@ -228,7 +228,8 @@
       "join"
     ],
     "badge_font_size": 11,
-    "notifications_auto_hide": true
+    "notifications_auto_hide": true,
+    "chat_log": true
   },
   "join_room": {
     "remember": true,
