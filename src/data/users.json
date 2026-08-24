@@ -121,5 +121,12 @@
   "832871": {"login": "Adam_Nest", "background": "#777777", "light": "#767676", "dark": "#858585"},
   "774180": {"login": "тонковдмитрий", "background": "#777777", "light": "#767676", "dark": "#858585"},
   "100758": {"login": "dan21", "background": "#9f9c00", "light": "#7d7a00", "dark": "#9f9c00"},
-  "837874": {"login": "Kofezhik", "background": "#506637", "light": "#506637", "dark": "#708f4d"}
+  "837874": {"login": "Kofezhik", "background": "#506637", "light": "#506637", "dark": "#708f4d"},
+  "840152": {"login": "card", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "691522": {"login": "restricted", "background": "#AF00A4", "light": "#AF00A4", "dark": "#ee00df"},
+  "821163": {"login": "SerNik", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "514393": {"login": "AntCher", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "483173": {"login": "Соточка", "background": "#FF11B7", "light": "#e0009d", "dark": "#FF11B7"},
+  "662448": {"login": "viter114", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "841930": {"login": "shevolev1", "background": "#777777", "light": "#767676", "dark": "#858585"}
 }

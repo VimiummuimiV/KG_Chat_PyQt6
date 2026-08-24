@@ -135,7 +135,7 @@
         "notifications": true,
         "competitions": true,
         "sound": true,
-        "user_tracker": true
+        "user_tracker": false
       },
       "widgets": {
         "ws_log": false,
@@ -218,8 +218,8 @@
   "user_tracker": {
     "retention_hours": 24,
     "enabled": true,
-    "click_action": "chat",
-    "notifications": false,
+    "click_action": "history",
+    "notifications": true,
     "show_badge": true,
     "default_tab": "history",
     "track_events": [
@@ -228,7 +228,7 @@
       "join"
     ],
     "badge_font_size": 11,
-    "notifications_auto_hide": true,
+    "notifications_auto_hide": false,
     "chat_log": true
   },
   "join_room": {

@@ -2,13 +2,18 @@
 from pathlib import Path
 from datetime import datetime
 from collections import Counter
+from typing import Dict, List, Optional, Set
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
-    QScrollArea, QMessageBox, QFrame, QTabWidget, QSizePolicy, QGridLayout
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QListView,
+    QScrollArea, QMessageBox, QTabWidget, QSizePolicy, QGridLayout, QStackedWidget,
+    QStyledItemDelegate, QStyleOptionViewItem
 )
-from PyQt6.QtCore import Qt, pyqtSignal, QTimer
+from PyQt6.QtCore import (
+    Qt, pyqtSignal, QTimer, QAbstractListModel, QSortFilterProxyModel,
+    QModelIndex, QSize, QRect, QEvent
+)
 from PyQt6.QtSvg import QSvgRenderer
-from PyQt6.QtGui import QPixmap, QPainter
+from PyQt6.QtGui import QPixmap, QPainter, QFontMetrics, QColor, QCursor
 
 from helpers.create import create_icon_button, set_visual_active
 from helpers.fonts import (
@@ -19,19 +24,283 @@ from helpers.fonts import (
 )
 from helpers.user_tracker import UserTracker
 from helpers.cache import get_cache
-from helpers.flash_highlight import FlashHighlight
+from helpers.flash_highlight import highlight_fill_color
 from helpers.scroll.auto_scroll import AutoScroller
 from helpers.scroll.scroll_buttons import ScrollButtonsPanel
 from helpers.scroll.scroll import scroll
 from core.api_data import validate_username_and_get_id
 from components.presence_badge import (
-    make_presence_badge,
-    make_game_id_label,
     TypeFilterBar,
     EVENT_TYPES,
-    toggle_filter_value
+    toggle_filter_value,
+    presence_badge_style
 )
 from components.user_count_row import UserCountRow
+
+
+class TrackerEventModel(QAbstractListModel):
+    """Model for join/left/game tracker events - handles data only, no rendering"""
+
+    def __init__(self):
+        super().__init__()
+        self._events: List[dict] = []
+
+    def rowCount(self, parent=QModelIndex()) -> int:
+        if parent.isValid():
+            return 0
+        return len(self._events)
+
+    def data(self, index: QModelIndex, role=Qt.ItemDataRole.DisplayRole):
+        if not index.isValid() or index.row() >= len(self._events):
+            return None
+        if role == Qt.ItemDataRole.DisplayRole:
+            return self._events[index.row()]
+        return None
+
+    def set_events(self, events: List[dict]):
+        self.beginResetModel()
+        self._events = list(events)
+        self.endResetModel()
+
+    def append_event(self, event: dict) -> int:
+        row = len(self._events)
+        self.beginInsertRows(QModelIndex(), row, row)
+        self._events.append(event)
+        self.endInsertRows()
+        return row
+
+    def remove_login(self, login: str) -> int:
+        indices = [i for i, e in enumerate(self._events) if e.get('login') == login]
+        for row in reversed(indices):
+            self.beginRemoveRows(QModelIndex(), row, row)
+            self._events.pop(row)
+            self.endRemoveRows()
+        return len(indices)
+
+    def find_row(self, login: str = None, event_ts: float = None) -> Optional[int]:
+        target = None
+        for row, event in enumerate(self._events):
+            if login and event.get('login') != login:
+                continue
+            if event_ts is not None:
+                ts = event.get('ts')
+                if ts is None or abs(float(ts) - float(event_ts)) > 0.05:
+                    continue
+            target = row
+            if event_ts is not None:
+                break
+        return target
+
+    def clear(self):
+        self.set_events([])
+
+    def get_events(self) -> List[dict]:
+        return list(self._events)
+
+
+class TrackerEventFilterProxy(QSortFilterProxyModel):
+    """Filters tracker events by login and/or event type without touching the source model"""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.filtered_logins: Set[str] = set()
+        self.filtered_types: Set[str] = set()
+
+    def set_filters(self, logins: Set[str], types: Set[str]):
+        self.filtered_logins = set(logins)
+        self.filtered_types = set(types)
+        self.invalidateFilter()
+
+    def filterAcceptsRow(self, source_row: int, source_parent: QModelIndex) -> bool:
+        source_model = self.sourceModel()
+        event = source_model.data(source_model.index(source_row, 0, source_parent), Qt.ItemDataRole.DisplayRole)
+        if not event:
+            return True
+        if self.filtered_logins and event.get('login') not in self.filtered_logins:
+            return False
+        if self.filtered_types and (event.get('type') or '') not in self.filtered_types:
+            return False
+        return True
+
+
+class TrackerEventDelegate(QStyledItemDelegate):
+    """Delegate for rendering tracker events (time, type badge, username, game id) with virtual scrolling"""
+
+    filter_clicked = pyqtSignal(str, bool)       # login, ctrl_pressed
+    type_filter_clicked = pyqtSignal(str, bool)  # event_type, ctrl_pressed
+
+    def __init__(self, config, parent=None):
+        super().__init__(parent)
+        self.config = config
+        theme = config.get("ui", "theme") or "dark"
+        self.is_dark_theme = (theme == "dark")
+
+        self.padding = 8
+        self.spacing = config.get("ui", "spacing", "widget_elements") or 6
+
+        self.click_rects: Dict[int, Dict] = {}
+        self.list_view = None
+
+        self.highlighted_row = None
+        self.highlight_opacity = 0.0
+        self.highlight_timer = QTimer()
+        self.highlight_timer.timeout.connect(self.highlight_row)
+        self.highlight_timer.setInterval(50)
+
+        self._reload_fonts()
+
+    def _reload_fonts(self):
+        self.time_font = get_font(FontType.UI)
+        self.badge_font = get_font(FontType.UI)
+        self.name_font = get_font(FontType.TEXT)
+        self.gid_font = get_font(FontType.UI)
+
+    def set_list_view(self, list_view):
+        self.list_view = list_view
+
+    def cleanup(self):
+        self.highlight_timer.stop()
+        self.list_view = None
+
+    def update_theme(self):
+        theme = self.config.get("ui", "theme") or "dark"
+        self.is_dark_theme = (theme == "dark")
+        self._reload_fonts()
+
+    def update_fonts(self):
+        """Call after text font size change so row heights and paint use the new size."""
+        self._reload_fonts()
+        if self.list_view is not None:
+            try:
+                self.list_view.scheduleDelayedItemsLayout()
+                self.list_view.viewport().update()
+            except RuntimeError:
+                pass
+
+    def _row_height(self) -> int:
+        name_h = QFontMetrics(self.name_font).height()
+        badge_h = QFontMetrics(self.badge_font).height() + 6
+        return max(name_h, badge_h) + 4
+
+    def sizeHint(self, option: QStyleOptionViewItem, index: QModelIndex) -> QSize:
+        width = option.rect.width()
+        if width <= 0 and self.list_view is not None:
+            try:
+                width = self.list_view.viewport().width()
+            except RuntimeError:
+                width = 0
+        if width <= 0:
+            width = 800
+        return QSize(width, self._row_height())
+
+    def paint(self, painter: QPainter, option: QStyleOptionViewItem, index: QModelIndex):
+        event = index.data(Qt.ItemDataRole.DisplayRole)
+        if not event:
+            return
+
+        row = index.row()
+        self.click_rects[row] = {'username': QRect(), 'badge': QRect()}
+
+        painter.save()
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        if row == self.highlighted_row and self.highlight_opacity > 0:
+            painter.fillRect(option.rect, highlight_fill_color(self.is_dark_theme, self.highlight_opacity))
+
+        x = option.rect.x() + self.padding
+        y = option.rect.y()
+        h = option.rect.height()
+
+        ts = event.get('ts', 0)
+        try:
+            time_text = datetime.fromtimestamp(ts).strftime("%H:%M:%S")
+        except Exception:
+            time_text = "—"
+        painter.setFont(self.time_font)
+        painter.setPen(QColor("#888888"))
+        ts_fm = QFontMetrics(self.time_font)
+        ts_width = ts_fm.horizontalAdvance(time_text)
+        painter.drawText(QRect(x, y, ts_width, h), Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, time_text)
+        x += ts_width + self.spacing
+
+        event_type = event.get('type', '') or ''
+        badge_text, badge_bg, badge_fg = presence_badge_style(event_type)
+        painter.setFont(self.badge_font)
+        badge_fm = QFontMetrics(self.badge_font)
+        badge_width = badge_fm.horizontalAdvance(badge_text) + 12
+        badge_height = badge_fm.height() + 6
+        badge_rect = QRect(x, y + (h - badge_height) // 2, badge_width, badge_height)
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(QColor(badge_bg))
+        painter.drawRoundedRect(badge_rect, 4, 4)
+        painter.setPen(QColor(badge_fg))
+        painter.drawText(badge_rect, Qt.AlignmentFlag.AlignCenter, badge_text)
+        self.click_rects[row]['badge'] = badge_rect
+        x += badge_width + self.spacing
+
+        login = event.get('login', '') or ''
+        painter.setFont(self.name_font)
+        name_fm = QFontMetrics(self.name_font)
+        name_color = get_cache().get_username_color(login, self.is_dark_theme)
+        painter.setPen(QColor(name_color))
+        name_width = name_fm.horizontalAdvance(login)
+        name_rect = QRect(x, y, name_width, h)
+        painter.drawText(name_rect, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, login)
+        self.click_rects[row]['username'] = name_rect
+        x += name_width + self.spacing
+
+        game_id = event.get('game_id')
+        if game_id and event_type == 'game':
+            gid_text = f"#{game_id}"
+            painter.setFont(self.gid_font)
+            painter.setPen(QColor("#888888"))
+            gid_width = QFontMetrics(self.gid_font).horizontalAdvance(gid_text)
+            painter.drawText(QRect(x, y, gid_width, h), Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, gid_text)
+
+        painter.restore()
+
+    def editorEvent(self, event: QEvent, model, option: QStyleOptionViewItem, index: QModelIndex) -> bool:
+        row = index.row()
+        rects = self.click_rects.get(row)
+
+        if event.type() == QEvent.Type.MouseButtonPress:
+            if event.button() != Qt.MouseButton.LeftButton or not rects:
+                return super().editorEvent(event, model, option, index)
+            data = index.data(Qt.ItemDataRole.DisplayRole) or {}
+            ctrl_pressed = bool(event.modifiers() & Qt.KeyboardModifier.ControlModifier)
+            pos = event.pos()
+            if rects['username'].contains(pos) and data.get('login'):
+                self.filter_clicked.emit(data['login'], ctrl_pressed)
+                return True
+            if rects['badge'].contains(pos) and data.get('type'):
+                self.type_filter_clicked.emit(data['type'], ctrl_pressed)
+                return True
+
+        elif event.type() == QEvent.Type.MouseMove:
+            if rects and self.list_view:
+                pos = event.pos()
+                is_over_clickable = rects['username'].contains(pos) or rects['badge'].contains(pos)
+                cursor = Qt.CursorShape.PointingHandCursor if is_over_clickable else Qt.CursorShape.ArrowCursor
+                self.list_view.setCursor(QCursor(cursor))
+
+        return super().editorEvent(event, model, option, index)
+
+    def highlight_row(self, row: int = None):
+        if row is not None:
+            self.highlighted_row = row
+            self.highlight_opacity = 1.0
+            if not self.highlight_timer.isActive():
+                self.highlight_timer.start()
+        else:
+            self.highlight_opacity -= 0.05
+            if self.highlight_opacity <= 0:
+                self.highlight_opacity = 0.0
+                self.highlighted_row = None
+                self.highlight_timer.stop()
+
+        if self.highlighted_row is not None and self.list_view and self.list_view.model():
+            index = self.list_view.model().index(self.highlighted_row, 0)
+            self.list_view.viewport().update(self.list_view.visualRect(index))
 
 
 class TrackedUserItem(QWidget):
@@ -40,7 +309,7 @@ class TrackedUserItem(QWidget):
     USERNAME_BASE_WIDTH = 220
     USER_ID_BASE_WIDTH = 125
     ARROW_WIDTH = 26
-    BUTTON_WIDTH = 48  # freeze + remove buttons
+    BUTTON_WIDTH = 48
 
     def __init__(self, config, icons_path: Path, username="", user_id=""):
         super().__init__()
@@ -124,9 +393,10 @@ class TrackedUserItem(QWidget):
         self.setFixedWidth(total_width)
 
     def update_font_scale(self):
-        """Re-scale fixed-width fields when text font size changes (called on font_size_committed)."""
         self._username_width = get_scaled_width(self.USERNAME_BASE_WIDTH)
         self._user_id_width = get_scaled_width(self.USER_ID_BASE_WIDTH)
+        self.username_input.setFont(get_font(FontType.TEXT))
+        self.user_id_input.setFont(get_font(FontType.TEXT))
         self.username_input.setFixedWidth(self._username_width)
         self.user_id_input.setFixedWidth(self._user_id_width)
         self._update_total_width()
@@ -168,7 +438,6 @@ class TrackedUserItem(QWidget):
 
     def set_frozen(self, frozen: bool):
         self.frozen = bool(frozen)
-        # Dim identity fields when frozen (parent opacity would dim buttons too)
         set_visual_active(self.username_input, not self.frozen)
         set_visual_active(self.user_id_input, not self.frozen)
         set_visual_active(self.freeze_button, not self.frozen)
@@ -193,119 +462,15 @@ class TrackedUserItem(QWidget):
         pass
 
 
-class EventRow(QFrame):
-    filter_clicked = pyqtSignal(str, bool)
-    type_filter_clicked = pyqtSignal(str, bool)  # event_type, ctrl
-
-    def __init__(self, config, event: dict):
-        super().__init__()
-        self.setObjectName("trackerEventRow")
-        self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Minimum)
-        self.setStyleSheet("QFrame#trackerEventRow { background: transparent; border: none; }")
-        self.config = config
-        self.login = event.get('login', '')
-        self.event_ts = event.get('ts')
-        # Overlay above children so flash is a full fill (like chat rows), not an outline
-        self._hl_overlay = QWidget(self)
-        self._hl_overlay.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
-        self._hl_overlay.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-        self._hl_overlay.setStyleSheet("background: transparent;")
-        self._flash = FlashHighlight(
-            self._hl_overlay, lambda: (config.get("ui", "theme") == "dark")
-        )
-        self._hl_overlay.paintEvent = self._paint_hl_overlay  # type: ignore
-
-        layout = QHBoxLayout(self)
-        spacing = config.get("ui", "spacing", "widget_elements") or 6
-        layout.setContentsMargins(8, 2, 8, 2)
-        layout.setSpacing(spacing)
-
-        ts = event.get('ts', 0)
-        try:
-            time_text = datetime.fromtimestamp(ts).strftime("%H:%M:%S")
-        except Exception:
-            time_text = "—"
-        time_label = QLabel(time_text)
-        time_label.setFont(get_font(FontType.UI))
-        time_label.setStyleSheet("color: #888;")
-        time_label.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Preferred)
-        layout.addWidget(time_label)
-
-        self.event_type = event.get('type', '') or ''
-        self.type_badge = make_presence_badge(self.event_type)
-        self.type_badge.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.type_badge.mousePressEvent = self._on_badge_click  # type: ignore
-        layout.addWidget(self.type_badge)
-
-        self.name_label = QLabel(self.login)
-        self.name_label.setFont(get_font(FontType.TEXT))
-        self.name_label.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Preferred)
-        self.name_label.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.name_label.mousePressEvent = self._on_name_click  # type: ignore
-        self._apply_name_color()
-        layout.addWidget(self.name_label)
-
-        gid_label = make_game_id_label(self.event_type, event.get('game_id'))
-        if gid_label is not None:
-            layout.addWidget(gid_label)
-
-        layout.addStretch(1)
-
-    def _apply_name_color(self):
-        is_dark = self.config.get("ui", "theme") == "dark"
-        color = get_cache().get_username_color(self.login, is_dark)
-        self.name_label.setStyleSheet(f"color: {color}; background: transparent;")
-
-    def apply_theme(self):
-        self._apply_name_color()
-        self._flash.is_dark_fn = lambda: (self.config.get("ui", "theme") == "dark")
-
-    def _on_name_click(self, event):
-        if event.button() == Qt.MouseButton.MiddleButton:
-            event.ignore()
-            return
-        if event.button() == Qt.MouseButton.LeftButton and self.login:
-            ctrl_pressed = bool(event.modifiers() & Qt.KeyboardModifier.ControlModifier)
-            self.filter_clicked.emit(self.login, ctrl_pressed)
-
-    def _on_badge_click(self, event):
-        if event.button() == Qt.MouseButton.MiddleButton:
-            event.ignore()
-            return
-        if event.button() == Qt.MouseButton.LeftButton and self.event_type:
-            ctrl_pressed = bool(event.modifiers() & Qt.KeyboardModifier.ControlModifier)
-            self.type_filter_clicked.emit(self.event_type, ctrl_pressed)
-
-    def mousePressEvent(self, event):
-        if event.button() == Qt.MouseButton.MiddleButton:
-            event.ignore()
-            return
-        super().mousePressEvent(event)
-
-    def resizeEvent(self, event):
-        super().resizeEvent(event)
-        self._hl_overlay.setGeometry(self.rect())
-        self._hl_overlay.raise_()
-
-    def flash(self):
-        self._hl_overlay.setGeometry(self.rect())
-        self._hl_overlay.raise_()
-        self._flash.start()
-
-    def _paint_hl_overlay(self, event):
-        painter = QPainter(self._hl_overlay)
-        self._flash.paint_overlay(painter, self._hl_overlay.rect())
-
-
 class TrackerUserChip(UserCountRow):
     """History filter chip: avatar + login + event count, orange highlight when filtered"""
 
-    delete_requested = pyqtSignal(str)  # login
+    delete_requested = pyqtSignal(str)
 
     def __init__(self, config, icons_path: Path, login: str, count: int, user_id: str = None):
         super().__init__(login, count, config, icons_path, user_id,
                           margins=(2, 0, 2, 0), filter_radius=6)
-        self.login = login  # alias kept for readability at call sites (== self.username)
+        self.login = login
         self.delete_button = create_icon_button(
             icons_path, "trash.svg", "Remove history for this user",
             size_type="small", config=config
@@ -325,11 +490,9 @@ class UserTrackerWidget(QWidget):
         self.user_tracker = user_tracker
         self.font_scaler = font_scaler
         self.user_items = []
-        self._empty_label = None
         self.filtered_logins = set()
-        self.filtered_types = set()  # empty = all types
-        self.chip_widgets = {}  # login -> TrackerUserChip
-        self._history_pinned = True  # auto-follow new events while scrolled to bottom
+        self.filtered_types = set()
+        self.chip_widgets = {}
         userlist_visible = config.get("ui", "userlist", "tracker")
         self.userlist_visible = True if userlist_visible is None else bool(userlist_visible)
         self._setup_ui()
@@ -346,6 +509,7 @@ class UserTrackerWidget(QWidget):
             item.update_font_scale()
         if self.user_items:
             self._recalculate_layout()
+        self.history_delegate.update_fonts()
 
     def _setup_ui(self):
         window_margin = self.config.get("ui", "margins", "window") or 10
@@ -435,23 +599,38 @@ class UserTrackerWidget(QWidget):
         history_row.setSpacing(6)
         history_layout.addLayout(history_row, stretch=1)
 
-        self.events_scroll = QScrollArea()
-        self.events_scroll.setWidgetResizable(True)
-        self.events_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.events_container = QWidget()
-        self.events_layout = QVBoxLayout()
-        self.events_layout.setContentsMargins(0, 0, 0, 0)
-        self.events_layout.setSpacing(1)
-        self.events_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
-        self.events_container.setLayout(self.events_layout)
-        self.events_scroll.setWidget(self.events_container)
-        history_row.addWidget(self.events_scroll, stretch=1)
+        self.history_model = TrackerEventModel()
+        self.history_proxy = TrackerEventFilterProxy()
+        self.history_proxy.setSourceModel(self.history_model)
+        self.history_delegate = TrackerEventDelegate(self.config)
 
-        self.history_scroll_buttons = ScrollButtonsPanel(self.events_scroll, parent=self.events_scroll)
-        self.history_auto_scroller = AutoScroller(self.events_scroll)
-        history_sb = self.events_scroll.verticalScrollBar()
-        history_sb.valueChanged.connect(self._on_history_scroll_value_changed)
-        history_sb.rangeChanged.connect(self._on_history_scroll_range_changed)
+        self.history_list_view = QListView()
+        self.history_list_view.setModel(self.history_proxy)
+        self.history_list_view.setItemDelegate(self.history_delegate)
+        self.history_delegate.set_list_view(self.history_list_view)
+        self.history_list_view.setVerticalScrollMode(QListView.ScrollMode.ScrollPerPixel)
+        self.history_list_view.setUniformItemSizes(True)
+        self.history_list_view.setSpacing(0)
+        self.history_list_view.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.history_list_view.setSelectionMode(QListView.SelectionMode.NoSelection)
+        self.history_list_view.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.history_list_view.setMouseTracking(True)
+        self.history_list_view.viewport().setMouseTracking(True)
+        self.history_delegate.filter_clicked.connect(self._handle_filter_click)
+        self.history_delegate.type_filter_clicked.connect(self._handle_type_filter_click)
+
+        self._empty_history_label = QLabel("No events")
+        self._empty_history_label.setFont(get_font(FontType.UI))
+        self._empty_history_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._empty_history_label.setStyleSheet("color: #888;")
+
+        self.history_stack = QStackedWidget()
+        self.history_stack.addWidget(self.history_list_view)
+        self.history_stack.addWidget(self._empty_history_label)
+        history_row.addWidget(self.history_stack, stretch=1)
+
+        self.history_scroll_buttons = ScrollButtonsPanel(self.history_list_view, parent=self)
+        self.history_auto_scroller = AutoScroller(self.history_list_view)
 
         self.filter_panel = QWidget()
         self.filter_panel.setFixedWidth(get_userlist_width())
@@ -483,7 +662,6 @@ class UserTrackerWidget(QWidget):
         self.tabs.addTab(history_page, "History")
 
     def toggle_userlist(self) -> bool:
-        """Toggle the history filter sidebar (driven by shared U button)."""
         self.userlist_visible = not self.userlist_visible
         self.config.set("ui", "userlist", "tracker", value=self.userlist_visible)
         self._update_filter_panel_visibility()
@@ -592,63 +770,23 @@ class UserTrackerWidget(QWidget):
         if self.user_items:
             QTimer.singleShot(0, self._recalculate_layout)
 
-    def _clear_events_layout(self):
-        while self.events_layout.count():
-            child = self.events_layout.takeAt(0)
-            widget = child.widget()
-            if widget:
-                widget.deleteLater()
-        self._empty_label = None
-
-    def _show_empty(self):
-        self._empty_label = QLabel("No events")
-        self._empty_label.setFont(get_font(FontType.UI))
-        self._empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._empty_label.setStyleSheet("color: #888;")
-        self._empty_label.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
-        self.events_layout.addWidget(self._empty_label)
-
-    def _on_history_scroll_value_changed(self, value: int):
-        """Track whether the user is pinned to the bottom. Only fires on an actual
-        value change (user drag or our own scroll), so it can't drift out of sync
-        while new rows are queued up faster than layout can settle."""
-        sb = self.events_scroll.verticalScrollBar()
-        self._history_pinned = (sb.maximum() - value) <= 100
-
-    def _on_history_scroll_range_changed(self, minimum: int, maximum: int):
-        """Content height changed (row added/removed) - snap to the new bottom if pinned."""
-        if self._history_pinned:
-            self.events_scroll.verticalScrollBar().setValue(maximum)
+    def _update_history_empty_state(self):
+        self.history_stack.setCurrentIndex(1 if self.history_proxy.rowCount() == 0 else 0)
 
     def _scroll_history_to_bottom(self):
-        """Explicit jump to bottom, e.g. on open/rebuild, regardless of prior scroll position."""
-        self._history_pinned = True
-        scroll(self.events_scroll, mode="bottom", delay=10)
+        scroll(self.history_list_view, mode="bottom", delay=10)
 
     def _update_info_label(self):
-        total = 0
-        shown = 0
-        for i in range(self.events_layout.count()):
-            w = self.events_layout.itemAt(i).widget()
-            if isinstance(w, EventRow):
-                total += 1
-                if w.isVisible():
-                    shown += 1
+        total = self.history_model.rowCount()
         if total == 0:
             self.info_label.setText("No events")
             return
+        shown = self.history_proxy.rowCount()
         desc = self._filter_description()
         if desc:
             self.info_label.setText(f"Showing {shown}/{total} events ({desc})")
         else:
             self.info_label.setText(f"{total} events")
-
-
-    def _make_event_row(self, event: dict) -> EventRow:
-        row = EventRow(self.config, event)
-        row.filter_clicked.connect(self._handle_filter_click)
-        row.type_filter_clicked.connect(self._handle_type_filter_click)
-        return row
 
     def _handle_filter_click(self, login: str, ctrl_pressed: bool):
         self.filtered_logins = toggle_filter_value(self.filtered_logins, login, ctrl_pressed)
@@ -657,7 +795,6 @@ class UserTrackerWidget(QWidget):
         self._update_chip_highlights()
 
     def _handle_type_filter_click(self, event_type: str, ctrl_pressed: bool):
-        """Badge click in event list — same semantics as TypeFilterBar."""
         if not event_type:
             return
         self.filtered_types = toggle_filter_value(self.filtered_types, event_type, ctrl_pressed)
@@ -695,12 +832,8 @@ class UserTrackerWidget(QWidget):
         )
 
     def _rebuild_events(self):
-        """Full teardown/rebuild - use only when the whole event list needs reloading
-        (open/refresh, clear history). Everything else updates widgets in place."""
-        self._clear_events_layout()
         events = self.user_tracker.get_events()
-        for event in events:
-            self.events_layout.addWidget(self._make_event_row(event))
+        self.history_model.set_events(events)
         self._apply_event_filter()
         if events:
             QTimer.singleShot(0, self._scroll_history_to_bottom)
@@ -708,28 +841,11 @@ class UserTrackerWidget(QWidget):
         self._update_info_label()
 
     def _apply_event_filter(self):
-        """Show/hide existing event rows in place - no widget recreation."""
-        has_visible = False
-        for i in range(self.events_layout.count()):
-            widget = self.events_layout.itemAt(i).widget()
-            if isinstance(widget, EventRow):
-                by_user = not self.filtered_logins or widget.login in self.filtered_logins
-                by_type = not self.filtered_types or widget.event_type in self.filtered_types
-                visible = by_user and by_type
-                widget.setVisible(visible)
-                has_visible = has_visible or visible
-
-        if self._empty_label is not None:
-            self.events_layout.removeWidget(self._empty_label)
-            self._empty_label.deleteLater()
-            self._empty_label = None
-        if not has_visible:
-            self._show_empty()
+        self.history_proxy.set_filters(self.filtered_logins, self.filtered_types)
+        self._update_history_empty_state()
         self._update_info_label()
 
-
     def _update_chip_highlights(self):
-        """Update filter highlight on existing chips - no widget recreation."""
         for login, chip in self.chip_widgets.items():
             chip.set_filtered(login in self.filtered_logins)
 
@@ -768,18 +884,8 @@ class UserTrackerWidget(QWidget):
         self._remove_login_from_view(login)
 
     def _remove_login_from_view(self, login: str):
-        """Remove only this login's rows/chip in place - no rebuild of the rest."""
-        has_visible = False
-        for i in reversed(range(self.events_layout.count())):
-            widget = self.events_layout.itemAt(i).widget()
-            if isinstance(widget, EventRow):
-                if widget.login == login:
-                    self.events_layout.removeWidget(widget)
-                    widget.deleteLater()
-                elif widget.isVisible():
-                    has_visible = True
-        if not has_visible and self._empty_label is None:
-            self._show_empty()
+        self.history_model.remove_login(login)
+        self._update_history_empty_state()
 
         chip = self.chip_widgets.pop(login, None)
         if chip is not None:
@@ -788,26 +894,17 @@ class UserTrackerWidget(QWidget):
         self._update_filter_panel_visibility()
         self._update_info_label()
 
-
     def append_event(self, event: dict):
-        """Row is added to a QVBoxLayout inside the scroll area; the rangeChanged
-        listener (see _setup_ui) keeps the view pinned to the bottom automatically
-        while the user is scrolled down, so no manual scroll call is needed here."""
-        if self._empty_label is not None:
-            self.events_layout.removeWidget(self._empty_label)
-            self._empty_label.deleteLater()
-            self._empty_label = None
-        row = self._make_event_row(event)
-        by_user = not self.filtered_logins or row.login in self.filtered_logins
-        by_type = not self.filtered_types or row.event_type in self.filtered_types
-        row.setVisible(by_user and by_type)
-        self.events_layout.addWidget(row)
+        sb = self.history_list_view.verticalScrollBar()
+        at_bottom = (sb.maximum() - sb.value()) <= 100
+        self.history_model.append_event(event)
+        self._update_history_empty_state()
+        if at_bottom:
+            QTimer.singleShot(0, lambda: scroll(self.history_list_view, mode="bottom", delay=50))
         self._bump_chip_count(event)
         self._update_info_label()
 
     def _bump_chip_count(self, event: dict):
-        """Update or create the one affected chip in place - no rebuild of the rest.
-        New/updated chips aren't re-sorted live; order settles on the next full rebuild."""
         login = event.get('login')
         if not login:
             return
@@ -831,53 +928,35 @@ class UserTrackerWidget(QWidget):
             self.user_tracker.clear_events()
             self._rebuild_events()
 
-
     def update_theme(self):
-        for i in range(self.events_layout.count()):
-            w = self.events_layout.itemAt(i).widget()
-            if isinstance(w, EventRow):
-                w.apply_theme()
+        self.history_delegate.update_theme()
+        self.history_list_view.viewport().update()
         for item in self.user_items:
             if hasattr(item, "apply_theme"):
                 item.apply_theme()
         self._rebuild_filter_chips()
 
     def reveal_event(self, login: str, event_ts: float = None):
-        """Switch to History, scroll to matching event, flash highlight."""
         self.tabs.setCurrentIndex(1)
-        # Clear filter so the row is visible
         if self.filtered_logins or self.filtered_types:
             self._clear_filter()
 
-        target = None
-        for i in range(self.events_layout.count()):
-            w = self.events_layout.itemAt(i).widget()
-            if not isinstance(w, EventRow):
-                continue
-            if login and w.login != login:
-                continue
-            if event_ts is not None and w.event_ts is not None:
-                if abs(float(w.event_ts) - float(event_ts)) > 0.05:
-                    continue
-            target = w
-            # prefer exact ts match; keep last matching login if no ts
-            if event_ts is not None:
-                break
-
-        if target is None:
+        source_row = self.history_model.find_row(login, event_ts)
+        if source_row is None:
             return
+        proxy_index = self.history_proxy.mapFromSource(self.history_model.index(source_row, 0))
+        if not proxy_index.isValid():
+            return
+        row = proxy_index.row()
 
-        self.events_scroll.ensureWidgetVisible(target, 0, 40)
-        # same timing idea as chatlog _scroll_and_highlight
-        QTimer.singleShot(50, lambda: self.events_scroll.ensureWidgetVisible(target, 0, 40))
-        QTimer.singleShot(200, target.flash)
+        scroll(self.history_list_view, mode="middle", target_row=row, delay=100)
+        QTimer.singleShot(250, lambda: self.history_delegate.highlight_row(row))
 
     def _apply_default_tab(self):
         tab = self.config.get("user_tracker", "default_tab") or "tracked"
         self.tabs.setCurrentIndex(1 if tab == "history" else 0)
 
     def refresh(self):
-        """Full rebuild — track/untrack from outside, settings, etc."""
         self._load_selected()
         self._rebuild_events()
         self._apply_default_tab()
@@ -886,6 +965,8 @@ class UserTrackerWidget(QWidget):
     def cleanup(self):
         for item in self.user_items:
             item.cleanup()
+        if getattr(self, "history_delegate", None):
+            self.history_delegate.cleanup()
         if getattr(self, "history_scroll_buttons", None):
             self.history_scroll_buttons.cleanup()
         if getattr(self, "history_auto_scroller", None):
