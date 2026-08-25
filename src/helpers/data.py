@@ -2,6 +2,10 @@ import os
 import platform
 from pathlib import Path
 
+from PyQt6.QtCore import QUrl
+from PyQt6.QtGui import QDesktopServices
+
+
 def get_data_dir(subdir: str = "") -> Path:
     """Return a user-accessible data directory based on OS."""
     system = platform.system()
@@ -21,3 +25,14 @@ def get_data_dir(subdir: str = "") -> Path:
 
     base_dir.mkdir(parents=True, exist_ok=True)
     return base_dir
+
+
+def open_in_file_manager(path: Path = None) -> bool:
+    """Open a folder in the OS file manager (Explorer / Finder / xdg-open).
+
+    Defaults to the app data directory (KG_Chat_Data).
+    Uses Qt QDesktopServices — works on Windows, macOS, and Linux.
+    """
+    target = Path(path) if path is not None else get_data_dir()
+    target.mkdir(parents=True, exist_ok=True)
+    return QDesktopServices.openUrl(QUrl.fromLocalFile(str(target.resolve())))

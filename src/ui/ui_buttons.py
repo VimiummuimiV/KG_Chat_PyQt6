@@ -14,6 +14,7 @@ from helpers.create import (
     set_visual_active
 )
 from helpers.scroll.scrollable_buttons import ScrollableButtonContainer
+from helpers.data import open_in_file_manager
 
 
 class ButtonPanel(QWidget):
@@ -239,6 +240,13 @@ class ButtonPanel(QWidget):
             "settings.svg",
             "Settings",
             lambda: self.show_settings_requested.emit()
+        )
+
+        # Open app data folder in the system file manager
+        self.data_folder_button = self._create_button(
+            "folder.svg",
+            "Open Data Folder (KG_Chat_Data)",
+            open_in_file_manager,
         )
 
         # Exit application button
