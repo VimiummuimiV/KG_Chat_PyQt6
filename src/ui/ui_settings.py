@@ -27,7 +27,7 @@ from helpers.fonts import (
 from helpers.startup_manager import StartupManager
 from helpers.voice_engine import play_sound
 from helpers.data import get_data_dir
-from helpers.color_utils import blend_hex_colors
+from helpers.color_utils import blend_hex_colors, tinted_chip_colors
 from helpers.browser import get_available_browsers
 
 NOTIFICATION_WIDTH_DEFAULT = 550
@@ -745,16 +745,16 @@ class SettingsWidget(QWidget):
         label.setFont(get_font(FontType.UI))
         row.addWidget(label, stretch=1)
 
-        self.hotkey_status_dot = ClickableLabel("●")
-        self.hotkey_status_dot.setFixedWidth(16)
-        self.hotkey_status_dot.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.hotkey_status_dot = ClickableLabel()
+        self.hotkey_status_dot.setObjectName("hotkeyStatusDot")
+        self.hotkey_status_dot.setFixedSize(10, 10)
         self.hotkey_status_dot.clicked.connect(self._on_hotkey_status_clicked)
-        row.addWidget(self.hotkey_status_dot)
+        row.addWidget(self.hotkey_status_dot, 0, Qt.AlignmentFlag.AlignVCenter)
         row.addSpacing(4)
 
         self.hotkey_button = QPushButton()
         self.hotkey_button.setFont(get_font(FontType.UI))
-        self.hotkey_button.setFixedWidth(200)
+        self.hotkey_button.setFixedWidth(180)
         self.hotkey_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.hotkey_button.clicked.connect(self._on_hotkey_record_clicked)
         row.addWidget(self.hotkey_button)
@@ -808,7 +808,12 @@ class SettingsWidget(QWidget):
         color = hotkey.STATUS_COLORS.get(status, hotkey.STATUS_COLORS[hotkey.STATUS_DISABLED])
         tooltip = detail or hotkey.STATUS_TOOLTIPS.get(status, "")
         can_retry = status != hotkey.STATUS_ACTIVE
-        self.hotkey_status_dot.setStyleSheet(f"color: {color};")
+        is_dark = (self.config.get("ui", "theme") or "dark") == "dark"
+        tooltip_bg, tooltip_fg, tooltip_border = tinted_chip_colors(color, is_dark)
+        self.hotkey_status_dot.setStyleSheet(
+            f"#hotkeyStatusDot {{ background-color: {color}; border-radius: 5px; }}"
+            f"QToolTip {{ background-color: {tooltip_bg}; color: {tooltip_fg}; border: 1px solid {tooltip_border}; }}"
+        )
         self.hotkey_status_dot.setToolTip(tooltip + " (click to retry)" if can_retry else tooltip)
         self.hotkey_status_dot.setCursor(
             Qt.CursorShape.PointingHandCursor if can_retry else Qt.CursorShape.ArrowCursor

@@ -102,5 +102,10 @@
   "662448": {"login": "viter114", "background": "#777777", "light": "#767676", "dark": "#858585"},
   "309173": {"login": "gree", "background": "#FF0000", "light": "#ee0000", "dark": "#ff2e2e"},
   "642748": {"login": "neverspeed", "background": "#777777", "light": "#767676", "dark": "#858585"},
-  "693686": {"login": "tws", "background": "#777777", "light": "#767676", "dark": "#858585"}
+  "693686": {"login": "tws", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "840288": {"login": "ЗАЧИНЩИКСОБЫТИЙ", "background": "#D35F0C", "light": "#c2570b", "dark": "#d9620c"},
+  "840152": {"login": "card", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "842475": {"login": "chibruk", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "773102": {"login": "LordHelios", "background": "#FF0400", "light": "#ee0400", "dark": "#ff2e2a"},
+  "601350": {"login": "Lapex", "background": "#777777", "light": "#767676", "dark": "#858585"}
 }
