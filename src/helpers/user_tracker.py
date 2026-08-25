@@ -4,6 +4,8 @@ import time
 from pathlib import Path
 from typing import Dict, List, Optional
 
+from core.presence_db import PresenceDB
+
 
 EVENT_TYPES = ("join", "left", "game")
 
@@ -14,9 +16,9 @@ class UserTracker:
     def __init__(self, data_path: Path, config):
         self.file_path = data_path / "tracked.json"
         self.config = config
+        self.db = PresenceDB()
         self.selected: Dict[str, str] = {}
         self.frozen: set = set()
-        self.events: List[dict] = []
         self._last_state: Dict[str, str] = {}
         self._last_game: Dict[str, Optional[str]] = {}
         self.load()
@@ -24,43 +26,37 @@ class UserTracker:
     def load(self):
         if self.file_path.exists():
             try:
-                with open(self.file_path, 'r', encoding='utf-8') as f:
+                with open(self.file_path, "r", encoding="utf-8") as f:
                     data = json.load(f)
-                self.selected = data.get('selected', {}) or {}
-                self.frozen = set(str(x) for x in (data.get('frozen') or []))
-                self.events = data.get('events', []) or []
-                self.prune()
-                self._rebuild_last_state()
+                self.selected = data.get("selected", {}) or {}
+                self.frozen = set(str(x) for x in (data.get("frozen") or []))
             except Exception as e:
                 print(f"Error loading user tracker: {e}")
                 self.selected = {}
                 self.frozen = set()
-                self.events = []
-                self._last_state = {}
-                self._last_game = {}
         else:
             self.selected = {}
             self.frozen = set()
-            self.events = []
-            self._last_state = {}
-            self._last_game = {}
+
+        self.prune(save=False)
+        self._rebuild_last_state()
 
     def _rebuild_last_state(self):
         self._last_state = {}
         self._last_game = {}
-        for event in self.events:
-            key = self._key(event.get('user_id'), event.get('login'))
+        for event in self.db.get_events(self._cutoff()):
+            key = self._key(event.get("user_id"), event.get("login"))
             if not key:
                 continue
-            et = event.get('type') or ''
-            if et == 'left':
-                self._last_state[key] = 'left'
+            et = event.get("type") or ""
+            if et == "left":
+                self._last_state[key] = "left"
                 self._last_game[key] = None
-            elif et == 'join':
-                self._last_state[key] = 'join'
-            elif et == 'game':
-                self._last_state[key] = 'join'
-                self._last_game[key] = str(event['game_id']) if event.get('game_id') else None
+            elif et == "join":
+                self._last_state[key] = "join"
+            elif et == "game":
+                self._last_state[key] = "join"
+                self._last_game[key] = str(event["game_id"]) if event.get("game_id") else None
 
     def _key(self, user_id: str = None, login: str = None) -> str:
         uid = str(user_id) if user_id else None
@@ -75,17 +71,18 @@ class UserTracker:
             return f"login:{login}"
         return ""
 
+    def _cutoff(self) -> float:
+        return time.time() - self.retention_hours() * 3600
+
     def save(self):
+        """Persist selected/frozen only (events live in SQLite)."""
         try:
-            if self.events:
-                lines = ",\n".join("    " + json.dumps(e, ensure_ascii=False) for e in self.events)
-                events_json = f"[\n{lines}\n  ]"
-            else:
-                events_json = "[]"
-            data = {'selected': self.selected, 'frozen': sorted(self.frozen), 'events': '__EVENTS__'}
-            content = json.dumps(data, indent=2, ensure_ascii=False).replace('"__EVENTS__"', events_json)
-            with open(self.file_path, 'w', encoding='utf-8') as f:
-                f.write(content)
+            data = {
+                "selected": self.selected,
+                "frozen": sorted(self.frozen),
+            }
+            with open(self.file_path, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2, ensure_ascii=False)
         except Exception as e:
             print(f"Error saving user tracker: {e}")
 
@@ -183,14 +180,14 @@ class UserTracker:
 
     def _append(self, user_id: str, login: str, event_type: str, game_id: str = None) -> dict:
         event = {
-            'user_id': str(user_id) if user_id else '',
-            'login': login,
-            'type': event_type,
-            'ts': time.time(),
+            "user_id": str(user_id) if user_id else "",
+            "login": login,
+            "type": event_type,
+            "timestamp": time.time(),
         }
         if game_id:
-            event['game_id'] = str(game_id)
-        self.events.append(event)
+            event["game_id"] = str(game_id)
+        self.db.insert(event)
         return event
 
     def record_event(self, user_id: str, login: str, event_type: str,
@@ -213,63 +210,58 @@ class UserTracker:
         last = self._last_state.get(key)
         event = None
 
+        tracked = self.tracked_event_types()
         if et == "left":
             if last == "left":
                 return None
-            event = self._append(user_id, login, "left")
             self._last_state[key] = "left"
             self._last_game[key] = None
+            if "left" not in tracked:
+                return None
+            event = self._append(user_id, login, "left")
         else:
             if last != "join":
                 if new_gid:
-                    event = self._append(user_id, login, "game", game_id=new_gid)
+                    write_type = "game"
                 else:
-                    event = self._append(user_id, login, "join")
+                    write_type = "join"
                 self._last_state[key] = "join"
                 self._last_game[key] = new_gid
+                if write_type not in tracked:
+                    return None
+                event = self._append(user_id, login, write_type, game_id=new_gid if new_gid else None)
             elif new_gid and new_gid != old_gid:
-                event = self._append(user_id, login, "game", game_id=new_gid)
                 self._last_game[key] = new_gid
+                if "game" not in tracked:
+                    return None
+                event = self._append(user_id, login, "game", game_id=new_gid)
             else:
                 if new_gid is None and old_gid:
                     self._last_game[key] = None
                 return None
 
         if event:
-            if event.get("type") not in self.tracked_event_types():
-                # State already updated; drop the event from history
-                if self.events and self.events[-1] is event:
-                    self.events.pop()
-                return None
             self.prune(save=False)
-            self.save()
         return event
 
     def get_events(self) -> List[dict]:
-        self.prune()
-        return list(self.events)
+        self.prune(save=False)
+        return self.db.get_events(self._cutoff())
 
     def remove_user_events(self, login: str) -> int:
         """Remove all history events for a given login. Returns number of removed events."""
-        before = len(self.events)
-        self.events = [e for e in self.events if e.get('login') != login]
-        removed = before - len(self.events)
+        removed = self.db.delete_by_login(login)
         if removed:
             self._rebuild_last_state()
-            self.save()
         return removed
 
     def clear_events(self):
-        self.events.clear()
+        self.db.clear()
         self._last_state.clear()
         self._last_game.clear()
-        self.save()
 
     def prune(self, save: bool = True):
-        cutoff = time.time() - self.retention_hours() * 3600
-        before = len(self.events)
-        self.events = [e for e in self.events if e.get('ts', 0) >= cutoff]
-        if len(self.events) != before:
+        cutoff = self._cutoff()
+        removed = self.db.prune(cutoff)
+        if removed:
             self._rebuild_last_state()
-            if save:
-                self.save()

@@ -30,7 +30,7 @@ class ChatlogDB:
         
         self.db_path = db_path
         self._local = threading.local()
-        self._write_lock = threading.Lock()  # Lock for write operations
+        self._write_lock = threading.Lock()
         self._initialize_db()
     
     @contextmanager
