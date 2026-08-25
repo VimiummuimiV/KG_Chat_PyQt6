@@ -27,12 +27,15 @@ def get_data_dir(subdir: str = "") -> Path:
     return base_dir
 
 
-def open_in_file_manager(path: Path = None) -> bool:
+def open_in_file_manager(path: Path | str | None = None) -> bool:
     """Open a folder in the OS file manager (Explorer / Finder / xdg-open).
 
     Defaults to the app data directory (KG_Chat_Data).
     Uses Qt QDesktopServices — works on Windows, macOS, and Linux.
     """
-    target = Path(path) if path is not None else get_data_dir()
+    if path is None or not isinstance(path, (str, os.PathLike)):
+        target = get_data_dir()
+    else:
+        target = Path(path)
     target.mkdir(parents=True, exist_ok=True)
     return QDesktopServices.openUrl(QUrl.fromLocalFile(str(target.resolve())))

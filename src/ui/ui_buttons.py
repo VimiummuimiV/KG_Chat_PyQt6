@@ -246,7 +246,7 @@ class ButtonPanel(QWidget):
         self.data_folder_button = self._create_button(
             "folder.svg",
             "Open Data Folder (KG_Chat_Data)",
-            open_in_file_manager,
+            lambda: open_in_file_manager(),
         )
 
         # Exit application button
