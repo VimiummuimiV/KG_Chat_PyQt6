@@ -82,7 +82,7 @@ class TrackerEventModel(QAbstractListModel):
             if login and event.get('login') != login:
                 continue
             if event_ts is not None:
-                ts = event.get('ts')
+                ts = event.get('timestamp')
                 if ts is None or abs(float(ts) - float(event_ts)) > 0.05:
                     continue
             target = row
@@ -218,7 +218,7 @@ class TrackerEventDelegate(QStyledItemDelegate):
         y = option.rect.y()
         h = option.rect.height()
 
-        ts = event.get('ts', 0)
+        ts = event.get('timestamp', 0)
         try:
             time_text = datetime.fromtimestamp(ts).strftime("%H:%M:%S")
         except Exception:
