@@ -7,12 +7,13 @@ from pathlib import Path
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QScrollArea,
     QCheckBox, QComboBox, QSpinBox, QSlider, QMessageBox, QTextEdit,
-    QApplication, QInputDialog, QFileDialog, QToolButton
+    QApplication, QInputDialog, QFileDialog, QToolButton, QPushButton
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QTimer
 
 from helpers.create import create_icon_button
 from components.presence_badge import TypeFilterBar, EVENT_TYPES
+from helpers import hotkey_manager as hotkey
 from helpers.fonts import (
     get_font,
     FontType,
@@ -172,6 +173,17 @@ class NoWheelComboBox(QComboBox):
 
     def wheelEvent(self, event):
         event.ignore()
+
+
+class ClickableLabel(QLabel):
+    """QLabel that emits clicked() on left-click."""
+
+    clicked = pyqtSignal()
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.clicked.emit()
+        super().mousePressEvent(event)
 
 
 class SoundSelectorWidget(QWidget):
@@ -480,9 +492,11 @@ class SettingsWidget(QWidget):
         self.font_scaler = font_scaler
         self.startup_manager = StartupManager()
         self._competitions_accent_color = None
+        self._hotkey_capture = None
 
         self._setup_ui()
         self.refresh()
+        hotkey.hotkey_manager.status_changed.connect(self._on_hotkey_status_changed)
 
     # ------------------------------------------------------------------ #
     # Layout helpers
@@ -721,6 +735,89 @@ class SettingsWidget(QWidget):
             section, "Open links in", [], self._on_browser_changed
         )
         self.browser_combo.setFixedWidth(240)
+        self._add_hotkey_row(section, "Toggle chat window")
+
+    def _add_hotkey_row(self, section_layout: QVBoxLayout, label_text: str):
+        row = QHBoxLayout()
+        row.setSpacing(self._spacing())
+
+        label = QLabel(label_text)
+        label.setFont(get_font(FontType.UI))
+        row.addWidget(label, stretch=1)
+
+        self.hotkey_status_dot = ClickableLabel("●")
+        self.hotkey_status_dot.setFixedWidth(16)
+        self.hotkey_status_dot.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.hotkey_status_dot.clicked.connect(self._on_hotkey_status_clicked)
+        row.addWidget(self.hotkey_status_dot)
+        row.addSpacing(4)
+
+        self.hotkey_button = QPushButton()
+        self.hotkey_button.setFont(get_font(FontType.UI))
+        self.hotkey_button.setFixedWidth(200)
+        self.hotkey_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.hotkey_button.clicked.connect(self._on_hotkey_record_clicked)
+        row.addWidget(self.hotkey_button)
+
+        self.hotkey_reset_button = create_icon_button(
+            self.icons_path, "reload.svg", "Reset to default", size_type="small", config=self.config
+        )
+        self.hotkey_reset_button.clicked.connect(self._on_hotkey_reset_clicked)
+        row.addWidget(self.hotkey_reset_button)
+
+        section_layout.addLayout(row)
+
+    def _current_hotkey(self) -> str:
+        return self.config.get("hotkey", "combo") or hotkey.DEFAULT_HOTKEY
+
+    def _refresh_hotkey_row(self):
+        combo = self._current_hotkey()
+        self.hotkey_button.setText(hotkey.display_hotkey(combo))
+        self.hotkey_reset_button.setEnabled(combo != hotkey.DEFAULT_HOTKEY)
+        self._on_hotkey_status_changed(hotkey.hotkey_manager.status, "")
+
+    def _on_hotkey_record_clicked(self):
+        if self._hotkey_capture is not None:
+            return
+        self.hotkey_button.setText("Press keys…")
+        self.hotkey_button.setEnabled(False)
+        self.hotkey_reset_button.setEnabled(False)
+        self._hotkey_capture = hotkey.HotkeyCapture()
+        self._hotkey_capture.captured.connect(self._on_hotkey_captured)
+        self._hotkey_capture.cancelled.connect(self._on_hotkey_capture_cancelled)
+        self._hotkey_capture.start()
+
+    def _on_hotkey_captured(self, combo: str):
+        self._hotkey_capture = None
+        self.hotkey_button.setEnabled(True)
+        self.config.set("hotkey", "combo", value=combo)
+        hotkey.hotkey_manager.register(combo)
+        self._refresh_hotkey_row()
+
+    def _on_hotkey_capture_cancelled(self):
+        self._hotkey_capture = None
+        self.hotkey_button.setEnabled(True)
+        self._refresh_hotkey_row()
+
+    def _on_hotkey_reset_clicked(self):
+        self.config.set("hotkey", "combo", value=hotkey.DEFAULT_HOTKEY)
+        hotkey.hotkey_manager.register(hotkey.DEFAULT_HOTKEY)
+        self._refresh_hotkey_row()
+
+    def _on_hotkey_status_changed(self, status: str, detail: str):
+        color = hotkey.STATUS_COLORS.get(status, hotkey.STATUS_COLORS[hotkey.STATUS_DISABLED])
+        tooltip = detail or hotkey.STATUS_TOOLTIPS.get(status, "")
+        can_retry = status != hotkey.STATUS_ACTIVE
+        self.hotkey_status_dot.setStyleSheet(f"color: {color};")
+        self.hotkey_status_dot.setToolTip(tooltip + " (click to retry)" if can_retry else tooltip)
+        self.hotkey_status_dot.setCursor(
+            Qt.CursorShape.PointingHandCursor if can_retry else Qt.CursorShape.ArrowCursor
+        )
+
+    def _on_hotkey_status_clicked(self):
+        if hotkey.hotkey_manager.status == hotkey.STATUS_ACTIVE:
+            return
+        hotkey.hotkey_manager.register(self._current_hotkey())
 
     def _build_fonts_section(self):
         section = self._create_section("🅰️ Fonts")
@@ -1054,6 +1151,8 @@ class SettingsWidget(QWidget):
         idx = self.browser_combo.findData(current_browser)
         self.browser_combo.setCurrentIndex(idx if idx >= 0 else 0)
         self.browser_combo.blockSignals(False)
+
+        self._refresh_hotkey_row()
 
         families = get_available_font_families() or ["Roboto"]
         for combo, kind in (

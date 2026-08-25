@@ -130,7 +130,7 @@
     "settings": {
       "sections": {
         "startup": true,
-        "chat": true,
+        "chat": false,
         "fonts": true,
         "notifications": true,
         "competitions": true,
@@ -235,5 +235,8 @@
     "remember": true,
     "saved": [],
     "random_name_length": 10
+  },
+  "hotkey": {
+    "combo": "win+c"
   }
 }

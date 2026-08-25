@@ -1,7 +1,5 @@
 import sys
 import ctypes
-import time
-import keyboard
 from pathlib import Path
 from PyQt6.QtWidgets import(
     QWidget, QApplication, QSystemTrayIcon,
@@ -37,6 +35,7 @@ from helpers.pronunciation_manager import PronunciationManager
 from helpers.ban_manager import BanManager
 from helpers.user_tracker import UserTracker
 from helpers.font_scaler import FontScaler
+from helpers import hotkey_manager as hotkey
 from core.accounts import AccountManager
 from components.tray_badge import TrayIconWithBadge
 from components.notification import popup_manager
@@ -50,8 +49,6 @@ class Application(QObject):
         super().__init__()
         self.app = QApplication(sys.argv)
         self.toggle_signal.connect(self.toggle_chat_visibility)
-        self.hotkey = None
-        self.last_hotkey_time = 0  # Add debounce tracking
         self.is_initial_launch = True
 
         # Set Windows taskbar icon (must be done before any windows are created)
@@ -404,11 +401,7 @@ class Application(QObject):
 
     def exit_application(self):
         """Exit the application completely"""
-        # Unhook keyboard listener
-        try:
-            keyboard.unhook_all()
-        except Exception:
-            pass
+        hotkey.hotkey_manager.unregister()
 
         # Mark chat window as really closing immediately to avoid auto-reconnect races
         if self.chat_window:
@@ -619,39 +612,14 @@ class Application(QObject):
         self.chat_window.show_ban_list_view()
 
     def setup_global_hotkey(self):
-        """Register cross-platform global hotkey (Super/Win/Cmd + C)"""
-        try:
-            keyboard.on_press(self._on_key_press)
-            print(f"✅ Global hotkey registered: Win/Cmd + C")
-            return True
-        except Exception as e:
-            print(f"⚠️ Failed to register global hotkey: {e}")
-            return False
+        """Register the show/hide hotkey using the combo saved in settings (or the default)."""
+        hotkey.hotkey_manager.activated.connect(self._on_hotkey_activated)
+        combo = self.config.get("hotkey", "combo") or hotkey.DEFAULT_HOTKEY
+        hotkey.hotkey_manager.register(combo)
 
-    def _on_key_press(self, event):
-        """Handle Win/Cmd + C hotkey"""
-        if event.name.lower() != 'c':
-            return
-            
-        try:
-            mod = 'command' if sys.platform == 'darwin' else 'super'
-            if sys.platform == 'win32':
-                win_pressed = any(ctypes.windll.user32.GetAsyncKeyState(vk) & 0x8000 for vk in [0x5B, 0x5C])
-                if not win_pressed or any(ctypes.windll.user32.GetAsyncKeyState(vk) & 0x8000 for vk in [0x12, 0x11, 0x10]):
-                    return
-            elif not keyboard.is_pressed(mod) or any(keyboard.is_pressed(k) for k in ['alt', 'ctrl', 'shift']):
-                return
-            
-            # Debounce (150ms)
-            current_time = time.time()
-            if current_time - self.last_hotkey_time < 0.15:
-                return
-            self.last_hotkey_time = current_time
-            
-            # Thread-safe toggle
-            QMetaObject.invokeMethod(self, "toggle_chat_visibility", Qt.ConnectionType.QueuedConnection)
-        except Exception as e:
-            print(f"⚠️ Hotkey error: {e}")
+    def _on_hotkey_activated(self):
+        """Handle the global show/hide hotkey, called on the Qt thread."""
+        QMetaObject.invokeMethod(self, "toggle_chat_visibility", Qt.ConnectionType.QueuedConnection)
 
     @pyqtSlot()
     def toggle_chat_visibility(self, ignore_active=False):
