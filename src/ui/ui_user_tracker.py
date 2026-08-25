@@ -13,7 +13,7 @@ from PyQt6.QtCore import (
     QModelIndex, QSize, QRect, QEvent
 )
 from PyQt6.QtSvg import QSvgRenderer
-from PyQt6.QtGui import QPixmap, QPainter, QFontMetrics, QColor, QCursor
+from PyQt6.QtGui import QPixmap, QPainter, QPen, QFontMetrics, QColor, QCursor
 
 from helpers.create import create_icon_button, set_visual_active
 from helpers.fonts import (
@@ -235,15 +235,23 @@ class TrackerEventDelegate(QStyledItemDelegate):
         x += ts_width + self.spacing
 
         event_type = event.get('type', '') or ''
-        badge_text, badge_bg, badge_fg = presence_badge_style(event_type)
+        badge_text, badge_bg, badge_fg, badge_border = presence_badge_style(
+            event_type, self.is_dark_theme
+        )
         painter.setFont(self.badge_font)
         badge_fm = QFontMetrics(self.badge_font)
         badge_width = badge_fm.horizontalAdvance(badge_text) + 12
         badge_height = badge_fm.height() + 6
         badge_rect = QRect(x, y + (h - badge_height) // 2, badge_width, badge_height)
-        painter.setPen(Qt.PenStyle.NoPen)
+        border_width = 2
+        inset = border_width // 2
+        pen = QPen(QColor(badge_border))
+        pen.setWidth(border_width)
+        painter.setPen(pen)
         painter.setBrush(QColor(badge_bg))
-        painter.drawRoundedRect(badge_rect, 4, 4)
+        painter.drawRoundedRect(
+            badge_rect.adjusted(inset, inset, -inset, -inset), 4, 4
+        )
         painter.setPen(QColor(badge_fg))
         painter.drawText(badge_rect, Qt.AlignmentFlag.AlignCenter, badge_text)
         self.click_rects[row]['badge'] = badge_rect
@@ -672,7 +680,8 @@ class UserTrackerWidget(QWidget):
         self.filter_scroll.setWidget(filter_container)
         filter_panel_layout.addWidget(self.filter_scroll, stretch=1)
 
-        self.type_filter_bar = TypeFilterBar(empty_means_all=True)
+        theme = self.config.get("ui", "theme") or "dark"
+        self.type_filter_bar = TypeFilterBar(empty_means_all=True, is_dark=(theme == "dark"))
         self.type_filter_bar.changed.connect(self._on_type_filter_changed)
         filter_panel_layout.addWidget(self.type_filter_bar)
 
@@ -960,6 +969,8 @@ class UserTrackerWidget(QWidget):
         for item in self.user_items:
             if hasattr(item, "apply_theme"):
                 item.apply_theme()
+        theme = self.config.get("ui", "theme") or "dark"
+        self.type_filter_bar.update_theme(theme == "dark")
         self._rebuild_filter_chips()
 
     def reveal_event(self, login: str, event_ts: float = None):

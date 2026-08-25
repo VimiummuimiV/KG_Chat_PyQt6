@@ -945,7 +945,8 @@ class SettingsWidget(QWidget):
         events_label = QLabel("Track events:")
         events_label.setFont(get_font(FontType.UI))
         events_row.addWidget(events_label)
-        self.tracker_events_bar = TypeFilterBar(empty_means_all=False)
+        theme = self.config.get("ui", "theme") or "dark"
+        self.tracker_events_bar = TypeFilterBar(empty_means_all=False, is_dark=(theme == "dark"))
         self.tracker_events_bar.changed.connect(self._on_tracker_events_changed)
         events_row.addWidget(self.tracker_events_bar, stretch=1)
         section.addLayout(events_row)
@@ -1541,6 +1542,9 @@ class SettingsWidget(QWidget):
 
     def update_theme(self):
         """Re-apply theme-dependent colors after a theme toggle (competitions log + font preview)."""
+        theme = self.config.get("ui", "theme") or "dark"
+        if hasattr(self, "tracker_events_bar"):
+            self.tracker_events_bar.update_theme(theme == "dark")
         self._apply_font_preview_theme()
         if not hasattr(self, "competitions_log"):
             return

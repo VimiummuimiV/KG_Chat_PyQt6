@@ -497,11 +497,10 @@ class MessageRenderer(QObject):
     PRESENCE_NAME_GAP = 8
     PRESENCE_LAST_DOT = 6
 
-    @staticmethod
-    def _presence_badge(event_type: str, count: int, is_last: bool = False):
-        label, bg, fg = presence_badge_style(event_type)
+    def _presence_badge(self, event_type: str, count: int, is_last: bool = False):
+        label, bg, fg, border = presence_badge_style(event_type, self.is_dark_theme)
         text = label if count == 1 else f"{label} {count}"
-        return text, bg, fg
+        return text, bg, fg, border
 
     def _presence_line_height(self, fm: QFontMetrics = None) -> int:
         fm = fm or QFontMetrics(self.body_font)
@@ -515,7 +514,7 @@ class MessageRenderer(QObject):
             count = entry.get('counts', {}).get(event_type)
             if not count:
                 continue
-            text, _, _ = self._presence_badge(event_type, count)
+            text, _, _, _ = self._presence_badge(event_type, count)
             w += fm.horizontalAdvance(text) + self.PRESENCE_BADGE_PAD_X + self.PRESENCE_BADGE_GAP
             if event_type == last:
                 w += dot + 4
@@ -575,15 +574,21 @@ class MessageRenderer(QObject):
                 count = entry.get('counts', {}).get(event_type)
                 if not count:
                     continue
-                text, bg, fg = self._presence_badge(event_type, count)
+                text, bg, fg, border = self._presence_badge(event_type, count)
                 text_w = fm.horizontalAdvance(text)
                 is_last = event_type == last
                 bw = text_w + self.PRESENCE_BADGE_PAD_X + (dot + 4 if is_last else 0)
                 badge_rect = QRect(cx, cy + (line_h - badge_h) // 2, bw, badge_h)
 
-                painter.setPen(Qt.PenStyle.NoPen)
+                border_width = 2
+                inset = border_width // 2
+                pen = QPen(QColor(border))
+                pen.setWidth(border_width)
+                painter.setPen(pen)
                 painter.setBrush(QColor(bg))
-                painter.drawRoundedRect(badge_rect, 4, 4)
+                painter.drawRoundedRect(
+                    badge_rect.adjusted(inset, inset, -inset, -inset), 4, 4
+                )
 
                 painter.setPen(QColor(fg))
                 painter.drawText(
@@ -594,6 +599,7 @@ class MessageRenderer(QObject):
                 )
 
                 if is_last:
+                    painter.setPen(Qt.PenStyle.NoPen)
                     painter.setBrush(QColor(fg))
                     painter.drawEllipse(
                         badge_rect.right() - dot - 4,

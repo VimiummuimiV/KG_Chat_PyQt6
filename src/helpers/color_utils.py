@@ -135,8 +135,8 @@ RANK_LEVEL_COLORS = {
 }
 
 
-# dark/light knobs for get_rank_chip_colors
-_RANK_CHIP_THEME = {
+# dark/light knobs for tinted chips (rank / presence badges)
+_CHIP_THEME = {
     True: dict(
         canvas="#141414",
         bg_a=0.22,
@@ -154,21 +154,24 @@ _RANK_CHIP_THEME = {
 }
 
 
-def get_rank_chip_colors(level, is_dark: bool) -> tuple:
-    """Return (bg_hex, fg_hex, border_hex) for a player chip.
+def tinted_chip_colors(base_hex: str, is_dark: bool) -> tuple:
+    """Return (bg_hex, fg_hex, border_hex) from a base accent color.
 
-    Dark theme: muted tinted fill, full-intensity rank text, mid border.
-    Colors are pre-calibrated for equal perceived lightness.
+    Muted tinted fill, full-intensity text, mid-strength border.
     """
+    h, s, l = rgb_to_hsl(hex_to_rgb(base_hex))
+    t = _CHIP_THEME[is_dark]
+    bg = blend_hex_colors(t["canvas"], base_hex, t["bg_a"])
+    border = blend_hex_colors(t["canvas"], base_hex, t["bd_a"])
+    fg = rgb_to_hex(hsl_to_rgb((h, min(1.0, s * t["s_mul"]), t["l"](l))))
+    return bg, fg, border
+
+
+def get_rank_chip_colors(level, is_dark: bool) -> tuple:
+    """Return (bg_hex, fg_hex, border_hex) for a player chip."""
     try:
         level = int(level)
     except (TypeError, ValueError):
         level = None
     base = RANK_LEVEL_COLORS.get(level, "#888888")
-    h, s, l = rgb_to_hsl(hex_to_rgb(base))
-
-    t = _RANK_CHIP_THEME[is_dark]
-    bg = blend_hex_colors(t["canvas"], base, t["bg_a"])
-    border = blend_hex_colors(t["canvas"], base, t["bd_a"])
-    fg = rgb_to_hex(hsl_to_rgb((h, min(1.0, s * t["s_mul"]), t["l"](l))))
-    return bg, fg, border
+    return tinted_chip_colors(base, is_dark)

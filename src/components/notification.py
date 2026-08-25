@@ -896,7 +896,8 @@ class PresenceMiniPopup(_AutoHidePopupMixin, QWidget):
         ts.setStyleSheet("color: #888;")
         layout.addWidget(ts)
 
-        layout.addWidget(make_presence_badge(event_type))
+        is_dark = (config.get("ui", "theme") == "dark") if config else True
+        layout.addWidget(make_presence_badge(event_type, is_dark=is_dark))
 
         gid = make_game_id_label(event_type, game_id)
         if gid is not None:
@@ -905,7 +906,6 @@ class PresenceMiniPopup(_AutoHidePopupMixin, QWidget):
         name = QLabel(f"<b>{login}</b>")
         name.setFont(get_font(FontType.TEXT))
         name.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-        is_dark = (config.get("ui", "theme") == "dark") if config else True
         if cache is not None:
             username_color = cache.get_username_color(login, is_dark)
         else:

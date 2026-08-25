@@ -3,25 +3,34 @@ from typing import Optional, Tuple, Iterable, Set
 from PyQt6.QtWidgets import QLabel, QGraphicsOpacityEffect, QWidget, QHBoxLayout
 from PyQt6.QtCore import Qt, pyqtSignal
 from helpers.fonts import get_font, FontType
+from helpers.color_utils import tinted_chip_colors, hex_to_rgb, rgb_to_hsl, hsl_to_rgb, rgb_to_hex
 
-# text, background, foreground — single source for pills and counters
+# text, base accent color — bg/fg/border derived via tinted_chip_colors
 _STYLES = {
-    "join": ("JOIN", "#2d6a4f", "#d8f3dc"),
-    "left": ("LEFT", "#6a2d2d", "#f3d8d8"),
-    "game": ("GAME", "#1d4e89", "#cfe2ff"),
+    "join": ("JOIN", "#2d6a4f"),
+    "left": ("LEFT", "#6a2d2d"),
+    "game": ("GAME", "#1d4e89"),
 }
 
 EVENT_TYPES = ("join", "left", "game")
 
 
-def presence_badge_style(event_type: str) -> Tuple[str, str, str]:
-    return _STYLES.get(event_type, _STYLES["left"])
+def _lighten_hex(base_hex: str, lightness: float = 0.90) -> str:
+    h, s, _ = rgb_to_hsl(hex_to_rgb(base_hex))
+    return rgb_to_hex(hsl_to_rgb((h, min(1.0, s * 0.55), lightness)))
 
 
-def _pill_css(bg: str, fg: str) -> str:
+def presence_badge_style(event_type: str, is_dark: bool = True) -> Tuple[str, str, str, str]:
+    """Return (text, bg, fg, border) for a presence badge."""
+    text, base = _STYLES.get(event_type, _STYLES["left"])
+    bg, fg, border = tinted_chip_colors(base, is_dark)
+    return text, bg, fg, border
+
+
+def _pill_css(bg: str, fg: str, border: str) -> str:
     return (
         f"QLabel {{ background: {bg}; color: {fg}; border-radius: 4px; "
-        f"padding: 2px 6px; border: none; }}"
+        f"padding: 2px 6px; border: 2px solid {border}; }}"
     )
 
 
@@ -32,19 +41,20 @@ def _counter_css(bg: str, fg: str, font_size: int = 9) -> str:
     )
 
 
-def make_presence_badge(event_type: str) -> QLabel:
-    text, bg, fg = presence_badge_style(event_type)
+def make_presence_badge(event_type: str, is_dark: bool = True) -> QLabel:
+    text, bg, fg, border = presence_badge_style(event_type, is_dark)
     badge = QLabel(text)
     badge.setFont(get_font(FontType.UI))
     badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
-    badge.setStyleSheet(_pill_css(bg, fg))
+    badge.setStyleSheet(_pill_css(bg, fg, border))
     return badge
 
 
-def apply_counter_style(label: QLabel, event_type: str = "join", font_size: int = 9):
-    """Style a small unread counter with the same palette as presence badges."""
-    _, bg, fg = presence_badge_style(event_type or "join")
-    label.setStyleSheet(_counter_css(bg, fg, max(8, min(18, int(font_size)))))
+def apply_counter_style(label: QLabel, event_type: str = "join", font_size: int = 9,
+                        is_dark: bool = True):
+    """Style the small unread counter with solid base fill and lightened text."""
+    _, base = _STYLES.get(event_type or "join", _STYLES["join"])
+    label.setStyleSheet(_counter_css(base, _lighten_hex(base), max(8, min(18, int(font_size)))))
 
 
 def toggle_filter_value(current: Set[str], value: str, ctrl_pressed: bool, always_multi: bool = False) -> Set[str]:
@@ -73,15 +83,16 @@ class TypeFilterBadge(QLabel):
     """Colored JOIN/LEFT/GAME pill toggle."""
     clicked = pyqtSignal(str, bool)  # event_type, ctrl_pressed
 
-    def __init__(self, event_type: str):
-        text, bg, fg = presence_badge_style(event_type)
+    def __init__(self, event_type: str, is_dark: bool = True):
+        text, bg, fg, border = presence_badge_style(event_type, is_dark)
         super().__init__(text)
         self.event_type = event_type
         self._active = False
+        self._is_dark = is_dark
         self.setFont(get_font(FontType.UI))
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.setStyleSheet(_pill_css(bg, fg))
+        self.setStyleSheet(_pill_css(bg, fg, border))
         set_badge_active(self, False)
 
     def set_active(self, active: bool):
@@ -90,6 +101,11 @@ class TypeFilterBadge(QLabel):
 
     def is_active(self) -> bool:
         return self._active
+
+    def update_theme(self, is_dark: bool):
+        self._is_dark = is_dark
+        _, bg, fg, border = presence_badge_style(self.event_type, is_dark)
+        self.setStyleSheet(_pill_css(bg, fg, border))
 
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
@@ -106,16 +122,17 @@ class TypeFilterBar(QWidget):
     """
     changed = pyqtSignal(object)  # set[str]
 
-    def __init__(self, parent=None, *, empty_means_all: bool = True):
+    def __init__(self, parent=None, *, empty_means_all: bool = True, is_dark: bool = True):
         super().__init__(parent)
         self.empty_means_all = empty_means_all
+        self._is_dark = is_dark
         self._active: Set[str] = set()
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(4)
         self.badges = {}
         for et in EVENT_TYPES:
-            badge = TypeFilterBadge(et)
+            badge = TypeFilterBadge(et, is_dark=is_dark)
             badge.clicked.connect(self._on_click)
             self.badges[et] = badge
             layout.addWidget(badge)
@@ -128,6 +145,11 @@ class TypeFilterBar(QWidget):
     def set_active_types(self, types: Iterable[str]):
         self._active = {t for t in types if t in EVENT_TYPES}
         self._sync()
+
+    def update_theme(self, is_dark: bool):
+        self._is_dark = is_dark
+        for badge in self.badges.values():
+            badge.update_theme(is_dark)
 
     def _sync(self):
         for et, badge in self.badges.items():

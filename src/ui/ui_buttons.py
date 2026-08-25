@@ -161,7 +161,10 @@ class ButtonPanel(QWidget):
         self._tracker_badge = QLabel(self.tracker_button)
         self._tracker_badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._tracker_badge.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
-        apply_counter_style(self._tracker_badge, "join")
+        apply_counter_style(
+            self._tracker_badge, "join",
+            is_dark=self.theme_manager.is_dark(),
+        )
         self._tracker_badge.hide()
         self._apply_tracker_enabled_state()
 
@@ -303,7 +306,10 @@ class ButtonPanel(QWidget):
         except (TypeError, ValueError):
             size = 9
         size = max(8, min(18, size))
-        apply_counter_style(self._tracker_badge, self._tracker_last_type, font_size=size)
+        apply_counter_style(
+            self._tracker_badge, self._tracker_last_type, font_size=size,
+            is_dark=self.theme_manager.is_dark(),
+        )
         self._tracker_badge.setText("99+" if n > 99 else str(n))
         self._tracker_badge.adjustSize()
         self._tracker_badge.move(1, self.tracker_button.height() - self._tracker_badge.height() - 1)

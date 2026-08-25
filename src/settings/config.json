@@ -223,11 +223,11 @@
     "show_badge": false,
     "default_tab": "history",
     "track_events": [
+      "join",
       "game",
-      "left",
-      "join"
+      "left"
     ],
-    "badge_font_size": 11,
+    "badge_font_size": 12,
     "notifications_auto_hide": true,
     "chat_log": true
   },
