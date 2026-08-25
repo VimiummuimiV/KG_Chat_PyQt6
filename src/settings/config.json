@@ -238,5 +238,6 @@
   },
   "hotkey": {
     "combo": "win+c"
-  }
+  },
+  "browser": "C:\\Program Files\\Mozilla Firefox\\firefox.exe"
 }
