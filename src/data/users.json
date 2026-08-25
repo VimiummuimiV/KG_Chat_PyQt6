@@ -107,5 +107,12 @@
   "840152": {"login": "card", "background": "#777777", "light": "#767676", "dark": "#858585"},
   "842475": {"login": "chibruk", "background": "#777777", "light": "#767676", "dark": "#858585"},
   "773102": {"login": "LordHelios", "background": "#FF0400", "light": "#ee0400", "dark": "#ff2e2a"},
-  "601350": {"login": "Lapex", "background": "#777777", "light": "#767676", "dark": "#858585"}
+  "601350": {"login": "Lapex", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "841386": {"login": "Serg8090", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "842004": {"login": "paraskieva", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "284540": {"login": "ZH2S", "background": "#59b458", "light": "#3d853c", "dark": "#59b458"},
+  "347530": {"login": "llllllllllllll", "background": "#06993E", "light": "#058938", "dark": "#069a3e"},
+  "588257": {"login": "Pro100sergo", "background": "#129663", "light": "#108759", "dark": "#129864"},
+  "811320": {"login": "kv300h", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "312593": {"login": "ChisloPi", "background": "#b49700", "light": "#8c7500", "dark": "#b49700"}
 }

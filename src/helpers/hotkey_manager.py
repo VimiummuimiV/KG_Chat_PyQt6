@@ -4,6 +4,12 @@ Windows uses RegisterHotKey (native, WM_HOTKEY) instead of a keyboard hook,
 so a claimed combination (e.g. Win+C reserved by Copilot) fails registration
 and shows as a conflict rather than working unpredictably. macOS/Linux fall
 back to the 'keyboard' library's hook.
+
+Key identity is layout-independent: on Windows, capture/fallback resolve the
+physical key via MapVirtualKey (scan code → VK). A–Z / 0–9 VKs are ASCII, so
+the Latin letter is recovered regardless of the active layout — same idea as
+nativeVirtualKey in ui_chat.py. Stored combos stay as "win+c"; RegisterHotKey
+uses those VKs directly.
 """
 import sys
 import time
@@ -38,6 +44,7 @@ STATUS_TOOLTIPS = {
 HOTKEY_ID = 1
 WM_HOTKEY = 0x0312
 ERROR_HOTKEY_ALREADY_REGISTERED = 1409
+MAPVK_VSC_TO_VK = 0x01
 
 MOD_ALT = 0x0001
 MOD_CONTROL = 0x0002
@@ -56,6 +63,7 @@ NAMED_KEYS = {
     "up": 0x26, "down": 0x28, "left": 0x25, "right": 0x27,
 }
 NAMED_KEYS.update(FUNCTION_KEYS)
+_VK_TO_NAME = {vk: name for name, vk in NAMED_KEYS.items()}
 
 user32 = ctypes.WinDLL("user32", use_last_error=True) if sys.platform == "win32" else None
 
@@ -87,6 +95,44 @@ def _virtual_key_code(key: str) -> int | None:
     if len(key) == 1 and key.isalnum():
         return ord(key.upper())
     return NAMED_KEYS.get(key)
+
+
+def _normalize_key_name(name: str) -> str:
+    name = (name or "").lower().strip()
+    if name in ("page up", "page_up"):
+        return "pageup"
+    if name in ("page down", "page_down"):
+        return "pagedown"
+    return name
+
+
+def _layout_independent_key(event) -> str | None:
+    """Physical key → Latin/fixed name, independent of active keyboard layout.
+
+    Windows: MapVirtualKey(scan → VK). A–Z / 0–9 VKs are ASCII, so "c" is always
+    recovered for the physical C key. Named keys use the small VK→name table.
+    Elsewhere: trust event.name when it is already Latin or a stable name
+    (F-keys, arrows, space — same across layouts).
+    """
+    scan = getattr(event, "scan_code", None)
+    if sys.platform == "win32" and user32 is not None and scan is not None:
+        vk = user32.MapVirtualKeyW(int(scan) & 0xFF, MAPVK_VSC_TO_VK)
+        if 0x41 <= vk <= 0x5A:  # A–Z
+            return chr(vk).lower()
+        if 0x30 <= vk <= 0x39:  # 0–9
+            return chr(vk)
+        named = _VK_TO_NAME.get(vk)
+        if named:
+            return named
+
+    name = _normalize_key_name(getattr(event, "name", None) or "")
+    if not name:
+        return None
+    if len(name) == 1 and name.isascii() and name.isalnum():
+        return name
+    if name in NAMED_KEYS:
+        return name
+    return None
 
 
 def _native_modifiers_pressed() -> list[str]:
@@ -219,7 +265,7 @@ class GlobalHotkeyManager(QObject):
             self._set_status(STATUS_ERROR, "Invalid key combination")
             return
         self._fallback_mods = mods
-        self._fallback_key = key
+        self._fallback_key = key.lower()
         try:
             keyboard.on_press(self._on_fallback_key_press)
             self._fallback_hooked = True
@@ -236,7 +282,8 @@ class GlobalHotkeyManager(QObject):
             self._fallback_hooked = False
 
     def _on_fallback_key_press(self, event):
-        if event.name.lower() != self._fallback_key:
+        resolved = _layout_independent_key(event)
+        if resolved is None or resolved != self._fallback_key:
             return
         pressed = _native_modifiers_pressed()
         if set(pressed) != set(self._fallback_mods):
@@ -245,7 +292,11 @@ class GlobalHotkeyManager(QObject):
 
 
 class HotkeyCapture(QObject):
-    """One-shot listener that reports the next key combination the user presses."""
+    """One-shot listener for the next key combination.
+
+    Always stores a Latin / fixed name (via MapVirtualKey on Windows), so the
+    combo is the same on EN, RU, or any other layout.
+    """
 
     captured = pyqtSignal(str)
     cancelled = pyqtSignal()
@@ -272,18 +323,25 @@ class HotkeyCapture(QObject):
     def _on_event(self, event):
         if event.event_type != "down":
             return
-        name = (event.name or "").lower()
-        if name == "esc":
+
+        resolved = _layout_independent_key(event)
+        raw_name = _normalize_key_name(getattr(event, "name", None) or "")
+        if resolved == "esc" or raw_name == "esc":
             self.stop()
             self.cancelled.emit()
             return
-        if any(token in name for token in ("ctrl", "alt", "shift", "windows")):
+
+        if any(token in raw_name for token in ("ctrl", "alt", "shift", "windows", "cmd", "command", "super")):
             return
+        if resolved is None:
+            return
+
         mods = _native_modifiers_pressed()
         if not mods:
             return
+
         self.stop()
-        self.captured.emit(format_hotkey(mods, name))
+        self.captured.emit(format_hotkey(mods, resolved))
 
 
 hotkey_manager = GlobalHotkeyManager()
