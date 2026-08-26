@@ -2,7 +2,8 @@
 from pathlib import Path
 from PyQt6.QtWidgets import (
     QListView, QScrollArea, QWidget, QVBoxLayout,
-    QGraphicsOpacityEffect, QAbstractItemView, QApplication
+    QGraphicsOpacityEffect, QAbstractItemView, QApplication,
+    QSpacerItem, QSizePolicy
 )
 from PyQt6.QtCore import Qt, QObject, QTimer, QPropertyAnimation, QEvent, QPoint, pyqtSignal
 from helpers.config import Config
@@ -91,8 +92,11 @@ class ScrollButtonsPanel(QObject):
                 "icon_dimmed": icon_dimmed,
             })
 
+        self._has_extra_actions = bool(extra_actions)
+        self._date_spacer = None
         if date_jump or extra_actions:
-            self._layout.addSpacing(BUTTON_GAP * 2)
+            self._date_spacer = QSpacerItem(0, BUTTON_GAP * 2, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
+            self._layout.addItem(self._date_spacer)
 
         self._date_buttons = []
         if date_jump:
@@ -158,6 +162,11 @@ class ScrollButtonsPanel(QObject):
         visible = has_separator_rows(self._date_jump_model)
         for button in self._date_buttons:
             button.setVisible(visible)
+        if self._date_spacer is not None:
+            h = BUTTON_GAP * 2 if (visible or self._has_extra_actions) else 0
+            self._date_spacer.changeSize(0, h, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
+            self._layout.invalidate()
+            self.container.adjustSize()
 
     def eventFilter(self, obj, event):
         if obj is self.container:
