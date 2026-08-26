@@ -11,6 +11,17 @@ def _is_separator(data) -> bool:
     return bool(getattr(data, 'is_separator', False))
 
 
+def has_separator_rows(model, is_separator=_is_separator) -> bool:
+    """Whether any row in the model is a date separator - used to decide if date-jump
+    buttons are worth showing at all."""
+    if not model:
+        return False
+    for row in range(model.rowCount()):
+        if is_separator(model.data(model.index(row, 0), Qt.ItemDataRole.DisplayRole)):
+            return True
+    return False
+
+
 def jump_to_date(view, direction: int, is_separator=_is_separator):
     """Scroll a QListView to the next/previous date-separator row, aligned to the top.
     Works with any model whose rows expose an is_separator flag (dict key or attribute)."""

@@ -7,7 +7,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, QObject, QTimer, QPropertyAnimation, QEvent, QPoint, pyqtSignal
 from helpers.config import Config
 from helpers.create import create_icon_button, create_disabled_icon
-from helpers.scroll.scroll import scroll, jump_to_date
+from helpers.scroll.scroll import scroll, jump_to_date, has_separator_rows
 
 OPACITY_HIDDEN   = 0.0
 OPACITY_VISIBLE  = 1.0
@@ -91,14 +91,17 @@ class ScrollButtonsPanel(QObject):
                 "icon_dimmed": icon_dimmed,
             })
 
+        if date_jump or extra_actions:
+            self._layout.addSpacing(BUTTON_GAP * 2)
+
+        self._date_buttons = []
         if date_jump:
-            extra_actions = list(extra_actions or []) + [
-                {"icon": icon, "tooltip": tooltip, "callback": (lambda d: lambda: jump_to_date(self.list_view, d))(direction)}
-                for direction, icon, tooltip in _DATE_JUMP_ACTIONS
-            ]
+            for direction, icon, tooltip in _DATE_JUMP_ACTIONS:
+                button = self._create_button(icon, tooltip)
+                button.clicked.connect((lambda d: lambda: jump_to_date(self.list_view, d))(direction))
+                self._date_buttons.append(button)
 
         if extra_actions:
-            self._layout.addSpacing(BUTTON_GAP * 2)
             for extra in extra_actions:
                 button = self._create_button(extra["icon"], extra["tooltip"])
                 button.clicked.connect(extra["callback"])
@@ -110,6 +113,15 @@ class ScrollButtonsPanel(QObject):
         sb.rangeChanged.connect(self._update_buttons)
         sb.valueChanged.connect(self._update_buttons)
         self._update_buttons()
+
+        self._date_jump_model = None
+        if date_jump:
+            self._date_jump_model = self.list_view.model()
+            if self._date_jump_model:
+                self._date_jump_model.modelReset.connect(self._update_date_buttons)
+                self._date_jump_model.rowsInserted.connect(self._update_date_buttons)
+                self._date_jump_model.rowsRemoved.connect(self._update_date_buttons)
+            self._update_date_buttons()
 
         # Position update timer
         self.position_timer = QTimer(self)  # Parent timer to the QObject
@@ -140,6 +152,12 @@ class ScrollButtonsPanel(QObject):
             if enabled != entry["button"].isEnabled():
                 entry["button"].setEnabled(enabled)
                 entry["button"].setIcon(entry["icon_normal"] if enabled else entry["icon_dimmed"])
+
+    def _update_date_buttons(self, *_args):
+        """Hide the prev/next-day buttons entirely when the model has no separator rows."""
+        visible = has_separator_rows(self._date_jump_model)
+        for button in self._date_buttons:
+            button.setVisible(visible)
 
     def eventFilter(self, obj, event):
         if obj is self.container:
@@ -226,6 +244,13 @@ class ScrollButtonsPanel(QObject):
                 sb = self.list_view.verticalScrollBar()
                 sb.rangeChanged.disconnect(self._update_buttons)
                 sb.valueChanged.disconnect(self._update_buttons)
+            except (RuntimeError, TypeError):
+                pass
+        if self._date_jump_model:
+            try:
+                self._date_jump_model.modelReset.disconnect(self._update_date_buttons)
+                self._date_jump_model.rowsInserted.disconnect(self._update_date_buttons)
+                self._date_jump_model.rowsRemoved.disconnect(self._update_date_buttons)
             except (RuntimeError, TypeError):
                 pass
         self.container.hide()
