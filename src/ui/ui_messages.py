@@ -14,6 +14,7 @@ from helpers.message_interactions import MessageInteractions
 from helpers.fonts import get_font, FontType
 from helpers.scroll.scroll_buttons import ScrollButtonsPanel
 from helpers.presence_log import add_presence_entry, presence_entries_to_text
+from ui.ui_settings import DEFAULTS
 
 class MessagesWidget(QWidget):
     """Widget for displaying chat messages with virtual scrolling"""
@@ -33,7 +34,7 @@ class MessagesWidget(QWidget):
         self.cache = get_cache()
         self.emoticon_manager = emoticon_manager
        
-        self.model = MessageListModel(max_messages=1000)
+        self.model = MessageListModel(max_messages=self._max_messages_limit())
         self.delegate = MessageDelegate(config, self.emoticon_manager)
         
         if my_username:
@@ -59,6 +60,20 @@ class MessagesWidget(QWidget):
         self.interactions.username_shift_clicked.connect(self.username_shift_clicked.emit)
         self.interactions.chip_clicked.connect(self.chip_clicked.emit)
         self.delegate.presence_log_clicked.connect(self._on_presence_log_clicked)
+
+    def _max_messages_limit(self) -> int:
+        value = self.config.get("ui", "chat", "max_messages")
+        if value is None:
+            return DEFAULTS["chat"]["max_messages"]
+        return max(
+            DEFAULTS["chat"]["max_messages_min"],
+            min(DEFAULTS["chat"]["max_messages_max"], int(value)),
+        )
+
+    def apply_max_messages_limit(self):
+        """Apply current config limit to the model, trimming oldest messages if it shrank."""
+        self.model.max_messages = self._max_messages_limit()
+        self.model.trim_to_limit()
 
     def set_my_username(self, username: str):
         """Set the current user's username for mention highlighting"""

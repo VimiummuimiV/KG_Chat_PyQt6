@@ -30,16 +30,32 @@ from helpers.data import get_data_dir
 from helpers.color_utils import blend_hex_colors, tinted_chip_colors
 from helpers.browser import get_available_browsers
 
-NOTIFICATION_WIDTH_DEFAULT = 550
-NOTIFICATION_DURATION_DEFAULT = 5  # seconds
-NOTIFICATION_FADE_MS_DEFAULT = 300 
-COMPETITIONS_ALERT_LEAD_DEFAULT = 0
-COMPETITIONS_NOTIFY_START_DEFAULT = 0
-COMPETITIONS_NOTIFY_END_DEFAULT = 24
-COMPETITION_SOUND_REPEAT_INTERVAL_DEFAULT = 15
-COMPETITIONS_MAX_PLAYER_CHIPS_DEFAULT = 20
-COMPETITIONS_LOG_HEIGHT = 300
-COMPETITIONS_LOG_HEIGHT_COLLAPSED = 32
+DEFAULTS = {
+    "notification": {
+        "width": 550,
+        "duration": 5,
+        "fade_ms": 300,
+    },
+    "competitions": {
+        "alert_lead": 0,
+        "notify_start": 0,
+        "notify_end": 24,
+        "sound_repeat_interval": 15,
+        "max_player_chips": 20,
+        "log_height": 300,
+        "log_height_collapsed": 32,
+    },
+    "chatlog": {
+        "max_messages": 50000,
+        "max_messages_min": 1000,
+        "max_messages_max": 100000,
+    },
+    "chat": {
+        "max_messages": 1000,
+        "max_messages_min": 20,
+        "max_messages_max": 5000,
+    }
+}
 
 FONT_PREVIEW_BORDER = 1
 FONT_PREVIEW_PADDING = 6
@@ -794,10 +810,6 @@ class SettingsWidget(QWidget):
 
     def _build_startup_section(self):
         section = self._create_section("🚀 Startup")
-        self.settings_accordion_checkbox = self._add_checkbox(
-            section, "Accordion sections (opening one collapses others)",
-            self._on_settings_accordion_toggled
-        )
         self.auto_login_checkbox = self._add_checkbox(
             section, "Auto-login on startup", self._on_auto_login_toggled
         )
@@ -816,6 +828,25 @@ class SettingsWidget(QWidget):
         self.youtube_checkbox = self._add_checkbox(
             section, "Enable YouTube link previews", self._on_youtube_toggled
         )
+        self.chatlog_max_messages_spin = self._add_slider_spin_row(
+            section, "Chatlog display limit",
+            DEFAULTS["chatlog"]["max_messages_min"], DEFAULTS["chatlog"]["max_messages_max"],
+            self._on_chatlog_max_messages_changed,
+            default=DEFAULTS["chatlog"]["max_messages"],
+        )
+        self.chatlog_max_messages_spin.setSingleStep(1000)
+        self.chatlog_max_messages_spin._slider.setSingleStep(1000)
+        self.chatlog_max_messages_spin._slider.setPageStep(5000)
+
+        self.chat_max_messages_spin = self._add_slider_spin_row(
+            section, "Chat display limit",
+            DEFAULTS["chat"]["max_messages_min"], DEFAULTS["chat"]["max_messages_max"],
+            self._on_chat_max_messages_changed,
+            default=DEFAULTS["chat"]["max_messages"],
+        )
+        self.chat_max_messages_spin.setSingleStep(100)
+        self.chat_max_messages_spin._slider.setSingleStep(100)
+        self.chat_max_messages_spin._slider.setPageStep(500)
         self.browser_combo = self._add_combo_row(
             section, "Open links in", [], self._on_browser_changed
         )
@@ -829,6 +860,10 @@ class SettingsWidget(QWidget):
         )
         self.own_message_mode_combo.setFixedWidth(240)
         self._add_hotkey_row(section, "Toggle chat window")
+        self.settings_accordion_checkbox = self._add_checkbox(
+            section, "Accordion settings sections (opening one collapses others)",
+            self._on_settings_accordion_toggled
+        )
 
     def _add_hotkey_row(self, section_layout: QVBoxLayout, label_text: str):
         row = QHBoxLayout()
@@ -978,8 +1013,8 @@ class SettingsWidget(QWidget):
             self._on_notification_position_changed
         )
         self.notification_width_spin = self._add_slider_spin_row(
-            section, "Notification width", NOTIFICATION_WIDTH_DEFAULT, 1000, self._on_notification_width_changed,
-            default=NOTIFICATION_WIDTH_DEFAULT
+            section, "Notification width", DEFAULTS["notification"]["width"], 1000, self._on_notification_width_changed,
+            default=DEFAULTS["notification"]["width"],
         )
         self.notification_hide_on_combo = self._add_combo_row(
             section, "Hide notifications on", [], self._on_notification_hide_on_changed
@@ -989,14 +1024,14 @@ class SettingsWidget(QWidget):
             "Auto-hide delay (seconds)",
             1, 60,
             self._on_notification_duration_changed,
-            default=NOTIFICATION_DURATION_DEFAULT,
+            default=DEFAULTS["notification"]["duration"],
         )
         self.notification_fade_spin = self._add_slider_spin_row(
             section,
             "Fade duration (ms)",
             50, 2000,
             self._on_notification_fade_changed,
-            default=NOTIFICATION_FADE_MS_DEFAULT,
+            default=DEFAULTS["notification"]["fade_ms"],
         )
 
         self.competitions_bypass_mute_checkbox = self._add_checkbox(
@@ -1046,7 +1081,7 @@ class SettingsWidget(QWidget):
 
         self.competitions_log = QTextEdit()
         self.competitions_log.setReadOnly(True)
-        self.competitions_log.setFixedHeight(COMPETITIONS_LOG_HEIGHT)
+        self.competitions_log.setFixedHeight(DEFAULTS["competitions"]["log_height"])
         self.competitions_log.setFont(get_font(FontType.UI))
         self.competitions_log.setPlaceholderText("Competition log")
         self.competitions_log.setAcceptRichText(True)
@@ -1070,7 +1105,7 @@ class SettingsWidget(QWidget):
         self.max_player_chips_spin = self._add_slider_spin_row(
             section, "Max player chips", 1, 100,
             self._on_max_player_chips_changed,
-            default=COMPETITIONS_MAX_PLAYER_CHIPS_DEFAULT
+            default=DEFAULTS["competitions"]["max_player_chips"],
         )
         self.sort_players_by_level_checkbox = self._add_checkbox(
             section, "Sort player chips by rank", self._on_sort_players_by_level_toggled
@@ -1079,7 +1114,7 @@ class SettingsWidget(QWidget):
         self.competitions_alert_lead_spin = self._add_slider_spin_row(
             section, "Alert lead time before start (seconds)", 0, 300,
             self._on_competitions_alert_lead_changed,
-            default=COMPETITIONS_ALERT_LEAD_DEFAULT
+            default=DEFAULTS["competitions"]["alert_lead"],
         )
 
         self.alert_chat_action_combo = self._add_combo_row(
@@ -1091,11 +1126,11 @@ class SettingsWidget(QWidget):
         )
         self.competitions_notify_start_spin = self._add_slider_spin_row(
             section, "From", 0, 24, self._on_competitions_notify_start_changed,
-            default=COMPETITIONS_NOTIFY_START_DEFAULT
+            default=DEFAULTS["competitions"]["notify_start"],
         )
         self.competitions_notify_end_spin = self._add_slider_spin_row(
             section, "To", 0, 24, self._on_competitions_notify_end_changed,
-            default=COMPETITIONS_NOTIFY_END_DEFAULT
+            default=DEFAULTS["competitions"]["notify_end"],
         )
 
 
@@ -1174,7 +1209,7 @@ class SettingsWidget(QWidget):
         )
         self.competition_sound_repeat_interval_spin = self._add_slider_spin_row(
             section, "Repeat interval (seconds)", 3, 120, self._on_competition_sound_repeat_interval_changed,
-            default=COMPETITION_SOUND_REPEAT_INTERVAL_DEFAULT
+            default=DEFAULTS["competitions"]["sound_repeat_interval"],
         )
 
     def _on_sound_selection_changed(self, _index: int):
@@ -1189,7 +1224,8 @@ class SettingsWidget(QWidget):
             self.settings_accordion_checkbox, self.auto_login_checkbox,
             self.start_minimized_checkbox, self.start_with_system_checkbox,
             self.resource_combo, self.own_message_mode_combo,
-            self.clear_private_checkbox, self.youtube_checkbox, self.browser_combo,
+            self.clear_private_checkbox, self.youtube_checkbox,
+            self.chatlog_max_messages_spin, self.browser_combo,
             self.track_competitions_checkbox, self.competitions_bypass_mute_checkbox,
             self.mentions_bypass_mute_checkbox, self.bans_bypass_mute_checkbox,
             self.tracker_notify_checkbox, self.tracker_enabled_checkbox,
@@ -1231,6 +1267,23 @@ class SettingsWidget(QWidget):
         self.clear_private_checkbox.setChecked(bool(self.config.get("ui", "clear_private_messages_on_exit")))
         youtube_enabled = self.config.get("ui", "youtube", "enabled")
         self.youtube_checkbox.setChecked(True if youtube_enabled is None else bool(youtube_enabled))
+        max_messages = self.config.get("ui", "chatlog", "max_messages")
+        max_messages = DEFAULTS["chatlog"]["max_messages"] if max_messages is None else int(max_messages)
+        max_messages = max(
+            DEFAULTS["chatlog"]["max_messages_min"],
+            min(DEFAULTS["chatlog"]["max_messages_max"], max_messages),
+        )
+        self.chatlog_max_messages_spin.setValue(max_messages)
+        self.chatlog_max_messages_spin._slider.setValue(max_messages)
+
+        chat_max_messages = self.config.get("ui", "chat", "max_messages")
+        chat_max_messages = DEFAULTS["chat"]["max_messages"] if chat_max_messages is None else int(chat_max_messages)
+        chat_max_messages = max(
+            DEFAULTS["chat"]["max_messages_min"],
+            min(DEFAULTS["chat"]["max_messages_max"], chat_max_messages),
+        )
+        self.chat_max_messages_spin.setValue(chat_max_messages)
+        self.chat_max_messages_spin._slider.setValue(chat_max_messages)
 
         browsers = get_available_browsers()
         self.browser_combo.blockSignals(True)
@@ -1346,12 +1399,12 @@ class SettingsWidget(QWidget):
 
         show_players = self.config.get("competitions", "show_players")
         self.show_players_checkbox.setChecked(True if show_players is None else bool(show_players))
-        self.max_player_chips_spin.setValue(int(self.config.get("competitions", "max_player_chips") or COMPETITIONS_MAX_PLAYER_CHIPS_DEFAULT))
+        self.max_player_chips_spin.setValue(int(self.config.get("competitions", "max_player_chips") or DEFAULTS["competitions"]["max_player_chips"]))
         self.max_player_chips_spin._slider.setValue(self.max_player_chips_spin.value())
         self.sort_players_by_level_checkbox.setChecked(bool(self.config.get("competitions", "sort_players_by_level")))
         self._set_players_controls_enabled(self.show_players_checkbox.isChecked())
 
-        self.competitions_alert_lead_spin.setValue(int(self.config.get("competitions", "alert_lead_seconds") or COMPETITIONS_ALERT_LEAD_DEFAULT))
+        self.competitions_alert_lead_spin.setValue(int(self.config.get("competitions", "alert_lead_seconds") or DEFAULTS["competitions"]["alert_lead"]))
         self.competitions_alert_lead_spin._slider.setValue(self.competitions_alert_lead_spin.value())
 
         fill_alert_chat_action_combo(self.alert_chat_action_combo, self.config.get("competitions", "alert_chat_action"))
@@ -1359,9 +1412,9 @@ class SettingsWidget(QWidget):
         self.competitions_notify_window_checkbox.setChecked(
             bool(self.config.get("competitions", "notify_window_enabled"))
         )
-        self.competitions_notify_start_spin.setValue(int(self.config.get("competitions", "notify_window_start") or COMPETITIONS_NOTIFY_START_DEFAULT))
+        self.competitions_notify_start_spin.setValue(int(self.config.get("competitions", "notify_window_start") or DEFAULTS["competitions"]["notify_start"]))
         self.competitions_notify_start_spin._slider.setValue(self.competitions_notify_start_spin.value())
-        self.competitions_notify_end_spin.setValue(int(self.config.get("competitions", "notify_window_end") or COMPETITIONS_NOTIFY_END_DEFAULT))
+        self.competitions_notify_end_spin.setValue(int(self.config.get("competitions", "notify_window_end") or DEFAULTS["competitions"]["notify_end"]))
         self.competitions_notify_end_spin._slider.setValue(self.competitions_notify_end_spin.value())
         self._set_notify_window_controls_enabled(self.competitions_notify_window_checkbox.isChecked())
 
@@ -1370,24 +1423,24 @@ class SettingsWidget(QWidget):
         position = (self.config.get("ui", "notification_position") or "right").capitalize()
         idx = self.notification_position_combo.findText(position)
         self.notification_position_combo.setCurrentIndex(idx if idx >= 0 else 0)
-        self.notification_width_spin.setValue(int(self.config.get("ui", "notification_width") or NOTIFICATION_WIDTH_DEFAULT))
+        self.notification_width_spin.setValue(int(self.config.get("ui", "notification_width") or DEFAULTS["notification"]["width"]))
         self.notification_width_spin._slider.setValue(self.notification_width_spin.value())
 
         fill_notification_hide_on_combo(self.notification_hide_on_combo, self.config.get("notification", "hide_on"))
 
         duration_ms = self.config.get("notification", "duration_ms")
         try:
-            duration_ms = int(duration_ms) if duration_ms is not None else NOTIFICATION_DURATION_DEFAULT * 1000
+            duration_ms = int(duration_ms) if duration_ms is not None else DEFAULTS["notification"]["duration"] * 1000
         except (TypeError, ValueError):
-            duration_ms = NOTIFICATION_DURATION_DEFAULT * 1000
+            duration_ms = DEFAULTS["notification"]["duration"] * 1000
         duration = max(1, round(duration_ms / 1000))
         self.notification_duration_spin.setValue(duration)
         self.notification_duration_spin._slider.setValue(duration)
         fade_ms = self.config.get("notification", "fade_ms")
         try:
-            fade_ms = int(fade_ms) if fade_ms is not None else NOTIFICATION_FADE_MS_DEFAULT
+            fade_ms = int(fade_ms) if fade_ms is not None else DEFAULTS["notification"]["fade_ms"]
         except (TypeError, ValueError):
-            fade_ms = NOTIFICATION_FADE_MS_DEFAULT
+            fade_ms = DEFAULTS["notification"]["fade_ms"]
         fade_ms = max(50, min(2000, fade_ms))
         self.notification_fade_spin.setValue(fade_ms)
         self.notification_fade_spin._slider.setValue(fade_ms)
@@ -1402,7 +1455,7 @@ class SettingsWidget(QWidget):
             bool(self.config.get("sound", "competition_repeat_enabled"))
         )
         self.competition_sound_repeat_interval_spin.setValue(
-            int(self.config.get("sound", "competition_repeat_interval") or COMPETITION_SOUND_REPEAT_INTERVAL_DEFAULT)
+            int(self.config.get("sound", "competition_repeat_interval") or DEFAULTS["competitions"]["sound_repeat_interval"])
         )
         self.competition_sound_repeat_interval_spin._slider.setValue(self.competition_sound_repeat_interval_spin.value())
         self._set_spin_enabled(self.competition_sound_repeat_interval_spin, self.competition_sound_repeat_checkbox.isChecked())
@@ -1466,6 +1519,12 @@ class SettingsWidget(QWidget):
 
     def _on_youtube_toggled(self, checked: bool):
         self.config.set("ui", "youtube", "enabled", value=checked)
+
+    def _on_chatlog_max_messages_changed(self, value: int):
+        self.config.set("ui", "chatlog", "max_messages", value=int(value))
+
+    def _on_chat_max_messages_changed(self, value: int):
+        self.config.set("ui", "chat", "max_messages", value=int(value))
 
     def _on_browser_changed(self, _text: str = ""):
         key = self.browser_combo.currentData()
@@ -1733,7 +1792,7 @@ class SettingsWidget(QWidget):
         return f'<span style="color:{color}"><b>{text}</b></span>'
 
     def _collapsed_log_height(self) -> int:
-        return max(COMPETITIONS_LOG_HEIGHT_COLLAPSED, self.competitions_log.fontMetrics().height() + 16)
+        return max(DEFAULTS["competitions"]["log_height_collapsed"], self.competitions_log.fontMetrics().height() + 16)
 
     def _update_competitions_status(self, enabled: bool, connection: str | None = None):
         """connection: connecting | connected | disconnected (optional).
@@ -1749,7 +1808,7 @@ class SettingsWidget(QWidget):
             return
 
         self.competitions_log.setEnabled(True)
-        self.competitions_log.setFixedHeight(COMPETITIONS_LOG_HEIGHT)
+        self.competitions_log.setFixedHeight(DEFAULTS["competitions"]["log_height"])
         plain = self.competitions_log.toPlainText().strip()
         if plain in ("", "Tracking disabled"):
             self.competitions_log.setHtml(self._status_log_html("Tracking enabled", "enabled"))

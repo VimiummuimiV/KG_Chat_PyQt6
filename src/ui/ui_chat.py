@@ -2796,6 +2796,24 @@ class ChatWindow(QWidget):
             if widget:
                 widget._force_recalculate()
 
+    def _apply_chatlog_max_messages(self):
+        for widget in (self.chatlog_widget, self.chatlog_split_widget):
+            if widget is not None:
+                widget.apply_max_messages_limit()
+                split = getattr(widget, "split_chatlog_widget", None)
+                if split is not None:
+                    split.apply_max_messages_limit()
+
+    def _apply_chat_max_messages(self):
+        widgets = [self.messages_widget]
+        widgets.extend(
+            room.messages_widget for room in self._all_room_widgets()
+            if room and room.messages_widget
+        )
+        for widget in widgets:
+            if widget:
+                widget.apply_max_messages_limit()
+
     def on_font_family_changed(self):
         """Apply font family change immediately (no debounce)."""
         self._apply_font_size_change()
@@ -3277,6 +3295,12 @@ class ChatWindow(QWidget):
             )
             self.settings_widget.youtube_checkbox.toggled.connect(
                 lambda _=None: self._refresh_youtube_previews()
+            )
+            self.settings_widget.chatlog_max_messages_spin.valueChanged.connect(
+                lambda _=None: self._apply_chatlog_max_messages()
+            )
+            self.settings_widget.chat_max_messages_spin.valueChanged.connect(
+                lambda _=None: self._apply_chat_max_messages()
             )
             self.settings_widget.sound_changed.connect(self._setup_sounds)
             self.settings_widget.tracker_badge_style_changed.connect(

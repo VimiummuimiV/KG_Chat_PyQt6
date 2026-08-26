@@ -32,7 +32,7 @@ class MessageData:
 class MessageListModel(QAbstractListModel):
     """Model for storing messages - handles data only, no rendering"""
 
-    def __init__(self, max_messages: int = 50000):
+    def __init__(self, max_messages: int):
         super().__init__()
         self._messages: List[MessageData] = []
         self.max_messages = max_messages
@@ -68,6 +68,13 @@ class MessageListModel(QAbstractListModel):
         self.beginResetModel()
         self._messages = list(messages)
         self.endResetModel()
+
+    def trim_to_limit(self):
+        excess = len(self._messages) - self.max_messages
+        if excess > 0:
+            self.beginRemoveRows(QModelIndex(), 0, excess - 1)
+            del self._messages[:excess]
+            self.endRemoveRows()
 
     def clear(self):
         if self._messages:

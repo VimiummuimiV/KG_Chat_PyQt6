@@ -148,7 +148,13 @@
       "messages": true,
       "chatlog": true
     },
-    "own_message_mode": "local"
+    "own_message_mode": "local",
+    "chatlog": {
+      "max_messages": 50000
+    },
+    "chat": {
+      "max_messages": 1000 
+    }
   },
   "sound": {
     "tts_enabled": false,

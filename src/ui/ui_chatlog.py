@@ -27,6 +27,9 @@ from helpers.message_interactions import MessageInteractions
 from ui.message_model import MessageListModel, MessageData
 from ui.message_delegate import MessageDelegate
 from ui.ui_chatlogs_parser import ChatlogsParserConfigWidget, ParserWorker
+from ui.ui_settings import DEFAULTS
+
+LIMIT_EXCEEDED_SUFFIX = "rendering disabled. Use Copy/Save buttons."
 
 
 class ChatlogWidget(QWidget):
@@ -69,7 +72,7 @@ class ChatlogWidget(QWidget):
         if self.search_visible is None:
             self.search_visible = False
 
-        self.model = MessageListModel(max_messages=50000)
+        self.model = MessageListModel(max_messages=self._max_messages_limit())
         self.delegate = MessageDelegate(config, self.emoticon_manager)
         
         # Set username for mention highlighting if account is available
@@ -537,6 +540,30 @@ class ChatlogWidget(QWidget):
         # The "Loaded N messages" status belongs to the chatlog list, not the parser config screen
         self.info_label.setVisible(not self.parser_visible)
 
+    def _max_messages_limit(self) -> int:
+        value = self.config.get("ui", "chatlog", "max_messages")
+        if value is None:
+            return DEFAULTS["chatlog"]["max_messages"]
+        return max(
+            DEFAULTS["chatlog"]["max_messages_min"],
+            min(DEFAULTS["chatlog"]["max_messages_max"], int(value)),
+        )
+
+    def apply_max_messages_limit(self):
+        """Apply current config limit to the model; re-render if already loaded."""
+        limit = self._max_messages_limit()
+        self.model.max_messages = limit
+        if self.is_parsing or not self.all_messages:
+            return
+        count = sum(1 for m in self.all_messages if not m.is_separator)
+        if count > limit:
+            self.model.clear()
+            self.info_label.setText(
+                f"⚠️ {count:,} messages (limit: {limit:,}) - {LIMIT_EXCEEDED_SUFFIX}"
+            )
+        else:
+            self._apply_filter()
+
     def _set_parser_youtube_off(self, off: bool):
         """Parser bulk views never expand YouTube links (config is ignored)."""
         renderer = getattr(self.delegate, "message_renderer", None)
@@ -641,7 +668,7 @@ class ChatlogWidget(QWidget):
         message_count = sum(1 for m in self.temp_parsed_messages if not m.is_separator)
         if message_count > self.model.max_messages and not self.exceeded_max_messages:
             self.exceeded_max_messages = True
-            self.info_label.setText(f"⚠️ Exceeded {self.model.max_messages:,} message limit - rendering disabled. Use Copy/Save buttons.")
+            self.info_label.setText(f"⚠️ Exceeded {self.model.max_messages:,} message limit - {LIMIT_EXCEEDED_SUFFIX}")
         elif not self.exceeded_max_messages:
             self.info_label.setText(f"Found {message_count:,} messages so far...")
 
@@ -668,7 +695,7 @@ class ChatlogWidget(QWidget):
             
             # Skip rendering if exceeded limit
             if self.exceeded_max_messages:
-                self.info_label.setText(f"⚠️ {message_count:,} messages found (limit: {self.model.max_messages:,}) - rendering disabled. Use Copy/Save buttons.")
+                self.info_label.setText(f"⚠️ {message_count:,} messages found (limit: {self.model.max_messages:,}) - {LIMIT_EXCEEDED_SUFFIX}")
                 self.exceeded_max_messages = False
             else:
                 self.list_view.setUpdatesEnabled(False)
