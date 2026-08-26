@@ -148,7 +148,7 @@
       "messages": true,
       "chatlog": true
     },
-    "own_message_mode": "local"
+    "own_message_mode": "server"
   },
   "sound": {
     "tts_enabled": false,

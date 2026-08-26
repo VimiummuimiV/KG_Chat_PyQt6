@@ -348,6 +348,8 @@ class XMPPClient:
         try:
             payload = self.build_body(children=[message])
             response = self.send_request(payload, verbose=False, timeout=5)
+            if response:
+                self._process_response(response)
             return True
         except Exception as e:
             print(f"❌ Send error: {e}")
