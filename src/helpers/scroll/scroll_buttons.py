@@ -7,7 +7,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, QObject, QTimer, QPropertyAnimation, QEvent, QPoint, pyqtSignal
 from helpers.config import Config
 from helpers.create import create_icon_button, create_disabled_icon
-from helpers.scroll.scroll import scroll
+from helpers.scroll.scroll import scroll, jump_to_date
 
 OPACITY_HIDDEN   = 0.0
 OPACITY_VISIBLE  = 1.0
@@ -25,6 +25,12 @@ _BUTTONS = (
 )
 
 
+_DATE_JUMP_ACTIONS = (
+    (-1, "calendar-arrow-up.svg", "Previous day"),
+    (1, "calendar-arrow-down.svg", "Next day"),
+)
+
+
 class ScrollButtonsPanel(QObject):
     """Floating panel of scroll buttons (top/bottom full + page up/down) for a QListView.
 
@@ -35,10 +41,10 @@ class ScrollButtonsPanel(QObject):
     """
     clicked_scroll = pyqtSignal(str)  # emits the action that was triggered: top/page_up/page_down/bottom
 
-    def __init__(self, list_view, parent=None, extra_actions=None):
+    def __init__(self, list_view, parent=None, extra_actions=None, date_jump=False):
         """extra_actions: optional list of {"icon", "tooltip", "callback"} dicts for
-        buttons appended after the standard four (e.g. jump-to-adjacent-group nav).
-        They get no enable/disable dimming - that's the caller's responsibility."""
+        buttons appended after the standard four. date_jump=True adds prev/next-day
+        buttons that scroll to the nearest is_separator row (dict key or attribute)."""
         super().__init__(parent)  # Parent the QObject properly
         self.list_view = list_view  # QListView or QScrollArea
 
@@ -84,6 +90,12 @@ class ScrollButtonsPanel(QObject):
                 "icon_normal": icon_normal,
                 "icon_dimmed": icon_dimmed,
             })
+
+        if date_jump:
+            extra_actions = list(extra_actions or []) + [
+                {"icon": icon, "tooltip": tooltip, "callback": (lambda d: lambda: jump_to_date(self.list_view, d))(direction)}
+                for direction, icon, tooltip in _DATE_JUMP_ACTIONS
+            ]
 
         if extra_actions:
             self._layout.addSpacing(BUTTON_GAP * 2)

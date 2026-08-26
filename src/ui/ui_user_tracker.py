@@ -772,13 +772,7 @@ class UserTrackerWidget(QWidget):
         self.history_stack.addWidget(self._empty_history_label)
         history_row.addWidget(self.history_stack, stretch=1)
 
-        self.history_scroll_buttons = ScrollButtonsPanel(
-            self.history_list_view, parent=self,
-            extra_actions=[
-                {"icon": "calendar-arrow-up.svg", "tooltip": "Previous day", "callback": lambda: self._jump_date(-1)},
-                {"icon": "calendar-arrow-down.svg", "tooltip": "Next day", "callback": lambda: self._jump_date(1)},
-            ]
-        )
+        self.history_scroll_buttons = ScrollButtonsPanel(self.history_list_view, parent=self, date_jump=True)
         self.history_auto_scroller = AutoScroller(self.history_list_view)
 
         self.filter_panel = QWidget()
@@ -925,21 +919,6 @@ class UserTrackerWidget(QWidget):
 
     def _scroll_history_to_bottom(self):
         scroll(self.history_list_view, mode="bottom", delay=10)
-
-    def _jump_date(self, direction: int):
-        """Scroll to the next/previous date separator, aligned to the top."""
-        view = self.history_list_view
-        proxy = self.history_proxy
-        if not proxy.rowCount():
-            return
-        top_index = view.indexAt(view.viewport().rect().topLeft())
-        row = (top_index.row() if top_index.isValid() else (0 if direction > 0 else proxy.rowCount() - 1)) + direction
-        while 0 <= row < proxy.rowCount():
-            data = proxy.data(proxy.index(row, 0), Qt.ItemDataRole.DisplayRole)
-            if data and data.get('is_separator'):
-                scroll(view, mode="top", target_row=row, delay=0)
-                return
-            row += direction
 
     def _update_info_label(self):
         total = sum(

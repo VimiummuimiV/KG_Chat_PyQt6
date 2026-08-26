@@ -413,8 +413,8 @@ class ChatlogWidget(QWidget):
     
         self.stacked.addWidget(self.list_view)
        
-        # Add scroll buttons panel for quick navigation
-        self.scroll_buttons = ScrollButtonsPanel(self.list_view, parent=self)
+        # Add scroll buttons panel for quick navigation (date_jump: MessageData carries is_separator)
+        self.scroll_buttons = ScrollButtonsPanel(self.list_view, parent=self, date_jump=True)
        
         # Parser config page
         self.parser_widget = ChatlogsParserConfigWidget(self.config, self.icons_path, self.account)

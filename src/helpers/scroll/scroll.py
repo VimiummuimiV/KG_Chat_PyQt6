@@ -1,5 +1,30 @@
-from PyQt6.QtCore import QTimer
+from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtWidgets import QScrollArea, QListView, QAbstractItemView
+
+
+def _is_separator(data) -> bool:
+    """Default separator check: works for MessageData (attribute) and tracker events (dict)."""
+    if data is None:
+        return False
+    if isinstance(data, dict):
+        return bool(data.get('is_separator'))
+    return bool(getattr(data, 'is_separator', False))
+
+
+def jump_to_date(view, direction: int, is_separator=_is_separator):
+    """Scroll a QListView to the next/previous date-separator row, aligned to the top.
+    Works with any model whose rows expose an is_separator flag (dict key or attribute)."""
+    model = view.model()
+    if not model or not model.rowCount():
+        return
+    top_index = view.indexAt(view.viewport().rect().topLeft())
+    row = (top_index.row() if top_index.isValid() else (0 if direction > 0 else model.rowCount() - 1)) + direction
+    while 0 <= row < model.rowCount():
+        if is_separator(model.data(model.index(row, 0), Qt.ItemDataRole.DisplayRole)):
+            scroll(view, mode="top", target_row=row, delay=0)
+            return
+        row += direction
+
 
 def scroll(widget, mode="bottom", pos=0.0, delay=10, target_row=None):
     def _scroll():
