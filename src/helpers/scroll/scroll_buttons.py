@@ -8,7 +8,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, QObject, QTimer, QPropertyAnimation, QEvent, QPoint, pyqtSignal
 from helpers.config import Config
 from helpers.create import create_icon_button, create_disabled_icon
-from helpers.scroll.scroll import scroll, jump_to_date, has_separator_rows
+from helpers.scroll.scroll import scroll, jump_to_date, has_separator_rows, _is_separator
 
 OPACITY_HIDDEN   = 0.0
 OPACITY_VISIBLE  = 1.0
@@ -103,7 +103,12 @@ class ScrollButtonsPanel(QObject):
             for direction, icon, tooltip in _DATE_JUMP_ACTIONS:
                 button = self._create_button(icon, tooltip)
                 button.clicked.connect((lambda d: lambda: jump_to_date(self.list_view, d))(direction))
-                self._date_buttons.append(button)
+                self._date_buttons.append({
+                    "button": button,
+                    "direction": direction,
+                    "icon_normal": button.icon(),
+                    "icon_dimmed": create_disabled_icon(self.icons_path, icon, icon_size=button._icon_size),
+                })
 
         if extra_actions:
             for extra in extra_actions:
@@ -156,17 +161,41 @@ class ScrollButtonsPanel(QObject):
             if enabled != entry["button"].isEnabled():
                 entry["button"].setEnabled(enabled)
                 entry["button"].setIcon(entry["icon_normal"] if enabled else entry["icon_dimmed"])
+        if self._date_buttons:
+            self._update_date_enabled()
 
     def _update_date_buttons(self, *_args):
         """Hide the prev/next-day buttons entirely when the model has no separator rows."""
         visible = has_separator_rows(self._date_jump_model)
-        for button in self._date_buttons:
-            button.setVisible(visible)
+        for entry in self._date_buttons:
+            entry["button"].setVisible(visible)
         if self._date_spacer is not None:
             h = BUTTON_GAP * 2 if (visible or self._has_extra_actions) else 0
             self._date_spacer.changeSize(0, h, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
             self._layout.invalidate()
             self.container.adjustSize()
+        self._update_date_enabled()
+
+    def _update_date_enabled(self):
+        if not self._date_buttons or not self.list_view:
+            return
+        model = self.list_view.model()
+        if not model or not model.rowCount():
+            return
+        top_index = self.list_view.indexAt(self.list_view.viewport().rect().topLeft())
+        top_row = top_index.row() if top_index.isValid() else 0
+        for entry in self._date_buttons:
+            direction = entry["direction"]
+            enabled = False
+            row = top_row + direction
+            while 0 <= row < model.rowCount():
+                if _is_separator(model.data(model.index(row, 0), Qt.ItemDataRole.DisplayRole)):
+                    enabled = True
+                    break
+                row += direction
+            if enabled != entry["button"].isEnabled():
+                entry["button"].setEnabled(enabled)
+                entry["button"].setIcon(entry["icon_normal"] if enabled else entry["icon_dimmed"])
 
     def eventFilter(self, obj, event):
         if obj is self.container:
