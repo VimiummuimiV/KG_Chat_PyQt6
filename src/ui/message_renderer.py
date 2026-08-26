@@ -349,7 +349,10 @@ class MessageRenderer(QObject):
                 matched = line[match.start():match.end()]
                 match_width = fm_local.horizontalAdvance(matched)
                 match_rect = QRect(current_x, current_y, match_width, fm_local.height())
-                painter.fillRect(match_rect, QColor(highlight_bg))
+                painter.setPen(Qt.PenStyle.NoPen)
+                painter.setBrush(QColor(highlight_bg))
+                painter.drawRoundedRect(match_rect, 4, 4)
+                painter.setBrush(Qt.BrushStyle.NoBrush)
                 painter.setPen(QColor(highlight_fg))
                 painter.drawText(current_x, current_y + fm_local.ascent(), matched)
                 current_x += match_width
