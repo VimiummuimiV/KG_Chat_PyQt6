@@ -2584,12 +2584,15 @@ class ChatWindow(QWidget):
 
         # Only show notifications when the window is not active
         if not self.isActiveWindow():
-            # Check if YouTube URLs need time to cache
+            youtube_enabled = self.config.get("ui", "youtube", "enabled")
+            youtube_enabled = True if youtube_enabled is None else bool(youtube_enabled)
             from core.youtube import YOUTUBE_URL_PATTERN, get_cached_info, youtube_signals
-            uncached = [
-                m.group(0) for m in YOUTUBE_URL_PATTERN.finditer(msg.body or '')
-                if not (get_cached_info(m.group(0)) or (None, False))[1]
-            ]
+            uncached = []
+            if youtube_enabled:
+                uncached = [
+                    m.group(0) for m in YOUTUBE_URL_PATTERN.finditer(msg.body or '')
+                    if not (get_cached_info(m.group(0)) or (None, False))[1]
+                ]
             if uncached:
                 pending = set(uncached)
                 timer = QTimer(self)
@@ -2781,6 +2784,17 @@ class ChatWindow(QWidget):
             return
         users = self.xmpp_client.user_list.get_online()
         self.user_list_widget.add_users(users=users, bulk=True)
+
+    def _refresh_youtube_previews(self):
+        """Re-layout message views so YouTube link text matches the current setting."""
+        widgets = [self.messages_widget, self.chatlog_widget, self.chatlog_split_widget]
+        widgets.extend(
+            room.messages_widget for room in self._all_room_widgets()
+            if room and room.messages_widget
+        )
+        for widget in widgets:
+            if widget:
+                widget._force_recalculate()
 
     def on_font_family_changed(self):
         """Apply font family change immediately (no debounce)."""
@@ -3260,6 +3274,9 @@ class ChatWindow(QWidget):
             )
             self.settings_widget.sort_players_by_level_checkbox.toggled.connect(
                 lambda _=None: self.refresh_competition_player_display()
+            )
+            self.settings_widget.youtube_checkbox.toggled.connect(
+                lambda _=None: self._refresh_youtube_previews()
             )
             self.settings_widget.sound_changed.connect(self._setup_sounds)
             self.settings_widget.tracker_badge_style_changed.connect(

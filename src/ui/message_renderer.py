@@ -66,14 +66,16 @@ class MessageRenderer(QObject):
         # Copy highlight state
         self._copied_url: Optional[str] = None
         
-        # YouTube support
-        self.youtube_enabled = config.get("ui", "youtube", "enabled") or True
-        
         # Create viewer instances
         self.image_viewer = None
         self.video_player = None
         if parent_widget:
             self._init_viewers(parent_widget)
+
+    @property
+    def youtube_enabled(self) -> bool:
+        value = self.config.get("ui", "youtube", "enabled")
+        return True if value is None else bool(value)
     
     def _init_viewers(self, parent_widget):
         """Initialize image and video viewers"""
@@ -201,21 +203,22 @@ class MessageRenderer(QObject):
         """Calculate height needed for message content"""
         text = ' '.join(text.split())
         
-        url_pattern = re.compile(r'https?://[^\s<>"]+')
-        def repl(m):
-            url = m.group(0)
-            cached = get_cached_info(url, use_emojis=True)
-            if cached and cached[1]:
-                return cached[0] + ' '
-            if row is not None and cached:
-                try:
-                    fetch_async(url, lambda _, r=row: self.refresh_row.emit(r))
-                except Exception:
-                    pass
-            return url + ' '
-        
-        processed_text = url_pattern.sub(repl, text)
-        segments = self.emoticon_manager.parse_emoticons(processed_text)
+        if self.youtube_enabled:
+            url_pattern = re.compile(r'https?://[^\s<>"]+')
+            def repl(m):
+                url = m.group(0)
+                cached = get_cached_info(url, use_emojis=True)
+                if cached and cached[1]:
+                    return cached[0] + ' '
+                if row is not None and cached:
+                    try:
+                        fetch_async(url, lambda _, r=row: self.refresh_row.emit(r))
+                    except Exception:
+                        pass
+                return url + ' '
+            text = url_pattern.sub(repl, text)
+
+        segments = self.emoticon_manager.parse_emoticons(text)
         
         fm = QFontMetrics(self.body_font)
         current_line_height = fm.height()
