@@ -50,7 +50,7 @@ def _render_separator(
     """Render separator with configurable styling"""
     painter.save()
     painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-    
+
     mid_y = rect.y() + rect.height() // 2
     
     # Draw horizontal line
@@ -82,18 +82,18 @@ def _render_separator(
         Qt.AlignmentFlag.AlignCenter,
         text
     )
-    
+
     painter.restore()
 
 
 class NewMessagesSeparator:
     """Separator for marking new messages with 🔥 emoji"""
-    
+
     @staticmethod
     def create_marker():
         from ui.message_model import MessageData
         return MessageData(timestamp=datetime.now(), is_new_messages_marker=True)
-    
+
     @staticmethod
     def render(painter: QPainter, rect: QRect, font, is_dark_theme: bool):
         line_color, bg_color, text_color = _get_separator_colors(is_dark_theme, is_emphasis=True)
@@ -108,28 +108,28 @@ class NewMessagesSeparator:
             line_end_offset=80,
             text_position="right"
         )
-    
+
     @staticmethod
     def get_height() -> int:
         return SEPARATOR_HEIGHT
-    
+
     @staticmethod
     def remove_from_model(model):
         if not hasattr(model, '_messages') or not model._messages:
             return
-        
-        marker_indices = [i for i, msg in enumerate(model._messages) 
+
+        marker_indices = [i for i, msg in enumerate(model._messages)
                          if getattr(msg, 'is_new_messages_marker', False)]
-        
+
         for index in reversed(marker_indices):
             model.beginRemoveRows(QModelIndex(), index, index)
             model._messages.pop(index)
             model.endRemoveRows()
 
 
-class ChatlogDateSeparator:
-    """Separator for displaying dates in chatlog"""
-    
+class DateSeparator:
+    """Date separator for chatlog and tracker history day boundaries"""
+
     @staticmethod
     def render(painter: QPainter, rect: QRect, date_str: str, font, is_dark_theme: bool):
         line_color, bg_color, text_color = _get_separator_colors(is_dark_theme, is_emphasis=False)
@@ -142,7 +142,7 @@ class ChatlogDateSeparator:
             bg_color,
             text_color
         )
-    
+
     @staticmethod
     def get_height() -> int:
         return SEPARATOR_HEIGHT

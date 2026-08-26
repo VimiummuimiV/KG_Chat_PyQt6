@@ -7,7 +7,7 @@ from PyQt6.QtWidgets import QStyledItemDelegate, QStyleOptionViewItem, QApplicat
 from PyQt6.QtCore import Qt, QSize, QRect, QModelIndex, pyqtSignal, QTimer, QEvent
 from PyQt6.QtGui import QPainter, QFontMetrics, QColor, QCursor, QMouseEvent, QKeySequence
 
-from components.messages_separator import NewMessagesSeparator, ChatlogDateSeparator
+from components.messages_separator import NewMessagesSeparator, DateSeparator
 from helpers.flash_highlight import highlight_fill_color
 from helpers.emoticons import EmoticonManager
 from helpers.fonts import get_font, FontType
@@ -290,7 +290,7 @@ class MessageDelegate(QStyledItemDelegate):
      
         # Chatlog date separator
         if getattr(msg, 'is_separator', False):
-            return QSize(option.rect.width(), ChatlogDateSeparator.get_height())
+            return QSize(option.rect.width(), DateSeparator.get_height())
 
         # New messages marker
         if getattr(msg, 'is_new_messages_marker', False):
@@ -368,7 +368,7 @@ class MessageDelegate(QStyledItemDelegate):
   
         # Handle chatlog date separator
         if getattr(msg, 'is_separator', False):
-            ChatlogDateSeparator.render(
+            DateSeparator.render(
                 painter,
                 option.rect,
                 msg.date_str,

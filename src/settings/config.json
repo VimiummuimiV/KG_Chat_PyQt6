@@ -217,7 +217,7 @@
     "emoji_family": "Noto Color Emoji"
   },
   "user_tracker": {
-    "retention_hours": 24,
+    "retention_hours": 720,
     "enabled": true,
     "click_action": "chat",
     "notifications": false,
@@ -230,7 +230,8 @@
     ],
     "badge_font_size": 12,
     "notifications_auto_hide": true,
-    "chat_log": true
+    "chat_log": true,
+    "retention_unit": "days"
   },
   "join_room": {
     "remember": true,

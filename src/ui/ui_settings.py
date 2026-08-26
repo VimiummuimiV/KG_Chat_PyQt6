@@ -735,6 +735,8 @@ class SettingsWidget(QWidget):
             reset_button.clicked.connect(on_reset)
             row.addWidget(reset_button)
             update_reset_state(spin.value())
+            spin._reset_button = reset_button
+            spin._update_reset_state = update_reset_state
 
         section_layout.addLayout(row)
         return spin
@@ -1134,10 +1136,7 @@ class SettingsWidget(QWidget):
         self.tracker_events_bar.changed.connect(self._on_tracker_events_changed)
         events_row.addWidget(self.tracker_events_bar, stretch=1)
         section.addLayout(events_row)
-        self.tracker_retention_spin = self._add_slider_spin_row(
-            section, "History retention (hours)", 1, 168,
-            self._on_tracker_retention_changed, default=24
-        )
+        self._build_tracker_retention_row(section)
         self.tracker_default_tab_combo = self._add_combo_row(
             section, "Default tab on open", [], self._on_tracker_default_tab_changed
         )
@@ -1333,12 +1332,7 @@ class SettingsWidget(QWidget):
         if not track_events:
             track_events = list(EVENT_TYPES)
         self.tracker_events_bar.set_active_types(track_events)
-        retention = self.config.get("user_tracker", "retention_hours")
-        try:
-            retention = int(retention) if retention is not None else 24
-        except (TypeError, ValueError):
-            retention = 24
-        self.tracker_retention_spin.setValue(max(1, min(168, retention)))
+        self._sync_tracker_retention_ui_from_config()
         fill_tracker_default_tab_combo(self.tracker_default_tab_combo, self.config.get("user_tracker", "default_tab"))
 
         fill_tracker_click_combo(self.tracker_click_combo, self.config.get("user_tracker", "click_action"))
@@ -1626,8 +1620,105 @@ class SettingsWidget(QWidget):
         self.config.set("user_tracker", "track_events", value=active)
 
 
-    def _on_tracker_retention_changed(self, value: int):
-        self.config.set("user_tracker", "retention_hours", value=int(value))
+    def _build_tracker_retention_row(self, section_layout):
+        self.tracker_retention_spin = self._add_slider_spin_row(
+            section_layout, "History retention", 1, 168,
+            self._on_tracker_retention_value_changed,
+            on_reset=self._on_tracker_retention_reset,
+            default=24,
+        )
+        row = section_layout.itemAt(section_layout.count() - 1).layout()
+        self.tracker_retention_unit_combo = NoWheelComboBox()
+        self.tracker_retention_unit_combo.setFont(get_font(FontType.UI))
+        self.tracker_retention_unit_combo.addItem("hours", "hours")
+        self.tracker_retention_unit_combo.addItem("days", "days")
+        self.tracker_retention_unit_combo.setFixedWidth(90)
+        self.tracker_retention_unit_combo.currentIndexChanged.connect(
+            self._on_tracker_retention_unit_changed
+        )
+        # Insert unit selector before the reset button (last widget in the row)
+        row.insertWidget(row.count() - 1, self.tracker_retention_unit_combo)
+
+    def _tracker_retention_unit(self) -> str:
+        return self.tracker_retention_unit_combo.currentData() or "hours"
+
+    def _set_tracker_retention_range(self, unit: str):
+        maximum = 30 if unit == "days" else 168
+        slider = self.tracker_retention_spin._slider
+        slider.blockSignals(True)
+        self.tracker_retention_spin.blockSignals(True)
+        slider.setRange(1, maximum)
+        self.tracker_retention_spin.setRange(1, maximum)
+        slider.blockSignals(False)
+        self.tracker_retention_spin.blockSignals(False)
+
+    def _set_tracker_retention_display(self, value: int):
+        slider = self.tracker_retention_spin._slider
+        slider.blockSignals(True)
+        self.tracker_retention_spin.blockSignals(True)
+        slider.setValue(value)
+        self.tracker_retention_spin.setValue(value)
+        slider.blockSignals(False)
+        self.tracker_retention_spin.blockSignals(False)
+        btn = getattr(self.tracker_retention_spin, "_reset_button", None)
+        if btn is not None:
+            btn.setEnabled(self._tracker_retention_unit() != "hours" or value != 24)
+
+    def _sync_tracker_retention_ui_from_config(self):
+        hours = self.config.get("user_tracker", "retention_hours")
+        try:
+            hours = int(hours) if hours is not None else 24
+        except (TypeError, ValueError):
+            hours = 24
+        hours = max(1, min(720, hours))
+        unit = self.config.get("user_tracker", "retention_unit") or "hours"
+        if unit not in ("hours", "days"):
+            unit = "hours"
+
+        self.tracker_retention_unit_combo.blockSignals(True)
+        index = self.tracker_retention_unit_combo.findData(unit)
+        self.tracker_retention_unit_combo.setCurrentIndex(index if index >= 0 else 0)
+        self.tracker_retention_unit_combo.blockSignals(False)
+
+        self._set_tracker_retention_range(unit)
+        if unit == "days":
+            display = max(1, min(30, round(hours / 24) or 1))
+        else:
+            display = max(1, min(168, hours))
+        self._set_tracker_retention_display(display)
+
+    def _on_tracker_retention_value_changed(self, value: int):
+        unit = self._tracker_retention_unit()
+        hours = value * 24 if unit == "days" else value
+        self.config.set("user_tracker", "retention_hours", value=max(1, min(720, hours)))
+        self.config.set("user_tracker", "retention_unit", value=unit)
+
+    def _on_tracker_retention_unit_changed(self, _index: int = 0):
+        unit = self._tracker_retention_unit()
+        hours = self.config.get("user_tracker", "retention_hours")
+        try:
+            hours = int(hours) if hours is not None else 24
+        except (TypeError, ValueError):
+            hours = 24
+        hours = max(1, min(720, hours))
+
+        self._set_tracker_retention_range(unit)
+        if unit == "days":
+            display = max(1, min(30, round(hours / 24) or 1))
+        else:
+            display = max(1, min(168, hours))
+        self._set_tracker_retention_display(display)
+        self._on_tracker_retention_value_changed(display)
+
+    def _on_tracker_retention_reset(self):
+        self.tracker_retention_unit_combo.blockSignals(True)
+        self.tracker_retention_unit_combo.setCurrentIndex(
+            self.tracker_retention_unit_combo.findData("hours")
+        )
+        self.tracker_retention_unit_combo.blockSignals(False)
+        self._set_tracker_retention_range("hours")
+        self._set_tracker_retention_display(24)
+        self._on_tracker_retention_value_changed(24)
 
     def _on_tracker_default_tab_changed(self, _text: str = ""):
         self._sync_combo_tooltip(self.tracker_default_tab_combo)

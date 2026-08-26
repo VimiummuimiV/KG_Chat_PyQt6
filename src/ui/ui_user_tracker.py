@@ -35,6 +35,39 @@ from components.presence_badge import (
     presence_badge_style
 )
 from components.user_count_row import UserCountRow
+from components.messages_separator import DateSeparator
+
+
+
+def event_date_str(event: dict) -> Optional[str]:
+    if event.get('is_separator'):
+        return event.get('date_str')
+    ts = event.get('timestamp')
+    if ts is None:
+        return None
+    try:
+        return datetime.fromtimestamp(float(ts)).strftime("%Y-%m-%d")
+    except Exception:
+        return None
+
+
+def inject_date_separators(events: List[dict]) -> List[dict]:
+    """Insert a DateSeparator row before each new calendar day."""
+    result = []
+    last_date = None
+    for event in events:
+        if event.get('is_separator'):
+            continue
+        date_str = event_date_str(event)
+        if date_str and date_str != last_date:
+            result.append({
+                'is_separator': True,
+                'date_str': date_str,
+                'timestamp': event.get('timestamp', 0),
+            })
+            last_date = date_str
+        result.append(event)
+    return result
 
 
 class TrackerEventModel(QAbstractListModel):
@@ -58,10 +91,33 @@ class TrackerEventModel(QAbstractListModel):
 
     def set_events(self, events: List[dict]):
         self.beginResetModel()
-        self._events = list(events)
+        self._events = inject_date_separators(events)
         self.endResetModel()
 
     def append_event(self, event: dict) -> int:
+        date_str = event_date_str(event)
+        last_date = None
+        for existing in reversed(self._events):
+            if existing.get('is_separator'):
+                last_date = existing.get('date_str')
+                break
+            last_date = event_date_str(existing)
+            if last_date:
+                break
+
+        if date_str and date_str != last_date:
+            separator = {
+                'is_separator': True,
+                'date_str': date_str,
+                'timestamp': event.get('timestamp', 0),
+            }
+            row = len(self._events)
+            self.beginInsertRows(QModelIndex(), row, row + 1)
+            self._events.append(separator)
+            self._events.append(event)
+            self.endInsertRows()
+            return row + 1
+
         row = len(self._events)
         self.beginInsertRows(QModelIndex(), row, row)
         self._events.append(event)
@@ -69,16 +125,22 @@ class TrackerEventModel(QAbstractListModel):
         return row
 
     def remove_login(self, login: str) -> int:
-        indices = [i for i, e in enumerate(self._events) if e.get('login') == login]
-        for row in reversed(indices):
-            self.beginRemoveRows(QModelIndex(), row, row)
-            self._events.pop(row)
-            self.endRemoveRows()
-        return len(indices)
+        raw = [e for e in self._events
+               if not e.get('is_separator') and e.get('login') != login]
+        removed = sum(
+            1 for e in self._events
+            if not e.get('is_separator') and e.get('login') == login
+        )
+        self.beginResetModel()
+        self._events = inject_date_separators(raw)
+        self.endResetModel()
+        return removed
 
     def find_row(self, login: str = None, event_ts: float = None) -> Optional[int]:
         target = None
         for row, event in enumerate(self._events):
+            if event.get('is_separator'):
+                continue
             if login and event.get('login') != login:
                 continue
             if event_ts is not None:
@@ -98,16 +160,18 @@ class TrackerEventModel(QAbstractListModel):
 
 
 class TrackerEventFilterProxy(QSortFilterProxyModel):
-    """Filters tracker events by login and/or event type without touching the source model"""
+    """Filters tracker events by login, event type and/or date without touching the source model"""
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.filtered_logins: Set[str] = set()
         self.filtered_types: Set[str] = set()
+        self.filtered_dates: Set[str] = set()
 
-    def set_filters(self, logins: Set[str], types: Set[str]):
+    def set_filters(self, logins: Set[str], types: Set[str], dates: Set[str] = None):
         self.filtered_logins = set(logins)
         self.filtered_types = set(types)
+        self.filtered_dates = set(dates or ())
         self.invalidateFilter()
 
     def filterAcceptsRow(self, source_row: int, source_parent: QModelIndex) -> bool:
@@ -118,6 +182,29 @@ class TrackerEventFilterProxy(QSortFilterProxyModel):
         )
         if not event:
             return True
+
+        date_str = event_date_str(event)
+
+        if event.get('is_separator'):
+            if self.filtered_dates and date_str not in self.filtered_dates:
+                return False
+            # Hide separator when no real event of that day would remain visible
+            for row in range(source_row + 1, source_model.rowCount()):
+                sibling = source_model.data(
+                    source_model.index(row, 0, source_parent),
+                    Qt.ItemDataRole.DisplayRole,
+                )
+                if not sibling or sibling.get('is_separator'):
+                    break
+                if self._event_matches(sibling):
+                    return True
+            return False
+
+        if self.filtered_dates and date_str not in self.filtered_dates:
+            return False
+        return self._event_matches(event)
+
+    def _event_matches(self, event: dict) -> bool:
         if self.filtered_logins and event.get('login') not in self.filtered_logins:
             return False
         if self.filtered_types and (event.get('type') or '') not in self.filtered_types:
@@ -130,6 +217,7 @@ class TrackerEventDelegate(QStyledItemDelegate):
 
     filter_clicked = pyqtSignal(str, bool)       # login, ctrl_pressed
     type_filter_clicked = pyqtSignal(str, bool)  # event_type, ctrl_pressed
+    date_filter_clicked = pyqtSignal(str, bool)  # date_str, ctrl_pressed
 
     def __init__(self, config, parent=None):
         super().__init__(parent)
@@ -198,6 +286,9 @@ class TrackerEventDelegate(QStyledItemDelegate):
                 width = 0
         if width <= 0:
             width = 800
+        event = index.data(Qt.ItemDataRole.DisplayRole) or {}
+        if event.get('is_separator'):
+            return QSize(width, DateSeparator.get_height())
         return QSize(width, self._row_height())
 
     def paint(self, painter: QPainter, option: QStyleOptionViewItem, index: QModelIndex):
@@ -206,13 +297,25 @@ class TrackerEventDelegate(QStyledItemDelegate):
             return
 
         row = index.row()
-        self.click_rects[row] = {'username': QRect(), 'badge': QRect()}
+        self.click_rects[row] = {'username': QRect(), 'badge': QRect(), 'separator': QRect()}
 
         painter.save()
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
         if row == self.highlighted_row and self.highlight_opacity > 0:
             painter.fillRect(option.rect, highlight_fill_color(self.is_dark_theme, self.highlight_opacity))
+
+        if event.get('is_separator'):
+            DateSeparator.render(
+                painter,
+                option.rect,
+                event.get('date_str') or '',
+                self.time_font,
+                self.is_dark_theme,
+            )
+            self.click_rects[row]['separator'] = QRect(option.rect)
+            painter.restore()
+            return
 
         x = option.rect.x() + self.padding
         y = option.rect.y()
@@ -296,6 +399,11 @@ class TrackerEventDelegate(QStyledItemDelegate):
             data = index.data(Qt.ItemDataRole.DisplayRole) or {}
             ctrl_pressed = bool(event.modifiers() & Qt.KeyboardModifier.ControlModifier)
             pos = event.pos()
+            if data.get('is_separator') and rects.get('separator') and rects['separator'].contains(pos):
+                date_str = data.get('date_str') or ''
+                if date_str:
+                    self.date_filter_clicked.emit(date_str, ctrl_pressed)
+                return True
             if rects['username'].contains(pos) and data.get('login'):
                 self.filter_clicked.emit(data['login'], ctrl_pressed)
                 return True
@@ -306,7 +414,11 @@ class TrackerEventDelegate(QStyledItemDelegate):
         elif event.type() == QEvent.Type.MouseMove:
             if rects and self.list_view:
                 pos = event.pos()
-                is_over_clickable = rects['username'].contains(pos) or rects['badge'].contains(pos)
+                is_over_clickable = (
+                    rects['username'].contains(pos)
+                    or rects['badge'].contains(pos)
+                    or (rects.get('separator') and rects['separator'].contains(pos))
+                )
                 cursor = Qt.CursorShape.PointingHandCursor if is_over_clickable else Qt.CursorShape.ArrowCursor
                 self.list_view.setCursor(QCursor(cursor))
 
@@ -521,6 +633,7 @@ class UserTrackerWidget(QWidget):
         self.user_items = []
         self.filtered_logins = set()
         self.filtered_types = set()
+        self.filtered_dates = set()
         self.chip_widgets = {}
         userlist_visible = config.get("ui", "userlist", "tracker")
         self.userlist_visible = True if userlist_visible is None else bool(userlist_visible)
@@ -638,7 +751,7 @@ class UserTrackerWidget(QWidget):
         self.history_list_view.setItemDelegate(self.history_delegate)
         self.history_delegate.set_list_view(self.history_list_view)
         self.history_list_view.setVerticalScrollMode(QListView.ScrollMode.ScrollPerPixel)
-        self.history_list_view.setUniformItemSizes(True)
+        self.history_list_view.setUniformItemSizes(False)
         self.history_list_view.setSpacing(0)
         self.history_list_view.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.history_list_view.setSelectionMode(QListView.SelectionMode.NoSelection)
@@ -647,6 +760,7 @@ class UserTrackerWidget(QWidget):
         self.history_list_view.viewport().setMouseTracking(True)
         self.history_delegate.filter_clicked.connect(self._handle_filter_click)
         self.history_delegate.type_filter_clicked.connect(self._handle_type_filter_click)
+        self.history_delegate.date_filter_clicked.connect(self._handle_date_filter_click)
 
         self._empty_history_label = QLabel("No events")
         self._empty_history_label.setFont(get_font(FontType.UI))
@@ -713,7 +827,7 @@ class UserTrackerWidget(QWidget):
         self.add_user_button.setVisible(is_tracked)
         self.clear_history_button.setVisible(not is_tracked)
         self.clear_filter_button.setVisible(
-            not is_tracked and (bool(self.filtered_logins) or bool(self.filtered_types))
+            not is_tracked and (bool(self.filtered_logins) or bool(self.filtered_types) or bool(self.filtered_dates))
         )
         self.info_label.setVisible(not is_tracked)
         if not is_tracked:
@@ -809,11 +923,19 @@ class UserTrackerWidget(QWidget):
         scroll(self.history_list_view, mode="bottom", delay=10)
 
     def _update_info_label(self):
-        total = self.history_model.rowCount()
+        total = sum(
+            1 for e in self.history_model.get_events() if not e.get('is_separator')
+        )
         if total == 0:
             self.info_label.setText("No events")
             return
-        shown = self.history_proxy.rowCount()
+        shown = 0
+        for row in range(self.history_proxy.rowCount()):
+            event = self.history_proxy.data(
+                self.history_proxy.index(row, 0), Qt.ItemDataRole.DisplayRole
+            )
+            if event and not event.get('is_separator'):
+                shown += 1
         desc = self._filter_description()
         if desc:
             self.info_label.setText(f"Showing {shown}/{total} events ({desc})")
@@ -834,6 +956,13 @@ class UserTrackerWidget(QWidget):
         self._update_filter_button()
         self._apply_event_filter()
 
+    def _handle_date_filter_click(self, date_str: str, ctrl_pressed: bool):
+        if not date_str:
+            return
+        self.filtered_dates = toggle_filter_value(self.filtered_dates, date_str, ctrl_pressed)
+        self._update_filter_button()
+        self._apply_event_filter()
+
     def _on_type_filter_changed(self, types):
         self.filtered_types = set(types)
         self._update_filter_button()
@@ -842,6 +971,7 @@ class UserTrackerWidget(QWidget):
     def _clear_filter(self):
         self.filtered_logins.clear()
         self.filtered_types.clear()
+        self.filtered_dates.clear()
         self.type_filter_bar.set_active_types(())
         self._update_filter_button()
         self._apply_event_filter()
@@ -849,6 +979,8 @@ class UserTrackerWidget(QWidget):
 
     def _filter_description(self) -> str:
         parts = []
+        if self.filtered_dates:
+            parts.append(", ".join(sorted(self.filtered_dates)))
         if self.filtered_logins:
             parts.append(", ".join(sorted(self.filtered_logins)))
         if self.filtered_types:
@@ -856,7 +988,7 @@ class UserTrackerWidget(QWidget):
         return " · ".join(parts)
 
     def _update_filter_button(self):
-        active = bool(self.filtered_logins) or bool(self.filtered_types)
+        active = bool(self.filtered_logins) or bool(self.filtered_types) or bool(self.filtered_dates)
         on_history = self.tabs.currentIndex() == 1
         self.clear_filter_button.setVisible(on_history and active)
         self.clear_filter_button.setToolTip(
@@ -874,7 +1006,7 @@ class UserTrackerWidget(QWidget):
         self._update_info_label()
 
     def _apply_event_filter(self):
-        self.history_proxy.set_filters(self.filtered_logins, self.filtered_types)
+        self.history_proxy.set_filters(self.filtered_logins, self.filtered_types, self.filtered_dates)
         self.history_delegate.clear_click_rects()
         self._update_history_empty_state()
         self._update_info_label()
@@ -975,7 +1107,7 @@ class UserTrackerWidget(QWidget):
 
     def reveal_event(self, login: str, event_ts: float = None):
         self.tabs.setCurrentIndex(1)
-        if self.filtered_logins or self.filtered_types:
+        if self.filtered_logins or self.filtered_types or self.filtered_dates:
             self._clear_filter()
 
         source_row = self.history_model.find_row(login, event_ts)

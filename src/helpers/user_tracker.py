@@ -11,8 +11,6 @@ EVENT_TYPES = ("join", "left", "game")
 
 
 class UserTracker:
-    RETENTION_SECONDS = 86400
-
     def __init__(self, data_path: Path, config):
         self.file_path = data_path / "tracked.json"
         self.config = config
@@ -106,10 +104,10 @@ class UserTracker:
             hours = int(value) if value is not None else 24
         except (TypeError, ValueError):
             hours = 24
-        return max(1, min(168, hours))
+        return max(1, min(720, hours))
 
     def set_retention_hours(self, hours: int):
-        self.config.set("user_tracker", "retention_hours", value=max(1, min(168, int(hours))))
+        self.config.set("user_tracker", "retention_hours", value=max(1, min(720, int(hours))))
 
     def is_tracked(self, user_id: str = None, login: str = None) -> bool:
         if not self.selected:
