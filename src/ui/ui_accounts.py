@@ -4,7 +4,7 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QComboBox,
     QMessageBox, QApplication, QCheckBox
 )
-from PyQt6.QtGui import QFont, QIcon, QPixmap, QKeyEvent
+from PyQt6.QtGui import QFont, QIcon, QPixmap, QKeyEvent, QGuiApplication
 from PyQt6.QtCore import Qt, pyqtSignal, QSize, pyqtSlot, QEvent
 
 from helpers.create import create_icon_button, set_theme, _render_svg_icon
@@ -71,6 +71,14 @@ class AccountWindow(QWidget):
 
         # Set initial window height for Connect page
         self._adjust_window_height()
+
+        # Force layout activation so width() reflects the real content size
+        # (before the first show(), a top-level widget still has its
+        # placeholder default size, which throws off centering)
+        self.adjustSize()
+
+        # Center window on screen now that its size is finalized
+        self._center_on_screen()
 
         # Ensure the window itself holds focus so Tab reaches event() immediately
         self.setFocus()
@@ -317,6 +325,16 @@ class AccountWindow(QWidget):
             button_padding
         )
         self.setFixedHeight(total_height)
+
+    def _center_on_screen(self):
+        """Center the window on the current (or primary) screen."""
+        screen = self.screen() or QGuiApplication.primaryScreen()
+        if not screen:
+            return
+        geo = screen.availableGeometry()
+        frame = self.frameGeometry()
+        frame.moveCenter(geo.center())
+        self.move(frame.topLeft())
 
     def eventFilter(self, obj, event):
         if (hasattr(self, 'color_button')
