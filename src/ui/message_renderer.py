@@ -65,6 +65,8 @@ class MessageRenderer(QObject):
         
         # Copy highlight state
         self._copied_url: Optional[str] = None
+        # None = follow config; False/True = force (e.g. parser bulk load)
+        self._youtube_override: Optional[bool] = None
         
         # Create viewer instances
         self.image_viewer = None
@@ -74,8 +76,13 @@ class MessageRenderer(QObject):
 
     @property
     def youtube_enabled(self) -> bool:
+        if self._youtube_override is not None:
+            return self._youtube_override
         value = self.config.get("ui", "youtube", "enabled")
         return True if value is None else bool(value)
+
+    def set_youtube_override(self, enabled: Optional[bool]):
+        self._youtube_override = enabled
     
     def _init_viewers(self, parent_widget):
         """Initialize image and video viewers"""

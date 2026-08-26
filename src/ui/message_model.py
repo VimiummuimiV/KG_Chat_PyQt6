@@ -61,6 +61,14 @@ class MessageListModel(QAbstractListModel):
         self.endInsertRows()
         return row
 
+    def set_messages(self, messages: List[MessageData]):
+        """Replace all messages in one model reset (bulk load)."""
+        if len(messages) > self.max_messages:
+            messages = messages[-self.max_messages:]
+        self.beginResetModel()
+        self._messages = list(messages)
+        self.endResetModel()
+
     def clear(self):
         if self._messages:
             self.beginResetModel()

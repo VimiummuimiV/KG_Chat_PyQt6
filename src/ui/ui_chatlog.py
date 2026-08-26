@@ -537,11 +537,19 @@ class ChatlogWidget(QWidget):
         # The "Loaded N messages" status belongs to the chatlog list, not the parser config screen
         self.info_label.setVisible(not self.parser_visible)
 
+    def _set_parser_youtube_off(self, off: bool):
+        """Parser bulk views never expand YouTube links (config is ignored)."""
+        renderer = getattr(self.delegate, "message_renderer", None)
+        if renderer is not None:
+            renderer.set_youtube_override(False if off else None)
+
     def _on_parse_started(self, config: ParseConfig):
         """Start parsing with given config"""
         self.is_parsing = True
         self.exceeded_max_messages = False
         self.date_label.setText("Parser")
+        if config.mode != 'syncdatabase':
+            self._set_parser_youtube_off(True)
         
         # Only clear UI for non-sync modes
         if config.mode != 'syncdatabase':
@@ -589,16 +597,15 @@ class ChatlogWidget(QWidget):
             # Normal mode - add partial messages if any
             if self.temp_parsed_messages:
                 self.list_view.setUpdatesEnabled(False)
-                self.all_messages = self.temp_parsed_messages.copy()
-                for msg_data in self.temp_parsed_messages:
-                    self.model.add_message(msg_data)
+                self.all_messages = self.temp_parsed_messages
                 self.temp_parsed_messages = []
+                self.model.set_messages(self.all_messages)
                 self.list_view.setUpdatesEnabled(True)
                 non_separator_messages = [m for m in self.all_messages if not m.is_separator]
                 self.messages_loaded.emit(non_separator_messages)
                 self.parser_widget.show_copy_save_buttons()
                 QTimer.singleShot(100, lambda: scroll(self.list_view, mode="top", delay=50))
-                message_count = sum(1 for m in self.all_messages if not m.is_separator)
+                message_count = len(non_separator_messages)
                 self.info_label.setText(f"Found {message_count} messages (partial)")
             else:
                 self.info_label.setText("Parsing cancelled")
@@ -656,7 +663,7 @@ class ChatlogWidget(QWidget):
             pass
         elif self.temp_parsed_messages:
             message_count = sum(1 for m in self.temp_parsed_messages if not m.is_separator)
-            self.all_messages = self.temp_parsed_messages.copy()
+            self.all_messages = self.temp_parsed_messages
             self.temp_parsed_messages = []
             
             # Skip rendering if exceeded limit
@@ -664,10 +671,8 @@ class ChatlogWidget(QWidget):
                 self.info_label.setText(f"⚠️ {message_count:,} messages found (limit: {self.model.max_messages:,}) - rendering disabled. Use Copy/Save buttons.")
                 self.exceeded_max_messages = False
             else:
-                # Normal rendering
                 self.list_view.setUpdatesEnabled(False)
-                for msg_data in self.all_messages:
-                    self.model.add_message(msg_data)
+                self.model.set_messages(self.all_messages)
                 self.list_view.setUpdatesEnabled(True)
                 
                 non_separator_messages = [m for m in self.all_messages if not m.is_separator]
@@ -939,9 +944,7 @@ class ChatlogWidget(QWidget):
                                 if search_lower in msg.username.lower() or
                                     search_lower in msg.body.lower()]
 
-        # Batch add all filtered messages
-        for msg in messages_to_show:
-            self.model.add_message(msg)
+        self.model.set_messages(messages_to_show)
 
         self.list_view.setUpdatesEnabled(True)
         
@@ -995,6 +998,7 @@ class ChatlogWidget(QWidget):
     def load_current_date(self):
         """Load single date chatlog - this is NORMAL viewing"""
         self.is_parsing = False
+        self._set_parser_youtube_off(False)
         self.model.clear()
         self.all_messages = []
         self.info_label.setText("Loading...")
