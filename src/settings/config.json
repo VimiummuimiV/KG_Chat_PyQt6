@@ -2,7 +2,7 @@
   "server": {
     "url": "https://klavogonki.ru/xmpp-httpbind/",
     "domain": "jabber.klavogonki.ru",
-    "resource": "desktop"
+    "resource": "web"
   },
   "rooms": [
     {
