@@ -45,25 +45,36 @@ FONT_PREVIEW_BORDER = 1
 FONT_PREVIEW_PADDING = 6
 
 XMPP_RESOURCE_OPTIONS = (
-    (
-        "web",
-        "Same resource as the website. Receives private messages from the site client.",
-    ),
-    (
-        "client",
-        "Works alongside the website. May not receive private messages from the web resource.",
-    ),
+    ("web", "Same resource as the website. Receives private messages from the site client."),
+    ("client", "Works alongside the website. May not receive private messages from the web resource."),
 )
 
 OWN_MESSAGE_MODE_OPTIONS = (
-    (
-        "local",
-        "Show own messages immediately. Server echoes are ignored.",
-    ),
-    (
-        "server",
-        "Show own messages only when the server echoes them back.",
-    ),
+    ("local", "Show own messages immediately. Server echoes are ignored."),
+    ("server", "Show own messages only when the server echoes them back."),
+)
+
+NOTIFICATION_MODE_OPTIONS = (
+    ("stack",   "Stack",   "Stack notifications vertically; oldest is dropped once they no longer fit."),
+    ("replace", "Replace", "Close the previous notification when a new one arrives."),
+    ("scroll",  "Scroll",  "Keep every notification; scroll with the mouse wheel to see more."),
+)
+
+NOTIFICATION_HIDE_ON_OPTIONS = (
+    ("manual",         "Manual",            "Auto-hide off — closes only by clicking it or the close button."),
+    ("mouse",          "Mouse",             "Auto-hide countdown starts once the mouse moves."),
+    ("keyboard",       "Keyboard",          "Auto-hide countdown starts once you press a key."),
+    ("mouse_keyboard", "Mouse or Keyboard", "Auto-hide countdown starts on mouse or keyboard activity."),
+)
+
+ALERT_CHAT_ACTION_OPTIONS = (
+    ("scroll", "Scroll to message", "Scrolls the chat to the competition message."),
+    ("move",   "Move to bottom",    "Removes the competition message and reposts it at the bottom of the chat."),
+)
+
+TRACKER_CLICK_OPTIONS = (
+    ("history", "Open history", "Open the User Tracker's History tab."),
+    ("chat",    "Show chat",    "Open the regular chat window — messages and user list, no tracker."),
 )
 
 CONNECTION_STATES = {
@@ -184,10 +195,12 @@ def get_sound_path(sound_root: Path, kind: str, config) -> Path | None:
 
 
 def fill_tooltip_combo(combo, options, current=None, default=None):
+    """options entries are (value, tip) or (value, label, tip); label defaults to value."""
     combo.blockSignals(True)
     combo.clear()
-    for value, tip in options:
-        combo.addItem(value, value)
+    for entry in options:
+        value, label, tip = entry if len(entry) == 3 else (entry[0], entry[0], entry[1])
+        combo.addItem(label, value)
         combo.setItemData(combo.count() - 1, tip, Qt.ItemDataRole.ToolTipRole)
     selected = current or default
     index = combo.findData(selected)
@@ -203,6 +216,22 @@ def fill_resource_combo(combo, current=None):
 
 def fill_own_message_mode_combo(combo, current=None):
     fill_tooltip_combo(combo, OWN_MESSAGE_MODE_OPTIONS, current, "local")
+
+
+def fill_notification_mode_combo(combo, current=None):
+    fill_tooltip_combo(combo, NOTIFICATION_MODE_OPTIONS, current, "stack")
+
+
+def fill_notification_hide_on_combo(combo, current=None):
+    fill_tooltip_combo(combo, NOTIFICATION_HIDE_ON_OPTIONS, current, "mouse_keyboard")
+
+
+def fill_alert_chat_action_combo(combo, current=None):
+    fill_tooltip_combo(combo, ALERT_CHAT_ACTION_OPTIONS, current, "scroll")
+
+
+def fill_tracker_click_combo(combo, current=None):
+    fill_tooltip_combo(combo, TRACKER_CLICK_OPTIONS, current, "history")
 
 
 class NoWheelSlider(QSlider):
@@ -931,8 +960,7 @@ class SettingsWidget(QWidget):
     def _build_notifications_section(self):
         section = self._create_section("⚠️ Notifications")
         self.notification_mode_combo = self._add_combo_row(
-            section, "Notification mode", ["Stack", "Replace", "Scroll"],
-            self._on_notification_mode_changed
+            section, "Notification mode", [], self._on_notification_mode_changed
         )
         self.notification_position_combo = self._add_combo_row(
             section, "Notification position", ["Right", "Left", "Center"],
@@ -942,12 +970,8 @@ class SettingsWidget(QWidget):
             section, "Notification width", NOTIFICATION_WIDTH_DEFAULT, 1000, self._on_notification_width_changed,
             default=NOTIFICATION_WIDTH_DEFAULT
         )
-        # When to start the auto-hide countdown. Manual = only body click / ×.
         self.notification_hide_on_combo = self._add_combo_row(
-            section,
-            "Hide notifications on",
-            ["Manual", "Mouse", "Keyboard", "Mouse or Keyboard"],
-            self._on_notification_hide_on_changed,
+            section, "Hide notifications on", [], self._on_notification_hide_on_changed
         )
         self.notification_duration_spin = self._add_slider_spin_row(
             section,
@@ -1047,12 +1071,8 @@ class SettingsWidget(QWidget):
             default=COMPETITIONS_ALERT_LEAD_DEFAULT
         )
 
-        # How the competition chat message is brought into view on alert
         self.alert_chat_action_combo = self._add_combo_row(
-            section,
-            "On alert in chat",
-            ["Scroll to message", "Move to bottom"],
-            self._on_alert_chat_action_changed,
+            section, "On alert in chat", [], self._on_alert_chat_action_changed
         )
 
         self.competitions_notify_window_checkbox = self._add_checkbox(
@@ -1116,10 +1136,7 @@ class SettingsWidget(QWidget):
             self._on_tracker_default_tab_changed,
         )
         self.tracker_click_combo = self._add_combo_row(
-            section,
-            "On notification click",
-            ["Open history", "Show chat"],
-            self._on_tracker_click_action_changed,
+            section, "On notification click", [], self._on_tracker_click_action_changed
         )
 
     def _build_sound_section(self):
@@ -1321,10 +1338,7 @@ class SettingsWidget(QWidget):
         idx = self.tracker_default_tab_combo.findText(tab_label)
         self.tracker_default_tab_combo.setCurrentIndex(idx if idx >= 0 else 0)
 
-        click = self.config.get("user_tracker", "click_action") or "history"
-        click_label = "Show chat" if click == "chat" else "Open history"
-        idx = self.tracker_click_combo.findText(click_label)
-        self.tracker_click_combo.setCurrentIndex(idx if idx >= 0 else 0)
+        fill_tracker_click_combo(self.tracker_click_combo, self.config.get("user_tracker", "click_action"))
 
         min_m = self.config.get("competitions", "min_multiplier") or "x1+"
         idx = self.min_multiplier_combo.findText(min_m)
@@ -1343,13 +1357,7 @@ class SettingsWidget(QWidget):
         self.competitions_alert_lead_spin.setValue(int(self.config.get("competitions", "alert_lead_seconds") or COMPETITIONS_ALERT_LEAD_DEFAULT))
         self.competitions_alert_lead_spin._slider.setValue(self.competitions_alert_lead_spin.value())
 
-        alert_action = self.config.get("competitions", "alert_chat_action") or "scroll"
-        alert_label = {
-            "scroll": "Scroll to message",
-            "move": "Move to bottom",
-        }.get(alert_action, "Scroll to message")
-        idx = self.alert_chat_action_combo.findText(alert_label)
-        self.alert_chat_action_combo.setCurrentIndex(idx if idx >= 0 else 0)
+        fill_alert_chat_action_combo(self.alert_chat_action_combo, self.config.get("competitions", "alert_chat_action"))
 
         self.competitions_notify_window_checkbox.setChecked(
             bool(self.config.get("competitions", "notify_window_enabled"))
@@ -1360,9 +1368,7 @@ class SettingsWidget(QWidget):
         self.competitions_notify_end_spin._slider.setValue(self.competitions_notify_end_spin.value())
         self._set_notify_window_controls_enabled(self.competitions_notify_window_checkbox.isChecked())
 
-        mode = (self.config.get("notification", "mode") or "stack").capitalize()
-        idx = self.notification_mode_combo.findText(mode)
-        self.notification_mode_combo.setCurrentIndex(idx if idx >= 0 else 0)
+        fill_notification_mode_combo(self.notification_mode_combo, self.config.get("notification", "mode"))
 
         position = (self.config.get("ui", "notification_position") or "right").capitalize()
         idx = self.notification_position_combo.findText(position)
@@ -1370,16 +1376,7 @@ class SettingsWidget(QWidget):
         self.notification_width_spin.setValue(int(self.config.get("ui", "notification_width") or NOTIFICATION_WIDTH_DEFAULT))
         self.notification_width_spin._slider.setValue(self.notification_width_spin.value())
 
-        hide_on = self.config.get("notification", "hide_on") or "mouse_keyboard"
-        hide_on_labels = {
-            "manual": "Manual",
-            "mouse": "Mouse",
-            "keyboard": "Keyboard",
-            "mouse_keyboard": "Mouse or Keyboard",
-        }
-        hide_label = hide_on_labels.get(hide_on, "Mouse or Keyboard")
-        idx = self.notification_hide_on_combo.findText(hide_label)
-        self.notification_hide_on_combo.setCurrentIndex(idx if idx >= 0 else 3)
+        fill_notification_hide_on_combo(self.notification_hide_on_combo, self.config.get("notification", "hide_on"))
 
         duration_ms = self.config.get("notification", "duration_ms")
         try:
@@ -1440,15 +1437,16 @@ class SettingsWidget(QWidget):
             self.start_with_system_checkbox.setChecked(not checked)
             self.start_with_system_checkbox.blockSignals(False)
 
+    def _sync_combo_tooltip(self, combo):
+        tip = combo.itemData(combo.currentIndex(), Qt.ItemDataRole.ToolTipRole)
+        combo.setToolTip(tip or "")
+
     def _on_resource_changed(self, _text: str = ""):
+        self._sync_combo_tooltip(self.resource_combo)
         value = self.resource_combo.currentData()
         if value is None:
             return
         previous = self.config.get("server", "resource") or "web"
-        tip = self.resource_combo.itemData(
-            self.resource_combo.currentIndex(), Qt.ItemDataRole.ToolTipRole
-        )
-        self.resource_combo.setToolTip(tip or "")
         if value == previous:
             return
         self.config.set("server", "resource", value=value)
@@ -1456,14 +1454,11 @@ class SettingsWidget(QWidget):
         self.resource_changed.emit()
 
     def _on_own_message_mode_changed(self, _text: str = ""):
+        self._sync_combo_tooltip(self.own_message_mode_combo)
         value = self.own_message_mode_combo.currentData()
         if value is None:
             return
         previous = self.config.get("ui", "own_message_mode") or "local"
-        tip = self.own_message_mode_combo.itemData(
-            self.own_message_mode_combo.currentIndex(), Qt.ItemDataRole.ToolTipRole
-        )
-        self.own_message_mode_combo.setToolTip(tip or "")
         if value == previous:
             return
         self.config.set("ui", "own_message_mode", value=value)
@@ -1635,8 +1630,9 @@ class SettingsWidget(QWidget):
         value = "history" if text == "History" else "tracked"
         self.config.set("user_tracker", "default_tab", value=value)
 
-    def _on_tracker_click_action_changed(self, text: str):
-        value = "chat" if text == "Show chat" else "history"
+    def _on_tracker_click_action_changed(self, _text: str = ""):
+        self._sync_combo_tooltip(self.tracker_click_combo)
+        value = self.tracker_click_combo.currentData() or "history"
         self.config.set("user_tracker", "click_action", value=value)
 
     def _status_log_html(self, text: str, kind: str) -> str:
@@ -1804,12 +1800,9 @@ class SettingsWidget(QWidget):
     def _on_competitions_alert_lead_changed(self, value: int):
         self.config.set("competitions", "alert_lead_seconds", value=value)
 
-    def _on_alert_chat_action_changed(self, text: str):
-        mapping = {
-            "Scroll to message": "scroll",
-            "Move to bottom": "move",
-        }
-        value = mapping.get(text, "scroll")
+    def _on_alert_chat_action_changed(self, _text: str = ""):
+        self._sync_combo_tooltip(self.alert_chat_action_combo)
+        value = self.alert_chat_action_combo.currentData() or "scroll"
         self.config.set("competitions", "alert_chat_action", value=value)
 
     def _on_competitions_notify_window_toggled(self, checked: bool):
@@ -1829,10 +1822,9 @@ class SettingsWidget(QWidget):
     def _on_competition_sound_repeat_interval_changed(self, value: int):
         self.config.set("sound", "competition_repeat_interval", value=value)
 
-    def _on_notification_mode_changed(self, text: str):
-        mode = (text or "stack").lower()
-        if mode not in ("stack", "replace", "scroll"):
-            return
+    def _on_notification_mode_changed(self, _text: str = ""):
+        self._sync_combo_tooltip(self.notification_mode_combo)
+        mode = self.notification_mode_combo.currentData() or "stack"
         self.config.set("notification", "mode", value=mode)
         from components.notification import popup_manager
         popup_manager.set_notification_mode(mode)
@@ -1843,14 +1835,9 @@ class SettingsWidget(QWidget):
     def _on_notification_width_changed(self, value: int):
         self.config.set("ui", "notification_width", value=value)
 
-    def _on_notification_hide_on_changed(self, text: str):
-        mapping = {
-            "Manual": "manual",
-            "Mouse": "mouse",
-            "Keyboard": "keyboard",
-            "Mouse or Keyboard": "mouse_keyboard",
-        }
-        value = mapping.get(text, "mouse_keyboard")
+    def _on_notification_hide_on_changed(self, _text: str = ""):
+        self._sync_combo_tooltip(self.notification_hide_on_combo)
+        value = self.notification_hide_on_combo.currentData() or "mouse_keyboard"
         self.config.set("notification", "hide_on", value=value)
 
     def _on_notification_duration_changed(self, value: int):

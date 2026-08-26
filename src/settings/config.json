@@ -130,7 +130,7 @@
     "settings": {
       "sections": {
         "startup": true,
-        "chat": false,
+        "chat": true,
         "fonts": true,
         "notifications": true,
         "competitions": true,
@@ -148,7 +148,7 @@
       "messages": true,
       "chatlog": true
     },
-    "own_message_mode": "server"
+    "own_message_mode": "local"
   },
   "sound": {
     "tts_enabled": false,
