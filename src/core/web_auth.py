@@ -32,6 +32,7 @@ _UI_ENHANCE = """
 
     const colorLogin = '120, 100%, 76%';
     const colorPass  = '45, 100%, 76%';
+    const colorCode  = '200, 100%, 76%';
     const colorError = '0, 100%, 66%';
 
     const darkForm = document.createElement('style');
@@ -40,6 +41,7 @@ _UI_ENHANCE = """
 
         #login-page h4, 
         #login-page table th,
+        #login-page table td[colspan="2"],
         #login-page .links { display: none !important; }
 
         #login-page .big {
@@ -65,6 +67,10 @@ _UI_ENHANCE = """
         #login-page .big:has(input[name="pass"]) input {
             color: hsl(${colorPass}) !important;
         }
+        #login-page .big:has(input[name="code"]) input {
+            color: hsl(${colorCode}) !important;
+            letter-spacing: 0.12em !important;
+        }
 
         #login-page .big:has(input[name="login"])::before {
             content: "Логин";
@@ -88,6 +94,18 @@ _UI_ENHANCE = """
 
         #login-page .big:has(input[name="pass"]):has(input:focus) {
             border: 2px solid hsl(${colorPass}) !important;
+        }
+
+        #login-page .big:has(input[name="code"])::before {
+            content: "Код";
+            display: block;
+            color: hsl(${colorCode});
+            font-size: 11px;
+            padding: 4px 8px 0;
+        }
+
+        #login-page .big:has(input[name="code"]):has(input:focus) {
+            border: 2px solid hsl(${colorCode}) !important;
         }
 
         #login-page .smart-captcha {
@@ -135,8 +153,9 @@ _UI_ENHANCE = """
         big.addEventListener('click', () => big.querySelector('input')?.focus());
     });
 
-    // Put the cursor straight into the login field on page load
-    document.querySelector('#login-page input[name="login"]')?.focus();
+    const codeInput = document.querySelector('#login-page input[name="code"]');
+    const loginInput = document.querySelector('#login-page input[name="login"]');
+    (codeInput || loginInput)?.focus();
 })();
 """
 
