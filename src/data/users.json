@@ -91,5 +91,7 @@
   "761823": {"login": "КомПашка", "background": "#9E4A80", "light": "#9E4A80", "dark": "#ba6b9d"},
   "729782": {"login": "drool", "background": "#777777", "light": "#767676", "dark": "#858585"},
   "839582": {"login": "SussyCat", "background": "#777777", "light": "#767676", "dark": "#858585"},
-  "815689": {"login": "I_can", "background": "#3C0087", "light": "#3C0087", "dark": "#a65fff"}
+  "815689": {"login": "I_can", "background": "#3C0087", "light": "#3C0087", "dark": "#a65fff"},
+  "352703": {"login": "CoffeePower", "background": "#490829", "light": "#490829", "dark": "#ea4096"},
+  "592104": {"login": "Zenseky", "background": "#005B1E", "light": "#005B1E", "dark": "#009a33"}
 }
