@@ -39,10 +39,27 @@ _UI_ENHANCE = """
     darkForm.textContent = `
         html, body { background: #000000 !important; }
 
-        #login-page h4, 
+        #login-page table {
+            width: 100% !important;
+            border-collapse: collapse !important;
+        }
+        #login-page table tbody,
+        #login-page table tr {
+            display: block !important;
+            width: 100% !important;
+        }
         #login-page table th,
-        #login-page table td[colspan="2"],
-        #login-page .links { display: none !important; }
+        #login-page h4,
+        #login-page table td[colspan],
+        #login-page .links {
+            display: none !important;
+        }
+        #login-page table td {
+            display: block !important;
+            width: 100% !important;
+            padding: 0 !important;
+            box-sizing: border-box !important;
+        }
 
         #login-page .big {
             margin: 0 0 8px !important;
@@ -53,13 +70,16 @@ _UI_ENHANCE = """
             transition: border-color 0.2s !important;
             display: flex !important;
             flex-direction: column !important;
+            width: 100% !important;
+            box-sizing: border-box !important;
         }
         #login-page .big input {
             background: transparent !important;
             padding: 8px !important;
-            width: 100% !important;
             border: none !important;
             outline: none !important;
+            width: 100% !important;
+            box-sizing: border-box !important;
         }
         #login-page .big:has(input[name="login"]) input {
             color: hsl(${colorLogin}) !important;
@@ -121,6 +141,7 @@ _UI_ENHANCE = """
             margin: 8px 0 0 !important;
             height: 50px !important;
             width: 100% !important;
+            box-sizing: border-box !important;
 
             font-size: 0 !important;
             color: transparent !important;
@@ -147,7 +168,6 @@ _UI_ENHANCE = """
     `;
     (document.head || document.documentElement).appendChild(darkForm);
 
-    // Clicking the label (::before) or padding area forwards focus to the input
     document.querySelectorAll('#login-page .big').forEach(big => {
         big.style.cursor = 'text';
         big.addEventListener('click', () => big.querySelector('input')?.focus());
