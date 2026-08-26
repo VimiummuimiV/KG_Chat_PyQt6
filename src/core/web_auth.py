@@ -108,10 +108,10 @@ _UI_ENHANCE = """
             color: transparent !important;
 
             background: hsla(${colorLogin}, 0.15)
-                url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='hsl(${colorLogin})' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E\
-            %3Cpath d='M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4'/%3E\
-            %3Cpolyline points='10 17 15 12 10 7'/%3E\
-            %3Cline x1='15' y1='12' x2='3' y2='12'/%3E\
+                url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='hsl(${colorLogin})' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E\\
+            %3Cpath d='M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4'/%3E\\
+            %3Cpolyline points='10 17 15 12 10 7'/%3E\\
+            %3Cline x1='15' y1='12' x2='3' y2='12'/%3E\\
             %3C/svg%3E")
                 center / 24px 24px 
                 no-repeat !important;
@@ -161,6 +161,7 @@ class LoginWebView(QDialog):
         script.setWorldId(QWebEngineScript.ScriptWorldId.MainWorld)
         self._view.page().scripts().insert(script)
 
+        self._view.page().profile().cookieStore().deleteAllCookies()
         self._view.load(QUrl("https://klavogonki.ru/login"))
         self._view.loadFinished.connect(self._on_load_finished)
 
@@ -192,10 +193,10 @@ class LoginWebView(QDialog):
         user = data.get("user", {})
         avatar = (user.get("avatar") or "").replace("\\/", "/")
         self.login_success.emit({
-            "id":         user.get("id"),
-            "login":      user.get("login"),
-            "pass":       data.get("pass"),
-            "avatar":     avatar,
+            "id": user.get("id"),
+            "login": user.get("login"),
+            "pass": data.get("pass"),
+            "avatar": avatar,
             "background": user.get("background") or "#808080",
         })
         self._view.page().profile().cookieStore().deleteAllCookies()

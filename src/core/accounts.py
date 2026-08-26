@@ -15,15 +15,13 @@ class AccountManager:
         'table_name': 'accounts',
         'columns': [
             ('id', 'INTEGER PRIMARY KEY AUTOINCREMENT'),
-            ('profile_username', 'TEXT NOT NULL'),
-            ('profile_password', 'TEXT NOT NULL'),
             ('user_id', 'TEXT NOT NULL'),
             ('chat_username', 'TEXT NOT NULL UNIQUE'),
             ('chat_password', 'TEXT NOT NULL'),
             ('avatar', 'TEXT'),
             ('background', 'TEXT'),
             ('custom_background', 'TEXT'),
-            ('active', 'INTEGER DEFAULT 0')
+            ('active', 'INTEGER DEFAULT 0'),
         ]
     }
 
@@ -41,75 +39,25 @@ class AccountManager:
         return f"CREATE TABLE IF NOT EXISTS {table} ({cols})"
 
     def _init_database(self):
-        """Initialize SQLite database with migration support"""
+        """Initialize SQLite database"""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
-
-            # Check if migration is needed
-            cursor.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='accounts'")
-            row = cursor.fetchone()
-            table_exists = row is not None
-
-            if table_exists:
-                current_sql = row[0]
-                cursor.execute("PRAGMA table_info(accounts)")
-                columns = [col[1] for col in cursor.fetchall()]
-
-                if 'profile_username' not in columns or 'UNIQUE' not in current_sql:
-                    # Migration needed
-                    print("🔄 Migrating database schema...")
-
-                    # Create new table
-                    cursor.execute(self._get_create_table_sql().replace('accounts', 'accounts_new'))
-
-                    # Migrate data: COALESCE handles both old schema (login/password) and current schema
-                    cursor.execute('''
-                        INSERT OR IGNORE INTO accounts_new (
-                            profile_username,
-                            profile_password,
-                            user_id,
-                            chat_username,
-                            chat_password,
-                            avatar,
-                            background,
-                            custom_background,
-                            active
-                        )
-                        SELECT
-                            COALESCE(profile_username, login),
-                            COALESCE(profile_password, password),
-                            user_id,
-                            COALESCE(chat_username, login),
-                            COALESCE(chat_password, password),
-                            avatar,
-                            background,
-                            custom_background,
-                            active
-                        FROM accounts;
-                    ''')
-
-                    # Replace old table
-                    cursor.execute('DROP TABLE accounts')
-                    cursor.execute('ALTER TABLE accounts_new RENAME TO accounts')
-                    print("✅ Migration complete")
-            else:
-                # Create fresh table
-                cursor.execute(self._get_create_table_sql())
+            cursor.execute(self._get_create_table_sql())
 
     def _load_config(self) -> dict:
         for i in range(3):
             try:
                 with open(self.config_path, 'r', encoding='utf-8') as f:
                     content = f.read().strip()
-                    if content: return json.loads(content)
+                    if content:
+                        return json.loads(content)
                 time.sleep(0.1)
-            except:
+            except Exception:
                 if i == 2: return {}
                 time.sleep(0.1)
         return {}
 
-    def add_account(self, profile_username: str, profile_password: str,
-                    user_id: str, chat_username: str, chat_password: str,
+    def add_account(self, user_id: str, chat_username: str, chat_password: str,
                     avatar: str = None, background: str = None,
                     set_active: bool = False) -> bool:
         """Add new account"""
@@ -120,10 +68,8 @@ class AccountManager:
                 if set_active:
                     cursor.execute('UPDATE accounts SET active = 0')
 
-                cursor.execute('''
+                cursor.execute("""
                     INSERT INTO accounts (
-                        profile_username,
-                        profile_password,
                         user_id,
                         chat_username,
                         chat_password,
@@ -132,10 +78,8 @@ class AccountManager:
                         custom_background,
                         active
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ''', (
-                    profile_username,
-                    profile_password,
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                """, (
                     user_id,
                     chat_username,
                     chat_password,
@@ -215,8 +159,7 @@ class AccountManager:
             return False
 
     def update_account_color(self, chat_username: str, background: str,
-                           avatar: Optional[str] = None) -> bool:
-        """Update account server background color and optionally avatar."""
+                             avatar: Optional[str] = None) -> bool:
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()

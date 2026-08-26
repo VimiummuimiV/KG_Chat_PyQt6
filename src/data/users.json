@@ -127,5 +127,8 @@
   "519196": {"login": "Димати", "background": "#2C21FF", "light": "#2C21FF", "dark": "#7973ff"},
   "842335": {"login": "bigrussuianboss", "background": "#777777", "light": "#767676", "dark": "#858585"},
   "457738": {"login": "БудущийПрофи", "background": "#FF0000", "light": "#ee0000", "dark": "#ff2e2e"},
-  "796829": {"login": "Phylist", "background": "#777777", "light": "#767676", "dark": "#858585"}
+  "796829": {"login": "Phylist", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "8261": {"login": "Learn2type", "background": "#124210", "light": "#124210", "dark": "#2a9925"},
+  "783383": {"login": "GaberoJ", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "228626": {"login": "DreamIsDead", "background": "#83a43b", "light": "#667f2e", "dark": "#83a43b"}
 }
