@@ -456,7 +456,7 @@ class Application(QObject):
 
     def show_account_window(self):
         """Show account selection window"""
-        self.account_window = AccountWindow()
+        self.account_window = AccountWindow(config=self.config)
         self.account_window.account_connected.connect(self.on_account_connected)
         self.account_window.setWindowOpacity(0)
         self.account_window.show()

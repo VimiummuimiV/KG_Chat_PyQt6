@@ -122,6 +122,9 @@ class XMPPClient:
             return False
        
         self.connected_account = account
+        self.account_manager.config = self.account_manager._load_config()
+        server = self.account_manager.get_server_config()
+        self.resource = server.get('resource') or self.resource or 'web'
        
         print(f"🔑 Connecting: {account['chat_username']}")
        

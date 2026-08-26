@@ -20,6 +20,7 @@ from helpers.username_color_manager import (
     change_username_color,
     reset_username_color,
 )
+from ui.ui_settings import fill_resource_combo
 
 
 def _add_account_from_auth_data(account_manager, user_data: dict) -> bool:
@@ -37,7 +38,7 @@ class AccountWindow(QWidget):
     account_connected = pyqtSignal(dict)
     _avatar_loaded = pyqtSignal(str, QPixmap)
 
-    def __init__(self):
+    def __init__(self, config=None):
         super().__init__()
 
         # Paths
@@ -45,7 +46,7 @@ class AccountWindow(QWidget):
         self.icons_path = Path(__file__).parent.parent / "icons"
 
         # Config and theme
-        self.config = Config(str(self.config_path))
+        self.config = config if config is not None else Config(str(self.config_path))
         self.theme_manager = ThemeManager(self.config)
         self.theme_manager.apply_theme()
 
@@ -213,6 +214,24 @@ class AccountWindow(QWidget):
         self.start_with_system_checkbox.setChecked(self.startup_manager.is_enabled())
         main_layout.addWidget(self.start_with_system_checkbox)
 
+        resource_row = QHBoxLayout()
+        resource_row.setSpacing(self._get_config('spacing', 8))
+        resource_label = QLabel("XMPP resource")
+        resource_label.setFont(get_font(FontType.UI))
+        resource_row.addWidget(resource_label, stretch=1)
+        self.resource_combo = QComboBox()
+        self.resource_combo.setFont(get_font(FontType.UI))
+        self._set_input_height(self.resource_combo)
+        self.resource_combo.setFixedWidth(100)
+        self.resource_combo.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        fill_resource_combo(
+            self.resource_combo,
+            self.config.get("server", "resource") or "web",
+        )
+        self.resource_combo.currentIndexChanged.connect(self.on_resource_changed)
+        resource_row.addWidget(self.resource_combo)
+        main_layout.addLayout(resource_row)
+
         main_layout.addStretch()
 
     _KEY_ACTION = {
@@ -293,6 +312,8 @@ class AccountWindow(QWidget):
             checkbox_height +
             main_spacing +
             checkbox_height +
+            main_spacing +
+            self.input_height +
             button_padding
         )
         self.setFixedHeight(total_height)
@@ -326,6 +347,19 @@ class AccountWindow(QWidget):
         if success:
             self.load_accounts()
 
+
+    def on_resource_changed(self, _index: int = 0):
+        value = self.resource_combo.currentData()
+        if value is None:
+            return
+        tip = self.resource_combo.itemData(
+            self.resource_combo.currentIndex(), Qt.ItemDataRole.ToolTipRole
+        )
+        self.resource_combo.setToolTip(tip or "")
+        previous = self.config.get("server", "resource") or "web"
+        if value == previous:
+            return
+        self.config.set("server", "resource", value=value)
 
     def on_auto_login_changed(self, state):
         auto_login = (state == Qt.CheckState.Checked.value)

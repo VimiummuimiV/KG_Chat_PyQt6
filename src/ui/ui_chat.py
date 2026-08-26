@@ -3263,6 +3263,7 @@ class ChatWindow(QWidget):
                 self.clear_competition_log
             )
             self.settings_widget.font_family_changed.connect(self.on_font_family_changed)
+            self.settings_widget.resource_changed.connect(self.manual_reconnect)
             self.stacked_widget.addWidget(self.settings_widget)
         else:
             # Reflect any state changed elsewhere (tray menu, hotkeys) since it was last shown

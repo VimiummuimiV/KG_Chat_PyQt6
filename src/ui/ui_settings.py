@@ -44,6 +44,17 @@ COMPETITIONS_LOG_HEIGHT_COLLAPSED = 32
 FONT_PREVIEW_BORDER = 1
 FONT_PREVIEW_PADDING = 6
 
+XMPP_RESOURCE_OPTIONS = (
+    (
+        "web",
+        "Same resource as the website. Receives private messages from the site client.",
+    ),
+    (
+        "client",
+        "Works alongside the website. May not receive private messages from the web resource.",
+    ),
+)
+
 CONNECTION_STATES = {
     "connected": "#2ecc71",
     "connecting": "#f1c40f",
@@ -159,6 +170,20 @@ def get_sound_path(sound_root: Path, kind: str, config) -> Path | None:
         get_system_sound_dir(sound_root, kind),
         get_user_sound_dir(kind),
     )
+
+
+def fill_resource_combo(combo, current=None):
+    combo.blockSignals(True)
+    combo.clear()
+    for value, tip in XMPP_RESOURCE_OPTIONS:
+        combo.addItem(value, value)
+        combo.setItemData(combo.count() - 1, tip, Qt.ItemDataRole.ToolTipRole)
+    selected = current or "web"
+    index = combo.findData(selected)
+    combo.setCurrentIndex(index if index >= 0 else 0)
+    tip = combo.itemData(combo.currentIndex(), Qt.ItemDataRole.ToolTipRole)
+    combo.setToolTip(tip or "")
+    combo.blockSignals(False)
 
 
 class NoWheelSlider(QSlider):
@@ -484,6 +509,7 @@ class SettingsWidget(QWidget):
     font_family_changed = pyqtSignal()
     tracker_badge_style_changed = pyqtSignal()
     tracker_chat_log_changed = pyqtSignal(bool)
+    resource_changed = pyqtSignal()
 
     def __init__(self, config, icons_path: Path, font_scaler=None):
         super().__init__()
@@ -735,6 +761,10 @@ class SettingsWidget(QWidget):
             section, "Open links in", [], self._on_browser_changed
         )
         self.browser_combo.setFixedWidth(240)
+        self.resource_combo = self._add_combo_row(
+            section, "XMPP resource", [], self._on_resource_changed
+        )
+        self.resource_combo.setFixedWidth(240)
         self._add_hotkey_row(section, "Toggle chat window")
 
     def _add_hotkey_row(self, section_layout: QVBoxLayout, label_text: str):
@@ -1113,6 +1143,7 @@ class SettingsWidget(QWidget):
         widgets = (
             self.settings_accordion_checkbox, self.auto_login_checkbox,
             self.start_minimized_checkbox, self.start_with_system_checkbox,
+            self.resource_combo,
             self.clear_private_checkbox, self.youtube_checkbox, self.browser_combo,
             self.track_competitions_checkbox, self.competitions_bypass_mute_checkbox,
             self.mentions_bypass_mute_checkbox, self.bans_bypass_mute_checkbox,
@@ -1142,6 +1173,11 @@ class SettingsWidget(QWidget):
         self.auto_login_checkbox.setChecked(bool(self.config.get("startup", "auto_login")))
         self.start_minimized_checkbox.setChecked(bool(self.config.get("startup", "start_minimized")))
         self.start_with_system_checkbox.setChecked(self.startup_manager.is_enabled())
+
+        fill_resource_combo(
+            self.resource_combo,
+            self.config.get("server", "resource") or "web",
+        )
 
         self.clear_private_checkbox.setChecked(bool(self.config.get("ui", "clear_private_messages_on_exit")))
         youtube_enabled = self.config.get("ui", "youtube", "enabled")
@@ -1376,6 +1412,20 @@ class SettingsWidget(QWidget):
             self.start_with_system_checkbox.blockSignals(True)
             self.start_with_system_checkbox.setChecked(not checked)
             self.start_with_system_checkbox.blockSignals(False)
+
+    def _on_resource_changed(self, _text: str = ""):
+        value = self.resource_combo.currentData()
+        if value is None:
+            return
+        previous = self.config.get("server", "resource") or "web"
+        tip = self.resource_combo.itemData(
+            self.resource_combo.currentIndex(), Qt.ItemDataRole.ToolTipRole
+        )
+        self.resource_combo.setToolTip(tip or "")
+        if value == previous:
+            return
+        self.config.set("server", "resource", value=value)
+        self.resource_changed.emit()
 
     def _on_clear_private_toggled(self, checked: bool):
         self.config.set("ui", "clear_private_messages_on_exit", value=checked)
