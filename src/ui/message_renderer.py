@@ -13,6 +13,7 @@ from helpers.color_utils import (
     get_system_message_colors,
     get_competition_message_colors,
     get_mention_color,
+    get_search_highlight_colors,
     get_rank_chip_colors,
 )
 from components.presence_badge import presence_badge_style, EVENT_TYPES
@@ -46,6 +47,7 @@ class MessageRenderer(QObject):
         # Track own username for mention highlighting
         self.my_username = None
         self.mention_color = get_mention_color(is_dark_theme)
+        self.highlight_colors = get_search_highlight_colors(is_dark_theme)
         
         # Load message colors from config
         self.private_colors = get_private_message_colors(config, is_dark_theme)
@@ -187,6 +189,7 @@ class MessageRenderer(QObject):
         self.is_dark_theme = is_dark_theme
         self.bg_hex = "#1E1E1E" if is_dark_theme else "#FFFFFF"
         self.mention_color = get_mention_color(is_dark_theme)
+        self.highlight_colors = get_search_highlight_colors(is_dark_theme)
         self.private_colors = get_private_message_colors(self.config, is_dark_theme)
         self.ban_colors = get_ban_message_colors(self.config, is_dark_theme)
         self.system_colors = get_system_message_colors(self.config, is_dark_theme)
@@ -276,6 +279,7 @@ class MessageRenderer(QObject):
         is_ban: bool = False,
         is_system: bool = False,
         is_competition: bool = False,
+        highlight_text: str = "",
     ) -> List[Tuple[QRect, str, bool]]:
         """
         Paint message body content with links, emoticons, and mentions.
@@ -319,12 +323,39 @@ class MessageRenderer(QObject):
         normal_link_color = "#4DA6FF" if self.is_dark_theme else "#0066CC"
         media_link_color = "#4DFF88" if self.is_dark_theme else "#00AA44"
         chatlog_link_color = "#FFD24D" if self.is_dark_theme else "#CC6600"
-        
+
+        highlight_pattern = re.compile(re.escape(highlight_text), re.IGNORECASE) if highlight_text else None
+        highlight_bg, highlight_fg = self.highlight_colors
+
         def new_line():
             nonlocal current_x, current_y, line_height
             current_y += line_height
             current_x = x
             line_height = fm.height()
+
+        def draw_plain_line(line: str, fm_local: QFontMetrics, color: str):
+            nonlocal current_x
+            painter.setPen(QColor(color))
+            painter.drawText(current_x, current_y + fm_local.ascent(), line)
+            current_x += fm_local.horizontalAdvance(line)
+
+        def draw_highlighted_line(line: str, fm_local: QFontMetrics, color: str):
+            """Draw a line with search-match substrings highlighted (case-insensitive)."""
+            nonlocal current_x
+            pos = 0
+            for match in highlight_pattern.finditer(line):
+                if match.start() > pos:
+                    draw_plain_line(line[pos:match.start()], fm_local, color)
+                matched = line[match.start():match.end()]
+                match_width = fm_local.horizontalAdvance(matched)
+                match_rect = QRect(current_x, current_y, match_width, fm_local.height())
+                painter.fillRect(match_rect, QColor(highlight_bg))
+                painter.setPen(QColor(highlight_fg))
+                painter.drawText(current_x, current_y + fm_local.ascent(), matched)
+                current_x += match_width
+                pos = match.end()
+            if pos < len(line):
+                draw_plain_line(line[pos:], fm_local, color)
         
         def draw_text_chunk(content: str, color: str):
             """Draw text chunk with mention highlighting"""
@@ -363,9 +394,10 @@ class MessageRenderer(QObject):
                     if current_x > x and current_x + line_width > x + width:
                         new_line()
                     
-                    painter.setPen(QColor(draw_color))
-                    painter.drawText(current_x, current_y + fm_local.ascent(), line)
-                    current_x += line_width
+                    if not is_mention and highlight_pattern and highlight_pattern.search(line):
+                        draw_highlighted_line(line, fm_local, draw_color)
+                    else:
+                        draw_plain_line(line, fm_local, draw_color)
                 
                 # Reset to normal font after mention
                 if is_mention:

@@ -378,6 +378,12 @@ class ChatlogWidget(QWidget):
         self.search_field.returnPressed.connect(self._on_search_enter)
         search_layout.addWidget(self.search_field, stretch=1)
     
+        self.confirm_search_btn = create_icon_button(self.icons_path, "search.svg", "Search (Enter)",
+                                                     size_type="large", config=self.config)
+        self.confirm_search_btn.clicked.connect(self._on_search_enter)
+        self.confirm_search_btn.setVisible(self.is_parsing)
+        search_layout.addWidget(self.confirm_search_btn)
+
         self.clear_search_btn = create_icon_button(self.icons_path, "trash.svg", "Clear search",
                                                   size_type="large", config=self.config)
         self.clear_search_btn.clicked.connect(self._clear_search)
@@ -540,6 +546,10 @@ class ChatlogWidget(QWidget):
         # The "Loaded N messages" status belongs to the chatlog list, not the parser config screen
         self.info_label.setVisible(not self.parser_visible)
 
+    def _set_parsing_mode(self, value: bool):
+        self.is_parsing = value
+        self.confirm_search_btn.setVisible(value)
+
     def _max_messages_limit(self) -> int:
         value = self.config.get("ui", "chatlog", "max_messages")
         if value is None:
@@ -572,7 +582,7 @@ class ChatlogWidget(QWidget):
 
     def _on_parse_started(self, config: ParseConfig):
         """Start parsing with given config"""
-        self.is_parsing = True
+        self._set_parsing_mode(True)
         self.exceeded_max_messages = False
         self.date_label.setText("Parser")
         if config.mode != 'syncdatabase':
@@ -636,7 +646,7 @@ class ChatlogWidget(QWidget):
                 self.info_label.setText(f"Found {message_count} messages (partial)")
             else:
                 self.info_label.setText("Parsing cancelled")
-                self.is_parsing = False
+                self._set_parsing_mode(False)
         
         if self.parent_window:
             self.parent_window.stop_parse_status()
@@ -770,28 +780,30 @@ class ChatlogWidget(QWidget):
 
     def _on_search_changed(self, text: str):
         self.search_text = text.strip()
-        self._apply_filter()
+        if not self.is_parsing:
+            self._apply_filter()
 
     def _on_search_enter(self):
-        """Enter in the search field - if it's a 'D:<date>' entry, jump to that date"""
+        """Enter/search button - jump to date for a 'D:<date>' entry, otherwise apply the search."""
         import re
         match = re.match(r'^[Dd]:\s*(\S+)', self.search_text)
-        if not match:
+        if match:
+            date_str = parse_short_date(match.group(1))
+            try:
+                target = datetime.strptime(date_str, '%Y-%m-%d').date()
+            except ValueError:
+                self.info_label.setText(f"Invalid date: {match.group(1)}")
+                return
+
+            if not (self.parser.MIN_DATE <= target <= datetime.now().date()):
+                self.info_label.setText(f"Date out of range: {date_str}")
+                return
+
+            self._clear_search()
+            self.load_date(date_str)
             return
 
-        date_str = parse_short_date(match.group(1))
-        try:
-            target = datetime.strptime(date_str, '%Y-%m-%d').date()
-        except ValueError:
-            self.info_label.setText(f"Invalid date: {match.group(1)}")
-            return
-
-        if not (self.parser.MIN_DATE <= target <= datetime.now().date()):
-            self.info_label.setText(f"Date out of range: {date_str}")
-            return
-
-        self._clear_search()
-        self.load_date(date_str)
+        self._apply_filter()
 
     def _parse_search_text(self):
         if not self.search_text:
@@ -939,6 +951,7 @@ class ChatlogWidget(QWidget):
             return
 
         search_users, search_message, is_prefix_mode = self._parse_search_text()
+        self.delegate.set_highlight_text(search_message if is_prefix_mode else self.search_text)
         messages_to_show = self.all_messages
         
         # APPLY MENTION FILTER FIRST
@@ -1024,7 +1037,7 @@ class ChatlogWidget(QWidget):
 
     def load_current_date(self):
         """Load single date chatlog - this is NORMAL viewing"""
-        self.is_parsing = False
+        self._set_parsing_mode(False)
         self._set_parser_youtube_off(False)
         self.model.clear()
         self.all_messages = []

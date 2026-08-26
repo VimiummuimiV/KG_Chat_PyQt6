@@ -165,6 +165,7 @@ class MessageDelegate(QStyledItemDelegate):
         self.paste_callback = None
         self.reply_includes_timestamp = False  # Chatlog sets True; realtime messages omit timestamp
         self.my_username = None # Store username for mention highlighting
+        self.highlight_text = "" # Active search term to highlight in message bodies
 
         # Animation support for GIF emoticons
         self.list_view = None
@@ -195,6 +196,14 @@ class MessageDelegate(QStyledItemDelegate):
         self.my_username = username
         if self.message_renderer:
             self.message_renderer.set_my_username(username)
+
+    def set_highlight_text(self, text: str):
+        """Set the active search term to highlight in message bodies."""
+        text = text or ""
+        if self.highlight_text != text:
+            self.highlight_text = text
+            if self.list_view:
+                self.list_view.viewport().update()
 
     def set_input_field(self, input_field, include_timestamp: bool = False):
         """Configure reply and paste callbacks for the text selector overlay."""
@@ -515,6 +524,7 @@ class MessageDelegate(QStyledItemDelegate):
             link_rects = self.message_renderer.paint_content(
                 painter, x, content_y, content_width, display_body, row,
                 msg.is_private, msg.is_ban, is_system, is_competition,
+                highlight_text=self.highlight_text,
             )
             chips_base_y = content_y
         else:
@@ -523,6 +533,7 @@ class MessageDelegate(QStyledItemDelegate):
             link_rects = self.message_renderer.paint_content(
                 painter, content_x, y, content_width, display_body, row,
                 msg.is_private, msg.is_ban, is_system, is_competition,
+                highlight_text=self.highlight_text,
             )
             chips_base_y = y
         
