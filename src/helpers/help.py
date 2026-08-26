@@ -21,7 +21,6 @@ CHAT_GENERAL_KB = [
     ("T",           "Toggle always on top"),
     ("R",           "Reset window size"),
     ("C",           "Change username color"),
-    ("Shift+C",     "Update color from server"),
     ("E",           "Open latest competition race in browser"),
     ("X",           "Exit private chat / Clear markers, presence"),
     ("Esc",         "Clear input focus"),
@@ -139,9 +138,8 @@ ACCOUNTS_CONNECT_KB = [
     ("Tab",         "Cycle account selection"),
     ("C",           "Change username color"),
     ("Ctrl+C",      "Reset username color"),
-    ("Shift+C",     "Update color from server"),
     ("D",           "Remove selected account"),
-    ("A",           "Go to Create account page"),
+    ("W",           "Add account via browser login"),
     ("1",           "Toggle Auto-login"),
     ("2",           "Toggle Start minimized"),
     ("3",           "Toggle Start with system"),
@@ -150,14 +148,6 @@ ACCOUNTS_CONNECT_KB = [
 ACCOUNTS_CONNECT_MOUSE = [
     ("Left click",   "Change username color"),
     ("Ctrl+Click",   "Reset username color"),
-    ("Shift+Click",  "Update color from server"),
-]
-
-ACCOUNTS_CREATE_KB = [
-    ("Ctrl+S",      "Save / create account"),
-    ("Enter",       "Save / create account"),
-    ("Tab",         "Cycle focus username / password"),
-    ("Esc",         "Back to Connect page"),
 ]
 
 IMAGE_KB = [
@@ -219,12 +209,6 @@ CONTEXTS = {
         "sections": [
             ("Keyboard Shortcuts",  ACCOUNTS_CONNECT_KB,    None),
             ("Color Button Clicks", None,                   ACCOUNTS_CONNECT_MOUSE),
-        ],
-    },
-    "accounts_create": {
-        "title": "Accounts — Create Page",
-        "sections": [
-            ("Keyboard Shortcuts",  ACCOUNTS_CREATE_KB, None),
         ],
     },
     "emoticon": {

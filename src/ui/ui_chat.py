@@ -27,7 +27,6 @@ from helpers.cache import get_cache
 from helpers.username_color_manager import(
     change_username_color,
     reset_username_color,
-    update_from_server
 )
 from helpers.emoticons import EmoticonManager
 from helpers.fonts import (
@@ -245,12 +244,6 @@ class ChatWindow(QWidget):
             return
         self.app_controller._refresh_own_username_color(reset_username_color)
 
-    def on_update_username_color(self):
-        """Called from ButtonPanel to update own username color from server."""
-        if not self.app_controller:
-            QMessageBox.warning(self, "Unavailable", "This action requires the application controller.")
-            return
-        self.app_controller._refresh_own_username_color(update_from_server)
 
     def on_toggle_voice_sound(self):
         """Toggle TTS (Voice Sound) from the panel button."""
@@ -596,7 +589,6 @@ class ChatWindow(QWidget):
         # Color management connections (change / reset / update-from-server)
         self.button_panel.change_color_requested.connect(self.on_change_username_color)
         self.button_panel.reset_color_requested.connect(self.on_reset_username_color)
-        self.button_panel.update_color_requested.connect(self.on_update_username_color)
 
         self.button_panel.toggle_theme_requested.connect(self.toggle_theme)
         self.button_panel.reset_window_size_requested.connect(self.reset_window_size)
@@ -3761,7 +3753,7 @@ class ChatWindow(QWidget):
         # Reset window size (R)
         elif vk == 'reset_size':
             self.reset_window_size()
-        # Change username color (C) / Ctrl+C reset / Shift+C update from server
+        # Change username color (C) / Ctrl+C reset
         # In chatlog when parser visible: C cancels if parsing, Ctrl+C copies
         elif vk == 'color':
             cw = self.chatlog_widget
@@ -3772,8 +3764,6 @@ class ChatWindow(QWidget):
                     cw.parser_widget._on_parse_clicked()  # Cancel
             elif ctrl:
                 self.on_reset_username_color()
-            elif shift:
-                self.on_update_username_color()
             else:
                 self.on_change_username_color()
         # Toggle notifications cycle (N)

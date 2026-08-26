@@ -33,7 +33,6 @@ class ButtonPanel(QWidget):
     # Color management (change / reset / update from server)
     change_color_requested = pyqtSignal()
     reset_color_requested = pyqtSignal()
-    update_color_requested = pyqtSignal()
 
     toggle_theme_requested = pyqtSignal()
     reset_window_size_requested = pyqtSignal()
@@ -205,7 +204,7 @@ class ButtonPanel(QWidget):
         # Color picker button
         self.color_button = self._create_button(
             "palette.svg",
-            "Change username color (C | Ctrl+C/Click: Reset | Shift+C/Click: Update from Server)",
+            "Username color (C: pick | Ctrl+C/Click: reset)",
             lambda: self.change_color_requested.emit()
         )
         # Install event filter to capture Ctrl+Click / Shift+Click
@@ -395,15 +394,12 @@ class ButtonPanel(QWidget):
                 self.show_window_presets_requested.emit()
                 return True
         
-        # Handle color button special clicks (Ctrl+Click / Shift+Click)
+        # Handle color button special clicks
         if obj == self.color_button and event.type() == QEvent.Type.MouseButtonPress:
             if event.button() == Qt.MouseButton.LeftButton:
                 modifiers = QApplication.keyboardModifiers()
                 if modifiers & Qt.KeyboardModifier.ControlModifier:
                     self.reset_color_requested.emit()
-                    return True
-                elif modifiers & Qt.KeyboardModifier.ShiftModifier:
-                    self.update_color_requested.emit()
                     return True
 
         # Handle voice button Ctrl+Click -> open Username Pronunciation

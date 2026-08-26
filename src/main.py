@@ -29,7 +29,6 @@ from helpers.config import Config
 from helpers.username_color_manager import(
     change_username_color,
     reset_username_color,
-    update_from_server
 )
 from helpers.pronunciation_manager import PronunciationManager
 from helpers.ban_manager import BanManager
@@ -195,9 +194,6 @@ class Application(QObject):
         self.reset_color_action.triggered.connect(self.handle_reset_username_color)
         self.color_menu.addAction(self.reset_color_action)
        
-        update_color_action = QAction(icon("reload.svg"), "Update from Server", self.app)
-        update_color_action.triggered.connect(self.handle_update_from_server)
-        self.color_menu.addAction(update_color_action)
        
         # Connect to aboutToShow to update menu visibility
         self.color_menu.aboutToShow.connect(self.update_color_menu)
@@ -578,10 +574,6 @@ class Application(QObject):
         """Handle Reset to Original from tray menu."""
         self._refresh_own_username_color(reset_username_color)
 
-    def handle_update_from_server(self):
-        """Handle Update from Server from tray menu."""
-        self._refresh_own_username_color(update_from_server)
-    
     def check_chat_ready(self, feature_description):
         """Check if chat window and account are ready; show error if not."""
         if not self.chat_window or not self.chat_window.account:
