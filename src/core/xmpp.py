@@ -126,7 +126,7 @@ class XMPPClient:
         server = self.account_manager.get_server_config()
         self.resource = server.get('resource') or self.resource or 'web'
        
-        print(f"🔑 Connecting: {account['chat_username']}")
+        print(f"🔑 Connecting: {account['chat_username']} (resource: {self.resource})")
        
         user_id = account['user_id']
         chat_username = account['chat_username']
@@ -177,7 +177,7 @@ class XMPPClient:
                 jid_el = root.find('.//{urn:ietf:params:xml:ns:xmpp-bind}jid')
                 if jid_el is not None:
                     self.jid = jid_el.text
-                    print(f"✅ Authenticated")
+                    print(f"✅ Authenticated as {self.jid}")
            
             if not self.jid:
                 return False

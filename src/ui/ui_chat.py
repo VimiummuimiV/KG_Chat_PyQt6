@@ -2475,7 +2475,7 @@ class ChatWindow(QWidget):
             body = (msg.body or '').strip()
             if 'not anonymous' in body.lower():
                 return
-            if msg.login == self.my_username and not is_initial:
+            if self._should_skip_own_echo(msg, is_initial):
                 return
             if msg.login:
                 user_id, _ = extract_user_data_from_jid(from_jid)
@@ -2501,8 +2501,7 @@ class ChatWindow(QWidget):
         if is_initial:
             self._history_settle_timer.start(self._HISTORY_SETTLE_MS)
 
-        # Skip own messages (server echoes groupchat messages back)
-        if msg.login == self.my_username and not is_initial:
+        if self._should_skip_own_echo(msg, is_initial):
             return
 
         # CHECK IF USER IS BANNED - BLOCK IMMEDIATELY
@@ -2915,8 +2914,18 @@ class ChatWindow(QWidget):
 
         self._dispatch_chat_message(text, msg_type, recipient_jid, self.messages_widget.add_message)
 
+    def _own_message_mode(self) -> str:
+        return self.config.get("ui", "own_message_mode") or "local"
+
+    def _should_skip_own_echo(self, msg, is_initial: bool) -> bool:
+        return (
+            msg.login == self.my_username
+            and not is_initial
+            and self._own_message_mode() == "local"
+        )
+
     def _dispatch_chat_message(self, text: str, msg_type: str, target_jid, add_message_fn):
-        """Chunk `text`, echo each chunk locally via add_message_fn immediately,
+        """Chunk `text`, optionally echo each chunk locally via add_message_fn,
         then send each chunk to target_jid on a staggered delay. Shared by the
         general chat's send_message and room tabs' _send_room_message so
         the two don't duplicate the chunk/echo/send dance."""
@@ -2929,23 +2938,23 @@ class ChatWindow(QWidget):
 
         # Chunk message if over 300 characters
         chunks = self._chunk_message(text, 300)
+        local_echo = self._own_message_mode() == "local"
 
         # Send each chunk
         for i, chunk in enumerate(chunks):
-            # Create and display own message immediately
-            own_msg = Message(
-                from_jid=self.xmpp_client.jid,
-                body=chunk,
-                msg_type=msg_type,
-                login=self.my_username,
-                avatar=None,
-                background=own_user.background if own_user else None,
-                timestamp=datetime.now(),
-                initial=False
-            )
-            own_msg.is_private = (msg_type == 'chat')
-
-            add_message_fn(own_msg)
+            if local_echo:
+                own_msg = Message(
+                    from_jid=self.xmpp_client.jid,
+                    body=chunk,
+                    msg_type=msg_type,
+                    login=self.my_username,
+                    avatar=None,
+                    background=own_user.background if own_user else None,
+                    timestamp=datetime.now(),
+                    initial=False
+                )
+                own_msg.is_private = (msg_type == 'chat')
+                add_message_fn(own_msg)
 
             delay = i * 0.8 # 800ms delay between chunks
             threading.Timer(

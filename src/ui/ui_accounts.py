@@ -360,6 +360,7 @@ class AccountWindow(QWidget):
         if value == previous:
             return
         self.config.set("server", "resource", value=value)
+        print(f"📡 XMPP resource changed: {previous} → {value}")
 
     def on_auto_login_changed(self, state):
         auto_login = (state == Qt.CheckState.Checked.value)

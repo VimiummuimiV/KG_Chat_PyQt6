@@ -55,6 +55,17 @@ XMPP_RESOURCE_OPTIONS = (
     ),
 )
 
+OWN_MESSAGE_MODE_OPTIONS = (
+    (
+        "local",
+        "Show own messages immediately. Server echoes are ignored.",
+    ),
+    (
+        "server",
+        "Show own messages only when the server echoes them back.",
+    ),
+)
+
 CONNECTION_STATES = {
     "connected": "#2ecc71",
     "connecting": "#f1c40f",
@@ -172,18 +183,26 @@ def get_sound_path(sound_root: Path, kind: str, config) -> Path | None:
     )
 
 
-def fill_resource_combo(combo, current=None):
+def fill_tooltip_combo(combo, options, current=None, default=None):
     combo.blockSignals(True)
     combo.clear()
-    for value, tip in XMPP_RESOURCE_OPTIONS:
+    for value, tip in options:
         combo.addItem(value, value)
         combo.setItemData(combo.count() - 1, tip, Qt.ItemDataRole.ToolTipRole)
-    selected = current or "web"
+    selected = current or default
     index = combo.findData(selected)
     combo.setCurrentIndex(index if index >= 0 else 0)
     tip = combo.itemData(combo.currentIndex(), Qt.ItemDataRole.ToolTipRole)
     combo.setToolTip(tip or "")
     combo.blockSignals(False)
+
+
+def fill_resource_combo(combo, current=None):
+    fill_tooltip_combo(combo, XMPP_RESOURCE_OPTIONS, current, "web")
+
+
+def fill_own_message_mode_combo(combo, current=None):
+    fill_tooltip_combo(combo, OWN_MESSAGE_MODE_OPTIONS, current, "local")
 
 
 class NoWheelSlider(QSlider):
@@ -765,6 +784,10 @@ class SettingsWidget(QWidget):
             section, "XMPP resource", [], self._on_resource_changed
         )
         self.resource_combo.setFixedWidth(240)
+        self.own_message_mode_combo = self._add_combo_row(
+            section, "Own messages", [], self._on_own_message_mode_changed
+        )
+        self.own_message_mode_combo.setFixedWidth(240)
         self._add_hotkey_row(section, "Toggle chat window")
 
     def _add_hotkey_row(self, section_layout: QVBoxLayout, label_text: str):
@@ -1143,7 +1166,7 @@ class SettingsWidget(QWidget):
         widgets = (
             self.settings_accordion_checkbox, self.auto_login_checkbox,
             self.start_minimized_checkbox, self.start_with_system_checkbox,
-            self.resource_combo,
+            self.resource_combo, self.own_message_mode_combo,
             self.clear_private_checkbox, self.youtube_checkbox, self.browser_combo,
             self.track_competitions_checkbox, self.competitions_bypass_mute_checkbox,
             self.mentions_bypass_mute_checkbox, self.bans_bypass_mute_checkbox,
@@ -1177,6 +1200,10 @@ class SettingsWidget(QWidget):
         fill_resource_combo(
             self.resource_combo,
             self.config.get("server", "resource") or "web",
+        )
+        fill_own_message_mode_combo(
+            self.own_message_mode_combo,
+            self.config.get("ui", "own_message_mode") or "local",
         )
 
         self.clear_private_checkbox.setChecked(bool(self.config.get("ui", "clear_private_messages_on_exit")))
@@ -1425,7 +1452,22 @@ class SettingsWidget(QWidget):
         if value == previous:
             return
         self.config.set("server", "resource", value=value)
+        print(f"📡 XMPP resource changed: {previous} → {value}")
         self.resource_changed.emit()
+
+    def _on_own_message_mode_changed(self, _text: str = ""):
+        value = self.own_message_mode_combo.currentData()
+        if value is None:
+            return
+        previous = self.config.get("ui", "own_message_mode") or "local"
+        tip = self.own_message_mode_combo.itemData(
+            self.own_message_mode_combo.currentIndex(), Qt.ItemDataRole.ToolTipRole
+        )
+        self.own_message_mode_combo.setToolTip(tip or "")
+        if value == previous:
+            return
+        self.config.set("ui", "own_message_mode", value=value)
+        print(f"💬 Own message mode: {value}")
 
     def _on_clear_private_toggled(self, checked: bool):
         self.config.set("ui", "clear_private_messages_on_exit", value=checked)
