@@ -242,5 +242,10 @@
   "842508": {"login": "da1fer", "background": "#777777", "light": "#767676", "dark": "#858585"},
   "842501": {"login": "reydoc", "background": "#777777", "light": "#767676", "dark": "#858585"},
   "28158": {"login": "zyabrin", "background": "#FF0000", "light": "#ee0000", "dark": "#ff2e2e"},
-  "635671": {"login": "arh5samur", "background": "#777777", "light": "#767676", "dark": "#858585"}
+  "635671": {"login": "arh5samur", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "460637": {"login": "Pavel_The_Best", "background": "#9d962c", "light": "#7f7924", "dark": "#9d962c"},
+  "539144": {"login": "Крокодильчик", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "842511": {"login": "khrundel77", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "213016": {"login": "Yunix", "background": "#a29f09", "light": "#7d7a07", "dark": "#a29f09"},
+  "109985": {"login": "Youkhov", "background": "#9B29B2", "light": "#9B29B2", "dark": "#c357d8"}
 }

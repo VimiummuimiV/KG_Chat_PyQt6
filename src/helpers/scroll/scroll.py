@@ -27,17 +27,25 @@ def scroll(widget, mode="bottom", pos=0.0, delay=10, target_row=None):
                 if not m or not m.rowCount():
                     return
                 
-                if mode == "middle" and target_row is not None:
-                    # Scroll specific row to center
-                    if 0 <= target_row < m.rowCount():
-                        widget.scrollTo(m.index(target_row, 0), QAbstractItemView.ScrollHint.PositionAtCenter)
-                    return
-                elif mode in ("top", "bottom"):
-                    # Scroll to first or last item
-                    i = 0 if mode == "top" else m.rowCount() - 1
-                    hint = QAbstractItemView.ScrollHint.PositionAtTop if mode == "top" else QAbstractItemView.ScrollHint.PositionAtBottom
-                    widget.scrollTo(m.index(i, 0), hint)
-                    return
+                hints = {
+                    "top": QAbstractItemView.ScrollHint.PositionAtTop,
+                    "bottom": QAbstractItemView.ScrollHint.PositionAtBottom,
+                    "middle": QAbstractItemView.ScrollHint.PositionAtCenter,
+                }
+                if mode in hints:
+                    # Explicit target_row wins; otherwise "top"/"bottom" fall back to the
+                    # first/last row (a bare "middle" has no default and falls through below)
+                    if target_row is not None:
+                        row = target_row
+                    elif mode == "top":
+                        row = 0
+                    elif mode == "bottom":
+                        row = m.rowCount() - 1
+                    else:
+                        row = None
+                    if row is not None and 0 <= row < m.rowCount():
+                        widget.scrollTo(m.index(row, 0), hints[mode])
+                        return
             except RuntimeError:
                 return  # Widget or model deleted during access
         

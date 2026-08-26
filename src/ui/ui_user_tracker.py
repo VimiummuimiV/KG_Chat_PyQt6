@@ -772,7 +772,13 @@ class UserTrackerWidget(QWidget):
         self.history_stack.addWidget(self._empty_history_label)
         history_row.addWidget(self.history_stack, stretch=1)
 
-        self.history_scroll_buttons = ScrollButtonsPanel(self.history_list_view, parent=self)
+        self.history_scroll_buttons = ScrollButtonsPanel(
+            self.history_list_view, parent=self,
+            extra_actions=[
+                {"icon": "calendar-arrow-up.svg", "tooltip": "Previous day", "callback": lambda: self._jump_date(-1)},
+                {"icon": "calendar-arrow-down.svg", "tooltip": "Next day", "callback": lambda: self._jump_date(1)},
+            ]
+        )
         self.history_auto_scroller = AutoScroller(self.history_list_view)
 
         self.filter_panel = QWidget()
@@ -826,9 +832,7 @@ class UserTrackerWidget(QWidget):
         is_tracked = index == 0
         self.add_user_button.setVisible(is_tracked)
         self.clear_history_button.setVisible(not is_tracked)
-        self.clear_filter_button.setVisible(
-            not is_tracked and (bool(self.filtered_logins) or bool(self.filtered_types) or bool(self.filtered_dates))
-        )
+        self.clear_filter_button.setVisible(not is_tracked and self._has_active_filters())
         self.info_label.setVisible(not is_tracked)
         if not is_tracked:
             self._update_info_label()
@@ -922,6 +926,21 @@ class UserTrackerWidget(QWidget):
     def _scroll_history_to_bottom(self):
         scroll(self.history_list_view, mode="bottom", delay=10)
 
+    def _jump_date(self, direction: int):
+        """Scroll to the next/previous date separator, aligned to the top."""
+        view = self.history_list_view
+        proxy = self.history_proxy
+        if not proxy.rowCount():
+            return
+        top_index = view.indexAt(view.viewport().rect().topLeft())
+        row = (top_index.row() if top_index.isValid() else (0 if direction > 0 else proxy.rowCount() - 1)) + direction
+        while 0 <= row < proxy.rowCount():
+            data = proxy.data(proxy.index(row, 0), Qt.ItemDataRole.DisplayRole)
+            if data and data.get('is_separator'):
+                scroll(view, mode="top", target_row=row, delay=0)
+                return
+            row += direction
+
     def _update_info_label(self):
         total = sum(
             1 for e in self.history_model.get_events() if not e.get('is_separator')
@@ -942,26 +961,26 @@ class UserTrackerWidget(QWidget):
         else:
             self.info_label.setText(f"{total} events")
 
-    def _handle_filter_click(self, login: str, ctrl_pressed: bool):
-        self.filtered_logins = toggle_filter_value(self.filtered_logins, login, ctrl_pressed)
+    def _toggle_filter_set(self, attr: str, value: str, ctrl_pressed: bool, on_changed=None):
+        if not value:
+            return
+        setattr(self, attr, toggle_filter_value(getattr(self, attr), value, ctrl_pressed))
+        if on_changed:
+            on_changed()
         self._update_filter_button()
         self._apply_event_filter()
-        self._update_chip_highlights()
+
+    def _handle_filter_click(self, login: str, ctrl_pressed: bool):
+        self._toggle_filter_set('filtered_logins', login, ctrl_pressed, self._update_chip_highlights)
 
     def _handle_type_filter_click(self, event_type: str, ctrl_pressed: bool):
-        if not event_type:
-            return
-        self.filtered_types = toggle_filter_value(self.filtered_types, event_type, ctrl_pressed)
-        self.type_filter_bar.set_active_types(self.filtered_types)
-        self._update_filter_button()
-        self._apply_event_filter()
+        self._toggle_filter_set(
+            'filtered_types', event_type, ctrl_pressed,
+            lambda: self.type_filter_bar.set_active_types(self.filtered_types)
+        )
 
     def _handle_date_filter_click(self, date_str: str, ctrl_pressed: bool):
-        if not date_str:
-            return
-        self.filtered_dates = toggle_filter_value(self.filtered_dates, date_str, ctrl_pressed)
-        self._update_filter_button()
-        self._apply_event_filter()
+        self._toggle_filter_set('filtered_dates', date_str, ctrl_pressed)
 
     def _on_type_filter_changed(self, types):
         self.filtered_types = set(types)
@@ -987,8 +1006,11 @@ class UserTrackerWidget(QWidget):
             parts.append("/".join(t.upper() for t in sorted(self.filtered_types)))
         return " · ".join(parts)
 
+    def _has_active_filters(self) -> bool:
+        return bool(self.filtered_logins) or bool(self.filtered_types) or bool(self.filtered_dates)
+
     def _update_filter_button(self):
-        active = bool(self.filtered_logins) or bool(self.filtered_types) or bool(self.filtered_dates)
+        active = self._has_active_filters()
         on_history = self.tabs.currentIndex() == 1
         self.clear_filter_button.setVisible(on_history and active)
         self.clear_filter_button.setToolTip(
@@ -1107,7 +1129,7 @@ class UserTrackerWidget(QWidget):
 
     def reveal_event(self, login: str, event_ts: float = None):
         self.tabs.setCurrentIndex(1)
-        if self.filtered_logins or self.filtered_types or self.filtered_dates:
+        if self._has_active_filters():
             self._clear_filter()
 
         source_row = self.history_model.find_row(login, event_ts)

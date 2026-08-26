@@ -35,13 +35,16 @@ class ScrollButtonsPanel(QObject):
     """
     clicked_scroll = pyqtSignal(str)  # emits the action that was triggered: top/page_up/page_down/bottom
 
-    def __init__(self, list_view, parent=None):
+    def __init__(self, list_view, parent=None, extra_actions=None):
+        """extra_actions: optional list of {"icon", "tooltip", "callback"} dicts for
+        buttons appended after the standard four (e.g. jump-to-adjacent-group nav).
+        They get no enable/disable dimming - that's the caller's responsibility."""
         super().__init__(parent)  # Parent the QObject properly
         self.list_view = list_view  # QListView or QScrollArea
 
         # Paths
         base_path = Path(__file__).parent.parent.parent
-        icons_path = base_path / "icons"
+        self.icons_path = base_path / "icons"
         config_path = base_path / "settings" / "config.json"
 
         # Load config
@@ -52,11 +55,11 @@ class ScrollButtonsPanel(QObject):
         self.container.setMouseTracking(True)
         self.container.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground, True)
         self.container.setAutoFillBackground(False)
-        layout = QVBoxLayout(self.container)
+        self._layout = QVBoxLayout(self.container)
         # No right margin: that side sits against the scrollbar, so padding there
         # would steal its hover/click events. Left/top/bottom keep the full reveal zone.
-        layout.setContentsMargins(REVEAL_PADDING, REVEAL_PADDING, 0, REVEAL_PADDING)
-        layout.setSpacing(BUTTON_GAP)
+        self._layout.setContentsMargins(REVEAL_PADDING, REVEAL_PADDING, 0, REVEAL_PADDING)
+        self._layout.setSpacing(BUTTON_GAP)
 
         self._container_effect = QGraphicsOpacityEffect(self.container)
         self._container_effect.setOpacity(OPACITY_HIDDEN)
@@ -69,18 +72,11 @@ class ScrollButtonsPanel(QObject):
 
         self._entries = []
         for icon_name, tooltip, action in _BUTTONS:
-            button = create_icon_button(
-                icons_path=icons_path,
-                icon_name=icon_name,
-                tooltip=tooltip,
-                size_type="large",
-                config=self.config
-            )
-            layout.addWidget(button)
+            button = self._create_button(icon_name, tooltip)
             button.clicked.connect(lambda _checked=False, a=action: self._on_clicked(a))
 
             icon_normal = button.icon()
-            icon_dimmed = create_disabled_icon(icons_path, icon_name, icon_size=button._icon_size)
+            icon_dimmed = create_disabled_icon(self.icons_path, icon_name, icon_size=button._icon_size)
 
             self._entries.append({
                 "button": button,
@@ -88,6 +84,12 @@ class ScrollButtonsPanel(QObject):
                 "icon_normal": icon_normal,
                 "icon_dimmed": icon_dimmed,
             })
+
+        if extra_actions:
+            self._layout.addSpacing(BUTTON_GAP * 2)
+            for extra in extra_actions:
+                button = self._create_button(extra["icon"], extra["tooltip"])
+                button.clicked.connect(extra["callback"])
 
         self.container.adjustSize()
 
@@ -101,6 +103,17 @@ class ScrollButtonsPanel(QObject):
         self.position_timer = QTimer(self)  # Parent timer to the QObject
         self.position_timer.timeout.connect(self._update_position)
         self.position_timer.start(100)
+
+    def _create_button(self, icon_name, tooltip):
+        button = create_icon_button(
+            icons_path=self.icons_path,
+            icon_name=icon_name,
+            tooltip=tooltip,
+            size_type="large",
+            config=self.config
+        )
+        self._layout.addWidget(button)
+        return button
 
     def _update_buttons(self, *_args):
         """Hide the container entirely when nothing is scrollable; disable up-buttons

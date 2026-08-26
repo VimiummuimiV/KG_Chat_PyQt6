@@ -1644,33 +1644,39 @@ class SettingsWidget(QWidget):
 
     def _set_tracker_retention_range(self, unit: str):
         maximum = 30 if unit == "days" else 168
-        slider = self.tracker_retention_spin._slider
-        slider.blockSignals(True)
-        self.tracker_retention_spin.blockSignals(True)
-        slider.setRange(1, maximum)
+        self._set_retention_widgets_blocked(True)
+        self.tracker_retention_spin._slider.setRange(1, maximum)
         self.tracker_retention_spin.setRange(1, maximum)
-        slider.blockSignals(False)
-        self.tracker_retention_spin.blockSignals(False)
+        self._set_retention_widgets_blocked(False)
 
     def _set_tracker_retention_display(self, value: int):
-        slider = self.tracker_retention_spin._slider
-        slider.blockSignals(True)
-        self.tracker_retention_spin.blockSignals(True)
-        slider.setValue(value)
+        self._set_retention_widgets_blocked(True)
+        self.tracker_retention_spin._slider.setValue(value)
         self.tracker_retention_spin.setValue(value)
-        slider.blockSignals(False)
-        self.tracker_retention_spin.blockSignals(False)
+        self._set_retention_widgets_blocked(False)
         btn = getattr(self.tracker_retention_spin, "_reset_button", None)
         if btn is not None:
             btn.setEnabled(self._tracker_retention_unit() != "hours" or value != 24)
 
-    def _sync_tracker_retention_ui_from_config(self):
+    def _set_retention_widgets_blocked(self, blocked: bool):
+        self.tracker_retention_spin._slider.blockSignals(blocked)
+        self.tracker_retention_spin.blockSignals(blocked)
+
+    def _read_retention_hours(self) -> int:
         hours = self.config.get("user_tracker", "retention_hours")
         try:
             hours = int(hours) if hours is not None else 24
         except (TypeError, ValueError):
             hours = 24
-        hours = max(1, min(720, hours))
+        return max(1, min(720, hours))
+
+    def _hours_to_display(self, hours: int, unit: str) -> int:
+        if unit == "days":
+            return max(1, min(30, round(hours / 24) or 1))
+        return max(1, min(168, hours))
+
+    def _sync_tracker_retention_ui_from_config(self):
+        hours = self._read_retention_hours()
         unit = self.config.get("user_tracker", "retention_unit") or "hours"
         if unit not in ("hours", "days"):
             unit = "hours"
@@ -1681,11 +1687,7 @@ class SettingsWidget(QWidget):
         self.tracker_retention_unit_combo.blockSignals(False)
 
         self._set_tracker_retention_range(unit)
-        if unit == "days":
-            display = max(1, min(30, round(hours / 24) or 1))
-        else:
-            display = max(1, min(168, hours))
-        self._set_tracker_retention_display(display)
+        self._set_tracker_retention_display(self._hours_to_display(hours, unit))
 
     def _on_tracker_retention_value_changed(self, value: int):
         unit = self._tracker_retention_unit()
@@ -1695,18 +1697,10 @@ class SettingsWidget(QWidget):
 
     def _on_tracker_retention_unit_changed(self, _index: int = 0):
         unit = self._tracker_retention_unit()
-        hours = self.config.get("user_tracker", "retention_hours")
-        try:
-            hours = int(hours) if hours is not None else 24
-        except (TypeError, ValueError):
-            hours = 24
-        hours = max(1, min(720, hours))
+        hours = self._read_retention_hours()
 
         self._set_tracker_retention_range(unit)
-        if unit == "days":
-            display = max(1, min(30, round(hours / 24) or 1))
-        else:
-            display = max(1, min(168, hours))
+        display = self._hours_to_display(hours, unit)
         self._set_tracker_retention_display(display)
         self._on_tracker_retention_value_changed(display)
 
