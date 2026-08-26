@@ -242,7 +242,10 @@ class ChatlogWidget(QWidget):
 
     def _on_date_separator_clicked(self, date_str: str):
         """Open (or update) a split pane showing the full chatlog for the clicked date"""
-        self._ensure_split_chatlog_widget().load_date(date_str)
+        widget = self._ensure_split_chatlog_widget()
+        if widget.current_date.strftime("%Y-%m-%d") == date_str and widget.all_messages:
+            return
+        widget.load_date(date_str)
 
     def _on_chatlog_link_clicked(self, date_str: str, time_str: str):
         """A chatlog URL inside a message body was clicked - open/update the split pane
