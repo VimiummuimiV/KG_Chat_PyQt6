@@ -1,25 +1,10 @@
 """Reusable scrollable button container with wheel and MMB drag scroll support"""
 from PyQt6.QtWidgets import QWidget, QScrollArea, QHBoxLayout, QVBoxLayout
 from PyQt6.QtCore import Qt, QEvent
-from PyQt6.QtGui import QWheelEvent, QMouseEvent
 
 
 class ScrollableButtonContainer(QWidget):
-    """
-    Orientation-aware scrollable container for icon buttons.
-
-    Supports:
-    - Mouse wheel scrolling (hidden scrollbar)
-    - Middle-mouse-button drag scrolling
-
-    Usage (vertical - same as ButtonPanel's old scroll area):
-        self.btn_bar = ScrollableButtonContainer(Qt.Orientation.Vertical, config=config)
-        self.btn_bar.add_widget(some_button)
-
-    Usage (horizontal - chatlog top bar):
-        self.nav_bar = ScrollableButtonContainer(Qt.Orientation.Horizontal, config=config)
-        self.nav_bar.add_widget(some_button)
-    """
+    """Orientation-aware scrollable container for icon buttons (wheel + MMB drag)."""
 
     def __init__(self, orientation=Qt.Orientation.Horizontal, config=None, parent=None):
         super().__init__(parent)
@@ -30,62 +15,62 @@ class ScrollableButtonContainer(QWidget):
         spacing = (config.get("ui", "buttons", "spacing") if config else None) or 8
         self._init_ui(spacing)
 
-    # ------------------------------------------------------------------ setup
-
     def _init_ui(self, spacing: int):
         is_vertical = self._orientation == Qt.Orientation.Vertical
 
-        # Outer layout that holds only the scroll area
         outer = QVBoxLayout() if is_vertical else QHBoxLayout()
         outer.setContentsMargins(0, 0, 0, 0)
         outer.setSpacing(0)
         self.setLayout(outer)
 
-        # Scroll area – both scrollbars hidden; scrolling via events only
         self.scroll_area = QScrollArea()
-        self.scroll_area.setWidgetResizable(True)
+        self.scroll_area.setWidgetResizable(is_vertical)
         self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        if not is_vertical:
+            self.scroll_area.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
 
-        # Inner container and its layout
         self.container = QWidget()
+        self._layout = QVBoxLayout() if is_vertical else QHBoxLayout()
         if is_vertical:
-            self._layout = QVBoxLayout()
+            self._layout.addStretch()
         else:
-            self._layout = QHBoxLayout()
             self._layout.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
-
         self._layout.setSpacing(spacing)
         self._layout.setContentsMargins(0, 0, 0, 0)
-        self._layout.addStretch()          # Buttons pushed toward the start; stretch fills remainder
         self.container.setLayout(self._layout)
 
         self.scroll_area.setWidget(self.container)
         outer.addWidget(self.scroll_area)
-
-        # Install event filter on viewport for wheel + drag
         self.scroll_area.viewport().installEventFilter(self)
 
-    # --------------------------------------------------------------- public API
+    def _sync_content_size(self):
+        if self._orientation != Qt.Orientation.Horizontal:
+            return
+        self.container.adjustSize()
+        hint = self.container.sizeHint()
+        self.container.setFixedSize(hint)
+        self.setMinimumHeight(hint.height())
 
     def add_widget(self, widget: QWidget):
-        """Append a widget before the trailing stretch."""
-        # Count - 1 because last item is always the stretch
-        self._layout.insertWidget(self._layout.count() - 1, widget)
+        if self._orientation == Qt.Orientation.Vertical:
+            self._layout.insertWidget(self._layout.count() - 1, widget)
+        else:
+            self._layout.addWidget(widget)
+            self._sync_content_size()
 
     def remove_widget(self, widget: QWidget):
-        """Remove a widget from the container."""
         self._layout.removeWidget(widget)
         widget.setParent(None)
+        self._sync_content_size()
 
     def clear_widgets(self):
-        """Remove all widgets (keep the stretch)."""
-        while self._layout.count() > 1:
+        keep = 1 if self._orientation == Qt.Orientation.Vertical else 0
+        while self._layout.count() > keep:
             item = self._layout.takeAt(0)
             if item.widget():
                 item.widget().setParent(None)
-
-    # ---------------------------------------------------------- event handling
+        self._sync_content_size()
 
     def _scrollbar(self):
         if self._orientation == Qt.Orientation.Vertical:
@@ -97,19 +82,13 @@ class ScrollableButtonContainer(QWidget):
             return super().eventFilter(obj, event)
 
         t = event.type()
-
-        # Handle wheel events for scrolling
         if t == QEvent.Type.Wheel:
-            sb = self._scrollbar()
-            if self._orientation == Qt.Orientation.Horizontal:
-                # Prefer horizontal delta; fall back to vertical (for regular mice)
-                delta = event.angleDelta().x() or event.angleDelta().y()
-            else:
+            delta = event.angleDelta().x() or event.angleDelta().y()
+            if self._orientation == Qt.Orientation.Vertical:
                 delta = event.angleDelta().y()
-            sb.setValue(sb.value() + (-delta // 2))
+            self._scrollbar().setValue(self._scrollbar().value() + (-delta // 2))
             return True
 
-        # Handle middle-mouse-button drag for scrolling
         if t == QEvent.Type.MouseButtonPress and event.button() == Qt.MouseButton.MiddleButton:
             self._is_dragging = True
             self._drag_start_pos = event.pos()
@@ -117,14 +96,12 @@ class ScrollableButtonContainer(QWidget):
             self.scroll_area.viewport().setCursor(Qt.CursorShape.ClosedHandCursor)
             return True
 
-        # Handle mouse move for dragging
         if t == QEvent.Type.MouseMove and self._is_dragging and self._drag_start_pos is not None:
             delta = event.pos() - self._drag_start_pos
             offset = delta.y() if self._orientation == Qt.Orientation.Vertical else delta.x()
             self._scrollbar().setValue(self._scroll_start_value - offset)
             return True
 
-        # Handle middle-mouse-button release to stop dragging
         if t == QEvent.Type.MouseButtonRelease and event.button() == Qt.MouseButton.MiddleButton and self._is_dragging:
             self._is_dragging = False
             self._drag_start_pos = None
