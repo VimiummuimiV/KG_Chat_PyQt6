@@ -42,6 +42,7 @@ class ButtonPanel(QWidget):
     exit_requested = pyqtSignal()
     reconnect_requested = pyqtSignal()
     join_room_requested = pyqtSignal()
+    search_requested = pyqtSignal()
     
     def __init__(self, config: Config, icons_path: Path, theme_manager):
         super().__init__()
@@ -172,6 +173,12 @@ class ButtonPanel(QWidget):
             "chat-new.svg",
             "Join / Create Room",
             lambda: self.join_room_requested.emit()
+        )
+
+        self.search_button = self._create_button(
+            "search.svg",
+            "Toggle search (S / Ctrl+F)",
+            lambda: self.search_requested.emit()
         )
 
         # Voice toggle button

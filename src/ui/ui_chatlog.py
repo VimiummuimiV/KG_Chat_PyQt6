@@ -28,6 +28,7 @@ from ui.message_model import MessageListModel, MessageData
 from ui.message_delegate import MessageDelegate
 from ui.ui_chatlogs_parser import ChatlogsParserConfigWidget, ParserWorker
 from ui.ui_settings import DEFAULTS
+from components.search import MessageSearchBar
 
 LIMIT_EXCEEDED_SUFFIX = "rendering disabled. Use Copy/Save buttons."
 
@@ -67,10 +68,6 @@ class ChatlogWidget(QWidget):
         self.exceeded_max_messages = False
         self.split_chatlog_widget = None  # Side pane showing full chatlog for a clicked date
         self.suppress_bottom_scroll = False  # Set before a load triggered by cross-date message search
-
-        self.search_visible = config.get("ui", "chatlog_search_visible")
-        if self.search_visible is None:
-            self.search_visible = False
 
         self.model = MessageListModel(max_messages=self._max_messages_limit())
         self.delegate = MessageDelegate(config, self.emoticon_manager)
@@ -197,8 +194,7 @@ class ChatlogWidget(QWidget):
 
         # Clear filters
         self.filtered_usernames = set()
-        self.search_text = ""
-        self.search_field.clear()
+        self.search.clear()
     
         # Only update icon if it was actually active
         if self.filter_mentions:
@@ -366,37 +362,21 @@ class ChatlogWidget(QWidget):
     
         self.compact_layout = False
 
-        # Search bar (initially hidden)
-        self.search_container = QWidget()
-        search_layout = QHBoxLayout()
-        search_layout.setContentsMargins(0, 0, 0, 0)
-        search_layout.setSpacing(self.config.get("ui", "buttons", "spacing") or 8)
-        self.search_container.setLayout(search_layout)
-    
-        self.search_field = QLineEdit()
-        self.search_field.setPlaceholderText(f"Search: 'text' or 'U:Bob' or 'U:Bob,Alice' or 'M:hello' or 'D:{DATE_PLACEHOLDER}' (Enter)")
-        self.search_field.setFont(get_font(FontType.TEXT))
-        self.search_field.setFixedHeight(self.config.get("ui", "input_height") or 48)
-        self.search_field.textChanged.connect(self._on_search_changed)
-        self.search_field.returnPressed.connect(self._on_search_enter)
-        search_layout.addWidget(self.search_field, stretch=1)
-    
+        # Search bar (MessageSearchBar; confirm button is chatlog-specific)
         self.confirm_search_btn = create_icon_button(self.icons_path, "search.svg", "Search (Enter)",
                                                      size_type="large", config=self.config)
         self.confirm_search_btn.clicked.connect(self._on_search_enter)
         self.confirm_search_btn.setVisible(False)
-        search_layout.addWidget(self.confirm_search_btn)
 
-        self.clear_search_btn = create_icon_button(self.icons_path, "trash.svg", "Clear search",
-                                                  size_type="large", config=self.config)
-        self.clear_search_btn.clicked.connect(self._clear_search)
-        search_layout.addWidget(self.clear_search_btn)
-    
-        self.search_container.setVisible(False)
-        layout.addWidget(self.search_container)
-    
-        if self.search_visible:
-            self.search_container.setVisible(True)
+        self.search = MessageSearchBar(
+            self.config, self.icons_path,
+            config_key="chatlog_search_visible",
+            placeholder=f"Search: 'text' or 'U:Bob' or 'U:Bob,Alice' or 'M:hello' or 'D:{DATE_PLACEHOLDER}' (Enter)",
+            extra_widgets=(self.confirm_search_btn,),
+        )
+        self.search.text_changed.connect(self._on_search_changed)
+        self.search.return_pressed.connect(self._on_search_enter)
+        layout.addWidget(self.search)
 
         # Stacked widget: List view OR Parser config
         self.stacked = QStackedWidget()
@@ -780,15 +760,16 @@ class ChatlogWidget(QWidget):
     def _handle_error(self, error_msg: str):
         self.info_label.setText(error_msg)
 
+    @property
+    def search_visible(self) -> bool:
+        return self.search.visible_state
+
+    @property
+    def search_field(self):
+        return self.search.field
+
     def _toggle_search(self):
-        self.search_visible = not self.search_visible
-        self.search_container.setVisible(self.search_visible)
-        self.config.set("ui", "chatlog_search_visible", value=self.search_visible)
-    
-        if self.search_visible:
-            self.search_field.setFocus()
-        else:
-            self.search_field.clear()
+        self.search.toggle()
 
     def _toggle_mention_filter(self):
         """Toggle mention filter on/off"""
@@ -804,7 +785,7 @@ class ChatlogWidget(QWidget):
         self._apply_filter()
 
     def _on_search_changed(self, text: str):
-        self.search_text = text.strip()
+        self.search_text = text
         if not self._requires_confirmed_search():
             self._apply_filter()
 
@@ -864,7 +845,7 @@ class ChatlogWidget(QWidget):
         return user_filter, message_filter, True
 
     def _clear_search(self):
-        self.search_field.clear()
+        self.search.clear()
         self._apply_filter()
 
     def _update_date_display(self):

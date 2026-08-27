@@ -598,6 +598,7 @@ class ChatWindow(QWidget):
         self.button_panel.exit_requested.connect(self.on_exit_requested)
         self.button_panel.reconnect_requested.connect(self.manual_reconnect)
         self.button_panel.join_room_requested.connect(self._on_join_room_requested)
+        self.button_panel.search_requested.connect(self._toggle_search_for_current_view)
 
         content_wrapper.addWidget(self.button_panel, stretch=0)
 
@@ -1682,6 +1683,23 @@ class ChatWindow(QWidget):
         if not self.chatlog_widget or self.stacked_widget.currentWidget() != self.chatlog_widget:
             return None
         return self._get_hovered_chatlog_widget() or self.chatlog_widget
+
+    def _toggle_search_for_current_view(self):
+        """Context search: chatlog pane under cursor, or active messages tab."""
+        current = self.stacked_widget.currentWidget()
+        if current == self.chatlog_widget:
+            cw = self._chatlog_for_hotkey()
+            if not cw:
+                return
+            if cw.parser_visible and not cw.parser_widget.is_parsing:
+                cw.parser_widget._on_parse_clicked()
+            elif not cw.parser_visible:
+                cw._toggle_search()
+            return
+        if current == self.messages_splitter:
+            mw = self._active_messages_widget()
+            if mw:
+                mw._toggle_search()
 
     def show_parser_view(self):
         """Switch to chatlog view and show parser"""
@@ -3658,16 +3676,19 @@ class ChatWindow(QWidget):
             if cw and cw.search_visible:
                 cw._toggle_search()
                 return
+            if self.stacked_widget.currentWidget() == self.messages_splitter:
+                mw = self._active_messages_widget()
+                if mw and mw.search_visible:
+                    mw._toggle_search()
+                    return
         # Ctrl+; toggle emoticon selector (works even when input focused, layout-independent)
         # nativeScanCode 0x27 = physical semicolon key on all standard keyboards
         if ctrl and (key == Qt.Key.Key_Semicolon or event.nativeScanCode() == 0x27):
             self._toggle_emoticon_selector()
             return
-        # Ctrl+F toggle search in chatlog (works regardless of input focus)
+        # Ctrl+F toggle search for current view (chatlog or messages)
         if ctrl and (key == Qt.Key.Key_F or event.nativeVirtualKey() == Qt.Key.Key_F):
-            cw = self._chatlog_for_hotkey()
-            if cw:
-                cw._toggle_search()
+            self._toggle_search_for_current_view()
             return
         # Ctrl+C / Ctrl+S in chatlog parser — copy / save results
         if ctrl and self.chatlog_widget and self.stacked_widget.currentWidget() == self.chatlog_widget:
@@ -3766,14 +3787,9 @@ class ChatWindow(QWidget):
                 cw._toggle_mention_filter()
             else:
                 self.on_toggle_effects_sound()
-        # Toggle search in chatlog (S) / start parsing when parser visible
+        # Toggle search (S) — chatlog or messages; parser: start parse when visible
         elif vk == 'search':
-            cw = self._chatlog_for_hotkey()
-            if cw:
-                if cw.parser_visible and not cw.parser_widget.is_parsing:
-                    cw.parser_widget._on_parse_clicked()
-                elif not cw.parser_visible and not cw.search_field.hasFocus():
-                    cw._toggle_search()
+            self._toggle_search_for_current_view()
         # Navigate chatlog days — H backward, L forward, supports hold
         elif vk in ('nav_backward', 'nav_forward'):
             cw = self._chatlog_for_hotkey()

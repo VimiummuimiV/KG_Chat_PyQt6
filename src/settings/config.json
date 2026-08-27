@@ -20,7 +20,8 @@
     "lang": "en"
   },
   "ui": {
-    "chatlog_search_visible": true,
+    "chatlog_search_visible": false,
+    "chat_search_visible": false,
     "theme": "dark",
     "notification_width": 550,
     "notification_position": "right",

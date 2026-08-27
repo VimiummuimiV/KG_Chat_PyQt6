@@ -21,13 +21,15 @@ CHAT_GENERAL_KB = [
     ("T",           "Toggle always on top"),
     ("R",           "Reset window size"),
     ("C",           "Change username color"),
+    ("S",           "Toggle search bar"),
     ("E",           "Open latest competition race in browser"),
     ("X",           "Exit private chat / Clear markers, presence"),
-    ("Esc",         "Clear input focus"),
+    ("Esc",         "Clear input focus / Close search"),
 ]
 
 CHAT_CTRL_KB = [
     ("Ctrl+;",      "Toggle emoticon selector"),
+    ("Ctrl+F",      "Toggle search bar"),
     ("Ctrl+T",      "Toggle theme"),
     ("Ctrl+U",      "Switch account"),
     ("Ctrl+P",      "Open chatlog parser"),
@@ -86,9 +88,10 @@ CHATLOG_KB = [
     ("H / ←",           "Previous day (hold to fast-seek)"),
     ("L / →",           "Next day (hold to fast-seek)"),
     ("D",               "Open calendar date picker"),
-    ("S",               "Toggle search bar"),
+    ("S / Ctrl+F",      "Toggle search bar"),
     ("P",               "Toggle chatlog parser"),
     ("M",               "Toggle mention-only filter"),
+    ("Esc",             "Close search"),
 ]
 
 CHATLOG_USERLIST_MOUSE = [
@@ -124,7 +127,7 @@ CHATLOG_PARSER_ACTIVE_KB = [
     ("C",               "Cancel parsing"),
     ("Ctrl+C",          "Copy results"),
     ("Ctrl+S",          "Save results to file"),
-    ("Ctrl+F",          "Toggle search"),
+    ("Ctrl+F",          "Toggle search bar"),
 ]
 
 PARSER_TAG_MOUSE = [

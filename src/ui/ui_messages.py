@@ -1,5 +1,6 @@
 """Messages display widget"""
 from datetime import datetime
+from pathlib import Path
 from types import SimpleNamespace
 
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QListView
@@ -10,6 +11,7 @@ from helpers.cache import get_cache
 from helpers.scroll.auto_scroll import AutoScroller
 from ui.message_model import MessageListModel, MessageData
 from ui.message_delegate import MessageDelegate
+from components.search import MessageSearchBar
 from helpers.message_interactions import MessageInteractions
 from helpers.fonts import get_font, FontType
 from helpers.scroll.scroll_buttons import ScrollButtonsPanel
@@ -33,7 +35,8 @@ class MessagesWidget(QWidget):
         self.config = config
         self.cache = get_cache()
         self.emoticon_manager = emoticon_manager
-       
+        self.icons_path = Path(__file__).parent.parent / "icons"
+
         self.model = MessageListModel(max_messages=self._max_messages_limit())
         self.delegate = MessageDelegate(config, self.emoticon_manager)
         
@@ -60,6 +63,10 @@ class MessagesWidget(QWidget):
         self.interactions.username_shift_clicked.connect(self.username_shift_clicked.emit)
         self.interactions.chip_clicked.connect(self.chip_clicked.emit)
         self.delegate.presence_log_clicked.connect(self._on_presence_log_clicked)
+
+    @property
+    def search_visible(self) -> bool:
+        return self.search.visible_state
 
     def _max_messages_limit(self) -> int:
         value = self.config.get("ui", "chat", "max_messages")
@@ -106,6 +113,14 @@ class MessagesWidget(QWidget):
         layout.setContentsMargins(4, 0, 4, 0)  # Add left and right margins to match chatlog
         layout.setSpacing(spacing)
         self.setLayout(layout)
+
+        self.search = MessageSearchBar(
+            self.config, self.icons_path,
+            get_messages=lambda: self.model._messages,
+            set_messages=self.model.set_messages,
+        )
+        self.search.text_changed.connect(self.delegate.set_highlight_text)
+        layout.addWidget(self.search)
        
         self.list_view = QListView()
         self.list_view.setModel(self.model)
@@ -127,6 +142,9 @@ class MessagesWidget(QWidget):
        
         # Add scroll buttons panel for quick navigation
         self.scroll_buttons = ScrollButtonsPanel(self.list_view, parent=self)
+
+    def _toggle_search(self):
+        self.search.toggle()
    
     def add_message(self, msg):
         if msg.login and getattr(msg, 'background', None):
@@ -149,6 +167,9 @@ class MessagesWidget(QWidget):
             is_presence_log=getattr(msg, 'is_presence_log', False),
             presence_entries=getattr(msg, 'presence_entries', None),
         )
+        if not self.search.register_message(msg_data, self.model.max_messages):
+            return -1
+
         sb = self.list_view.verticalScrollBar()
         at_bottom = (sb.maximum() - sb.value()) <= 100
 
@@ -180,17 +201,26 @@ class MessagesWidget(QWidget):
 
     def clear_presence_messages(self):
         self.model.clear_presence_messages()
+        self.search.filter_backup(lambda m: getattr(m, 'is_presence_log', False))
 
     def _on_presence_log_clicked(self, row: int):
-        self.model.clear_presence_messages()
+        self.clear_presence_messages()
 
     def clear_private_messages(self):
         """Clear all private messages"""
         self.model.clear_private_messages()
+        self.search.filter_backup(lambda m: getattr(m, 'is_private', False))
 
     def clear_competition_messages(self, game_id=None):
         """Clear rating competition system messages (all or one game_id)."""
         self.model.clear_competition_messages(game_id)
+        if game_id is None:
+            self.search.filter_backup(lambda m: getattr(m, 'is_competition', False))
+        else:
+            self.search.filter_backup(
+                lambda m: getattr(m, 'is_competition', False)
+                and getattr(m, 'competition_game_id', None) == game_id
+            )
 
     def update_competition_message(self, game_id: int, body: str, players=None) -> bool:
         """Update a competition message's header and player chips in place."""
@@ -237,6 +267,7 @@ class MessagesWidget(QWidget):
    
     def clear(self):
         self.model.clear()
+        self.search.reset()
    
     @property
     def scroll_area(self):
