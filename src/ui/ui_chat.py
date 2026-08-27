@@ -1677,6 +1677,12 @@ class ChatWindow(QWidget):
             widget = widget.parentWidget()
         return None
 
+    def _chatlog_for_hotkey(self):
+        """Chatlog target for day-nav / search / mentions: pane under cursor, else main."""
+        if not self.chatlog_widget or self.stacked_widget.currentWidget() != self.chatlog_widget:
+            return None
+        return self._get_hovered_chatlog_widget() or self.chatlog_widget
+
     def show_parser_view(self):
         """Switch to chatlog view and show parser"""
         self.show_chatlog_view()
@@ -3648,8 +3654,8 @@ class ChatWindow(QWidget):
                 sel.toggle_visibility()
                 self.input_field.setFocus()
                 return
-            cw = self.chatlog_widget
-            if cw and self.stacked_widget.currentWidget() == cw and cw.search_visible:
+            cw = self._chatlog_for_hotkey()
+            if cw and cw.search_visible:
                 cw._toggle_search()
                 return
         # Ctrl+; toggle emoticon selector (works even when input focused, layout-independent)
@@ -3659,8 +3665,8 @@ class ChatWindow(QWidget):
             return
         # Ctrl+F toggle search in chatlog (works regardless of input focus)
         if ctrl and (key == Qt.Key.Key_F or event.nativeVirtualKey() == Qt.Key.Key_F):
-            cw = self.chatlog_widget
-            if cw and self.stacked_widget.currentWidget() == cw:
+            cw = self._chatlog_for_hotkey()
+            if cw:
                 cw._toggle_search()
             return
         # Ctrl+C / Ctrl+S in chatlog parser — copy / save results
@@ -3755,22 +3761,23 @@ class ChatWindow(QWidget):
                 _toggle_view('pronunciation_widget', self.show_pronunciation_view)
         # Mute effects sound (M) or toggle mention filter in chatlog (M)
         elif vk == 'mute':
-            if self.chatlog_widget and self.stacked_widget.currentWidget() == self.chatlog_widget:
-                self.chatlog_widget._toggle_mention_filter()
+            cw = self._chatlog_for_hotkey()
+            if cw:
+                cw._toggle_mention_filter()
             else:
                 self.on_toggle_effects_sound()
         # Toggle search in chatlog (S) / start parsing when parser visible
         elif vk == 'search':
-            cw = self.chatlog_widget
-            if cw and self.stacked_widget.currentWidget() == cw:
+            cw = self._chatlog_for_hotkey()
+            if cw:
                 if cw.parser_visible and not cw.parser_widget.is_parsing:
                     cw.parser_widget._on_parse_clicked()
                 elif not cw.parser_visible and not cw.search_field.hasFocus():
                     cw._toggle_search()
         # Navigate chatlog days — H backward, L forward, supports hold
         elif vk in ('nav_backward', 'nav_forward'):
-            cw = self.chatlog_widget
-            if cw and self.stacked_widget.currentWidget() == cw and not event.isAutoRepeat():
+            cw = self._chatlog_for_hotkey()
+            if cw and not event.isAutoRepeat():
                 cw._navigate_hold(-1 if vk == 'nav_backward' else 1)
         # Vim-style scroll — J down, K up, works in chat and chatlog
         elif vk in ('scroll_down', 'scroll_up'):
@@ -3825,8 +3832,8 @@ class ChatWindow(QWidget):
             self.on_toggle_notification()
         # Open calendar date picker in chatlog (D)
         elif vk == 'calendar':
-            cw = self.chatlog_widget
-            if cw and self.stacked_widget.currentWidget() == cw:
+            cw = self._chatlog_for_hotkey()
+            if cw:
                 cw._show_calendar()
         # Exit private mode / clear private messages / clear new messages marker and presence logs (X)
         elif vk == 'exit_private':
@@ -3846,8 +3853,8 @@ class ChatWindow(QWidget):
         key = event.key()
         vk = self._KEY_ACTION.get(key) or self._KEY_ACTION.get(event.nativeVirtualKey())
         if vk in ('nav_backward', 'nav_forward'):
-            cw = self.chatlog_widget
-            if cw and self.stacked_widget.currentWidget() == cw:
+            cw = self._chatlog_for_hotkey()
+            if cw:
                 cw._navigate_hold()  # Stop hold
                 return
         super().keyReleaseEvent(event)
