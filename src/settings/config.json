@@ -20,7 +20,7 @@
     "lang": "en"
   },
   "ui": {
-    "chatlog_search_visible": false,
+    "chatlog_search_visible": true,
     "theme": "dark",
     "notification_width": 550,
     "notification_position": "right",
@@ -130,7 +130,7 @@
     "settings": {
       "sections": {
         "startup": true,
-        "chat": true,
+        "chat": false,
         "fonts": true,
         "notifications": true,
         "competitions": true,
@@ -150,7 +150,8 @@
     },
     "own_message_mode": "local",
     "chatlog": {
-      "max_messages": 50000
+      "max_messages": 50000,
+      "live_search_max_messages": 5000
     },
     "chat": {
       "max_messages": 1000

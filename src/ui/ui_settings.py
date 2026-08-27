@@ -49,6 +49,9 @@ DEFAULTS = {
         "max_messages": 50000,
         "max_messages_min": 1000,
         "max_messages_max": 100000,
+        "live_search_max_messages": 5000,
+        "live_search_max_messages_min": 500,
+        "live_search_max_messages_max": 50000,
     },
     "chat": {
         "max_messages": 1000,
@@ -838,6 +841,17 @@ class SettingsWidget(QWidget):
         self.chatlog_max_messages_spin._slider.setSingleStep(1000)
         self.chatlog_max_messages_spin._slider.setPageStep(5000)
 
+        self.chatlog_live_search_spin = self._add_slider_spin_row(
+            section, "Chatlog live search up to (messages)",
+            DEFAULTS["chatlog"]["live_search_max_messages_min"],
+            DEFAULTS["chatlog"]["live_search_max_messages_max"],
+            self._on_chatlog_live_search_max_changed,
+            default=DEFAULTS["chatlog"]["live_search_max_messages"],
+        )
+        self.chatlog_live_search_spin.setSingleStep(500)
+        self.chatlog_live_search_spin._slider.setSingleStep(500)
+        self.chatlog_live_search_spin._slider.setPageStep(2000)
+
         self.chat_max_messages_spin = self._add_slider_spin_row(
             section, "Chat display limit",
             DEFAULTS["chat"]["max_messages_min"], DEFAULTS["chat"]["max_messages_max"],
@@ -1225,7 +1239,7 @@ class SettingsWidget(QWidget):
             self.start_minimized_checkbox, self.start_with_system_checkbox,
             self.resource_combo, self.own_message_mode_combo,
             self.clear_private_checkbox, self.youtube_checkbox,
-            self.chatlog_max_messages_spin, self.browser_combo,
+            self.chatlog_max_messages_spin, self.chatlog_live_search_spin, self.browser_combo,
             self.track_competitions_checkbox, self.competitions_bypass_mute_checkbox,
             self.mentions_bypass_mute_checkbox, self.bans_bypass_mute_checkbox,
             self.tracker_notify_checkbox, self.tracker_enabled_checkbox,
@@ -1265,8 +1279,10 @@ class SettingsWidget(QWidget):
         )
 
         self.clear_private_checkbox.setChecked(bool(self.config.get("ui", "clear_private_messages_on_exit")))
+
         youtube_enabled = self.config.get("ui", "youtube", "enabled")
         self.youtube_checkbox.setChecked(True if youtube_enabled is None else bool(youtube_enabled))
+
         max_messages = self.config.get("ui", "chatlog", "max_messages")
         max_messages = DEFAULTS["chatlog"]["max_messages"] if max_messages is None else int(max_messages)
         max_messages = max(
@@ -1275,6 +1291,15 @@ class SettingsWidget(QWidget):
         )
         self.chatlog_max_messages_spin.setValue(max_messages)
         self.chatlog_max_messages_spin._slider.setValue(max_messages)
+
+        live_search_max = self.config.get("ui", "chatlog", "live_search_max_messages")
+        live_search_max = DEFAULTS["chatlog"]["live_search_max_messages"] if live_search_max is None else int(live_search_max)
+        live_search_max = max(
+            DEFAULTS["chatlog"]["live_search_max_messages_min"],
+            min(DEFAULTS["chatlog"]["live_search_max_messages_max"], live_search_max),
+        )
+        self.chatlog_live_search_spin.setValue(live_search_max)
+        self.chatlog_live_search_spin._slider.setValue(live_search_max)
 
         chat_max_messages = self.config.get("ui", "chat", "max_messages")
         chat_max_messages = DEFAULTS["chat"]["max_messages"] if chat_max_messages is None else int(chat_max_messages)
@@ -1522,6 +1547,9 @@ class SettingsWidget(QWidget):
 
     def _on_chatlog_max_messages_changed(self, value: int):
         self.config.set("ui", "chatlog", "max_messages", value=int(value))
+
+    def _on_chatlog_live_search_max_changed(self, value: int):
+        self.config.set("ui", "chatlog", "live_search_max_messages", value=int(value))
 
     def _on_chat_max_messages_changed(self, value: int):
         self.config.set("ui", "chat", "max_messages", value=int(value))

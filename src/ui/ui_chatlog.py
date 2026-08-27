@@ -384,7 +384,7 @@ class ChatlogWidget(QWidget):
         self.confirm_search_btn = create_icon_button(self.icons_path, "search.svg", "Search (Enter)",
                                                      size_type="large", config=self.config)
         self.confirm_search_btn.clicked.connect(self._on_search_enter)
-        self.confirm_search_btn.setVisible(self.is_parsing)
+        self.confirm_search_btn.setVisible(False)
         search_layout.addWidget(self.confirm_search_btn)
 
         self.clear_search_btn = create_icon_button(self.icons_path, "trash.svg", "Clear search",
@@ -445,83 +445,80 @@ class ChatlogWidget(QWidget):
         self._update_date_display()
         self._error_occurred.connect(self._handle_error)
 
-    def _on_copy_results(self):
-        """Copy parsed results to clipboard"""
-        if not self.all_messages:
-            QMessageBox.information(self, "No Results", "No messages to copy.")
-            return
-     
-        # Build text with separators
+    def _has_active_search_or_filter(self) -> bool:
+        return bool(
+            self.search_text
+            or self.filtered_usernames
+            or self.filter_mentions
+        )
+
+    @staticmethod
+    def _count_messages(messages) -> int:
+        return sum(1 for m in messages if not m.is_separator)
+
+    def _message_count(self) -> int:
+        return self._count_messages(self.all_messages)
+
+    def _messages_for_export(self):
+        """Messages currently backing Copy/Save: filtered results if a search or
+        filter is active, otherwise the full parsed log."""
+        if not self._has_active_search_or_filter():
+            return self.all_messages
+        search_users, search_message, is_prefix_mode = self._parse_search_text()
+        return self._filter_messages(self.all_messages, search_users, search_message, is_prefix_mode)
+
+    def _format_messages_export(self, messages):
         text_lines = []
-        current_date = None
         message_count = 0
-     
-        for msg in self.all_messages:
+        for msg in messages:
             if msg.is_separator:
                 text_lines.append(f"\n{'='*60}")
                 text_lines.append(f" {msg.date_str}")
                 text_lines.append(f"{'='*60}\n")
-                current_date = msg.date_str
             else:
                 timestamp = msg.timestamp.strftime("%H:%M:%S")
                 text_lines.append(f"[{timestamp}] {msg.username}: {msg.body}")
                 message_count += 1
-     
-        result = '\n'.join(text_lines)
-     
-        # Copy to clipboard
-        clipboard = QApplication.clipboard()
-        clipboard.setText(result)
-     
+        return '\n'.join(text_lines), message_count
+
+    def _update_copy_save_tooltips(self):
+        kind = "filtered results" if self._has_active_search_or_filter() else "results"
+        self.parser_widget.copy_button.setToolTip(f"Copy {kind} to clipboard (Ctrl+C)")
+        self.parser_widget.save_button.setToolTip(f"Save {kind} to file (Ctrl+S)")
+
+    def _on_copy_results(self):
+        messages = self._messages_for_export()
+        if not messages:
+            QMessageBox.information(self, "No Results", "No messages to copy.")
+            return
+        result, message_count = self._format_messages_export(messages)
+        QApplication.clipboard().setText(result)
         QMessageBox.information(self, "Copied", f"Copied {message_count} messages to clipboard.")
- 
+
     def _on_save_results(self):
-        """Save parsed results to file"""
-        if not self.all_messages:
+        messages = self._messages_for_export()
+        if not messages:
             QMessageBox.information(self, "No Results", "No messages to save.")
             return
-     
-        # Get default filename with timestamp
+
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         default_dir = get_data_dir("exports")
         default_filename = default_dir / f"chatlog_export_{timestamp}.txt"
-     
-        # Show save dialog
+
         filename, _ = QFileDialog.getSaveFileName(
             self,
             "Save Chat Log",
             str(default_filename),
             "Text Files (*.txt);;All Files (*)"
         )
-     
         if not filename:
             return
-     
+
         try:
-            # Build text with separators
-            text_lines = []
-            current_date = None
-            message_count = 0
-         
-            for msg in self.all_messages:
-                if msg.is_separator:
-                    text_lines.append(f"\n{'='*60}")
-                    text_lines.append(f" {msg.date_str}")
-                    text_lines.append(f"{'='*60}\n")
-                    current_date = msg.date_str
-                else:
-                    timestamp = msg.timestamp.strftime("%H:%M:%S")
-                    text_lines.append(f"[{timestamp}] {msg.username}: {msg.body}")
-                    message_count += 1
-         
-            result = '\n'.join(text_lines)
-         
-            # Write to file
+            result, message_count = self._format_messages_export(messages)
             with open(filename, 'w', encoding='utf-8') as f:
                 f.write(result)
-         
             QMessageBox.information(self, "Saved", f"Saved {message_count} messages to:\n{filename}")
-     
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to save file:\n{e}")
 
@@ -551,7 +548,22 @@ class ChatlogWidget(QWidget):
 
     def _set_parsing_mode(self, value: bool):
         self.is_parsing = value
-        self.confirm_search_btn.setVisible(value)
+        self._update_confirm_search_button()
+
+    def _live_search_max_messages(self) -> int:
+        value = self.config.get("ui", "chatlog", "live_search_max_messages")
+        if value is None:
+            return DEFAULTS["chatlog"]["live_search_max_messages"]
+        return max(
+            DEFAULTS["chatlog"]["live_search_max_messages_min"],
+            min(DEFAULTS["chatlog"]["live_search_max_messages_max"], int(value)),
+        )
+
+    def _requires_confirmed_search(self) -> bool:
+        return self._message_count() > self._live_search_max_messages()
+
+    def _update_confirm_search_button(self):
+        self.confirm_search_btn.setVisible(self._requires_confirmed_search())
 
     def _max_messages_limit(self) -> int:
         value = self.config.get("ui", "chatlog", "max_messages")
@@ -568,7 +580,7 @@ class ChatlogWidget(QWidget):
         self.model.max_messages = limit
         if self.is_parsing or not self.all_messages:
             return
-        count = sum(1 for m in self.all_messages if not m.is_separator)
+        count = self._message_count()
         if count > limit:
             self.model.clear()
             self.info_label.setText(
@@ -597,6 +609,7 @@ class ChatlogWidget(QWidget):
             self.all_messages = []
             self.temp_parsed_messages = []
             self.last_parsed_date = None
+            self._update_confirm_search_button()
         else:
             self.info_label.setText("Syncing database...")
 
@@ -641,9 +654,11 @@ class ChatlogWidget(QWidget):
                 self.temp_parsed_messages = []
                 self.model.set_messages(self.all_messages)
                 self.list_view.setUpdatesEnabled(True)
+                self._update_confirm_search_button()
                 non_separator_messages = [m for m in self.all_messages if not m.is_separator]
                 self.messages_loaded.emit(non_separator_messages)
                 self.parser_widget.show_copy_save_buttons()
+                self._update_copy_save_tooltips()
                 QTimer.singleShot(100, lambda: scroll(self.list_view, mode="top", delay=50))
                 message_count = len(non_separator_messages)
                 self.info_label.setText(f"Found {message_count} messages (partial)")
@@ -705,6 +720,7 @@ class ChatlogWidget(QWidget):
             message_count = sum(1 for m in self.temp_parsed_messages if not m.is_separator)
             self.all_messages = self.temp_parsed_messages
             self.temp_parsed_messages = []
+            self._update_confirm_search_button()
             
             # Skip rendering if exceeded limit
             if self.exceeded_max_messages:
@@ -720,6 +736,7 @@ class ChatlogWidget(QWidget):
                 QTimer.singleShot(100, lambda: scroll(self.list_view, mode="top", delay=50))
             
             self.parser_widget.show_copy_save_buttons()
+            self._update_copy_save_tooltips()
         else:
             self.info_label.setText("No messages found")
         
@@ -783,7 +800,7 @@ class ChatlogWidget(QWidget):
 
     def _on_search_changed(self, text: str):
         self.search_text = text.strip()
-        if not self.is_parsing:
+        if not self._requires_confirmed_search():
             self._apply_filter()
 
     def _on_search_enter(self):
@@ -943,63 +960,69 @@ class ChatlogWidget(QWidget):
         self._apply_filter()
         self.filter_changed.emit(self.filtered_usernames)
 
+    def _message_matches_filters(self, msg, search_users, search_message, is_prefix_mode) -> bool:
+        if self.filter_mentions and self.account and self.account.get('chat_username'):
+            my_username = self.account.get('chat_username')
+            if not any(is_mention for is_mention, _ in parse_mentions(msg.body, my_username)):
+                return False
+
+        if is_prefix_mode:
+            if search_users and msg.username.lower() not in search_users:
+                return False
+            if search_message and search_message not in msg.body.lower():
+                return False
+        else:
+            if self.filtered_usernames and msg.username not in self.filtered_usernames:
+                return False
+            if self.search_text:
+                search_lower = self.search_text.lower()
+                if search_lower not in msg.username.lower() and search_lower not in msg.body.lower():
+                    return False
+        return True
+
+    def _filter_messages(self, messages, search_users, search_message, is_prefix_mode):
+        """Keep matching messages together with the date separator that precedes them.
+        search_users/search_message/is_prefix_mode come from _parse_search_text(),
+        parsed once by the caller and shared - never re-parsed here."""
+        if not self._has_active_search_or_filter():
+            return list(messages)
+
+        search_users_lower = {u.lower() for u in search_users} if search_users else set()
+        result = []
+        pending_separator = None
+        for msg in messages:
+            if msg.is_separator:
+                pending_separator = msg
+                continue
+            if self._message_matches_filters(msg, search_users_lower, search_message, is_prefix_mode):
+                if pending_separator is not None:
+                    result.append(pending_separator)
+                    pending_separator = None
+                result.append(msg)
+        return result
+
     def _apply_filter(self):
-        # Batch operations for better performance
         self.list_view.setUpdatesEnabled(False)
-        
         self.model.clear()
 
         if not self.all_messages:
             self.list_view.setUpdatesEnabled(True)
+            self._update_copy_save_tooltips()
             return
 
         search_users, search_message, is_prefix_mode = self._parse_search_text()
         self.delegate.set_highlight_text(search_message if is_prefix_mode else self.search_text)
-        messages_to_show = self.all_messages
-        
-        # APPLY MENTION FILTER FIRST
-        if self.filter_mentions and self.account and self.account.get('chat_username'):
-            my_username = self.account.get('chat_username')
-            messages_to_show = [
-                msg for msg in messages_to_show
-                if not msg.is_separator and any(
-                    is_mention for is_mention, _ in parse_mentions(msg.body, my_username)
-                )
-            ]
-
-        if is_prefix_mode:
-            if search_users:
-                search_users_lower = {u.lower() for u in search_users}
-                messages_to_show = [msg for msg in messages_to_show
-                                if msg.username.lower() in search_users_lower]
-            
-            if search_message:
-                messages_to_show = [msg for msg in messages_to_show
-                                if search_message in msg.body.lower()]
-        else:
-            if self.filtered_usernames:
-                messages_to_show = [msg for msg in messages_to_show
-                                if msg.username in self.filtered_usernames]
-            
-            if self.search_text:
-                search_lower = self.search_text.lower()
-                messages_to_show = [msg for msg in messages_to_show
-                                if search_lower in msg.username.lower() or
-                                    search_lower in msg.body.lower()]
-
+        messages_to_show = self._filter_messages(self.all_messages, search_users, search_message, is_prefix_mode)
         self.model.set_messages(messages_to_show)
-
         self.list_view.setUpdatesEnabled(True)
-        
-        total = len(self.all_messages)
-        shown = len(messages_to_show)
+        self._update_copy_save_tooltips()
+
+        total = self._message_count()
+        shown = self._count_messages(messages_to_show)
 
         filters = []
-        
-        # ADD MENTION FILTER TO INFO DISPLAY:
         if self.filter_mentions:
             filters.append("mentions only")
-        
         if is_prefix_mode:
             if search_users:
                 filters.append(f"users: {', '.join(sorted(search_users))}")
@@ -1012,8 +1035,7 @@ class ChatlogWidget(QWidget):
                 filters.append(f"search: '{self.search_text}'")
 
         if filters:
-            filter_text = " | ".join(filters)
-            self.info_label.setText(f"Showing {shown}/{total} messages ({filter_text})")
+            self.info_label.setText(f"Showing {shown}/{total} messages ({' | '.join(filters)})")
         else:
             if hasattr(self, '_pending_data'):
                 _, size_text, was_truncated, from_cache = self._pending_data
@@ -1044,6 +1066,7 @@ class ChatlogWidget(QWidget):
         self._set_parser_youtube_off(False)
         self.model.clear()
         self.all_messages = []
+        self._update_confirm_search_button()
         self.info_label.setText("Loading...")
     
         date_str = self.current_date.strftime("%Y-%m-%d")
@@ -1119,6 +1142,7 @@ class ChatlogWidget(QWidget):
                     pass
         
             self.all_messages = message_data
+            self._update_confirm_search_button()
             self._apply_filter()
         
             self.list_view.setUpdatesEnabled(True)
