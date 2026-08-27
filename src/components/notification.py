@@ -1004,10 +1004,7 @@ class PopupManager:
             return None
         self.config = cfg
         duration_ms = _resolve_duration_ms(cfg)
-        force_duration = (
-            mode == "duration"
-            or bool(cfg and cfg.get("user_tracker", "notifications_auto_hide"))
-        )
+        force_duration = mode == "duration"
         popup = PresenceMiniPopup(
             self, login, event_type=event_type, avatar_pixmap=avatar_pixmap,
             config=cfg, duration_ms=duration_ms,

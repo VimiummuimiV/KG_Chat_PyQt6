@@ -1179,10 +1179,6 @@ class SettingsWidget(QWidget):
             section, "Show events in notifications",
             self._on_tracker_notifications_toggled
         )
-        self.tracker_notifications_auto_hide_checkbox = self._add_checkbox(
-            section, "Auto-hide notifications after duration (ignore mouse/keyboard rules)",
-            self._on_tracker_notifications_auto_hide_toggled
-        )
         self.tracker_chat_log_checkbox = self._add_checkbox(
             section, "Show events in chat",
             self._on_tracker_chat_log_toggled
@@ -1266,7 +1262,7 @@ class SettingsWidget(QWidget):
             self.competitions_bypass_combo, self.mentions_bypass_combo, self.bans_bypass_combo,
             self.tracker_bypass_combo, self.messages_bypass_combo,
             self.tracker_enabled_checkbox,
-            self.tracker_notifications_checkbox, self.tracker_notifications_auto_hide_checkbox,
+            self.tracker_notifications_checkbox,
             self.tracker_chat_log_checkbox, self.tracker_badge_checkbox,
             self.min_multiplier_combo,
             self.show_cost_checkbox,
@@ -1417,12 +1413,6 @@ class SettingsWidget(QWidget):
         tracker_notify = self.config.get("user_tracker", "notifications")
         self.tracker_notifications_checkbox.setChecked(
             True if tracker_notify is None else bool(tracker_notify)
-        )
-        self.tracker_notifications_auto_hide_checkbox.setChecked(
-            bool(self.config.get("user_tracker", "notifications_auto_hide"))
-        )
-        self.tracker_notifications_auto_hide_checkbox.setEnabled(
-            self.tracker_notifications_checkbox.isChecked()
         )
         chat_log = self.config.get("user_tracker", "chat_log")
         self.tracker_chat_log_checkbox.setChecked(True if chat_log is None else bool(chat_log))
@@ -1708,10 +1698,6 @@ class SettingsWidget(QWidget):
 
     def _on_tracker_notifications_toggled(self, checked: bool):
         self.config.set("user_tracker", "notifications", value=checked)
-        self.tracker_notifications_auto_hide_checkbox.setEnabled(checked)
-
-    def _on_tracker_notifications_auto_hide_toggled(self, checked: bool):
-        self.config.set("user_tracker", "notifications_auto_hide", value=checked)
 
     def _on_tracker_chat_log_toggled(self, checked: bool):
         self.config.set("user_tracker", "chat_log", value=checked)
