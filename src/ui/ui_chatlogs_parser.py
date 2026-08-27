@@ -355,9 +355,17 @@ class ChatlogsParserConfigWidget(QWidget):
         self.search_fetch_history_button.setIcon(_render_svg_icon(self.icons_path / icon_name, icon_size))
         self.search_fetch_history_button.setToolTip(tooltip)
    
+    def _validate_usernames_enabled(self) -> bool:
+        value = self.config.get("chatlog_parser", "validate_usernames")
+        return True if value is None else bool(value)
+
     def _validate_usernames(self, usernames: list, on_done):
-        """Check which of the given usernames exist (background thread), then
-        call on_done(valid, invalid) on the main thread."""
+        """Check which usernames exist via API (background), then on_done(valid, invalid).
+        When validation is disabled, every name is treated as valid."""
+        if not self._validate_usernames_enabled():
+            on_done(list(usernames), [])
+            return
+
         def _check():
             valid = [u for u in usernames if get_exact_user_id_by_name(u)]
             invalid = [u for u in usernames if u not in valid]
@@ -365,8 +373,21 @@ class ChatlogsParserConfigWidget(QWidget):
 
         threading.Thread(target=_check, daemon=True).start()
 
+    def _confirm_unknown_usernames(self, invalid: list, action: str) -> bool:
+        """Ask whether to proceed with names the API does not know (renamed accounts, etc.)."""
+        reply = QMessageBox.question(
+            self,
+            "Users Not Found",
+            f"The following users were not found (they may have renamed):\n"
+            f"{', '.join(invalid)}\n\n"
+            f"{action}",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        return reply == QMessageBox.StandardButton.Yes
+
     def _add_usernames_to_saved(self):
-        """Validate the typed usernames exist before saving them as chips"""
+        """Optionally validate typed usernames before saving them as chips"""
         usernames = self._get_usernames()
         if not usernames:
             return
@@ -374,16 +395,16 @@ class ChatlogsParserConfigWidget(QWidget):
         self._validate_usernames(usernames, self._on_add_validated)
 
     def _on_add_validated(self, valid: list, invalid: list):
-        """Save whichever typed usernames turned out to exist"""
+        """Save usernames; ask before saving names the API does not know."""
         self._update_buttons_state()
-        if valid:
-            self.saved_usernames_bar.add_values(valid)
+        to_save = list(valid)
         if invalid:
-            QMessageBox.warning(
-                self,
-                "Users Not Found",
-                f"The following users were not found and were not saved:\n{', '.join(invalid)}"
-            )
+            if self._confirm_unknown_usernames(
+                invalid, "Save them to the list anyway?"
+            ):
+                to_save.extend(invalid)
+        if to_save:
+            self.saved_usernames_bar.add_values(to_save)
 
     def _fetch_username_history(self, input_field: QLineEdit):
         """Generic fetch username history for any input field"""
@@ -720,14 +741,11 @@ class ChatlogsParserConfigWidget(QWidget):
         self._validate_usernames(usernames, self._on_parse_usernames_validated)
 
     def _on_parse_usernames_validated(self, valid: list, invalid: list):
-        """Abort the parse if any typed username doesn't exist, otherwise build the config and start it"""
+        """Start parse; confirm if some names are unknown to the API (still present in logs)."""
         self.parse_button.setEnabled(True)
-        if invalid:
-            QMessageBox.warning(
-                self,
-                "Users Not Found",
-                f"The following users were not found:\n{', '.join(invalid)}\n\nPlease fix the usernames before parsing."
-            )
+        if invalid and not self._confirm_unknown_usernames(
+            invalid, "Continue parsing anyway? Old names may still appear in chatlogs."
+        ):
             return
 
         try:

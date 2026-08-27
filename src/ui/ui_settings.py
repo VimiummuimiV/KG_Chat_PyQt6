@@ -852,6 +852,12 @@ class SettingsWidget(QWidget):
         self.chatlog_live_search_spin._slider.setSingleStep(500)
         self.chatlog_live_search_spin._slider.setPageStep(2000)
 
+        self.parser_validate_usernames_checkbox = self._add_checkbox(
+            section,
+            "Validate usernames in chatlog parser (API check)",
+            self._on_parser_validate_usernames_toggled,
+        )
+
         self.chat_max_messages_spin = self._add_slider_spin_row(
             section, "Chat display limit",
             DEFAULTS["chat"]["max_messages_min"], DEFAULTS["chat"]["max_messages_max"],
@@ -1239,7 +1245,8 @@ class SettingsWidget(QWidget):
             self.start_minimized_checkbox, self.start_with_system_checkbox,
             self.resource_combo, self.own_message_mode_combo,
             self.clear_private_checkbox, self.youtube_checkbox,
-            self.chatlog_max_messages_spin, self.chatlog_live_search_spin, self.browser_combo,
+            self.chatlog_max_messages_spin, self.chatlog_live_search_spin,
+            self.parser_validate_usernames_checkbox, self.browser_combo,
             self.track_competitions_checkbox, self.competitions_bypass_mute_checkbox,
             self.mentions_bypass_mute_checkbox, self.bans_bypass_mute_checkbox,
             self.tracker_notify_checkbox, self.tracker_enabled_checkbox,
@@ -1300,6 +1307,11 @@ class SettingsWidget(QWidget):
         )
         self.chatlog_live_search_spin.setValue(live_search_max)
         self.chatlog_live_search_spin._slider.setValue(live_search_max)
+
+        validate_usernames = self.config.get("chatlog_parser", "validate_usernames")
+        self.parser_validate_usernames_checkbox.setChecked(
+            True if validate_usernames is None else bool(validate_usernames)
+        )
 
         chat_max_messages = self.config.get("ui", "chat", "max_messages")
         chat_max_messages = DEFAULTS["chat"]["max_messages"] if chat_max_messages is None else int(chat_max_messages)
@@ -1550,6 +1562,9 @@ class SettingsWidget(QWidget):
 
     def _on_chatlog_live_search_max_changed(self, value: int):
         self.config.set("ui", "chatlog", "live_search_max_messages", value=int(value))
+
+    def _on_parser_validate_usernames_toggled(self, checked: bool):
+        self.config.set("chatlog_parser", "validate_usernames", value=checked)
 
     def _on_chat_max_messages_changed(self, value: int):
         self.config.set("ui", "chat", "max_messages", value=int(value))

@@ -75,6 +75,7 @@
     "emoticon_selector_visible": false,
     "always_on_top": false,
     "recent_emoticons": [
+      "uzi",
       "dwarf",
       "ghost",
       "firework",
@@ -82,7 +83,6 @@
       "carpet",
       "moose",
       "cheers",
-      "uzi",
       "vdv",
       "comandos",
       "barret",
@@ -131,7 +131,7 @@
     "settings": {
       "sections": {
         "startup": true,
-        "chat": false,
+        "chat": true,
         "fonts": true,
         "notifications": true,
         "competitions": true,
@@ -190,12 +190,12 @@
     "saved_usernames": [
       "Ri_chu_long",
       "TolikWorkaholic",
-      "Изящный",
       "Кибертаксист",
       "un4given",
       "Пьяный_Качок",
       "ПОТРОШИТЕЛЬЧАТА"
-    ]
+    ],
+    "validate_usernames": false
   },
   "competitions": {
     "enabled": false,
