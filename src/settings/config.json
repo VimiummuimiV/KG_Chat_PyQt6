@@ -136,7 +136,7 @@
         "notifications": true,
         "competitions": true,
         "sound": true,
-        "user_tracker": false
+        "user_tracker": true
       },
       "widgets": {
         "ws_log": false,
@@ -177,7 +177,7 @@
     "competitions_bypass_mute": "default",
     "mentions_bypass_mute": "default",
     "bans_bypass_mute": "default",
-    "tracked_bypass_mute": "default",
+    "tracked_bypass_mute": "duration",
     "messages_bypass_mute": "duration",
     "hide_on": "mouse",
     "fade_ms": 300,
