@@ -116,10 +116,14 @@ class MessagesWidget(QWidget):
 
         self.search = MessageSearchBar(
             self.config, self.icons_path,
+            config_key="chat_search_visible",
             get_messages=lambda: self.model._messages,
             set_messages=self.model.set_messages,
+            placeholder="Search: 'text' or 'U:Bob' or 'U:Bob,Alice' or 'M:hello'",
         )
-        self.search.text_changed.connect(self.delegate.set_highlight_text)
+        self.search.text_changed.connect(
+            lambda _t: self.delegate.set_highlight_text(self.search.highlight_text())
+        )
         layout.addWidget(self.search)
        
         self.list_view = QListView()

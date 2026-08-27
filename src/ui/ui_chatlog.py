@@ -28,7 +28,7 @@ from ui.message_model import MessageListModel, MessageData
 from ui.message_delegate import MessageDelegate
 from ui.ui_chatlogs_parser import ChatlogsParserConfigWidget, ParserWorker
 from ui.ui_settings import DEFAULTS
-from components.search import MessageSearchBar
+from components.search import MessageSearchBar, parse_search_text
 
 LIMIT_EXCEEDED_SUFFIX = "rendering disabled. Use Copy/Save buttons."
 
@@ -812,37 +812,8 @@ class ChatlogWidget(QWidget):
         self._apply_filter()
 
     def _parse_search_text(self):
-        if not self.search_text:
-            return set(), "", False
-    
-        import re
-    
-        user_filter = set()
-        message_filter = ""
-    
-        text = self.search_text.strip()
-        has_u_prefix = re.search(r'[Uu]:', text)
-        has_m_prefix = re.search(r'[Mm]:', text)
-        has_prefix = has_u_prefix or has_m_prefix
-    
-        if not has_prefix:
-            return set(), "", False
-    
-        if has_u_prefix:
-            u_pattern = r'[Uu]:\s*(.+?)(?:\s+[Mm]:|$)'
-            match = re.search(u_pattern, text)
-            if match:
-                users_str = match.group(1).strip()
-                users = [u.strip() for u in users_str.split(',') if u.strip()]
-                user_filter.update(users)
-    
-        if has_m_prefix:
-            m_pattern = r'[Mm]:\s*(.+?)(?:\s+[Uu]:|$)'
-            match = re.search(m_pattern, text)
-            if match:
-                message_filter = match.group(1).strip().lower()
-    
-        return user_filter, message_filter, True
+        return parse_search_text(self.search_text)
+
 
     def _clear_search(self):
         self.search.clear()
