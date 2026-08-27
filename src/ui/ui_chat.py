@@ -1898,6 +1898,9 @@ class ChatWindow(QWidget):
         elif current == self.chatlog_widget and self.chatlog_widget:
             self.chatlog_widget._force_recalculate()
             self._scroll_to_bottom(self.chatlog_widget.list_view)
+            nested = self.chatlog_widget.split_chatlog_widget
+            if nested:
+                nested._force_recalculate()
 
     def connect_xmpp(self):
         def _worker():

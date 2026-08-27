@@ -472,13 +472,18 @@ class ChatlogWidget(QWidget):
         message_count = 0
         for msg in messages:
             if msg.is_separator:
-                text_lines.append(f"\n{'='*60}")
+                if text_lines:
+                    text_lines.append("")
+                text_lines.append(f"{'='*60}")
                 text_lines.append(f" {msg.date_str}")
-                text_lines.append(f"{'='*60}\n")
+                text_lines.append(f"{'='*60}")
+                text_lines.append("")
             else:
                 timestamp = msg.timestamp.strftime("%H:%M:%S")
                 text_lines.append(f"[{timestamp}] {msg.username}: {msg.body}")
                 message_count += 1
+        while text_lines and text_lines[-1] == "":
+            text_lines.pop()
         return '\n'.join(text_lines), message_count
 
     def _update_copy_save_tooltips(self):

@@ -13,6 +13,10 @@ def recalculate_layout(chat_window):
     elif current_view == chat_window.chatlog_widget and chat_window.chatlog_widget:
         chat_window.chatlog_widget._force_recalculate()
         QTimer.singleShot(50, chat_window.chatlog_widget._force_recalculate)
+        nested = chat_window.chatlog_widget.split_chatlog_widget
+        if nested:
+            nested._force_recalculate()
+            QTimer.singleShot(50, nested._force_recalculate)
     elif current_view is getattr(chat_window, 'user_tracker_widget', None):
         chat_window.user_tracker_widget._recalculate_layout()
         QTimer.singleShot(50, chat_window.user_tracker_widget._recalculate_layout)
@@ -94,6 +98,10 @@ def handle_chat_resize(chat_window, width: int):
         if chat_window.chatlog_widget:
             chat_window.chatlog_widget.set_compact_mode(is_compact)
             chat_window.chatlog_widget.set_compact_layout(is_compact)
+            nested = chat_window.chatlog_widget.split_chatlog_widget
+            if nested:
+                nested.set_compact_mode(is_compact)
+                nested.set_compact_layout(is_compact)
         if getattr(chat_window, 'chatlog_split_widget', None):
             chat_window.chatlog_split_widget.set_compact_mode(is_compact)
             chat_window.chatlog_split_widget.set_compact_layout(is_compact)

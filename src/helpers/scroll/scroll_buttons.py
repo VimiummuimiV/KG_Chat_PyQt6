@@ -57,8 +57,9 @@ class ScrollButtonsPanel(QObject):
         # Load config
         self.config = Config(str(config_path))
 
-        # Single container for all four buttons, so opacity/reveal is handled once
-        self.container = QWidget(parent)
+        # Parent to list_view so the panel cannot spill over sibling panes (e.g. chatlog split)
+        # and steal clicks from their toolbar buttons.
+        self.container = QWidget(list_view)
         self.container.setMouseTracking(True)
         self.container.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground, True)
         self.container.setAutoFillBackground(False)
@@ -263,20 +264,25 @@ class ScrollButtonsPanel(QObject):
         sb.setValue(sb.value() + direction * step)
 
     def _update_position(self):
-        """Right-align the container, centered vertically in the viewport - a single
-        move() instead of repositioning each button individually."""
+        """Right-align the container, centered vertically in the viewport.
+        Clamped to list_view bounds so the reveal padding never covers a sibling pane."""
         if not self.list_view:
             return
         try:
-            padding = 10  # right margin is 0 now, so the container's own edge is the button's edge
+            padding = 10
             viewport = self.list_view.viewport()
             container_size = self.container.sizeHint()
-
-            x = viewport.width() - container_size.width() - padding
-            y = (viewport.height() - container_size.height()) // 2
-
             viewport_pos = viewport.mapTo(self.list_view, viewport.rect().topLeft())
-            self.container.move(viewport_pos.x() + x, viewport_pos.y() + y)
+
+            x = viewport_pos.x() + viewport.width() - container_size.width() - padding
+            y = viewport_pos.y() + (viewport.height() - container_size.height()) // 2
+
+            max_x = max(0, self.list_view.width() - container_size.width())
+            max_y = max(0, self.list_view.height() - container_size.height())
+            x = max(0, min(x, max_x))
+            y = max(0, min(y, max_y))
+
+            self.container.move(x, y)
         except RuntimeError:
             pass
 
