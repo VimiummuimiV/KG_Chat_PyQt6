@@ -86,6 +86,13 @@ NOTIFICATION_HIDE_ON_OPTIONS = (
     ("mouse_keyboard", "Mouse or Keyboard", "Auto-hide countdown starts on mouse or keyboard activity."),
 )
 
+# When notifications are muted: off | default (follow Hide notifications on) | duration (ignore activity).
+NOTIFICATION_MUTE_BYPASS_OPTIONS = (
+    ("off",      "Off",            "Do not show when notifications are disabled."),
+    ("default",  "Default",        "Show when muted; auto-hide follows the Hide notifications on setting."),
+    ("duration", "Duration",       "Show when muted; auto-hide after delay, ignore mouse/keyboard."),
+)
+
 ALERT_CHAT_ACTION_OPTIONS = (
     ("scroll", "Scroll to message", "Scrolls the chat to the competition message."),
     ("move",   "Move to bottom",    "Removes the competition message and reposts it at the bottom of the chat."),
@@ -248,6 +255,10 @@ def fill_notification_mode_combo(combo, current=None):
 
 def fill_notification_hide_on_combo(combo, current=None):
     fill_tooltip_combo(combo, NOTIFICATION_HIDE_ON_OPTIONS, current, "mouse_keyboard")
+
+
+def fill_notification_mute_bypass_combo(combo, current=None):
+    fill_tooltip_combo(combo, NOTIFICATION_MUTE_BYPASS_OPTIONS, current, "off")
 
 
 def fill_alert_chat_action_combo(combo, current=None):
@@ -1054,21 +1065,25 @@ class SettingsWidget(QWidget):
             default=DEFAULTS["notification"]["fade_ms"],
         )
 
-        self.competitions_bypass_mute_checkbox = self._add_checkbox(
-            section, "Notify about competitions even when notifications are disabled",
-            self._on_competitions_bypass_mute_toggled
+        self.competitions_bypass_combo = self._add_combo_row(
+            section, "Competitions when muted", [],
+            lambda _t: self._on_mute_bypass_changed(self.competitions_bypass_combo, "competitions_bypass_mute"),
         )
-        self.mentions_bypass_mute_checkbox = self._add_checkbox(
-            section, "Notify about mentions and private messages even when notifications are disabled",
-            self._on_mentions_bypass_mute_toggled
+        self.mentions_bypass_combo = self._add_combo_row(
+            section, "Mentions & private when muted", [],
+            lambda _t: self._on_mute_bypass_changed(self.mentions_bypass_combo, "mentions_bypass_mute"),
         )
-        self.bans_bypass_mute_checkbox = self._add_checkbox(
-            section, "Notify about bans even when notifications are disabled",
-            self._on_bans_bypass_mute_toggled
+        self.bans_bypass_combo = self._add_combo_row(
+            section, "Bans when muted", [],
+            lambda _t: self._on_mute_bypass_changed(self.bans_bypass_combo, "bans_bypass_mute"),
         )
-        self.tracker_notify_checkbox = self._add_checkbox(
-            section, "Notify about tracked user even when notifications are disabled",
-            self._on_tracker_notify_toggled
+        self.tracker_bypass_combo = self._add_combo_row(
+            section, "Tracked users when muted", [],
+            lambda _t: self._on_mute_bypass_changed(self.tracker_bypass_combo, "tracked_bypass_mute"),
+        )
+        self.messages_bypass_combo = self._add_combo_row(
+            section, "Regular messages when muted", [],
+            lambda _t: self._on_mute_bypass_changed(self.messages_bypass_combo, "messages_bypass_mute"),
         )
 
     def _build_competitions_section(self):
@@ -1247,9 +1262,10 @@ class SettingsWidget(QWidget):
             self.clear_private_checkbox, self.youtube_checkbox,
             self.chatlog_max_messages_spin, self.chatlog_live_search_spin,
             self.parser_validate_usernames_checkbox, self.browser_combo,
-            self.track_competitions_checkbox, self.competitions_bypass_mute_checkbox,
-            self.mentions_bypass_mute_checkbox, self.bans_bypass_mute_checkbox,
-            self.tracker_notify_checkbox, self.tracker_enabled_checkbox,
+            self.track_competitions_checkbox,
+            self.competitions_bypass_combo, self.mentions_bypass_combo, self.bans_bypass_combo,
+            self.tracker_bypass_combo, self.messages_bypass_combo,
+            self.tracker_enabled_checkbox,
             self.tracker_notifications_checkbox, self.tracker_notifications_auto_hide_checkbox,
             self.tracker_chat_log_checkbox, self.tracker_badge_checkbox,
             self.min_multiplier_combo,
@@ -1379,17 +1395,20 @@ class SettingsWidget(QWidget):
         enabled = True if track is None else bool(track)
         self.track_competitions_checkbox.setChecked(enabled)
         self._update_competitions_status(enabled, None if not enabled else "connecting")
-        self.competitions_bypass_mute_checkbox.setChecked(
-            bool(self.config.get("notification", "competitions_bypass_mute"))
+        fill_notification_mute_bypass_combo(
+            self.competitions_bypass_combo, self.config.get("notification", "competitions_bypass_mute")
         )
-        self.mentions_bypass_mute_checkbox.setChecked(
-            bool(self.config.get("notification", "mentions_bypass_mute"))
+        fill_notification_mute_bypass_combo(
+            self.mentions_bypass_combo, self.config.get("notification", "mentions_bypass_mute")
         )
-        self.bans_bypass_mute_checkbox.setChecked(
-            bool(self.config.get("notification", "bans_bypass_mute"))
+        fill_notification_mute_bypass_combo(
+            self.bans_bypass_combo, self.config.get("notification", "bans_bypass_mute")
         )
-        self.tracker_notify_checkbox.setChecked(
-            bool(self.config.get("notification", "tracked_bypass_mute"))
+        fill_notification_mute_bypass_combo(
+            self.tracker_bypass_combo, self.config.get("notification", "tracked_bypass_mute")
+        )
+        fill_notification_mute_bypass_combo(
+            self.messages_bypass_combo, self.config.get("notification", "messages_bypass_mute")
         )
         self.tracker_enabled_checkbox.setChecked(
             bool(self.config.get("user_tracker", "enabled")
@@ -1678,17 +1697,10 @@ class SettingsWidget(QWidget):
         self.config.set("competitions", "enabled", value=checked)
         self._update_competitions_status(checked)
 
-    def _on_competitions_bypass_mute_toggled(self, checked: bool):
-        self.config.set("notification", "competitions_bypass_mute", value=checked)
-
-    def _on_mentions_bypass_mute_toggled(self, checked: bool):
-        self.config.set("notification", "mentions_bypass_mute", value=checked)
-
-    def _on_bans_bypass_mute_toggled(self, checked: bool):
-        self.config.set("notification", "bans_bypass_mute", value=checked)
-
-    def _on_tracker_notify_toggled(self, checked: bool):
-        self.config.set("notification", "tracked_bypass_mute", value=checked)
+    def _on_mute_bypass_changed(self, combo, config_key: str):
+        self._sync_combo_tooltip(combo)
+        value = combo.currentData() or "off"
+        self.config.set("notification", config_key, value=value)
 
     def _on_tracker_enabled_toggled(self, checked: bool):
         self.config.set("user_tracker", "enabled", value=checked)

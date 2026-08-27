@@ -45,6 +45,24 @@ def _resolve_duration_ms(config=None) -> int:
     return NOTIFICATION_DURATION_MS_DEFAULT
 
 
+def _mute_bypass_mode(config, key: str) -> str:
+    """Read notification.*_bypass_mute: off | default | duration."""
+    if not config:
+        return "off"
+    value = config.get("notification", key)
+    return value if value in ("default", "duration") else "off"
+
+
+def _apply_mute_bypass(data: "NotificationData", muted: bool, key: str) -> bool:
+    """Return True if notification may show. Sets auto_hide_after_duration on data."""
+    mode = _mute_bypass_mode(data.config, key)
+    if mode == "off":
+        return not muted
+    if mode == "duration":
+        data.auto_hide_after_duration = True
+    return True
+
+
 def _fade_opacity(widget, start: float, end: float, on_finished=None, duration_ms=None):
     """Shared windowOpacity animation for notification popups."""
     if duration_ms is None:
@@ -176,6 +194,7 @@ class NotificationData:
     is_system: bool = False
     is_competition: bool = False
     is_mention: bool = False
+    auto_hide_after_duration: bool = False
     timestamp: Optional[datetime] = None
     tag: Optional[str] = None
     players: Optional[list] = None
@@ -739,6 +758,9 @@ class PopupNotification(_AutoHidePopupMixin, QWidget):
         self.adjustSize()
         self.manager._position_and_cleanup()
   
+    def _self_hides_after_duration(self) -> bool:
+        return bool(self.data.auto_hide_after_duration)
+
     def _on_mute(self):
         """Mute notifications and close all popups"""
         self.manager.set_muted(True)
@@ -857,7 +879,7 @@ class PresenceMiniPopup(_AutoHidePopupMixin, QWidget):
 
     def __init__(self, manager, login: str, event_type: str = 'join', avatar_pixmap=None,
                  config=None, duration_ms: int = NOTIFICATION_DURATION_MS_DEFAULT, on_click=None, event_ts=None,
-                 cache=None, game_id=None):
+                 cache=None, game_id=None, force_duration: bool = False):
         super().__init__()
         self.manager = manager
         self.config = config
@@ -873,6 +895,7 @@ class PresenceMiniPopup(_AutoHidePopupMixin, QWidget):
         self.event_type = event_type
         self.duration = duration_ms
         self.hide_timer = None
+        self._force_duration = force_duration
         self.icons_path = Path(__file__).parent.parent / "icons"
 
         _setup_popup_window(self)
@@ -927,8 +950,7 @@ class PresenceMiniPopup(_AutoHidePopupMixin, QWidget):
         self._start_cursor_monitoring()
 
     def _self_hides_after_duration(self) -> bool:
-        """user_tracker.notifications_auto_hide: ignore hide_on, close after duration."""
-        return bool(self.config and self.config.get("user_tracker", "notifications_auto_hide"))
+        return self._force_duration
 
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
@@ -977,15 +999,20 @@ class PopupManager:
         cfg = config or self.config
         if cfg is not None and cfg.get("user_tracker", "notifications") is False:
             return None
-        bypass = bool(cfg and cfg.get("notification", "tracked_bypass_mute"))
-        if self.muted and not bypass:
+        mode = _mute_bypass_mode(cfg, "tracked_bypass_mute")
+        if mode == "off" and self.muted:
             return None
         self.config = cfg
         duration_ms = _resolve_duration_ms(cfg)
+        force_duration = (
+            mode == "duration"
+            or bool(cfg and cfg.get("user_tracker", "notifications_auto_hide"))
+        )
         popup = PresenceMiniPopup(
             self, login, event_type=event_type, avatar_pixmap=avatar_pixmap,
             config=cfg, duration_ms=duration_ms,
             on_click=on_click, event_ts=event_ts, cache=cache, game_id=game_id,
+            force_duration=force_duration,
         )
         self.popups.append(popup)
         self._position_and_cleanup()
@@ -993,18 +1020,21 @@ class PopupManager:
 
   
     def show_notification(self, data: NotificationData):
-        """Create and show notification (unless muted).
-        Competitions / mentions+private / bans can bypass mute via config
-        """
-        bypass_mute = False
-        if data.config:
-            if data.is_competition and data.config.get("notification", "competitions_bypass_mute"):
-                bypass_mute = True
-            elif (data.is_mention or data.is_private) and data.config.get("notification", "mentions_bypass_mute"):
-                bypass_mute = True
-            elif data.is_ban and data.config.get("notification", "bans_bypass_mute"):
-                bypass_mute = True
-        if self.muted and not bypass_mute:
+        """Create and show notification (unless muted). Mute-bypass modes per type."""
+        if data.is_competition:
+            key = "competitions_bypass_mute"
+        elif data.is_mention or data.is_private:
+            key = "mentions_bypass_mute"
+        elif data.is_ban:
+            key = "bans_bypass_mute"
+        elif not data.is_system:
+            key = "messages_bypass_mute"
+        else:
+            key = None
+        if key is not None:
+            if not _apply_mute_bypass(data, self.muted, key):
+                return None
+        elif self.muted:
             return None
        
         self.config = data.config

@@ -136,7 +136,7 @@
         "notifications": true,
         "competitions": true,
         "sound": true,
-        "user_tracker": true
+        "user_tracker": false
       },
       "widgets": {
         "ws_log": false,
@@ -174,13 +174,14 @@
   "notification": {
     "mode": "scroll",
     "muted": true,
-    "competitions_bypass_mute": true,
-    "mentions_bypass_mute": true,
-    "bans_bypass_mute": true,
+    "competitions_bypass_mute": "default",
+    "mentions_bypass_mute": "default",
+    "bans_bypass_mute": "default",
+    "tracked_bypass_mute": "default",
+    "messages_bypass_mute": "duration",
     "hide_on": "mouse",
     "fade_ms": 300,
-    "duration_ms": 5000,
-    "tracked_bypass_mute": true
+    "duration_ms": 5000
   },
   "startup": {
     "auto_login": true,
