@@ -1911,6 +1911,18 @@ class ChatWindow(QWidget):
                     return
                 self.parse_current_label.setText(f"Mentions: {count} new")
                 self._set_parse_results_badge(count)
+                if not self.isVisible():
+                    show_notification(
+                        title="Personal Mentions",
+                        message=f"{count} new mention(s) found",
+                        config=self.config,
+                        emoticon_manager=self.emoticon_manager,
+                        account=self.account,
+                        is_mention=True,
+                        icon="at-line.svg",
+                        window_show_callback=self._open_mentions_from_notification,
+                    )
+                    self._play_mention_sound()
             else:
                 self.parse_current_label.setText("Parsing finished")
 
@@ -2806,6 +2818,11 @@ class ChatWindow(QWidget):
                 self.room_tabs.setCurrentWidget(self.game_rooms[game_id])
             else:
                 self.room_tabs.setCurrentIndex(0)
+
+    def _open_mentions_from_notification(self):
+        """Click handler for the tray mentions-digest popup: show window, then open results."""
+        self._show_and_focus_window()
+        self.show_parser_view()
 
     def _show_notification(self, msg, display_body, is_ban, is_system, room_jid=None, add_message_fn=None, source_label=None, game_id=None):
         """Show notification.

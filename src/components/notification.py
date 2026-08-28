@@ -146,10 +146,10 @@ def _safe_call(fn, *args, err_msg: str = "Callback error"):
         print(f"❌ {err_msg}: {e}")
 
 
-def _svg_avatar_pixmap(icons_path, size: int, color=None):
-    """Fallback user-icon pixmap rendered at the given size."""
-    icon = _render_svg_icon(icons_path / "user.svg", size, color) if color is not None \
-        else _render_svg_icon(icons_path / "user.svg", size)
+def _svg_avatar_pixmap(icons_path, size: int, color=None, icon_name: str = "user.svg"):
+    """Fallback icon pixmap rendered at the given size."""
+    icon = _render_svg_icon(icons_path / icon_name, size, color) if color is not None \
+        else _render_svg_icon(icons_path / icon_name, size)
     return icon.pixmap(QSize(size, size))
 
 
@@ -162,11 +162,11 @@ def _make_avatar_label(size: int = 36) -> QLabel:
     return label
 
 
-def _avatar_pixmap(icons_path, raw_pixmap, size: int = 36, svg_size: int = 24, color=None):
+def _avatar_pixmap(icons_path, raw_pixmap, size: int = 36, svg_size: int = 24, color=None, icon_name: str = "user.svg"):
     """Rounded real avatar if one is available, else the SVG fallback icon."""
     if raw_pixmap is not None and not raw_pixmap.isNull():
         return make_rounded_pixmap(raw_pixmap, size, 8)
-    return _svg_avatar_pixmap(icons_path, svg_size, color)
+    return _svg_avatar_pixmap(icons_path, svg_size, color, icon_name)
 
 def _icon_btn(icons_path, icon_name: str, tooltip: str, config, size_type: str = "small"):
     """Shortcut for the repeated create_icon_button(icons_path, ..., config=config) calls."""
@@ -201,6 +201,7 @@ class NotificationData:
     competition_game_id: Optional[int] = None
     open_room_callback: Optional[Callable] = None
     profile_callback: Optional[Callable] = None  # username → open profile
+    icon: Optional[str] = None  # svg filename fallback avatar for non-user notifications
 
 
 class MessageBodyWidget(QWidget):
@@ -505,6 +506,9 @@ class PopupNotification(_AutoHidePopupMixin, QWidget):
             )
             if user_id and not cached_avatar:
                 data.cache.load_avatar_async(user_id, self._on_avatar_loaded)
+        elif not data.is_system and data.icon:
+            svg_color = get_user_svg_color(False, is_dark)
+            self.avatar_label.setPixmap(_svg_avatar_pixmap(self.icons_path, SVG_AVATAR_SIZE, svg_color, data.icon))
 
         if not data.is_system:
             top_row.addWidget(self.avatar_label, stretch=0)
