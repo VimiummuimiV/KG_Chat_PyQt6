@@ -197,7 +197,7 @@ class MessageRenderer(QObject):
         self._emoticon_cache.clear()
     
     @staticmethod
-    def _emoji_prefix(text: str, is_private: bool, is_ban: bool, is_system: bool, is_competition: bool = False) -> str:
+    def _emoji_prefix(text: str, is_private: bool, is_ban: bool, is_system: bool, is_competition: bool = False, is_parser: bool = False) -> str:
         """Prepend type emoji for special message types."""
         if is_competition:
             return "🏆 " + text
@@ -207,6 +207,8 @@ class MessageRenderer(QObject):
             return "🔸 " + text
         if is_system:
             return "◽️ " + text
+        if is_parser:
+            return "🔥 " + text
         return text
 
     def calculate_content_height(self, text: str, width: int, row: Optional[int] = None) -> int:

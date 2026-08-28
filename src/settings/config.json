@@ -176,7 +176,7 @@
   },
   "notification": {
     "mode": "scroll",
-    "muted": true,
+    "muted": false,
     "competitions_bypass_mute": "default",
     "mentions_bypass_mute": "default",
     "bans_bypass_mute": "default",
