@@ -16,6 +16,7 @@ class ParseConfig:
     mode: str  # 'single', 'fromdate', 'range', 'fromstart', 'fromregistered', 'personalmentions'
     from_date: Optional[str] = None  # YYYY-MM-DD
     to_date: Optional[str] = None  # YYYY-MM-DD
+    from_time: Optional[str] = None  # HH:MM:SS - excludes from_date messages at or before this time
     usernames: List[str] = field(default_factory=list)  # List of usernames to filter
     search_terms: List[str] = field(default_factory=list)  # Search terms for message content
     mention_keywords: List[str] = field(default_factory=list)  # Keywords for personal mentions mode
@@ -101,7 +102,8 @@ class ChatlogsParserEngine:
                     config.search_terms or None,
                     config.mention_keywords or None
                 )
-                return self._merge_live_messages(messages, live_messages, config)
+                messages = self._merge_live_messages(messages, live_messages, config)
+                return self._apply_from_time(messages, config)
         
         # Now all cacheable dates are in DB - use optimized DB query
         messages = self.parser.db.get_messages(
@@ -114,6 +116,9 @@ class ChatlogsParserEngine:
         # Today's log is fetched live but never cached (it keeps changing),
         # so merge it in from the network fetch instead of the DB query above.
         messages = self._merge_live_messages(messages, live_messages, config)
+        # from_time excludes messages already seen on from_date's day (e.g. session
+        # ended mid-day and we're only interested in what came after that point).
+        messages = self._apply_from_time(messages, config)
         
         # Group messages by date for incremental callback
         if message_callback and messages:
@@ -211,6 +216,16 @@ class ChatlogsParserEngine:
         combined = db_messages + extra
         combined.sort(key=lambda msg: (msg.date, msg.timestamp))
         return combined
+    
+    def _apply_from_time(self, messages: List[ChatMessage], config: ParseConfig) -> List[ChatMessage]:
+        """Drop messages on from_date at or before from_time (e.g. already seen
+        before the session that ended mid-day)."""
+        if not config.from_time:
+            return messages
+        return [
+            msg for msg in messages
+            if msg.date != config.from_date or msg.timestamp > config.from_time
+        ]
     
     def count_messages_per_user(self, messages: List[ChatMessage]) -> dict:
         """Count messages per username"""

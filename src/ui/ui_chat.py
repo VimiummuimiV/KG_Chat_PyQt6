@@ -1257,6 +1257,7 @@ class ChatWindow(QWidget):
         config = ParseConfig(
             mode="personalmentions",
             from_date=last.strftime("%Y-%m-%d"),
+            from_time=last.strftime("%H:%M:%S"),
             to_date=datetime.now().strftime("%Y-%m-%d"),
             mention_keywords=[username],
         )
