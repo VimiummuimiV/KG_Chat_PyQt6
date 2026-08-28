@@ -83,8 +83,9 @@ class ChatlogsParserEngine:
         total_days = (to_date - from_date).days + 1
         
         # If we have missing dates, fetch them with multithreading
+        live_messages: List[ChatMessage] = []
         if missing_dates:
-            self._fetch_missing_dates(
+            live_messages = self._fetch_missing_dates(
                 missing_dates,
                 config.from_date,
                 total_days,
@@ -92,16 +93,17 @@ class ChatlogsParserEngine:
             )
             
             if self.stop_requested:
-                # Return partial results from DB
-                return self.parser.db.get_messages(
+                # Return partial results from DB, plus today's log fetched live
+                messages = self.parser.db.get_messages(
                     config.from_date,
                     config.to_date,
                     config.usernames or None,
                     config.search_terms or None,
                     config.mention_keywords or None
                 )
+                return self._merge_live_messages(messages, live_messages, config)
         
-        # Now all dates are cached - use optimized DB query
+        # Now all cacheable dates are in DB - use optimized DB query
         messages = self.parser.db.get_messages(
             config.from_date,
             config.to_date,
@@ -109,6 +111,9 @@ class ChatlogsParserEngine:
             config.search_terms or None,
             config.mention_keywords or None
         )
+        # Today's log is fetched live but never cached (it keeps changing),
+        # so merge it in from the network fetch instead of the DB query above.
+        messages = self._merge_live_messages(messages, live_messages, config)
         
         # Group messages by date for incremental callback
         if message_callback and messages:
@@ -136,9 +141,11 @@ class ChatlogsParserEngine:
         start_date: str,
         total_days: int,
         progress_callback: Optional[Callable[[str, str, int], None]]
-    ):
-        """Fetch missing dates using multithreading"""
+    ) -> List[ChatMessage]:
+        """Fetch missing dates using multithreading. Returns everything fetched
+        so callers can use today's messages, which save_messages() never caches."""
         completed_count = 0
+        fetched_messages: List[ChatMessage] = []
         
         with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
             # Submit all fetch tasks
@@ -156,6 +163,7 @@ class ChatlogsParserEngine:
                 
                 try:
                     date_str, messages, error = future.result()
+                    fetched_messages.extend(messages)
                     
                     with self._lock:
                         completed_count += 1
@@ -170,6 +178,39 @@ class ChatlogsParserEngine:
                 
                 except Exception as e:
                     print(f"Error processing future: {e}")
+        
+        return fetched_messages
+    
+    def _merge_live_messages(
+        self,
+        db_messages: List[ChatMessage],
+        live_messages: List[ChatMessage],
+        config: ParseConfig
+    ) -> List[ChatMessage]:
+        """Append messages fetched live for dates that db_messages doesn't cover
+        (today, which is never cached), applying config's filters in memory."""
+        if not live_messages:
+            return db_messages
+        
+        covered_dates = {msg.date for msg in db_messages}
+        extra = [msg for msg in live_messages if msg.date not in covered_dates]
+        
+        if config.usernames:
+            allowed = {name.lower() for name in config.usernames}
+            extra = [msg for msg in extra if msg.username.lower() in allowed]
+        if config.search_terms:
+            terms = [term.lower() for term in config.search_terms]
+            extra = [msg for msg in extra if any(term in msg.message.lower() for term in terms)]
+        if config.mention_keywords:
+            keywords = [keyword.lower() for keyword in config.mention_keywords]
+            extra = [msg for msg in extra if any(keyword in msg.message.lower() for keyword in keywords)]
+        
+        if not extra:
+            return db_messages
+        
+        combined = db_messages + extra
+        combined.sort(key=lambda msg: (msg.date, msg.timestamp))
+        return combined
     
     def count_messages_per_user(self, messages: List[ChatMessage]) -> dict:
         """Count messages per username"""

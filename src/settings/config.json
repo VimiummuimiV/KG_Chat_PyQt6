@@ -75,12 +75,12 @@
     "emoticon_selector_visible": false,
     "always_on_top": false,
     "recent_emoticons": [
+      "carpet",
       "uzi",
       "dwarf",
       "ghost",
       "firework",
       "confetti",
-      "carpet",
       "moose",
       "cheers",
       "vdv",
@@ -176,7 +176,7 @@
   },
   "notification": {
     "mode": "scroll",
-    "muted": false,
+    "muted": true,
     "competitions_bypass_mute": "default",
     "mentions_bypass_mute": "default",
     "bans_bypass_mute": "default",
@@ -229,11 +229,11 @@
     "emoji_family": "Noto Color Emoji"
   },
   "user_tracker": {
-    "retention_hours": 720,
+    "retention_hours": 24,
     "enabled": true,
     "click_action": "chat",
     "notifications": false,
-    "show_badge": true,
+    "show_badge": false,
     "default_tab": "history",
     "track_events": [
       "join",
