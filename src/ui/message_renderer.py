@@ -286,8 +286,8 @@ class MessageRenderer(QObject):
         is_ban: bool = False,
         is_system: bool = False,
         is_competition: bool = False,
-        highlight_text: str = "",
         is_parser: bool = False,
+        highlight_text: str = "",
     ) -> List[Tuple[QRect, str, bool]]:
         """
         Paint message body content with links, emoticons, and mentions.
