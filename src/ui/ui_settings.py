@@ -57,6 +57,9 @@ DEFAULTS = {
         "max_messages": 1000,
         "max_messages_min": 20,
         "max_messages_max": 5000,
+        "badge_font_size": 9,
+        "mentions_digest_mode": "daily",
+        "mentions_digest_interval_hours": 24,
     }
 }
 
@@ -106,6 +109,12 @@ TRACKER_CLICK_OPTIONS = (
 TRACKER_DEFAULT_TAB_OPTIONS = (
     ("tracked", "Tracked", "Open on the list of currently tracked users."),
     ("history", "History", "Open on the log of past tracker events."),
+)
+
+MENTIONS_DIGEST_MODE_OPTIONS = (
+    ("daily", "Once per day", "Check personal mentions at most once every 24 hours per account."),
+    ("custom", "Custom interval", "Check only after the chosen number of hours since last session end."),
+    ("start", "Every chat start", "Check on every chat start (ignore the interval)."),
 )
 
 CONNECTION_STATES = {
@@ -271,6 +280,10 @@ def fill_tracker_click_combo(combo, current=None):
 
 def fill_tracker_default_tab_combo(combo, current=None):
     fill_tooltip_combo(combo, TRACKER_DEFAULT_TAB_OPTIONS, current, "tracked")
+
+
+def fill_mentions_digest_mode_combo(combo, current=None):
+    fill_tooltip_combo(combo, MENTIONS_DIGEST_MODE_OPTIONS, current, "daily")
 
 
 class NoWheelSlider(QSlider):
@@ -878,6 +891,20 @@ class SettingsWidget(QWidget):
         self.chat_max_messages_spin.setSingleStep(100)
         self.chat_max_messages_spin._slider.setSingleStep(100)
         self.chat_max_messages_spin._slider.setPageStep(500)
+
+        self.badge_size_spin = self._add_slider_spin_row(
+            section, "Badge font size", 8, 18,
+            self._on_badge_size_changed, default=DEFAULTS["chat"]["badge_font_size"],
+        )
+        self.mentions_digest_mode_combo = self._add_combo_row(
+            section, "Personal mentions check", [], self._on_mentions_digest_mode_changed
+        )
+        self.mentions_digest_mode_combo.setFixedWidth(240)
+        self.mentions_digest_interval_spin = self._add_slider_spin_row(
+            section, "Custom interval (hours)", 1, 168,
+            self._on_mentions_digest_interval_changed,
+            default=DEFAULTS["chat"]["mentions_digest_interval_hours"],
+        )
         self.browser_combo = self._add_combo_row(
             section, "Open links in", [], self._on_browser_changed
         )
@@ -1187,10 +1214,6 @@ class SettingsWidget(QWidget):
             section, "Show unread badge on tracker button",
             self._on_tracker_badge_toggled
         )
-        self.tracker_badge_size_spin = self._add_slider_spin_row(
-            section, "Badge font size", 8, 18,
-            self._on_tracker_badge_size_changed, default=9
-        )
         # Tracked event types — same pills as tracker filter bar
         events_row = QHBoxLayout()
         events_row.setSpacing(8)
@@ -1257,7 +1280,10 @@ class SettingsWidget(QWidget):
             self.resource_combo, self.own_message_mode_combo,
             self.clear_private_checkbox, self.youtube_checkbox,
             self.chatlog_max_messages_spin, self.chatlog_live_search_spin,
-            self.parser_validate_usernames_checkbox, self.browser_combo,
+            self.parser_validate_usernames_checkbox,
+            self.badge_size_spin, self.mentions_digest_mode_combo,
+            self.mentions_digest_interval_spin,
+            self.browser_combo,
             self.track_competitions_checkbox,
             self.competitions_bypass_combo, self.mentions_bypass_combo, self.bans_bypass_combo,
             self.tracker_bypass_combo, self.messages_bypass_combo,
@@ -1333,6 +1359,29 @@ class SettingsWidget(QWidget):
         )
         self.chat_max_messages_spin.setValue(chat_max_messages)
         self.chat_max_messages_spin._slider.setValue(chat_max_messages)
+
+        badge_size = self.config.get("ui", "chat", "badge_font_size")
+        try:
+            badge_size = int(badge_size) if badge_size is not None else DEFAULTS["chat"]["badge_font_size"]
+        except (TypeError, ValueError):
+            badge_size = DEFAULTS["chat"]["badge_font_size"]
+        badge_size = max(8, min(18, badge_size))
+        self.badge_size_spin.setValue(badge_size)
+        self.badge_size_spin._slider.setValue(badge_size)
+
+        fill_mentions_digest_mode_combo(
+            self.mentions_digest_mode_combo,
+            self.config.get("ui", "chat", "mentions_digest_mode"),
+        )
+        digest_hours = self.config.get("ui", "chat", "mentions_digest_interval_hours")
+        try:
+            digest_hours = int(digest_hours) if digest_hours is not None else DEFAULTS["chat"]["mentions_digest_interval_hours"]
+        except (TypeError, ValueError):
+            digest_hours = DEFAULTS["chat"]["mentions_digest_interval_hours"]
+        digest_hours = max(1, min(168, digest_hours))
+        self.mentions_digest_interval_spin.setValue(digest_hours)
+        self.mentions_digest_interval_spin._slider.setValue(digest_hours)
+        self._sync_mentions_digest_interval_visibility()
 
         browsers = get_available_browsers()
         self.browser_combo.blockSignals(True)
@@ -1421,12 +1470,6 @@ class SettingsWidget(QWidget):
         self.tracker_badge_checkbox.setChecked(
             True if tracker_badge is None else bool(tracker_badge)
         )
-        badge_size = self.config.get("user_tracker", "badge_font_size")
-        try:
-            badge_size = int(badge_size) if badge_size is not None else 9
-        except (TypeError, ValueError):
-            badge_size = 9
-        self.tracker_badge_size_spin.setValue(max(8, min(18, badge_size)))
         track_events = self.config.get("user_tracker", "track_events")
         if not track_events:
             track_events = list(EVENT_TYPES)
@@ -1707,9 +1750,29 @@ class SettingsWidget(QWidget):
         self.config.set("user_tracker", "show_badge", value=checked)
         self.tracker_badge_style_changed.emit()
 
-    def _on_tracker_badge_size_changed(self, value: int):
-        self.config.set("user_tracker", "badge_font_size", value=int(value))
+    def _on_badge_size_changed(self, value: int):
+        self.config.set("ui", "chat", "badge_font_size", value=int(value))
         self.tracker_badge_style_changed.emit()
+
+    def _on_mentions_digest_mode_changed(self, _text: str = ""):
+        mode = self.mentions_digest_mode_combo.currentData()
+        if mode is not None:
+            self.config.set("ui", "chat", "mentions_digest_mode", value=mode)
+        self._sync_mentions_digest_interval_visibility()
+        tip = self.mentions_digest_mode_combo.itemData(
+            self.mentions_digest_mode_combo.currentIndex(), Qt.ItemDataRole.ToolTipRole
+        )
+        self.mentions_digest_mode_combo.setToolTip(tip or "")
+
+    def _sync_mentions_digest_interval_visibility(self):
+        is_custom = self.mentions_digest_mode_combo.currentData() == "custom"
+        spin = self.mentions_digest_interval_spin
+        spin.setEnabled(is_custom)
+        if hasattr(spin, "_slider"):
+            spin._slider.setEnabled(is_custom)
+
+    def _on_mentions_digest_interval_changed(self, value: int):
+        self.config.set("ui", "chat", "mentions_digest_interval_hours", value=int(value))
 
     def _on_tracker_events_changed(self, types):
         # Keep at least one type enabled

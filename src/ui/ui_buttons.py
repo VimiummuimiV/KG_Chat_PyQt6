@@ -314,7 +314,7 @@ class ButtonPanel(QWidget):
             tip = base if not enabled else (base if n <= 0 else f"{base} — {n} new")
             self.tracker_button.setToolTip(tip if enabled else f"{base} — tracking disabled")
             return
-        size = self.config.get("user_tracker", "badge_font_size")
+        size = self.config.get("ui", "chat", "badge_font_size")
         try:
             size = int(size) if size is not None else 9
         except (TypeError, ValueError):

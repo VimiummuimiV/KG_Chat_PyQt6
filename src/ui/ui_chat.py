@@ -85,7 +85,9 @@ from components.context_menu.message import (
     REMOVE_PRESENCE,
 )
 from components.tag_button import update_all_tag_buttons
+from components.presence_badge import apply_counter_style
 from core.api_data import validate_username_and_get_id
+from core.mentions_digest import MentionsDigest
 
 class SignalEmitter(QObject):
     message_received = pyqtSignal(object)
@@ -117,6 +119,8 @@ class ChatWindow(QWidget):
         self.xmpp_client = None
         self.signal_emitter = SignalEmitter()
         self.cache = get_cache()
+        self.mentions_digest = MentionsDigest()
+        self._mentions_digest_active = False
 
         self.races_listener = None
         self._competition_notified = set()  # game_ids already announced this session
@@ -1165,31 +1169,24 @@ class ChatWindow(QWidget):
         # Username click handlers (reuse same logic as live messages)
         self._wire_username_signals(widget.interactions, right_click_widget=widget)
 
-    def show_chatlog_view(self, timestamp: str = None, reload: bool = True):
-        """Open chatlog for today. reload=False just re-shows the existing widget
-        as-is (used when returning from the profile view)."""
-        self._ensure_general_tab_visible()
-        # Hide messages userlist when in chatlog view
-        self.user_list_widget.setVisible(False)
-      
+
+    def _ensure_chatlog_widget(self):
+        """Create chatlog + userlist widgets if needed (without switching the view)."""
         if not self.chatlog_widget:
-            # Create chatlog widget
             self.chatlog_widget = ChatlogWidget(
                 self.config,
                 self.emoticon_manager,
                 self.icons_path,
                 self.account,
                 parent_window=self,
-                ban_manager=self.ban_manager
+                ban_manager=self.ban_manager,
             )
             self.chatlog_widget.back_requested.connect(self._on_stacked_back)
             self.chatlog_widget.messages_loaded.connect(self._on_chatlog_messages_loaded)
             self.chatlog_widget.filter_changed.connect(self._on_chatlog_filter_changed)
             self.stacked_widget.addWidget(self.chatlog_widget)
-            
-            # Configure it (reply, compact mode, username clicks, etc.)
             self._configure_chatlog_widget(self.chatlog_widget)
-      
+
         if not self.chatlog_userlist_widget:
             self.chatlog_userlist_widget = ChatlogUserlistWidget(
                 self.config,
@@ -1200,8 +1197,81 @@ class ChatWindow(QWidget):
             )
             self.chatlog_userlist_widget.filter_requested.connect(self._on_filter_requested)
             self._wire_userlist_signals(self.chatlog_userlist_widget)
-            # Insert into userlist_panel before the font slider
             self.userlist_panel.layout().insertWidget(0, self.chatlog_userlist_widget, stretch=1)
+            self.chatlog_userlist_widget.setVisible(False)
+
+    def _mentions_digest_mode(self) -> str:
+        mode = self.config.get("ui", "chat", "mentions_digest_mode")
+        if mode in ("daily", "custom", "start"):
+            return mode
+        return "daily"
+
+    def _mentions_digest_interval_hours(self) -> int:
+        mode = self._mentions_digest_mode()
+        if mode == "daily":
+            return 24
+        if mode == "start":
+            return 0
+        raw = self.config.get("ui", "chat", "mentions_digest_interval_hours")
+        try:
+            hours = int(raw) if raw is not None else 24
+        except (TypeError, ValueError):
+            hours = 24
+        return max(1, min(168, hours))
+
+    def _badge_font_size(self) -> int:
+        raw = self.config.get("ui", "chat", "badge_font_size")
+        try:
+            size = int(raw) if raw is not None else 9
+        except (TypeError, ValueError):
+            size = 9
+        return max(8, min(18, size))
+
+    def _start_mentions_digest_check(self):
+        """Background Personal Mentions parse since last_session_end (same path as manual parser).
+        Frequency: start | daily (24h) | custom hours — per account timestamp."""
+        from core.chatlogs_parser import ParseConfig
+
+        username = self.my_username
+        if not username:
+            return
+        last = self.mentions_digest.get_last_session_end(username)
+        if last is None:
+            self.mentions_digest.mark_session_end(username)
+            return
+
+        interval_h = self._mentions_digest_interval_hours()
+        if interval_h > 0:
+            elapsed = (datetime.now() - last).total_seconds()
+            if elapsed < interval_h * 3600:
+                return
+
+        self._ensure_chatlog_widget()
+        cw = self.chatlog_widget
+        if not cw or cw.parser_widget.is_parsing:
+            return
+
+        config = ParseConfig(
+            mode="personalmentions",
+            from_date=last.strftime("%Y-%m-%d"),
+            to_date=datetime.now().strftime("%Y-%m-%d"),
+            mention_keywords=[username],
+        )
+        self._mentions_digest_active = True
+        cw._on_parse_started(config)
+        self.start_parse_status()
+        if self.parse_current_label:
+            self.parse_current_label.setText("Checking mentions…")
+
+
+    def show_chatlog_view(self, timestamp: str = None, reload: bool = True):
+        """Open chatlog for today. reload=False just re-shows the existing widget
+        as-is (used when returning from the profile view)."""
+        self._ensure_general_tab_visible()
+        # Hide messages userlist when in chatlog view
+        self.user_list_widget.setVisible(False)
+      
+        self._ensure_chatlog_widget()
       
         # Show chatlog userlist based on config, compact width, and auto-hide
         width = self.width()
@@ -1701,13 +1771,34 @@ class ChatWindow(QWidget):
             if mw:
                 mw._toggle_search()
 
-    def show_parser_view(self):
-        """Switch to chatlog view and show parser"""
-        self.show_chatlog_view()
-        if self.chatlog_widget and not self.chatlog_widget.parser_visible:
-            self.chatlog_widget._toggle_parser()
+
+    def _set_parse_results_badge(self, n: int):
+        badge = getattr(self, "_parse_results_badge", None)
+        btn = None
         if self.parse_status_widget:
-            self.parse_status_widget.setVisible(False)
+            btn = self.parse_status_widget.findChild(QPushButton, "view_parser_btn")
+        if not badge or not btn:
+            return
+        n = max(0, int(n))
+        if n <= 0:
+            badge.hide()
+            btn.setToolTip("View results")
+            return
+        badge.setText("99+" if n > 99 else str(n))
+        badge.adjustSize()
+        badge.move(1, btn.height() - badge.height() - 1)
+        badge.show()
+        badge.raise_()
+        btn.setToolTip(f"View results — {n} new")
+
+    def show_parser_view(self):
+        """Open chatlog list with current parse results and hide the status bar."""
+        self._set_parse_results_badge(0)
+        self.stop_parse_status()
+        self.show_chatlog_view(reload=False)
+        cw = self.chatlog_widget
+        if cw and cw.parser_visible:
+            cw._toggle_parser()
 
     def _create_parse_status_widget(self):
         """Create the parse status widget dynamically"""
@@ -1723,14 +1814,30 @@ class ChatWindow(QWidget):
 
         stop_parse_btn = create_icon_button(self.icons_path, "stop.svg", "Stop Parsing", config=self.config)
         stop_parse_btn.setObjectName("stop_parse_btn")
-        stop_parse_btn.clicked.connect(lambda: self.chatlog_widget._on_parse_cancelled() if self.chatlog_widget else None)
+        stop_parse_btn.clicked.connect(self._on_parse_status_stop)
         parse_status_layout.addWidget(stop_parse_btn)
 
-        view_parser_btn = create_icon_button(self.icons_path, "list.svg", "View Parser", config=self.config)
+        view_parser_btn = create_icon_button(self.icons_path, "list.svg", "View results", config=self.config)
+        view_parser_btn.setObjectName("view_parser_btn")
         view_parser_btn.clicked.connect(self.show_parser_view)
         parse_status_layout.addWidget(view_parser_btn)
 
-        # Add to main layout
+        close_parse_btn = create_icon_button(self.icons_path, "close.svg", "Close", config=self.config)
+        close_parse_btn.setObjectName("close_parse_btn")
+        close_parse_btn.clicked.connect(self.stop_parse_status)
+        close_parse_btn.setVisible(False)
+        parse_status_layout.addWidget(close_parse_btn)
+
+        self._parse_results_badge = QLabel(view_parser_btn)
+        self._parse_results_badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._parse_results_badge.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        apply_counter_style(
+            self._parse_results_badge, "join",
+            font_size=self._badge_font_size(),
+            is_dark=self.theme_manager.is_dark(),
+        )
+        self._parse_results_badge.hide()
+
         main_layout = self.layout()
         main_layout.addWidget(parse_status_widget)
 
@@ -1744,6 +1851,18 @@ class ChatWindow(QWidget):
         self.parse_progress_bar.setValue(0)
         self.parse_current_label.setText("")
 
+    def _end_mentions_digest(self):
+        """Reset digest-active state. Shared by stop/error/finish/close paths
+        so they don't each repeat the flag reset."""
+        self._mentions_digest_active = False
+
+    def _on_parse_status_stop(self):
+        if self.chatlog_widget:
+            self.chatlog_widget._on_parse_cancelled()
+        elif self._mentions_digest_active:
+            self._end_mentions_digest()
+            self.stop_parse_status()
+
     def stop_parse_status(self):
         """Stop showing parse status and destroy widget"""
         if self.parse_status_widget:
@@ -1753,6 +1872,7 @@ class ChatWindow(QWidget):
             self.parse_status_widget = None
             self.parse_progress_bar = None
             self.parse_current_label = None
+            self._parse_results_badge = None
 
     def update_parse_progress(self, start_date: str, current_date: str, percent: int):
         if self.parse_progress_bar:
@@ -1765,14 +1885,34 @@ class ChatWindow(QWidget):
     def handle_parse_finished(self):
         """Keep parse status visible but update to finished state"""
         if self.parse_status_widget:
-            # Hide stop button
+            # Hide stop button; show Close only after finish
             stop_btn = self.parse_status_widget.findChild(QPushButton, "stop_parse_btn")
             if stop_btn:
                 stop_btn.setVisible(False)
+            close_btn = self.parse_status_widget.findChild(QPushButton, "close_parse_btn")
+            if close_btn:
+                close_btn.setVisible(True)
             # Update label
-            self.parse_current_label.setText("Parsing finished")
+            if self._mentions_digest_active:
+                count = 0
+                if self.chatlog_widget:
+                    count = sum(
+                        1 for m in (self.chatlog_widget.all_messages or [])
+                        if not getattr(m, "is_separator", False)
+                    )
+                self._end_mentions_digest()
+                if not count:
+                    # Silent background check found nothing — auto-close instead
+                    # of leaving the bar up waiting for a manual Close click.
+                    self.stop_parse_status()
+                    return
+                self.parse_current_label.setText(f"Mentions: {count} new")
+                self._set_parse_results_badge(count)
+            else:
+                self.parse_current_label.setText("Parsing finished")
 
     def on_parse_error(self, error_msg: str):
+        self._end_mentions_digest()
         self.stop_parse_status()
         show_notification(
             title="Parse Error",
@@ -2106,6 +2246,7 @@ class ChatWindow(QWidget):
     def _on_history_settled(self):
         self._chat_ready = True
         self._flush_pending_competitions()
+        self._start_mentions_digest_check()
 
     def _on_competition_found(self, info: dict):
         gid, mult, url, tag = self._competition_fields(info)
@@ -3962,6 +4103,12 @@ class ChatWindow(QWidget):
             self.window_size_manager.cleanup()
 
         self._reset_competition_live_state()
+
+        if self.my_username:
+            self.mentions_digest.mark_session_end(self.my_username)
+            if self._mentions_digest_active and self.chatlog_widget:
+                self.chatlog_widget._on_parse_cancelled()
+                self._end_mentions_digest()
 
         # Proceed with full cleanup when actually closing
         if self.messages_widget:

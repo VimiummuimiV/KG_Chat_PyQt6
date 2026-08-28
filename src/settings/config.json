@@ -155,7 +155,10 @@
       "live_search_max_messages": 5000
     },
     "chat": {
-      "max_messages": 1000
+      "max_messages": 1000,
+      "badge_font_size": 11,
+      "mentions_digest_interval_hours": 24,
+      "mentions_digest_mode": "start"
     }
   },
   "sound": {
@@ -230,14 +233,13 @@
     "enabled": true,
     "click_action": "chat",
     "notifications": false,
-    "show_badge": false,
+    "show_badge": true,
     "default_tab": "history",
     "track_events": [
       "join",
       "game",
       "left"
     ],
-    "badge_font_size": 12,
     "chat_log": true,
     "retention_unit": "days"
   },
