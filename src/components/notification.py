@@ -192,6 +192,7 @@ class NotificationData:
     source_label: Optional[str] = None
     is_ban: bool = False
     is_system: bool = False
+    is_parser: bool = False
     is_competition: bool = False
     is_mention: bool = False
     auto_hide_after_duration: bool = False
@@ -211,14 +212,16 @@ class MessageBodyWidget(QWidget):
 
     def __init__(self, message_renderer: MessageRenderer, text: str, 
                  is_private: bool = False, is_ban: bool = False, is_system: bool = False,
-                 is_competition: bool = False, players: Optional[list] = None):
+                 is_competition: bool = False, is_parser: bool = False,
+                 players: Optional[list] = None):
         super().__init__()
         self.message_renderer = message_renderer
-        self.text = MessageRenderer._emoji_prefix(text, is_private, is_ban, is_system, is_competition)
+        self.text = MessageRenderer._emoji_prefix(text, is_private, is_ban, is_system, is_competition, is_parser)
         self.is_private = is_private
         self.is_ban = is_ban
         self.is_system = is_system
         self.is_competition = is_competition
+        self.is_parser = is_parser
         self.players = players or []
         self.link_rects: List[Tuple[QRect, str, bool]] = []
         self.chip_rects: List[Tuple[QRect, str]] = []
@@ -245,7 +248,8 @@ class MessageBodyWidget(QWidget):
 
     def update_content(self, text: str, players: Optional[list] = None):
         """Update text and player chips in place, without recreating the notification."""
-        self.text = MessageRenderer._emoji_prefix(text, self.is_private, self.is_ban, self.is_system, self.is_competition)
+        self.text = MessageRenderer._emoji_prefix(text, self.is_private, self.is_ban, self.is_system,
+                                                  self.is_competition, self.is_parser)
         if players is not None:
             self.players = players
         new_height = self._calculate_height(self.width() if self.width() > 0 else 400)
@@ -269,6 +273,7 @@ class MessageBodyWidget(QWidget):
             self.is_ban,
             self.is_system,
             self.is_competition,
+            self.is_parser,
         )
 
         if self.players:
@@ -470,6 +475,10 @@ class PopupNotification(_AutoHidePopupMixin, QWidget):
         # Title
         if data.is_competition:
             username_color = accent
+        elif data.is_parser:
+            username_color = self.message_renderer.parser_colors["text"]
+        elif data.is_system:
+            username_color = self.message_renderer.system_colors["text"]
         elif data.cache:
             username_color = data.cache.get_username_color(data.title, is_dark)
         else:
@@ -486,7 +495,7 @@ class PopupNotification(_AutoHidePopupMixin, QWidget):
             ts_color = accent
         else:
             ts_color = self.message_renderer.get_timestamp_color(
-                data.is_ban, data.is_private, data.is_system, data.is_competition
+                data.is_ban, data.is_private, data.is_system, data.is_competition, data.is_parser
             )
         self.timestamp_label.setStyleSheet(f"color: {ts_color};")
         self.timestamp_label.setFont(get_font(FontType.TEXT))
@@ -497,22 +506,35 @@ class PopupNotification(_AutoHidePopupMixin, QWidget):
         SVG_AVATAR_SIZE = 24
 
         self.avatar_label = _make_avatar_label(AVATAR_SIZE)
-        if not data.is_system and data.cache:
-            user_id = data.cache.get_user_id(data.title)
-            svg_color = get_user_svg_color(data.cache.has_user(user_id), is_dark)
-            cached_avatar = data.cache.get_avatar(user_id) if user_id else None
-            self.avatar_label.setPixmap(
-                _avatar_pixmap(self.icons_path, cached_avatar, AVATAR_SIZE, SVG_AVATAR_SIZE, svg_color)
-            )
-            if user_id and not cached_avatar:
-                data.cache.load_avatar_async(user_id, self._on_avatar_loaded)
-        elif not data.is_system and data.icon:
-            svg_color = get_user_svg_color(False, is_dark)
-            self.avatar_label.setPixmap(_svg_avatar_pixmap(self.icons_path, SVG_AVATAR_SIZE, svg_color, data.icon))
 
-        if not data.is_system:
+        avatar_pixmap = None
+        if data.is_parser:
+            color = self.message_renderer.parser_colors["text"]
+            avatar_pixmap = _avatar_pixmap(self.icons_path, None, AVATAR_SIZE, SVG_AVATAR_SIZE, color, "at-line.svg")
+        elif data.is_system:
+            color = self.message_renderer.system_colors["text"]
+            avatar_pixmap = _avatar_pixmap(self.icons_path, None, AVATAR_SIZE, SVG_AVATAR_SIZE, color, "information.svg")
+        elif not data.is_system and data.cache:
+            user_id = data.cache.get_user_id(data.title)
+            color = get_user_svg_color(data.cache.has_user(user_id), is_dark)
+            cached_avatar = data.cache.get_avatar(user_id) if user_id else None
+            if cached_avatar and not cached_avatar.isNull():
+                avatar_pixmap = _avatar_pixmap(self.icons_path, cached_avatar, AVATAR_SIZE, SVG_AVATAR_SIZE, color, "user.svg")
+            else:
+                avatar_pixmap = _avatar_pixmap(self.icons_path, None, AVATAR_SIZE, SVG_AVATAR_SIZE, color, "user.svg")
+                if user_id and not cached_avatar:
+                    data.cache.load_avatar_async(user_id, self._on_avatar_loaded)
+        elif not data.is_system and data.icon:
+            color = get_user_svg_color(False, is_dark)
+            avatar_pixmap = _avatar_pixmap(self.icons_path, None, AVATAR_SIZE, SVG_AVATAR_SIZE, color, data.icon)
+
+        if avatar_pixmap:
+            self.avatar_label.setPixmap(avatar_pixmap)
+
+        if avatar_pixmap or (not data.is_system and not data.is_parser):
             top_row.addWidget(self.avatar_label, stretch=0)
             top_row.addSpacing(self.spacing)
+
         top_row.addWidget(self.timestamp_label, stretch=0)
         if not data.is_system:
             top_row.addSpacing(self.spacing)
@@ -536,8 +558,8 @@ class PopupNotification(_AutoHidePopupMixin, QWidget):
         self.position_button.clicked.connect(self._on_toggle_position)
         buttons_layout.addWidget(self.position_button)
 
-        # Answer button - hide for ban, system, and competition messages
-        if not data.is_ban and not data.is_system and not data.is_competition:
+        # Answer button - hide for ban, system, competition, parser messages
+        if not data.is_ban and not data.is_system and not data.is_parser and not data.is_competition:
             self.answer_button = _icon_btn(self.icons_path, "reply.svg", "Reply", data.config)
             self.answer_button.clicked.connect(self._on_answer)
             buttons_layout.addWidget(self.answer_button)
@@ -577,6 +599,7 @@ class PopupNotification(_AutoHidePopupMixin, QWidget):
             data.is_ban,
             data.is_system,
             data.is_competition,
+            data.is_parser,
             data.players,
         )
         self.message_widget.content_resized.connect(self._on_content_resized)
@@ -588,7 +611,7 @@ class PopupNotification(_AutoHidePopupMixin, QWidget):
         self.emoticon_selector = None
         self.emoticon_button = None
         
-        if not data.is_ban and not data.is_system:
+        if not data.is_ban and not data.is_system and not data.is_parser:
             self.reply_container = QWidget()
             self.reply_container.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
             reply_layout = QHBoxLayout(self.reply_container)
@@ -1028,7 +1051,7 @@ class PopupManager:
             key = "mentions_bypass_mute"
         elif data.is_ban:
             key = "bans_bypass_mute"
-        elif not data.is_system:
+        elif not data.is_system and not data.is_parser:
             key = "messages_bypass_mute"
         else:
             key = None

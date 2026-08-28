@@ -12,6 +12,7 @@ from helpers.color_utils import (
     get_ban_message_colors,
     get_system_message_colors,
     get_competition_message_colors,
+    get_parser_message_colors,
     get_mention_color,
     get_search_highlight_colors,
     get_rank_chip_colors,
@@ -54,6 +55,7 @@ class MessageRenderer(QObject):
         self.ban_colors = get_ban_message_colors(config, is_dark_theme)
         self.system_colors = get_system_message_colors(config, is_dark_theme)
         self.competition_colors = get_competition_message_colors(config, is_dark_theme)
+        self.parser_colors = get_parser_message_colors(config, is_dark_theme)
         
         # Font setup
         self.body_font = get_font(FontType.TEXT)
@@ -168,8 +170,10 @@ class MessageRenderer(QObject):
         """Check if position is over any link"""
         return any(rect.contains(pos) for rect, _, _ in link_rects)
     
-    def get_timestamp_color(self, is_ban: bool, is_private: bool, is_system: bool, is_competition: bool = False) -> str:
+    def get_timestamp_color(self, is_ban: bool, is_private: bool, is_system: bool, is_competition: bool = False, is_parser: bool = False) -> str:
         """Return the appropriate timestamp color for the message type"""
+        if is_parser:
+            return self.parser_colors["text"]
         if is_competition:
             return self.competition_colors["text"]
         if is_ban:
@@ -194,6 +198,7 @@ class MessageRenderer(QObject):
         self.ban_colors = get_ban_message_colors(self.config, is_dark_theme)
         self.system_colors = get_system_message_colors(self.config, is_dark_theme)
         self.competition_colors = get_competition_message_colors(self.config, is_dark_theme)
+        self.parser_colors = get_parser_message_colors(self.config, is_dark_theme)
         self._emoticon_cache.clear()
     
     @staticmethod
@@ -282,6 +287,7 @@ class MessageRenderer(QObject):
         is_system: bool = False,
         is_competition: bool = False,
         highlight_text: str = "",
+        is_parser: bool = False,
     ) -> List[Tuple[QRect, str, bool]]:
         """
         Paint message body content with links, emoticons, and mentions.
@@ -310,7 +316,9 @@ class MessageRenderer(QObject):
         line_height = fm.height()
         
         # Determine text color based on message type
-        if is_competition:
+        if is_parser:
+            text_color = self.parser_colors["text"]
+        elif is_competition:
             text_color = self.competition_colors["text"]
         elif is_system:
             text_color = self.system_colors["text"]
@@ -367,7 +375,7 @@ class MessageRenderer(QObject):
             nonlocal current_x
             
             # Only apply mention highlighting for normal messages
-            if not is_system and not is_private and not is_ban:
+            if not is_system and not is_private and not is_ban and not is_parser:
                 mention_segments = parse_mentions(content, self.my_username)
             else:
                 mention_segments = [(False, content)]

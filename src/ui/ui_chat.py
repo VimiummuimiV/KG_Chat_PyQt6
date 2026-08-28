@@ -1919,7 +1919,7 @@ class ChatWindow(QWidget):
                         emoticon_manager=self.emoticon_manager,
                         account=self.account,
                         is_mention=True,
-                        icon="at-line.svg",
+                        is_parser=True,
                         window_show_callback=self._open_mentions_from_notification,
                     )
                     self._play_mention_sound()
