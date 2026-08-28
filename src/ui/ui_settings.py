@@ -112,6 +112,7 @@ TRACKER_DEFAULT_TAB_OPTIONS = (
 )
 
 MENTIONS_DIGEST_MODE_OPTIONS = (
+    ("off", "Off", "Never check personal mentions automatically."),
     ("daily", "Once per day", "Check personal mentions at most once every 24 hours per account."),
     ("custom", "Custom interval", "Check only after the chosen number of hours since last session end."),
     ("start", "Every chat start", "Check on every chat start (ignore the interval)."),

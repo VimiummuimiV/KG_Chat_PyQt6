@@ -1202,7 +1202,7 @@ class ChatWindow(QWidget):
 
     def _mentions_digest_mode(self) -> str:
         mode = self.config.get("ui", "chat", "mentions_digest_mode")
-        if mode in ("daily", "custom", "start"):
+        if mode in ("off", "daily", "custom", "start"):
             return mode
         return "daily"
 
@@ -1229,8 +1229,11 @@ class ChatWindow(QWidget):
 
     def _start_mentions_digest_check(self):
         """Background Personal Mentions parse since last_session_end (same path as manual parser).
-        Frequency: start | daily (24h) | custom hours — per account timestamp."""
+        Frequency: off | start | daily (24h) | custom hours — per account timestamp."""
         from core.chatlogs_parser import ParseConfig
+
+        if self._mentions_digest_mode() == "off":
+            return
 
         username = self.my_username
         if not username:
