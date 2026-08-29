@@ -18,6 +18,15 @@ from helpers.scroll.scroll_buttons import ScrollButtonsPanel
 from helpers.presence_log import add_presence_entry, presence_entries_to_text
 from ui.ui_settings import DEFAULTS
 
+
+class _NullSearch:
+    """No-op search stand-in for minimal (presence-only) panes."""
+    visible_state = False
+    def register_message(self, *_args, **_kwargs) -> bool: return True
+    def filter_backup(self, *_args, **_kwargs): pass
+    def reset(self): pass
+
+
 class MessagesWidget(QWidget):
     """Widget for displaying chat messages with virtual scrolling"""
     timestamp_left_clicked = pyqtSignal(str) # Opens chatlog for current day
@@ -30,9 +39,10 @@ class MessagesWidget(QWidget):
     chip_clicked = pyqtSignal(str)  # competition player chip → open profile
     chatlog_link_clicked = pyqtSignal(str, str)  # date_str, time_str ("" if none) - chatlog URL clicked in a message body
 
-    def __init__(self, config, emoticon_manager, my_username: str = None):
+    def __init__(self, config, emoticon_manager, my_username: str = None, minimal: bool = False):
         super().__init__()
         self.config = config
+        self.minimal = minimal  # presence-only pane: no search bar, no scroll buttons
         self.cache = get_cache()
         self.emoticon_manager = emoticon_manager
         self.icons_path = Path(__file__).parent.parent / "icons"
@@ -114,17 +124,20 @@ class MessagesWidget(QWidget):
         layout.setSpacing(spacing)
         self.setLayout(layout)
 
-        self.search = MessageSearchBar(
-            self.config, self.icons_path,
-            config_key="chat_search_visible",
-            get_messages=lambda: self.model._messages,
-            set_messages=self.model.set_messages,
-            placeholder="Search: 'text' or 'U:Bob' or 'U:Bob,Alice' or 'M:hello'",
-        )
-        self.search.text_changed.connect(
-            lambda _t: self.delegate.set_highlight_text(self.search.highlight_text())
-        )
-        layout.addWidget(self.search)
+        if self.minimal:
+            self.search = _NullSearch()
+        else:
+            self.search = MessageSearchBar(
+                self.config, self.icons_path,
+                config_key="chat_search_visible",
+                get_messages=lambda: self.model._messages,
+                set_messages=self.model.set_messages,
+                placeholder="Search: 'text' or 'U:Bob' or 'U:Bob,Alice' or 'M:hello'",
+            )
+            self.search.text_changed.connect(
+                lambda _t: self.delegate.set_highlight_text(self.search.highlight_text())
+            )
+            layout.addWidget(self.search)
        
         self.list_view = QListView()
         self.list_view.setModel(self.model)
@@ -145,7 +158,7 @@ class MessagesWidget(QWidget):
         layout.addWidget(self.list_view)
        
         # Add scroll buttons panel for quick navigation
-        self.scroll_buttons = ScrollButtonsPanel(self.list_view, parent=self)
+        self.scroll_buttons = None if self.minimal else ScrollButtonsPanel(self.list_view, parent=self)
 
     def _toggle_search(self):
         self.search.toggle()
@@ -264,9 +277,9 @@ class MessagesWidget(QWidget):
         """Cleanup delegate to stop animation timer"""
         if self.delegate:
             self.delegate.cleanup()
-        if hasattr(self, 'scroll_buttons'):
+        if getattr(self, 'scroll_buttons', None):
             self.scroll_buttons.cleanup()
-        if hasattr(self, 'auto_scroller'):
+        if getattr(self, 'auto_scroller', None):
             self.auto_scroller.cleanup()
    
     def clear(self):

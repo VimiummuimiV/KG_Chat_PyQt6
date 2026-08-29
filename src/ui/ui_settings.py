@@ -9,7 +9,7 @@ from PyQt6.QtWidgets import (
     QCheckBox, QComboBox, QSpinBox, QSlider, QMessageBox, QTextEdit,
     QApplication, QInputDialog, QFileDialog, QToolButton, QPushButton
 )
-from PyQt6.QtCore import Qt, pyqtSignal, QTimer
+from PyQt6.QtCore import Qt, pyqtSignal, QObject, QTimer
 
 from helpers.create import create_icon_button
 from components.presence_badge import TypeFilterBar, EVENT_TYPES
@@ -60,11 +60,23 @@ DEFAULTS = {
         "badge_font_size": 9,
         "mentions_digest_mode": "daily",
         "mentions_digest_interval_hours": 24,
-    }
+    },
+    "user_tracker": {
+        "presence_log_split_percent": 20,
+        "presence_log_split_percent_min": 5,
+        "presence_log_split_percent_max": 70,
+    },
 }
 
 FONT_PREVIEW_BORDER = 1
 FONT_PREVIEW_PADDING = 6
+SLIDER_DEBOUNCE_MS = 150
+
+
+class _SpinCommitSignal(QObject):
+    """Fires once a slider/spin row's debounced value has been committed, for
+    external listeners that need the settled value rather than every step."""
+    committed = pyqtSignal(int)
 
 XMPP_RESOURCE_OPTIONS = (
     ("web", "Same resource as the website. Receives private messages from the site client."),
@@ -609,7 +621,9 @@ class SettingsWidget(QWidget):
     competition_log_clear_requested = pyqtSignal()
     font_family_changed = pyqtSignal()
     tracker_badge_style_changed = pyqtSignal()
-    tracker_chat_log_changed = pyqtSignal(bool)
+    tracker_enabled_changed = pyqtSignal(bool)
+    tracker_presence_log_changed = pyqtSignal(bool)
+    tracker_presence_log_split_changed = pyqtSignal(int)
     resource_changed = pyqtSignal()
 
     def __init__(self, config, icons_path: Path, font_scaler=None):
@@ -749,23 +763,43 @@ class SettingsWidget(QWidget):
             if reset_button is not None and default is not None:
                 reset_button.setEnabled(value != default)
 
+        # Debounce: slider/spin fire on every step; only commit on_changed after idle,
+        # so dragging doesn't write to config.json on every intermediate value.
+        commit_timer = QTimer(self)
+        commit_timer.setSingleShot(True)
+        pending_value = []
+        commit_signal = _SpinCommitSignal(spin)
+
+        def commit():
+            if pending_value:
+                value = pending_value.pop()
+                on_changed(value)
+                commit_signal.committed.emit(value)
+
+        commit_timer.timeout.connect(commit)
+
+        def request_commit(value):
+            pending_value[:] = [value]
+            commit_timer.start(SLIDER_DEBOUNCE_MS)
+
         def sync_from_slider(value):
             spin.blockSignals(True)
             spin.setValue(value)
             spin.blockSignals(False)
-            on_changed(value)
+            request_commit(value)
             update_reset_state(value)
 
         def sync_from_spin(value):
             slider.blockSignals(True)
             slider.setValue(value)
             slider.blockSignals(False)
-            on_changed(value)
+            request_commit(value)
             update_reset_state(value)
 
         slider.valueChanged.connect(sync_from_slider)
         spin.valueChanged.connect(sync_from_spin)
         spin._slider = slider
+        spin.committed = commit_signal.committed
 
         # Default reset behavior is just "put the default back in the spin box" -
         # sync_from_spin (above) already propagates that to the slider and fires
@@ -1207,9 +1241,16 @@ class SettingsWidget(QWidget):
             section, "Show events in notifications",
             self._on_tracker_notifications_toggled
         )
-        self.tracker_chat_log_checkbox = self._add_checkbox(
+        self.tracker_presence_log_checkbox = self._add_checkbox(
             section, "Show events in chat",
-            self._on_tracker_chat_log_toggled
+            self._on_tracker_presence_log_toggled
+        )
+        self.tracker_presence_log_split_spin = self._add_slider_spin_row(
+            section, "Presence pane height (%)",
+            DEFAULTS["user_tracker"]["presence_log_split_percent_min"],
+            DEFAULTS["user_tracker"]["presence_log_split_percent_max"],
+            self._on_tracker_presence_log_split_changed,
+            default=DEFAULTS["user_tracker"]["presence_log_split_percent"],
         )
         self.tracker_badge_checkbox = self._add_checkbox(
             section, "Show unread badge on tracker button",
@@ -1290,7 +1331,8 @@ class SettingsWidget(QWidget):
             self.tracker_bypass_combo, self.messages_bypass_combo,
             self.tracker_enabled_checkbox,
             self.tracker_notifications_checkbox,
-            self.tracker_chat_log_checkbox, self.tracker_badge_checkbox,
+            self.tracker_presence_log_checkbox, self.tracker_presence_log_split_spin,
+            self.tracker_badge_checkbox,
             self.min_multiplier_combo,
             self.show_cost_checkbox,
             self.show_players_checkbox, self.max_player_chips_spin, self.sort_players_by_level_checkbox,
@@ -1464,8 +1506,22 @@ class SettingsWidget(QWidget):
         self.tracker_notifications_checkbox.setChecked(
             True if tracker_notify is None else bool(tracker_notify)
         )
-        chat_log = self.config.get("user_tracker", "chat_log")
-        self.tracker_chat_log_checkbox.setChecked(True if chat_log is None else bool(chat_log))
+        presence_log = self.config.get("user_tracker", "presence_log")
+        self.tracker_presence_log_checkbox.setChecked(True if presence_log is None else bool(presence_log))
+        split_percent = self.config.get("user_tracker", "presence_log_split_percent")
+        split_value = (
+            DEFAULTS["user_tracker"]["presence_log_split_percent"]
+            if split_percent is None else int(split_percent)
+        )
+        self.tracker_presence_log_split_spin.blockSignals(True)
+        self.tracker_presence_log_split_spin.setValue(split_value)
+        self.tracker_presence_log_split_spin.blockSignals(False)
+        self.tracker_presence_log_split_spin._slider.blockSignals(True)
+        self.tracker_presence_log_split_spin._slider.setValue(split_value)
+        self.tracker_presence_log_split_spin._slider.blockSignals(False)
+        update_reset = getattr(self.tracker_presence_log_split_spin, "_update_reset_state", None)
+        if update_reset is not None:
+            update_reset(split_value)
 
         tracker_badge = self.config.get("user_tracker", "show_badge")
         self.tracker_badge_checkbox.setChecked(
@@ -1695,18 +1751,6 @@ class SettingsWidget(QWidget):
         self.font_family_changed.emit()
 
     def _on_ui_font_size_changed(self, value: int):
-        # Debounce: slider fires every step; only persist/apply after idle.
-        if not hasattr(self, "_ui_font_size_timer"):
-            self._ui_font_size_timer = QTimer(self)
-            self._ui_font_size_timer.setSingleShot(True)
-            self._ui_font_size_timer.timeout.connect(self._commit_ui_font_size)
-        self._pending_ui_font_size = value
-        self._ui_font_size_timer.start(80)
-
-    def _commit_ui_font_size(self):
-        value = getattr(self, "_pending_ui_font_size", None)
-        if value is None:
-            return
         self.config.set("font", "ui", "size", value=value)
         set_config(self.config)
         invalidate_font_cache()
@@ -1739,13 +1783,18 @@ class SettingsWidget(QWidget):
     def _on_tracker_enabled_toggled(self, checked: bool):
         self.config.set("user_tracker", "enabled", value=checked)
         self.tracker_badge_style_changed.emit()
+        self.tracker_enabled_changed.emit(checked)
 
     def _on_tracker_notifications_toggled(self, checked: bool):
         self.config.set("user_tracker", "notifications", value=checked)
 
-    def _on_tracker_chat_log_toggled(self, checked: bool):
-        self.config.set("user_tracker", "chat_log", value=checked)
-        self.tracker_chat_log_changed.emit(checked)
+    def _on_tracker_presence_log_toggled(self, checked: bool):
+        self.config.set("user_tracker", "presence_log", value=checked)
+        self.tracker_presence_log_changed.emit(checked)
+
+    def _on_tracker_presence_log_split_changed(self, value: int):
+        self.config.set("user_tracker", "presence_log_split_percent", value=int(value))
+        self.tracker_presence_log_split_changed.emit(int(value))
 
     def _on_tracker_badge_toggled(self, checked: bool):
         self.config.set("user_tracker", "show_badge", value=checked)

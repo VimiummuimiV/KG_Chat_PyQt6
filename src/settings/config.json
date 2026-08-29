@@ -229,19 +229,20 @@
     "emoji_family": "Noto Color Emoji"
   },
   "user_tracker": {
-    "retention_hours": 24,
     "enabled": true,
+    "retention_hours": 24,
+    "retention_unit": "days",
     "click_action": "chat",
+    "default_tab": "history",
     "notifications": false,
     "show_badge": false,
-    "default_tab": "history",
+    "presence_log": true,
+    "presence_log_split_percent": 20,
     "track_events": [
       "join",
       "game",
       "left"
-    ],
-    "chat_log": true,
-    "retention_unit": "days"
+    ]
   },
   "join_room": {
     "remember": true,

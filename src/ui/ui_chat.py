@@ -53,7 +53,7 @@ from ui.ui_emoticon_selector import EmoticonSelectorWidget, PANEL_WIDTH
 from ui.ui_pronunciation import PronunciationWidget
 from ui.ui_banlist import BanListWidget
 from ui.ui_user_tracker import UserTrackerWidget
-from ui.ui_settings import SettingsWidget, get_sound_path
+from ui.ui_settings import SettingsWidget, get_sound_path, DEFAULTS
 from ui.dialogs.duration_dialog import DurationDialog
 from helpers.jid_utils import (
     extract_user_data_from_jid,
@@ -478,10 +478,18 @@ class ChatWindow(QWidget):
 
         self.messages_widget = MessagesWidget(self.config, self.emoticon_manager, my_username=self.my_username)
 
+        # Vertical pane pairing the presence-only log (User Tracker > Show events in
+        # chat) with the live messages view. presence_log_widget is created/destroyed
+        # as that setting is toggled; only messages_widget is present here at startup.
+        self.presence_pane_splitter = QSplitter(Qt.Orientation.Vertical)
+        self.presence_pane_splitter.addWidget(self.messages_widget)
+        self.presence_pane_splitter.splitterMoved.connect(self._on_presence_split_moved)
+        self.presence_log_widget = None
+
         # Splitter so a chatlog can be shown alongside the live messages view
         # (RMB on a timestamp), without leaving/replacing the messages view itself
         self.messages_splitter = QSplitter(Qt.Orientation.Vertical)
-        self.messages_splitter.addWidget(self.messages_widget)
+        self.messages_splitter.addWidget(self.presence_pane_splitter)
         self.chatlog_split_widget = None  # the split-pane ChatlogWidget, when open
 
         self.game_rooms = {}  # game_id -> RoomWidget
@@ -939,6 +947,8 @@ class ChatWindow(QWidget):
         """Clear messages and userlist for fresh reconnection"""
         # Clear all messages to avoid duplicates (server will send last 20 again)
         self.messages_widget.clear()
+        if self.presence_log_widget:
+            self.presence_log_widget.clear()
 
         # History is being reloaded from scratch - hold competitions back until it settles again
         self._chat_ready = False
@@ -1309,6 +1319,8 @@ class ChatWindow(QWidget):
         view open. Used both for RMB on a live-chat timestamp and for clicking a chatlog link in a
         message body (time_str, if given, scrolls to and highlights that specific message)."""
         if self.chatlog_split_widget is None:
+            if self.presence_log_widget:
+                self.presence_log_widget.hide()
             self.chatlog_split_widget = ChatlogWidget(
                 self.config,
                 self.emoticon_manager,
@@ -1341,6 +1353,9 @@ class ChatWindow(QWidget):
         widget.cleanup()
         widget.setParent(None)
         widget.deleteLater()
+        if self.presence_log_widget:
+            self.presence_log_widget.show()
+            self._apply_presence_split_sizes()
 
     def _open_game_room_by_id(self, game_id, room_label: str = "Game"):
         class _Fake:
@@ -1961,6 +1976,8 @@ class ChatWindow(QWidget):
         (it predates game-room tabs), so sync the same compact-width behaviour
         to any open game rooms here instead of teaching resize.py about tabs."""
         handle_chat_resize(self, width)
+        if self.presence_log_widget:
+            self.presence_log_widget.set_compact_mode(self.messages_widget.delegate.compact_mode)
         self._sync_room_compact_state(width)
 
     def _sync_room_compact_state(self, width: int):
@@ -2075,6 +2092,9 @@ class ChatWindow(QWidget):
             self._scroll_to_bottom(mw.list_view)
             if self.chatlog_split_widget:
                 self.chatlog_split_widget._force_recalculate()
+            if self.presence_log_widget:
+                self.presence_log_widget._force_recalculate()
+                self._apply_presence_split_sizes()
         elif current == self.chatlog_widget and self.chatlog_widget:
             self.chatlog_widget._force_recalculate()
             self._scroll_to_bottom(self.chatlog_widget.list_view)
@@ -2944,10 +2964,12 @@ class ChatWindow(QWidget):
                             w.append_event(event)
                         else:
                             self.button_panel.bump_tracker_unread(event.get('type'))
-                        if self._chat_presence_log_enabled():
-                            self.messages_widget.record_presence_event(
+                        if self._presence_log_enabled():
+                            self._ensure_presence_log_widget()
+                            self.presence_log_widget.record_presence_event(
                                 pres.login, event.get('type', event_type)
                             )
+                            self._apply_presence_split_sizes()
                         avatar_pix = None
                         if pres.user_id and hasattr(self, 'cache') and self.cache:
                             try:
@@ -2976,7 +2998,10 @@ class ChatWindow(QWidget):
 
     def _refresh_youtube_previews(self):
         """Re-layout message views so YouTube link text matches the current setting."""
-        widgets = [self.messages_widget, self.chatlog_widget, self.chatlog_split_widget]
+        widgets = [
+            self.messages_widget, self.presence_log_widget,
+            self.chatlog_widget, self.chatlog_split_widget,
+        ]
         widgets.extend(
             room.messages_widget for room in self._all_room_widgets()
             if room and room.messages_widget
@@ -2994,7 +3019,7 @@ class ChatWindow(QWidget):
                     split.apply_max_messages_limit()
 
     def _apply_chat_max_messages(self):
-        widgets = [self.messages_widget]
+        widgets = [self.messages_widget, self.presence_log_widget]
         widgets.extend(
             room.messages_widget for room in self._all_room_widgets()
             if room and room.messages_widget
@@ -3045,7 +3070,10 @@ class ChatWindow(QWidget):
         ui_font = get_font(FontType.UI)
 
         # Update message delegates AND their renderers (general + chatlog + game rooms)
-        message_widgets = [self.messages_widget, self.chatlog_widget, self.chatlog_split_widget]
+        message_widgets = [
+            self.messages_widget, self.presence_log_widget,
+            self.chatlog_widget, self.chatlog_split_widget,
+        ]
         all_room_widgets = self._all_room_widgets()
         message_widgets.extend(
             room.messages_widget for room in all_room_widgets if room and room.messages_widget
@@ -3403,13 +3431,136 @@ class ChatWindow(QWidget):
         
         self.stacked_widget.setCurrentWidget(self.ban_list_widget)
 
-    def _chat_presence_log_enabled(self) -> bool:
-        val = self.config.get("user_tracker", "chat_log")
+    def _presence_log_enabled(self) -> bool:
+        val = self.config.get("user_tracker", "presence_log")
         return True if val is None else bool(val)
 
-    def set_chat_presence_log_enabled(self, enabled: bool):
-        if not enabled and self.messages_widget:
-            self.messages_widget.clear_presence_messages()
+    def set_presence_log_enabled(self, enabled: bool):
+        if enabled:
+            self._ensure_presence_log_widget()
+        else:
+            self._teardown_presence_log_widget()
+
+    def _presence_split_percent(self) -> int:
+        value = self.config.get("user_tracker", "presence_log_split_percent")
+        if value is None:
+            value = DEFAULTS["user_tracker"]["presence_log_split_percent"]
+        return max(
+            DEFAULTS["user_tracker"]["presence_log_split_percent_min"],
+            min(DEFAULTS["user_tracker"]["presence_log_split_percent_max"], int(value)),
+        )
+
+    def _apply_presence_split_sizes(self):
+        """Fit presence pane to content height, capped by configured max percent."""
+        if not self.presence_log_widget:
+            return
+        total = self.presence_pane_splitter.height() or self.height()
+        if total <= 0:
+            return
+        max_top = max(40, total * self._presence_split_percent() // 100)
+        view, model = self.presence_log_widget.list_view, self.presence_log_widget.model
+        content = sum(view.sizeHintForRow(r) for r in range(model.rowCount()))
+        if content:
+            content += view.frameWidth() * 2
+            layout = self.presence_log_widget.layout()
+            if layout is not None:
+                margins = layout.contentsMargins()
+                content += margins.top() + margins.bottom()
+            content += 8  # slack: padding/wrap so the scrollbar does not flash on
+        top = min(max_top, max(40, content))
+        self.presence_pane_splitter.setSizes([top, max(40, total - top)])
+        QTimer.singleShot(0, self._presence_split_absorb_scroll)
+
+    def _presence_split_absorb_scroll(self):
+        """If a vertical scrollbar still appeared, grow the pane up to the max."""
+        if not self.presence_log_widget:
+            return
+        view = self.presence_log_widget.list_view
+        scrollbar = view.verticalScrollBar()
+        if scrollbar is None or scrollbar.maximum() <= 0:
+            return
+        total = self.presence_pane_splitter.height() or self.height()
+        if total <= 0:
+            return
+        max_top = max(40, total * self._presence_split_percent() // 100)
+        sizes = self.presence_pane_splitter.sizes()
+        if len(sizes) < 2 or sizes[0] >= max_top:
+            return
+        top = min(max_top, sizes[0] + scrollbar.maximum() + 4)
+        if top > sizes[0]:
+            self.presence_pane_splitter.setSizes([top, max(40, total - top)])
+
+    def _on_presence_split_moved(self, pos: int, _index: int):
+        # Debounce: splitterMoved fires on every drag pixel; only persist after idle.
+        if not self.presence_log_widget:
+            return
+        total = self.presence_pane_splitter.height()
+        if total <= 0:
+            return
+        self._pending_presence_split_percent = round(pos * 100 / total)
+        if not hasattr(self, "_presence_split_commit_timer"):
+            self._presence_split_commit_timer = QTimer(self)
+            self._presence_split_commit_timer.setSingleShot(True)
+            self._presence_split_commit_timer.timeout.connect(self._commit_presence_split_percent)
+        self._presence_split_commit_timer.start(150)
+
+    def _commit_presence_split_percent(self):
+        percent = getattr(self, "_pending_presence_split_percent", None)
+        if percent is None:
+            return
+        self.config.set("user_tracker", "presence_log_split_percent", value=percent)
+        spin = getattr(getattr(self, "settings_widget", None), "tracker_presence_log_split_spin", None)
+        if spin is not None:
+            spin.blockSignals(True)
+            spin.setValue(percent)
+            spin.blockSignals(False)
+            slider = getattr(spin, "_slider", None)
+            if slider is not None:
+                slider.blockSignals(True)
+                slider.setValue(percent)
+                slider.blockSignals(False)
+            update_reset = getattr(spin, "_update_reset_state", None)
+            if update_reset is not None:
+                update_reset(percent)
+
+    def _ensure_presence_log_widget(self):
+        """Create the presence-only log pane above the messages view (User Tracker
+        > Show events in chat). Reuses MessagesWidget so presence badges render
+        exactly like they do inline, without mixing into the normal message flow."""
+        if self.presence_log_widget is not None:
+            return
+        self.presence_log_widget = MessagesWidget(
+            self.config, self.emoticon_manager, my_username=self.my_username, minimal=True
+        )
+        self.presence_log_widget.timestamp_left_clicked.connect(self.show_chatlog_view)
+        self.presence_log_widget.timestamp_right_clicked.connect(self.show_chatlog_split_view)
+        self._wire_username_signals(self.presence_log_widget, right_click_widget=self.presence_log_widget)
+        # Torn down automatically once emptied — by hotkey (X), by clearing a single
+        # entry down to none, or by disabling tracking — same as never having opened it.
+        self.presence_log_widget.model.rowsRemoved.connect(self._on_presence_log_rows_changed)
+        self.presence_log_widget.model.modelReset.connect(self._on_presence_log_rows_changed)
+        self.presence_pane_splitter.insertWidget(0, self.presence_log_widget)
+        self._apply_presence_split_sizes()
+
+    def _teardown_presence_log_widget(self):
+        if self.presence_log_widget is None:
+            return
+        widget = self.presence_log_widget
+        self.presence_log_widget = None
+        widget.cleanup()
+        widget.setParent(None)
+        widget.deleteLater()
+
+    def _on_presence_log_rows_changed(self, *_args):
+        if self.presence_log_widget and self.presence_log_widget.model.rowCount() == 0:
+            self._teardown_presence_log_widget()
+
+    def _on_tracker_enabled_changed(self, enabled: bool):
+        """'Track users' toggled off: clear the presence pane's content, which
+        (via _on_presence_log_rows_changed) tears down the split — same effect
+        as clearing it by hand. Toggled on: split reappears on the next event."""
+        if not enabled and self.presence_log_widget:
+            self.presence_log_widget.clear_presence_messages()
 
     def _on_presence_notification_click(self, login: str, event_ts=None):
 
@@ -3476,7 +3627,7 @@ class ChatWindow(QWidget):
             self.settings_widget.show_players_checkbox.toggled.connect(
                 lambda _=None: self.refresh_competition_player_display()
             )
-            self.settings_widget.max_player_chips_spin.valueChanged.connect(
+            self.settings_widget.max_player_chips_spin.committed.connect(
                 lambda _=None: self.refresh_competition_player_display()
             )
             self.settings_widget.sort_players_by_level_checkbox.toggled.connect(
@@ -3485,18 +3636,24 @@ class ChatWindow(QWidget):
             self.settings_widget.youtube_checkbox.toggled.connect(
                 lambda _=None: self._refresh_youtube_previews()
             )
-            self.settings_widget.chatlog_max_messages_spin.valueChanged.connect(
+            self.settings_widget.chatlog_max_messages_spin.committed.connect(
                 lambda _=None: self._apply_chatlog_max_messages()
             )
-            self.settings_widget.chat_max_messages_spin.valueChanged.connect(
+            self.settings_widget.chat_max_messages_spin.committed.connect(
                 lambda _=None: self._apply_chat_max_messages()
             )
             self.settings_widget.sound_changed.connect(self._setup_sounds)
             self.settings_widget.tracker_badge_style_changed.connect(
                 self.button_panel.refresh_tracker_badge_style
             )
-            self.settings_widget.tracker_chat_log_changed.connect(
-                self.set_chat_presence_log_enabled
+            self.settings_widget.tracker_presence_log_changed.connect(
+                self.set_presence_log_enabled
+            )
+            self.settings_widget.tracker_presence_log_split_changed.connect(
+                lambda _percent=None: self._apply_presence_split_sizes()
+            )
+            self.settings_widget.tracker_enabled_changed.connect(
+                self._on_tracker_enabled_changed
             )
             self.settings_widget.competition_log_clear_requested.connect(
                 self.clear_competition_log
@@ -4020,7 +4177,8 @@ class ChatWindow(QWidget):
             else:
                 self._clear_private_messages()
             self._clear_new_messages_marker()
-            self.messages_widget.clear_presence_messages()
+            if self.presence_log_widget:
+                self.presence_log_widget.clear_presence_messages()
         # Enter last competition race in browser (E)
         elif vk == 'enter_competition':
             self._open_latest_competition_in_browser()
@@ -4061,6 +4219,8 @@ class ChatWindow(QWidget):
             
             # Update widgets
             self.messages_widget.update_theme()
+            if self.presence_log_widget:
+                self.presence_log_widget.update_theme()
             self.user_list_widget.update_theme()
             
             if self.chatlog_widget:
@@ -4087,6 +4247,8 @@ class ChatWindow(QWidget):
                 self.user_tracker_widget.update_theme()
          
             self.messages_widget.rebuild_messages()
+            if self.presence_log_widget:
+                self.presence_log_widget.rebuild_messages()
          
             if self.chatlog_widget and self.stacked_widget.currentWidget() == self.chatlog_widget:
                 self.chatlog_widget._force_recalculate()
@@ -4139,6 +4301,8 @@ class ChatWindow(QWidget):
                 except:
                     pass
             self.messages_widget.cleanup()
+        if self.presence_log_widget:
+            self.presence_log_widget.cleanup()
         if self.chatlog_split_widget:
             self.chatlog_split_widget.cleanup()
         for gid in list(self.game_rooms.keys()):
