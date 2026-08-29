@@ -3529,16 +3529,12 @@ class ChatWindow(QWidget):
                 update_reset(percent)
 
     def _ensure_presence_log_widget(self):
-        """Create the presence-only log pane above the messages view (User Tracker
-        > Show events in chat). Reuses MessagesWidget so presence badges render
-        exactly like they do inline, without mixing into the normal message flow."""
+        """Create the presence log pane above the messages view, reusing MessagesWidget for consistent badge rendering."""
         if self.presence_log_widget is not None:
             return
         self.presence_log_widget = MessagesWidget(
             self.config, self.emoticon_manager, my_username=self.my_username, minimal=True
         )
-        self.presence_log_widget.timestamp_left_clicked.connect(self.show_chatlog_view)
-        self.presence_log_widget.timestamp_right_clicked.connect(self.show_chatlog_split_view)
         self._wire_username_signals(self.presence_log_widget, right_click_widget=self.presence_log_widget)
         # Torn down automatically once emptied — by hotkey (X), by clearing a single
         # entry down to none, or by disabling tracking — same as never having opened it.
