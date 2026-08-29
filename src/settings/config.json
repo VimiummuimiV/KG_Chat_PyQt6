@@ -140,7 +140,11 @@
       },
       "widgets": {
         "ws_log": false,
-        "font_preview": true
+        "font_preview": true,
+        "chat_limits": true,
+        "chat_xmpp": true,
+        "chat_parser": true,
+        "notifications_bypass": true
       },
       "accordion": true
     },

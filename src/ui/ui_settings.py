@@ -713,6 +713,27 @@ class SettingsWidget(QWidget):
     def _accordion_enabled(self) -> bool:
         return bool(self.config.get("ui", "settings", "accordion"))
 
+    def _add_subsection(self, section_layout: QVBoxLayout, title: str) -> tuple[QHBoxLayout, QWidget, QVBoxLayout]:
+        """Create a titled sub-block (header row + content widget) inside a section
+        and append it to section_layout. Caller adds rows to the returned content
+        layout, then finishes with _add_collapse_toggle(header_row, content, config_path)."""
+        header_row = QHBoxLayout()
+        header_row.setSpacing(self._spacing())
+        label = QLabel(title)
+        label.setFont(get_font(FontType.UI))
+        header_row.addWidget(label)
+        header_row.addStretch(1)
+        section_layout.addLayout(header_row)
+
+        content = QWidget()
+        content_layout = QVBoxLayout()
+        content_layout.setContentsMargins(0, 0, 0, 0)
+        content_layout.setSpacing(self._spacing())
+        content.setLayout(content_layout)
+        section_layout.addWidget(content)
+
+        return header_row, content, content_layout
+
     def _add_checkbox(self, section_layout: QVBoxLayout, text: str, on_toggled) -> QCheckBox:
         checkbox = QCheckBox(text)
         checkbox.setFont(get_font(FontType.UI))
@@ -890,43 +911,10 @@ class SettingsWidget(QWidget):
         self.youtube_checkbox = self._add_checkbox(
             section, "Enable YouTube link previews", self._on_youtube_toggled
         )
-        self.chatlog_max_messages_spin = self._add_slider_spin_row(
-            section, "Chatlog display limit",
-            DEFAULTS["chatlog"]["max_messages_min"], DEFAULTS["chatlog"]["max_messages_max"],
-            self._on_chatlog_max_messages_changed,
-            default=DEFAULTS["chatlog"]["max_messages"],
+        self.browser_combo = self._add_combo_row(
+            section, "Open links in", [], self._on_browser_changed
         )
-        self.chatlog_max_messages_spin.setSingleStep(1000)
-        self.chatlog_max_messages_spin._slider.setSingleStep(1000)
-        self.chatlog_max_messages_spin._slider.setPageStep(5000)
-
-        self.chatlog_live_search_spin = self._add_slider_spin_row(
-            section, "Chatlog live search up to (messages)",
-            DEFAULTS["chatlog"]["live_search_max_messages_min"],
-            DEFAULTS["chatlog"]["live_search_max_messages_max"],
-            self._on_chatlog_live_search_max_changed,
-            default=DEFAULTS["chatlog"]["live_search_max_messages"],
-        )
-        self.chatlog_live_search_spin.setSingleStep(500)
-        self.chatlog_live_search_spin._slider.setSingleStep(500)
-        self.chatlog_live_search_spin._slider.setPageStep(2000)
-
-        self.parser_validate_usernames_checkbox = self._add_checkbox(
-            section,
-            "Validate usernames in chatlog parser (API check)",
-            self._on_parser_validate_usernames_toggled,
-        )
-
-        self.chat_max_messages_spin = self._add_slider_spin_row(
-            section, "Chat display limit",
-            DEFAULTS["chat"]["max_messages_min"], DEFAULTS["chat"]["max_messages_max"],
-            self._on_chat_max_messages_changed,
-            default=DEFAULTS["chat"]["max_messages"],
-        )
-        self.chat_max_messages_spin.setSingleStep(100)
-        self.chat_max_messages_spin._slider.setSingleStep(100)
-        self.chat_max_messages_spin._slider.setPageStep(500)
-
+        self.browser_combo.setFixedWidth(240)
         self.badge_size_spin = self._add_slider_spin_row(
             section, "Badge font size", 8, 18,
             self._on_badge_size_changed, default=DEFAULTS["chat"]["badge_font_size"],
@@ -940,23 +928,63 @@ class SettingsWidget(QWidget):
             self._on_mentions_digest_interval_changed,
             default=DEFAULTS["chat"]["mentions_digest_interval_hours"],
         )
-        self.browser_combo = self._add_combo_row(
-            section, "Open links in", [], self._on_browser_changed
-        )
-        self.browser_combo.setFixedWidth(240)
-        self.resource_combo = self._add_combo_row(
-            section, "XMPP resource", [], self._on_resource_changed
-        )
-        self.resource_combo.setFixedWidth(240)
-        self.own_message_mode_combo = self._add_combo_row(
-            section, "Own messages", [], self._on_own_message_mode_changed
-        )
-        self.own_message_mode_combo.setFixedWidth(240)
         self._add_hotkey_row(section, "Toggle chat window")
         self.settings_accordion_checkbox = self._add_checkbox(
             section, "Accordion settings sections (opening one collapses others)",
             self._on_settings_accordion_toggled
         )
+
+        limits_header, limits_content, limits_layout = self._add_subsection(section, "📏 Message Limits")
+        self.chatlog_max_messages_spin = self._add_slider_spin_row(
+            limits_layout, "Chatlog display limit",
+            DEFAULTS["chatlog"]["max_messages_min"], DEFAULTS["chatlog"]["max_messages_max"],
+            self._on_chatlog_max_messages_changed,
+            default=DEFAULTS["chatlog"]["max_messages"],
+        )
+        self.chatlog_max_messages_spin.setSingleStep(1000)
+        self.chatlog_max_messages_spin._slider.setSingleStep(1000)
+        self.chatlog_max_messages_spin._slider.setPageStep(5000)
+
+        self.chatlog_live_search_spin = self._add_slider_spin_row(
+            limits_layout, "Chatlog live search up to (messages)",
+            DEFAULTS["chatlog"]["live_search_max_messages_min"],
+            DEFAULTS["chatlog"]["live_search_max_messages_max"],
+            self._on_chatlog_live_search_max_changed,
+            default=DEFAULTS["chatlog"]["live_search_max_messages"],
+        )
+        self.chatlog_live_search_spin.setSingleStep(500)
+        self.chatlog_live_search_spin._slider.setSingleStep(500)
+        self.chatlog_live_search_spin._slider.setPageStep(2000)
+
+        self.chat_max_messages_spin = self._add_slider_spin_row(
+            limits_layout, "Chat display limit",
+            DEFAULTS["chat"]["max_messages_min"], DEFAULTS["chat"]["max_messages_max"],
+            self._on_chat_max_messages_changed,
+            default=DEFAULTS["chat"]["max_messages"],
+        )
+        self.chat_max_messages_spin.setSingleStep(100)
+        self.chat_max_messages_spin._slider.setSingleStep(100)
+        self.chat_max_messages_spin._slider.setPageStep(500)
+        self._add_collapse_toggle(limits_header, limits_content, ("ui", "settings", "widgets", "chat_limits"))
+
+        xmpp_header, xmpp_content, xmpp_layout = self._add_subsection(section, "🔌 XMPP")
+        self.resource_combo = self._add_combo_row(
+            xmpp_layout, "XMPP resource", [], self._on_resource_changed
+        )
+        self.resource_combo.setFixedWidth(240)
+        self.own_message_mode_combo = self._add_combo_row(
+            xmpp_layout, "Own messages", [], self._on_own_message_mode_changed
+        )
+        self.own_message_mode_combo.setFixedWidth(240)
+        self._add_collapse_toggle(xmpp_header, xmpp_content, ("ui", "settings", "widgets", "chat_xmpp"))
+
+        parser_header, parser_content, parser_layout = self._add_subsection(section, "🔍 Chatlog Parser")
+        self.parser_validate_usernames_checkbox = self._add_checkbox(
+            parser_layout,
+            "Validate usernames in chatlog parser (API check)",
+            self._on_parser_validate_usernames_toggled,
+        )
+        self._add_collapse_toggle(parser_header, parser_content, ("ui", "settings", "widgets", "chat_parser"))
 
     def _add_hotkey_row(self, section_layout: QVBoxLayout, label_text: str):
         row = QHBoxLayout()
@@ -1071,14 +1099,7 @@ class SettingsWidget(QWidget):
         self.text_font_combo.setFixedWidth(240)
         self.emoji_font_combo.setFixedWidth(240)
 
-        preview_header_row = QHBoxLayout()
-        preview_header_row.setSpacing(self._spacing())
-        preview_label = QLabel("🔎 Preview")
-        preview_label.setFont(get_font(FontType.UI))
-        preview_header_row.addWidget(preview_label)
-        preview_header_row.addStretch(1)
-        section.addLayout(preview_header_row)
-
+        preview_header, preview_content, preview_layout = self._add_subsection(section, "🔎 Preview")
         self.font_preview = QTextEdit()
         self.font_preview.setProperty("fontRole", "text")
         self.font_preview.setReadOnly(True)
@@ -1091,10 +1112,10 @@ class SettingsWidget(QWidget):
             "😀 🎉 🚀 ❤️ 👍 🔥 ✨"
         )
         self._apply_font_preview_theme()
-        section.addWidget(self.font_preview)
+        preview_layout.addWidget(self.font_preview)
         self._update_font_preview()
 
-        self._add_collapse_toggle(preview_header_row, self.font_preview, ("ui", "settings", "widgets", "font_preview"))
+        self._add_collapse_toggle(preview_header, preview_content, ("ui", "settings", "widgets", "font_preview"))
 
     def _build_notifications_section(self):
         section = self._create_section("⚠️ Notifications")
@@ -1127,26 +1148,28 @@ class SettingsWidget(QWidget):
             default=DEFAULTS["notification"]["fade_ms"],
         )
 
+        bypass_header, bypass_content, bypass_layout = self._add_subsection(section, "🔕 Bypass When Muted")
         self.competitions_bypass_combo = self._add_combo_row(
-            section, "Competitions when muted", [],
+            bypass_layout, "Competitions when muted", [],
             lambda _t: self._on_mute_bypass_changed(self.competitions_bypass_combo, "competitions_bypass_mute"),
         )
         self.mentions_bypass_combo = self._add_combo_row(
-            section, "Mentions & private when muted", [],
+            bypass_layout, "Mentions & private when muted", [],
             lambda _t: self._on_mute_bypass_changed(self.mentions_bypass_combo, "mentions_bypass_mute"),
         )
         self.bans_bypass_combo = self._add_combo_row(
-            section, "Bans when muted", [],
+            bypass_layout, "Bans when muted", [],
             lambda _t: self._on_mute_bypass_changed(self.bans_bypass_combo, "bans_bypass_mute"),
         )
         self.tracker_bypass_combo = self._add_combo_row(
-            section, "Tracked users when muted", [],
+            bypass_layout, "Tracked users when muted", [],
             lambda _t: self._on_mute_bypass_changed(self.tracker_bypass_combo, "tracked_bypass_mute"),
         )
         self.messages_bypass_combo = self._add_combo_row(
-            section, "Regular messages when muted", [],
+            bypass_layout, "Regular messages when muted", [],
             lambda _t: self._on_mute_bypass_changed(self.messages_bypass_combo, "messages_bypass_mute"),
         )
+        self._add_collapse_toggle(bypass_header, bypass_content, ("ui", "settings", "widgets", "notifications_bypass"))
 
     def _build_competitions_section(self):
         section = self._create_section("🏆 Competitions")
@@ -1155,26 +1178,19 @@ class SettingsWidget(QWidget):
             section, "Track rating competitions", self._on_track_competitions_toggled
         )
 
-        log_header_row = QHBoxLayout()
-        log_header_row.setSpacing(self._spacing())
-        log_label = QLabel("📜 WebSocket Log")
-        log_label.setFont(get_font(FontType.UI))
-        log_header_row.addWidget(log_label)
-        log_header_row.addStretch(1)
+        log_header, log_content, log_layout = self._add_subsection(section, "📜 WebSocket Log")
 
         self.copy_log_button = create_icon_button(
             self.icons_path, "copy.svg", "Copy log", size_type="small", config=self.config
         )
         self.copy_log_button.clicked.connect(self._on_copy_log_clicked)
-        log_header_row.addWidget(self.copy_log_button)
+        log_header.addWidget(self.copy_log_button)
 
         self.clear_log_button = create_icon_button(
             self.icons_path, "trash.svg", "Clear log", size_type="small", config=self.config
         )
         self.clear_log_button.clicked.connect(self._on_clear_log_clicked)
-        log_header_row.addWidget(self.clear_log_button)
-
-        section.addLayout(log_header_row)
+        log_header.addWidget(self.clear_log_button)
 
         self.competitions_log = QTextEdit()
         self.competitions_log.setReadOnly(True)
@@ -1183,9 +1199,9 @@ class SettingsWidget(QWidget):
         self.competitions_log.setPlaceholderText("Competition log")
         self.competitions_log.setAcceptRichText(True)
         self._apply_competitions_log_theme()
-        section.addWidget(self.competitions_log)
+        log_layout.addWidget(self.competitions_log)
 
-        self._add_collapse_toggle(log_header_row, self.competitions_log, ("ui", "settings", "widgets", "ws_log"))
+        self._add_collapse_toggle(log_header, log_content, ("ui", "settings", "widgets", "ws_log"))
 
         self.min_multiplier_combo = self._add_combo_row(
             section, "Minimum multiplier", ["x1+", "x2+", "x3+", "x5+"],
