@@ -1119,7 +1119,7 @@ class SettingsWidget(QWidget):
         self._add_collapse_toggle(preview_header, preview_content, ("ui", "settings", "widgets", "font_preview"))
 
     def _build_notifications_section(self):
-        section = self._create_section("⚠️ Notifications")
+        section = self._create_section("🔔 Notifications")
         self.notification_mode_combo = self._add_combo_row(
             section, "Notification mode", [], self._on_notification_mode_changed
         )
@@ -1149,7 +1149,7 @@ class SettingsWidget(QWidget):
             default=DEFAULTS["notification"]["fade_ms"],
         )
 
-        bypass_header, bypass_content, bypass_layout = self._add_subsection(section, "🔔 Bypass When Muted")
+        bypass_header, bypass_content, bypass_layout = self._add_subsection(section, "🚧 Bypass When Muted")
         self.competitions_bypass_combo = self._add_combo_row(
             bypass_layout, "Competitions when muted", [],
             lambda _t: self._on_mute_bypass_changed(self.competitions_bypass_combo, "competitions_bypass_mute"),
