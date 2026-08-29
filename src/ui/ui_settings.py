@@ -1274,7 +1274,7 @@ class SettingsWidget(QWidget):
             self._on_tracker_badge_toggled
         )
         self.tracker_userlist_star_checkbox = self._add_checkbox(
-            section, "Show star on tracked users in userlist",
+            section, "Show star badge on tracked users in userlist",
             self._on_tracker_userlist_star_toggled
         )
         # Tracked event types — same pills as tracker filter bar
