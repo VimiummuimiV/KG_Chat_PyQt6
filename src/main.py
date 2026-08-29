@@ -630,6 +630,7 @@ class Application(QObject):
         if should_hide:
             if window == self.chat_window:
                 window._clear_new_messages_marker()
+                window._teardown_presence_log_widget()
             window.hide()
         else:
             self._reveal_window(window)
