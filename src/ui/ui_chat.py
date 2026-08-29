@@ -3436,9 +3436,7 @@ class ChatWindow(QWidget):
         return True if val is None else bool(val)
 
     def set_presence_log_enabled(self, enabled: bool):
-        if enabled:
-            self._ensure_presence_log_widget()
-        else:
+        if not enabled:
             self._teardown_presence_log_widget()
 
     def _presence_split_percent(self) -> int:
@@ -3563,11 +3561,9 @@ class ChatWindow(QWidget):
             self._teardown_presence_log_widget()
 
     def _on_tracker_enabled_changed(self, enabled: bool):
-        """'Track users' toggled off: clear the presence pane's content, which
-        (via _on_presence_log_rows_changed) tears down the split — same effect
-        as clearing it by hand. Toggled on: split reappears on the next event."""
-        if not enabled and self.presence_log_widget:
-            self.presence_log_widget.clear_presence_messages()
+        """Hide the presence pane when 'Track users' is disabled; restore it on the next event."""
+        if not enabled:
+            self._teardown_presence_log_widget()
 
     def _on_presence_notification_click(self, login: str, event_ts=None):
 
