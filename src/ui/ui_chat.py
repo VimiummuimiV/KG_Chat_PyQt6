@@ -3450,14 +3450,21 @@ class ChatWindow(QWidget):
             min(DEFAULTS["user_tracker"]["presence_log_split_percent_max"], int(value)),
         )
 
+    def _presence_split_bounds(self):
+        """(total, max_top) for the presence pane, or None if not yet measurable."""
+        total = self.presence_pane_splitter.height() or self.height()
+        if total <= 0:
+            return None
+        return total, max(40, total * self._presence_split_percent() // 100)
+
     def _apply_presence_split_sizes(self):
         """Fit presence pane to content height, capped by configured max percent."""
         if not self.presence_log_widget:
             return
-        total = self.presence_pane_splitter.height() or self.height()
-        if total <= 0:
+        bounds = self._presence_split_bounds()
+        if bounds is None:
             return
-        max_top = max(40, total * self._presence_split_percent() // 100)
+        total, max_top = bounds
         view, model = self.presence_log_widget.list_view, self.presence_log_widget.model
         content = sum(view.sizeHintForRow(r) for r in range(model.rowCount()))
         if content:
@@ -3479,10 +3486,10 @@ class ChatWindow(QWidget):
         scrollbar = view.verticalScrollBar()
         if scrollbar is None or scrollbar.maximum() <= 0:
             return
-        total = self.presence_pane_splitter.height() or self.height()
-        if total <= 0:
+        bounds = self._presence_split_bounds()
+        if bounds is None:
             return
-        max_top = max(40, total * self._presence_split_percent() // 100)
+        total, max_top = bounds
         sizes = self.presence_pane_splitter.sizes()
         if len(sizes) < 2 or sizes[0] >= max_top:
             return
