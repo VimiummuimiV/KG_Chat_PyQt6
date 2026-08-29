@@ -623,6 +623,7 @@ class SettingsWidget(QWidget):
     tracker_badge_style_changed = pyqtSignal()
     tracker_enabled_changed = pyqtSignal(bool)
     tracker_presence_log_changed = pyqtSignal(bool)
+    tracker_userlist_star_changed = pyqtSignal(bool)
     tracker_presence_log_split_changed = pyqtSignal(int)
     resource_changed = pyqtSignal()
 
@@ -1272,6 +1273,10 @@ class SettingsWidget(QWidget):
             section, "Show unread badge on tracker button",
             self._on_tracker_badge_toggled
         )
+        self.tracker_userlist_star_checkbox = self._add_checkbox(
+            section, "Show star on tracked users in userlist",
+            self._on_tracker_userlist_star_toggled
+        )
         # Tracked event types — same pills as tracker filter bar
         events_row = QHBoxLayout()
         events_row.setSpacing(8)
@@ -1348,7 +1353,7 @@ class SettingsWidget(QWidget):
             self.tracker_enabled_checkbox,
             self.tracker_notifications_checkbox,
             self.tracker_presence_log_checkbox, self.tracker_presence_log_split_spin,
-            self.tracker_badge_checkbox,
+            self.tracker_badge_checkbox, self.tracker_userlist_star_checkbox,
             self.min_multiplier_combo,
             self.show_cost_checkbox,
             self.show_players_checkbox, self.max_player_chips_spin, self.sort_players_by_level_checkbox,
@@ -1539,10 +1544,12 @@ class SettingsWidget(QWidget):
         if update_reset is not None:
             update_reset(split_value)
 
-        tracker_badge = self.config.get("user_tracker", "show_badge")
+        tracker_badge = self.config.get("user_tracker", "show_unread_badge")
         self.tracker_badge_checkbox.setChecked(
             True if tracker_badge is None else bool(tracker_badge)
         )
+        star_badge = self.config.get("user_tracker", "userlist_star_badge")
+        self.tracker_userlist_star_checkbox.setChecked(bool(star_badge))
         track_events = self.config.get("user_tracker", "track_events")
         if not track_events:
             track_events = list(EVENT_TYPES)
@@ -1813,8 +1820,12 @@ class SettingsWidget(QWidget):
         self.tracker_presence_log_split_changed.emit(int(value))
 
     def _on_tracker_badge_toggled(self, checked: bool):
-        self.config.set("user_tracker", "show_badge", value=checked)
+        self.config.set("user_tracker", "show_unread_badge", value=checked)
         self.tracker_badge_style_changed.emit()
+
+    def _on_tracker_userlist_star_toggled(self, checked: bool):
+        self.config.set("user_tracker", "userlist_star_badge", value=checked)
+        self.tracker_userlist_star_changed.emit(checked)
 
     def _on_badge_size_changed(self, value: int):
         self.config.set("ui", "chat", "badge_font_size", value=int(value))

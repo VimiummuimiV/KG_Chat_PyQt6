@@ -299,14 +299,14 @@ class ButtonPanel(QWidget):
         self._refresh_tracker_badge()
 
     def refresh_tracker_badge_style(self):
-        """Re-apply dim/badge after settings change (enabled, show_badge, size)."""
+        """Re-apply dim/badge after settings change (enabled, show_unread_badge, size)."""
         self._apply_tracker_enabled_state()
 
     def _refresh_tracker_badge(self):
         n = self._tracker_unread
         base = "User Tracker (Ctrl+Shift+U)"
         enabled = self._tracker_enabled()
-        show = self.config.get("user_tracker", "show_badge")
+        show = self.config.get("user_tracker", "show_unread_badge")
         if show is None:
             show = True
         if not enabled or n <= 0 or not show:

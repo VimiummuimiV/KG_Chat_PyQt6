@@ -38,10 +38,11 @@ class UserWidget(QWidget):
     open_game_requested = pyqtSignal(str)  # game_id
     track_requested = pyqtSignal(str, str, bool)  # user_id, login, track
 
-    def __init__(self, user, config, icons_path, is_dark_theme, counter=None):
+    def __init__(self, user, config, icons_path, is_dark_theme, game_counter=None, is_tracked=False):
         super().__init__()
         self.user = user
         self.icons_path = icons_path
+        self.is_tracked = is_tracked
         self.cache = get_cache()
         
         self.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
@@ -94,6 +95,9 @@ class UserWidget(QWidget):
             username_text += " ⚔️"
             self.username_label.setToolTip(self._build_moderator_tooltip(user))
 
+        if self.is_tracked:
+            username_text += " ⭐"
+
         if user.role == 'visitor':
             emoji_family = (config.get("font", "emoji_family") or "").lower()
             block_mark = " ⛔" if "segoe" in emoji_family else " 🚫"
@@ -107,15 +111,15 @@ class UserWidget(QWidget):
         self.username_label.setStyleSheet(f"color: {text_color};")
         layout.addWidget(self.username_label)
 
-        # Counter badge for game section
-        self.badge = None
-        if counter and counter > 0:
-            self.badge = QLabel(str(counter))
-            self.badge.setFont(get_font(FontType.TEXT))
-            self.badge.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Fixed)
-            self.badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            self._badge_style(is_dark_theme)
-            layout.addWidget(self.badge)
+        # Game-session counter (distinct races this session)
+        self.game_counter_label = None
+        if game_counter and game_counter > 0:
+            self.game_counter_label = QLabel(str(game_counter))
+            self.game_counter_label.setFont(get_font(FontType.TEXT))
+            self.game_counter_label.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Fixed)
+            self.game_counter_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            self._game_counter_style(is_dark_theme)
+            layout.addWidget(self.game_counter_label)
         layout.addStretch()
     
     def _build_moderator_tooltip(self, user):
@@ -144,15 +148,22 @@ class UserWidget(QWidget):
         except RuntimeError:
             pass
     
-    def _badge_style(self, is_dark: bool):
+    def _game_counter_style(self, is_dark: bool):
         color = "#CCCCCC" if is_dark else "#666666"
-        self.badge.setStyleSheet(f"color:{color};")
+        self.game_counter_label.setStyleSheet(f"color:{color};")
 
     def update_color(self, color: str, is_dark: bool = None):
         """Update colors without rebuilding widget"""
         self.username_label.setStyleSheet(f"color: {color};")
-        if self.badge and is_dark is not None:
-            self._badge_style(is_dark)
+        if self.game_counter_label and is_dark is not None:
+            self._game_counter_style(is_dark)
+
+    def set_tracked(self, tracked: bool):
+        if tracked == self.is_tracked:
+            return
+        self.is_tracked = tracked
+        text = self.username_label.text()
+        self.username_label.setText(text + " ⭐" if tracked else text.replace(" ⭐", ""))
     
     def mousePressEvent(self, event):
         """Handle click events.
@@ -294,23 +305,42 @@ class UserListWidget(QWidget):
         self.game_label.setVisible(has_game_users)
         self.section_spacer.setVisible(has_chat_users and has_game_users)
     
-    def _update_counter(self, user):
-        """Update and return counter for user"""
+    def _update_game_counter(self, user):
         if user.game_id:
             state = self.user_game_state.get(user.login)
             if not state:
-                counter = 1
+                game_counter = 1
             elif state.get('last_game_id') != user.game_id:
-                counter = state.get('counter', 1) + 1
+                game_counter = state.get('game_counter', 1) + 1
             else:
-                counter = state.get('counter', 1)
-            self.user_game_state[user.login] = {'last_game_id': user.game_id, 'counter': counter}
-            return counter
-        else:
-            if user.login in self.user_game_state:
-                self.user_game_state.pop(user.login, None)
-            return None
-    
+                game_counter = state.get('game_counter', 1)
+            self.user_game_state[user.login] = {
+                'last_game_id': user.game_id,
+                'game_counter': game_counter,
+            }
+            return game_counter
+        if user.login in self.user_game_state:
+            self.user_game_state.pop(user.login, None)
+        return None
+
+    def _tracked_star_enabled(self) -> bool:
+        return bool(self.config.get("user_tracker", "userlist_star_badge"))
+
+    def _is_tracked(self, user) -> bool:
+        return bool(
+            self._tracked_star_enabled() and self.user_tracker
+            and self.user_tracker.is_tracked(user_id=user.user_id, login=user.login)
+        )
+
+    def refresh_tracked_star(self, user_id: str = None, login: str = None):
+        """Update tracked star on existing widgets. No args = all (settings toggle)."""
+        for widget in self.user_widgets.values():
+            if user_id and widget.user.user_id != user_id:
+                continue
+            if login and not user_id and widget.user.login != login:
+                continue
+            widget.set_tracked(self._is_tracked(widget.user))
+
     def _clear_container(self, container):
         """Safely clear a container layout"""
         widgets_to_delete = []
@@ -369,7 +399,7 @@ class UserListWidget(QWidget):
         
         # Update counters for all
         for user in users:
-            self._update_counter(user)
+            self._update_game_counter(user)
 
         def _wire(widget):
             widget.user_tracker = self.user_tracker
@@ -399,12 +429,12 @@ class UserListWidget(QWidget):
             # Separate and sort
             in_chat = sorted([u for u in users if not u.game_id], key=lambda u: u.login.lower())
             in_game = sorted([u for u in users if u.game_id], 
-                           key=lambda u: (-self.user_game_state.get(u.login, {}).get('counter', 1), u.login.lower()))
+                           key=lambda u: (-self.user_game_state.get(u.login, {}).get('game_counter', 1), u.login.lower()))
             
             # Add to chat
             for user in in_chat:
                 try:
-                    widget = UserWidget(user, self.config, self.icons_path, self.is_dark_theme)
+                    widget = UserWidget(user, self.config, self.icons_path, self.is_dark_theme, is_tracked=self._is_tracked(user))
                     _wire(widget)
                     self.chat_container.addWidget(widget)
                     self.user_widgets[user.jid] = widget
@@ -414,8 +444,8 @@ class UserListWidget(QWidget):
             # Add to game
             for user in in_game:
                 try:
-                    counter = self.user_game_state.get(user.login, {}).get('counter', 1)
-                    widget = UserWidget(user, self.config, self.icons_path, self.is_dark_theme, counter)
+                    game_counter = self.user_game_state.get(user.login, {}).get('game_counter', 1)
+                    widget = UserWidget(user, self.config, self.icons_path, self.is_dark_theme, game_counter, is_tracked=self._is_tracked(user))
                     _wire(widget)
                     self.game_container.addWidget(widget)
                     self.user_widgets[user.jid] = widget
@@ -436,14 +466,13 @@ class UserListWidget(QWidget):
                 except Exception:
                     pass
             
-            # Determine section and counter
+            # Determine section and game counter
             is_game = bool(user.game_id)
-            counter = self.user_game_state.get(user.login, {}).get('counter', 1) if is_game else None
+            game_counter = self.user_game_state.get(user.login, {}).get('game_counter', 1) if is_game else None
             container = self.game_container if is_game else self.chat_container
-            
-            # Create widget
+
             try:
-                widget = UserWidget(user, self.config, self.icons_path, self.is_dark_theme, counter)
+                widget = UserWidget(user, self.config, self.icons_path, self.is_dark_theme, game_counter, is_tracked=self._is_tracked(user))
                 _wire(widget)
                 self.user_widgets[user.jid] = widget
                 
@@ -456,9 +485,9 @@ class UserListWidget(QWidget):
                     existing = item.widget()
                     
                     if is_game:
-                        # Sort by counter desc, then name asc
-                        my_counter = counter or 1
-                        their_counter = self.user_game_state.get(existing.user.login, {}).get('counter', 1)
+                        # Sort by game_counter desc, then name asc
+                        my_counter = game_counter or 1
+                        their_counter = self.user_game_state.get(existing.user.login, {}).get('game_counter', 1)
                         if my_counter > their_counter or (my_counter == their_counter and user.login.lower() < existing.user.login.lower()):
                             container.insertWidget(i, widget)
                             inserted = True

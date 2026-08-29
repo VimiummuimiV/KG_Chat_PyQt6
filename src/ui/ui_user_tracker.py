@@ -623,6 +623,7 @@ class TrackerUserChip(UserCountRow):
 
 class UserTrackerWidget(QWidget):
     back_requested = pyqtSignal()
+    tracked_users_changed = pyqtSignal()
 
     def __init__(self, config, icons_path: Path, user_tracker: UserTracker, font_scaler=None):
         super().__init__()
@@ -880,6 +881,7 @@ class UserTrackerWidget(QWidget):
             username, user_id = item.get_data()
             if username and user_id and item.username_valid:
                 self.user_tracker.add_selected(user_id, username)
+        self.tracked_users_changed.emit()
 
     def _recalculate_layout(self):
         if not self.user_items:

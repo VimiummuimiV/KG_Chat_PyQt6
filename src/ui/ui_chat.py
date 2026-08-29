@@ -3586,6 +3586,9 @@ class ChatWindow(QWidget):
                 font_scaler=getattr(self.app_controller, "font_scaler", None)
             )
             self.user_tracker_widget.back_requested.connect(self._on_stacked_back)
+            self.user_tracker_widget.tracked_users_changed.connect(
+                lambda: self._refresh_tracked_star()
+            )
             self.stacked_widget.addWidget(self.user_tracker_widget)
         else:
             self.user_tracker_widget.refresh()
@@ -3653,6 +3656,9 @@ class ChatWindow(QWidget):
             )
             self.settings_widget.tracker_enabled_changed.connect(
                 self._on_tracker_enabled_changed
+            )
+            self.settings_widget.tracker_userlist_star_changed.connect(
+                lambda _checked=None: self._refresh_tracked_star()
             )
             self.settings_widget.competition_log_clear_requested.connect(
                 self.clear_competition_log
@@ -3825,6 +3831,15 @@ class ChatWindow(QWidget):
         w = getattr(self, 'user_tracker_widget', None)
         if w is not None:
             w.refresh()
+        self._refresh_tracked_star(user_id=user_id or None, login=login or None)
+
+    def _refresh_tracked_star(self, user_id: str = None, login: str = None):
+        """Update tracked star on general + room userlists. No args = all (settings toggle)."""
+        userlists = [self.user_list_widget]
+        userlists.extend(room.user_list_widget for room in self._all_room_widgets())
+        for widget in userlists:
+            if widget is not None:
+                widget.refresh_tracked_star(user_id=user_id, login=login)
 
     def _ban_user_from_msg(self, msg, permanent: bool = True, duration: int = None, widget=None):
         """Perform ban: update BanManager, remove messages, remove userlist entry"""

@@ -131,12 +131,12 @@
     "settings": {
       "sections": {
         "startup": true,
-        "chat": false,
+        "chat": true,
         "fonts": true,
         "notifications": true,
         "competitions": true,
         "sound": true,
-        "user_tracker": true
+        "user_tracker": false
       },
       "widgets": {
         "ws_log": false,
@@ -239,7 +239,6 @@
     "click_action": "chat",
     "default_tab": "history",
     "notifications": false,
-    "show_badge": false,
     "presence_log": true,
     "presence_log_split_percent": 20,
     "track_events": [
