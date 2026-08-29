@@ -911,6 +911,10 @@ class SettingsWidget(QWidget):
         self.youtube_checkbox = self._add_checkbox(
             section, "Enable YouTube link previews", self._on_youtube_toggled
         )
+        self.settings_accordion_checkbox = self._add_checkbox(
+            section, "Accordion settings sections (opening one collapses others)",
+            self._on_settings_accordion_toggled
+        )
         self.browser_combo = self._add_combo_row(
             section, "Open links in", [], self._on_browser_changed
         )
@@ -929,10 +933,6 @@ class SettingsWidget(QWidget):
             default=DEFAULTS["chat"]["mentions_digest_interval_hours"],
         )
         self._add_hotkey_row(section, "Toggle chat window")
-        self.settings_accordion_checkbox = self._add_checkbox(
-            section, "Accordion settings sections (opening one collapses others)",
-            self._on_settings_accordion_toggled
-        )
 
         limits_header, limits_content, limits_layout = self._add_subsection(section, "📏 Message Limits")
         self.chatlog_max_messages_spin = self._add_slider_spin_row(
