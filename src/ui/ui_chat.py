@@ -4272,6 +4272,7 @@ class ChatWindow(QWidget):
         # delegate state remain intact. Full cleanup happens only when the
         # app is actually closing.
         if self.tray_mode and not self.really_close:
+            self._teardown_presence_log_widget()
             event.ignore()
             self.hide()
             return
