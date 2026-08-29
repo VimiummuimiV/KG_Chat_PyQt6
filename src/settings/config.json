@@ -136,7 +136,7 @@
         "notifications": true,
         "competitions": true,
         "sound": true,
-        "user_tracker": false
+        "user_tracker": true
       },
       "widgets": {
         "ws_log": false,
@@ -241,6 +241,8 @@
     "notifications": false,
     "presence_log": true,
     "presence_log_split_percent": 20,
+    "show_unread_badge": true,
+    "show_star_badge": true,
     "track_events": [
       "join",
       "game",

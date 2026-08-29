@@ -324,7 +324,7 @@ class UserListWidget(QWidget):
         return None
 
     def _tracked_star_enabled(self) -> bool:
-        return bool(self.config.get("user_tracker", "userlist_star_badge"))
+        return bool(self.config.get("user_tracker", "show_star_badge"))
 
     def _is_tracked(self, user) -> bool:
         return bool(

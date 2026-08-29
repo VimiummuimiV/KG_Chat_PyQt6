@@ -1149,7 +1149,7 @@ class SettingsWidget(QWidget):
             default=DEFAULTS["notification"]["fade_ms"],
         )
 
-        bypass_header, bypass_content, bypass_layout = self._add_subsection(section, "🔕 Bypass When Muted")
+        bypass_header, bypass_content, bypass_layout = self._add_subsection(section, "🔔 Bypass When Muted")
         self.competitions_bypass_combo = self._add_combo_row(
             bypass_layout, "Competitions when muted", [],
             lambda _t: self._on_mute_bypass_changed(self.competitions_bypass_combo, "competitions_bypass_mute"),
@@ -1548,7 +1548,7 @@ class SettingsWidget(QWidget):
         self.tracker_badge_checkbox.setChecked(
             True if tracker_badge is None else bool(tracker_badge)
         )
-        star_badge = self.config.get("user_tracker", "userlist_star_badge")
+        star_badge = self.config.get("user_tracker", "show_star_badge")
         self.tracker_userlist_star_checkbox.setChecked(bool(star_badge))
         track_events = self.config.get("user_tracker", "track_events")
         if not track_events:
@@ -1824,7 +1824,7 @@ class SettingsWidget(QWidget):
         self.tracker_badge_style_changed.emit()
 
     def _on_tracker_userlist_star_toggled(self, checked: bool):
-        self.config.set("user_tracker", "userlist_star_badge", value=checked)
+        self.config.set("user_tracker", "show_star_badge", value=checked)
         self.tracker_userlist_star_changed.emit(checked)
 
     def _on_badge_size_changed(self, value: int):

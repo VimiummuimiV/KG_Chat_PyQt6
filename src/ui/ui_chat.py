@@ -3834,8 +3834,8 @@ class ChatWindow(QWidget):
         self._refresh_tracked_star(user_id=user_id or None, login=login or None)
 
     def _refresh_tracked_star(self, user_id: str = None, login: str = None):
-        """Update tracked star on general + room userlists. No args = all (settings toggle)."""
-        userlists = [self.user_list_widget]
+        """Update tracked star on general, room and chatlog userlists."""
+        userlists = [self.user_list_widget, self.chatlog_userlist_widget]
         userlists.extend(room.user_list_widget for room in self._all_room_widgets())
         for widget in userlists:
             if widget is not None:

@@ -35,6 +35,20 @@ class ChatlogUserWidget(UserCountRow):
         super().__init__(username, msg_count, config, icons_path, user_id)
         self.user_tracker = user_tracker
         self.my_username = my_username
+        self.is_tracked = False
+        if (
+            bool(config.get("user_tracker", "show_star_badge"))
+            and user_tracker
+            and user_tracker.is_tracked(user_id=user_id, login=username)
+        ):
+            self.set_tracked(True)
+
+    def set_tracked(self, tracked: bool):
+        if tracked == self.is_tracked:
+            return
+        self.is_tracked = tracked
+        text = self.username_label.text()
+        self.username_label.setText(text + " ⭐" if tracked else text.replace(" ⭐", ""))
 
     def contextMenuEvent(self, event):
         is_tracked = bool(
@@ -226,6 +240,21 @@ class ChatlogUserlistWidget(QWidget):
         # Update clear button visibility
         self.clear_filter_btn.setVisible(bool(self.filtered_usernames))
     
+    def refresh_tracked_star(self, user_id: str = None, login: str = None):
+        """Update tracked star on existing widgets. No args = all (settings toggle)."""
+        enabled = bool(self.config.get("user_tracker", "show_star_badge"))
+        for widget in self.user_widgets.values():
+            if user_id and widget.user_id != user_id:
+                continue
+            if login and not user_id and widget.username != login:
+                continue
+            tracked = bool(
+                enabled
+                and self.user_tracker
+                and self.user_tracker.is_tracked(user_id=widget.user_id, login=widget.username)
+            )
+            widget.set_tracked(tracked)
+
     def update_theme(self):
         """Update colors based on theme"""
         is_dark = self.config.get("ui", "theme") == "dark"
