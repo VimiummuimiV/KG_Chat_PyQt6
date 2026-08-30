@@ -19,6 +19,41 @@ from helpers.dates import parse_short_date, DATE_PLACEHOLDER
 from components.tag_button import SavedValuesBar
 from helpers.data import get_data_dir
 from helpers.fonts import get_font, FontType
+from helpers.translate import tr, on_language_changed, TranslatableMixin
+
+# Mode keys (stable English identifiers for logic)
+MODE_KEYS = [
+    "Single Date",
+    "From Date",
+    "Date Range",
+    "From Start",
+    "From Registered",
+    "Personal Mentions",
+    "Sync Database",
+]
+MODE_LABELS = {
+    "Single Date": ("Single Date", "Одна дата"),
+    "From Date": ("From Date", "С даты"),
+    "Date Range": ("Date Range", "Диапазон дат"),
+    "From Start": ("From Start", "С начала"),
+    "From Registered": ("From Registered", "С регистрации"),
+    "Personal Mentions": ("Personal Mentions", "Личные упоминания"),
+    "Sync Database": ("Sync Database", "Синхронизация базы"),
+}
+MENTION_SUB_KEYS = [
+    "Single Date",
+    "From Date",
+    "Date Range",
+    "From Start",
+    "Last N Days",
+]
+MENTION_SUB_LABELS = {
+    "Single Date": ("Single Date", "Одна дата"),
+    "From Date": ("From Date", "С даты"),
+    "Date Range": ("Date Range", "Диапазон дат"),
+    "From Start": ("From Start", "С начала"),
+    "Last N Days": ("Last N Days", "Последние N дней"),
+}
 
 
 class ParserWorker(QThread):
@@ -63,7 +98,7 @@ class ParserWorker(QThread):
         self.engine.stop()
 
 
-class ChatlogsParserConfigWidget(QWidget):
+class ChatlogsParserConfigWidget(TranslatableMixin, QWidget):
     """Configuration widget for chatlog parser"""
    
     parse_started = pyqtSignal(object) # ParseConfig
@@ -71,6 +106,7 @@ class ChatlogsParserConfigWidget(QWidget):
    
     def __init__(self, config, icons_path: Path, account=None):
         super().__init__()
+        self._init_translatable()
         self.config = config
         self.icons_path = icons_path
         self.account = account
@@ -182,18 +218,15 @@ class ChatlogsParserConfigWidget(QWidget):
         mode_container = QWidget()
         mode_layout = QHBoxLayout()
         mode_layout.setSpacing(self.spacing)
-        mode_label = self._create_label("Mode:")
+        mode_label = self._create_label(tr("Mode:", "Режим:"))
+        self._mode_label = mode_label
         mode_layout.addWidget(mode_label)
        
-        self.mode_combo = self._create_combo([
-            "Single Date",
-            "From Date",
-            "Date Range",
-            "From Start",
-            "From Registered",
-            "Personal Mentions",
-            "Sync Database"
-        ])
+        self.mode_combo = QComboBox()
+        self.mode_combo.setFont(get_font(FontType.UI))
+        for key in MODE_KEYS:
+            en, ru = MODE_LABELS[key]
+            self.mode_combo.addItem(tr(en, ru), key)
         self.mode_combo.currentIndexChanged.connect(self._on_mode_changed)
         mode_layout.addWidget(self.mode_combo, stretch=1)
         mode_container.setLayout(mode_layout)
@@ -210,8 +243,8 @@ class ChatlogsParserConfigWidget(QWidget):
         # Username input with fetch history button (label changes in Personal Mentions mode)
         username_container = QWidget()
         username_layout, self.username_input = self._create_input_row(
-            "Usernames:",
-            "comma-separated (leave empty for all users)"
+            tr("Usernames:", "Имена:"),
+            tr("comma-separated (leave empty for all users)", "через запятую (пусто = все пользователи)")
         )
         
         # Get reference to the label that was created
@@ -223,18 +256,20 @@ class ChatlogsParserConfigWidget(QWidget):
        
         # Fetch history button
         self.fetch_history_button = create_icon_button(
-            self.icons_path, "user-received.svg", "Fetch username history",
+            self.icons_path, "user-received.svg", "",
             size_type="large", config=self.config
         )
+        self._tr_set(self.fetch_history_button.setToolTip, "Fetch username history", "Загрузить историю имён")
         self.fetch_history_button.clicked.connect(lambda: self._fetch_username_history(self.username_input))
         self.fetch_history_button.setEnabled(False)
         username_layout.addWidget(self.fetch_history_button)
 
         # Add current usernames to the saved chips (not just after a successful parse)
         self.add_username_button = create_icon_button(
-            self.icons_path, "add.svg", "Add to saved usernames",
+            self.icons_path, "add.svg", "",
             size_type="large", config=self.config
         )
+        self._tr_set(self.add_username_button.setToolTip, "Add to saved usernames", "Добавить в сохранённые имена")
         self.add_username_button.clicked.connect(self._add_usernames_to_saved)
         self.add_username_button.setEnabled(False)
         username_layout.addWidget(self.add_username_button)
@@ -252,8 +287,8 @@ class ChatlogsParserConfigWidget(QWidget):
         # Search terms input (label changes in Personal Mentions mode)
         search_container = QWidget()
         search_layout, self.search_input = self._create_input_row(
-            "Search:",
-            "comma-separated search terms (leave empty for all messages)"
+            tr("Search:", "Поиск:"),
+            tr("comma-separated search terms (leave empty for all messages)", "термины через запятую (пусто = все сообщения)")
         )
         
         # Get reference to the label that was created
@@ -265,9 +300,10 @@ class ChatlogsParserConfigWidget(QWidget):
         
         # Fetch history button for search/mentions field
         self.search_fetch_history_button = create_icon_button(
-            self.icons_path, "user-received.svg", "Fetch username history",
+            self.icons_path, "user-received.svg", "",
             size_type="large", config=self.config
         )
+        self._tr_set(self.search_fetch_history_button.setToolTip, "Fetch username history", "Загрузить историю имён")
         self.search_fetch_history_button.clicked.connect(lambda: self._fetch_username_history(self.search_input))
         self.search_fetch_history_button.setEnabled(False)
         search_layout.addWidget(self.search_fetch_history_button)
@@ -298,26 +334,29 @@ class ChatlogsParserConfigWidget(QWidget):
         button_layout.setSpacing(self.config.get("ui", "buttons", "spacing") or 8)
        
         self.parse_button = create_icon_button(
-            self.icons_path, "play.svg", "Start parsing (S)",
+            self.icons_path, "play.svg", "",
             size_type="large", config=self.config
         )
+        self._tr_set(self.parse_button.setToolTip, "Start parsing (S)", "Начать парсинг (S)")
         self.parse_button.clicked.connect(self._on_parse_clicked)
         button_layout.addWidget(self.parse_button)
        
         # Copy button (initially hidden)
         self.copy_button = create_icon_button(
-            self.icons_path, "clipboard.svg", "Copy results to clipboard (Ctrl+C)",
+            self.icons_path, "clipboard.svg", "",
             size_type="large", config=self.config
         )
+        self._tr_set(self.copy_button.setToolTip, "Copy results to clipboard (Ctrl+C)", "Копировать результаты в буфер (Ctrl+C)")
         self.copy_button.clicked.connect(self._on_copy_clicked)
         self.copy_button.setVisible(False)
         button_layout.addWidget(self.copy_button)
        
         # Save button (initially hidden)
         self.save_button = create_icon_button(
-            self.icons_path, "save.svg", "Save results to file (Ctrl+S)",
+            self.icons_path, "save.svg", "",
             size_type="large", config=self.config
         )
+        self._tr_set(self.save_button.setToolTip, "Save results to file (Ctrl+S)", "Сохранить результаты в файл (Ctrl+S)")
         self.save_button.clicked.connect(self._on_save_clicked)
         self.save_button.setVisible(False)
         button_layout.addWidget(self.save_button)
@@ -330,7 +369,19 @@ class ChatlogsParserConfigWidget(QWidget):
        
         # Initialize with first mode
         self._on_mode_changed(0)
+        on_language_changed(self._retranslate)
    
+    def _retranslate(self, _code=None):
+        self._retranslate_all()
+        # Refresh mode combo labels
+        for i, key in enumerate(MODE_KEYS):
+            en, ru = MODE_LABELS[key]
+            self.mode_combo.setItemText(i, tr(en, ru))
+        if hasattr(self, "_mode_label"):
+            self._mode_label.setText(tr("Mode:", "Режим:"))
+        # Re-apply mode UI to refresh dynamic labels
+        self._on_mode_changed(self.mode_combo.currentIndex())
+
     def _update_buttons_state(self):
         """Enable/disable the fetch and add buttons based on inputs"""
         has_username = bool(self.username_input.text().strip())
@@ -342,7 +393,7 @@ class ChatlogsParserConfigWidget(QWidget):
     def _set_username_fetch_loading(self, is_loading: bool):
         """Change username fetch button icon to loader or back to normal"""
         icon_name = "loader.svg" if is_loading else "user-received.svg"
-        tooltip = "Fetching..." if is_loading else "Fetch username history"
+        tooltip = tr("Fetching...", "Загрузка...") if is_loading else tr("Fetch username history", "Загрузить историю имён")
         icon_size = self.fetch_history_button._icon_size
         self.fetch_history_button.setIcon(_render_svg_icon(self.icons_path / icon_name, icon_size))
         self.fetch_history_button.setToolTip(tooltip)
@@ -350,7 +401,7 @@ class ChatlogsParserConfigWidget(QWidget):
     def _set_search_fetch_loading(self, is_loading: bool):
         """Change search fetch button icon to loader or back to normal"""
         icon_name = "loader.svg" if is_loading else "user-received.svg"
-        tooltip = "Fetching..." if is_loading else "Fetch username history"
+        tooltip = tr("Fetching...", "Загрузка...") if is_loading else tr("Fetch username history", "Загрузить историю имён")
         icon_size = self.search_fetch_history_button._icon_size
         self.search_fetch_history_button.setIcon(_render_svg_icon(self.icons_path / icon_name, icon_size))
         self.search_fetch_history_button.setToolTip(tooltip)
@@ -377,10 +428,15 @@ class ChatlogsParserConfigWidget(QWidget):
         """Ask whether to proceed with names the API does not know (renamed accounts, etc.)."""
         reply = QMessageBox.question(
             self,
-            "Users Not Found",
-            f"The following users were not found (they may have renamed):\n"
-            f"{', '.join(invalid)}\n\n"
-            f"{action}",
+            tr("Users Not Found", "Пользователи не найдены"),
+            tr(
+                f"The following users were not found (they may have renamed):\n"
+                f"{', '.join(invalid)}\n\n"
+                f"{action}",
+                f"Следующие пользователи не найдены (возможно, сменили имя):\n"
+                f"{', '.join(invalid)}\n\n"
+                f"{action}"
+            ),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.No,
         )
@@ -400,7 +456,7 @@ class ChatlogsParserConfigWidget(QWidget):
         to_save = list(valid)
         if invalid:
             if self._confirm_unknown_usernames(
-                invalid, "Save them to the list anyway?"
+                invalid, tr("Save them to the list anyway?", "Всё равно сохранить в список?")
             ):
                 to_save.extend(invalid)
         if to_save:
@@ -488,22 +544,28 @@ class ChatlogsParserConfigWidget(QWidget):
         if not_found:
             QMessageBox.warning(
                 self,
-                "Users Not Found",
-                f"The following users were not found:\n{', '.join(not_found)}"
+                tr("Users Not Found", "Пользователи не найдены"),
+                tr(
+                    f"The following users were not found:\n{', '.join(not_found)}",
+                    f"Следующие пользователи не найдены:\n{', '.join(not_found)}"
+                )
             )
         elif usernames:
             # Only show success message if we found users and had no errors
             QMessageBox.information(
                 self,
-                "History Fetched",
-                f"Retrieved {len(usernames)} usernames including history."
+                tr("History Fetched", "История загружена"),
+                tr(
+                    f"Retrieved {len(usernames)} usernames including history.",
+                    f"Получено {len(usernames)} имён с учётом истории."
+                )
             )
         else:
             # No users found at all
             QMessageBox.warning(
                 self,
-                "No Users Found",
-                "None of the entered usernames were found."
+                tr("No Users Found", "Пользователи не найдены"),
+                tr("None of the entered usernames were found.", "Ни одно из введённых имён не найдено.")
             )
    
     def _on_fetch_error(self, input_field: QLineEdit, error: str):
@@ -518,7 +580,13 @@ class ChatlogsParserConfigWidget(QWidget):
        
         self._update_buttons_state()
        
-        QMessageBox.critical(self, "Error", f"Failed to fetch username history:\n{error}")
+        QMessageBox.critical(
+            self,
+            tr("Error", "Ошибка"),
+            tr(
+                f"Failed to fetch username history:\n{error}",
+                f"Не удалось загрузить историю ников:\n{error}")
+            )
    
     def _get_current_username(self):
         """Get current username from account - try chat_username first, fall back to login"""
@@ -528,7 +596,7 @@ class ChatlogsParserConfigWidget(QWidget):
    
     def _update_mention_label(self):
         """Update the mention label based on current mode and inputs"""
-        mode = self.mode_combo.currentText()
+        mode = self.mode_combo.currentData() or self.mode_combo.currentText()
         
         if mode != "Personal Mentions":
             self.mention_label_widget.setVisible(False)
@@ -559,15 +627,27 @@ class ChatlogsParserConfigWidget(QWidget):
         if all_mentions and username_filter:
             mentions_str = ', '.join(all_mentions)
             users_str = ', '.join(username_filter)
-            self.mention_label_widget.setText(f"🔍 Searching mentions of: {mentions_str} in messages from: {users_str}")
+            self.mention_label_widget.setText(tr(
+                f"🔍 Searching mentions of: {mentions_str} in messages from: {users_str}",
+                f"🔍 Поиск упоминаний: {mentions_str} в сообщениях от: {users_str}")
+            )
         elif all_mentions:
             mentions_str = ', '.join(all_mentions)
-            self.mention_label_widget.setText(f"🔍 Searching mentions of: {mentions_str} in messages from: all users")
+            self.mention_label_widget.setText(tr(
+                f"🔍 Searching mentions of: {mentions_str} in messages from: all users",
+                f"🔍 Поиск упоминаний: {mentions_str} в сообщениях от: всех пользователей")
+            )
         elif username_filter:
             users_str = ', '.join(username_filter)
-            self.mention_label_widget.setText(f"⚠️ No mentions specified. Please add keywords in the Mentions field.")
+            self.mention_label_widget.setText(tr(
+                "⚠️ No mentions specified. Please add keywords in the Mentions field.",
+                "⚠️ Упоминания не указаны. Добавьте ключевые слова в поле Упоминания.")
+            )
         else:
-            self.mention_label_widget.setText("⚠️ No mentions specified. Please log in or add keywords in the Mentions field.")
+            self.mention_label_widget.setText(tr(
+                "⚠️ No mentions specified. Please log in or add keywords in the Mentions field.",
+                "⚠️ Упоминания не указаны. Войдите или добавьте ключевые слова в поле Упоминания.")
+            )
    
     def _on_mode_changed(self, index: int):
         """Update UI based on selected mode"""
@@ -577,16 +657,18 @@ class ChatlogsParserConfigWidget(QWidget):
             if item.widget():
                 item.widget().deleteLater()
        
-        mode = self.mode_combo.currentText()
+        mode = self.mode_combo.currentData() or self.mode_combo.currentText()
         self.is_sync_mode = (mode == "Sync Database")
         is_mention_mode = (mode == "Personal Mentions")
        
         # Update field labels based on mode
         if is_mention_mode:
-            self.username_label.setText("From Users:")
-            self.username_input.setPlaceholderText("comma-separated (leave empty for all users)")
-            self.search_label.setText("Mentions:")
-            self.search_input.setPlaceholderText("keywords or usernames to search for (comma-separated)")
+            self.username_label.setText(tr("From Users:", "От пользователей:"))
+            self.username_input.setPlaceholderText(
+                tr("comma-separated (leave empty for all users)", "через запятую (пусто = все пользователи)"))
+            self.search_label.setText(tr("Mentions:", "Упоминания:"))
+            self.search_input.setPlaceholderText(
+                tr("keywords or usernames to search for (comma-separated)", "ключевые слова или имена (через запятую)"))
             
             # Prefill current username in Mentions field
             if not self.search_input.text().strip():
@@ -594,10 +676,12 @@ class ChatlogsParserConfigWidget(QWidget):
                 if current_username:
                     self.search_input.setText(current_username)
         else:
-            self.username_label.setText("Usernames:")
-            self.username_input.setPlaceholderText("comma-separated (leave empty for all users)")
-            self.search_label.setText("Search:")
-            self.search_input.setPlaceholderText("comma-separated search terms (leave empty for all messages)")
+            self.username_label.setText(tr("Usernames:", "Имена:"))
+            self.username_input.setPlaceholderText(
+                tr("comma-separated (leave empty for all users)", "через запятую (пусто = все пользователи)"))
+            self.search_label.setText(tr("Search:", "Поиск:"))
+            self.search_input.setPlaceholderText(
+                tr("comma-separated search terms (leave empty for all messages)", "термины через запятую (пусто = все сообщения)"))
             
             # Clear search input when switching away from Personal Mentions
             if hasattr(self, '_previous_mode') and self._previous_mode == "Personal Mentions":
@@ -613,34 +697,44 @@ class ChatlogsParserConfigWidget(QWidget):
         self.search_container_widget.setVisible(not self.is_sync_mode)
        
         if mode == "Single Date":
-            self._add_date_input("Date:", "single_date")
+            self._add_date_input(tr("Date:", "Дата:"), "single_date")
        
         elif mode == "From Date":
-            self._add_date_input("From:", "from_date")
-            info = QLabel("(to today)")
+            self._add_date_input(tr("From:", "С:"), "from_date")
+            info = QLabel(tr("(to today)", "(до сегодня)"))
             info.setStyleSheet("color: #888;")
             self.date_layout.addWidget(info)
        
         elif mode == "Date Range":
-            self._add_date_input("Range:", "range_dates", f"{DATE_PLACEHOLDER}  {DATE_PLACEHOLDER}")
+            self._add_date_input(tr("Range:", "Диапазон:"), "range_dates", f"{DATE_PLACEHOLDER}  {DATE_PLACEHOLDER}")
        
         elif mode == "From Start":
-            info = QLabel("Will parse from 2012-12-02 to today")
+            info = QLabel(tr("Will parse from 2012-12-02 to today", "Парсинг с 2012-12-02 до сегодня"))
             info.setStyleSheet("color: #888;")
             self.date_layout.addWidget(info)
        
         elif mode == "From Registered":
-            info = QLabel("Will use registration date of entered user(s)")
+            info = QLabel(tr(
+                "Will use registration date of entered user(s)",
+                "Будет использована дата регистрации указанных пользователей")
+            )
             info.setStyleSheet("color: #888;")
             self.date_layout.addWidget(info)
        
         elif mode == "Sync Database":
-            info = QLabel("📁 Sync all missing chatlogs to database")
+            info = QLabel(tr(
+                "📁 Sync all missing chatlogs to database",
+                "📁 Синхронизировать все недостающие чатлоги в базу")
+            )
             info.setStyleSheet("color: #4CAF50; font-weight: bold; padding: 8px;")
             self.date_layout.addWidget(info)
             
-            desc = QLabel("This will fetch all chatlogs from 2012-12-02 to today that are not yet in the database. "
-                         "No messages will be displayed - only database synchronization.")
+            desc = QLabel(tr(
+                "This will fetch all chatlogs from 2012-12-02 to today that are not yet in the database. "
+                "No messages will be displayed - only database synchronization.",
+                "Загрузит все чатлоги с 2012-12-02 до сегодня, которых ещё нет в базе. "
+                "Сообщения не будут показаны — только синхронизация базы."
+            ))
             desc.setWordWrap(True)
             desc.setStyleSheet("color: #888; padding: 4px;")
             self.date_layout.addWidget(desc)
@@ -648,16 +742,14 @@ class ChatlogsParserConfigWidget(QWidget):
         elif mode == "Personal Mentions":
             sub_mode_layout = QHBoxLayout()
             sub_mode_layout.setSpacing(self.spacing)
-            sub_mode_label = self._create_label("Date Mode:")
+            sub_mode_label = self._create_label(tr("Date Mode:", "Режим дат:"))
             sub_mode_layout.addWidget(sub_mode_label)
            
-            self.mention_date_combo = self._create_combo([
-                "Single Date",
-                "From Date",
-                "Date Range",
-                "From Start",
-                "Last N Days"
-            ])
+            self.mention_date_combo = QComboBox()
+            self.mention_date_combo.setFont(get_font(FontType.UI))
+            for key in MENTION_SUB_KEYS:
+                en, ru = MENTION_SUB_LABELS[key]
+                self.mention_date_combo.addItem(tr(en, ru), key)
             self.mention_date_combo.currentIndexChanged.connect(self._on_mention_date_mode_changed)
             sub_mode_layout.addWidget(self.mention_date_combo, stretch=1)
            
@@ -676,18 +768,18 @@ class ChatlogsParserConfigWidget(QWidget):
             if item.widget():
                 item.widget().deleteLater()
        
-        sub_mode = self.mention_date_combo.currentText()
+        sub_mode = self.mention_date_combo.currentData() or self.mention_date_combo.currentText()
        
         if sub_mode == "Single Date":
-            self._add_date_input("Date:", "mention_single_date")
+            self._add_date_input(tr("Date:", "Дата:"), "mention_single_date")
         elif sub_mode == "From Date":
-            self._add_date_input("From:", "mention_from_date")
+            self._add_date_input(tr("From:", "С:"), "mention_from_date")
         elif sub_mode == "Date Range":
-            self._add_date_input("Range:", "mention_range_dates", f"{DATE_PLACEHOLDER}  {DATE_PLACEHOLDER}")
+            self._add_date_input(tr("Range:", "Диапазон:"), "mention_range_dates", f"{DATE_PLACEHOLDER}  {DATE_PLACEHOLDER}")
         elif sub_mode == "From Start":
             pass # No input needed
         elif sub_mode == "Last N Days":
-            days_layout, self.days_input = self._create_input_row("Days:", "7")
+            days_layout, self.days_input = self._create_input_row(tr("Days:", "Дней:"), "7")
             self.days_input.setText("7")
            
             container = QWidget()
@@ -732,7 +824,7 @@ class ChatlogsParserConfigWidget(QWidget):
    
     def _start_parsing(self):
         """Validate any typed usernames (mode-permitting) before actually starting the parse"""
-        mode = self.mode_combo.currentText()
+        mode = self.mode_combo.currentData() or self.mode_combo.currentText()
         usernames = [] if mode == "Sync Database" else self._get_usernames()
         if not usernames:
             self._on_parse_usernames_validated([], [])
@@ -756,13 +848,13 @@ class ChatlogsParserConfigWidget(QWidget):
             # Update UI for parsing state
             self.is_parsing = True
             self.parse_button.setIcon(_render_svg_icon(self.icons_path / "stop.svg", self.parse_button._icon_size))
-            self.parse_button.setToolTip("Stop parsing (C)")
+            self.parse_button.setToolTip(tr("Stop parsing (C)", "Остановить парсинг (C)"))
             self.progress_bar.setVisible(True)
             self.progress_bar.setValue(0)
             self.progress_label.setVisible(True)
             
             if config.mode == 'syncdatabase':
-                self.progress_label.setText("Syncing database...")
+                self.progress_label.setText(tr("Syncing database...", "Синхронизация базы..."))
             else:
                 self.progress_label.setText(f"{config.from_date} - {config.from_date}")
            
@@ -786,7 +878,7 @@ class ChatlogsParserConfigWidget(QWidget):
         """Reset UI to non-parsing state"""
         self.is_parsing = False
         self.parse_button.setIcon(_render_svg_icon(self.icons_path / "play.svg", self.parse_button._icon_size))
-        self.parse_button.setToolTip("Start parsing (S)")
+        self.parse_button.setToolTip(tr("Start parsing (S)", "Начать парсинг (S)"))
         self.progress_bar.setVisible(False)
         self.progress_label.setVisible(False)
         self.progress_label.setText("")
@@ -821,7 +913,7 @@ class ChatlogsParserConfigWidget(QWidget):
    
     def _build_parse_config(self) -> Optional[ParseConfig]:
         """Build ParseConfig from UI inputs"""
-        mode = self.mode_combo.currentText()
+        mode = self.mode_combo.currentData() or self.mode_combo.currentText()
        
         # Earliest allowed date
         EARLIEST_ALLOWED_DATE = "2012-12-02"
@@ -837,14 +929,14 @@ class ChatlogsParserConfigWidget(QWidget):
         elif mode == "Single Date":
             date_input = self.findChild(QLineEdit, "single_date")
             if not date_input or not date_input.text().strip():
-                QMessageBox.warning(self, "Missing Date", "Please enter a date")
+                QMessageBox.warning(self, tr("Missing Date", "Нет даты"), tr("Please enter a date", "Введите дату"))
                 return None
             from_date = to_date = date_input.text().strip()
        
         elif mode == "From Date":
             date_input = self.findChild(QLineEdit, "from_date")
             if not date_input or not date_input.text().strip():
-                QMessageBox.warning(self, "Missing Date", "Please enter from date")
+                QMessageBox.warning(self, tr("Missing Date", "Нет даты"), tr("Please enter from date", "Введите начальную дату"))
                 return None
             from_date = date_input.text().strip()
             to_date = datetime.now().strftime('%Y-%m-%d')
@@ -852,11 +944,15 @@ class ChatlogsParserConfigWidget(QWidget):
         elif mode == "Date Range":
             range_input = self.findChild(QLineEdit, "range_dates")
             if not range_input or not range_input.text().strip():
-                QMessageBox.warning(self, "Missing Dates", "Please enter date range in format YYYY-MM-DD YYYY-MM-DD")
+                QMessageBox.warning(self,
+                    tr("Missing Dates", "Нет дат"),
+                    tr("Please enter date range in format YYYY-MM-DD YYYY-MM-DD", "Введите диапазон в формате ГГГГ-ММ-ДД ГГГГ-ММ-ДД"))
                 return None
             dates = range_input.text().strip().split()
             if len(dates) != 2:
-                QMessageBox.warning(self, "Invalid Format", "Invalid range format - use YYYY-MM-DD YYYY-MM-DD")
+                QMessageBox.warning(self,
+                    tr("Invalid Format", "Неверный формат"),
+                    tr("Invalid range format - use YYYY-MM-DD YYYY-MM-DD", "Неверный формат диапазона — используйте ГГГГ-ММ-ДД ГГГГ-ММ-ДД"))
                 return None
             from_date, to_date = dates
        
@@ -873,12 +969,16 @@ class ChatlogsParserConfigWidget(QWidget):
                 # Parse directly from field (fetch history was not used)
                 original_usernames_text = self.username_input.text().strip()
                 if not original_usernames_text:
-                    QMessageBox.warning(self, "Missing Username", "Please enter at least one username")
+                    QMessageBox.warning(self,
+                        tr("Missing Username", "Нет имени"),
+                        tr("Please enter at least one username", "Введите хотя бы одно имя пользователя"))
                     return None
                 usernames_to_check = [u.strip() for u in original_usernames_text.split(',') if u.strip()]
            
             if not usernames_to_check:
-                QMessageBox.warning(self, "Missing Username", "Please enter at least one username")
+                QMessageBox.warning(self,
+                    tr("Missing Username", "Нет имени"),
+                    tr("Please enter at least one username", "Введите хотя бы одно имя пользователя"))
                 return None
            
             # Fetch registration dates only for originally typed usernames
@@ -889,7 +989,12 @@ class ChatlogsParserConfigWidget(QWidget):
                     reg_dates.append(reg_date)
            
             if not reg_dates:
-                QMessageBox.warning(self, "Error", "Could not get registration date for specified username(s)")
+                QMessageBox.warning(self,
+                    tr("Error", "Ошибка"),
+                    tr(
+                        "Could not get registration date for specified username(s)",
+                        "Не удалось получить дату регистрации для указанных имён")
+                    )
                 return None
            
             # Get earliest registration date, but clamp to earliest allowed date
@@ -901,25 +1006,35 @@ class ChatlogsParserConfigWidget(QWidget):
             if earliest_reg < EARLIEST_ALLOWED_DATE:
                 QMessageBox.information(
                     self,
-                    "Date Adjusted",
-                    f"Registration date ({earliest_reg}) is before earliest available logs.\n"
-                    f"Starting from {EARLIEST_ALLOWED_DATE} instead."
+                    tr("Date Adjusted", "Дата скорректирована"),
+                    tr(
+                        f"Registration date ({earliest_reg}) is before earliest available logs.\n"
+                        f"Starting from {EARLIEST_ALLOWED_DATE} instead.",
+                        f"Дата регистрации ({earliest_reg}) раньше самых ранних доступных логов.\n"
+                        f"Начинаем с {EARLIEST_ALLOWED_DATE}."
+                    )
                 )
        
         elif mode == "Personal Mentions":
-            sub_mode = self.mention_date_combo.currentText()
+            sub_mode = self.mention_date_combo.currentData() or self.mention_date_combo.currentText()
            
             if sub_mode == "Single Date":
                 date_input = self.findChild(QLineEdit, "mention_single_date")
                 if not date_input or not date_input.text().strip():
-                    QMessageBox.warning(self, "Missing Date", "Please enter a date")
+                    QMessageBox.warning(self,
+                        tr("Missing Date", "Нет даты"),
+                        tr("Please enter a date", "Введите дату")
+                    )
                     return None
                 from_date = to_date = date_input.text().strip()
            
             elif sub_mode == "From Date":
                 date_input = self.findChild(QLineEdit, "mention_from_date")
                 if not date_input or not date_input.text().strip():
-                    QMessageBox.warning(self, "Missing Date", "Please enter from date")
+                    QMessageBox.warning(self,
+                        tr("Missing Date", "Нет даты"),
+                        tr("Please enter from date", "Введите начальную дату")
+                    )
                     return None
                 from_date = date_input.text().strip()
                 to_date = datetime.now().strftime('%Y-%m-%d')
@@ -927,11 +1042,15 @@ class ChatlogsParserConfigWidget(QWidget):
             elif sub_mode == "Date Range":
                 range_input = self.findChild(QLineEdit, "mention_range_dates")
                 if not range_input or not range_input.text().strip():
-                    QMessageBox.warning(self, "Missing Dates", "Please enter date range in format YYYY-MM-DD YYYY-MM-DD")
+                    QMessageBox.warning(self,
+                        tr("Missing Dates", "Нет дат"),
+                        tr("Please enter date range in format YYYY-MM-DD YYYY-MM-DD", "Введите диапазон в формате ГГГГ-ММ-ДД ГГГГ-ММ-ДД"))
                     return None
                 dates = range_input.text().strip().split()
                 if len(dates) != 2:
-                    QMessageBox.warning(self, "Invalid Format", "Invalid range format - use YYYY-MM-DD YYYY-MM-DD")
+                    QMessageBox.warning(self,
+                        tr("Invalid Format", "Неверный формат"),
+                        tr("Invalid range format - use YYYY-MM-DD YYYY-MM-DD", "Неверный формат диапазона — используйте ГГГГ-ММ-ДД ГГГГ-ММ-ДД"))
                     return None
                 from_date, to_date = dates
            
@@ -941,19 +1060,25 @@ class ChatlogsParserConfigWidget(QWidget):
            
             elif sub_mode == "Last N Days":
                 if not hasattr(self, 'days_input') or not self.days_input.text().strip():
-                    QMessageBox.warning(self, "Missing Days", "Please enter number of days")
+                    QMessageBox.warning(self,
+                        tr("Missing Days", "Нет дней"),
+                        tr("Please enter number of days", "Введите количество дней"))
                     return None
                 try:
                     days = int(self.days_input.text().strip())
                     if days <= 0:
-                        QMessageBox.warning(self, "Invalid Days", "Days must be positive")
+                        QMessageBox.warning(self,
+                            tr("Invalid Days", "Неверные дни"),
+                            tr("Days must be positive", "Число дней должно быть положительным"))
                         return None
                     to_date = datetime.now().date()
                     from_date = to_date - timedelta(days=days-1)
                     from_date = from_date.strftime('%Y-%m-%d')
                     to_date = to_date.strftime('%Y-%m-%d')
                 except ValueError:
-                    QMessageBox.warning(self, "Invalid Days", "Invalid number of days")
+                    QMessageBox.warning(self,
+                        tr("Invalid Days", "Неверные дни"),
+                        tr("Invalid number of days", "Некорректное число дней"))
                     return None
         
         # Get usernames and search terms (skip for sync mode)

@@ -363,5 +363,10 @@
   "837673": {"login": "РукиБазуки", "background": "#777777", "light": "#767676", "dark": "#858585"},
   "790519": {"login": "PlayerSigi", "background": "#428ACE", "light": "#317abe", "dark": "#428ACE"},
   "781151": {"login": "Kirvon", "background": "#777777", "light": "#767676", "dark": "#858585"},
-  "23132": {"login": "wormer", "background": "#00e800", "light": "#008a00", "dark": "#00e800"}
+  "23132": {"login": "wormer", "background": "#00e800", "light": "#008a00", "dark": "#00e800"},
+  "842663": {"login": "Fxynos", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "823987": {"login": "khanem", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "774371": {"login": "Moonright", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "842664": {"login": "v3lvin", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "358531": {"login": "Dim37", "background": "#000000", "light": "#000000", "dark": "#858585"}
 }

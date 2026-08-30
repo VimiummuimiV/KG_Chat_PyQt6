@@ -29,11 +29,13 @@ from ui.message_delegate import MessageDelegate
 from ui.ui_chatlogs_parser import ChatlogsParserConfigWidget, ParserWorker
 from ui.ui_settings import DEFAULTS
 from components.search import MessageSearchBar, parse_search_text
+from helpers.translate import tr, on_language_changed, TranslatableMixin
 
-LIMIT_EXCEEDED_SUFFIX = "rendering disabled. Use Copy/Save buttons."
+LIMIT_EXCEEDED_SUFFIX_EN = "Rendering disabled. Use Copy/Save buttons."
+LIMIT_EXCEEDED_SUFFIX_RU = "Отрисовка отключена. Используйте кнопки Копировать/Сохранить."
 
 
-class ChatlogWidget(QWidget):
+class ChatlogWidget(TranslatableMixin, QWidget):
     """Chatlog viewer with virtual scrolling, search, and parser"""
     back_requested = pyqtSignal()
     messages_loaded = pyqtSignal(list)
@@ -50,6 +52,7 @@ class ChatlogWidget(QWidget):
         ban_manager=None
         ):
         super().__init__()
+        self._init_translatable()
         self.config = config
         self.emoticon_manager = emoticon_manager
         self.icons_path = icons_path
@@ -99,6 +102,7 @@ class ChatlogWidget(QWidget):
         self.repeat_delay_timer.timeout.connect(self.repeat_timer.start)
 
         self._setup_ui()
+        on_language_changed(self._retranslate)
     
         # Initialize auto-scroller after UI is set up
         self.auto_scroller = AutoScroller(self.list_view)
@@ -225,7 +229,7 @@ class ChatlogWidget(QWidget):
                 parent_window=self,
                 ban_manager=self.ban_manager
             )
-            self.split_chatlog_widget.back_btn.setToolTip("Close split view")
+            self.split_chatlog_widget.back_btn.setToolTip(tr("Close split view", "Закрыть разделённый вид"))
             self.split_chatlog_widget.back_requested.connect(self._close_split_view)
             self.content_splitter.addWidget(self.split_chatlog_widget)
             self.content_splitter.setSizes([self.height() // 2, self.height() // 2])
@@ -308,7 +312,7 @@ class ChatlogWidget(QWidget):
         self.info_block.addWidget(self.date_label)
      
         # Info label
-        self.info_label = QLabel("Loading...")
+        self.info_label = QLabel(tr("Loading...", "Загрузка..."))
         self.info_label.setStyleSheet("color: #666666;")
         self.info_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         self.info_block.addWidget(self.info_label)
@@ -321,40 +325,49 @@ class ChatlogWidget(QWidget):
         )
 
 
-        self.back_btn = create_icon_button(self.icons_path, "go-back.svg", "Back to chat",
+        self.back_btn = create_icon_button(self.icons_path, "go-back.svg", "",
                                           size_type="large", config=self.config)
+        self._tr_set(self.back_btn.setToolTip, "Back to messages", "Назад к сообщениям")
         self.back_btn.clicked.connect(self.back_requested.emit)
         self.nav_buttons_container.add_widget(self.back_btn)
 
-        self.prev_btn = create_icon_button(self.icons_path, "arrow-left.svg", "Previous day (H)",
+        self.prev_btn = create_icon_button(self.icons_path, "arrow-left.svg", "",
                                           size_type="large", config=self.config)
+        self._tr_set(self.prev_btn.setToolTip, "Previous day (H)", "Предыдущий день (H)")
         self.prev_btn.pressed.connect(lambda: self._navigate_hold(-1))
         self.prev_btn.released.connect(lambda: self._navigate_hold())
         self.nav_buttons_container.add_widget(self.prev_btn)
 
-        self.next_btn = create_icon_button(self.icons_path, "arrow-right.svg", "Next day (L)",
+        self.next_btn = create_icon_button(self.icons_path, "arrow-right.svg", "",
                                           size_type="large", config=self.config)
+        self._tr_set(self.next_btn.setToolTip, "Next day (L)", "Следующий день (L)")
         self.next_btn.pressed.connect(lambda: self._navigate_hold(1))
         self.next_btn.released.connect(lambda: self._navigate_hold())
         self.nav_buttons_container.add_widget(self.next_btn)
 
-        self.calendar_btn = create_icon_button(self.icons_path, "calendar.svg", "Select date (D)",
+        self.calendar_btn = create_icon_button(self.icons_path, "calendar.svg", "",
                                               size_type="large", config=self.config)
+        self._tr_set(self.calendar_btn.setToolTip, "Select date (D)", "Выбрать дату (D)")
         self.calendar_btn.clicked.connect(self._show_calendar)
         self.nav_buttons_container.add_widget(self.calendar_btn)
 
-        self.search_toggle_btn = create_icon_button(self.icons_path, "search.svg", "Toggle search (S / Ctrl+F)",
+        self.search_toggle_btn = create_icon_button(self.icons_path, "search.svg", "",
                                                    size_type="large", config=self.config)
+        self._tr_set(self.search_toggle_btn.setToolTip, "Toggle search (S / Ctrl+F)", "Поиск (S / Ctrl+F)")
         self.search_toggle_btn.clicked.connect(self._toggle_search)
         self.nav_buttons_container.add_widget(self.search_toggle_btn)
 
-        self.mention_filter_btn = create_icon_button(self.icons_path, "at-line.svg", "Filter mentions (M)",
+        self.mention_filter_btn = create_icon_button(self.icons_path, "at-line.svg", "",
                                                     size_type="large", config=self.config)
+        self._tr_set(self.mention_filter_btn.setToolTip, "Filter mentions (M)", "Фильтр упоминаний (M)")
         self.mention_filter_btn.clicked.connect(self._toggle_mention_filter)
         self.nav_buttons_container.add_widget(self.mention_filter_btn)
 
-        self.parse_btn = create_icon_button(self.icons_path, "play.svg", "Parse all chatlogs (P | Ctrl+P from anywhere)",
+        self.parse_btn = create_icon_button(self.icons_path, "play.svg", "",
                                            size_type="large", config=self.config)
+        self._tr_set(self.parse_btn.setToolTip,
+                     "Parse all chatlogs (P | Ctrl+P from anywhere)",
+                     "Парсить все чатлоги (P | Ctrl+P откуда угодно)")
         self.parse_btn.clicked.connect(self._toggle_parser)
         self.nav_buttons_container.add_widget(self.parse_btn)
 
@@ -363,15 +376,19 @@ class ChatlogWidget(QWidget):
         self.compact_layout = False
 
         # Search bar (MessageSearchBar; confirm button is chatlog-specific)
-        self.confirm_search_btn = create_icon_button(self.icons_path, "search.svg", "Search (Enter)",
+        self.confirm_search_btn = create_icon_button(self.icons_path, "search.svg", "",
                                                      size_type="large", config=self.config)
+        self._tr_set(self.confirm_search_btn.setToolTip, "Search (Enter)", "Поиск (Enter)")
         self.confirm_search_btn.clicked.connect(self._on_search_enter)
         self.confirm_search_btn.setVisible(False)
 
         self.search = MessageSearchBar(
             self.config, self.icons_path,
             config_key="chatlog_search_visible",
-            placeholder=f"Search: 'text' or 'U:Bob' or 'U:Bob,Alice' or 'M:hello' or 'D:{DATE_PLACEHOLDER}' (Enter)",
+            placeholder=tr(
+                f"Search: 'text' or 'U:Bob' or 'U:Bob,Alice' or 'M:hello' or 'D:{DATE_PLACEHOLDER}' (Enter)",
+                f"Поиск: 'текст' или 'U:Вася' или 'U:Петя,Маша' или 'M:привет' или 'D:{DATE_PLACEHOLDER}' (Enter)"
+            ),
             extra_widgets=(self.confirm_search_btn,),
         )
         self.search.text_changed.connect(self._on_search_changed)
@@ -467,23 +484,44 @@ class ChatlogWidget(QWidget):
         return '\n'.join(text_lines), message_count
 
     def _update_copy_save_tooltips(self):
-        kind = "filtered results" if self._has_active_search_or_filter() else "results"
-        self.parser_widget.copy_button.setToolTip(f"Copy {kind} to clipboard (Ctrl+C)")
-        self.parser_widget.save_button.setToolTip(f"Save {kind} to file (Ctrl+S)")
+        kind = (
+            tr("filtered results", "отфильтрованные результаты")
+            if self._has_active_search_or_filter()
+            else tr("results", "результаты")
+        )
+        self.parser_widget.copy_button.setToolTip(tr(
+            f"Copy {kind} to clipboard (Ctrl+C)",
+            f"Копировать {kind} в буфер (Ctrl+C)")
+        )
+        self.parser_widget.save_button.setToolTip(tr(
+            f"Save {kind} to file (Ctrl+S)",
+            f"Сохранить {kind} в файл (Ctrl+S)")
+        )
 
     def _on_copy_results(self):
         messages = self._messages_for_export()
         if not messages:
-            QMessageBox.information(self, "No Results", "No messages to copy.")
+            QMessageBox.information(self,
+                tr("No Results", "Нет результатов"),
+                tr("No messages to copy.", "Нет сообщений для копирования.")
+            )
             return
         result, message_count = self._format_messages_export(messages)
         QApplication.clipboard().setText(result)
-        QMessageBox.information(self, "Copied", f"Copied {message_count} messages to clipboard.")
+        QMessageBox.information(self,
+            tr("Copied", "Скопировано"),
+            tr(
+                f"Copied {message_count} messages to clipboard.",
+                f"Скопировано {message_count} сообщений в буфер.")
+            )
 
     def _on_save_results(self):
         messages = self._messages_for_export()
         if not messages:
-            QMessageBox.information(self, "No Results", "No messages to save.")
+            QMessageBox.information(self,
+                tr("No Results", "Нет результатов"),
+                tr("No messages to save.", "Нет сообщений для сохранения.")
+            )
             return
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -503,9 +541,17 @@ class ChatlogWidget(QWidget):
             result, message_count = self._format_messages_export(messages)
             with open(filename, 'w', encoding='utf-8') as f:
                 f.write(result)
-            QMessageBox.information(self, "Saved", f"Saved {message_count} messages to:\n{filename}")
+            QMessageBox.information(self,
+                tr("Saved", "Сохранено"),
+                tr(
+                    f"Saved {message_count} messages to:\n{filename}",
+                    f"Сохранено {message_count} сообщений в:\n{filename}")
+                )
         except Exception as e:
-            QMessageBox.critical(self, "Error", f"Failed to save file:\n{e}")
+            QMessageBox.critical(self,
+                tr("Error", "Ошибка"),
+                tr(f"Failed to save file:\n{e}", f"Не удалось сохранить файл:\n{e}")
+            )
 
     def _toggle_parser(self):
         """Toggle between normal view and parser config"""
@@ -514,10 +560,15 @@ class ChatlogWidget(QWidget):
             self.parser_visible = False
             self.stacked.setCurrentWidget(self.list_view)
             self.parse_btn.setIcon(_render_svg_icon(self.icons_path / "play.svg", self.parse_btn._icon_size))
-            self.parse_btn.setToolTip("Parse all chatlogs (P | Ctrl+P from anywhere)")
+            self.parse_btn.setToolTip(
+                tr(
+                    "Parse all chatlogs (P | Ctrl+P from anywhere)",
+                    "Парсить все чатлоги (P | Ctrl+P откуда угодно)"
+                  )
+            )
             # Parser results can span multiple dates, so keep "Parser" instead of a single stale date
             if self.is_parsing:
-                self.date_label.setText("Parser")
+                self.date_label.setText(tr("Parser", "Парсер"))
             else:
                 self._update_date_display()
         else:
@@ -525,8 +576,8 @@ class ChatlogWidget(QWidget):
             self.parser_visible = True
             self.stacked.setCurrentWidget(self.parser_widget)
             self.parse_btn.setIcon(_render_svg_icon(self.icons_path / "list.svg", self.parse_btn._icon_size))
-            self.parse_btn.setToolTip("Back to chat logs (P)")
-            self.date_label.setText("Parser")
+            self.parse_btn.setToolTip(tr("Back to chat logs (P)", "Назад к чатлогам (P)"))
+            self.date_label.setText(tr("Parser", "Парсер"))
 
         # The "Loaded N messages" status belongs to the chatlog list, not the parser config screen
         self.info_label.setVisible(not self.parser_visible)
@@ -569,7 +620,10 @@ class ChatlogWidget(QWidget):
         if count > limit:
             self.model.clear()
             self.info_label.setText(
-                f"⚠️ {count:,} messages (limit: {limit:,}) - {LIMIT_EXCEEDED_SUFFIX}"
+                tr(
+                    f"⚠️ {count:,} messages (limit: {limit:,}) - {LIMIT_EXCEEDED_SUFFIX_EN}",
+                    f"⚠️ {count:,} сообщений (лимит: {limit:,}) - {LIMIT_EXCEEDED_SUFFIX_RU}"
+                  )
             )
         else:
             self._apply_filter()
@@ -584,7 +638,7 @@ class ChatlogWidget(QWidget):
         """Start parsing with given config"""
         self._set_parsing_mode(True)
         self.exceeded_max_messages = False
-        self.date_label.setText("Parser")
+        self.date_label.setText(tr("Parser", "Парсер"))
         if config.mode != 'syncdatabase':
             self._set_parser_youtube_off(True)
         
@@ -596,7 +650,7 @@ class ChatlogWidget(QWidget):
             self.last_parsed_date = None
             self._update_confirm_search_button()
         else:
-            self.info_label.setText("Syncing database...")
+            self.info_label.setText(tr("Syncing database...", "Синхронизация базы..."))
 
         self.parser_worker = ParserWorker(config)
         self.parser_worker.progress.connect(self.parser_widget.update_progress)
@@ -630,7 +684,7 @@ class ChatlogWidget(QWidget):
         is_sync = hasattr(self.parser_widget, 'is_sync_mode') and self.parser_widget.is_sync_mode
         
         if is_sync:
-            self.info_label.setText("Database sync cancelled")
+            self.info_label.setText(tr("Database sync cancelled", "Синхронизация базы отменена"))
         else:
             # Normal mode - add partial messages if any
             if self.temp_parsed_messages:
@@ -646,9 +700,12 @@ class ChatlogWidget(QWidget):
                 self._update_copy_save_tooltips()
                 QTimer.singleShot(100, lambda: scroll(self.list_view, mode="top", delay=50))
                 message_count = len(non_separator_messages)
-                self.info_label.setText(f"Found {message_count} messages (partial)")
+                self.info_label.setText(tr(
+                    f"Found {message_count} messages (partial)",
+                    f"Найдено {message_count} сообщений (частично)")
+                )
             else:
-                self.info_label.setText("Parsing cancelled")
+                self.info_label.setText(tr("Parsing cancelled", "Парсинг отменён"))
                 self._set_parsing_mode(False)
         
         if self.parent_window:
@@ -681,9 +738,15 @@ class ChatlogWidget(QWidget):
         message_count = sum(1 for m in self.temp_parsed_messages if not m.is_separator)
         if message_count > self.model.max_messages and not self.exceeded_max_messages:
             self.exceeded_max_messages = True
-            self.info_label.setText(f"⚠️ Exceeded {self.model.max_messages:,} message limit - {LIMIT_EXCEEDED_SUFFIX}")
+            self.info_label.setText(tr(
+                f"⚠️ Exceeded {self.model.max_messages:,} message limit - {LIMIT_EXCEEDED_SUFFIX_EN}",
+                f"⚠️ Превышен лимит {self.model.max_messages:,} сообщений - {LIMIT_EXCEEDED_SUFFIX_RU}")
+            )
         elif not self.exceeded_max_messages:
-            self.info_label.setText(f"Found {message_count:,} messages so far...")
+            self.info_label.setText(tr(
+                f"Found {message_count:,} messages so far...",
+                f"Найдено {message_count:,} сообщений...")
+            )
 
     def _on_parse_finished(self, messages):
         """Handle parse completion - NOW add all messages to layout at once"""
@@ -709,7 +772,10 @@ class ChatlogWidget(QWidget):
             
             # Skip rendering if exceeded limit
             if self.exceeded_max_messages:
-                self.info_label.setText(f"⚠️ {message_count:,} messages found (limit: {self.model.max_messages:,}) - {LIMIT_EXCEEDED_SUFFIX}")
+                self.info_label.setText(tr(
+                    f"⚠️ {message_count:,} messages found (limit: {self.model.max_messages:,}) - {LIMIT_EXCEEDED_SUFFIX_EN}",
+                    f"⚠️ Найдено {message_count:,} сообщений (лимит: {self.model.max_messages:,}) - {LIMIT_EXCEEDED_SUFFIX_RU}")
+                )
                 self.exceeded_max_messages = False
             else:
                 self.list_view.setUpdatesEnabled(False)
@@ -723,7 +789,7 @@ class ChatlogWidget(QWidget):
             self.parser_widget.show_copy_save_buttons()
             self._update_copy_save_tooltips()
         else:
-            self.info_label.setText("No messages found")
+            self.info_label.setText(tr("No messages found", "Сообщения не найдены"))
         
         if self.parent_window:
             self.parent_window.handle_parse_finished()
@@ -731,19 +797,32 @@ class ChatlogWidget(QWidget):
     def _on_sync_complete(self, fetched_count: int, db_stats: dict):
         """Handle sync database completion"""
         if fetched_count == 0:
-            self.info_label.setText("✅ Database is already up to date")
+            self.info_label.setText(tr(
+                "✅ Database is already up to date",
+                "✅ База уже актуальна")
+            )
         else:
-            self.info_label.setText(f"✅ Synced {fetched_count} dates to database")
+            self.info_label.setText(tr(
+                f"✅ Synced {fetched_count} dates to database",
+                f"✅ Синхронизировано {fetched_count} дат в базу")
+            )
         
         # Show database stats
         QMessageBox.information(
             self,
-            "Database Synced",
-            f"Successfully synced database!\n\n"
-            f"Fetched: {fetched_count} dates\n"
-            f"Total messages: {db_stats['total_messages']:,}\n"
-            f"Cached dates: {db_stats['cached_dates']}\n"
-            f"Database size: {db_stats['db_size_mb']} MB"
+            tr("Database Synced", "База синхронизирована"),
+            tr(
+                f"Successfully synced database!\n\n"
+                f"Fetched: {fetched_count} dates\n"
+                f"Total messages: {db_stats['total_messages']:,}\n"
+                f"Cached dates: {db_stats['cached_dates']}\n"
+                f"Database size: {db_stats['db_size_mb']} MB",
+                f"База успешно синхронизирована!\n\n"
+                f"Загружено: {fetched_count} дат\n"
+                f"Всего сообщений: {db_stats['total_messages']:,}\n"
+                f"Кэшированных дат: {db_stats['cached_dates']}\n"
+                f"Размер базы: {db_stats['db_size_mb']} МБ"
+            )
         )
 
     def _on_parse_error(self, error_msg: str):
@@ -753,7 +832,7 @@ class ChatlogWidget(QWidget):
         self.parser_worker = None
         self.parser_widget._reset_ui()
         self.temp_parsed_messages = [] # Clear temp on error
-        self.info_label.setText(f"❌ Error: {error_msg}")
+        self.info_label.setText(tr(f"Error: {error_msg}", f"Ошибка: {error_msg}"))
         if self.parent_window:
             self.parent_window.stop_parse_status()
 
@@ -798,11 +877,11 @@ class ChatlogWidget(QWidget):
             try:
                 target = datetime.strptime(date_str, '%Y-%m-%d').date()
             except ValueError:
-                self.info_label.setText(f"Invalid date: {match.group(1)}")
+                self.info_label.setText(tr(f"Invalid date: {match.group(1)}", f"Неверная дата: {match.group(1)}"))
                 return
 
             if not (self.parser.MIN_DATE <= target <= datetime.now().date()):
-                self.info_label.setText(f"Date out of range: {date_str}")
+                self.info_label.setText(tr(f"Date out of range: {date_str}", f"Дата вне диапазона: {date_str}"))
                 return
 
             self._clear_search()
@@ -875,7 +954,7 @@ class ChatlogWidget(QWidget):
             self._update_date_display()
             self.load_current_date()
         except Exception as e:
-            self.info_label.setText(f"Error: {e}")
+            self.info_label.setText(tr(f"Error: {e}", f"Ошибка: {e}"))
 
     def load_date_and_scroll(self, date_str: str, time_str: str = ""):
         """Load date_str, then, if time_str (HH:MM:SS) is given, scroll to and highlight that message"""
@@ -992,17 +1071,26 @@ class ChatlogWidget(QWidget):
                 filters.append(f"search: '{self.search_text}'")
 
         if filters:
-            self.info_label.setText(f"Showing {shown}/{total} messages ({' | '.join(filters)})")
+            self.info_label.setText(tr(
+                f"Showing {shown}/{total} messages ({' | '.join(filters)})",
+                f"Показано {shown}/{total} сообщений ({' | '.join(filters)})")
+            )
         else:
             if hasattr(self, '_pending_data'):
                 _, size_text, was_truncated, from_cache = self._pending_data
                 cache_marker = " 📁" if from_cache else ""
                 if was_truncated:
-                    self.info_label.setText(f"⚠️ Loaded {total} messages (file truncated at {self.parser.MAX_FILE_SIZE_MB}MB limit) · {size_text}{cache_marker}")
+                    self.info_label.setText(tr(
+                        f"⚠️ Loaded {total} messages (file truncated at {self.parser.MAX_FILE_SIZE_MB}MB limit) · {size_text}{cache_marker}",
+                        f"⚠️ Загружено {total} сообщений (файл обрезан на {self.parser.MAX_FILE_SIZE_MB}МБ) · {size_text}{cache_marker}")
+                    )
                 else:
-                    self.info_label.setText(f"Loaded {total} messages · {size_text}{cache_marker}")
+                    self.info_label.setText(tr(
+                        f"Loaded {total} messages · {size_text}{cache_marker}",
+                        f"Загружено {total} сообщений · {size_text}{cache_marker}")
+                    )
             else:
-                self.info_label.setText(f"Loaded {total} messages")
+                self.info_label.setText(tr(f"Loaded {total} messages", f"Загружено {total} сообщений"))
 
         self._scroll_to_bottom()
 
@@ -1024,7 +1112,7 @@ class ChatlogWidget(QWidget):
         self.model.clear()
         self.all_messages = []
         self._update_confirm_search_button()
-        self.info_label.setText("Loading...")
+        self.info_label.setText(tr("Loading...", "Загрузка..."))
     
         date_str = self.current_date.strftime("%Y-%m-%d")
     
@@ -1057,7 +1145,10 @@ class ChatlogWidget(QWidget):
             filtered_ban_count = 0
         
             if not messages:
-                self.info_label.setText(f"No messages · {size_text}{cache_marker}")
+                self.info_label.setText(tr(
+                    f"No messages · {size_text}{cache_marker}",
+                    f"Нет сообщений · {size_text}{cache_marker}")
+                )
                 self.messages_loaded.emit([])
                 self.list_view.setUpdatesEnabled(True)
                 return
@@ -1081,9 +1172,15 @@ class ChatlogWidget(QWidget):
         
             if not messages:
                 if filtered_ban_count > 0:
-                    self.info_label.setText(f"No messages (all {filtered_ban_count} from banned users) · {size_text}{cache_marker}")
+                    self.info_label.setText(tr(
+                        f"No messages (all {filtered_ban_count} from banned users) · {size_text}{cache_marker}",
+                        f"Нет сообщений (все {filtered_ban_count} от забаненных) · {size_text}{cache_marker}")
+                    )
                 else:
-                    self.info_label.setText(f"No messages · {size_text}{cache_marker}")
+                    self.info_label.setText(tr(
+                        f"No messages · {size_text}{cache_marker}",
+                        f"Нет сообщений · {size_text}{cache_marker}")
+                    )
                 self.messages_loaded.emit([])
                 self.list_view.setUpdatesEnabled(True)
                 return
@@ -1106,19 +1203,31 @@ class ChatlogWidget(QWidget):
           
             # Update info label with ban filter info
             if was_truncated:
-                info_text = f"⚠️ Loaded {len(messages)} messages (file truncated at {self.parser.MAX_FILE_SIZE_MB}MB limit) · {size_text}{cache_marker}"
+                info_text = tr(
+                    f"⚠️ Loaded {len(messages)} messages (file truncated at {self.parser.MAX_FILE_SIZE_MB}MB limit) · {size_text}{cache_marker}",
+                    f"⚠️ Загружено {len(messages)} сообщений (файл обрезан на {self.parser.MAX_FILE_SIZE_MB}МБ) · {size_text}{cache_marker}"
+                )
             else:
-                info_text = f"Loaded {len(messages)} messages · {size_text}{cache_marker}"
+                info_text = tr(
+                    f"Loaded {len(messages)} messages · {size_text}{cache_marker}",
+                    f"Загружено {len(messages)} сообщений · {size_text}{cache_marker}"
+                )
             
             if filtered_ban_count > 0:
-                info_text += f" · {filtered_ban_count} banned messages hidden"
+                info_text += tr(
+                    f" · {filtered_ban_count} banned messages hidden",
+                    f" · {filtered_ban_count} сообщений от забаненных скрыто"
+                )
             
             if not (self.filtered_usernames or self.search_text):
                 self.info_label.setText(info_text)
         
             self.messages_loaded.emit(message_data)
         except Exception as e:
-            self.info_label.setText(f"❌ Display error: {e}")
+            self.info_label.setText(tr(f"❌ Display error: {e}", f"❌ Ошибка отображения: {e}"))
+
+    def _retranslate(self, _code=None):
+        self._retranslate_all()
 
     def _navigate(self, days):
         """Navigate by days offset (-1 for previous, +1 for next)"""

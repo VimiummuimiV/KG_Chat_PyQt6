@@ -12,6 +12,7 @@ from helpers.load import make_rounded_pixmap
 from helpers.cache import get_cache
 from helpers.fonts import get_font, FontType
 from helpers.browser import open_url as open_url_in_browser
+from helpers.translate import tr, on_language_changed, TranslatableMixin
 from core.api_data import(
     get_user_summary_by_id,
     get_user_index_data_by_id,
@@ -130,24 +131,34 @@ class StatCard(QFrame):
         self.is_dark = is_dark
         self._update_style()
 
+    def set_label(self, label: str):
+        self.label_widget.setText(label)
 
-class UsernameHistoryWidget(QWidget):
+
+class UsernameHistoryWidget(TranslatableMixin, QWidget):
     """Compact username history widget with card-style header and transparent scrollable list"""
     
     def __init__(self, config, is_dark: bool, max_height: int = 300):
         super().__init__()
+        self._init_translatable()
         self.config = config
         self.is_dark = is_dark
         self._max_height = max_height
         self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
+        self._history_data = None
+        self._current_username = ""
         
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(8)
         
         # Card-style header using StatCard
-        self.header_card = StatCard(ProfileIcons.USERNAME_HISTORY, "Username History", "", config, is_dark)
-        self.header_card.value_label.hide()  # Hide the value label for header-only card
+        self.header_card = StatCard(
+            ProfileIcons.USERNAME_HISTORY,
+            tr("Username History", "История ников"),
+            "", config, is_dark
+        )
+        self.header_card.value_label.hide()
         layout.addWidget(self.header_card)
         
         # Transparent scrollable content
@@ -170,11 +181,22 @@ class UsernameHistoryWidget(QWidget):
         scroll.wheelEvent = self._scroll_wheel_event
         self.content_widget = content
 
+        on_language_changed(self._retranslate)
+
+    def _retranslate(self, _code=None):
+        self.header_card.set_label(tr("Username History", "История ников"))
+        if self._history_data is not None:
+            self.set_history(self._current_username, self._history_data)
+
     def set_history(self, current_username: str, history_data: list):
         """Set username history data"""
+        self._current_username = current_username
+        self._history_data = history_data
         # Clear existing items
         while self.content_layout.count():
-            self.content_layout.takeAt(0).widget().deleteLater()
+            item = self.content_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
         
         # Helper to create labels
         def create_label(text, color=None):
@@ -193,11 +215,16 @@ class UsernameHistoryWidget(QWidget):
         )
         
         # History items
-        date_color = '#60a5fa' if self.is_dark else '#2563eb'  # Blue
+        date_color = '#60a5fa' if self.is_dark else '#2563eb'
+        until_word = tr("until", "до")
         for item in format_username_history(history_data):
             if isinstance(item, tuple):
                 username, date = item
-                text = f"{username} <span style='color: #888;'>until</span> <span style='color: {date_color};'>{date}</span>" if date else username
+                text = (
+                    f"{username} <span style='color: #888;'>{until_word}</span> "
+                    f"<span style='color: {date_color};'>{date}</span>"
+                    if date else username
+                )
             else:
                 text = str(item)
             create_label(text)
@@ -226,7 +253,7 @@ class UsernameHistoryWidget(QWidget):
         QTimer.singleShot(0, self._adjust_height)
 
 
-class ProfileWidget(QWidget):
+class ProfileWidget(TranslatableMixin, QWidget):
     """Widget displaying user profile with summary and index data"""
     
     back_requested = pyqtSignal()
@@ -235,6 +262,7 @@ class ProfileWidget(QWidget):
     
     def __init__(self, config, icons_path):
         super().__init__()
+        self._init_translatable()
         self.config = config
         self.icons_path = icons_path
         self.current_user_id = None
@@ -247,6 +275,7 @@ class ProfileWidget(QWidget):
         self._avatar_loaded.connect(self._set_avatar)
         self._data_fetched.connect(self._display_data)
         self._init_ui()
+        on_language_changed(self._retranslate)
     
     def _init_ui(self):
         """Initialize UI layout"""
@@ -262,14 +291,16 @@ class ProfileWidget(QWidget):
         top_bar.setSpacing(8)
         
         self.back_button = create_icon_button(
-            self.icons_path, "go-back.svg", "Back to Messages", config=self.config
+            self.icons_path, "go-back.svg", "", config=self.config
         )
+        self._tr_set(self.back_button.setToolTip, "Back to Messages", "Назад к сообщениям")
         self.back_button.clicked.connect(self.back_requested.emit)
         top_bar.addWidget(self.back_button)
 
         self.open_profile_button = create_icon_button(
-            self.icons_path, "user.svg", "Open Profile in Browser", config=self.config
+            self.icons_path, "user.svg", "", config=self.config
         )
+        self._tr_set(self.open_profile_button.setToolTip, "Open Profile in Browser", "Открыть профиль в браузере")
         self.open_profile_button.clicked.connect(self._open_profile_in_browser)
         self.open_profile_button.setEnabled(False)
         top_bar.addWidget(self.open_profile_button)
@@ -400,6 +431,9 @@ class ProfileWidget(QWidget):
 
         if not summary or not index_data:
             return
+
+        self._last_summary = summary
+        self._last_index_data = index_data
         
         user_data = summary.get('user', {})
         history = user_data.get('history')
@@ -424,22 +458,31 @@ class ProfileWidget(QWidget):
         rank_name, rank_dark, rank_light = RANKS.get(level, ('N/A', None, None))
         rank_color = rank_dark if self.is_dark else rank_light
 
+        online_text = tr("Online", "В сети") if is_online else tr("Offline", "Не в сети")
+        account_text = tr("Active", "Активен") if not is_blocked else tr("Banned", "Забанен")
+        best_speed = stats.get('best_speed')
+        speed_text = (
+            f"{best_speed} {tr('cpm', 'зн/мин')}" if best_speed else 'N/A'
+        )
+
         self._cards_data = [
-            (ProfileIcons.USER_ID, "User ID", str(user_data.get('id', 'N/A')), None),
-            (ProfileIcons.LEVEL, "Rank", rank_name, rank_color),
+            (ProfileIcons.USER_ID, tr("User ID", "ID пользователя"), str(user_data.get('id', 'N/A')), None),
+            (ProfileIcons.LEVEL, tr("Rank", "Ранг"), rank_name, rank_color),
             (ProfileIcons.STATUS_ONLINE if is_online else ProfileIcons.STATUS_OFFLINE,
-             "Status", "Online" if is_online else "Offline", None),
+             tr("Status", "Статус"), online_text, None),
             (ProfileIcons.ACCOUNT_ACTIVE if not is_blocked else ProfileIcons.ACCOUNT_BANNED,
-             "Account", "Active" if not is_blocked else "Banned", None),
-            (ProfileIcons.REGISTERED, "Registered", format_registered_date(stats.get('registered')) or 'N/A', None),
-            (ProfileIcons.ACHIEVEMENTS, "Achievements", str(stats.get('achieves_cnt', 'N/A')), None),
-            (ProfileIcons.TOTAL_RACES, "Total Races", str(stats.get('total_num_races', 'N/A')), None),
-            (ProfileIcons.BEST_SPEED, "Best Speed",
-             f"{stats.get('best_speed', 'N/A')} зн/мин" if stats.get('best_speed') else 'N/A', None),
-            (ProfileIcons.RATING, "Rating", str(stats.get('rating_level', 'N/A')), None),
-            (ProfileIcons.FRIENDS, "Friends", str(stats.get('friends_cnt', 'N/A')), None),
-            (ProfileIcons.VOCABULARIES, "Vocabularies", str(stats.get('vocs_cnt', 'N/A')), None),
-            (ProfileIcons.CARS, "Cars", str(stats.get('cars_cnt', 'N/A')), None),
+             tr("Account", "Аккаунт"), account_text, None),
+            (ProfileIcons.REGISTERED, tr("Registered", "Регистрация"),
+             format_registered_date(stats.get('registered')) or 'N/A', None),
+            (ProfileIcons.ACHIEVEMENTS, tr("Achievements", "Достижения"),
+             str(stats.get('achieves_cnt', 'N/A')), None),
+            (ProfileIcons.TOTAL_RACES, tr("Total Races", "Всего заездов"),
+             str(stats.get('total_num_races', 'N/A')), None),
+            (ProfileIcons.BEST_SPEED, tr("Best Speed", "Лучшая скорость"), speed_text, None),
+            (ProfileIcons.RATING, tr("Rating", "Рейтинг"), str(stats.get('rating_level', 'N/A')), None),
+            (ProfileIcons.FRIENDS, tr("Friends", "Друзья"), str(stats.get('friends_cnt', 'N/A')), None),
+            (ProfileIcons.VOCABULARIES, tr("Vocabularies", "Словари"), str(stats.get('vocs_cnt', 'N/A')), None),
+            (ProfileIcons.CARS, tr("Cars", "Машины"), str(stats.get('cars_cnt', 'N/A')), None),
         ]
         
         cols = max(1, min(3, self.width() // self._grid_width(1)))
@@ -486,6 +529,11 @@ class ProfileWidget(QWidget):
         
         for card in self.card_widgets:
             card.update_theme(self.is_dark)
+
+    def _retranslate(self, _code=None):
+        self._retranslate_all()
+        if self.current_user_id and hasattr(self, '_last_summary') and hasattr(self, '_last_index_data'):
+            self._populate_cards(self._last_summary, self._last_index_data)
 
     def resizeEvent(self, event):
         """Handle resize to adjust card grid columns"""
