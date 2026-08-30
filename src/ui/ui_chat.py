@@ -2343,15 +2343,17 @@ class ChatWindow(QWidget):
 
         show_cost = self.config.get("competitions", "show_cost")
         if show_cost is not False and cost is not None:
-            parts.append(f"💵 {cost}")
+            parts.append(f"💵 [COST]{cost}[/COST]")
 
         show_scores = self.config.get("competitions", "show_scores")
         if show_scores is not False:
-            parts.append(f"💰 {scores if scores is not None else '—'}")
+            score_text = scores if scores is not None else "—"
+            parts.append(f"💰 [SCORE]{score_text}[/SCORE]")
 
         show_bonuses = self.config.get("competitions", "show_bonuses")
         if show_bonuses is not False:
-            parts.append(f"💎 {bonuses if bonuses is not None else '—'}")
+            bonus_text = bonuses if bonuses is not None else "—"
+            parts.append(f"💎 [BONUS]{bonus_text}[/BONUS]")
 
         if url:
             parts.append(url)
@@ -2362,6 +2364,7 @@ class ChatWindow(QWidget):
             parts.append(f"🗿 {shown}/{total}")
         else:
             parts.append(f"🗿 {total}")
+
         return " ".join(parts)
 
     def _player_chips(self, players: list) -> list:

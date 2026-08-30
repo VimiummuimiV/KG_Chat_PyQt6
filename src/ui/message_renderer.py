@@ -12,6 +12,7 @@ from helpers.color_utils import (
     get_ban_message_colors,
     get_system_message_colors,
     get_competition_message_colors,
+    get_competition_value_colors,
     get_parser_message_colors,
     get_mention_color,
     get_search_highlight_colors,
@@ -36,6 +37,7 @@ class MessageRenderer(QObject):
 
     CHATLOG_URL_PATTERN = re.compile(r'^https?://klavogonki\.ru/chatlogs/(\d{4}-\d{2}-\d{2})\.html(?:#(\d{2}:\d{2}:\d{2}))?$')
     GAME_URL_PATTERN = re.compile(r'^https?://klavogonki\.ru/g/\?gmid=(\d+)$')
+    VALUE_TAG_PATTERN = re.compile(r'\[(COST|SCORE|BONUS)\](.*?)\[/\1\]')
     CHIP_GAP = 6
     
     def __init__(self, config, emoticon_manager, is_dark_theme: bool, parent_widget=None):
@@ -55,6 +57,7 @@ class MessageRenderer(QObject):
         self.ban_colors = get_ban_message_colors(config, is_dark_theme)
         self.system_colors = get_system_message_colors(config, is_dark_theme)
         self.competition_colors = get_competition_message_colors(config, is_dark_theme)
+        self.competition_value_colors = get_competition_value_colors(is_dark_theme)
         self.parser_colors = get_parser_message_colors(config, is_dark_theme)
         
         # Font setup
@@ -198,6 +201,7 @@ class MessageRenderer(QObject):
         self.ban_colors = get_ban_message_colors(self.config, is_dark_theme)
         self.system_colors = get_system_message_colors(self.config, is_dark_theme)
         self.competition_colors = get_competition_message_colors(self.config, is_dark_theme)
+        self.competition_value_colors = get_competition_value_colors(is_dark_theme)
         self.parser_colors = get_parser_message_colors(self.config, is_dark_theme)
         self._emoticon_cache.clear()
     
@@ -219,6 +223,7 @@ class MessageRenderer(QObject):
     def calculate_content_height(self, text: str, width: int, row: Optional[int] = None) -> int:
         """Calculate height needed for message content"""
         text = ' '.join(text.split())
+        text = self.VALUE_TAG_PATTERN.sub(lambda m: m.group(2), text)
         
         if self.youtube_enabled:
             url_pattern = re.compile(r'https?://[^\s<>"]+')
@@ -297,7 +302,15 @@ class MessageRenderer(QObject):
         
         # Replace newlines with spaces
         text = ' '.join(text.split())
-        
+
+        # Extract colored value tags (competition cost/scores/bonuses) and replace with placeholders
+        values = []
+        def replace_value(match):
+            values.append((match.group(1).lower(), match.group(2)))
+            return f"[VAL{len(values)-1}] "
+
+        text = self.VALUE_TAG_PATTERN.sub(replace_value, text)
+
         # Extract URLs and replace with placeholders
         url_pattern = re.compile(r'https?://[^\s<>"]+')
         urls = []
@@ -453,18 +466,21 @@ class MessageRenderer(QObject):
                 current_x += chunk_width
                 remaining = remaining[len(chunk):]
         
-        placeholder_pattern = re.compile(r'\[URL(\d+)\]')
-        
+        placeholder_pattern = re.compile(r'\[(URL|VAL)(\d+)\]')
+
         for seg_type, content in segments:
             if seg_type == 'text':
                 last_pos = 0
                 for match in placeholder_pattern.finditer(content):
                     if match.start() > last_pos:
                         draw_text_chunk(content[last_pos:match.start()], text_color)
-                    url_index = int(match.group(1))
-                    url = urls[url_index]
-                    is_media = self._is_media_url(url)
-                    draw_link(url, is_media)
+                    kind, index = match.group(1), int(match.group(2))
+                    if kind == 'URL':
+                        url = urls[index]
+                        draw_link(url, self._is_media_url(url))
+                    else:
+                        val_kind, val_text = values[index]
+                        draw_text_chunk(val_text, self.competition_value_colors.get(val_kind, text_color))
                     last_pos = match.end()
                 
                 if last_pos < len(content):

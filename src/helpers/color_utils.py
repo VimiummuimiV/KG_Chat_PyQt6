@@ -121,6 +121,15 @@ def get_competition_message_colors(config, is_dark_theme: bool) -> dict:
                              {"text": 75}, {"text": 40})
 
 
+def get_competition_value_colors(is_dark_theme: bool) -> dict:
+    """Fixed accent colors for competition cost/scores/bonuses values."""
+    return {
+        "cost": "#4DFF88" if is_dark_theme else "#00AA44",
+        "score": "#FFD700" if is_dark_theme else "#B8860B",
+        "bonus": "#4DA6FF" if is_dark_theme else "#0066CC",
+    }
+
+
 def get_game_message_colors(config, is_dark_theme: bool) -> dict:
     return _themed_hsl_colors(config, "game_message_color", 215, 75, is_dark_theme,
                              {"text": 75}, {"text": 40})
