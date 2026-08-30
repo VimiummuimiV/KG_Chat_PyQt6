@@ -29,7 +29,7 @@ from helpers.voice_engine import play_sound
 from helpers.data import get_data_dir
 from helpers.color_utils import blend_hex_colors, tinted_chip_colors
 from helpers.browser import get_available_browsers
-from helpers.translate import tr, set_language, get_language, on_language_changed, TrStr
+from helpers.translate import tr, set_language, get_language, on_language_changed, TrStr, TranslatableMixin
 
 DEFAULTS = {
     "notification": {
@@ -395,21 +395,6 @@ class ClickableLabel(QLabel):
         if event.button() == Qt.MouseButton.LeftButton:
             self.clicked.emit()
         super().mousePressEvent(event)
-
-
-class TranslatableMixin:
-    """Opt-in real-time retranslation for widgets built with tr()."""
-
-    def _init_translatable(self):
-        self._translatable = []
-
-    def _register_tr(self, setter, text):
-        if isinstance(text, TrStr):
-            self._translatable.append((setter, text))
-
-    def _retranslate_all(self, _code=None):
-        for setter, text in self._translatable:
-            setter(tr(text.en, text.ru))
 
 
 class SoundSelectorWidget(TranslatableMixin, QWidget):

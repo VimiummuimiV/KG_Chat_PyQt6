@@ -58,3 +58,17 @@ def tr(en: str, ru: str) -> str:
 def on_language_changed(slot):
     """Connect a callable that receives the new language code."""
     _tr.language_changed.connect(slot)
+
+
+class TranslatableMixin:
+    """Opt-in real-time retranslation for widgets built with tr()."""
+    def _init_translatable(self):
+        self._translatable = []
+
+    def _register_tr(self, setter, text):
+        if isinstance(text, TrStr):
+            self._translatable.append((setter, text))
+
+    def _retranslate_all(self, _code=None):
+        for setter, text in self._translatable:
+            setter(tr(text.en, text.ru))

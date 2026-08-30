@@ -4,6 +4,7 @@ from PyQt6.QtWebEngineCore import QWebEngineScript, QWebEngineProfile, QWebEngin
 from PyQt6.QtWidgets import QDialog, QVBoxLayout, QWidget, QStackedLayout
 
 from components.loading_spinner import LoadingSpinner
+from helpers.translate import tr
 
 
 _CHAT_PARAMS = """
@@ -204,7 +205,7 @@ class LoginWebView(QDialog):
         super().__init__(parent)
         from PyQt6.QtWebEngineWidgets import QWebEngineView
 
-        self.setWindowTitle("Log in to Klavogonki")
+        self.setWindowTitle(tr("Authorization", "Авторизация"))
         self.resize(360, 360)
         self.setStyleSheet("background:#000;")
         self._navigating_to_gamelist = False

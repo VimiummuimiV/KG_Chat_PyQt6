@@ -22,6 +22,7 @@ from helpers.username_color_manager import (
     reset_username_color,
 )
 from ui.ui_settings import fill_resource_combo
+from helpers.translate import tr, on_language_changed, TranslatableMixin
 
 
 def _add_account_from_auth_data(account_manager, user_data: dict) -> bool:
@@ -42,12 +43,13 @@ def _add_account_from_auth_data(account_manager, user_data: dict) -> bool:
     return added
 
 
-class AccountWindow(QWidget):
+class AccountWindow(TranslatableMixin, QWidget):
     account_connected = pyqtSignal(dict)
     _avatar_loaded = pyqtSignal(str, QPixmap)
 
     def __init__(self, config=None):
         super().__init__()
+        self._init_translatable()
 
         # Paths
         self.config_path = Path(__file__).parent.parent / "settings" / "config.json"
@@ -94,6 +96,8 @@ class AccountWindow(QWidget):
         # Help panel
         self.help_panel = HelpPanel(self)
 
+        on_language_changed(self._retranslate)
+
     def _get_config(self, key, default):
         """Safely get config value with default fallback"""
         if hasattr(self.config, 'data') and self.config.data:
@@ -105,7 +109,9 @@ class AccountWindow(QWidget):
         widget.setFixedHeight(self.input_height)
 
     def initializeUI(self):
-        self.setWindowTitle("Account Manager")
+        window_title = tr("Account Manager", "Менеджер аккаунтов")
+        self.setWindowTitle(window_title)
+        self._register_tr(self.setWindowTitle, window_title)
         self.setMinimumWidth(280)
         set_theme(self.theme_manager.is_dark())
         self.setFont(get_font(FontType.UI))
@@ -120,18 +126,22 @@ class AccountWindow(QWidget):
         self.setLayout(main_layout)
 
         # ===== CONNECT SECTION =====
-        connect_label = QLabel("🔑 Connect")
+        connect_text = tr("🔑 Connect", "🔑 Подключение")
+        connect_label = QLabel(connect_text)
         connect_label.setFont(get_font(FontType.HEADER))
         main_layout.addWidget(connect_label)
+        self._register_tr(connect_label.setText, connect_text)
 
         # Account selection row
         account_row = QHBoxLayout()
         account_row.setSpacing(self._get_config('spacing', 8))
 
         # Avatar
+        avatar_tooltip = tr("Account", "Аккаунт")
         self.account_avatar = create_icon_button(
-            self.icons_path, "user.svg", tooltip="Account"
+            self.icons_path, "user.svg", tooltip=avatar_tooltip
         )
+        self._register_tr(self.account_avatar.setToolTip, avatar_tooltip)
         self.account_avatar.setStyleSheet("QPushButton { background: transparent; border: none; }")
         self.account_avatar.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         account_row.addWidget(self.account_avatar)
@@ -160,46 +170,59 @@ class AccountWindow(QWidget):
         actions_row.setSpacing(self._get_config('spacing', 8))
 
         # Connect button
+        connect_button_tooltip = tr("Connect to chat (Enter / E)", "Подключиться к чату (Enter / E)")
         self.connect_button = create_icon_button(
-            self.icons_path, "login.svg", tooltip="Connect to chat (Enter / E)"
+            self.icons_path, "login.svg", tooltip=connect_button_tooltip
         )
         self.connect_button.clicked.connect(self.on_connect)
         self.connect_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         actions_row.addWidget(self.connect_button)
+        self._register_tr(self.connect_button.setToolTip, connect_button_tooltip)
 
         # Color picker button
+        color_button_tooltip = tr(
+            "Username color (C: pick | Ctrl+C/Click: reset)",
+            "Цвет ника (C: выбрать | Ctrl+C/клик: сбросить)",
+        )
         self.color_button = create_icon_button(
             self.icons_path, "palette.svg",
-            tooltip="Username color (C: pick | Ctrl+C/Click: reset)"
+            tooltip=color_button_tooltip
         )
         self.color_button.installEventFilter(self)
         self.color_button.clicked.connect(self.on_color_picker)
         self.color_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         actions_row.addWidget(self.color_button)
+        self._register_tr(self.color_button.setToolTip, color_button_tooltip)
 
         # Remove button
+        remove_button_tooltip = tr("Remove account (D)", "Удалить аккаунт (D)")
         self.remove_button = create_icon_button(
-            self.icons_path, "trash.svg", tooltip="Remove account (D)"
+            self.icons_path, "trash.svg", tooltip=remove_button_tooltip
         )
         self.remove_button.clicked.connect(self.on_remove_account)
         self.remove_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         actions_row.addWidget(self.remove_button)
+        self._register_tr(self.remove_button.setToolTip, remove_button_tooltip)
 
         # Web login button
+        web_login_tooltip = tr("Add account via browser login (W)", "Добавить аккаунт через вход в браузере (W)")
         self.web_login_button = create_icon_button(
-            self.icons_path, "globe.svg", tooltip="Add account via browser login (W)"
+            self.icons_path, "globe.svg", tooltip=web_login_tooltip
         )
         self.web_login_button.clicked.connect(self.on_web_login)
         self.web_login_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         actions_row.addWidget(self.web_login_button)
+        self._register_tr(self.web_login_button.setToolTip, web_login_tooltip)
 
         main_layout.addLayout(actions_row)
 
         # Auto-login checkbox
-        self.auto_login_checkbox = QCheckBox("1. Auto-login")
+        auto_login_text = tr("1. Auto-login", "1. Автовход")
+        self.auto_login_checkbox = QCheckBox(auto_login_text)
         self.auto_login_checkbox.setFont(get_font(FontType.UI))
         self.auto_login_checkbox.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.auto_login_checkbox.stateChanged.connect(self.on_auto_login_changed)
+        self._register_tr(self.auto_login_checkbox.setText, auto_login_text)
         
         # Load current auto-login state
         auto_login = self.config.get("startup", "auto_login")
@@ -209,10 +232,12 @@ class AccountWindow(QWidget):
         main_layout.addWidget(self.auto_login_checkbox)
 
         # Start minimized to tray checkbox
-        self.start_minimized_checkbox = QCheckBox("2. Start minimized")
+        start_minimized_text = tr("2. Start minimized", "2. Запуск свёрнутым")
+        self.start_minimized_checkbox = QCheckBox(start_minimized_text)
         self.start_minimized_checkbox.setFont(get_font(FontType.UI))
         self.start_minimized_checkbox.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.start_minimized_checkbox.stateChanged.connect(self.on_start_minimized_changed)
+        self._register_tr(self.start_minimized_checkbox.setText, start_minimized_text)
         
         # Load current start minimized state
         start_minimized = self.config.get("startup", "start_minimized")
@@ -221,10 +246,12 @@ class AccountWindow(QWidget):
         self.start_minimized_checkbox.setChecked(start_minimized)
         main_layout.addWidget(self.start_minimized_checkbox)
         # Start with system checkbox
-        self.start_with_system_checkbox = QCheckBox("3. Start with system")
+        start_with_system_text = tr("3. Start with system", "3. Запуск с системой")
+        self.start_with_system_checkbox = QCheckBox(start_with_system_text)
         self.start_with_system_checkbox.setFont(get_font(FontType.UI))
         self.start_with_system_checkbox.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.start_with_system_checkbox.stateChanged.connect(self.on_start_with_system_changed)
+        self._register_tr(self.start_with_system_checkbox.setText, start_with_system_text)
 
         # Load current start with system state
         self.start_with_system_checkbox.setChecked(self.startup_manager.is_enabled())
@@ -232,9 +259,11 @@ class AccountWindow(QWidget):
 
         resource_row = QHBoxLayout()
         resource_row.setSpacing(self._get_config('spacing', 8))
-        resource_label = QLabel("XMPP resource")
+        resource_label_text = tr("XMPP resource", "XMPP-ресурс")
+        resource_label = QLabel(resource_label_text)
         resource_label.setFont(get_font(FontType.UI))
         resource_row.addWidget(resource_label, stretch=1)
+        self._register_tr(resource_label.setText, resource_label_text)
         self.resource_combo = QComboBox()
         self.resource_combo.setFont(get_font(FontType.UI))
         self._set_input_height(self.resource_combo)
@@ -358,7 +387,7 @@ class AccountWindow(QWidget):
     def on_color_picker(self):
         account = self.account_dropdown.currentData()
         if not account:
-            QMessageBox.warning(self, "No Account", "Please select an account first.")
+            QMessageBox.warning(self, tr("No Account", "Нет аккаунта"), tr("Select an account first.", "Сначала выберите аккаунт."))
             return
         success = change_username_color(self, self.account_manager, account, self.cache)
         if success:
@@ -367,7 +396,7 @@ class AccountWindow(QWidget):
     def on_reset_color(self):
         account = self.account_dropdown.currentData()
         if not account:
-            QMessageBox.warning(self, "No Account", "Please select an account first.")
+            QMessageBox.warning(self, tr("No Account", "Нет аккаунта"), tr("Select an account first.", "Сначала выберите аккаунт."))
             return
         success = reset_username_color(self, self.account_manager, account, self.cache)
         if success:
@@ -406,8 +435,9 @@ class AccountWindow(QWidget):
                 print("✅ Start with system enabled")
             else:
                 QMessageBox.warning(
-                    self, "Error",
-                    "Failed to enable start with system. Please check permissions."
+                    self, tr("Error", "Ошибка"),
+                    tr("Failed to enable start with system. Check permissions.",
+                       "Не удалось включить запуск с системой. Проверьте права доступа.")
                 )
                 self.start_with_system_checkbox.setChecked(False)
         else:
@@ -416,8 +446,9 @@ class AccountWindow(QWidget):
                 print("❌ Start with system disabled")
             else:
                 QMessageBox.warning(
-                    self, "Error",
-                    "Failed to disable start with system. Please check permissions."
+                    self, tr("Error", "Ошибка"),
+                    tr("Failed to disable start with system. Check permissions.",
+                       "Не удалось отключить запуск с системой. Проверьте права доступа.")
                 )
                 self.start_with_system_checkbox.setChecked(True)
 
@@ -426,7 +457,7 @@ class AccountWindow(QWidget):
         accounts = self.account_manager.list_accounts()
 
         if not accounts:
-            self.account_dropdown.addItem("No accounts available")
+            self.account_dropdown.addItem(tr("No accounts available", "Нет доступных аккаунтов"))
             self.connect_button.setEnabled(False)
             self.remove_button.setEnabled(False)
             self.color_button.setEnabled(False)
@@ -514,18 +545,18 @@ class AccountWindow(QWidget):
 
     def _on_web_login_success(self, user_data: dict):
         if not user_data.get('id'):
-            QMessageBox.critical(self, "Error", "Could not retrieve account data.")
+            QMessageBox.critical(self, tr("Error", "Ошибка"), tr("Could not retrieve account data.", "Не удалось получить данные аккаунта."))
             return
         added = _add_account_from_auth_data(self.account_manager, user_data)
         existing = self.account_manager.get_account_by_chat_username(user_data['login'])
         if added or existing:
             self.load_accounts()
         else:
-            QMessageBox.critical(self, "Error", "Failed to save account.")
+            QMessageBox.critical(self, tr("Error", "Ошибка"), tr("Failed to save account.", "Не удалось сохранить аккаунт."))
 
     def on_connect(self):
-        if self.account_dropdown.count() == 0 or self.account_dropdown.currentText() == "No accounts available":
-            QMessageBox.warning(self, "No Account", "Please create an account first.")
+        if self.account_dropdown.count() == 0:
+            QMessageBox.warning(self, tr("No Account", "Нет аккаунта"), tr("Create an account first.", "Сначала создайте аккаунт."))
             return
 
         # Get selected account
@@ -535,26 +566,33 @@ class AccountWindow(QWidget):
             self.account_connected.emit(account)
 
     def on_remove_account(self):
-        if self.account_dropdown.count() == 0 or self.account_dropdown.currentText() == "No accounts available":
-            QMessageBox.warning(self, "No Account", "No account to remove.")
+        if self.account_dropdown.count() == 0:
+            QMessageBox.warning(self, tr("No Account", "Нет аккаунта"), tr("No account to remove.", "Нет аккаунта для удаления."))
             return
 
         # Confirm removal
         account = self.account_dropdown.currentData()
         reply = QMessageBox.question(
             self,
-            "Confirm Removal",
-            f"Are you sure you want to remove account '{account['chat_username']}'?",
+            tr("Confirm Removal", "Подтверждение удаления"),
+            tr(
+                f"Are you sure you want to remove account '{account['chat_username']}'?",
+                f"Вы уверены, что хотите удалить аккаунт «{account['chat_username']}»?",
+            ),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
         )
 
         if reply == QMessageBox.StandardButton.Yes:
             # Remove account
             if self.account_manager.remove_account(account['chat_username']):
-                QMessageBox.information(self, "Success", "Account removed successfully.")
+                QMessageBox.information(self, tr("Success", "Готово"), tr("Account removed successfully.", "Аккаунт успешно удалён."))
                 self.load_accounts()
             else:
-                QMessageBox.critical(self, "Error", "Failed to remove account.")
+                QMessageBox.critical(self, tr("Error", "Ошибка"), tr("Failed to remove account.", "Не удалось удалить аккаунт."))
+
+    def _retranslate(self, _code=None):
+        self._retranslate_all()
+        self.load_accounts()
 
 
 if __name__ == "__main__":

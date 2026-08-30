@@ -131,10 +131,10 @@
     "settings": {
       "sections": {
         "startup": true,
-        "chat": true,
+        "chat": false,
         "fonts": true,
         "notifications": true,
-        "competitions": false,
+        "competitions": true,
         "sound": true,
         "user_tracker": true,
         "": true
@@ -165,7 +165,7 @@
       "mentions_digest_interval_hours": 24,
       "mentions_digest_mode": "start"
     },
-    "language": "ru"
+    "language": "en"
   },
   "sound": {
     "tts_enabled": false,
@@ -208,7 +208,7 @@
     "validate_usernames": false
   },
   "competitions": {
-    "enabled": true,
+    "enabled": false,
     "min_multiplier": "x1+",
     "notify_window_enabled": false,
     "notify_window_start": 6,
@@ -219,7 +219,7 @@
     "sort_players_by_level": true,
     "show_cost": true,
     "show_scores": true,
-    "show_bonuses": true,
+    "show_bonuses": false,
     "alert_chat_action": "move"
   },
   "font": {

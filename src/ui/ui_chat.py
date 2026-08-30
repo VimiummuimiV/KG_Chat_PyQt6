@@ -90,6 +90,7 @@ from components.tag_button import update_all_tag_buttons
 from components.presence_badge import apply_counter_style
 from core.api_data import validate_username_and_get_id
 from core.mentions_digest import MentionsDigest
+from helpers.translate import tr, on_language_changed, TranslatableMixin
 
 class SignalEmitter(QObject):
     message_received = pyqtSignal(object)
@@ -97,7 +98,7 @@ class SignalEmitter(QObject):
     bulk_update_complete = pyqtSignal()
     connection_changed = pyqtSignal(str)
 
-class ChatWindow(QWidget):
+class ChatWindow(TranslatableMixin, QWidget):
     _dispatch = pyqtSignal(object)  # thread-safe main-thread callable dispatch
     _HISTORY_SETTLE_MS = 400  # idle gap after the last initial-history message before it's considered fully loaded
 
@@ -110,6 +111,7 @@ class ChatWindow(QWidget):
         user_tracker=None
         ):
         super().__init__()
+        self._init_translatable()
         self._dispatch.connect(lambda f: f())
         self.app_controller = app_controller
         self.pronunciation_manager = pronunciation_manager
@@ -159,6 +161,7 @@ class ChatWindow(QWidget):
         self.allow_reconnect = True # Disable when switching accounts
         self.reconnect_count = 0 # Incremented each time a reconnect attempt is made
         self.reconnect_timer = None # Timer for delayed reconnect attempts
+        self._connection_status = 'offline'  # normalized key, kept in sync by set_connection_status
 
         # Private messaging state
         self.private_mode = False
@@ -228,6 +231,8 @@ class ChatWindow(QWidget):
         self.parse_progress_bar = None
         self.parse_current_label = None
 
+        on_language_changed(self._retranslate)
+
     @property
     def my_username(self):
         return (self.account or {}).get('chat_username') or None
@@ -239,14 +244,14 @@ class ChatWindow(QWidget):
     def on_change_username_color(self):
         """Called from ButtonPanel to change own username color."""
         if not self.app_controller:
-            QMessageBox.warning(self, "Unavailable", "This action requires the application controller.")
+            QMessageBox.warning(self, tr("Unavailable", "Недоступно"), tr("This action requires the application controller.", "Это действие требует контроллер приложения."))
             return
         self.app_controller._refresh_own_username_color(change_username_color)
 
     def on_reset_username_color(self):
         """Called from ButtonPanel to reset own username color."""
         if not self.app_controller:
-            QMessageBox.warning(self, "Unavailable", "This action requires the application controller.")
+            QMessageBox.warning(self, tr("Unavailable", "Недоступно"), tr("This action requires the application controller.", "Это действие требует контроллер приложения."))
             return
         self.app_controller._refresh_own_username_color(reset_username_color)
 
@@ -1023,9 +1028,11 @@ class ChatWindow(QWidget):
     
         # Create exit button if it doesn't exist
         if self.exit_private_button is None:
+            exit_private_tooltip = tr("Exit Private Chat", "Выйти из приватного чата")
             self.exit_private_button = create_icon_button(
-                self.icons_path, "close.svg", "Exit Private Chat", config=self.config
+                self.icons_path, "close.svg", exit_private_tooltip, config=self.config
             )
+            self._register_tr(self.exit_private_button.setToolTip, exit_private_tooltip)
             self.exit_private_button.clicked.connect(self.exit_private_mode)
         
             # Insert after emoticon button
@@ -1041,12 +1048,7 @@ class ChatWindow(QWidget):
         QTimer.singleShot(0, self.input_field.setFocus)
     
         # Update window title
-        base = f"Chat - {self.my_username}" if self.my_username else "Chat"
-        status = self.windowTitle().split(' - ')[-1] if ' - ' in self.windowTitle() else ""
-        if status in ['Online', 'Offline', 'Connecting']:
-            self.setWindowTitle(f"{base} - Private with {username} - {status}")
-        else:
-            self.setWindowTitle(f"{base} - Private with {username}")
+        self.set_connection_status(self._connection_status)
     
         print(f"🔒 Entered private mode with {username}")
 
@@ -1071,7 +1073,7 @@ class ChatWindow(QWidget):
         self._update_input_style()
     
         # Restore window title
-        self.set_connection_status(self.windowTitle().split(' - ')[-1] if ' - ' in self.windowTitle() else 'Online')
+        self.set_connection_status(self._connection_status)
     
         print("🔓 Exited private mode")
         self._restore_room_tab()
@@ -1102,7 +1104,7 @@ class ChatWindow(QWidget):
                     padding: 8px;
                 }}
             """)
-            self.input_field.setPlaceholderText(f"Private message to {self.private_chat_username}")
+            self.input_field.setPlaceholderText(tr(f"Private message to {self.private_chat_username}", f"Приватное сообщение для {self.private_chat_username}"))
         else:
             # Normal mode - remove custom styling
             self.input_field.setStyleSheet("")
@@ -1277,7 +1279,7 @@ class ChatWindow(QWidget):
         cw._on_parse_started(config)
         self.start_parse_status()
         if self.parse_current_label:
-            self.parse_current_label.setText("Checking mentions…")
+            self.parse_current_label.setText(tr("Checking mentions…", "Проверка упоминаний…"))
 
 
     def show_chatlog_view(self, timestamp: str = None, reload: bool = True):
@@ -1331,7 +1333,9 @@ class ChatWindow(QWidget):
                 parent_window=self,
                 ban_manager=self.ban_manager
             )
-            self.chatlog_split_widget.back_btn.setToolTip("Close split view")
+            close_split_tooltip = tr("Close split view", "Закрыть разделённый вид")
+            self.chatlog_split_widget.back_btn.setToolTip(close_split_tooltip)
+            self._register_tr(self.chatlog_split_widget.back_btn.setToolTip, close_split_tooltip)
             self.chatlog_split_widget.back_requested.connect(self._close_chatlog_split_view)
             # Match the live messages view's row layout so the two panes line up
             self._configure_chatlog_widget(self.chatlog_split_widget)
@@ -1445,12 +1449,12 @@ class ChatWindow(QWidget):
         if not re.match(r'^[a-z0-9_-]+$', room_name):
             QMessageBox.warning(
                 self,
-                "Invalid room name",
-                "Use only letters, digits, underscore or hyphen.",
+                tr("Invalid room name", "Неверное имя комнаты"),
+                tr("Use only letters, digits, underscore or hyphen.", "Используйте только буквы, цифры, подчёркивание или дефис."),
             )
             return
         if room_name == "general":
-            QMessageBox.information(self, "Room", "You are already in the General room.")
+            QMessageBox.information(self, tr("Room", "Комната"), tr("You are already in the General room.", "Вы уже находитесь в общей комнате."))
             return
         if dialog.should_remember():
             dialog.remember_name(room_name)
@@ -1559,7 +1563,9 @@ class ChatWindow(QWidget):
         tab_bar.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         tab_bar.customContextMenuRequested.connect(self._on_room_tab_context_menu)
 
-        self.room_tabs.addTab(self.general_body, "General")
+        general_tab_text = tr("General", "Общая")
+        self.room_tabs.addTab(self.general_body, general_tab_text)
+        self._register_tr(lambda text: self.room_tabs.setTabText(0, text), general_tab_text)
         # General is permanent — hide its close button
         tab_bar.setTabButton(0, QTabBar.ButtonPosition.RightSide, None)
 
@@ -1648,15 +1654,15 @@ class ChatWindow(QWidget):
         if isinstance(widget, RoomWidget) and widget.room_name:
             name = widget.room_name
             menu.addAction(
-                "Copy room name",
+                tr("Copy room name", "Скопировать имя комнаты"),
                 lambda n=name: QApplication.clipboard().setText(n),
             )
             menu.addSeparator()
         if index > 0:
-            menu.addAction("Close", lambda: self._on_room_tab_close_requested(index))
-            menu.addAction("Close others", lambda: self._close_other_room_tabs(index))
+            menu.addAction(tr("Close", "Закрыть"), lambda: self._on_room_tab_close_requested(index))
+            menu.addAction(tr("Close others", "Закрыть остальные"), lambda: self._close_other_room_tabs(index))
         if self.game_rooms or self.custom_rooms:
-            menu.addAction("Close all rooms", self._close_all_room_tabs)
+            menu.addAction(tr("Close all rooms", "Закрыть все комнаты"), self._close_all_room_tabs)
         if menu.actions():
             menu.exec(tab_bar.mapToGlobal(pos))
 
@@ -1803,14 +1809,14 @@ class ChatWindow(QWidget):
         n = max(0, int(n))
         if n <= 0:
             badge.hide()
-            btn.setToolTip("View results")
+            btn.setToolTip(tr("View results", "Показать результаты"))
             return
         badge.setText("99+" if n > 99 else str(n))
         badge.adjustSize()
         badge.move(1, btn.height() - badge.height() - 1)
         badge.show()
         badge.raise_()
-        btn.setToolTip(f"View results — {n} new")
+        btn.setToolTip(tr(f"View results — {n} new", f"Показать результаты — {n} новых"))
 
     def show_parser_view(self):
         """Open chatlog list with current parse results and hide the status bar."""
@@ -1927,12 +1933,12 @@ class ChatWindow(QWidget):
                     # of leaving the bar up waiting for a manual Close click.
                     self.stop_parse_status()
                     return
-                self.parse_current_label.setText(f"Mentions: {count} new")
+                self.parse_current_label.setText(tr(f"Mentions: {count} new", f"Упоминания: {count} новых"))
                 self._set_parse_results_badge(count)
                 if not self.isVisible():
                     show_notification(
-                        title="Personal Mentions",
-                        message=f"{count} new mention(s) found",
+                        title=tr("Personal Mentions", "Личные упоминания"),
+                        message=tr(f"{count} new mention(s) found", f"Найдено новых упоминаний: {count}"),
                         config=self.config,
                         emoticon_manager=self.emoticon_manager,
                         account=self.account,
@@ -1942,13 +1948,13 @@ class ChatWindow(QWidget):
                     )
                     self._play_mention_sound()
             else:
-                self.parse_current_label.setText("Parsing finished")
+                self.parse_current_label.setText(tr("Parsing finished", "Парсинг завершён"))
 
     def on_parse_error(self, error_msg: str):
         self._end_mentions_digest()
         self.stop_parse_status()
         show_notification(
-            title="Parse Error",
+            title=tr("Parse Error", "Ошибка парсинга"),
             message=error_msg,
             config=self.config,
             emoticon_manager=self.emoticon_manager,
@@ -2114,8 +2120,8 @@ class ChatWindow(QWidget):
                 self.xmpp_client = XMPPClient(str(self.config_path))
                 if not self.xmpp_client.connect(self.account):
                     QTimer.singleShot(0, lambda: show_notification(
-                        title="Connection Failed",
-                        message="Could not connect to XMPP server",
+                        title=tr("Connection Failed", "Ошибка подключения"),
+                        message=tr("Could not connect to XMPP server", "Не удалось подключиться к серверу XMPP"),
                         config=self.config,
                         emoticon_manager=self.emoticon_manager,
                         account=self.account
@@ -2157,8 +2163,8 @@ class ChatWindow(QWidget):
                     self.xmpp_client.jid = None
             
                 QTimer.singleShot(0, lambda: show_notification(
-                    title="Error",
-                    message=f"Connection error: {e}",
+                    title=tr("Error", "Ошибка"),
+                    message=tr(f"Connection error: {e}", f"Ошибка подключения: {e}"),
                     config=self.config,
                     emoticon_manager=self.emoticon_manager,
                     account=self.account
@@ -2622,7 +2628,7 @@ class ChatWindow(QWidget):
         if not self.isActiveWindow():
             try:
                 show_notification(
-                    title=f"Competition {mult}",
+                    title=tr(f"Competition {mult}", f"Соревнование {mult}"),
                     message=header,
                     duration=10000,
                     config=self.config,
@@ -3322,14 +3328,22 @@ class ChatWindow(QWidget):
 
     def set_connection_status(self, status: str):
         status = (status or '').lower()
-        text = {'connecting': 'Connecting', 'online': 'Online'}.get(status, 'Offline')
+        self._connection_status = status
+        text = {
+            'connecting': tr("Connecting", "Подключение"),
+            'online': tr("Online", "В сети"),
+        }.get(status, tr("Offline", "Не в сети"))
         base = f"Chat - {self.my_username}" if self.my_username else "Chat"
 
         # Preserve private mode in title
         if self.private_mode and self.private_chat_username:
-            self.setWindowTitle(f"{base} - Private with {self.private_chat_username} - {text}")
+            self.setWindowTitle(f"{base} - {tr('Private with', 'Приватно с')} {self.private_chat_username} - {text}")
         else:
             self.setWindowTitle(f"{base} - {text}")
+
+    def _retranslate(self, _code=None):
+        self._retranslate_all()
+        self.set_connection_status(self._connection_status)
         
         # Reset on success
         if status == 'online':
@@ -3892,7 +3906,7 @@ class ChatWindow(QWidget):
             if not uid and login:
                 uid = validate_username_and_get_id(login) or ""
             if not uid or not login:
-                QMessageBox.warning(self, "Error", f"Could not resolve user for tracking")
+                QMessageBox.warning(self, tr("Error", "Ошибка"), tr("Could not resolve user for tracking", "Не удалось определить пользователя для отслеживания"))
                 return
             self.user_tracker.add_selected(str(uid), login)
         else:
@@ -3937,7 +3951,7 @@ class ChatWindow(QWidget):
             user_id = validate_username_and_get_id(username)
         
         if not user_id:
-            QMessageBox.warning(self, "Error", f"Could not find user ID for {username}")
+            QMessageBox.warning(self, tr("Error", "Ошибка"), tr(f"Could not find user ID for {username}", f"Не удалось найти ID пользователя для {username}"))
             return
         
         # Add to ban manager
