@@ -9,6 +9,7 @@ from PyQt6.QtCore import Qt, QSize, pyqtSignal, QEvent, QTimer
 from PyQt6.QtGui import QMovie, QCursor, QIcon
 
 from helpers.emoticons import EmoticonManager
+from helpers.translate import on_language_changed, TranslatableMixin
 
 
 # ---------------------------------------------------------------------------
@@ -239,12 +240,13 @@ class EmoticonGroup(QWidget):
         for btn in self.buttons:
             btn.cleanup()
 
-class EmoticonSelectorWidget(QWidget):
+class EmoticonSelectorWidget(TranslatableMixin, QWidget):
     """Widget for selecting emoticons with icon-based navigation"""
     emoticon_selected = pyqtSignal(str)
 
     def __init__(self, config, emoticon_manager: EmoticonManager, icons_path: Path):
         super().__init__()
+        self._init_translatable()
         self.config = config
         self.emoticon_manager = emoticon_manager
         self.icons_path = icons_path
@@ -261,6 +263,7 @@ class EmoticonSelectorWidget(QWidget):
 
         self._init_ui()
         self.setFixedWidth(PANEL_WIDTH)  # applied after init so nothing can override it
+        on_language_changed(self._retranslate_all)
        
         # Restore visibility and state
         visible = config.get("ui", "emoticon_selector_visible")
@@ -312,8 +315,16 @@ class EmoticonSelectorWidget(QWidget):
         self.nav_container.installEventFilter(self)
        
         # Create nav buttons
-        self._create_nav_button("⭐", "recent", "Recent", nav_layout, active=True)
+        self._create_nav_button("⭐", "recent", "Recent", "Недавние", nav_layout, active=True)
 
+        group_tooltips = {
+            'Army': ("Army", "Армия"),
+            'Boys': ("Boys", "Парни"),
+            'Christmas': ("Christmas", "Рождество"),
+            'Girls': ("Girls", "Девушки"),
+            'Halloween': ("Halloween", "Хэллоуин"),
+            'Inlove': ("Inlove", "Влюблённые"),
+        }
         for group_name, (emoji, key) in {
             'Army': ('🪖', 'army'),
             'Boys': ('👦', 'boys'),
@@ -322,7 +333,8 @@ class EmoticonSelectorWidget(QWidget):
             'Halloween': ('🎃', 'halloween'),
             'Inlove': ('❤️', 'inlove')
         }.items():
-            self._create_nav_button(emoji, key, group_name, nav_layout)
+            tooltip_en, tooltip_ru = group_tooltips[group_name]
+            self._create_nav_button(emoji, key, tooltip_en, tooltip_ru, nav_layout)
 
         # Content area
         self.content_container = QWidget()
@@ -352,12 +364,12 @@ class EmoticonSelectorWidget(QWidget):
         # Nav height: button size + margins
         self.nav_container.setFixedHeight(NAV_HEIGHT)
 
-    def _create_nav_button(self, emoji: str, key: str, tooltip: str, layout: QHBoxLayout, active: bool = False):
+    def _create_nav_button(self, emoji: str, key: str, tooltip_en: str, tooltip_ru: str, layout: QHBoxLayout, active: bool = False):
         """Create a navigation button"""
         btn = QPushButton(emoji)
         btn.setFixedSize(BTN_SIZE, BTN_SIZE)
         btn.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
-        btn.setToolTip(tooltip)
+        self._tr_set(btn.setToolTip, tooltip_en, tooltip_ru)
 
         self._update_nav_button_style(btn, active)
         btn.clicked.connect(lambda: self._switch_to_group(key))
@@ -448,9 +460,10 @@ class EmoticonSelectorWidget(QWidget):
        
         # Placeholder if empty
         if not self.recent_emoticons:
-            placeholder = QLabel("No recent emoticons yet")
+            placeholder = QLabel()
             placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
             placeholder.setStyleSheet("color: #888; padding: 20px;")
+            self._tr_set(placeholder.setText, "No recent emoticons yet", "Пока нет недавних эмотиконов")
             self.recent_grid.addWidget(placeholder, 0, 0, 1, COLS)
 
         # If recent is the active tab, restore highlight to index 0

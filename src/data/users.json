@@ -361,5 +361,7 @@
   "495516": {"login": "UNPlayer", "background": "#757575", "light": "#757575", "dark": "#858585"},
   "840657": {"login": "AutisticFloyd", "background": "#777777", "light": "#767676", "dark": "#858585"},
   "837673": {"login": "РукиБазуки", "background": "#777777", "light": "#767676", "dark": "#858585"},
-  "790519": {"login": "PlayerSigi", "background": "#428ACE", "light": "#317abe", "dark": "#428ACE"}
+  "790519": {"login": "PlayerSigi", "background": "#428ACE", "light": "#317abe", "dark": "#428ACE"},
+  "781151": {"login": "Kirvon", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "23132": {"login": "wormer", "background": "#00e800", "light": "#008a00", "dark": "#00e800"}
 }

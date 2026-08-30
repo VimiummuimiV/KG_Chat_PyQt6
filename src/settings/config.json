@@ -2,7 +2,7 @@
   "server": {
     "url": "https://klavogonki.ru/xmpp-httpbind/",
     "domain": "jabber.klavogonki.ru",
-    "resource": "web"
+    "resource": "client"
   },
   "rooms": [
     {
@@ -131,10 +131,10 @@
     "settings": {
       "sections": {
         "startup": true,
-        "chat": true,
+        "chat": false,
         "fonts": true,
         "notifications": true,
-        "competitions": false,
+        "competitions": true,
         "sound": true,
         "user_tracker": true,
         "": true
@@ -219,7 +219,7 @@
     "sort_players_by_level": true,
     "show_cost": true,
     "show_scores": true,
-    "show_bonuses": false,
+    "show_bonuses": true,
     "alert_chat_action": "move"
   },
   "font": {

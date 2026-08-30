@@ -22,6 +22,7 @@ from helpers.fonts import (
     get_userlist_width,
     get_scaled_width
 )
+from helpers.translate import tr, on_language_changed, TranslatableMixin
 from helpers.user_tracker import UserTracker
 from helpers.cache import get_cache
 from helpers.flash_highlight import highlight_fill_color
@@ -442,7 +443,7 @@ class TrackerEventDelegate(QStyledItemDelegate):
             self.list_view.viewport().update(self.list_view.visualRect(index))
 
 
-class TrackedUserItem(QWidget):
+class TrackedUserItem(TranslatableMixin, QWidget):
     remove_requested = pyqtSignal(object)
 
     USERNAME_BASE_WIDTH = 220
@@ -452,6 +453,7 @@ class TrackedUserItem(QWidget):
 
     def __init__(self, config, icons_path: Path, username="", user_id=""):
         super().__init__()
+        self._init_translatable()
         self.config = config
         self.icons_path = icons_path
         self.user_id = user_id
@@ -468,7 +470,7 @@ class TrackedUserItem(QWidget):
         input_height = config.get("ui", "input_height") or 44
 
         self.username_input = QLineEdit()
-        self.username_input.setPlaceholderText("Username")
+        self._tr_set(self.username_input.setPlaceholderText, "Username", "Имя пользователя")
         self.username_input.setText(username)
         self.username_input.setFont(get_font(FontType.TEXT))
         self.username_input.setFixedHeight(input_height)
@@ -494,7 +496,7 @@ class TrackedUserItem(QWidget):
         layout.addWidget(arrow_label)
 
         self.user_id_input = QLineEdit()
-        self.user_id_input.setPlaceholderText("User ID")
+        self._tr_set(self.user_id_input.setPlaceholderText, "ID", "ID")
         self.user_id_input.setText(user_id)
         self.user_id_input.setFont(get_font(FontType.TEXT))
         self.user_id_input.setFixedHeight(input_height)
@@ -504,16 +506,17 @@ class TrackedUserItem(QWidget):
         layout.addWidget(self.user_id_input)
 
         self.freeze_button = create_icon_button(
-            icons_path, "snowflake.svg", "Freeze tracking",
+            icons_path, "snowflake.svg", tr("Freeze tracking", "Заморозить отслеживание"),
             size_type="large", config=config
         )
         self.freeze_button.clicked.connect(self._toggle_freeze)
         layout.addWidget(self.freeze_button)
 
         self.remove_button = create_icon_button(
-            icons_path, "trash.svg", "Remove",
+            icons_path, "trash.svg", "",
             size_type="large", config=config
         )
+        self._tr_set(self.remove_button.setToolTip, "Remove", "Удалить")
         self.remove_button.clicked.connect(lambda: self.remove_requested.emit(self))
         layout.addWidget(self.remove_button)
 
@@ -523,6 +526,7 @@ class TrackedUserItem(QWidget):
 
         if username and not user_id:
             self._validate()
+        on_language_changed(self._retranslate_all)
 
     def _update_total_width(self):
         total_width = (
@@ -567,10 +571,13 @@ class TrackedUserItem(QWidget):
     def _update_input_style(self, highlight_empty=False):
         if highlight_empty and not self.username_input.text().strip():
             self.username_input.setStyleSheet("QLineEdit { border: 2px solid #ffb84d; }")
-            self.username_input.setToolTip("Fill username before adding new item")
+            self.username_input.setToolTip(tr(
+                "Fill username before adding new item",
+                "Заполните имя пользователя перед добавлением новой записи")
+            )
         elif self.username_input.text().strip() and not self.username_valid:
             self.username_input.setStyleSheet("QLineEdit { border: 2px solid #ff4444; }")
-            self.username_input.setToolTip("User not found")
+            self.username_input.setToolTip(tr("User not found", "Пользователь не найден"))
         else:
             self.username_input.setStyleSheet("")
             self.username_input.setToolTip("")
@@ -581,7 +588,8 @@ class TrackedUserItem(QWidget):
         set_visual_active(self.user_id_input, not self.frozen)
         set_visual_active(self.freeze_button, not self.frozen)
         self.freeze_button.setToolTip(
-            "Unfreeze tracking" if self.frozen else "Freeze tracking"
+            tr("Unfreeze tracking", "Разморозить отслеживание") if self.frozen
+            else tr("Freeze tracking", "Заморозить отслеживание")
         )
 
     def _toggle_freeze(self):
@@ -613,7 +621,7 @@ class TrackerUserChip(UserCountRow):
         )
         self.login = login
         self.delete_button = create_icon_button(
-            icons_path, "trash.svg", "Remove history for this user",
+            icons_path, "trash.svg", tr("Remove history for this user", "Удалить историю этого пользователя"),
             size_type="small", config=config
         )
         self.delete_button.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
@@ -621,12 +629,13 @@ class TrackerUserChip(UserCountRow):
         self.layout().addWidget(self.delete_button)
 
 
-class UserTrackerWidget(QWidget):
+class UserTrackerWidget(TranslatableMixin, QWidget):
     back_requested = pyqtSignal()
     tracked_users_changed = pyqtSignal()
 
     def __init__(self, config, icons_path: Path, user_tracker: UserTracker, font_scaler=None):
         super().__init__()
+        self._init_translatable()
         self.config = config
         self.icons_path = icons_path
         self.user_tracker = user_tracker
@@ -668,13 +677,15 @@ class UserTrackerWidget(QWidget):
         main_layout.addLayout(header_layout)
 
         self.back_button = create_icon_button(
-            self.icons_path, "go-back.svg", "Back to Messages", config=self.config
+            self.icons_path, "go-back.svg", "", config=self.config
         )
+        self._tr_set(self.back_button.setToolTip, "Back to Messages", "Назад к сообщениям")
         self.back_button.clicked.connect(self.back_requested.emit)
         header_layout.addWidget(self.back_button)
 
-        title_label = QLabel("User Tracker")
+        title_label = QLabel()
         title_label.setFont(get_font(FontType.HEADER))
+        self._tr_set(title_label.setText, "User Tracker", "Трекер пользователей")
         header_layout.addWidget(title_label)
 
         self.info_label = QLabel("")
@@ -685,21 +696,23 @@ class UserTrackerWidget(QWidget):
         header_layout.addWidget(self.info_label, stretch=1)
 
         self.add_user_button = create_icon_button(
-            self.icons_path, "add.svg", "Add user", config=self.config
+            self.icons_path, "add.svg", "", config=self.config
         )
+        self._tr_set(self.add_user_button.setToolTip, "Add user", "Добавить пользователя")
         self.add_user_button.clicked.connect(self._add_new_item)
         header_layout.addWidget(self.add_user_button)
 
         self.clear_filter_button = create_icon_button(
-            self.icons_path, "filter.svg", "Clear history filter", config=self.config
+            self.icons_path, "filter.svg", tr("Clear history filter", "Сбросить фильтр истории"), config=self.config
         )
         self.clear_filter_button.clicked.connect(self._clear_filter)
         self.clear_filter_button.setVisible(False)
         header_layout.addWidget(self.clear_filter_button)
 
         self.clear_history_button = create_icon_button(
-            self.icons_path, "trash.svg", "Clear History", config=self.config
+            self.icons_path, "trash.svg", "", config=self.config
         )
+        self._tr_set(self.clear_history_button.setToolTip, "Clear History", "Очистить историю")
         self.clear_history_button.clicked.connect(self._clear_history)
         header_layout.addWidget(self.clear_history_button)
 
@@ -730,7 +743,8 @@ class UserTrackerWidget(QWidget):
         self.users_scroll.setWidget(self.users_container)
         tracked_layout.addWidget(self.users_scroll, stretch=1)
 
-        self.tabs.addTab(tracked_page, "Tracked")
+        tracked_tab_index = self.tabs.addTab(tracked_page, "")
+        self._tr_set(lambda text, i=tracked_tab_index: self.tabs.setTabText(i, text), "Tracked", "Отслеживаемые")
 
         # --- History tab ---
         history_page = QWidget()
@@ -763,10 +777,11 @@ class UserTrackerWidget(QWidget):
         self.history_delegate.type_filter_clicked.connect(self._handle_type_filter_click)
         self.history_delegate.date_filter_clicked.connect(self._handle_date_filter_click)
 
-        self._empty_history_label = QLabel("No events")
+        self._empty_history_label = QLabel()
         self._empty_history_label.setFont(get_font(FontType.UI))
         self._empty_history_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._empty_history_label.setStyleSheet("color: #888;")
+        self._tr_set(self._empty_history_label.setText, "No events", "Нет событий")
 
         self.history_stack = QStackedWidget()
         self.history_stack.addWidget(self.history_list_view)
@@ -804,7 +819,9 @@ class UserTrackerWidget(QWidget):
 
         self.filter_auto_scroller = AutoScroller(self.filter_scroll)
 
-        self.tabs.addTab(history_page, "History")
+        history_tab_index = self.tabs.addTab(history_page, "")
+        self._tr_set(lambda text, i=history_tab_index: self.tabs.setTabText(i, text), "History", "История")
+        on_language_changed(self._retranslate_all)
 
     def toggle_userlist(self) -> bool:
         self.userlist_visible = not self.userlist_visible
@@ -927,7 +944,7 @@ class UserTrackerWidget(QWidget):
             1 for e in self.history_model.get_events() if not e.get('is_separator')
         )
         if total == 0:
-            self.info_label.setText("No events")
+            self.info_label.setText(tr("No events", "Нет событий"))
             return
         shown = 0
         for row in range(self.history_proxy.rowCount()):
@@ -938,9 +955,12 @@ class UserTrackerWidget(QWidget):
                 shown += 1
         desc = self._filter_description()
         if desc:
-            self.info_label.setText(f"Showing {shown}/{total} events ({desc})")
+            self.info_label.setText(tr(
+                f"Showing {shown}/{total} events ({desc})",
+                f"Показано {shown}/{total} событий ({desc})"
+            ))
         else:
-            self.info_label.setText(f"{total} events")
+            self.info_label.setText(tr(f"{total} events", f"{total} событий"))
 
     def _toggle_filter_set(self, attr: str, value: str, ctrl_pressed: bool, on_changed=None):
         if not value:
@@ -995,7 +1015,8 @@ class UserTrackerWidget(QWidget):
         on_history = self.tabs.currentIndex() == 1
         self.clear_filter_button.setVisible(on_history and active)
         self.clear_filter_button.setToolTip(
-            f"Clear filter: {self._filter_description()}" if active else "Clear history filter"
+            tr(f"Clear filter: {self._filter_description()}", f"Сбросить фильтр: {self._filter_description()}")
+            if active else tr("Clear history filter", "Сбросить фильтр истории")
         )
 
     def _rebuild_events(self):
@@ -1041,8 +1062,8 @@ class UserTrackerWidget(QWidget):
 
     def _handle_chip_delete_requested(self, login: str):
         reply = QMessageBox.question(
-            self, "Remove History",
-            f"Remove all history for {login}?",
+            self, tr("Remove History", "Удалить историю"),
+            tr(f"Remove all history for {login}?", f"Удалить всю историю пользователя {login}?"),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
         )
         if reply != QMessageBox.StandardButton.Yes:
@@ -1090,8 +1111,8 @@ class UserTrackerWidget(QWidget):
         if not self.user_tracker.get_events():
             return
         reply = QMessageBox.question(
-            self, "Clear History",
-            "Clear all join/left history?",
+            self, tr("Clear History", "Очистить историю"),
+                  tr("Clear all join/left history?", "Очистить всю историю входов/выходов?"),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
         )
         if reply == QMessageBox.StandardButton.Yes:

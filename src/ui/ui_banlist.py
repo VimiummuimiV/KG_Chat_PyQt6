@@ -12,6 +12,7 @@ import time
 from helpers.create import create_icon_button
 from helpers.fonts import get_font, FontType
 from helpers.ban_manager import BanManager
+from helpers.translate import tr, on_language_changed, TranslatableMixin
 from ui.dialogs.duration_dialog import DurationDialog
 from core.api_data import validate_username_and_get_id
 
@@ -27,7 +28,7 @@ def format_time_remaining(seconds: int) -> str:
     - < 1 minute: shows seconds (e.g., "45s")
     """
     if seconds <= 0:
-        return "Expired"
+        return tr("Expired", "Истекло")
     
     w = seconds // 604800
     d = (seconds % 604800) // 86400
@@ -48,13 +49,14 @@ def format_time_remaining(seconds: int) -> str:
         return f"{s}s"
 
 
-class BanItemWidget(QWidget):
+class BanItemWidget(TranslatableMixin, QWidget):
     """Single ban item (shared by both permanent and temporary sections)"""
     remove_requested = pyqtSignal(object)
     expired = pyqtSignal(object)  # Signal when temporary ban expires
     
     def __init__(self, config, icons_path: Path, username="", user_id="", expires_at=None, is_temporary=False):
         super().__init__()
+        self._init_translatable()
         self.config = config
         self.icons_path = icons_path
         self.user_id = user_id
@@ -71,7 +73,7 @@ class BanItemWidget(QWidget):
         
         # Username
         self.username_input = QLineEdit()
-        self.username_input.setPlaceholderText("Username")
+        self._tr_set(self.username_input.setPlaceholderText, "Username", "Имя пользователя")
         self.username_input.setText(username)
         self.username_input.setFont(get_font(FontType.TEXT))
         input_height = config.get("ui", "input_height") or 44
@@ -99,7 +101,7 @@ class BanItemWidget(QWidget):
         
         # User ID (read-only)
         self.user_id_input = QLineEdit()
-        self.user_id_input.setPlaceholderText("User ID")
+        self._tr_set(self.user_id_input.setPlaceholderText, "ID", "ID")
         self.user_id_input.setText(user_id)
         self.user_id_input.setFont(get_font(FontType.TEXT))
         self.user_id_input.setFixedHeight(input_height)
@@ -126,9 +128,10 @@ class BanItemWidget(QWidget):
         
         # Remove button
         self.remove_button = create_icon_button(
-            icons_path, "trash.svg", "Remove", 
+            icons_path, "trash.svg", "", 
             size_type="large", config=config
         )
+        self._tr_set(self.remove_button.setToolTip, "Remove", "Удалить")
         self.remove_button.clicked.connect(lambda: self.remove_requested.emit(self))
         layout.addWidget(self.remove_button)
         
@@ -145,6 +148,7 @@ class BanItemWidget(QWidget):
         # Validate if username but no ID
         if username and not user_id:
             self._validate()
+        on_language_changed(self._retranslate_all)
     
     def _validate(self):
         """Validate username and fetch ID"""
@@ -193,10 +197,13 @@ class BanItemWidget(QWidget):
         """Update input styling based on validation"""
         if highlight_empty and not self.username_input.text().strip():
             self.username_input.setStyleSheet("QLineEdit { border: 2px solid #ffb84d; }")
-            self.username_input.setToolTip("Fill username before adding new item")
+            self.username_input.setToolTip(tr(
+                "Fill username before adding new item",
+                "Заполните имя пользователя перед добавлением новой записи")
+            )
         elif not self.username_valid:
             self.username_input.setStyleSheet("QLineEdit { border: 2px solid #ff4444; }")
-            self.username_input.setToolTip("User not found")
+            self.username_input.setToolTip(tr("User not found", "Пользователь не найден"))
         else:
             self.username_input.setStyleSheet("")
             self.username_input.setToolTip("")
@@ -252,13 +259,14 @@ class BanItemWidget(QWidget):
             self.update_timer.stop()
 
 
-class BanListWidget(QWidget):
+class BanListWidget(TranslatableMixin, QWidget):
     """Widget for managing banned users with separate permanent/temporary sections"""
     
     back_requested = pyqtSignal()
     
     def __init__(self, config, icons_path: Path, ban_manager: BanManager):
         super().__init__()
+        self._init_translatable()
         self.config = config
         self.icons_path = icons_path
         self.ban_manager = ban_manager
@@ -268,7 +276,7 @@ class BanListWidget(QWidget):
         self._setup_ui()
         self._load_bans()
     
-    def _create_section(self, title: str, is_temporary: bool):
+    def _create_section(self, title_en: str, title_ru: str, tooltip_en: str, tooltip_ru: str, is_temporary: bool):
         """Helper to create a section (avoid code duplication)"""
         section = QWidget()
         section_layout = QVBoxLayout()
@@ -278,11 +286,13 @@ class BanListWidget(QWidget):
         
         # Header with title and add button
         header = QHBoxLayout()
-        label = QLabel(title)
+        label = QLabel()
         label.setFont(get_font(FontType.HEADER))
+        self._tr_set(label.setText, title_en, title_ru)
         header.addWidget(label, stretch=1)
         
-        add_btn = create_icon_button(self.icons_path, "add.svg", f"Add to {title}", config=self.config)
+        add_btn = create_icon_button(self.icons_path, "add.svg", "", config=self.config)
+        self._tr_set(add_btn.setToolTip, tooltip_en, tooltip_ru)
         add_btn.clicked.connect(lambda: self._add_new_item(is_temporary))
         header.addWidget(add_btn)
         section_layout.addLayout(header)
@@ -314,18 +324,21 @@ class BanListWidget(QWidget):
         main_layout.addLayout(header_layout)
         
         self.back_button = create_icon_button(
-            self.icons_path, "go-back.svg", "Back to Messages", config=self.config
+            self.icons_path, "go-back.svg", "", config=self.config
         )
+        self._tr_set(self.back_button.setToolTip, "Back to Messages", "Назад к сообщениям")
         self.back_button.clicked.connect(self.back_requested.emit)
         header_layout.addWidget(self.back_button)
         
-        title_label = QLabel("Ban List")
+        title_label = QLabel()
         title_label.setFont(get_font(FontType.HEADER))
+        self._tr_set(title_label.setText, "Ban List", "Список забаненных")
         header_layout.addWidget(title_label, stretch=1)
         
         self.clear_all_button = create_icon_button(
-            self.icons_path, "trash.svg", "Clear All", config=self.config
+            self.icons_path, "trash.svg", "", config=self.config
         )
+        self._tr_set(self.clear_all_button.setToolTip, "Clear All", "Очистить всё")
         self.clear_all_button.clicked.connect(self._clear_all)
         header_layout.addWidget(self.clear_all_button)
         
@@ -344,14 +357,19 @@ class BanListWidget(QWidget):
         self.items_container.setLayout(sections_layout)
         
         # Create permanent section
-        perm_section, self.perm_layout, _ = self._create_section("Permanent", is_temporary=False)
+        perm_section, self.perm_layout, _ = self._create_section(
+            "Permanent", "Постоянные", "Add to Permanent", "Добавить в постоянные", is_temporary=False
+        )
         sections_layout.addWidget(perm_section)
         
         # Create temporary section
-        temp_section, self.temp_layout, _ = self._create_section("Temporary", is_temporary=True)
+        temp_section, self.temp_layout, _ = self._create_section(
+            "Temporary", "Временные", "Add to Temporary", "Добавить во временные", is_temporary=True
+        )
         sections_layout.addWidget(temp_section)
         
         self.scroll.setWidget(self.items_container)
+        on_language_changed(self._retranslate_all)
     
     def _load_bans(self):
         """Load existing bans into appropriate sections"""
@@ -467,12 +485,16 @@ class BanListWidget(QWidget):
     def _clear_all(self):
         """Clear all bans from both sections"""
         if not any(not item.is_empty() for item in self.perm_items + self.temp_items):
-            QMessageBox.information(self, "Empty", "Ban list is already empty")
+            QMessageBox.information(
+                self,
+                tr("Empty", "Пусто"),
+                tr("Ban list is already empty", "Список забаненных уже пуст")
+            )
             return
         
         reply = QMessageBox.question(
-            self, "Confirm Clear All",
-            "Remove all users from ban list?",
+            self, tr("Confirm Clear All", "Подтвердите очистку"),
+                  tr("Remove all users from ban list?", "Удалить всех пользователей из списка забаненных?"),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
         )
         
