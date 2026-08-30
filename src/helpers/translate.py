@@ -27,6 +27,22 @@ class _Translator(QObject):
 _tr = _Translator()
 
 
+class TrStr(str):
+    """A str that remembers the (en, ru) pair it was built from.
+
+    Lets a widget built with tr(en, ru) be retranslated later - via
+    setter(tr(text.en, text.ru)) - without the caller having to keep the
+    original strings around separately.
+    """
+    __slots__ = ("en", "ru")
+
+    def __new__(cls, en: str, ru: str, value: str):
+        obj = str.__new__(cls, value)
+        obj.en = en
+        obj.ru = ru
+        return obj
+
+
 def set_language(code: str) -> None:
     _tr.set_language(code)
 
@@ -36,7 +52,7 @@ def get_language() -> str:
 
 
 def tr(en: str, ru: str) -> str:
-    return _tr.tr(en, ru)
+    return TrStr(en, ru, _tr.tr(en, ru))
 
 
 def on_language_changed(slot):

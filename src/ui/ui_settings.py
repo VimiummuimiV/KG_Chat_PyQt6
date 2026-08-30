@@ -29,7 +29,7 @@ from helpers.voice_engine import play_sound
 from helpers.data import get_data_dir
 from helpers.color_utils import blend_hex_colors, tinted_chip_colors
 from helpers.browser import get_available_browsers
-from helpers.translate import tr, set_language, get_language, on_language_changed
+from helpers.translate import tr, set_language, get_language, on_language_changed, TrStr
 
 DEFAULTS = {
     "notification": {
@@ -397,7 +397,22 @@ class ClickableLabel(QLabel):
         super().mousePressEvent(event)
 
 
-class SoundSelectorWidget(QWidget):
+class TranslatableMixin:
+    """Opt-in real-time retranslation for widgets built with tr()."""
+
+    def _init_translatable(self):
+        self._translatable = []
+
+    def _register_tr(self, setter, text):
+        if isinstance(text, TrStr):
+            self._translatable.append((setter, text))
+
+    def _retranslate_all(self, _code=None):
+        for setter, text in self._translatable:
+            setter(tr(text.en, text.ru))
+
+
+class SoundSelectorWidget(TranslatableMixin, QWidget):
     """Selector for one notification sound type.
 
     System sounds (project/sounds/...) are listed but cannot be deleted or renamed.
@@ -406,6 +421,7 @@ class SoundSelectorWidget(QWidget):
 
     def __init__(self, config, sound_root: Path, kind: str, label_text: str):
         super().__init__()
+        self._init_translatable()
         self.config = config
         self.sound_root = sound_root
         self.kind = kind
@@ -422,12 +438,16 @@ class SoundSelectorWidget(QWidget):
         label = QLabel(label_text)
         label.setFont(get_font(FontType.UI))
         layout.addWidget(label)
+        self._register_tr(label.setText, label_text)
 
-        self.prev_button = create_icon_button(
-            self.icons_path, "arrow-left.svg", tr("Previous sound", "Предыдущий звук"), size_type="small", config=self.config
-        )
-        self.prev_button.clicked.connect(self._on_prev)
-        layout.addWidget(self.prev_button)
+        def _nav_button(icon_name, tooltip, on_click):
+            button = create_icon_button(self.icons_path, icon_name, tooltip, size_type="small", config=self.config)
+            button.clicked.connect(on_click)
+            layout.addWidget(button)
+            self._register_tr(button.setToolTip, tooltip)
+            return button
+
+        self.prev_button = _nav_button("arrow-left.svg", tr("Previous sound", "Предыдущий звук"), self._on_prev)
 
         self.combo = NoWheelComboBox()
         self.combo.setFont(get_font(FontType.UI))
@@ -435,37 +455,14 @@ class SoundSelectorWidget(QWidget):
         self.combo.setMinimumWidth(180)
         layout.addWidget(self.combo, stretch=1)
 
-        self.next_button = create_icon_button(
-            self.icons_path, "arrow-right.svg", tr("Next sound", "Следующий звук"), size_type="small", config=self.config
-        )
-        self.next_button.clicked.connect(self._on_next)
-        layout.addWidget(self.next_button)
-
-        self.play_button = create_icon_button(
-            self.icons_path, "play.svg", tr("Play sound", "Воспроизвести звук"), size_type="small", config=self.config
-        )
-        self.play_button.clicked.connect(self._on_play)
-        layout.addWidget(self.play_button)
-
-        self.add_button = create_icon_button(
-            self.icons_path, "add.svg", tr("Add sound from file", "Добавить звук из файла"), size_type="small", config=self.config
-        )
-        self.add_button.clicked.connect(self._on_add)
-        layout.addWidget(self.add_button)
-
-        self.delete_button = create_icon_button(
-            self.icons_path, "trash.svg", tr("Delete sound", "Удалить звук"), size_type="small", config=self.config
-        )
-        self.delete_button.clicked.connect(self._on_delete)
-        layout.addWidget(self.delete_button)
-
-        self.rename_button = create_icon_button(
-            self.icons_path, "pencil.svg", tr("Rename sound", "Переименовать звук"), size_type="small", config=self.config
-        )
-        self.rename_button.clicked.connect(self._on_rename)
-        layout.addWidget(self.rename_button)
+        self.next_button = _nav_button("arrow-right.svg", tr("Next sound", "Следующий звук"), self._on_next)
+        self.play_button = _nav_button("play.svg", tr("Play sound", "Воспроизвести звук"), self._on_play)
+        self.add_button = _nav_button("add.svg", tr("Add sound from file", "Добавить звук из файла"), self._on_add)
+        self.delete_button = _nav_button("trash.svg", tr("Delete sound", "Удалить звук"), self._on_delete)
+        self.rename_button = _nav_button("pencil.svg", tr("Rename sound", "Переименовать звук"), self._on_rename)
 
         self.refresh()
+        on_language_changed(self._retranslate_all)
 
     # ------------------------------------------------------------------ #
     # Helpers
@@ -696,7 +693,7 @@ class SoundSelectorWidget(QWidget):
         self.refresh(select_name=clean_name)
 
 
-class SettingsWidget(QWidget):
+class SettingsWidget(TranslatableMixin, QWidget):
     """Settings page organized into collapsible sections"""
 
     back_requested = pyqtSignal()
@@ -712,6 +709,7 @@ class SettingsWidget(QWidget):
 
     def __init__(self, config, icons_path: Path, font_scaler=None):
         super().__init__()
+        self._init_translatable()
         self.config = config
         self.icons_path = icons_path
         self.font_scaler = font_scaler
@@ -722,6 +720,7 @@ class SettingsWidget(QWidget):
         self._setup_ui()
         self.refresh()
         hotkey.hotkey_manager.status_changed.connect(self._on_hotkey_status_changed)
+        on_language_changed(self._retranslate)
 
     # ------------------------------------------------------------------ #
     # Layout helpers
@@ -745,6 +744,7 @@ class SettingsWidget(QWidget):
         header_row.addWidget(label)
         header_row.addStretch(1)
         section_layout.addLayout(header_row)
+        self._register_tr(label.setText, title)
 
         content = QWidget()
         content_layout = QVBoxLayout()
@@ -753,7 +753,10 @@ class SettingsWidget(QWidget):
         content.setLayout(content_layout)
         section_layout.addWidget(content)
 
-        slug = re.sub(r"[^a-z0-9]+", "_", title.lower()).strip("_")
+        # Slug is the config-path key for this section's collapsed state, so it
+        # must stay stable regardless of the active UI language.
+        slug_source = title.en if isinstance(title, TrStr) else title
+        slug = re.sub(r"[^a-z0-9]+", "_", slug_source.lower()).strip("_")
         self._add_collapse_toggle(header_row, content, ("ui", "settings", "sections", slug), section=True)
 
         self._sections_layout.addWidget(section)
@@ -808,6 +811,7 @@ class SettingsWidget(QWidget):
         header_row.addWidget(label)
         header_row.addStretch(1)
         section_layout.addLayout(header_row)
+        self._register_tr(label.setText, title)
 
         content = QWidget()
         content_layout = QVBoxLayout()
@@ -824,6 +828,7 @@ class SettingsWidget(QWidget):
         checkbox.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         checkbox.toggled.connect(on_toggled)
         section_layout.addWidget(checkbox)
+        self._register_tr(checkbox.setText, text)
         return checkbox
 
     def _add_combo_row(self, section_layout: QVBoxLayout, label_text: str, items: list, on_changed) -> QComboBox:
@@ -832,6 +837,7 @@ class SettingsWidget(QWidget):
         label = QLabel(label_text)
         label.setFont(get_font(FontType.UI))
         row.addWidget(label, stretch=1)
+        self._register_tr(label.setText, label_text)
 
         combo = NoWheelComboBox()
         combo.setFont(get_font(FontType.UI))
@@ -851,6 +857,7 @@ class SettingsWidget(QWidget):
         label = QLabel(label_text)
         label.setFont(get_font(FontType.UI))
         row.addWidget(label)
+        self._register_tr(label.setText, label_text)
 
         slider = NoWheelSlider(Qt.Orientation.Horizontal)
         slider.setRange(minimum, maximum)
@@ -914,12 +921,14 @@ class SettingsWidget(QWidget):
             on_reset = lambda: spin.setValue(default)
 
         if on_reset:
-            reset_button = create_icon_button(self.icons_path, "reload.svg", tr("Reset to default", "Сбросить по умолчанию"), size_type="small", config=self.config)
+            reset_tooltip = tr("Reset to default", "Сбросить по умолчанию")
+            reset_button = create_icon_button(self.icons_path, "reload.svg", reset_tooltip, size_type="small", config=self.config)
             reset_button.clicked.connect(on_reset)
             row.addWidget(reset_button)
             update_reset_state(spin.value())
             spin._reset_button = reset_button
             spin._update_reset_state = update_reset_state
+            self._register_tr(reset_button.setToolTip, reset_tooltip)
 
         section_layout.addLayout(row)
         return spin
@@ -940,16 +949,20 @@ class SettingsWidget(QWidget):
         header_layout.setSpacing(self._spacing())
         main_layout.addLayout(header_layout)
 
+        back_tooltip = tr("Back to Messages", "Назад к сообщениям")
         self.back_button = create_icon_button(
-            self.icons_path, "go-back.svg", tr("Back to Messages", "Назад к сообщениям"), config=self.config
+            self.icons_path, "go-back.svg", back_tooltip, config=self.config
         )
         self.back_button.clicked.connect(self.back_requested.emit)
         header_layout.addWidget(self.back_button)
+        self._register_tr(self.back_button.setToolTip, back_tooltip)
 
-        title_label = QLabel(tr("Settings", "Настройки"))
+        title_text = tr("Settings", "Настройки")
+        title_label = QLabel(title_text)
         title_label.setProperty("fontRole", "header")
         title_label.setFont(get_font(FontType.HEADER))
         header_layout.addWidget(title_label, stretch=1)
+        self._register_tr(title_label.setText, title_text)
 
         self.scroll = QScrollArea()
         self.scroll.setWidgetResizable(True)
@@ -1094,6 +1107,7 @@ class SettingsWidget(QWidget):
         label = QLabel(label_text)
         label.setFont(get_font(FontType.UI))
         row.addWidget(label, stretch=1)
+        self._register_tr(label.setText, label_text)
 
         self.hotkey_status_dot = ClickableLabel()
         self.hotkey_status_dot.setObjectName("hotkeyStatusDot")
@@ -1109,11 +1123,13 @@ class SettingsWidget(QWidget):
         self.hotkey_button.clicked.connect(self._on_hotkey_record_clicked)
         row.addWidget(self.hotkey_button)
 
+        hotkey_reset_tooltip = tr("Reset to default", "Сбросить по умолчанию")
         self.hotkey_reset_button = create_icon_button(
-            self.icons_path, "reload.svg", tr("Reset to default", "Сбросить по умолчанию"), size_type="small", config=self.config
+            self.icons_path, "reload.svg", hotkey_reset_tooltip, size_type="small", config=self.config
         )
         self.hotkey_reset_button.clicked.connect(self._on_hotkey_reset_clicked)
         row.addWidget(self.hotkey_reset_button)
+        self._register_tr(self.hotkey_reset_button.setToolTip, hotkey_reset_tooltip)
 
         section_layout.addLayout(row)
 
@@ -1281,23 +1297,29 @@ class SettingsWidget(QWidget):
 
         log_header, log_content, log_layout = self._add_subsection(section, tr("📜 WebSocket Log", "📜 Лог WebSocket"))
 
+        copy_log_tooltip = tr("Copy log", "Скопировать лог")
         self.copy_log_button = create_icon_button(
-            self.icons_path, "copy.svg", tr("Copy log", "Скопировать лог"), size_type="small", config=self.config
+            self.icons_path, "copy.svg", copy_log_tooltip, size_type="small", config=self.config
         )
         self.copy_log_button.clicked.connect(self._on_copy_log_clicked)
         log_header.addWidget(self.copy_log_button)
+        self._register_tr(self.copy_log_button.setToolTip, copy_log_tooltip)
 
+        clear_log_tooltip = tr("Clear log", "Очистить лог")
         self.clear_log_button = create_icon_button(
-            self.icons_path, "trash.svg", tr("Clear log", "Очистить лог"), size_type="small", config=self.config
+            self.icons_path, "trash.svg", clear_log_tooltip, size_type="small", config=self.config
         )
         self.clear_log_button.clicked.connect(self._on_clear_log_clicked)
         log_header.addWidget(self.clear_log_button)
+        self._register_tr(self.clear_log_button.setToolTip, clear_log_tooltip)
 
         self.competitions_log = QTextEdit()
         self.competitions_log.setReadOnly(True)
         self.competitions_log.setFixedHeight(DEFAULTS["competitions"]["log_height"])
         self.competitions_log.setFont(get_font(FontType.UI))
-        self.competitions_log.setPlaceholderText(tr("Competition log", "Лог соревнований"))
+        log_placeholder = tr("Competition log", "Лог соревнований")
+        self.competitions_log.setPlaceholderText(log_placeholder)
+        self._register_tr(self.competitions_log.setPlaceholderText, log_placeholder)
         self.competitions_log.setAcceptRichText(True)
         self._apply_competitions_log_theme()
         log_layout.addWidget(self.competitions_log)
@@ -1380,9 +1402,11 @@ class SettingsWidget(QWidget):
         # Tracked event types — same pills as tracker filter bar
         events_row = QHBoxLayout()
         events_row.setSpacing(8)
-        events_label = QLabel(tr("Track events:", "Отслеживаемые события:"))
+        events_label_text = tr("Track events:", "Отслеживаемые события:")
+        events_label = QLabel(events_label_text)
         events_label.setFont(get_font(FontType.UI))
         events_row.addWidget(events_label)
+        self._register_tr(events_label.setText, events_label_text)
         theme = self.config.get("ui", "theme") or "dark"
         self.tracker_events_bar = TypeFilterBar(empty_means_all=False, is_dark=(theme == "dark"))
         self.tracker_events_bar.changed.connect(self._on_tracker_events_changed)
@@ -1729,6 +1753,46 @@ class SettingsWidget(QWidget):
 
         for widget in widgets:
             widget.blockSignals(False)
+
+    # ------------------------------------------------------------------ #
+    # Live retranslation
+    # ------------------------------------------------------------------ #
+    def _refill_option_combos(self):
+        """Re-populate combos whose *options* (not just their row label) are
+        produced by tr(), preserving the current selection. Combos with
+        static content (language, fonts, browser, multiplier) don't need this."""
+        for combo, fill in (
+            (self.resource_combo, fill_resource_combo),
+            (self.own_message_mode_combo, fill_own_message_mode_combo),
+            (self.mentions_digest_mode_combo, fill_mentions_digest_mode_combo),
+            (self.notification_mode_combo, fill_notification_mode_combo),
+            (self.notification_position_combo, fill_notification_position_combo),
+            (self.notification_hide_on_combo, fill_notification_hide_on_combo),
+            (self.competitions_bypass_combo, fill_notification_mute_bypass_combo),
+            (self.mentions_bypass_combo, fill_notification_mute_bypass_combo),
+            (self.bans_bypass_combo, fill_notification_mute_bypass_combo),
+            (self.tracker_bypass_combo, fill_notification_mute_bypass_combo),
+            (self.messages_bypass_combo, fill_notification_mute_bypass_combo),
+            (self.alert_chat_action_combo, fill_alert_chat_action_combo),
+            (self.tracker_default_tab_combo, fill_tracker_default_tab_combo),
+            (self.tracker_click_combo, fill_tracker_click_combo),
+        ):
+            fill(combo, combo.currentData())
+
+        # Not backed by a fill_*_combo helper (only two static items).
+        current_unit = self.tracker_retention_unit_combo.currentData()
+        self.tracker_retention_unit_combo.blockSignals(True)
+        self.tracker_retention_unit_combo.clear()
+        self.tracker_retention_unit_combo.addItem(tr("hours", "часов"), "hours")
+        self.tracker_retention_unit_combo.addItem(tr("days", "дней"), "days")
+        index = self.tracker_retention_unit_combo.findData(current_unit)
+        self.tracker_retention_unit_combo.setCurrentIndex(index if index >= 0 else 0)
+        self.tracker_retention_unit_combo.blockSignals(False)
+
+    def _retranslate(self, _code=None):
+        self._retranslate_all()
+        self._refill_option_combos()
+        self._refresh_hotkey_row()
 
     # ------------------------------------------------------------------ #
     # Handlers

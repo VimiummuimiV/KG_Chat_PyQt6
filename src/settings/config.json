@@ -131,7 +131,7 @@
     "settings": {
       "sections": {
         "startup": true,
-        "chat": false,
+        "chat": true,
         "fonts": true,
         "notifications": true,
         "competitions": true,
