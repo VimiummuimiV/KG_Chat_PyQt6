@@ -537,7 +537,9 @@ class ChatWindow(TranslatableMixin, QWidget):
     
         self.messages_widget.set_input_field(self.input_field)
     
-        self.send_button = create_icon_button(self.icons_path, "send.svg", "Send Message", config=self.config)
+        send_button_tooltip = tr("Send Message", "Отправить сообщение")
+        self.send_button = create_icon_button(self.icons_path, "send.svg", send_button_tooltip, config=self.config)
+        self._register_tr(self.send_button.setToolTip, send_button_tooltip)
         self.send_button.clicked.connect(self.send_message)
         self.input_top_layout.addWidget(self.send_button)
     
@@ -1839,21 +1841,27 @@ class ChatWindow(TranslatableMixin, QWidget):
         parse_current_label = QLabel("")
         parse_status_layout.addWidget(parse_current_label)
 
-        stop_parse_btn = create_icon_button(self.icons_path, "stop.svg", "Stop Parsing", config=self.config)
+        stop_parse_tooltip = tr("Stop Parsing", "Остановить парсинг")
+        stop_parse_btn = create_icon_button(self.icons_path, "stop.svg", stop_parse_tooltip, config=self.config)
         stop_parse_btn.setObjectName("stop_parse_btn")
         stop_parse_btn.clicked.connect(self._on_parse_status_stop)
         parse_status_layout.addWidget(stop_parse_btn)
+        self._register_tr(stop_parse_btn.setToolTip, stop_parse_tooltip)
 
-        view_parser_btn = create_icon_button(self.icons_path, "list.svg", "View results", config=self.config)
+        view_results_tooltip = tr("View results", "Показать результаты")
+        view_parser_btn = create_icon_button(self.icons_path, "list.svg", view_results_tooltip, config=self.config)
         view_parser_btn.setObjectName("view_parser_btn")
         view_parser_btn.clicked.connect(self.show_parser_view)
         parse_status_layout.addWidget(view_parser_btn)
+        self._register_tr(view_parser_btn.setToolTip, view_results_tooltip)
 
-        close_parse_btn = create_icon_button(self.icons_path, "close.svg", "Close", config=self.config)
+        close_parse_tooltip = tr("Close", "Закрыть")
+        close_parse_btn = create_icon_button(self.icons_path, "close.svg", close_parse_tooltip, config=self.config)
         close_parse_btn.setObjectName("close_parse_btn")
         close_parse_btn.clicked.connect(self.stop_parse_status)
         close_parse_btn.setVisible(False)
         parse_status_layout.addWidget(close_parse_btn)
+        self._register_tr(close_parse_btn.setToolTip, close_parse_tooltip)
 
         self._parse_results_badge = QLabel(view_parser_btn)
         self._parse_results_badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
