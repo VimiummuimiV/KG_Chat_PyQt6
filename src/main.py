@@ -26,6 +26,7 @@ from helpers.fonts import (
     FontType,
 )
 from helpers.config import Config
+from helpers.translate import tr, set_language, get_language, on_language_changed
 from helpers.username_color_manager import(
     change_username_color,
     reset_username_color,
@@ -64,8 +65,9 @@ class Application(QObject):
         if not self.lock_file.tryLock(100):
             QMessageBox.warning(
                 None,
-                "Already Running",
-                "KG Chat is already running.\nCheck your system tray."
+                tr("Already Running", "Уже запущено"),
+                tr("KG Chat is already running.\nCheck your system tray.",
+                   "КГ Чат уже запущен.\nПроверьте системный трей.")
             )
             sys.exit(0)
 
@@ -80,6 +82,7 @@ class Application(QObject):
         self.account_manager = AccountManager(str(self.config_path))
         self.config = Config(str(self.config_path))
         set_config(self.config)
+        set_language(self.config.get("ui", "language") or "en")
 
         # Initialize font scaler
         self.font_scaler = FontScaler(self.config)
@@ -132,115 +135,99 @@ class Application(QObject):
             return
 
         self.tray_icon = QSystemTrayIcon(self._get_icon(self.unread_count), self.app)
-        self.tray_icon.setToolTip("KG Chat")
         self.tray_icon.activated.connect(lambda r: self.toggle_chat_visibility(ignore_active=True) if r == QSystemTrayIcon.ActivationReason.Trigger else None)
 
         icon = lambda name: _render_svg_icon(self.icons_path / name, 16)
 
-        # Create the main menu
         menu = QMenu()
         menu.setFont(get_font(FontType.UI))
 
-        show_action = QAction(icon("door-open.svg"), "Show Chat", self.app)
-        show_action.triggered.connect(self._show_from_tray)
-        menu.addAction(show_action)
+        self.show_action = QAction(icon("door-open.svg"), "", self.app)
+        self.show_action.triggered.connect(self._show_from_tray)
+        menu.addAction(self.show_action)
         menu.addSeparator()
 
-        switch_action = QAction(icon("user-switch.svg"), "Switch Account", self.app)
-        switch_action.triggered.connect(self.show_account_switcher)
-        menu.addAction(switch_action)
+        self.switch_action = QAction(icon("user-switch.svg"), "", self.app)
+        self.switch_action.triggered.connect(self.show_account_switcher)
+        menu.addAction(self.switch_action)
         menu.addSeparator()
-       
-        # Create Color Management submenu
+
         self._setup_color_menu(menu, icon)
-       
         menu.addSeparator()
-        
-        # Create Sound Management submenu
         self._setup_sound_menu(menu, icon)
-        
         menu.addSeparator()
-        
-        # Create Notification Management submenu
         self._setup_notification_menu(menu, icon)
-        
         menu.addSeparator()
-        
-        # Add Ban List Management
-        self.ban_list_action = QAction(icon("user-blocked.svg"), "Ban List", self.app)
+
+        self.ban_list_action = QAction(icon("user-blocked.svg"), "", self.app)
         self.ban_list_action.triggered.connect(self.handle_ban_list)
         menu.addAction(self.ban_list_action)
-        
+
         menu.addSeparator()
-        exit_action = QAction(icon("door-closed.svg"), "Exit", self.app)
-        exit_action.triggered.connect(self.exit_application)
-        menu.addAction(exit_action)
+        self.exit_action = QAction(icon("door-closed.svg"), "", self.app)
+        self.exit_action.triggered.connect(self.exit_application)
+        menu.addAction(self.exit_action)
 
         self.tray_icon.setContextMenu(menu)
         self.tray_icon.show()
+        self._retranslate_tray()
+        on_language_changed(self._retranslate_tray)
 
     def _setup_color_menu(self, parent_menu: QMenu, icon):
-        """Setup color management submenu"""
-        self.color_menu = parent_menu.addMenu("Color")
+        self.color_menu = parent_menu.addMenu("")
         self.color_menu.setIcon(icon("palette.svg"))
-       
-        # Create actions for the submenu
-        change_color_action = QAction(icon("palette.svg"), "Change Username Color", self.app)
-        change_color_action.triggered.connect(self.handle_change_username_color)
-        self.color_menu.addAction(change_color_action)
-       
-        # Reset action - will be shown/hidden dynamically
-        self.reset_color_action = QAction(icon("go-back.svg"), "Reset to Original", self.app)
+        self.change_color_action = QAction(icon("palette.svg"), "", self.app)
+        self.change_color_action.triggered.connect(self.handle_change_username_color)
+        self.color_menu.addAction(self.change_color_action)
+        self.reset_color_action = QAction(icon("go-back.svg"), "", self.app)
         self.reset_color_action.triggered.connect(self.handle_reset_username_color)
         self.color_menu.addAction(self.reset_color_action)
-       
-       
-        # Connect to aboutToShow to update menu visibility
         self.color_menu.aboutToShow.connect(self.update_color_menu)
 
     def _setup_sound_menu(self, parent_menu: QMenu, icon):
-        """Setup sound management submenu"""
-        self.sound_menu = parent_menu.addMenu("Sound")
+        self.sound_menu = parent_menu.addMenu("")
         self.sound_menu.setIcon(icon("volume-up.svg"))
-        
-        # Add separator at the top
         self.sound_menu.addSeparator()
-        
-        # Voice sound (TTS) toggle action
-        self.voice_sound_action = QAction("Voice Sound", self.app, checkable=True)
+        self.voice_sound_action = QAction("", self.app, checkable=True)
         self.voice_sound_action.triggered.connect(
             lambda: self._on_sound_toggled("tts_enabled", self.voice_sound_action)
         )
         self.sound_menu.addAction(self.voice_sound_action)
-        
-        # Effects sound toggle action
-        self.effects_sound_action = QAction("Sound Effects", self.app, checkable=True)
+        self.effects_sound_action = QAction("", self.app, checkable=True)
         self.effects_sound_action.triggered.connect(
             lambda: self._on_sound_toggled("effects_enabled", self.effects_sound_action)
         )
         self.sound_menu.addAction(self.effects_sound_action)
-        
-        # Add separator before pronunciation
         self.sound_menu.addSeparator()
-        
-        # Username Pronunciation action
-        self.pronunciation_action = QAction(icon("user-voice.svg"), "Username Pronunciation", self.app)
+        self.pronunciation_action = QAction(icon("user-voice.svg"), "", self.app)
         self.pronunciation_action.triggered.connect(self.handle_pronunciation_manager)
         self.sound_menu.addAction(self.pronunciation_action)
-        
-        # Connect to aboutToShow to update menu state
         self.sound_menu.aboutToShow.connect(self.update_sound_menu)
-        
-        # Load initial states
         self.update_sound_menu()
 
     def _setup_notification_menu(self, parent_menu: QMenu, icon):
-        """Tray: notifications on/off only. Stack/Replace is chosen in Settings."""
-        self.notification_enabled_action = QAction("Notifications", self.app, checkable=True)
+        self.notification_enabled_action = QAction("", self.app, checkable=True)
         muted = self.config.get("notification", "muted") or False
         self.notification_enabled_action.setChecked(not muted)
         self.notification_enabled_action.triggered.connect(self._on_notification_enabled_toggled)
         parent_menu.addAction(self.notification_enabled_action)
+
+    def _retranslate_tray(self, _code=None):
+        if not self.tray_icon:
+            return
+        self.tray_icon.setToolTip(tr("KG Chat", "КГ Чат"))
+        self.show_action.setText(tr("Show Chat", "Показать чат"))
+        self.switch_action.setText(tr("Switch Account", "Сменить аккаунт"))
+        self.color_menu.setTitle(tr("Color", "Цвет"))
+        self.change_color_action.setText(tr("Change Username Color", "Изменить цвет имени"))
+        self.reset_color_action.setText(tr("Reset to Original", "Сбросить на исходный"))
+        self.sound_menu.setTitle(tr("Sound", "Звук"))
+        self.voice_sound_action.setText(tr("Voice Sound", "Голосовой звук"))
+        self.effects_sound_action.setText(tr("Sound Effects", "Звуковые эффекты"))
+        self.pronunciation_action.setText(tr("Username Pronunciation", "Произношение имён"))
+        self.notification_enabled_action.setText(tr("Notifications", "Уведомления"))
+        self.ban_list_action.setText(tr("Ban List", "Список забаненных"))
+        self.exit_action.setText(tr("Exit", "Выход"))
 
     def update_color_menu(self):
         """Update the color menu to show/hide Reset option based on custom_background"""

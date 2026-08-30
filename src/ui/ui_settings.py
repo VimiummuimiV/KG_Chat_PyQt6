@@ -29,6 +29,7 @@ from helpers.voice_engine import play_sound
 from helpers.data import get_data_dir
 from helpers.color_utils import blend_hex_colors, tinted_chip_colors
 from helpers.browser import get_available_browsers
+from helpers.translate import tr, set_language, get_language, on_language_changed
 
 DEFAULTS = {
     "notification": {
@@ -128,6 +129,11 @@ MENTIONS_DIGEST_MODE_OPTIONS = (
     ("daily", "Once per day", "Check personal mentions at most once every 24 hours per account."),
     ("custom", "Custom interval", "Check only after the chosen number of hours since last session end."),
     ("start", "Every chat start", "Check on every chat start (ignore the interval)."),
+)
+
+LANGUAGE_OPTIONS = (
+    ("en", "English", "English interface language"),
+    ("ru", "Русский", "Русский язык интерфейса"),
 )
 
 CONNECTION_STATES = {
@@ -906,8 +912,17 @@ class SettingsWidget(QWidget):
 
     def _build_chat_section(self):
         section = self._create_section("🗯️ Chat")
+        self.language_combo = self._add_combo_row(
+            section, tr("Language", "Язык"), [], self._on_language_changed
+        )
+        self.language_combo.setFixedWidth(240)
+        fill_tooltip_combo(
+            self.language_combo, LANGUAGE_OPTIONS,
+            self.config.get("ui", "language"), "en"
+        )
         self.clear_private_checkbox = self._add_checkbox(
-            section, "Clear private messages on exit", self._on_clear_private_toggled
+            section, tr("Clear private messages on exit", "Очищать приватные сообщения при выходе"),
+            self._on_clear_private_toggled
         )
         self.youtube_checkbox = self._add_checkbox(
             section, "Enable YouTube link previews", self._on_youtube_toggled
@@ -1682,6 +1697,12 @@ class SettingsWidget(QWidget):
             return
         self.config.set("ui", "own_message_mode", value=value)
         print(f"💬 Own message mode: {value}")
+
+    def _on_language_changed(self, _text: str = ""):
+        code = self.language_combo.currentData()
+        if code and code != get_language():
+            self.config.set("ui", "language", value=code)
+            set_language(code)
 
     def _on_clear_private_toggled(self, checked: bool):
         self.config.set("ui", "clear_private_messages_on_exit", value=checked)

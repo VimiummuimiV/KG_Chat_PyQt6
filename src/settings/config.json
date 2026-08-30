@@ -75,6 +75,7 @@
     "emoticon_selector_visible": false,
     "always_on_top": false,
     "recent_emoticons": [
+      "pogranminigun",
       "carpet",
       "uzi",
       "dwarf",
@@ -93,8 +94,7 @@
       "boredom",
       "sick",
       "spiteful",
-      "badcomp",
-      "clapping"
+      "badcomp"
     ],
     "window": {
       "width": null,
@@ -118,7 +118,7 @@
         "y": 0
       }
     ],
-    "emoticon_last_group": "recent",
+    "emoticon_last_group": "army",
     "emoticon_nav_positions": {
       "recent": 0,
       "army": 0,
@@ -131,7 +131,7 @@
     "settings": {
       "sections": {
         "startup": true,
-        "chat": true,
+        "chat": false,
         "fonts": true,
         "notifications": true,
         "competitions": true,
@@ -163,7 +163,8 @@
       "badge_font_size": 11,
       "mentions_digest_interval_hours": 24,
       "mentions_digest_mode": "start"
-    }
+    },
+    "language": "ru"
   },
   "sound": {
     "tts_enabled": false,
