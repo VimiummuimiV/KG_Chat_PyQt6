@@ -2340,17 +2340,19 @@ class ChatWindow(QWidget):
         bonuses=None,
     ) -> str:
         parts = [mult]
+
         show_cost = self.config.get("competitions", "show_cost")
         if show_cost is not False and cost is not None:
             parts.append(f"💵 {cost}")
 
         show_scores = self.config.get("competitions", "show_scores")
-        if show_scores is not False and scores is not None:
-            parts.append(f"💰 {scores}")
+        if show_scores is not False:
+            parts.append(f"💰 {scores if scores is not None else '—'}")
 
         show_bonuses = self.config.get("competitions", "show_bonuses")
-        if show_bonuses is not False and bonuses is not None:
-            parts.append(f"💎 {bonuses}")
+        if show_bonuses is not False:
+            parts.append(f"💎 {bonuses if bonuses is not None else '—'}")
+
         if url:
             parts.append(url)
         if begintime:
