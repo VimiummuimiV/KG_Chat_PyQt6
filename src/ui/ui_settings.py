@@ -2071,6 +2071,9 @@ class SettingsWidget(QWidget):
     def _tracking_disabled_text(self) -> str:
         return tr("Tracking disabled", "Отслеживание выключено")
 
+    def _tracking_enabled_text(self) -> str:
+        return tr("Tracking enabled", "Отслеживание включено")
+
     def _status_log_html(self, text: str, kind: str) -> str:
         c = self._competitions_log_colors()
         color = {
@@ -2099,7 +2102,7 @@ class SettingsWidget(QWidget):
         self.competitions_log.setFixedHeight(DEFAULTS["competitions"]["log_height"])
         plain = self.competitions_log.toPlainText().strip()
         if plain in ("", self._tracking_disabled_text()):
-            self.competitions_log.setHtml(self._status_log_html(tr("Tracking enabled", "Отслеживание включено"), "enabled"))
+            self.competitions_log.setHtml(self._status_log_html(self._tracking_enabled_text(), "enabled"))
 
         state = connection or "connecting"
         self._competitions_accent_color = CONNECTION_STATES.get(
