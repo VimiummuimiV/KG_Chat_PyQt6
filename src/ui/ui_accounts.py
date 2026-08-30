@@ -1,3 +1,4 @@
+import json
 import sys
 from pathlib import Path
 from PyQt6.QtWidgets import (
@@ -24,14 +25,21 @@ from ui.ui_settings import fill_resource_combo
 
 
 def _add_account_from_auth_data(account_manager, user_data: dict) -> bool:
-    return account_manager.add_account(
+    cookies = user_data.get('cookies')
+    cookies_json = json.dumps(cookies) if cookies else None
+    added = account_manager.add_account(
         user_id=str(user_data['id']),
         chat_username=user_data['login'],
         chat_password=user_data['pass'],
         avatar=user_data.get('avatar'),
         background=user_data.get('background'),
+        session_cookies=cookies_json,
         set_active=True,
     )
+    if not added and cookies_json:
+        # Account already exists — still refresh its session cookies from this login
+        account_manager.update_session_cookies(user_data['login'], cookies_json)
+    return added
 
 
 class AccountWindow(QWidget):
@@ -508,11 +516,12 @@ class AccountWindow(QWidget):
         if not user_data.get('id'):
             QMessageBox.critical(self, "Error", "Could not retrieve account data.")
             return
-        success = _add_account_from_auth_data(self.account_manager, user_data)
-        if success:
+        added = _add_account_from_auth_data(self.account_manager, user_data)
+        existing = self.account_manager.get_account_by_chat_username(user_data['login'])
+        if added or existing:
             self.load_accounts()
         else:
-            QMessageBox.critical(self, "Error", "Failed to save account. It may already exist.")
+            QMessageBox.critical(self, "Error", "Failed to save account.")
 
     def on_connect(self):
         if self.account_dropdown.count() == 0 or self.account_dropdown.currentText() == "No accounts available":

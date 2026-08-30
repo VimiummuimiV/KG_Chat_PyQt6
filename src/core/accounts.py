@@ -22,6 +22,7 @@ class AccountManager:
             ('background', 'TEXT'),
             ('custom_background', 'TEXT'),
             ('active', 'INTEGER DEFAULT 0'),
+            ('session_cookies', 'TEXT'),
         ]
     }
 
@@ -59,6 +60,7 @@ class AccountManager:
 
     def add_account(self, user_id: str, chat_username: str, chat_password: str,
                     avatar: str = None, background: str = None,
+                    session_cookies: str = None,
                     set_active: bool = False) -> bool:
         """Add new account"""
         try:
@@ -76,9 +78,10 @@ class AccountManager:
                         avatar,
                         background,
                         custom_background,
-                        active
+                        active,
+                        session_cookies
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     user_id,
                     chat_username,
@@ -86,7 +89,8 @@ class AccountManager:
                     avatar,
                     background,
                     None,
-                    1 if set_active else 0
+                    1 if set_active else 0,
+                    session_cookies
                 ))
 
             return True
@@ -175,6 +179,20 @@ class AccountManager:
                 return cursor.rowcount > 0
         except Exception as e:
             print(f"❌ Error updating account: {e}")
+            return False
+
+    def update_session_cookies(self, chat_username: str, session_cookies: str) -> bool:
+        """Refresh stored website session cookies for an existing account"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    'UPDATE accounts SET session_cookies = ? WHERE chat_username = ?',
+                    (session_cookies, chat_username)
+                )
+                return cursor.rowcount > 0
+        except Exception as e:
+            print(f"❌ Error updating session cookies: {e}")
             return False
 
     def _row_to_dict(self, row) -> Dict:

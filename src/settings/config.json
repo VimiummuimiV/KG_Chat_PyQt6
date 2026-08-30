@@ -208,8 +208,8 @@
     "validate_usernames": false
   },
   "competitions": {
-    "enabled": false,
-    "min_multiplier": "x3+",
+    "enabled": true,
+    "min_multiplier": "x1+",
     "notify_window_enabled": false,
     "notify_window_start": 6,
     "notify_window_end": 24,
@@ -217,7 +217,9 @@
     "max_player_chips": 100,
     "show_players": true,
     "sort_players_by_level": true,
-    "show_cost": false,
+    "show_cost": true,
+    "show_scores": true,
+    "show_bonuses": false,
     "alert_chat_action": "move"
   },
   "font": {
@@ -243,7 +245,7 @@
     "notifications": false,
     "presence_log": true,
     "presence_log_split_percent": 20,
-    "show_unread_badge": true,
+    "show_unread_badge": false,
     "show_star_badge": true,
     "track_events": [
       "join",

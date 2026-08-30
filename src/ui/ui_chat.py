@@ -1,5 +1,6 @@
 """Chat window with XMPP integration"""
 import threading
+import json
 import re
 from pathlib import Path
 from datetime import datetime
@@ -67,6 +68,7 @@ from helpers.help import HelpPanel
 from components.notification import show_notification, popup_manager
 from helpers.input_activity import activity_detected
 from core.races_listener import RacesListener
+from core.scores import fetch_scores_bonuses
 from components.messages_separator import NewMessagesSeparator
 from components.context_menu.message import (
     show_message_user_context_menu,
@@ -2334,11 +2336,21 @@ class ChatWindow(QWidget):
         total: int,
         shown: int | None = None,
         cost=None,
+        scores=None,
+        bonuses=None,
     ) -> str:
         parts = [mult]
         show_cost = self.config.get("competitions", "show_cost")
-        if show_cost is not False and cost is not None and cost != "" and cost != 0:
-            parts.append(f"💰 {cost}")
+        if show_cost is not False and cost is not None:
+            parts.append(f"💵 {cost}")
+
+        show_scores = self.config.get("competitions", "show_scores")
+        if show_scores is not False and scores is not None:
+            parts.append(f"💰 {scores}")
+
+        show_bonuses = self.config.get("competitions", "show_bonuses")
+        if show_bonuses is not False and bonuses is not None:
+            parts.append(f"💎 {bonuses}")
         if url:
             parts.append(url)
         if begintime:
@@ -2372,12 +2384,12 @@ class ChatWindow(QWidget):
     def _player_names(players: list) -> list:
         return [p.get("name") or p.get("login") or "?" for p in players]
 
-    def _competition_chips_and_header(self, mult: str, url: str, begintime, players: list, cost=None):
+    def _competition_chips_and_header(self, mult: str, url: str, begintime, players: list, cost=None, scores=None, bonuses=None):
         """Build player chips + formatted header from raw competition fields."""
         chips = self._player_chips(players)
         shown = None if not chips else sum(1 for c in chips if c.get("name") != "…")
         header = self._format_competition_header(
-            mult, url, begintime, len(players), shown, cost=cost
+            mult, url, begintime, len(players), shown, cost=cost, scores=scores, bonuses=bonuses
         )
         return chips, header
 
@@ -2412,6 +2424,38 @@ class ChatWindow(QWidget):
             self._start_competition_countdown_timer()
 
         self._schedule_competition_alert(gid, mult, url, tag, begintime)
+        self._fetch_own_balance(gid)
+
+    def _fetch_own_balance(self, gid: int):
+        """Headless one-shot fetch of scores/bonuses."""
+        # If both display options are off, no need to fetch
+        show_scores = self.config.get("competitions", "show_scores")
+        show_bonuses = self.config.get("competitions", "show_bonuses")
+        if show_scores is False and show_bonuses is False:
+            return
+
+        cookies_json = (self.account or {}).get("session_cookies")
+        if not cookies_json:
+            return
+        try:
+            cookies = json.loads(cookies_json)
+        except Exception:
+            return
+
+        def _fetch():
+            result = fetch_scores_bonuses(cookies)
+            if result:
+                scores, bonuses = result
+                self._dispatch.emit(lambda: self._on_own_balance_fetched(gid, scores, bonuses))
+
+        threading.Thread(target=_fetch, daemon=True).start()
+
+    def _on_own_balance_fetched(self, gid: int, scores: int, bonuses: int):
+        live = self._competition_live.get(gid)
+        if live is None:
+            return
+        live.update(scores=scores, bonuses=bonuses)
+        self._refresh_competition_message(gid)
 
     def _start_competition_countdown_timer(self):
         """Align ticks to wall-clock second boundaries so the countdown doesn't lag behind real time."""
@@ -2427,6 +2471,14 @@ class ChatWindow(QWidget):
     def refresh_competition_player_display(self):
         for gid in list(self._competition_live.keys()):
             self._refresh_competition_message(gid)
+
+    def _on_show_balance_toggled_ui(self):
+        for gid, live in self._competition_live.items():
+            need_scores = self.config.get("competitions", "show_scores") is not False and "scores" not in live
+            need_bonuses = self.config.get("competitions", "show_bonuses") is not False and "bonuses" not in live
+            if need_scores or need_bonuses:
+                self._fetch_own_balance(gid)
+        self.refresh_competition_player_display()
 
     def _on_competition_players_changed(self, gid: int, players: list):
         live = self._competition_live.get(gid)
@@ -2460,7 +2512,8 @@ class ChatWindow(QWidget):
             return
         players = live.get("players") or []
         chips, header = self._competition_chips_and_header(
-            live["mult"], live["url"], live.get("begintime"), players, cost=live.get("cost")
+            live["mult"], live["url"], live.get("begintime"), players,
+            cost=live.get("cost"), scores=live.get("scores"), bonuses=live.get("bonuses")
         )
         try:
             row = mw.model.find_competition_message_row(gid)
@@ -2481,7 +2534,8 @@ class ChatWindow(QWidget):
             return
         players = live.get("players") or []
         chips, header = self._competition_chips_and_header(
-            live["mult"], live["url"], live.get("begintime"), players, cost=live.get("cost")
+            live["mult"], live["url"], live.get("begintime"), players,
+            cost=live.get("cost"), scores=live.get("scores"), bonuses=live.get("bonuses")
         )
         sb = mw.list_view.verticalScrollBar()
         at_bottom = (sb.maximum() - sb.value()) <= 100
@@ -3625,6 +3679,12 @@ class ChatWindow(QWidget):
             )
             self.settings_widget.show_cost_checkbox.toggled.connect(
                 lambda _=None: self.refresh_competition_player_display()
+            )
+            self.settings_widget.show_scores_checkbox.toggled.connect(
+                self._on_show_balance_toggled_ui
+            )
+            self.settings_widget.show_bonuses_checkbox.toggled.connect(
+                self._on_show_balance_toggled_ui
             )
             self.settings_widget.show_players_checkbox.toggled.connect(
                 lambda _=None: self.refresh_competition_player_display()

@@ -209,12 +209,14 @@ class LoginWebView(QDialog):
         self.setStyleSheet("background:#000;")
         self._navigating_to_gamelist = False
         self._spinner = LoadingSpinner(None, 48)
+        self._captured_cookies = {}
 
         self._view = QWebEngineView()
         self._profile = QWebEngineProfile(self)
         self._page = QWebEnginePage(self._profile, self._view)
         self._view.setPage(self._page)
         self._page.setBackgroundColor(QColor(0, 0, 0))
+        self._profile.cookieStore().cookieAdded.connect(self._on_cookie_added)
 
         palette = self._view.palette()
         palette.setColor(QPalette.ColorRole.Window, QColor(0, 0, 0))
@@ -305,6 +307,21 @@ class LoginWebView(QDialog):
             return
         self._show_wait(False)
 
+    def _on_cookie_added(self, cookie):
+        domain = cookie.domain().lstrip(".")
+        if "klavogonki.ru" not in domain:
+            return
+        name = bytes(cookie.name()).decode("utf-8", "ignore")
+        value = bytes(cookie.value()).decode("utf-8", "ignore")
+        if not name:
+            return
+        self._captured_cookies[name] = {
+            "name": name,
+            "value": value,
+            "domain": cookie.domain(),
+            "path": cookie.path(),
+        }
+
     def _on_logged_in_check(self, logged_in: bool):
         if logged_in and not self._navigating_to_gamelist:
             self._navigating_to_gamelist = True
@@ -322,5 +339,6 @@ class LoginWebView(QDialog):
             "pass": data.get("pass"),
             "avatar": (user.get("avatar") or "").replace("\\/", "/"),
             "background": user.get("background") or "#808080",
+            "cookies": list(self._captured_cookies.values()),
         })
         self.accept()

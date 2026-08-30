@@ -1335,6 +1335,14 @@ class SettingsWidget(TranslatableMixin, QWidget):
             section, tr("Show competition cost", "Показывать стоимость соревнования"), self._on_show_cost_toggled
         )
 
+        self.show_scores_checkbox = self._add_checkbox(
+            section, tr("Show scores balance", "Показывать остаток очков"), self._on_show_scores_toggled
+        )
+
+        self.show_bonuses_checkbox = self._add_checkbox(
+            section, tr("Show bonuses balance", "Показывать остаток бонусов"), self._on_show_bonuses_toggled
+        )
+
         self.show_players_checkbox = self._add_checkbox(
             section, tr("Show player usernames", "Показывать имена игроков"), self._on_show_players_toggled
         )
@@ -1479,7 +1487,7 @@ class SettingsWidget(TranslatableMixin, QWidget):
             self.tracker_presence_log_checkbox, self.tracker_presence_log_split_spin,
             self.tracker_badge_checkbox, self.tracker_userlist_star_checkbox,
             self.min_multiplier_combo,
-            self.show_cost_checkbox,
+            self.show_cost_checkbox, self.show_scores_checkbox, self.show_bonuses_checkbox,
             self.show_players_checkbox, self.max_player_chips_spin, self.sort_players_by_level_checkbox,
             self.competitions_alert_lead_spin, self.alert_chat_action_combo,
             self.competitions_notify_window_checkbox,
@@ -1689,6 +1697,12 @@ class SettingsWidget(TranslatableMixin, QWidget):
 
         show_cost = self.config.get("competitions", "show_cost")
         self.show_cost_checkbox.setChecked(True if show_cost is None else bool(show_cost))
+
+        show_scores = self.config.get("competitions", "show_scores")
+        self.show_scores_checkbox.setChecked(True if show_scores is None else bool(show_scores))
+
+        show_bonuses = self.config.get("competitions", "show_bonuses")
+        self.show_bonuses_checkbox.setChecked(True if show_bonuses is None else bool(show_bonuses))
 
         show_players = self.config.get("competitions", "show_players")
         self.show_players_checkbox.setChecked(True if show_players is None else bool(show_players))
@@ -2289,6 +2303,12 @@ class SettingsWidget(TranslatableMixin, QWidget):
 
     def _on_show_cost_toggled(self, checked: bool):
         self.config.set("competitions", "show_cost", value=checked)
+
+    def _on_show_scores_toggled(self, checked: bool):
+        self.config.set("competitions", "show_scores", value=checked)
+
+    def _on_show_bonuses_toggled(self, checked: bool):
+        self.config.set("competitions", "show_bonuses", value=checked)
 
     def _on_show_players_toggled(self, checked: bool):
         self.config.set("competitions", "show_players", value=checked)
