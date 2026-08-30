@@ -13,6 +13,7 @@ from helpers.create import _render_svg_icon, get_user_svg_color
 from helpers.cache import get_cache
 from helpers.fonts import get_font, FontType
 from helpers.scroll.auto_scroll import AutoScroller
+from helpers.translate import tr, TranslatableMixin, on_language_changed
 from components.context_menu.userlist import (
     show_userlist_context_menu,
     PROFILE,
@@ -104,7 +105,7 @@ class UserWidget(QWidget):
             QTimer.singleShot(700, lambda: not sip.isdeleted(self.username_label)
                 and self.user.role == 'visitor' and (
                     self.username_label.setText(self.username_label.text() + block_mark) or
-                    self.username_label.setToolTip("Blocked")
+                    self.username_label.setToolTip(tr("Blocked", "Заблокирован"))
                 ))
         
         self.username_label.setText(username_text)
@@ -128,17 +129,17 @@ class UserWidget(QWidget):
         
         # Add role if not just participant
         if user.role and user.role != 'participant':
-            parts.append(f"Role: {user.role.capitalize()}")
+            parts.append(f"{tr('Role', 'Роль')}: {user.role.capitalize()}")
         
         # Add affiliation if not just none
         if user.affiliation and user.affiliation != 'none':
-            parts.append(f"Affiliation: {user.affiliation.capitalize()}")
+            parts.append(f"{tr('Affiliation', 'Статус')}: {user.affiliation.capitalize()}")
         
         # Add moderator flag if set
         if user.moderator:
-            parts.append("Moderator: Yes")
+            parts.append(f"{tr('Moderator', 'Модератор')}: {tr('Yes', 'Да')}")
         
-        return "\n".join(parts) if parts else "Moderator"
+        return "\n".join(parts) if parts else tr("Moderator", "Модератор")
     
     def _on_avatar_loaded(self, user_id: str, pixmap: QPixmap):
         """Callback when avatar is loaded from cache"""
@@ -217,7 +218,7 @@ class UserWidget(QWidget):
             self.track_requested.emit(str(self.user.user_id or ""), self.user.login, False)
 
 
-class UserListWidget(QWidget):
+class UserListWidget(TranslatableMixin, QWidget):
     """Widget for displaying sorted user list with dynamic sections"""
     
     profile_requested = pyqtSignal(str, str, str)
@@ -228,6 +229,7 @@ class UserListWidget(QWidget):
 
     def __init__(self, config, input_field=None, ban_manager=None, user_tracker=None, my_username=None):
         super().__init__()
+        self._init_translatable()
         self.config = config
         self.input_field = input_field
         self.ban_manager = ban_manager
@@ -268,11 +270,12 @@ class UserListWidget(QWidget):
         section_label = get_font(FontType.TEXT, weight=QFont.Weight.Bold)
 
         # Chat section
-        self.chat_label = QLabel("Chat")
+        self.chat_label = QLabel(tr("Chat", "Чат"))
         self.chat_label.setFont(section_label)
         self.chat_label.setStyleSheet("color: #888;")
         self.chat_label.setVisible(False)
         self.main_layout.addWidget(self.chat_label)
+        self._register_tr(self.chat_label.setText, tr("Chat", "Чат"))
 
         self.chat_container = QVBoxLayout()
         self.chat_container.setSpacing(list_spacing)
@@ -284,17 +287,23 @@ class UserListWidget(QWidget):
         self.main_layout.addWidget(self.section_spacer)
 
         # Game section
-        self.game_label = QLabel("Game")
+        self.game_label = QLabel(tr("Game", "Игра"))
         self.game_label.setFont(section_label)
         self.game_label.setStyleSheet("color: #888;")
         self.game_label.setVisible(False)
         self.main_layout.addWidget(self.game_label)
+        self._register_tr(self.game_label.setText, tr("Game", "Игра"))
         
         self.game_container = QVBoxLayout()
         self.game_container.setSpacing(list_spacing)
         self.main_layout.addLayout(self.game_container)
         
         self.main_layout.addStretch()
+
+        on_language_changed(self._retranslate)
+    
+    def _retranslate(self, _code=None):
+        self._retranslate_all()
     
     def _update_section_visibility(self):
         """Update visibility of section headers"""

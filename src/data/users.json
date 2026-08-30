@@ -307,5 +307,6 @@
   "827613": {"login": "elas1k", "background": "#777777", "light": "#767676", "dark": "#858585"},
   "418127": {"login": "blitz_va", "background": "#263238", "light": "#263238", "dark": "#698a9a"},
   "263394": {"login": "sergius-ark", "background": "#00A7C1", "light": "#008297", "dark": "#00A7C1"},
-  "784417": {"login": "sancta", "background": "#777777", "light": "#767676", "dark": "#858585"}
+  "784417": {"login": "sancta", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "630337": {"login": "erida", "background": "#43adbb", "light": "#32818c", "dark": "#43adbb"}
 }
