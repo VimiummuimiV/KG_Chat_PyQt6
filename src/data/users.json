@@ -310,5 +310,8 @@
   "784417": {"login": "sancta", "background": "#777777", "light": "#767676", "dark": "#858585"},
   "630337": {"login": "erida", "background": "#43adbb", "light": "#32818c", "dark": "#43adbb"},
   "659871": {"login": "aestetic", "background": "#70aa47", "light": "#568237", "dark": "#70aa47"},
-  "734463": {"login": "simbatik", "background": "#777777", "light": "#767676", "dark": "#858585"}
+  "734463": {"login": "simbatik", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "784279": {"login": "snow-world", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "718485": {"login": "OneWolf", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "514458": {"login": "JackMitchelson", "background": "#777777", "light": "#767676", "dark": "#858585"}
 }
