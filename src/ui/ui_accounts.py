@@ -387,7 +387,10 @@ class AccountWindow(TranslatableMixin, QWidget):
     def on_color_picker(self):
         account = self.account_dropdown.currentData()
         if not account:
-            QMessageBox.warning(self, tr("No Account", "Нет аккаунта"), tr("Select an account first.", "Сначала выберите аккаунт."))
+            QMessageBox.warning(self,
+                tr("No Account", "Нет аккаунта"),
+                tr("Please select an account first.", "Сначала выберите аккаунт.")
+            )
             return
         success = change_username_color(self, self.account_manager, account, self.cache)
         if success:
@@ -396,7 +399,10 @@ class AccountWindow(TranslatableMixin, QWidget):
     def on_reset_color(self):
         account = self.account_dropdown.currentData()
         if not account:
-            QMessageBox.warning(self, tr("No Account", "Нет аккаунта"), tr("Select an account first.", "Сначала выберите аккаунт."))
+            QMessageBox.warning(self,
+                tr("No Account", "Нет аккаунта"),
+                tr("Please select an account first.", "Сначала выберите аккаунт.")
+            )
             return
         success = reset_username_color(self, self.account_manager, account, self.cache)
         if success:
@@ -436,8 +442,8 @@ class AccountWindow(TranslatableMixin, QWidget):
             else:
                 QMessageBox.warning(
                     self, tr("Error", "Ошибка"),
-                    tr("Failed to enable start with system. Check permissions.",
-                       "Не удалось включить запуск с системой. Проверьте права доступа.")
+                          tr("Failed to enable start with system. Please check permissions.",
+                             "Не удалось включить запуск с системой. Проверьте права доступа.")
                 )
                 self.start_with_system_checkbox.setChecked(False)
         else:
@@ -447,8 +453,8 @@ class AccountWindow(TranslatableMixin, QWidget):
             else:
                 QMessageBox.warning(
                     self, tr("Error", "Ошибка"),
-                    tr("Failed to disable start with system. Check permissions.",
-                       "Не удалось отключить запуск с системой. Проверьте права доступа.")
+                          tr("Failed to disable start with system. Please check permissions.",
+                             "Не удалось отключить запуск с системой. Проверьте права доступа.")
                 )
                 self.start_with_system_checkbox.setChecked(True)
 
@@ -545,18 +551,27 @@ class AccountWindow(TranslatableMixin, QWidget):
 
     def _on_web_login_success(self, user_data: dict):
         if not user_data.get('id'):
-            QMessageBox.critical(self, tr("Error", "Ошибка"), tr("Could not retrieve account data.", "Не удалось получить данные аккаунта."))
+            QMessageBox.critical(self,
+                tr("Error", "Ошибка"),
+                tr("Could not retrieve account data.", "Не удалось получить данные аккаунта.")
+            )
             return
         added = _add_account_from_auth_data(self.account_manager, user_data)
         existing = self.account_manager.get_account_by_chat_username(user_data['login'])
         if added or existing:
             self.load_accounts()
         else:
-            QMessageBox.critical(self, tr("Error", "Ошибка"), tr("Failed to save account.", "Не удалось сохранить аккаунт."))
+            QMessageBox.critical(self,
+                tr("Error", "Ошибка"),
+                tr("Failed to save account.", "Не удалось сохранить аккаунт.")
+            )
 
     def on_connect(self):
         if self.account_dropdown.count() == 0:
-            QMessageBox.warning(self, tr("No Account", "Нет аккаунта"), tr("Create an account first.", "Сначала создайте аккаунт."))
+            QMessageBox.warning(self,
+                tr("No Account", "Нет аккаунта"),
+                tr("Please create an account first.", "Сначала создайте аккаунт.")
+            )
             return
 
         # Get selected account
@@ -567,7 +582,10 @@ class AccountWindow(TranslatableMixin, QWidget):
 
     def on_remove_account(self):
         if self.account_dropdown.count() == 0:
-            QMessageBox.warning(self, tr("No Account", "Нет аккаунта"), tr("No account to remove.", "Нет аккаунта для удаления."))
+            QMessageBox.warning(self,
+                tr("No Account", "Нет аккаунта"),
+                tr("No account to remove.", "Нет аккаунта для удаления.")
+            )
             return
 
         # Confirm removal
@@ -585,10 +603,16 @@ class AccountWindow(TranslatableMixin, QWidget):
         if reply == QMessageBox.StandardButton.Yes:
             # Remove account
             if self.account_manager.remove_account(account['chat_username']):
-                QMessageBox.information(self, tr("Success", "Готово"), tr("Account removed successfully.", "Аккаунт успешно удалён."))
+                QMessageBox.information(self,
+                    tr("Success", "Готово"),
+                    tr("Account removed successfully.", "Аккаунт успешно удалён.")
+                )
                 self.load_accounts()
             else:
-                QMessageBox.critical(self, tr("Error", "Ошибка"), tr("Failed to remove account.", "Не удалось удалить аккаунт."))
+                QMessageBox.critical(self,
+                    tr("Error", "Ошибка"),
+                    tr("Failed to remove account.", "Не удалось удалить аккаунт.")
+                )
 
     def _retranslate(self, _code=None):
         self._retranslate_all()

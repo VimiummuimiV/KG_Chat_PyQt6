@@ -333,6 +333,8 @@ class LoginWebView(QDialog):
         if not data or not isinstance(data, dict):
             self.reject()
             return
+
+        self._show_wait(False)
         user = data.get("user") or {}
         self.login_success.emit({
             "id": user.get("id"),

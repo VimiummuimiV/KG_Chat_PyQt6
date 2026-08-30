@@ -21,6 +21,8 @@ from PyQt6.QtWidgets import QApplication, QWidget
 
 import keyboard
 
+from helpers.translate import tr
+
 DEFAULT_HOTKEY = "win+c"
 
 STATUS_ACTIVE = "active"
@@ -34,12 +36,16 @@ STATUS_COLORS = {
     STATUS_ERROR: "#e74c3c",
     STATUS_DISABLED: "#888888",
 }
-STATUS_TOOLTIPS = {
-    STATUS_ACTIVE: "Hotkey is registered and active",
-    STATUS_CONFLICT: "Combination is already claimed by Windows or another app — pick a different one",
-    STATUS_ERROR: "Hotkey registration failed",
-    STATUS_DISABLED: "Hotkey is not registered",
-}
+def get_status_tooltip(status: str) -> str:
+    return {
+        STATUS_ACTIVE: tr("Hotkey is registered and active", "Хоткей зарегистрирован и активен"),
+        STATUS_CONFLICT: tr(
+            "Combination is already claimed by Windows or another app — pick a different one",
+            "Комбинация уже занята Windows или другим приложением — выберите другую",
+        ),
+        STATUS_ERROR: tr("Hotkey registration failed", "Не удалось зарегистрировать хоткей"),
+        STATUS_DISABLED: tr("Hotkey is not registered", "Хоткей не зарегистрирован"),
+    }.get(status, "")
 
 HOTKEY_ID = 1
 WM_HOTKEY = 0x0312
@@ -228,7 +234,10 @@ class GlobalHotkeyManager(QObject):
         mods, key = parse_hotkey(self._combo)
         vk = _virtual_key_code(key)
         if not mods or vk is None:
-            self._set_status(STATUS_ERROR, "Invalid key combination")
+            self._set_status(STATUS_ERROR, tr(
+                "Invalid key combination",
+                "Недопустимая комбинация клавиш")
+            )
             return
 
         if self._message_window is None:
@@ -250,9 +259,15 @@ class GlobalHotkeyManager(QObject):
         else:
             error_code = ctypes.get_last_error()
             if error_code == ERROR_HOTKEY_ALREADY_REGISTERED:
-                self._set_status(STATUS_CONFLICT, "Combination is already claimed by Windows or another app")
+                self._set_status(STATUS_CONFLICT, tr(
+                    "Combination is already claimed by Windows or another app",
+                    "Комбинация уже занята Windows или другим приложением")
+                )
             else:
-                self._set_status(STATUS_ERROR, f"Windows error code: {error_code}")
+                self._set_status(STATUS_ERROR, tr(
+                    f"Windows error code: {error_code}",
+                    f"Код ошибки Windows: {error_code}")
+                )
 
     def _unregister_windows(self):
         if self._message_window is not None:
@@ -262,7 +277,10 @@ class GlobalHotkeyManager(QObject):
     def _register_fallback(self):
         mods, key = parse_hotkey(self._combo)
         if not mods or not key:
-            self._set_status(STATUS_ERROR, "Invalid key combination")
+            self._set_status(STATUS_ERROR, tr(
+                "Invalid key combination",
+                "Недопустимая комбинация клавиш")
+            )
             return
         self._fallback_mods = mods
         self._fallback_key = key.lower()

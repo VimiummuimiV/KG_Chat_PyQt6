@@ -85,9 +85,9 @@ class _SpinCommitSignal(QObject):
 def xmpp_resource_options():
     return (
         ("web", tr("Same resource as the website. Receives private messages from the site client.",
-                   "Тот же ресурс, что у сайта. Получает личные сообщения от веб-клиента.")),
+                   "Тот же ресурс, что у сайта. Получает приватные сообщения от веб-клиента.")),
         ("client", tr("Works alongside the website. May not receive private messages from the web resource.",
-                      "Работает параллельно с сайтом. Может не получать личные сообщения от веб-ресурса.")),
+                      "Работает параллельно с сайтом. Может не получать приватные сообщения от веб-ресурса.")),
     )
 
 def own_message_mode_options():
@@ -1157,7 +1157,7 @@ class SettingsWidget(TranslatableMixin, QWidget):
 
     def _on_hotkey_status_changed(self, status: str, detail: str):
         color = hotkey.STATUS_COLORS.get(status, hotkey.STATUS_COLORS[hotkey.STATUS_DISABLED])
-        tooltip = detail or hotkey.STATUS_TOOLTIPS.get(status, "")
+        tooltip = detail or hotkey.get_status_tooltip(status)
         can_retry = status != hotkey.STATUS_ACTIVE
         is_dark = (self.config.get("ui", "theme") or "dark") == "dark"
         tooltip_bg, tooltip_fg, tooltip_border = tinted_chip_colors(color, is_dark)

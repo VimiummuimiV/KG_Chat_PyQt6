@@ -3334,36 +3334,32 @@ class ChatWindow(TranslatableMixin, QWidget):
     
         return chunks
 
-    def set_connection_status(self, status: str):
-        status = (status or '').lower()
-        self._connection_status = status
+    def _update_connection_title(self):
         text = {
             'connecting': tr("Connecting", "Подключение"),
             'online': tr("Online", "В сети"),
-        }.get(status, tr("Offline", "Не в сети"))
+        }.get(self._connection_status, tr("Offline", "Не в сети"))
         base = f"{tr('Chat', 'Чат')} - {self.my_username}" if self.my_username else tr('Chat', 'Чат')
 
         # Preserve private mode in title
         if self.private_mode and self.private_chat_username:
-            self.setWindowTitle(f"{base} - {tr("Private with", "Приватно с")} {self.private_chat_username} - {text}")
+            self.setWindowTitle(f"{base} - {tr('Private with', 'Приватно с')} {self.private_chat_username} - {text}")
         else:
             self.setWindowTitle(f"{base} - {text}")
 
-    def _retranslate(self, _code=None):
-        self._retranslate_all()
-        self.set_connection_status(self._connection_status)
+    def set_connection_status(self, status: str):
+        status = (status or '').lower()
+        self._connection_status = status
+        self._update_connection_title()
 
-        # Force input style update – updates private chat placeholder
-        self._update_input_style()
-        
         # Reset on success
-        if self._connection_status == 'online':
+        if status == 'online':
             self.reconnect_count = 0
             if hasattr(self, 'button_panel') and hasattr(self.button_panel, 'reconnect_button'):
                 self.button_panel.reconnect_button.setVisible(False)
         
         # Only trigger auto-reconnect on offline status
-        elif self._connection_status == 'offline':
+        elif status == 'offline':
             if getattr(self, 'really_close', False):
                 return
             
@@ -3374,6 +3370,13 @@ class ChatWindow(TranslatableMixin, QWidget):
             if self.allow_reconnect and not self.is_connecting and self.account:
                 print("🔄 Connection lost - initiating auto-reconnect...")
                 QTimer.singleShot(100, self._auto_reconnect)
+
+    def _retranslate(self, _code=None):
+        self._retranslate_all()
+        self._update_connection_title()
+
+        # Force input style update – updates private chat placeholder
+        self._update_input_style()
 
     def _auto_reconnect(self):
         """Auto-reconnect with exponential backoff (max 10 attempts)"""

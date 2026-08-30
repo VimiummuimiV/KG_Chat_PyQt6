@@ -44,6 +44,7 @@ class UserWidget(QWidget):
         self.user = user
         self.icons_path = icons_path
         self.is_tracked = is_tracked
+        self.is_blocked = False
         self.cache = get_cache()
         
         self.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
@@ -91,14 +92,20 @@ class UserWidget(QWidget):
         
         # Build username text with role icon
         username_text = user.login
-        
-        if user.role in ('moderator', 'owner') or user.affiliation == 'owner' or user.moderator:
+        tooltip_parts = []
+
+        self.is_moderator = user.role in ('moderator', 'owner') or user.affiliation == 'owner' or user.moderator
+        if self.is_moderator:
             username_text += " ⚔️"
-            self.username_label.setToolTip(self._build_moderator_tooltip(user))
+            tooltip_parts.append(self._build_moderator_tooltip(user))
 
         if self.is_tracked:
             username_text += " ⭐"
-            self.username_label.setToolTip(tr("Tracked", "Отслеживается"))
+            tooltip_parts.append(tr("Tracked", "Отслеживается"))
+
+        self._base_tooltip = "\n".join(tooltip_parts)
+        if self._base_tooltip:
+            self.username_label.setToolTip(self._base_tooltip)
 
         if user.role == 'visitor':
             emoji_family = (config.get("font", "emoji_family") or "").lower()
@@ -106,7 +113,7 @@ class UserWidget(QWidget):
             QTimer.singleShot(700, lambda: not sip.isdeleted(self.username_label)
                 and self.user.role == 'visitor' and (
                     self.username_label.setText(self.username_label.text() + block_mark) or
-                    self.username_label.setToolTip(tr("Blocked", "Заблокирован"))
+                    self._set_blocked_tooltip()
                 ))
         
         self.username_label.setText(username_text)
@@ -123,6 +130,29 @@ class UserWidget(QWidget):
             self._game_counter_style(is_dark_theme)
             layout.addWidget(self.game_counter_label)
         layout.addStretch()
+
+    def retranslate_tooltip(self):
+        """Recompute the combined tooltip in the current language. Called by
+        the parent list on language change since the tooltip is built from
+        live user state, not a single static tr() call."""
+        tooltip_parts = []
+        if self.is_moderator:
+            tooltip_parts.append(self._build_moderator_tooltip(self.user))
+        if self.is_tracked:
+            tooltip_parts.append(tr("Tracked", "Отслеживается"))
+        self._base_tooltip = "\n".join(tooltip_parts)
+        if getattr(self, "is_blocked", False):
+            self._set_blocked_tooltip()
+        elif self._base_tooltip:
+            self.username_label.setToolTip(self._base_tooltip)
+
+    def _set_blocked_tooltip(self):
+        """Append the 'Blocked' status to whatever tooltip is already there,
+        instead of overwriting a moderator/tracked tooltip that's also active."""
+        self.is_blocked = True
+        self.username_label.setToolTip(
+            "\n".join(filter(None, [self._base_tooltip, tr("Blocked", "Заблокирован")]))
+        )
     
     def _build_moderator_tooltip(self, user):
         """Build tooltip text for moderator indicator"""
@@ -305,6 +335,8 @@ class UserListWidget(TranslatableMixin, QWidget):
     
     def _retranslate(self, _code=None):
         self._retranslate_all()
+        for widget in self.user_widgets.values():
+            widget.retranslate_tooltip()
     
     def _update_section_visibility(self):
         """Update visibility of section headers"""
