@@ -21,22 +21,23 @@ _BONUSES_RE = re.compile(r'id\s*=\s*userpanel-bonuses[^>]*>\s*(\d+)\s*<')
 
 def fetch_scores_bonuses(
     cookies: list[dict], timeout: int = 5
-) -> Optional[tuple[int, int]]:
-    if not cookies:
+) -> Optional[tuple[int, int, Optional[list[dict]]]]:
+    """Returns (scores, bonuses, updated_cookies). updated_cookies is a
+    refreshed cookie list when the server rotated a value, else None."""
+    sent = {c["name"]: c for c in cookies if c.get("name") and c.get("value")}
+    if not sent:
         return None
 
-    cookies = {
-        c["name"]: c["value"]
-        for c in cookies
-        if c.get("name") and c.get("value")
-    }
-    if not cookies:
-        return None
+    session = requests.Session()
+    for c in sent.values():
+        session.cookies.set(
+            c["name"], c["value"],
+            domain=c.get("domain") or "klavogonki.ru",
+            path=c.get("path") or "/",
+        )
 
     try:
-        response = requests.get(
-            _URL, cookies=cookies, headers=_HEADERS, timeout=timeout
-        )
+        response = session.get(_URL, headers=_HEADERS, timeout=timeout)
     except requests.RequestException:
         return None
 
@@ -48,4 +49,9 @@ def fetch_scores_bonuses(
     if not scores or not bonuses:
         return None
 
-    return int(scores.group(1)), int(bonuses.group(1))
+    rotated = {c.name: {"name": c.name, "value": c.value, "domain": c.domain, "path": c.path}
+               for c in session.cookies if c.value != sent.get(c.name, {}).get("value")}
+    updated_cookies = {**sent, **rotated}
+    updated_cookies = list(updated_cookies.values()) if rotated else None
+
+    return int(scores.group(1)), int(bonuses.group(1)), updated_cookies

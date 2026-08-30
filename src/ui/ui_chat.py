@@ -2450,17 +2450,27 @@ class ChatWindow(QWidget):
         def _fetch():
             result = fetch_scores_bonuses(cookies)
             if result:
-                scores, bonuses = result
-                self._dispatch.emit(lambda: self._on_own_balance_fetched(gid, scores, bonuses))
+                scores, bonuses, updated_cookies = result
+                self._dispatch.emit(lambda: self._on_own_balance_fetched(gid, scores, bonuses, updated_cookies))
 
         threading.Thread(target=_fetch, daemon=True).start()
 
-    def _on_own_balance_fetched(self, gid: int, scores: int, bonuses: int):
+    def _on_own_balance_fetched(self, gid: int, scores: int, bonuses: int, updated_cookies=None):
         live = self._competition_live.get(gid)
         if live is None:
             return
         live.update(scores=scores, bonuses=bonuses)
         self._refresh_competition_message(gid)
+        if updated_cookies:
+            self._persist_session_cookies(updated_cookies)
+
+    def _persist_session_cookies(self, cookies: list):
+        """Write rotated session cookies back to storage (server-side renewal only)."""
+        if not self.account or not self.xmpp_client:
+            return
+        cookies_json = json.dumps(cookies)
+        self.xmpp_client.account_manager.update_session_cookies(self.account['chat_username'], cookies_json)
+        self.account['session_cookies'] = cookies_json
 
     def _start_competition_countdown_timer(self):
         """Align ticks to wall-clock second boundaries so the countdown doesn't lag behind real time."""
