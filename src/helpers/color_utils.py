@@ -126,7 +126,7 @@ def get_competition_value_colors(is_dark_theme: bool) -> dict:
     return {
         "cost": "#4DFF88" if is_dark_theme else "#00AA44",
         "score": "#FFD700" if is_dark_theme else "#B8860B",
-        "bonus": "#4DA6FF" if is_dark_theme else "#0066CC",
+        "bonus": "#ADD8E6" if is_dark_theme else "#4A90D9",
     }
 
 

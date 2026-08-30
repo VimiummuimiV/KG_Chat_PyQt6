@@ -270,5 +270,12 @@
   "242585": {"login": "nosferatum", "background": "#BF1300", "light": "#BF1300", "dark": "#ff2f17"},
   "328817": {"login": "Ivan92", "background": "#FF0000", "light": "#ee0000", "dark": "#ff2e2e"},
   "765667": {"login": "slopENGstyle", "background": "#777777", "light": "#767676", "dark": "#858585"},
-  "796201": {"login": "LavrEd", "background": "#777777", "light": "#767676", "dark": "#858585"}
+  "796201": {"login": "LavrEd", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "820545": {"login": "Veter_Vetrov", "background": "#079DF4", "light": "#067cc1", "dark": "#079DF4"},
+  "416424": {"login": "obemgghost", "background": "#3500BC", "light": "#3500BC", "dark": "#9369ff"},
+  "441210": {"login": "ofirinka", "background": "#5507FF", "light": "#5507FF", "dark": "#9667ff"},
+  "831091": {"login": "OtonashiAyana", "background": "#948293", "light": "#847182", "dark": "#948293"},
+  "720975": {"login": "A_K_Alien", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "577387": {"login": "YaNemnogoTormoz", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "274362": {"login": "mantilet", "background": "#7B4687", "light": "#7B4687", "dark": "#a871b5"}
 }
