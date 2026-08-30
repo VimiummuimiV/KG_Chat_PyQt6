@@ -3354,20 +3354,20 @@ class ChatWindow(TranslatableMixin, QWidget):
         self.set_connection_status(self._connection_status)
         
         # Reset on success
-        if status == 'online':
+        if self._connection_status == 'online':
             self.reconnect_count = 0
             if hasattr(self, 'button_panel') and hasattr(self.button_panel, 'reconnect_button'):
                 self.button_panel.reconnect_button.setVisible(False)
         
-        # Only trigger auto-reconnect on offline status, not on connecting (which is set during auto-reconnect attempts)
-        elif status == 'offline':
+        # Only trigger auto-reconnect on offline status
+        elif self._connection_status == 'offline':
             if getattr(self, 'really_close', False):
                 return
             
             # Show manual reconnect button immediately
             if hasattr(self, 'button_panel') and hasattr(self.button_panel, 'reconnect_button'):
                 self.button_panel.reconnect_button.setVisible(True)
-            
+                
             if self.allow_reconnect and not self.is_connecting and self.account:
                 print("🔄 Connection lost - initiating auto-reconnect...")
                 QTimer.singleShot(100, self._auto_reconnect)

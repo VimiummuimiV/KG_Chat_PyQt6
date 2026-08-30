@@ -28,12 +28,7 @@ _tr = _Translator()
 
 
 class TrStr(str):
-    """A str that remembers the (en, ru) pair it was built from.
-
-    Lets a widget built with tr(en, ru) be retranslated later - via
-    setter(tr(text.en, text.ru)) - without the caller having to keep the
-    original strings around separately.
-    """
+    """A str that remembers the (en, ru) pair it was built from."""
     __slots__ = ("en", "ru")
 
     def __new__(cls, en: str, ru: str, value: str):
@@ -56,12 +51,12 @@ def tr(en: str, ru: str) -> str:
 
 
 def on_language_changed(slot):
-    """Connect a callable that receives the new language code."""
     _tr.language_changed.connect(slot)
 
 
 class TranslatableMixin:
     """Opt-in real-time retranslation for widgets built with tr()."""
+
     def _init_translatable(self):
         self._translatable = []
 
@@ -70,5 +65,12 @@ class TranslatableMixin:
             self._translatable.append((setter, text))
 
     def _retranslate_all(self, _code=None):
+        new_list = []
         for setter, text in self._translatable:
-            setter(tr(text.en, text.ru))
+            try:
+                setter(tr(text.en, text.ru))
+                new_list.append((setter, text))  # still alive
+            except RuntimeError:
+                # Widget was deleted – skip permanently
+                pass
+        self._translatable = new_list
