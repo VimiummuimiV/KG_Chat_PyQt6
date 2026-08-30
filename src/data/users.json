@@ -358,5 +358,8 @@
   "762280": {"login": "Sinon_", "background": "#777777", "light": "#767676", "dark": "#858585"},
   "803153": {"login": "gospodstvie", "background": "#000000", "light": "#000000", "dark": "#858585"},
   "842662": {"login": "dramatical", "background": "#777777", "light": "#767676", "dark": "#858585"},
-  "495516": {"login": "UNPlayer", "background": "#757575", "light": "#757575", "dark": "#858585"}
+  "495516": {"login": "UNPlayer", "background": "#757575", "light": "#757575", "dark": "#858585"},
+  "840657": {"login": "AutisticFloyd", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "837673": {"login": "РукиБазуки", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "790519": {"login": "PlayerSigi", "background": "#428ACE", "light": "#317abe", "dark": "#428ACE"}
 }

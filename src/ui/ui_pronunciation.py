@@ -10,15 +10,17 @@ from PyQt6.QtSvg import QSvgRenderer
 
 from helpers.create import create_icon_button
 from helpers.fonts import get_font, FontType
+from helpers.translate import tr, on_language_changed, TranslatableMixin
 from core.api_data import get_exact_user_id_by_name
 
 
-class PronunciationItemWidget(QWidget):
+class PronunciationItemWidget(TranslatableMixin, QWidget):
     """Single pronunciation mapping item"""
     remove_requested = pyqtSignal(object)  # Emits self
     
     def __init__(self, config, icons_path: Path, original: str = "", pronunciation: str = ""):
         super().__init__()
+        self._init_translatable()
         self.config = config
         self.icons_path = icons_path
         self.username_valid = True  # Track validation state
@@ -33,7 +35,7 @@ class PronunciationItemWidget(QWidget):
         
         # Original username input
         self.original_input = QLineEdit()
-        self.original_input.setPlaceholderText("Username")
+        self._tr_set(self.original_input.setPlaceholderText, "Username", "Имя пользователя")
         self.original_input.setText(original)
         self.original_input.setFont(get_font(FontType.TEXT))
         input_height = self.config.get("ui", "input_height") or 48
@@ -79,7 +81,7 @@ class PronunciationItemWidget(QWidget):
         
         # Pronunciation input
         self.pronunciation_input = QLineEdit()
-        self.pronunciation_input.setPlaceholderText("Pronunciation")
+        self._tr_set(self.pronunciation_input.setPlaceholderText, "Pronunciation", "Произношение")
         self.pronunciation_input.setText(pronunciation)
         self.pronunciation_input.setFont(get_font(FontType.TEXT))
         self.pronunciation_input.setFixedHeight(input_height)
@@ -91,9 +93,10 @@ class PronunciationItemWidget(QWidget):
         
         # Remove button
         self.remove_button = create_icon_button(
-            self.icons_path, "trash.svg", "Remove", 
+            self.icons_path, "trash.svg", "", 
             size_type="large", config=self.config
         )
+        self._tr_set(self.remove_button.setToolTip, "Remove", "Удалить")
         self.remove_button.clicked.connect(lambda: self.remove_requested.emit(self))
         layout.addWidget(self.remove_button)
         
@@ -101,6 +104,7 @@ class PronunciationItemWidget(QWidget):
         # 250 + 30 + 250 + 48 + spacing*3
         total_width = 250 + icon_size + 250 + 48 + (spacing * 3)
         self.setFixedWidth(total_width)
+        on_language_changed(self._retranslate_all)
     
     def _validate_username(self):
         """Validate username exists using API"""
@@ -130,7 +134,7 @@ class PronunciationItemWidget(QWidget):
                     border: 2px solid #ff4444;
                 }
             """)
-            self.original_input.setToolTip("User not found")
+            self.original_input.setToolTip(tr("User not found", "Пользователь не найден"))
         else:
             # Valid or empty - remove custom styling
             self.original_input.setStyleSheet("")
@@ -150,12 +154,13 @@ class PronunciationItemWidget(QWidget):
         return self.username_valid
 
 
-class PronunciationWidget(QWidget):
+class PronunciationWidget(TranslatableMixin, QWidget):
     """Widget for managing username pronunciations"""
     back_requested = pyqtSignal()
     
     def __init__(self, config, icons_path: Path, pronunciation_manager):
         super().__init__()
+        self._init_translatable()
         self.config = config
         self.icons_path = icons_path
         self.pronunciation_manager = pronunciation_manager
@@ -182,27 +187,31 @@ class PronunciationWidget(QWidget):
         
         # Back button
         self.back_button = create_icon_button(
-            self.icons_path, "go-back.svg", "Back to Messages", config=self.config
+            self.icons_path, "go-back.svg", "", config=self.config
         )
+        self._tr_set(self.back_button.setToolTip, "Back to Messages", "Назад к сообщениям")
         self.back_button.clicked.connect(self.back_requested.emit)
         header_layout.addWidget(self.back_button)
         
         # Title
-        title_label = QLabel("Username Pronunciation")
+        title_label = QLabel()
         title_label.setFont(get_font(FontType.HEADER))
+        self._tr_set(title_label.setText, "Username Pronunciation", "Произношение имён")
         header_layout.addWidget(title_label, stretch=1)
         
         # Clear All button
         self.clear_all_button = create_icon_button(
-            self.icons_path, "trash.svg", "Clear All", config=self.config
+            self.icons_path, "trash.svg", "", config=self.config
         )
+        self._tr_set(self.clear_all_button.setToolTip, "Clear All", "Очистить всё")
         self.clear_all_button.clicked.connect(self._clear_all)
         header_layout.addWidget(self.clear_all_button)
         
         # Add button
         self.add_button = create_icon_button(
-            self.icons_path, "add.svg", "Add Mapping", config=self.config
+            self.icons_path, "add.svg", "", config=self.config
         )
+        self._tr_set(self.add_button.setToolTip, "Add Mapping", "Добавить соответствие")
         self.add_button.clicked.connect(self._add_new_item)
         header_layout.addWidget(self.add_button)
         
@@ -231,6 +240,7 @@ class PronunciationWidget(QWidget):
         self.items_container.setLayout(self.items_layout)
         
         self.scroll.setWidget(self.items_container)
+        on_language_changed(self._retranslate_all)
     
     def _load_mappings(self):
         """Load existing pronunciation mappings"""
@@ -285,13 +295,17 @@ class PronunciationWidget(QWidget):
     def _clear_all(self):
         """Clear all pronunciation mappings"""
         if not any(not item.is_empty() for item in self.items):
-            QMessageBox.information(self, "Empty", "Pronunciation list is already empty")
+            QMessageBox.information(
+                self,
+                tr("Empty", "Пусто"),
+                tr("Pronunciation list is already empty", "Список произношений уже пуст")
+            )
             return
         
         reply = QMessageBox.question(
             self,
-            "Confirm Clear All",
-            "Remove all pronunciation mappings?",
+            tr("Confirm Clear All", "Подтвердите очистку"),
+            tr("Remove all pronunciation mappings?", "Удалить все соответствия произношения?"),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
         )
         

@@ -134,7 +134,7 @@
         "chat": true,
         "fonts": true,
         "notifications": true,
-        "competitions": true,
+        "competitions": false,
         "sound": true,
         "user_tracker": true,
         "": true

@@ -64,6 +64,12 @@ class TranslatableMixin:
         if isinstance(text, TrStr):
             self._translatable.append((setter, text))
 
+    def _tr_set(self, setter, en: str, ru: str) -> str:
+        text = tr(en, ru)
+        setter(text)
+        self._register_tr(setter, text)
+        return text
+
     def _retranslate_all(self, _code=None):
         new_list = []
         for setter, text in self._translatable:

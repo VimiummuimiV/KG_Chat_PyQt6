@@ -8,6 +8,7 @@ from PyQt6.QtGui import QCursor
 from helpers.create import create_icon_button
 from helpers.cache import get_cache
 from helpers.fonts import get_font, FontType
+from helpers.translate import on_language_changed, TranslatableMixin
 from helpers.scroll.auto_scroll import AutoScroller
 from components.user_count_row import UserCountRow
 from components.context_menu.userlist import (
@@ -80,7 +81,7 @@ class ChatlogUserWidget(UserCountRow):
             self.track_requested.emit(str(self.user_id or ""), self.username, False)
 
 
-class ChatlogUserlistWidget(QWidget):
+class ChatlogUserlistWidget(TranslatableMixin, QWidget):
     """Userlist for chatlog view with message counts and filtering"""
     
     filter_requested = pyqtSignal(set)  # Emit set of usernames to filter
@@ -91,6 +92,7 @@ class ChatlogUserlistWidget(QWidget):
 
     def __init__(self, config, icons_path, ban_manager=None, user_tracker=None, my_username=None):
         super().__init__()
+        self._init_translatable()
         self.config = config
         self.icons_path = icons_path
         self.cache = get_cache()
@@ -116,10 +118,14 @@ class ChatlogUserlistWidget(QWidget):
         self.clear_filter_btn = create_icon_button(
             icons_path,
             "filter.svg",
-            "Clear filter and show all users",
+            "",
             size_type="large",
             config=config
         )
+        self._tr_set(self.clear_filter_btn.setToolTip,
+                        "Clear filter and show all users",
+                        "Сбросить фильтр и показать всех пользователей"
+                    )
         self.clear_filter_btn.clicked.connect(self.clear_filter)
         self.clear_filter_btn.setVisible(False)
         button_layout.addWidget(self.clear_filter_btn)
@@ -142,6 +148,7 @@ class ChatlogUserlistWidget(QWidget):
         scroll.setWidget(container)
         
         self.user_layout.addStretch()
+        on_language_changed(self._retranslate_all)
     
     def set_show_banned(self, show: bool):
         """Control whether banned users are shown (for parse mode)"""
@@ -209,10 +216,11 @@ class ChatlogUserlistWidget(QWidget):
 
         if not counts:
             # All users were banned or no messages
-            empty_label = QLabel("No users to display")
+            empty_label = QLabel()
             empty_label.setFont(get_font(FontType.TEXT))
             empty_label.setStyleSheet("color: #888888;")
             empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            self._tr_set(empty_label.setText, "No users to display", "Нет пользователей для отображения")
             self.user_layout.addWidget(empty_label)
             self.user_layout.addStretch()
             return
