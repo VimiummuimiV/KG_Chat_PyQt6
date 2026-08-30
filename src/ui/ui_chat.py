@@ -40,7 +40,7 @@ from helpers.font_scaler import FontScaleSlider
 from helpers.voice_engine import get_voice_engine, play_sound
 from helpers.me_action import format_me_action
 from helpers.window_size_manager import WindowSizeManager
-from helpers.window_presets_dialog import WindowPresetsDialog
+from dialogs.window_presets_dialog import WindowPresetsDialog
 from themes.theme import ThemeManager
 from core.xmpp import XMPPClient
 from core.messages import Message
