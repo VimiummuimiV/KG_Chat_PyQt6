@@ -498,7 +498,11 @@ class Application(QObject):
     def _refresh_own_username_color(self, operation_func):
         """Execute operation and refresh own username color in UI if successful."""
         if not self.chat_window or not self.chat_window.account:
-            QMessageBox.warning(None, "No Account", "Please connect to an account first.")
+            QMessageBox.warning(
+                None,
+                tr("No Account", "Нет аккаунта"),
+                tr("Please connect to an account first.", "Сначала подключитесь к аккаунту.")
+            )
             return
        
         success = operation_func(
@@ -561,13 +565,13 @@ class Application(QObject):
         """Handle Reset to Original from tray menu."""
         self._refresh_own_username_color(reset_username_color)
 
-    def check_chat_ready(self, feature_description):
-        """Check if chat window and account are ready; show error if not."""
+    def check_chat_ready(self, feature):
         if not self.chat_window or not self.chat_window.account:
             QMessageBox.information(
                 None,
-                "Chat Not Open",
-                f"Please connect to an account first to manage {feature_description}."
+                tr("Chat Not Open", "Чат не открыт"),
+                tr(f"Please connect to an account first to manage {feature}.",
+                f"Сначала подключитесь к аккаунту, чтобы управлять: {feature}.")
             )
             return False
         return True
@@ -578,14 +582,13 @@ class Application(QObject):
 
     def handle_pronunciation_manager(self):
         """Handle Username Pronunciation from tray menu"""
-        if not self.check_chat_ready("username pronunciations"):
+        if not self.check_chat_ready(tr("username pronunciations", "произношением имён")):
             return
         self.focus_chat_window()
         self.chat_window.show_pronunciation_view()
 
     def handle_ban_list(self):
-        """Handle Ban List Management from tray menu"""
-        if not self.check_chat_ready("the ban list"):
+        if not self.check_chat_ready(tr("the ban list", "списком забаненных")):
             return
         self.focus_chat_window()
         self.chat_window.show_ban_list_view()

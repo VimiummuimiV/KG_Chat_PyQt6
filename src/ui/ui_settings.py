@@ -79,57 +79,120 @@ class _SpinCommitSignal(QObject):
     external listeners that need the settled value rather than every step."""
     committed = pyqtSignal(int)
 
-XMPP_RESOURCE_OPTIONS = (
-    ("web", "Same resource as the website. Receives private messages from the site client."),
-    ("client", "Works alongside the website. May not receive private messages from the web resource."),
-)
+# Option tuples are built by functions (not module constants) so tr() picks up
+# the current language each time a combo is (re)filled.
 
-OWN_MESSAGE_MODE_OPTIONS = (
-    ("local", "Show own messages immediately. Server echoes are ignored."),
-    ("server", "Show own messages only when the server echoes them back."),
-)
+def xmpp_resource_options():
+    return (
+        ("web", tr("Same resource as the website. Receives private messages from the site client.",
+                   "Тот же ресурс, что у сайта. Получает личные сообщения от веб-клиента.")),
+        ("client", tr("Works alongside the website. May not receive private messages from the web resource.",
+                      "Работает параллельно с сайтом. Может не получать личные сообщения от веб-ресурса.")),
+    )
 
-NOTIFICATION_MODE_OPTIONS = (
-    ("stack",   "Stack",   "Stack notifications vertically; oldest is dropped once they no longer fit."),
-    ("replace", "Replace", "Close the previous notification when a new one arrives."),
-    ("scroll",  "Scroll",  "Keep every notification; scroll with the mouse wheel to see more."),
-)
+def own_message_mode_options():
+    return (
+        ("local", tr("Show own messages immediately. Server echoes are ignored.",
+                     "Показывать свои сообщения сразу. Эхо сервера игнорируется.")),
+        ("server", tr("Show own messages only when the server echoes them back.",
+                      "Показывать свои сообщения только после эха сервера.")),
+    )
 
-NOTIFICATION_HIDE_ON_OPTIONS = (
-    ("manual",         "Manual",            "Auto-hide off — closes only by clicking it or the close button."),
-    ("mouse",          "Mouse",             "Auto-hide countdown starts once the mouse moves."),
-    ("keyboard",       "Keyboard",          "Auto-hide countdown starts once you press a key."),
-    ("mouse_keyboard", "Mouse or Keyboard", "Auto-hide countdown starts on mouse or keyboard activity."),
-)
+def notification_mode_options():
+    return (
+        ("stack", tr("Stack", "Стопка"),
+         tr("Stack notifications vertically; oldest is dropped once they no longer fit.",
+            "Складывать уведомления вертикально; старые убираются, когда не помещаются.")),
+        ("replace", tr("Replace", "Замена"),
+         tr("Close the previous notification when a new one arrives.",
+            "Закрывать предыдущее уведомление при появлении нового.")),
+        ("scroll", tr("Scroll", "Прокрутка"),
+         tr("Keep every notification; scroll with the mouse wheel to see more.",
+            "Сохранять все уведомления; прокрутка колесом мыши для просмотра.")),
+    )
+
+def notification_hide_on_options():
+    return (
+        ("manual", tr("Manual", "Вручную"),
+         tr("Auto-hide off — closes only by clicking it or the close button.",
+            "Автоскрытие выключено — закрытие только кликом или кнопкой закрытия.")),
+        ("mouse", tr("Mouse", "Мышь"),
+         tr("Auto-hide countdown starts once the mouse moves.",
+            "Отсчёт автоскрытия начинается при движении мыши.")),
+        ("keyboard", tr("Keyboard", "Клавиатура"),
+         tr("Auto-hide countdown starts once you press a key.",
+            "Отсчёт автоскрытия начинается при нажатии клавиши.")),
+        ("mouse_keyboard", tr("Mouse or Keyboard", "Мышь или клавиатура"),
+         tr("Auto-hide countdown starts on mouse or keyboard activity.",
+            "Отсчёт автоскрытия начинается при активности мыши или клавиатуры.")),
+    )
 
 # When notifications are muted: off | default (follow Hide notifications on) | duration (ignore activity).
-NOTIFICATION_MUTE_BYPASS_OPTIONS = (
-    ("off",      "Off",            "Do not show when notifications are disabled."),
-    ("default",  "Default",        "Show when muted; auto-hide follows the Hide notifications on setting."),
-    ("duration", "Duration",       "Show when muted; auto-hide after delay, ignore mouse/keyboard."),
-)
+def notification_mute_bypass_options():
+    return (
+        ("off", tr("Off", "Выкл"),
+         tr("Do not show when notifications are disabled.",
+            "Не показывать, когда уведомления отключены.")),
+        ("default", tr("Default", "По умолчанию"),
+         tr("Show when muted; auto-hide follows the Hide notifications on setting.",
+            "Показывать при отключении уведомлений; автоскрытие по настройке «Скрывать уведомления по».")),
+        ("duration", tr("Duration", "По таймеру"),
+         tr("Show when muted; auto-hide after delay, ignore mouse/keyboard.",
+            "Показывать при отключении уведомлений; автоскрытие по таймеру, без учёта мыши/клавиатуры.")),
+    )
 
-ALERT_CHAT_ACTION_OPTIONS = (
-    ("scroll", "Scroll to message", "Scrolls the chat to the competition message."),
-    ("move",   "Move to bottom",    "Removes the competition message and reposts it at the bottom of the chat."),
-)
+def alert_chat_action_options():
+    return (
+        ("scroll", tr("Scroll to message", "Прокрутить к сообщению"),
+         tr("Scrolls the chat to the competition message.",
+            "Прокручивает чат к сообщению о соревновании.")),
+        ("move", tr("Move to bottom", "Переместить вниз"),
+         tr("Removes the competition message and reposts it at the bottom of the chat.",
+            "Удаляет сообщение о соревновании и публикует его заново внизу чата.")),
+    )
 
-TRACKER_CLICK_OPTIONS = (
-    ("history", "Open history", "Open the User Tracker's History tab."),
-    ("chat",    "Show chat",    "Open the regular chat window — messages and user list, no tracker."),
-)
+def tracker_click_options():
+    return (
+        ("history", tr("Open history", "Открыть историю"),
+         tr("Open the User Tracker's History tab.",
+            "Открыть вкладку истории трекера пользователей.")),
+        ("chat", tr("Show chat", "Показать чат"),
+         tr("Open the chat window — messages and user list, no tracker.",
+            "Открыть окно чата — сообщения и список пользователей, без трекера.")),
+    )
 
-TRACKER_DEFAULT_TAB_OPTIONS = (
-    ("tracked", "Tracked", "Open on the list of currently tracked users."),
-    ("history", "History", "Open on the log of past tracker events."),
-)
+def tracker_default_tab_options():
+    return (
+        ("tracked", tr("Tracked", "Отслеживаемые"),
+         tr("Open on the list of currently tracked users.",
+            "Открывать список отслеживаемых пользователей.")),
+        ("history", tr("History", "История"),
+         tr("Open on the log of past tracker events.",
+            "Открывать журнал прошлых событий трекера.")),
+    )
 
-MENTIONS_DIGEST_MODE_OPTIONS = (
-    ("off", "Off", "Never check personal mentions automatically."),
-    ("daily", "Once per day", "Check personal mentions at most once every 24 hours per account."),
-    ("custom", "Custom interval", "Check only after the chosen number of hours since last session end."),
-    ("start", "Every chat start", "Check on every chat start (ignore the interval)."),
-)
+def mentions_digest_mode_options():
+    return (
+        ("off", tr("Off", "Выкл"),
+         tr("Never check personal mentions automatically.",
+            "Никогда не проверять личные упоминания автоматически.")),
+        ("daily", tr("Once per day", "Раз в день"),
+         tr("Check personal mentions at most once every 24 hours per account.",
+            "Проверять личные упоминания не чаще раза в 24 часа на аккаунт.")),
+        ("custom", tr("Custom interval", "Свой интервал"),
+         tr("Check only after the chosen number of hours since last session end.",
+            "Проверять только через заданное число часов после конца последней сессии.")),
+        ("start", tr("Every chat start", "При каждом запуске чата"),
+         tr("Check on every chat start (ignore the interval).",
+            "Проверять при каждом запуске чата (игнорируя интервал).")),
+    )
+
+def notification_position_options():
+    return (
+        ("right", tr("Right", "Справа")),
+        ("left", tr("Left", "Слева")),
+        ("center", tr("Center", "По центру")),
+    )
 
 LANGUAGE_OPTIONS = (
     ("en", "English", "English interface language"),
@@ -270,39 +333,43 @@ def fill_tooltip_combo(combo, options, current=None, default=None):
 
 
 def fill_resource_combo(combo, current=None):
-    fill_tooltip_combo(combo, XMPP_RESOURCE_OPTIONS, current, "web")
+    fill_tooltip_combo(combo, xmpp_resource_options(), current, "web")
 
 
 def fill_own_message_mode_combo(combo, current=None):
-    fill_tooltip_combo(combo, OWN_MESSAGE_MODE_OPTIONS, current, "local")
+    fill_tooltip_combo(combo, own_message_mode_options(), current, "local")
 
 
 def fill_notification_mode_combo(combo, current=None):
-    fill_tooltip_combo(combo, NOTIFICATION_MODE_OPTIONS, current, "stack")
+    fill_tooltip_combo(combo, notification_mode_options(), current, "stack")
 
 
 def fill_notification_hide_on_combo(combo, current=None):
-    fill_tooltip_combo(combo, NOTIFICATION_HIDE_ON_OPTIONS, current, "mouse_keyboard")
+    fill_tooltip_combo(combo, notification_hide_on_options(), current, "mouse_keyboard")
 
 
 def fill_notification_mute_bypass_combo(combo, current=None):
-    fill_tooltip_combo(combo, NOTIFICATION_MUTE_BYPASS_OPTIONS, current, "off")
+    fill_tooltip_combo(combo, notification_mute_bypass_options(), current, "off")
 
 
 def fill_alert_chat_action_combo(combo, current=None):
-    fill_tooltip_combo(combo, ALERT_CHAT_ACTION_OPTIONS, current, "scroll")
+    fill_tooltip_combo(combo, alert_chat_action_options(), current, "scroll")
 
 
 def fill_tracker_click_combo(combo, current=None):
-    fill_tooltip_combo(combo, TRACKER_CLICK_OPTIONS, current, "history")
+    fill_tooltip_combo(combo, tracker_click_options(), current, "history")
 
 
 def fill_tracker_default_tab_combo(combo, current=None):
-    fill_tooltip_combo(combo, TRACKER_DEFAULT_TAB_OPTIONS, current, "tracked")
+    fill_tooltip_combo(combo, tracker_default_tab_options(), current, "tracked")
 
 
 def fill_mentions_digest_mode_combo(combo, current=None):
-    fill_tooltip_combo(combo, MENTIONS_DIGEST_MODE_OPTIONS, current, "daily")
+    fill_tooltip_combo(combo, mentions_digest_mode_options(), current, "daily")
+
+
+def fill_notification_position_combo(combo, current=None):
+    fill_tooltip_combo(combo, notification_position_options(), current, "right")
 
 
 class NoWheelSlider(QSlider):
@@ -357,7 +424,7 @@ class SoundSelectorWidget(QWidget):
         layout.addWidget(label)
 
         self.prev_button = create_icon_button(
-            self.icons_path, "arrow-left.svg", "Previous sound", size_type="small", config=self.config
+            self.icons_path, "arrow-left.svg", tr("Previous sound", "Предыдущий звук"), size_type="small", config=self.config
         )
         self.prev_button.clicked.connect(self._on_prev)
         layout.addWidget(self.prev_button)
@@ -369,31 +436,31 @@ class SoundSelectorWidget(QWidget):
         layout.addWidget(self.combo, stretch=1)
 
         self.next_button = create_icon_button(
-            self.icons_path, "arrow-right.svg", "Next sound", size_type="small", config=self.config
+            self.icons_path, "arrow-right.svg", tr("Next sound", "Следующий звук"), size_type="small", config=self.config
         )
         self.next_button.clicked.connect(self._on_next)
         layout.addWidget(self.next_button)
 
         self.play_button = create_icon_button(
-            self.icons_path, "play.svg", "Play sound", size_type="small", config=self.config
+            self.icons_path, "play.svg", tr("Play sound", "Воспроизвести звук"), size_type="small", config=self.config
         )
         self.play_button.clicked.connect(self._on_play)
         layout.addWidget(self.play_button)
 
         self.add_button = create_icon_button(
-            self.icons_path, "add.svg", "Add sound from file", size_type="small", config=self.config
+            self.icons_path, "add.svg", tr("Add sound from file", "Добавить звук из файла"), size_type="small", config=self.config
         )
         self.add_button.clicked.connect(self._on_add)
         layout.addWidget(self.add_button)
 
         self.delete_button = create_icon_button(
-            self.icons_path, "trash.svg", "Delete sound", size_type="small", config=self.config
+            self.icons_path, "trash.svg", tr("Delete sound", "Удалить звук"), size_type="small", config=self.config
         )
         self.delete_button.clicked.connect(self._on_delete)
         layout.addWidget(self.delete_button)
 
         self.rename_button = create_icon_button(
-            self.icons_path, "pencil.svg", "Rename sound", size_type="small", config=self.config
+            self.icons_path, "pencil.svg", tr("Rename sound", "Переименовать звук"), size_type="small", config=self.config
         )
         self.rename_button.clicked.connect(self._on_rename)
         layout.addWidget(self.rename_button)
@@ -449,15 +516,12 @@ class SoundSelectorWidget(QWidget):
         )
         return reply == QMessageBox.StandardButton.Yes
 
-    def _require_user_owned(self, title: str, verb: str) -> str | None:
+    def _require_user_owned(self, title: str, message: str) -> str | None:
         """Return the selected file name if it's user-owned, else show why not and return None."""
         file_name = self._safe_name()
         if file_name and self._is_user_owned(file_name):
             return file_name
-        QMessageBox.information(
-            self, title,
-            f"System sounds cannot be {verb}. Only sounds you added can be {verb}.",
-        )
+        QMessageBox.information(self, title, message)
         return None
 
     def _play_file(self, file_name: str | None):
@@ -483,7 +547,7 @@ class SoundSelectorWidget(QWidget):
         self.combo.clear()
 
         if not files:
-            self.combo.addItem("No sound", None)
+            self.combo.addItem(tr("No sound", "Нет звука"), None)
             self.combo.setEnabled(False)
             self._persist_selection(None)
             self.combo.blockSignals(False)
@@ -531,9 +595,9 @@ class SoundSelectorWidget(QWidget):
     def _on_add(self):
         path, _ = QFileDialog.getOpenFileName(
             self,
-            "Select sound file",
+            tr("Select sound file", "Выберите файл со звуком"),
             "",
-            "Audio (*.mp3);;All files (*)",
+            tr("Audio (*.mp3);;All files (*)", "Аудио (*.mp3);;Все файлы (*)"),
         )
         if not path:
             return
@@ -549,45 +613,56 @@ class SoundSelectorWidget(QWidget):
         dest = self.user_dir / dest_name
 
         if dest.exists() and not self._confirm(
-            "File exists", f"'{dest_name}' already exists in your sounds. Overwrite?"
+            tr("File exists", "Файл уже существует"),
+            tr(f"'{dest_name}' already exists in your sounds. Overwrite?",
+               f"«{dest_name}» уже есть в ваших звуках. Перезаписать?"),
         ):
             return
 
         try:
             shutil.copy2(src, dest)
         except OSError as exc:
-            QMessageBox.warning(self, "Add sound", f"Failed to copy file: {exc}")
+            QMessageBox.warning(self, tr("Add sound", "Добавить звук"),
+                                 tr(f"Failed to copy file: {exc}", f"Не удалось скопировать файл: {exc}"))
             return
 
         self.refresh(select_name=dest_name)
         self._play_file(dest_name)
 
     def _on_delete(self):
-        file_name = self._require_user_owned("Delete sound", "deleted")
+        title = tr("Delete sound", "Удалить звук")
+        file_name = self._require_user_owned(
+            title, tr("System sounds cannot be deleted. Only sounds you added can be deleted.",
+                      "Системные звуки нельзя удалить. Можно удалять только добавленные вами звуки.")
+        )
         if not file_name:
             return
 
         path = self.user_dir / file_name
-        if not self._confirm("Delete sound", f"Delete '{file_name}'?"):
+        if not self._confirm(title, tr(f"Delete '{file_name}'?", f"Удалить «{file_name}»?")):
             return
 
         try:
             path.unlink()
         except OSError as exc:
-            QMessageBox.warning(self, "Delete sound", f"Failed to delete sound: {exc}")
+            QMessageBox.warning(self, title, tr(f"Failed to delete sound: {exc}", f"Не удалось удалить звук: {exc}"))
             return
 
         self.refresh()
 
     def _on_rename(self):
-        file_name = self._require_user_owned("Rename sound", "renamed")
+        title = tr("Rename sound", "Переименовать звук")
+        file_name = self._require_user_owned(
+            title, tr("System sounds cannot be renamed. Only sounds you added can be renamed.",
+                      "Системные звуки нельзя переименовать. Можно переименовывать только добавленные вами звуки.")
+        )
         if not file_name:
             return
 
         current_path = self.user_dir / file_name
         dialog = QInputDialog(self)
-        dialog.setWindowTitle("Rename sound")
-        dialog.setLabelText("New file name:")
+        dialog.setWindowTitle(title)
+        dialog.setLabelText(tr("New file name:", "Новое имя файла:"))
         dialog.setTextValue(self._display_name(file_name))
         dialog.resize(400, dialog.sizeHint().height())
         if not dialog.exec():
@@ -602,18 +677,20 @@ class SoundSelectorWidget(QWidget):
         clean_name = f"{clean_name}.mp3"
 
         if any(ch in clean_name for ch in ("/", "\\")):
-            QMessageBox.warning(self, "Rename sound", "The name cannot contain path separators.")
+            QMessageBox.warning(self, title, tr("The name cannot contain path separators.",
+                                                 "Имя не может содержать разделители пути."))
             return
 
         target_path = self.user_dir / clean_name
         if target_path.exists() and target_path.name.lower() != current_path.name.lower():
-            QMessageBox.warning(self, "Rename sound", "A sound with that name already exists.")
+            QMessageBox.warning(self, title, tr("A sound with that name already exists.",
+                                                 "Звук с таким именем уже существует."))
             return
 
         try:
             current_path.rename(target_path)
         except OSError as exc:
-            QMessageBox.warning(self, "Rename sound", f"Failed to rename sound: {exc}")
+            QMessageBox.warning(self, title, tr(f"Failed to rename sound: {exc}", f"Не удалось переименовать звук: {exc}"))
             return
 
         self.refresh(select_name=clean_name)
@@ -837,7 +914,7 @@ class SettingsWidget(QWidget):
             on_reset = lambda: spin.setValue(default)
 
         if on_reset:
-            reset_button = create_icon_button(self.icons_path, "reload.svg", "Reset to default", size_type="small", config=self.config)
+            reset_button = create_icon_button(self.icons_path, "reload.svg", tr("Reset to default", "Сбросить по умолчанию"), size_type="small", config=self.config)
             reset_button.clicked.connect(on_reset)
             row.addWidget(reset_button)
             update_reset_state(spin.value())
@@ -864,12 +941,12 @@ class SettingsWidget(QWidget):
         main_layout.addLayout(header_layout)
 
         self.back_button = create_icon_button(
-            self.icons_path, "go-back.svg", "Back to Messages", config=self.config
+            self.icons_path, "go-back.svg", tr("Back to Messages", "Назад к сообщениям"), config=self.config
         )
         self.back_button.clicked.connect(self.back_requested.emit)
         header_layout.addWidget(self.back_button)
 
-        title_label = QLabel("Settings")
+        title_label = QLabel(tr("Settings", "Настройки"))
         title_label.setProperty("fontRole", "header")
         title_label.setFont(get_font(FontType.HEADER))
         header_layout.addWidget(title_label, stretch=1)
@@ -899,19 +976,19 @@ class SettingsWidget(QWidget):
         self._sections_layout.addStretch(1)
 
     def _build_startup_section(self):
-        section = self._create_section("🚀 Startup")
+        section = self._create_section(tr("🚀 Startup", "🚀 Запуск"))
         self.auto_login_checkbox = self._add_checkbox(
-            section, "Auto-login on startup", self._on_auto_login_toggled
+            section, tr("Auto-login on startup", "Автовход при запуске"), self._on_auto_login_toggled
         )
         self.start_minimized_checkbox = self._add_checkbox(
-            section, "Start minimized", self._on_start_minimized_toggled
+            section, tr("Start minimized", "Запускать свёрнутым"), self._on_start_minimized_toggled
         )
         self.start_with_system_checkbox = self._add_checkbox(
-            section, "Start with system", self._on_start_with_system_toggled
+            section, tr("Start with system", "Запускать вместе с системой"), self._on_start_with_system_toggled
         )
 
     def _build_chat_section(self):
-        section = self._create_section("🗯️ Chat")
+        section = self._create_section(tr("🗯️ Chat", "🗯️ Чат"))
         self.language_combo = self._add_combo_row(
             section, tr("Language", "Язык"), [], self._on_language_changed
         )
@@ -925,34 +1002,39 @@ class SettingsWidget(QWidget):
             self._on_clear_private_toggled
         )
         self.youtube_checkbox = self._add_checkbox(
-            section, "Enable YouTube link previews", self._on_youtube_toggled
+            section, tr("YouTube link previews", "Превью ссылок YouTube"),
+            self._on_youtube_toggled
         )
         self.settings_accordion_checkbox = self._add_checkbox(
-            section, "Accordion settings sections (opening one collapses others)",
+            section, tr("Accordion settings sections (opening one collapses others)",
+                        "Аккордеон секций настроек (открытие одной сворачивает остальные)"),
             self._on_settings_accordion_toggled
         )
         self.browser_combo = self._add_combo_row(
-            section, "Open links in", [], self._on_browser_changed
+            section, tr("Open links in", "Открывать ссылки в"), [], self._on_browser_changed
         )
         self.browser_combo.setFixedWidth(240)
         self.badge_size_spin = self._add_slider_spin_row(
-            section, "Badge font size", 8, 18,
+            section, tr("Badge font size", "Размер шрифта бейджа"), 8, 18,
             self._on_badge_size_changed, default=DEFAULTS["chat"]["badge_font_size"],
         )
         self.mentions_digest_mode_combo = self._add_combo_row(
-            section, "Personal mentions check", [], self._on_mentions_digest_mode_changed
+            section, tr("Personal mentions check", "Проверка личных упоминаний"), [],
+            self._on_mentions_digest_mode_changed
         )
         self.mentions_digest_mode_combo.setFixedWidth(240)
         self.mentions_digest_interval_spin = self._add_slider_spin_row(
-            section, "Custom interval (hours)", 1, 168,
+            section, tr("Custom interval (hours)", "Свой интервал (часы)"), 1, 168,
             self._on_mentions_digest_interval_changed,
             default=DEFAULTS["chat"]["mentions_digest_interval_hours"],
         )
-        self._add_hotkey_row(section, "Toggle chat window")
+        self._add_hotkey_row(section, tr("Toggle chat window", "Показать/скрыть окно чата"))
 
-        limits_header, limits_content, limits_layout = self._add_subsection(section, "📏 Message Limits")
+        limits_header, limits_content, limits_layout = self._add_subsection(
+            section, tr("📏 Message Limits", "📏 Лимиты сообщений")
+        )
         self.chatlog_max_messages_spin = self._add_slider_spin_row(
-            limits_layout, "Chatlog display limit",
+            limits_layout, tr("Chatlog messages display limit", "Лимит отображения сообщений чатлога"),
             DEFAULTS["chatlog"]["max_messages_min"], DEFAULTS["chatlog"]["max_messages_max"],
             self._on_chatlog_max_messages_changed,
             default=DEFAULTS["chatlog"]["max_messages"],
@@ -962,7 +1044,7 @@ class SettingsWidget(QWidget):
         self.chatlog_max_messages_spin._slider.setPageStep(5000)
 
         self.chatlog_live_search_spin = self._add_slider_spin_row(
-            limits_layout, "Chatlog live search up to (messages)",
+            limits_layout, tr("Chatlog live search up to (messages)", "Живой поиск чатлога до (сообщений)"),
             DEFAULTS["chatlog"]["live_search_max_messages_min"],
             DEFAULTS["chatlog"]["live_search_max_messages_max"],
             self._on_chatlog_live_search_max_changed,
@@ -973,7 +1055,7 @@ class SettingsWidget(QWidget):
         self.chatlog_live_search_spin._slider.setPageStep(2000)
 
         self.chat_max_messages_spin = self._add_slider_spin_row(
-            limits_layout, "Chat display limit",
+            limits_layout, tr("Chat messages display limit", "Лимит отображения сообщений чата"),
             DEFAULTS["chat"]["max_messages_min"], DEFAULTS["chat"]["max_messages_max"],
             self._on_chat_max_messages_changed,
             default=DEFAULTS["chat"]["max_messages"],
@@ -985,19 +1067,22 @@ class SettingsWidget(QWidget):
 
         xmpp_header, xmpp_content, xmpp_layout = self._add_subsection(section, "🔌 XMPP")
         self.resource_combo = self._add_combo_row(
-            xmpp_layout, "XMPP resource", [], self._on_resource_changed
+            xmpp_layout, tr("XMPP resource", "XMPP ресурс"), [], self._on_resource_changed
         )
         self.resource_combo.setFixedWidth(240)
         self.own_message_mode_combo = self._add_combo_row(
-            xmpp_layout, "Own messages", [], self._on_own_message_mode_changed
+            xmpp_layout, tr("Own messages", "Свои сообщения"), [], self._on_own_message_mode_changed
         )
         self.own_message_mode_combo.setFixedWidth(240)
         self._add_collapse_toggle(xmpp_header, xmpp_content, ("ui", "settings", "widgets", "chat_xmpp"))
 
-        parser_header, parser_content, parser_layout = self._add_subsection(section, "🔍 Chatlog Parser")
+        parser_header, parser_content, parser_layout = self._add_subsection(
+            section, tr("🔍 Chatlog Parser", "🔍 Парсер чатлога")
+        )
         self.parser_validate_usernames_checkbox = self._add_checkbox(
             parser_layout,
-            "Validate usernames in chatlog parser (API check)",
+            tr("Validate usernames in chatlog parser (API check)",
+               "Проверять имена в парсере чатлога (через API)"),
             self._on_parser_validate_usernames_toggled,
         )
         self._add_collapse_toggle(parser_header, parser_content, ("ui", "settings", "widgets", "chat_parser"))
@@ -1025,7 +1110,7 @@ class SettingsWidget(QWidget):
         row.addWidget(self.hotkey_button)
 
         self.hotkey_reset_button = create_icon_button(
-            self.icons_path, "reload.svg", "Reset to default", size_type="small", config=self.config
+            self.icons_path, "reload.svg", tr("Reset to default", "Сбросить по умолчанию"), size_type="small", config=self.config
         )
         self.hotkey_reset_button.clicked.connect(self._on_hotkey_reset_clicked)
         row.addWidget(self.hotkey_reset_button)
@@ -1044,7 +1129,7 @@ class SettingsWidget(QWidget):
     def _on_hotkey_record_clicked(self):
         if self._hotkey_capture is not None:
             return
-        self.hotkey_button.setText("Press keys…")
+        self.hotkey_button.setText(tr("Press keys…", "Нажмите клавиши…"))
         self.hotkey_button.setEnabled(False)
         self.hotkey_reset_button.setEnabled(False)
         self._hotkey_capture = hotkey.HotkeyCapture()
@@ -1079,7 +1164,7 @@ class SettingsWidget(QWidget):
             f"#hotkeyStatusDot {{ background-color: {color}; border-radius: 5px; }}"
             f"QToolTip {{ background-color: {tooltip_bg}; color: {tooltip_fg}; border: 1px solid {tooltip_border}; }}"
         )
-        self.hotkey_status_dot.setToolTip(tooltip + " (click to retry)" if can_retry else tooltip)
+        self.hotkey_status_dot.setToolTip(tooltip + tr(" (click to retry)", " (нажмите для повтора)") if can_retry else tooltip)
         self.hotkey_status_dot.setCursor(
             Qt.CursorShape.PointingHandCursor if can_retry else Qt.CursorShape.ArrowCursor
         )
@@ -1090,32 +1175,32 @@ class SettingsWidget(QWidget):
         hotkey.hotkey_manager.register(self._current_hotkey())
 
     def _build_fonts_section(self):
-        section = self._create_section("🅰️ Fonts")
+        section = self._create_section(tr("🅰️ Fonts", "🅰️ Шрифты"))
         # Combos start empty - refresh() (called right after _setup_ui in
         # __init__) is the single place that queries available families and
         # fills them, so there's no point doing it twice on every construction.
         self.ui_font_combo = self._add_combo_row(
-            section, "UI font", [], self._on_ui_font_changed
+            section, tr("UI font", "Шрифт интерфейса"), [], self._on_ui_font_changed
         )
         self.ui_font_size_spin = self._add_slider_spin_row(
-            section, "UI size", 10, 18, self._on_ui_font_size_changed,
+            section, tr("UI font size", "Размер шрифта интерфейса"), 10, 18, self._on_ui_font_size_changed,
             default=12
         )
         self.text_font_combo = self._add_combo_row(
-            section, "Text font", [], self._on_text_font_changed
+            section, tr("Text font", "Шрифт текста"), [], self._on_text_font_changed
         )
         self.text_font_size_spin = self._add_slider_spin_row(
-            section, "Text size", 12, 24, self._on_text_font_size_changed,
+            section, tr("Text font size", "Размер шрифта текста"), 12, 24, self._on_text_font_size_changed,
             default=15
         )
         self.emoji_font_combo = self._add_combo_row(
-            section, "Emoji font", [], self._on_emoji_font_changed
+            section, tr("Emoji font", "Шрифт эмодзи"), [], self._on_emoji_font_changed
         )
         self.ui_font_combo.setFixedWidth(240)
         self.text_font_combo.setFixedWidth(240)
         self.emoji_font_combo.setFixedWidth(240)
 
-        preview_header, preview_content, preview_layout = self._add_subsection(section, "🔎 Preview")
+        preview_header, preview_content, preview_layout = self._add_subsection(section, tr("🔎 Preview", "🔎 Предпросмотр"))
         self.font_preview = QTextEdit()
         self.font_preview.setProperty("fontRole", "text")
         self.font_preview.setReadOnly(True)
@@ -1134,76 +1219,76 @@ class SettingsWidget(QWidget):
         self._add_collapse_toggle(preview_header, preview_content, ("ui", "settings", "widgets", "font_preview"))
 
     def _build_notifications_section(self):
-        section = self._create_section("🔔 Notifications")
+        section = self._create_section(tr("🔔 Notifications", "🔔 Уведомления"))
         self.notification_mode_combo = self._add_combo_row(
-            section, "Notification mode", [], self._on_notification_mode_changed
+            section, tr("Notification mode", "Режим уведомлений"), [], self._on_notification_mode_changed
         )
         self.notification_position_combo = self._add_combo_row(
-            section, "Notification position", ["Right", "Left", "Center"],
+            section, tr("Notification position", "Расположение уведомлений"), [],
             self._on_notification_position_changed
         )
         self.notification_width_spin = self._add_slider_spin_row(
-            section, "Notification width", DEFAULTS["notification"]["width"], 1000, self._on_notification_width_changed,
+            section, tr("Notification width", "Ширина уведомления"), DEFAULTS["notification"]["width"], 1000, self._on_notification_width_changed,
             default=DEFAULTS["notification"]["width"],
         )
         self.notification_hide_on_combo = self._add_combo_row(
-            section, "Hide notifications on", [], self._on_notification_hide_on_changed
+            section, tr("Hide notifications on", "Скрывать уведомления по"), [], self._on_notification_hide_on_changed
         )
         self.notification_duration_spin = self._add_slider_spin_row(
             section,
-            "Auto-hide delay (seconds)",
+            tr("Auto-hide delay (sec)", "Задержка автоскрытия (сек)"),
             1, 60,
             self._on_notification_duration_changed,
             default=DEFAULTS["notification"]["duration"],
         )
         self.notification_fade_spin = self._add_slider_spin_row(
             section,
-            "Fade duration (ms)",
+            tr("Fade duration (ms)", "Длительность затухания (мс)"),
             50, 2000,
             self._on_notification_fade_changed,
             default=DEFAULTS["notification"]["fade_ms"],
         )
 
-        bypass_header, bypass_content, bypass_layout = self._add_subsection(section, "🚧 Bypass When Muted")
+        bypass_header, bypass_content, bypass_layout = self._add_subsection(section, tr("🚧 Bypass When Muted", "🚧 Показ при отключении уведомлений"))
         self.competitions_bypass_combo = self._add_combo_row(
-            bypass_layout, "Competitions when muted", [],
+            bypass_layout, tr("Competitions", "Соревнования"), [],
             lambda _t: self._on_mute_bypass_changed(self.competitions_bypass_combo, "competitions_bypass_mute"),
         )
         self.mentions_bypass_combo = self._add_combo_row(
-            bypass_layout, "Mentions & private when muted", [],
+            bypass_layout, tr("Mentions & private messages", "Упоминания и приватные сообщения"), [],
             lambda _t: self._on_mute_bypass_changed(self.mentions_bypass_combo, "mentions_bypass_mute"),
         )
         self.bans_bypass_combo = self._add_combo_row(
-            bypass_layout, "Bans when muted", [],
+            bypass_layout, tr("Bans", "Баны"), [],
             lambda _t: self._on_mute_bypass_changed(self.bans_bypass_combo, "bans_bypass_mute"),
         )
         self.tracker_bypass_combo = self._add_combo_row(
-            bypass_layout, "Tracked users when muted", [],
+            bypass_layout, tr("Tracked users", "Отслеживаемые пользователи"), [],
             lambda _t: self._on_mute_bypass_changed(self.tracker_bypass_combo, "tracked_bypass_mute"),
         )
         self.messages_bypass_combo = self._add_combo_row(
-            bypass_layout, "Regular messages when muted", [],
+            bypass_layout, tr("Regular messages", "Обычные сообщения"), [],
             lambda _t: self._on_mute_bypass_changed(self.messages_bypass_combo, "messages_bypass_mute"),
         )
         self._add_collapse_toggle(bypass_header, bypass_content, ("ui", "settings", "widgets", "notifications_bypass"))
 
     def _build_competitions_section(self):
-        section = self._create_section("🏆 Competitions")
+        section = self._create_section(tr("🏆 Competitions", "🏆 Соревнования"))
 
         self.track_competitions_checkbox = self._add_checkbox(
-            section, "Track rating competitions", self._on_track_competitions_toggled
+            section, tr("Track rating competitions", "Отслеживать рейтинговые соревнования"), self._on_track_competitions_toggled
         )
 
-        log_header, log_content, log_layout = self._add_subsection(section, "📜 WebSocket Log")
+        log_header, log_content, log_layout = self._add_subsection(section, tr("📜 WebSocket Log", "📜 Лог WebSocket"))
 
         self.copy_log_button = create_icon_button(
-            self.icons_path, "copy.svg", "Copy log", size_type="small", config=self.config
+            self.icons_path, "copy.svg", tr("Copy log", "Скопировать лог"), size_type="small", config=self.config
         )
         self.copy_log_button.clicked.connect(self._on_copy_log_clicked)
         log_header.addWidget(self.copy_log_button)
 
         self.clear_log_button = create_icon_button(
-            self.icons_path, "trash.svg", "Clear log", size_type="small", config=self.config
+            self.icons_path, "trash.svg", tr("Clear log", "Очистить лог"), size_type="small", config=self.config
         )
         self.clear_log_button.clicked.connect(self._on_clear_log_clicked)
         log_header.addWidget(self.clear_log_button)
@@ -1212,7 +1297,7 @@ class SettingsWidget(QWidget):
         self.competitions_log.setReadOnly(True)
         self.competitions_log.setFixedHeight(DEFAULTS["competitions"]["log_height"])
         self.competitions_log.setFont(get_font(FontType.UI))
-        self.competitions_log.setPlaceholderText("Competition log")
+        self.competitions_log.setPlaceholderText(tr("Competition log", "Лог соревнований"))
         self.competitions_log.setAcceptRichText(True)
         self._apply_competitions_log_theme()
         log_layout.addWidget(self.competitions_log)
@@ -1220,82 +1305,82 @@ class SettingsWidget(QWidget):
         self._add_collapse_toggle(log_header, log_content, ("ui", "settings", "widgets", "ws_log"))
 
         self.min_multiplier_combo = self._add_combo_row(
-            section, "Minimum multiplier", ["x1+", "x2+", "x3+", "x5+"],
+            section, tr("Minimum multiplier", "Минимальный множитель"), ["x1+", "x2+", "x3+", "x5+"],
             self._on_min_multiplier_changed
         )
 
         self.show_cost_checkbox = self._add_checkbox(
-            section, "Show competition cost", self._on_show_cost_toggled
+            section, tr("Show competition cost", "Показывать стоимость соревнования"), self._on_show_cost_toggled
         )
 
         self.show_players_checkbox = self._add_checkbox(
-            section, "Show player chips", self._on_show_players_toggled
+            section, tr("Show player usernames", "Показывать имена игроков"), self._on_show_players_toggled
         )
         self.max_player_chips_spin = self._add_slider_spin_row(
-            section, "Max player chips", 1, 100,
+            section, tr("Max player usernames", "Макс. число имён"), 1, 100,
             self._on_max_player_chips_changed,
             default=DEFAULTS["competitions"]["max_player_chips"],
         )
         self.sort_players_by_level_checkbox = self._add_checkbox(
-            section, "Sort player chips by rank", self._on_sort_players_by_level_toggled
+            section, tr("Sort player usernames by rank", "Сортировать имена игроков по рангу"), self._on_sort_players_by_level_toggled
         )
 
         self.competitions_alert_lead_spin = self._add_slider_spin_row(
-            section, "Alert lead time before start (seconds)", 0, 300,
+            section, tr("Alert lead time before start (sec)", "Время оповещения до старта (сек)"), 0, 300,
             self._on_competitions_alert_lead_changed,
             default=DEFAULTS["competitions"]["alert_lead"],
         )
 
         self.alert_chat_action_combo = self._add_combo_row(
-            section, "On alert in chat", [], self._on_alert_chat_action_changed
+            section, tr("On alert in chat", "При оповещении в чате"), [], self._on_alert_chat_action_changed
         )
 
         self.competitions_notify_window_checkbox = self._add_checkbox(
-            section, "Only alert during allowed hours", self._on_competitions_notify_window_toggled
+            section, tr("Only alert during allowed hours", "Оповещать только в разрешённые часы"), self._on_competitions_notify_window_toggled
         )
         self.competitions_notify_start_spin = self._add_slider_spin_row(
-            section, "From", 0, 24, self._on_competitions_notify_start_changed,
+            section, tr("From", "С"), 0, 24, self._on_competitions_notify_start_changed,
             default=DEFAULTS["competitions"]["notify_start"],
         )
         self.competitions_notify_end_spin = self._add_slider_spin_row(
-            section, "To", 0, 24, self._on_competitions_notify_end_changed,
+            section, tr("To", "До"), 0, 24, self._on_competitions_notify_end_changed,
             default=DEFAULTS["competitions"]["notify_end"],
         )
 
 
     def _build_user_tracker_section(self):
-        section = self._create_section("🗿 User Tracker")
+        section = self._create_section(tr("🗿 User Tracker", "🗿 Трекер пользователей"))
         self.tracker_enabled_checkbox = self._add_checkbox(
-            section, "Track users",
+            section, tr("Track users", "Отслеживать пользователей"),
             self._on_tracker_enabled_toggled
         )
         self.tracker_notifications_checkbox = self._add_checkbox(
-            section, "Show events in notifications",
+            section, tr("Show events in notifications", "Показывать события в уведомлениях"),
             self._on_tracker_notifications_toggled
         )
         self.tracker_presence_log_checkbox = self._add_checkbox(
-            section, "Show events in chat",
+            section, tr("Show events in chat", "Показывать события в чате"),
             self._on_tracker_presence_log_toggled
         )
         self.tracker_presence_log_split_spin = self._add_slider_spin_row(
-            section, "Presence pane height (%)",
+            section, tr("Presence pane height (%)", "Высота панели событий (%)"),
             DEFAULTS["user_tracker"]["presence_log_split_percent_min"],
             DEFAULTS["user_tracker"]["presence_log_split_percent_max"],
             self._on_tracker_presence_log_split_changed,
             default=DEFAULTS["user_tracker"]["presence_log_split_percent"],
         )
         self.tracker_badge_checkbox = self._add_checkbox(
-            section, "Show unread badge on tracker button",
+            section, tr("Show count badge on tracker button", "Показывать счётчик на кнопке трекера"),
             self._on_tracker_badge_toggled
         )
         self.tracker_userlist_star_checkbox = self._add_checkbox(
-            section, "Show star badge on tracked users in userlist",
+            section, tr("Show star badge on tracked users in userlist", "Показывать звезду у отслеживаемых в списке пользователей"),
             self._on_tracker_userlist_star_toggled
         )
         # Tracked event types — same pills as tracker filter bar
         events_row = QHBoxLayout()
         events_row.setSpacing(8)
-        events_label = QLabel("Track events:")
+        events_label = QLabel(tr("Track events:", "Отслеживаемые события:"))
         events_label.setFont(get_font(FontType.UI))
         events_row.addWidget(events_label)
         theme = self.config.get("ui", "theme") or "dark"
@@ -1305,29 +1390,29 @@ class SettingsWidget(QWidget):
         section.addLayout(events_row)
         self._build_tracker_retention_row(section)
         self.tracker_default_tab_combo = self._add_combo_row(
-            section, "Default tab on open", [], self._on_tracker_default_tab_changed
+            section, tr("Default tab on open", "Вкладка по умолчанию"), [], self._on_tracker_default_tab_changed
         )
         self.tracker_click_combo = self._add_combo_row(
-            section, "On notification click", [], self._on_tracker_click_action_changed
+            section, tr("On notification click", "При клике по уведомлению"), [], self._on_tracker_click_action_changed
         )
 
     def _build_sound_section(self):
-        section = self._create_section("🔊 Sound")
+        section = self._create_section(tr("🔊 Sound", "🔊 Звук"))
         self.mention_always_checkbox = self._add_checkbox(
-            section, "Play mention sound even when chat is focused",
+            section, tr("Play mention sound even when chat is focused", "Звук упоминания даже когда чат в фокусе"),
             self._on_mention_always_toggled
         )
         self.competition_always_checkbox = self._add_checkbox(
-            section, "Play competition sound even when chat is focused",
+            section, tr("Play competition sound even when chat is focused", "Звук соревнования даже когда чат в фокусе"),
             self._on_competition_always_toggled
         )
 
         self.sound_selectors = {}
         self.sound_dir = Path(__file__).parent.parent / "sounds"
         sound_types = [
-            ("mention", "Mention sound"),
-            ("ban", "Ban sound"),
-            ("competition", "Competition sound"),
+            ("mention", tr("Mention sound", "Звук упоминания")),
+            ("ban", tr("Ban sound", "Звук бана")),
+            ("competition", tr("Competition sound", "Звук соревнования")),
         ]
         for kind, label in sound_types:
             selector = SoundSelectorWidget(self.config, self.sound_dir, kind, label)
@@ -1336,11 +1421,11 @@ class SettingsWidget(QWidget):
             section.addWidget(selector)
 
         self.competition_sound_repeat_checkbox = self._add_checkbox(
-            section, "Repeat competition sound until you're back",
+            section, tr("Repeat competition sound until you're back", "Повторять звук соревнования, пока вы не вернётесь"),
             self._on_competition_sound_repeat_toggled
         )
         self.competition_sound_repeat_interval_spin = self._add_slider_spin_row(
-            section, "Repeat interval (seconds)", 3, 120, self._on_competition_sound_repeat_interval_changed,
+            section, tr("Repeat interval (sec)", "Интервал повтора (сек)"), 3, 120, self._on_competition_sound_repeat_interval_changed,
             default=DEFAULTS["competitions"]["sound_repeat_interval"],
         )
 
@@ -1604,9 +1689,7 @@ class SettingsWidget(QWidget):
 
         fill_notification_mode_combo(self.notification_mode_combo, self.config.get("notification", "mode"))
 
-        position = (self.config.get("ui", "notification_position") or "right").capitalize()
-        idx = self.notification_position_combo.findText(position)
-        self.notification_position_combo.setCurrentIndex(idx if idx >= 0 else 0)
+        fill_notification_position_combo(self.notification_position_combo, self.config.get("ui", "notification_position"))
         self.notification_width_spin.setValue(int(self.config.get("ui", "notification_width") or DEFAULTS["notification"]["width"]))
         self.notification_width_spin._slider.setValue(self.notification_width_spin.value())
 
@@ -1663,9 +1746,9 @@ class SettingsWidget(QWidget):
         success = self.startup_manager.enable() if checked else self.startup_manager.disable()
         if not success:
             QMessageBox.warning(
-                self, "Error",
-                f"Failed to {'enable' if checked else 'disable'} start with system. "
-                "Please check permissions."
+                self, tr("Error", "Ошибка"),
+                tr(f"Failed to {'enable' if checked else 'disable'} start with system. Please check permissions.",
+                   f"Не удалось {'включить' if checked else 'выключить'} запуск с системой. Проверьте права доступа.")
             )
             self.start_with_system_checkbox.blockSignals(True)
             self.start_with_system_checkbox.setChecked(not checked)
@@ -1883,7 +1966,7 @@ class SettingsWidget(QWidget):
 
     def _build_tracker_retention_row(self, section_layout):
         self.tracker_retention_spin = self._add_slider_spin_row(
-            section_layout, "History retention", 1, 168,
+            section_layout, tr("History retention", "Хранить историю"), 1, 168,
             self._on_tracker_retention_value_changed,
             on_reset=self._on_tracker_retention_reset,
             default=24,
@@ -1891,8 +1974,8 @@ class SettingsWidget(QWidget):
         row = section_layout.itemAt(section_layout.count() - 1).layout()
         self.tracker_retention_unit_combo = NoWheelComboBox()
         self.tracker_retention_unit_combo.setFont(get_font(FontType.UI))
-        self.tracker_retention_unit_combo.addItem("hours", "hours")
-        self.tracker_retention_unit_combo.addItem("days", "days")
+        self.tracker_retention_unit_combo.addItem(tr("hours", "часов"), "hours")
+        self.tracker_retention_unit_combo.addItem(tr("days", "дней"), "days")
         self.tracker_retention_unit_combo.setFixedWidth(90)
         self.tracker_retention_unit_combo.currentIndexChanged.connect(
             self._on_tracker_retention_unit_changed
@@ -1985,6 +2068,9 @@ class SettingsWidget(QWidget):
         value = self.tracker_click_combo.currentData() or "history"
         self.config.set("user_tracker", "click_action", value=value)
 
+    def _tracking_disabled_text(self) -> str:
+        return tr("Tracking disabled", "Отслеживание выключено")
+
     def _status_log_html(self, text: str, kind: str) -> str:
         c = self._competitions_log_colors()
         color = {
@@ -2006,14 +2092,14 @@ class SettingsWidget(QWidget):
             self.competitions_log.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
             self.competitions_log.setEnabled(False)
             self.competitions_log.setFixedHeight(self._collapsed_log_height())
-            self.competitions_log.setHtml(self._status_log_html("Tracking disabled", "disabled"))
+            self.competitions_log.setHtml(self._status_log_html(self._tracking_disabled_text(), "disabled"))
             return
 
         self.competitions_log.setEnabled(True)
         self.competitions_log.setFixedHeight(DEFAULTS["competitions"]["log_height"])
         plain = self.competitions_log.toPlainText().strip()
-        if plain in ("", "Tracking disabled"):
-            self.competitions_log.setHtml(self._status_log_html("Tracking enabled", "enabled"))
+        if plain in ("", self._tracking_disabled_text()):
+            self.competitions_log.setHtml(self._status_log_html(tr("Tracking enabled", "Отслеживание включено"), "enabled"))
 
         state = connection or "connecting"
         self._competitions_accent_color = CONNECTION_STATES.get(
@@ -2091,7 +2177,7 @@ class SettingsWidget(QWidget):
         if not hasattr(self, "competitions_log"):
             return
         lines = self.competitions_log.toPlainText().splitlines()
-        if lines and lines != ["Tracking disabled"]:
+        if lines and lines != [self._tracking_disabled_text()]:
             self.set_competition_log_lines(lines)
         else:
             self._apply_competitions_log_theme()
@@ -2179,8 +2265,11 @@ class SettingsWidget(QWidget):
         from components.notification import popup_manager
         popup_manager.set_notification_mode(mode)
 
-    def _on_notification_position_changed(self, text: str):
-        self.config.set("ui", "notification_position", value=text.lower())
+    def _on_notification_position_changed(self, _text: str = ""):
+        self._sync_combo_tooltip(self.notification_position_combo)
+        value = self.notification_position_combo.currentData()
+        if value is not None:
+            self.config.set("ui", "notification_position", value=value)
 
     def _on_notification_width_changed(self, value: int):
         self.config.set("ui", "notification_width", value=value)
