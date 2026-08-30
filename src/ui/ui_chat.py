@@ -427,7 +427,7 @@ class ChatWindow(TranslatableMixin, QWidget):
             setattr(self, attr, str(path) if path else None)
 
     def _init_ui(self):
-        window_title = f"Chat - {self.my_username}" if self.my_username else "Chat"
+        window_title = f"{tr("Chat", "Чат")} - {self.my_username}" if self.my_username else tr("Chat", "Чат")
         self.setWindowTitle(window_title)
         geo = QApplication.primaryScreen().availableGeometry()
       
@@ -3341,17 +3341,20 @@ class ChatWindow(TranslatableMixin, QWidget):
             'connecting': tr("Connecting", "Подключение"),
             'online': tr("Online", "В сети"),
         }.get(status, tr("Offline", "Не в сети"))
-        base = f"Chat - {self.my_username}" if self.my_username else "Chat"
+        base = f"{tr('Chat', 'Чат')} - {self.my_username}" if self.my_username else tr('Chat', 'Чат')
 
         # Preserve private mode in title
         if self.private_mode and self.private_chat_username:
-            self.setWindowTitle(f"{base} - {tr('Private with', 'Приватно с')} {self.private_chat_username} - {text}")
+            self.setWindowTitle(f"{base} - {tr("Private with", "Приватно с")} {self.private_chat_username} - {text}")
         else:
             self.setWindowTitle(f"{base} - {text}")
 
     def _retranslate(self, _code=None):
         self._retranslate_all()
         self.set_connection_status(self._connection_status)
+
+        # Force input style update – updates private chat placeholder
+        self._update_input_style()
         
         # Reset on success
         if self._connection_status == 'online':
@@ -3367,7 +3370,7 @@ class ChatWindow(TranslatableMixin, QWidget):
             # Show manual reconnect button immediately
             if hasattr(self, 'button_panel') and hasattr(self.button_panel, 'reconnect_button'):
                 self.button_panel.reconnect_button.setVisible(True)
-                
+
             if self.allow_reconnect and not self.is_connecting and self.account:
                 print("🔄 Connection lost - initiating auto-reconnect...")
                 QTimer.singleShot(100, self._auto_reconnect)

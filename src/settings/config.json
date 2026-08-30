@@ -131,7 +131,7 @@
     "settings": {
       "sections": {
         "startup": true,
-        "chat": false,
+        "chat": true,
         "fonts": true,
         "notifications": true,
         "competitions": true,
@@ -165,7 +165,7 @@
       "mentions_digest_interval_hours": 24,
       "mentions_digest_mode": "start"
     },
-    "language": "en"
+    "language": "ru"
   },
   "sound": {
     "tts_enabled": false,
