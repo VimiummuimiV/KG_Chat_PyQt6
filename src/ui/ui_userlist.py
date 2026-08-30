@@ -98,6 +98,7 @@ class UserWidget(QWidget):
 
         if self.is_tracked:
             username_text += " ⭐"
+            self.username_label.setToolTip(tr("Tracked", "Отслеживается"))
 
         if user.role == 'visitor':
             emoji_family = (config.get("font", "emoji_family") or "").lower()
