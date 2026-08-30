@@ -136,7 +136,8 @@
         "notifications": true,
         "competitions": true,
         "sound": true,
-        "user_tracker": true
+        "user_tracker": true,
+        "": true
       },
       "widgets": {
         "ws_log": false,
@@ -144,7 +145,7 @@
         "chat_limits": true,
         "chat_xmpp": true,
         "chat_parser": true,
-        "notifications_bypass": true
+        "notifications_bypass": false
       },
       "accordion": true
     },
