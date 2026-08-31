@@ -512,6 +512,9 @@ class PopupNotification(_AutoHidePopupMixin, QWidget):
         if data.is_parser:
             color = self.message_renderer.parser_colors["text"]
             avatar_pixmap = _avatar_pixmap(self.icons_path, None, AVATAR_SIZE, SVG_AVATAR_SIZE, color, "at-line.svg")
+        elif data.is_competition:
+            color = self.message_renderer.competition_colors["text"]
+            avatar_pixmap = _avatar_pixmap(self.icons_path, None, AVATAR_SIZE, SVG_AVATAR_SIZE, color, "trophy.svg")
         elif data.is_system:
             color = self.message_renderer.system_colors["text"]
             avatar_pixmap = _avatar_pixmap(self.icons_path, None, AVATAR_SIZE, SVG_AVATAR_SIZE, color, "information.svg")
