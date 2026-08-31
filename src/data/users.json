@@ -473,5 +473,11 @@
   "63604": {"login": "Hellden", "background": "#777777", "light": "#767676", "dark": "#858585"},
   "284540": {"login": "ZH2S", "background": "#59b458", "light": "#3d853c", "dark": "#59b458"},
   "418816": {"login": "crasnk", "background": "#84868a", "light": "#75767a", "dark": "#84868a"},
-  "842307": {"login": "ILYARMP", "background": "#777777", "light": "#767676", "dark": "#858585"}
+  "842307": {"login": "ILYARMP", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "841617": {"login": "balda77", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "842686": {"login": "lyxsayd", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "827058": {"login": "ebedebe", "background": "#777777", "light": "#767676", "dark": "#858585"},
+  "260060": {"login": "r-money", "background": "#543103", "light": "#543103", "dark": "#c37107"},
+  "149376": {"login": "dosh", "background": "#1511FF", "light": "#1511FF", "dark": "#7674ff"},
+  "434747": {"login": "Kesvil", "background": "#e07804", "light": "#b46103", "dark": "#e07804"}
 }

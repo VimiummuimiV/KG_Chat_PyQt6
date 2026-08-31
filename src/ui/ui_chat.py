@@ -4226,8 +4226,14 @@ class ChatWindow(TranslatableMixin, QWidget):
         if ctrl_held and shift_held and (key == Qt.Key.Key_U or event.nativeVirtualKey() == Qt.Key.Key_U):
             self.toggle_user_tracker_view()
             return
-        # Ctrl+, toggle settings
-        if ctrl and (key == Qt.Key.Key_Comma or event.nativeVirtualKey() == Qt.Key.Key_Comma):
+        # Ctrl+, toggle settings — physical comma key (layout-independent).
+        # On RU layout that key produces «б»; Windows VK_OEM_COMMA = 0xBC,
+        # PC scan code 0x33 (same approach as Ctrl+; / scan 0x27).
+        if ctrl and (
+            key == Qt.Key.Key_Comma
+            or event.nativeVirtualKey() in (Qt.Key.Key_Comma, 0xBC)
+            or event.nativeScanCode() == 0x33
+        ):
             self.toggle_settings_view()
             return
         # Ctrl+J join / create room
