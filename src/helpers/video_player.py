@@ -84,10 +84,11 @@ class VideoPlayer(QWidget):
 
     @staticmethod
     def _app_base_dir() -> Path:
-        """Directory the app is running from (handles both source and frozen/PyInstaller builds)"""
+        """Project root dir (handles both source layout and frozen/PyInstaller builds)"""
         if getattr(sys, 'frozen', False):
             return Path(sys.executable).resolve().parent
-        return Path(__file__).resolve().parent
+        # this file lives in <root>/helpers/, bin/ is one level up in <root>/
+        return Path(__file__).resolve().parent.parent
 
     _YTDLP_BUNDLED_NAMES = {'Windows': 'yt-dlp.exe', 'Darwin': 'yt-dlp_macos', 'Linux': 'yt-dlp_linux'}
 
