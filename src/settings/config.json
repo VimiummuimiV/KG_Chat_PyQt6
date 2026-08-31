@@ -224,7 +224,7 @@
     "show_scores": true,
     "show_bonuses": false,
     "alert_chat_action": "move",
-    "notification_style": "center"
+    "notification_style": "inline"
   },
   "font": {
     "ui": {

@@ -3,6 +3,7 @@ import re
 import subprocess
 import platform
 import shutil
+import sys
 import time
 from pathlib import Path
 
@@ -33,6 +34,7 @@ class VideoPlayer(QWidget):
         # icons_path and config are ignored but kept for compatibility with message_delegate.py
         self.current_url = None
         self.mpv_path = self._find_mpv()
+        self.ytdlp_path = self._find_ytdlp()
         self.mpv_process = None  # Track the mpv process
         
         # Loading spinner
@@ -79,6 +81,26 @@ class VideoPlayer(QWidget):
                     return str(path)
         
         return 'mpv'  # Fallback
+
+    @staticmethod
+    def _app_base_dir() -> Path:
+        """Directory the app is running from (handles both source and frozen/PyInstaller builds)"""
+        if getattr(sys, 'frozen', False):
+            return Path(sys.executable).resolve().parent
+        return Path(__file__).resolve().parent
+
+    _YTDLP_BUNDLED_NAMES = {'Windows': 'yt-dlp.exe', 'Darwin': 'yt-dlp_macos', 'Linux': 'yt-dlp_linux'}
+
+    def _find_ytdlp(self) -> str | None:
+        """Find yt-dlp: prefer a standalone build bundled with the app, fall back to PATH"""
+        system = platform.system()
+        bundled_name = self._YTDLP_BUNDLED_NAMES.get(system)
+        if bundled_name:
+            base_dir = self._app_base_dir()
+            for candidate in (base_dir / 'bin' / bundled_name, base_dir / bundled_name):
+                if candidate.exists():
+                    return str(candidate)
+        return shutil.which('yt-dlp')
 
     @staticmethod
     def is_video_url(url: str) -> bool:
@@ -250,6 +272,10 @@ class VideoPlayer(QWidget):
             '--force-window=yes',
             # '--ontop',
         ])
+
+        # Point ytdl_hook at bundled/found yt-dlp instead of relying on PATH
+        if self.ytdlp_path:
+            cmd.append(f'--script-opts=ytdl_hook-ytdl_path={self.ytdlp_path}')
         
         # Add the URL
         cmd.append(url)

@@ -572,5 +572,6 @@
   "1210": {"login": "ToNick", "background": "#0F0E4F", "light": "#0F0E4F", "dark": "#7a79e7"},
   "842638": {"login": "eyesdontlie", "background": "#777777", "light": "#767676", "dark": "#858585"},
   "490344": {"login": "Doctorisimus", "background": "#FF4000", "light": "#dd3800", "dark": "#FF4000"},
-  "155693": {"login": "Waleria", "background": "#A0003D", "light": "#A0003D", "dark": "#ff1d73"}
+  "155693": {"login": "Waleria", "background": "#A0003D", "light": "#A0003D", "dark": "#ff1d73"},
+  "842702": {"login": "zicZag", "background": "#777777", "light": "#767676", "dark": "#858585"}
 }
