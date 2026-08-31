@@ -211,7 +211,7 @@
     "validate_usernames": false
   },
   "competitions": {
-    "enabled": false,
+    "enabled": true,
     "min_multiplier": "x2+",
     "notify_window_enabled": false,
     "notify_window_start": 6,

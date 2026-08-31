@@ -761,7 +761,13 @@ class PopupNotification(_AutoHidePopupMixin, QWidget):
                         self.message_renderer.handle_link_rmb(link_data[0])
                         return
             super().mousePressEvent(event)
-
+        elif event.button() == Qt.MouseButton.MiddleButton:
+            if self.answer_button and self.message_widget:
+                widget_pos = self.message_widget.mapFrom(self, event.pos())
+                if self.message_widget.rect().contains(widget_pos):
+                    self._on_answer()
+                    return
+            super().mousePressEvent(event)
         else:
             super().mousePressEvent(event)
   
