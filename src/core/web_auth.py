@@ -1,7 +1,7 @@
 from PyQt6.QtCore import QUrl, pyqtSignal, Qt
 from PyQt6.QtGui import QColor, QPalette
 from PyQt6.QtWebEngineCore import QWebEngineScript, QWebEngineProfile, QWebEnginePage
-from PyQt6.QtWidgets import QDialog, QVBoxLayout, QWidget, QStackedLayout
+from PyQt6.QtWidgets import QDialog, QVBoxLayout, QWidget, QStackedLayout, QMessageBox
 
 from components.loading_spinner import LoadingSpinner
 from helpers.translate import tr
@@ -331,11 +331,32 @@ class LoginWebView(QDialog):
 
     def _on_data(self, data):
         if not data or not isinstance(data, dict):
+            self._show_wait(False)
+            QMessageBox.warning(
+                self,
+                tr("Authorization", "Авторизация"),
+                tr(
+                    "Could not read account data from the site page. Try again.",
+                    "Не удалось прочитать данные аккаунта со страницы сайта. Попробуйте снова.",
+                ),
+            )
             self.reject()
             return
 
         self._show_wait(False)
         user = data.get("user") or {}
+        if not user.get("id") or not user.get("login"):
+            QMessageBox.warning(
+                self,
+                tr("Authorization", "Авторизация"),
+                tr(
+                    "Account data is incomplete. Try signing in again.",
+                    "Данные аккаунта неполные. Попробуйте войти ещё раз.",
+                ),
+            )
+            self.reject()
+            return
+
         self.login_success.emit({
             "id": user.get("id"),
             "login": user.get("login"),

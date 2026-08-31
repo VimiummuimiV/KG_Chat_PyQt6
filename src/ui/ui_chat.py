@@ -68,7 +68,13 @@ from helpers.help import HelpPanel
 from components.notification import show_notification, popup_manager
 from helpers.input_activity import activity_detected
 from core.races_listener import RacesListener
-from core.scores import fetch_scores_bonuses
+from core.scores import (
+    fetch_scores_bonuses,
+    ERR_NO_COOKIES,
+    ERR_NETWORK,
+    ERR_AUTH,
+    ERR_PARSE,
+)
 from components.messages_separator import NewMessagesSeparator
 from components.context_menu.message import (
     show_message_user_context_menu,
@@ -146,6 +152,7 @@ class ChatWindow(TranslatableMixin, QWidget):
         self._competition_sound_repeat_timer = QTimer(self)
         self._competition_sound_repeat_timer.timeout.connect(self._on_competition_sound_repeat_tick)
         self._competition_sound_repeat_cursor_pos = None
+        self._balance_fetch_errors_shown = set()  # error codes already dialoged this session
 
         self.initial_roster_loading = False
         self.auto_hide_messages_userlist = True
@@ -2458,17 +2465,23 @@ class ChatWindow(TranslatableMixin, QWidget):
 
         cookies_json = (self.account or {}).get("session_cookies")
         if not cookies_json:
+            self._on_balance_fetch_failed(ERR_NO_COOKIES)
             return
         try:
             cookies = json.loads(cookies_json)
         except Exception:
+            self._on_balance_fetch_failed(ERR_NO_COOKIES)
             return
 
         def _fetch():
-            result = fetch_scores_bonuses(cookies)
-            if result:
-                scores, bonuses, updated_cookies = result
-                self._dispatch.emit(lambda: self._on_own_balance_fetched(gid, scores, bonuses, updated_cookies))
+            data, err = fetch_scores_bonuses(cookies)
+            if err:
+                self._dispatch.emit(lambda: self._on_balance_fetch_failed(err))
+                return
+            scores, bonuses, updated_cookies = data
+            self._dispatch.emit(
+                lambda: self._on_own_balance_fetched(gid, scores, bonuses, updated_cookies)
+            )
 
         threading.Thread(target=_fetch, daemon=True).start()
 
@@ -2476,10 +2489,52 @@ class ChatWindow(TranslatableMixin, QWidget):
         live = self._competition_live.get(gid)
         if live is None:
             return
+        self._balance_fetch_errors_shown.clear()
         live.update(scores=scores, bonuses=bonuses)
         self._refresh_competition_message(gid)
         if updated_cookies:
             self._persist_session_cookies(updated_cookies)
+
+    def _on_balance_fetch_failed(self, error_code: str):
+        """One dialog + log line per error code per session."""
+        if error_code in self._balance_fetch_errors_shown:
+            return
+        self._balance_fetch_errors_shown.add(error_code)
+
+        messages = {
+            ERR_NO_COOKIES: (
+                "No website session cookies for this account. "
+                "Re-authorize the account in Accounts to refresh your session.",
+                "Отсутствуют session cookies для этого аккаунта. "
+                "Повторно авторизуйтесь в разделе Аккаунты, чтобы актуализировоать сессию.",
+            ),
+            ERR_AUTH: (
+                "Website session expired or is not authorized. "
+                "Re-authorize the account in Accounts.",
+                "Сессия сайта истекла или не авторизована. "
+                "Повторно авторизуйтесь в разделе Аккаунты.",
+            ),
+            ERR_NETWORK: (
+                "Network error while loading scores/bonuses.",
+                "Сетевая ошибка при загрузке очков/бонусов.",
+            ),
+            ERR_PARSE: (
+                "Could not parse scores/bonuses from the site page. "
+                "The page layout may have changed.",
+                "Не удалось разобрать очки/бонусы со страницы сайта. "
+                "Возможно, изменилась вёрстка.",
+            ),
+        }
+        en, ru = messages.get(error_code, (
+            f"Failed to load scores/bonuses ({error_code}).",
+            f"Не удалось загрузить очки/бонусы ({error_code}).",
+        ))
+        self._append_competition_log(f"balance error: {error_code}")
+        QMessageBox.warning(
+            self,
+            tr("Scores / bonuses", "Очки / бонусы"),
+            tr(en, ru),
+        )
 
     def _persist_session_cookies(self, cookies: list):
         """Write rotated session cookies back to storage (server-side renewal only)."""

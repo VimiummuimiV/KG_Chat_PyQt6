@@ -131,7 +131,7 @@
     "settings": {
       "sections": {
         "startup": true,
-        "chat": true,
+        "chat": false,
         "fonts": true,
         "notifications": true,
         "competitions": true,
@@ -143,7 +143,7 @@
         "ws_log": false,
         "font_preview": true,
         "chat_limits": true,
-        "chat_xmpp": true,
+        "chat_xmpp": false,
         "chat_parser": true,
         "notifications_bypass": false
       },
