@@ -2282,6 +2282,15 @@ class ChatWindow(TranslatableMixin, QWidget):
         if mw and hasattr(mw, "clear_competition_messages"):
             mw.clear_competition_messages()
 
+    def _restore_competition_messages(self):
+        """Restore chat rows for competitions still marked as live after reconnect."""
+        mw = getattr(self, "messages_widget", None)
+        if not mw or not hasattr(mw, "model"):
+            return
+        for gid in list(self._competition_live.keys()):
+            if mw.model.find_competition_message_row(gid) is None:
+                self._move_competition_message_to_end(gid)
+
     @staticmethod
     def _competition_fields(info: dict) -> tuple:
         gid = info.get("game_id")
@@ -2291,6 +2300,7 @@ class ChatWindow(TranslatableMixin, QWidget):
     def _on_history_settled(self):
         self._chat_ready = True
         self._flush_pending_competitions()
+        self._restore_competition_messages()
         self._start_mentions_digest_check()
 
     def _on_competition_found(self, info: dict):
