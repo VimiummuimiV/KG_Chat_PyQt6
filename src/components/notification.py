@@ -755,8 +755,19 @@ class PopupNotification(_AutoHidePopupMixin, QWidget):
             _safe_call(self.data.open_room_callback, gid, err_msg="Error opening room")
         self.manager.close_all()
 
+    def _reply_style(self) -> str:
+        """notification.reply_style: inline (default) | center.
+        Ignored (falls back to inline) when notifications are already
+        centered — a detached centered group would sit on the same X as
+        the regular stack and overlap it."""
+        if self.config and (self.config.get("ui", "notification_position") or "").lower() == "center":
+            return "inline"
+        value = self.config.get("notification", "reply_style") if self.config else None
+        return value if value == "center" else "inline"
+
     def _on_answer(self):
-        """Toggle reply field visibility"""
+        """Toggle reply field visibility. In 'center' reply_style, the popup
+        also detaches from its stack and joins the centered focus group."""
         if not self.reply_container or not self.reply_field:
             return
        
@@ -766,6 +777,9 @@ class PopupNotification(_AutoHidePopupMixin, QWidget):
             self.reply_field_visible = False
             self.reply_container.setVisible(False)
             self.reply_field.clear()
+            if self in self.manager.focused_popups:
+                self.manager.focused_popups.remove(self)
+                self.manager.popups.append(self)
             
             # Re-enable auto-close if cursor moved and not hovering
             if self.cursor_moved and not self.is_hovered:
@@ -774,6 +788,9 @@ class PopupNotification(_AutoHidePopupMixin, QWidget):
             # Show reply field
             self.reply_field_visible = True
             self.reply_container.setVisible(True)
+            if self._reply_style() == "center" and self in self.manager.popups:
+                self.manager.popups.remove(self)
+                self.manager.focused_popups.append(self)
           
             # Pre-fill with sender's username
             sender_name = self.username_label.text().replace('<b>', '').replace('</b>', '')
@@ -1000,6 +1017,7 @@ class PopupManager:
   
     def __init__(self):
         self.popups: List[PopupNotification] = []
+        self.focused_popups: List[PopupNotification] = []  # detached for centered reply
         self.gap = 10
         self.config = None
         self.notification_mode = "stack"
@@ -1088,25 +1106,27 @@ class PopupManager:
         return popup
   
     def remove_popup(self, popup: PopupNotification):
-        """Remove popup and reposition"""
-        if popup in self.popups:
-            self.popups.remove(popup)
-            if not self.popups:
-                self.scroll_offset = 0
-            self._position_and_cleanup()
+        """Remove popup (from whichever list holds it) and reposition"""
+        for lst in (self.popups, self.focused_popups):
+            if popup in lst:
+                lst.remove(popup)
+        if not self.popups:
+            self.scroll_offset = 0
+        self._position_and_cleanup()
   
     def close_all(self):
         """Close all notifications"""
-        for popup in list(self.popups):
+        for popup in list(self.popups) + list(self.focused_popups):
             popup.close_immediately()
         self.popups.clear()
+        self.focused_popups.clear()
         self.scroll_offset = 0
 
     def close_by_tag(self, tag: str):
         """Close notifications with the given tag"""
         if not tag:
             return
-        for popup in list(self.popups):
+        for popup in list(self.popups) + list(self.focused_popups):
             if getattr(popup.data, "tag", None) == tag:
                 popup._animate_out(force=True)
 
@@ -1114,7 +1134,7 @@ class PopupManager:
         """Find an open notification by tag, for in-place content updates."""
         if not tag:
             return None
-        return next((p for p in self.popups if getattr(p.data, "tag", None) == tag), None)
+        return next((p for p in self.popups + self.focused_popups if getattr(p.data, "tag", None) == tag), None)
   
     def _popup_x(self, screen, position: str, popup_width: int) -> int:
         if position == "left":
@@ -1123,8 +1143,42 @@ class PopupManager:
             return screen.x() + screen.width() - popup_width - 20
         return screen.x() + (screen.width() - popup_width) // 2
 
+    def _stack_popups(self, popups, x_fn, start_y):
+        """Shared top-down vertical stacking, used for both the side stack
+        and the centered focused group. Returns the y past the last popup."""
+        current_y = start_y
+        for popup in popups:
+            popup.move(x_fn(popup), current_y)
+            current_y += popup.height() + self.gap
+        return current_y
+
+    def _position_focused_popups(self):
+        """Center the detached (reply-in-progress) popups as their own
+        stacked group, so several open reply fields never overlap.
+        Y is centered by default, adjustable via notification.reply_center_offset_y."""
+        if not self.focused_popups:
+            return
+        screen = self.focused_popups[0].screen().availableGeometry()
+        heights = [p.height() for p in self.focused_popups]
+        total_height = sum(heights) + self.gap * max(0, len(heights) - 1)
+        offset_y = self.config.get("notification", "reply_center_offset_y") if self.config else 0
+        try:
+            offset_y = int(offset_y or 0)
+        except (TypeError, ValueError):
+            offset_y = 0
+        base_y = screen.y() + (screen.height() - total_height) // 2 + offset_y
+        min_y = screen.y() + 20
+        max_y = screen.y() + screen.height() - 20 - total_height
+        start_y = max(min_y, min(base_y, max(min_y, max_y)))
+        self._stack_popups(
+            self.focused_popups,
+            x_fn=lambda p: screen.x() + (screen.width() - p.width()) // 2,
+            start_y=start_y,
+        )
+
     def _position_and_cleanup(self):
         """Position all popups and handle overflow"""
+        self._position_focused_popups()
         if not self.popups:
             return
 
@@ -1142,12 +1196,9 @@ class PopupManager:
             self.scroll_offset = min(self.scroll_offset, max_offset)
 
         # Position all popups from top down
-        current_y = screen.y() + 20 - (self.scroll_offset if self.notification_mode == "scroll" else 0)
-        for popup in self.popups:
-            x = self._popup_x(screen, position, popup.width())
-            popup.move(x, current_y)
-            current_y += popup.height() + self.gap
-        
+        start_y = screen.y() + 20 - (self.scroll_offset if self.notification_mode == "scroll" else 0)
+        self._stack_popups(self.popups, lambda p: self._popup_x(screen, position, p.width()), start_y)
+
         # Only handle overflow in stack mode
         if self.notification_mode == "stack":
             while total_height > available_height and len(self.popups) > 1:
@@ -1167,11 +1218,7 @@ class PopupManager:
                     break
                 
                 # Reposition remaining popups
-                current_y = screen.y() + 20
-                for popup in self.popups:
-                    x = self._popup_x(screen, position, popup.width())
-                    popup.move(x, current_y)
-                    current_y += popup.height() + self.gap
+                self._stack_popups(self.popups, lambda p: self._popup_x(screen, position, p.width()), screen.y() + 20)
 
 
 # Global manager

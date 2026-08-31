@@ -24,7 +24,7 @@
     "chat_search_visible": false,
     "theme": "dark",
     "notification_width": 550,
-    "notification_position": "right",
+    "notification_position": "center",
     "emoticon_max_size": 140,
     "clear_private_messages_on_exit": true,
     "private_message_color": {
@@ -133,7 +133,7 @@
         "startup": true,
         "chat": true,
         "fonts": true,
-        "notifications": true,
+        "notifications": false,
         "competitions": true,
         "sound": true,
         "user_tracker": true,
@@ -190,7 +190,8 @@
     "messages_bypass_mute": "duration",
     "hide_on": "mouse",
     "fade_ms": 300,
-    "duration_ms": 5000
+    "duration_ms": 5000,
+    "reply_style": "center"
   },
   "startup": {
     "auto_login": true,
@@ -208,7 +209,7 @@
     "validate_usernames": false
   },
   "competitions": {
-    "enabled": true,
+    "enabled": false,
     "min_multiplier": "x2+",
     "notify_window_enabled": false,
     "notify_window_start": 6,
