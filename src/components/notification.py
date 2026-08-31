@@ -174,6 +174,18 @@ def _icon_btn(icons_path, icon_name: str, tooltip: str, config, size_type: str =
     return create_icon_button(icons_path, icon_name, tooltip, size_type=size_type, config=config)
 
 
+def _resolve_centered_style(config, section: str, key: str) -> str:
+    """Shared 'inline' | 'center' resolution for reply/competition placement.
+    Falls back to inline when notifications are already centered — a detached
+    centered group would sit on the same X as the regular stack and overlap it."""
+    if not config:
+        return "inline"
+    if (config.get("ui", "notification_position") or "").lower() == "center":
+        return "inline"
+    value = config.get(section, key)
+    return value if value == "center" else "inline"
+
+
 @dataclass
 class NotificationData:
     """Encapsulates all notification parameters to avoid code duplication"""
@@ -756,14 +768,8 @@ class PopupNotification(_AutoHidePopupMixin, QWidget):
         self.manager.close_all()
 
     def _reply_style(self) -> str:
-        """notification.reply_style: inline (default) | center.
-        Ignored (falls back to inline) when notifications are already
-        centered — a detached centered group would sit on the same X as
-        the regular stack and overlap it."""
-        if self.config and (self.config.get("ui", "notification_position") or "").lower() == "center":
-            return "inline"
-        value = self.config.get("notification", "reply_style") if self.config else None
-        return value if value == "center" else "inline"
+        """notification.reply_style: inline (default) | center."""
+        return _resolve_centered_style(self.config, "notification", "reply_style")
 
     def _on_answer(self):
         """Toggle reply field visibility. In 'center' reply_style, the popup
@@ -1067,6 +1073,10 @@ class PopupManager:
         return popup
 
   
+    def _competition_style(self) -> str:
+        """competitions.notification_style: inline (default) | center."""
+        return _resolve_centered_style(self.config, "competitions", "notification_style")
+
     def show_notification(self, data: NotificationData):
         """Create and show notification (unless muted). Mute-bypass modes per type."""
         if data.is_competition:
@@ -1088,12 +1098,12 @@ class PopupManager:
         self.config = data.config
        
         # In replace mode, close existing notifications EXCEPT those with active reply fields
-        if self.notification_mode == "replace" and self.popups:
-            for popup in list(self.popups):
+        if self.notification_mode == "replace":
+            for popup in list(self.popups) + list(self.focused_popups):
                 # Keep notifications with visible reply field
                 if not popup.reply_field_visible:
                     popup.close_immediately()
-                    self.popups.remove(popup)
+                    (self.focused_popups if popup in self.focused_popups else self.popups).remove(popup)
       
         # Calculate width before creating popup (max 50% of screen)
         screen = QApplication.primaryScreen().availableGeometry()
@@ -1101,7 +1111,10 @@ class PopupManager:
         width = min(int(screen.width() * 0.50), notification_width or 500)
       
         popup = PopupNotification(data, self, width)
-        self.popups.append(popup)
+        if data.is_competition and self._competition_style() == "center":
+            self.focused_popups.append(popup)
+        else:
+            self.popups.append(popup)
         self._position_and_cleanup()
         return popup
   

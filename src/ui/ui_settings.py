@@ -201,16 +201,34 @@ def notification_position_options():
             "Показывать уведомления по центру экрана.")),
     )
 
-def reply_style_options():
+def centered_style_options(inline_tip, center_tip):
+    """Shared (value, label, tip) pairs for 'inline' vs 'center' placement
+    settings; callers supply context-specific tooltip text."""
     return (
-        ("inline", tr("In place", "На месте"),
-         tr("Reply field opens inside the notification, at its current position.",
-            "Поле ответа открывается прямо в уведомлении, на его текущем месте.")),
-        ("center", tr("Centered", "По центру"),
-         tr("Notification detaches and centers on screen while you reply. "
-            "No effect if Notification position is already Center.",
-            "Уведомление отделяется от стека и центрируется на экране на время ответа. "
-            "Не действует, если «Расположение уведомлений» уже установлено на «По центру».")),
+        ("inline", tr("In place", "На месте"), inline_tip),
+        ("center", tr("Centered", "По центру"), center_tip),
+    )
+
+
+def reply_style_options():
+    return centered_style_options(
+        tr("Reply field opens inside the notification, at its current position.",
+           "Поле ответа открывается прямо в уведомлении, на его текущем месте."),
+        tr("Notification detaches and centers on screen while you reply. "
+           "No effect if Notification position is already Center.",
+           "Уведомление отделяется от стека и центрируется на экране на время ответа. "
+           "Не действует, если «Расположение уведомлений» уже установлено на «По центру»."),
+    )
+
+
+def competition_notification_style_options():
+    return centered_style_options(
+        tr("Competition notification stays in the regular notification stack.",
+           "Уведомление о соревновании остаётся в обычном стеке уведомлений."),
+        tr("Competition notification detaches and centers on screen for more visibility. "
+           "No effect if Notification position is already Center.",
+           "Уведомление о соревновании отделяется от стека и центрируется на экране для большей заметности. "
+           "Не действует, если «Расположение уведомлений» уже установлено на «По центру»."),
     )
 
 LANGUAGE_OPTIONS = (
@@ -393,6 +411,10 @@ def fill_notification_position_combo(combo, current=None):
 
 def fill_reply_style_combo(combo, current=None):
     fill_tooltip_combo(combo, reply_style_options(), current, "inline")
+
+
+def fill_competition_notification_style_combo(combo, current=None):
+    fill_tooltip_combo(combo, competition_notification_style_options(), current, "inline")
 
 
 class NoWheelSlider(QSlider):
@@ -1383,6 +1405,11 @@ class SettingsWidget(TranslatableMixin, QWidget):
             section, tr("On alert in chat", "При оповещении в чате"), [], self._on_alert_chat_action_changed
         )
 
+        self.competition_notification_style_combo = self._add_combo_row(
+            section, tr("Competition notification style", "Стиль уведомления о соревновании"), [],
+            self._on_competition_notification_style_changed
+        )
+
         self.competitions_notify_window_checkbox = self._add_checkbox(
             section, tr("Only alert during allowed hours", "Оповещать только в разрешённые часы"), self._on_competitions_notify_window_toggled
         )
@@ -1508,6 +1535,7 @@ class SettingsWidget(TranslatableMixin, QWidget):
             self.show_cost_checkbox, self.show_scores_checkbox, self.show_bonuses_checkbox,
             self.show_players_checkbox, self.max_player_chips_spin, self.sort_players_by_level_checkbox,
             self.competitions_alert_lead_spin, self.alert_chat_action_combo,
+            self.competition_notification_style_combo,
             self.competitions_notify_window_checkbox,
             self.competitions_notify_start_spin, self.competitions_notify_end_spin,
             self.notification_mode_combo, self.notification_position_combo, self.reply_style_combo,
@@ -1735,6 +1763,10 @@ class SettingsWidget(TranslatableMixin, QWidget):
 
         fill_alert_chat_action_combo(self.alert_chat_action_combo, self.config.get("competitions", "alert_chat_action"))
 
+        fill_competition_notification_style_combo(
+            self.competition_notification_style_combo, self.config.get("competitions", "notification_style")
+        )
+
         self.competitions_notify_window_checkbox.setChecked(
             bool(self.config.get("competitions", "notify_window_enabled"))
         )
@@ -1817,6 +1849,7 @@ class SettingsWidget(TranslatableMixin, QWidget):
             (self.tracker_bypass_combo, fill_notification_mute_bypass_combo),
             (self.messages_bypass_combo, fill_notification_mute_bypass_combo),
             (self.alert_chat_action_combo, fill_alert_chat_action_combo),
+            (self.competition_notification_style_combo, fill_competition_notification_style_combo),
             (self.tracker_default_tab_combo, fill_tracker_default_tab_combo),
             (self.tracker_click_combo, fill_tracker_click_combo),
         ):
@@ -2357,6 +2390,12 @@ class SettingsWidget(TranslatableMixin, QWidget):
         value = self.alert_chat_action_combo.currentData() or "scroll"
         self.config.set("competitions", "alert_chat_action", value=value)
 
+    def _on_competition_notification_style_changed(self, _text: str = ""):
+        self._sync_combo_tooltip(self.competition_notification_style_combo)
+        value = self.competition_notification_style_combo.currentData() or "inline"
+        self.config.set("competitions", "notification_style", value=value)
+        self._update_reply_offset_enabled()
+
     def _on_competitions_notify_window_toggled(self, checked: bool):
         self.config.set("competitions", "notify_window_enabled", value=checked)
         self._set_notify_window_controls_enabled(checked)
@@ -2389,11 +2428,14 @@ class SettingsWidget(TranslatableMixin, QWidget):
         self._update_reply_offset_enabled()
 
     def _update_reply_offset_enabled(self):
-        """Offset only does anything when reply is centered and notifications
-        aren't already centered (see _reply_style() in notification.py)."""
-        style = self.reply_style_combo.currentData() or "inline"
+        """Offset only does anything when something is actually centered
+        (reply or competition) and notifications aren't already centered
+        (see _resolve_centered_style() in notification.py)."""
+        reply_style = self.reply_style_combo.currentData() or "inline"
+        competition_style = self.competition_notification_style_combo.currentData() or "inline"
         position = self.notification_position_combo.currentData() or "right"
-        self._set_spin_enabled(self.reply_center_offset_spin, style == "center" and position != "center")
+        centered = reply_style == "center" or competition_style == "center"
+        self._set_spin_enabled(self.reply_center_offset_spin, centered and position != "center")
 
     def _on_reply_style_changed(self, _text: str = ""):
         self._sync_combo_tooltip(self.reply_style_combo)
