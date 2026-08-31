@@ -1152,6 +1152,11 @@ class PopupManager:
             current_y += popup.height() + self.gap
         return current_y
 
+    def _group_height(self, popups):
+        """(heights, total stacked height incl. gaps) for a group of popups."""
+        heights = [p.height() for p in popups]
+        return heights, sum(heights) + self.gap * max(0, len(heights) - 1)
+
     def _position_focused_popups(self):
         """Center the detached (reply-in-progress) popups as their own
         stacked group, so several open reply fields never overlap.
@@ -1159,8 +1164,7 @@ class PopupManager:
         if not self.focused_popups:
             return
         screen = self.focused_popups[0].screen().availableGeometry()
-        heights = [p.height() for p in self.focused_popups]
-        total_height = sum(heights) + self.gap * max(0, len(heights) - 1)
+        _, total_height = self._group_height(self.focused_popups)
         offset_y = self.config.get("notification", "reply_center_offset_y") if self.config else 0
         try:
             offset_y = int(offset_y or 0)
@@ -1172,13 +1176,17 @@ class PopupManager:
         start_y = max(min_y, min(base_y, max(min_y, max_y)))
         self._stack_popups(
             self.focused_popups,
-            x_fn=lambda p: screen.x() + (screen.width() - p.width()) // 2,
+            x_fn=lambda p: self._popup_x(screen, "center", p.width()),
             start_y=start_y,
         )
 
     def _position_and_cleanup(self):
-        """Position all popups and handle overflow"""
+        """Position every popup group, then drop stack-mode overflow that doesn't fit."""
         self._position_focused_popups()
+        self._position_popups()
+
+    def _position_popups(self):
+        """Stack the regular (non-focused) popups top-down at their configured edge."""
         if not self.popups:
             return
 
@@ -1186,8 +1194,7 @@ class PopupManager:
         position = self.config.get("ui", "notification_position") if self.config else "center"
         position = (position or "center").lower()
 
-        heights = [p.height() for p in self.popups]
-        total_height = sum(heights) + self.gap * max(0, len(heights) - 1)
+        heights, total_height = self._group_height(self.popups)
         available_height = screen.height() - 40
 
         # In scroll mode, clamp offset instead of dropping popups
@@ -1195,30 +1202,32 @@ class PopupManager:
             max_offset = max(0, total_height - available_height)
             self.scroll_offset = min(self.scroll_offset, max_offset)
 
-        # Position all popups from top down
         start_y = screen.y() + 20 - (self.scroll_offset if self.notification_mode == "scroll" else 0)
         self._stack_popups(self.popups, lambda p: self._popup_x(screen, position, p.width()), start_y)
 
-        # Only handle overflow in stack mode
         if self.notification_mode == "stack":
-            while total_height > available_height and len(self.popups) > 1:
-                # Find the oldest notification that doesn't have an active reply field
-                removed = False
-                for i, popup in enumerate(self.popups):
-                    if not popup.reply_field_visible:
-                        # Remove this notification
-                        self.popups.pop(i)
-                        popup.close()
-                        total_height -= (heights.pop(i) + self.gap)
-                        removed = True
-                        break
-                
-                # If all notifications have active reply fields, stop trying to remove
-                if not removed:
+            self._cleanup_overflow(screen, position, heights, total_height, available_height)
+
+    def _cleanup_overflow(self, screen, position, heights, total_height, available_height):
+        """Drop the oldest popups without an active reply field until the stack fits."""
+        while total_height > available_height and len(self.popups) > 1:
+            # Find the oldest notification that doesn't have an active reply field
+            removed = False
+            for i, popup in enumerate(self.popups):
+                if not popup.reply_field_visible:
+                    # Remove this notification
+                    self.popups.pop(i)
+                    popup.close()
+                    total_height -= (heights.pop(i) + self.gap)
+                    removed = True
                     break
-                
-                # Reposition remaining popups
-                self._stack_popups(self.popups, lambda p: self._popup_x(screen, position, p.width()), screen.y() + 20)
+
+            # If all notifications have active reply fields, stop trying to remove
+            if not removed:
+                break
+
+            # Reposition remaining popups
+            self._stack_popups(self.popups, lambda p: self._popup_x(screen, position, p.width()), screen.y() + 20)
 
 
 # Global manager
