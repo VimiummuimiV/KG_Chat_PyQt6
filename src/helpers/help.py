@@ -84,6 +84,10 @@ MSG_URL_MOUSE = [
     ("Right click on URL", "Правый клик по ссылке", "Copy link", "Копировать ссылку"),
 ]
 
+NOTIFICATION_MOUSE = [
+    ("Middle click", "Средний клик", "Quick reply from message notification popup", "Быстрый ответ из попапа уведомления о сообщении"),
+]
+
 CHATLOG_TIMESTAMP_MOUSE = [
     ("Left click", "Левый клик", "Copy chatlog link for that message", "Ссылка на чатлог для сообщения"),
 ]
@@ -187,6 +191,7 @@ CONTEXTS = {
             (("Competition Player Names", "Имена игроков соревнования"),  None, MSG_COMPETITION_CHIP_MOUSE),
             (("Message Body Clicks", "Клики по телу сообщения"),          None, MSG_BODY_MOUSE),
             (("URL Interactions", "Взаимодействие с URL"),                None, MSG_URL_MOUSE),
+            (("Notification Popup", "Всплывающее уведомление"),           None, NOTIFICATION_MOUSE),
         ],
     },
     "chatlog": {
