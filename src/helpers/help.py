@@ -29,14 +29,17 @@ CHAT_GENERAL_KB = [
 ]
 
 CHAT_CTRL_KB = [
-    ("Ctrl+;",      "Toggle emoticon selector", "Селектор эмотиконов"),
-    ("Ctrl+F",      "Toggle search bar", "Строка поиска"),
-    ("Ctrl+T",      "Toggle theme", "Тема"),
-    ("Ctrl+U",      "Switch account", "Сменить аккаунт"),
-    ("Ctrl+P",      "Open chatlog parser", "Парсер чатлогов"),
-    ("Ctrl+C",      "Reset username color", "Сбросить цвет имени"),
-    ("Ctrl + / -",  "Font size up / down", "Размер шрифта + / −"),
-    ("Ctrl+Scroll", "Font size up / down", "Размер шрифта + / −"),
+    ("Ctrl+;",         "Toggle emoticon selector", "Селектор эмотиконов"),
+    ("Ctrl+F",         "Toggle search bar", "Строка поиска"),
+    ("Ctrl+T",         "Toggle theme", "Тема"),
+    ("Ctrl+U",         "Switch account", "Сменить аккаунт"),
+    ("Ctrl+Shift+U",   "Toggle user tracker", "Трекер пользователей"),
+    ("Ctrl+,",         "Toggle settings", "Настройки"),
+    ("Ctrl+J",         "Join / Create room", "Войти / создать комнату"),
+    ("Ctrl+P",         "Open chatlog parser", "Парсер чатлогов"),
+    ("Ctrl+C",         "Reset username color", "Сбросить цвет имени"),
+    ("Ctrl + / -",     "Font size up / down", "Размер шрифта + / −"),
+    ("Ctrl+Scroll",    "Font size up / down", "Размер шрифта + / −"),
 ]
 
 CHAT_SCROLL_KB = [

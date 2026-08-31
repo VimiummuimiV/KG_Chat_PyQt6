@@ -244,7 +244,7 @@
     "default_tab": "history",
     "notifications": false,
     "presence_log": true,
-    "presence_log_split_percent": 5,
+    "presence_log_split_percent": 6,
     "show_unread_badge": false,
     "show_star_badge": true,
     "track_events": [

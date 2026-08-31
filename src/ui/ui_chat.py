@@ -607,10 +607,10 @@ class ChatWindow(TranslatableMixin, QWidget):
 
         self.button_panel.toggle_userlist_requested.connect(self.toggle_user_list)
         self.button_panel.switch_account_requested.connect(self._on_switch_account)
-        self.button_panel.show_banlist_requested.connect(self.show_ban_list_view)
-        self.button_panel.show_tracker_requested.connect(self.show_user_tracker_view)
+        self.button_panel.show_banlist_requested.connect(self.toggle_ban_list_view)
+        self.button_panel.show_tracker_requested.connect(self.toggle_user_tracker_view)
         self.button_panel.toggle_voice_requested.connect(self.on_toggle_voice_sound)
-        self.button_panel.pronunciation_requested.connect(self.show_pronunciation_view)
+        self.button_panel.pronunciation_requested.connect(self.toggle_pronunciation_view)
         self.button_panel.toggle_effects_requested.connect(self.on_toggle_effects_sound)
         self.button_panel.toggle_notification_requested.connect(self.on_toggle_notification)
 
@@ -622,7 +622,7 @@ class ChatWindow(TranslatableMixin, QWidget):
         self.button_panel.reset_window_size_requested.connect(self.reset_window_size)
         self.button_panel.show_window_presets_requested.connect(self.show_window_presets)
         self.button_panel.toggle_always_on_top_requested.connect(self.on_toggle_always_on_top)
-        self.button_panel.show_settings_requested.connect(self.show_settings_view)
+        self.button_panel.show_settings_requested.connect(self.toggle_settings_view)
         self.button_panel.exit_requested.connect(self.on_exit_requested)
         self.button_panel.reconnect_requested.connect(self.manual_reconnect)
         self.button_panel.join_room_requested.connect(self._on_join_room_requested)
@@ -3557,7 +3557,27 @@ class ChatWindow(TranslatableMixin, QWidget):
         """Leave a stacked view and restore room tab if any."""
         self.show_messages_view()
         self._restore_room_tab()
-    
+
+    def _toggle_stacked_view(self, widget_attr: str, show_fn):
+        """If the stacked view is already open, close it (same as Back); otherwise open it."""
+        widget = getattr(self, widget_attr, None)
+        if widget is not None and self.stacked_widget.currentWidget() is widget:
+            self._on_stacked_back()
+        else:
+            show_fn()
+
+    def toggle_ban_list_view(self):
+        self._toggle_stacked_view('ban_list_widget', self.show_ban_list_view)
+
+    def toggle_user_tracker_view(self):
+        self._toggle_stacked_view('user_tracker_widget', self.show_user_tracker_view)
+
+    def toggle_settings_view(self):
+        self._toggle_stacked_view('settings_widget', self.show_settings_view)
+
+    def toggle_pronunciation_view(self):
+        self._toggle_stacked_view('pronunciation_widget', self.show_pronunciation_view)
+
     def show_pronunciation_view(self):
         """Show pronunciation management view"""
         self._ensure_general_tab_visible()
@@ -4201,13 +4221,17 @@ class ChatWindow(TranslatableMixin, QWidget):
             if self.chatlog_widget and not self.chatlog_widget.parser_visible:
                 self.chatlog_widget._toggle_parser()
             return
-        # Ctrl+Shift+U open user tracker
+        # Ctrl+Shift+U toggle user tracker
         if ctrl_held and shift_held and (key == Qt.Key.Key_U or event.nativeVirtualKey() == Qt.Key.Key_U):
-            current = self.stacked_widget.currentWidget()
-            if getattr(self, 'user_tracker_widget', None) and current is self.user_tracker_widget:
-                self._on_stacked_back()
-            else:
-                self.show_user_tracker_view()
+            self.toggle_user_tracker_view()
+            return
+        # Ctrl+, toggle settings
+        if ctrl and (key == Qt.Key.Key_Comma or event.nativeVirtualKey() == Qt.Key.Key_Comma):
+            self.toggle_settings_view()
+            return
+        # Ctrl+J join / create room
+        if ctrl and (key == Qt.Key.Key_J or event.nativeVirtualKey() == Qt.Key.Key_J):
+            self._on_join_room_requested()
             return
         # Ctrl+U switch account
         if ctrl and (key == Qt.Key.Key_U or event.nativeVirtualKey() == Qt.Key.Key_U):
@@ -4245,9 +4269,6 @@ class ChatWindow(TranslatableMixin, QWidget):
 
         if not vk or focused:
             return super().keyPressEvent(event)
-        def _toggle_view(attr, show_fn):
-            w = getattr(self, attr, None)
-            self.show_messages_view() if w and self.stacked_widget.currentWidget() == w else show_fn()
         def _active_scrollbar():
             current = self.stacked_widget.currentWidget()
             if current == self.messages_splitter:
@@ -4266,14 +4287,14 @@ class ChatWindow(TranslatableMixin, QWidget):
             self.toggle_user_list()
         # Ban list toggle (B)
         elif vk == 'banlist':
-            _toggle_view('ban_list_widget', self.show_ban_list_view)
+            self.toggle_ban_list_view()
         # Pronunciation toggle (P) / in chatlog: toggle parser (P)
         elif vk == 'pronun':
             cw = self.chatlog_widget
             if cw and self.stacked_widget.currentWidget() == cw:
                 cw._toggle_parser()
             else:
-                _toggle_view('pronunciation_widget', self.show_pronunciation_view)
+                self.toggle_pronunciation_view()
         # Mute effects sound (M) or toggle mention filter in chatlog (M)
         elif vk == 'mute':
             cw = self._chatlog_for_hotkey()

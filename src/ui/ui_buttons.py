@@ -180,7 +180,7 @@ class ButtonPanel(QWidget):
 
         self.join_room_button = self._create_button(
             "chat-new.svg",
-            tr("Join / Create Room", "Войти / создать комнату"),
+            tr("Join / Create Room (Ctrl+J)", "Войти / создать комнату (Ctrl+J)"),
             lambda: self.join_room_requested.emit()
         )
 
@@ -250,7 +250,7 @@ class ButtonPanel(QWidget):
 
         self.settings_button = self._create_button(
             "settings.svg",
-            tr("Settings", "Настройки"),
+            tr("Settings (Ctrl+,)", "Настройки (Ctrl+,)"),
             lambda: self.show_settings_requested.emit()
         )
 
@@ -290,7 +290,7 @@ class ButtonPanel(QWidget):
                 tr("Show Ban List (B)", "Список забаненных (B)"))
         if self.join_room_button:
             self.join_room_button.setToolTip(
-                tr("Join / Create Room", "Войти / создать комнату"))
+                tr("Join / Create Room (Ctrl+J)", "Войти / создать комнату (Ctrl+J)"))
         if self.search_button:
             self.search_button.setToolTip(
                 tr("Toggle search (S / Ctrl+F)", "Поиск (S / Ctrl+F)"))
@@ -307,7 +307,7 @@ class ButtonPanel(QWidget):
                 tr("Reset Window Size and Position to Default (R) (RMB for Presets)",
                    "Сбросить размер и позицию окна (R) (ПКМ — пресеты)"))
         if self.settings_button:
-            self.settings_button.setToolTip(tr("Settings", "Настройки"))
+            self.settings_button.setToolTip(tr("Settings (Ctrl+,)", "Настройки (Ctrl+,)"))
         if self.data_folder_button:
             self.data_folder_button.setToolTip(
                 tr("Open Data Folder (KG_Chat_Data)", "Открыть папку данных (KG_Chat_Data)"))
