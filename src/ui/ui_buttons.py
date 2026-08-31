@@ -192,11 +192,10 @@ class ButtonPanel(QWidget):
 
         self.voice_button = self._create_button(
             "user-voice.svg",
-            tr("Toggle Voice Sound (V) (Ctrl+Click — Username Pronunciation (P))",
-               "Голосовой звук (V) (Ctrl+клик — Произношение имён (P))"),
+            tr("Toggle Voice Sound (V) (RMB for Username Pronunciation (P))",
+               "Голосовой звук (V) (ПКМ — произношение имён (P))"),
             lambda: self.toggle_voice_requested.emit()
         )
-        # Install event filter to catch Ctrl+Click for pronunciation
         self.voice_button.installEventFilter(self)
 
         effects_icon = self._get_effects_icon()
@@ -296,8 +295,8 @@ class ButtonPanel(QWidget):
                 tr("Toggle search (S / Ctrl+F)", "Поиск (S / Ctrl+F)"))
         if self.voice_button:
             self.voice_button.setToolTip(
-                tr("Toggle Voice Sound (V) (Ctrl+Click to open Username Pronunciation (P))",
-                   "Голосовой звук (V) (Ctrl+клик — произношение имён (P))"))
+                tr("Toggle Voice Sound (V) (RMB for Username Pronunciation (P))",
+                   "Голосовой звук (V) (ПКМ — произношение имён (P))"))
         if self.color_button:
             self.color_button.setToolTip(
                 tr("Username color (C: pick | Ctrl+C/Click: reset)",
@@ -455,13 +454,11 @@ class ButtonPanel(QWidget):
                     self.reset_color_requested.emit()
                     return True
 
-        # Handle voice button Ctrl+Click -> open Username Pronunciation
+        # Handle voice button RMB click -> open Username Pronunciation
         if obj == self.voice_button and event.type() == QEvent.Type.MouseButtonPress:
-            if event.button() == Qt.MouseButton.LeftButton:
-                modifiers = QApplication.keyboardModifiers()
-                if modifiers & Qt.KeyboardModifier.ControlModifier:
-                    self.pronunciation_requested.emit()
-                    return True
+            if event.button() == Qt.MouseButton.RightButton:
+                self.pronunciation_requested.emit()
+                return True
 
         return super().eventFilter(obj, event)
 
