@@ -62,7 +62,7 @@ def show_userlist_context_menu(
     open_game_act = None
     if has_game:
         menu.addSeparator()
-        open_game_act = menu.addAction(icon("play.svg"), tr("Open game chat", "Открыть чат заезда"))
+        open_game_act = menu.addAction(icon("play.svg"), tr("Open game chat", "Открыть игровой чат"))
 
     chosen = menu.exec(global_pos)
     if chosen is None:
