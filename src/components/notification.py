@@ -2,7 +2,7 @@
 from dataclasses import dataclass
 from typing import List, Callable, Optional, Any, Tuple
 from PyQt6.QtWidgets import QWidget, QLabel, QVBoxLayout, QHBoxLayout, QLineEdit, QApplication
-from PyQt6.QtCore import Qt, QTimer, QPropertyAnimation, QRect, QSize, pyqtSignal
+from PyQt6.QtCore import Qt, QTimer, QPropertyAnimation, QVariantAnimation, QEasingCurve, QEvent, QRect, QSize, pyqtSignal
 from PyQt6.QtGui import QPainter, QPainterPath, QCursor, QPixmap
 from pathlib import Path
 from datetime import datetime
@@ -21,6 +21,20 @@ from ui.ui_emoticon_selector import release_selector
 
 FADE_DURATION_MS_DEFAULT = 300
 NOTIFICATION_DURATION_MS_DEFAULT = 5000
+REPLY_FOCUS_WIDTH_EXPAND_DEFAULT = 200
+
+
+def _resolve_focus_expand_width(config=None) -> int:
+    """Extra px added to popup width on reply focus, from
+    config('notification', 'reply_focus_expand_width')."""
+    if config is not None:
+        value = config.get("notification", "reply_focus_expand_width")
+        if value is not None:
+            try:
+                return max(0, min(600, int(value)))
+            except (TypeError, ValueError):
+                pass
+    return REPLY_FOCUS_WIDTH_EXPAND_DEFAULT
 
 
 def _resolve_fade_ms(config=None) -> int:
@@ -439,6 +453,8 @@ class PopupNotification(_AutoHidePopupMixin, QWidget):
         self.reply_field_visible = False
         self.message_widget = None
         self.icons_path = Path(__file__).parent.parent / "icons"
+        self.base_width = width
+        self._width_anim = None
       
         # Window setup
         _setup_popup_window(self)
@@ -640,6 +656,7 @@ class PopupNotification(_AutoHidePopupMixin, QWidget):
             self.reply_field.setFont(get_font(FontType.TEXT))
             self.reply_field.setFixedHeight(send_button_size)
             self.reply_field.returnPressed.connect(self._on_send_reply)
+            self.reply_field.installEventFilter(self)
             reply_layout.addWidget(self.reply_field, stretch=1)
           
             self.send_button = _icon_btn(
@@ -771,6 +788,38 @@ class PopupNotification(_AutoHidePopupMixin, QWidget):
         """notification.reply_style: inline (default) | center."""
         return _resolve_centered_style(self.config, "notification", "reply_style")
 
+    def eventFilter(self, obj, event):
+        """Widen the popup while the reply field is focused (centered mode only),
+        and shrink it back to base_width on focus loss."""
+        if obj is self.reply_field:
+            if event.type() == QEvent.Type.FocusIn:
+                self._animate_width(self._focused_width())
+            elif event.type() == QEvent.Type.FocusOut:
+                self._animate_width(self.base_width)
+        return super().eventFilter(obj, event)
+
+    def _focused_width(self) -> int:
+        """Target width while typing a reply. Never narrower than base_width."""
+        if self._reply_style() != "center":
+            return self.base_width
+        screen = self.screen().availableGeometry() if self.screen() else QApplication.primaryScreen().availableGeometry()
+        expand = _resolve_focus_expand_width(self.config)
+        return max(self.base_width, min(int(screen.width() * 0.8), self.base_width + expand))
+
+    def _animate_width(self, target: int):
+        if self._width_anim is not None:
+            self._width_anim.stop()
+        if self.width() == target:
+            return
+        anim = QVariantAnimation(self)
+        anim.setDuration(_resolve_fade_ms(self.config))
+        anim.setEasingCurve(QEasingCurve.Type.InOutCubic)
+        anim.setStartValue(self.width())
+        anim.setEndValue(target)
+        anim.valueChanged.connect(lambda v: (self.setFixedWidth(int(v)), self.manager._position_and_cleanup()))
+        anim.start()
+        self._width_anim = anim
+
     def _on_answer(self):
         """Toggle reply field visibility. In 'center' reply_style, the popup
         also detaches from its stack and joins the centered focus group."""
@@ -781,6 +830,7 @@ class PopupNotification(_AutoHidePopupMixin, QWidget):
         if self.reply_field_visible:
             # Hide reply field
             self.reply_field_visible = False
+            self.reply_field.clearFocus()
             self.reply_container.setVisible(False)
             self.reply_field.clear()
             if self in self.manager.focused_popups:

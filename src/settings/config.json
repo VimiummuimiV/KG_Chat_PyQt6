@@ -192,7 +192,8 @@
     "fade_ms": 300,
     "duration_ms": 5000,
     "reply_style": "center",
-    "reply_center_offset_y": 0
+    "reply_center_offset_y": 0,
+    "reply_focus_expand_width": 200
   },
   "startup": {
     "auto_login": true,

@@ -37,6 +37,7 @@ DEFAULTS = {
         "duration": 5,
         "fade_ms": 300,
         "reply_center_offset_y": 0,
+        "reply_focus_expand_width": 200,
     },
     "competitions": {
         "alert_lead": 0,
@@ -1287,6 +1288,13 @@ class SettingsWidget(TranslatableMixin, QWidget):
             section, tr("Notification width", "Ширина уведомления"), DEFAULTS["notification"]["width"], 1000, self._on_notification_width_changed,
             default=DEFAULTS["notification"]["width"],
         )
+        self.reply_focus_expand_spin = self._add_slider_spin_row(
+            section,
+            tr("Reply field expand width", "Расширение поля ответа"),
+            0, 600,
+            self._on_reply_focus_expand_changed,
+            default=DEFAULTS["notification"]["reply_focus_expand_width"],
+        )
         self.notification_hide_on_combo = self._add_combo_row(
             section, tr("Hide notifications on", "Скрывать уведомления по"), [], self._on_notification_hide_on_changed
         )
@@ -1539,7 +1547,7 @@ class SettingsWidget(TranslatableMixin, QWidget):
             self.competitions_notify_window_checkbox,
             self.competitions_notify_start_spin, self.competitions_notify_end_spin,
             self.notification_mode_combo, self.notification_position_combo, self.reply_style_combo,
-            self.reply_center_offset_spin, self.notification_width_spin,
+            self.reply_center_offset_spin, self.notification_width_spin, self.reply_focus_expand_spin,
             self.notification_hide_on_combo, self.notification_duration_spin, self.notification_fade_spin,
             self.mention_always_checkbox, self.competition_always_checkbox,
             self.competition_sound_repeat_checkbox, self.competition_sound_repeat_interval_spin,
@@ -1787,9 +1795,11 @@ class SettingsWidget(TranslatableMixin, QWidget):
             offset_y = DEFAULTS["notification"]["reply_center_offset_y"]
         self.reply_center_offset_spin.setValue(offset_y)
         self.reply_center_offset_spin._slider.setValue(offset_y)
-        self._update_reply_offset_enabled()
+        self._update_center_offset_enabled()
         self.notification_width_spin.setValue(int(self.config.get("ui", "notification_width") or DEFAULTS["notification"]["width"]))
         self.notification_width_spin._slider.setValue(self.notification_width_spin.value())
+        self.reply_focus_expand_spin.setValue(int(self.config.get("notification", "reply_focus_expand_width") or DEFAULTS["notification"]["reply_focus_expand_width"]))
+        self.reply_focus_expand_spin._slider.setValue(self.reply_focus_expand_spin.value())
 
         fill_notification_hide_on_combo(self.notification_hide_on_combo, self.config.get("notification", "hide_on"))
 
@@ -2394,7 +2404,7 @@ class SettingsWidget(TranslatableMixin, QWidget):
         self._sync_combo_tooltip(self.competition_notification_style_combo)
         value = self.competition_notification_style_combo.currentData() or "inline"
         self.config.set("competitions", "notification_style", value=value)
-        self._update_reply_offset_enabled()
+        self._update_center_offset_enabled()
 
     def _on_competitions_notify_window_toggled(self, checked: bool):
         self.config.set("competitions", "notify_window_enabled", value=checked)
@@ -2425,9 +2435,9 @@ class SettingsWidget(TranslatableMixin, QWidget):
         value = self.notification_position_combo.currentData()
         if value is not None:
             self.config.set("ui", "notification_position", value=value)
-        self._update_reply_offset_enabled()
+        self._update_center_offset_enabled()
 
-    def _update_reply_offset_enabled(self):
+    def _update_center_offset_enabled(self):
         """Offset only does anything when something is actually centered
         (reply or competition) and notifications aren't already centered
         (see _resolve_centered_style() in notification.py)."""
@@ -2441,13 +2451,16 @@ class SettingsWidget(TranslatableMixin, QWidget):
         self._sync_combo_tooltip(self.reply_style_combo)
         value = self.reply_style_combo.currentData() or "inline"
         self.config.set("notification", "reply_style", value=value)
-        self._update_reply_offset_enabled()
+        self._update_center_offset_enabled()
 
     def _on_reply_center_offset_changed(self, value: int):
         self.config.set("notification", "reply_center_offset_y", value=value)
 
     def _on_notification_width_changed(self, value: int):
         self.config.set("ui", "notification_width", value=value)
+
+    def _on_reply_focus_expand_changed(self, value: int):
+        self.config.set("notification", "reply_focus_expand_width", value=value)
 
     def _on_notification_hide_on_changed(self, _text: str = ""):
         self._sync_combo_tooltip(self.notification_hide_on_combo)
