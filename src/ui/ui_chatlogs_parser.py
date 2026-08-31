@@ -223,6 +223,7 @@ class ChatlogsParserConfigWidget(TranslatableMixin, QWidget):
         mode_layout.addWidget(mode_label)
        
         self.mode_combo = QComboBox()
+        self.mode_combo.setFixedHeight(self.input_height)
         self.mode_combo.setFont(get_font(FontType.UI))
         for key in MODE_KEYS:
             en, ru = MODE_LABELS[key]
@@ -746,6 +747,7 @@ class ChatlogsParserConfigWidget(TranslatableMixin, QWidget):
             sub_mode_layout.addWidget(sub_mode_label)
            
             self.mention_date_combo = QComboBox()
+            self.mention_date_combo.setFixedHeight(self.input_height)
             self.mention_date_combo.setFont(get_font(FontType.UI))
             for key in MENTION_SUB_KEYS:
                 en, ru = MENTION_SUB_LABELS[key]

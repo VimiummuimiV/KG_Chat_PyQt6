@@ -20,7 +20,7 @@
     "lang": "en"
   },
   "ui": {
-    "chatlog_search_visible": true,
+    "chatlog_search_visible": false,
     "chat_search_visible": false,
     "theme": "dark",
     "notification_width": 550,
@@ -165,7 +165,7 @@
       "mentions_digest_interval_hours": 24,
       "mentions_digest_mode": "start"
     },
-    "language": "ru"
+    "language": "en"
   },
   "sound": {
     "tts_enabled": false,
@@ -244,7 +244,7 @@
     "default_tab": "history",
     "notifications": false,
     "presence_log": true,
-    "presence_log_split_percent": 20,
+    "presence_log_split_percent": 5,
     "show_unread_badge": false,
     "show_star_badge": true,
     "track_events": [
