@@ -3242,8 +3242,8 @@ class ChatWindow(TranslatableMixin, QWidget):
             ul.game_label.setFont(new_font)
             for user_widget in ul.user_widgets.values():
                 user_widget.username_label.setFont(new_font)
-                if user_widget.badge:
-                    user_widget.badge.setFont(new_font)
+                if user_widget.game_counter_label:
+                    user_widget.game_counter_label.setFont(new_font)
             if fixed_width:
                 ul.setFixedWidth(get_userlist_width())
             ul.update()
