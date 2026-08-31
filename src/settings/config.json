@@ -20,7 +20,7 @@
     "lang": "en"
   },
   "ui": {
-    "chatlog_search_visible": false,
+    "chatlog_search_visible": true,
     "chat_search_visible": false,
     "theme": "dark",
     "notification_width": 550,
@@ -131,7 +131,7 @@
     "settings": {
       "sections": {
         "startup": true,
-        "chat": false,
+        "chat": true,
         "fonts": true,
         "notifications": true,
         "competitions": true,
@@ -143,7 +143,7 @@
         "ws_log": false,
         "font_preview": true,
         "chat_limits": true,
-        "chat_xmpp": false,
+        "chat_xmpp": true,
         "chat_parser": true,
         "notifications_bypass": false
       },

@@ -385,11 +385,12 @@ class ChatlogWidget(TranslatableMixin, QWidget):
         self.search = MessageSearchBar(
             self.config, self.icons_path,
             config_key="chatlog_search_visible",
-            placeholder=tr(
-                f"Search: 'text' or 'U:Bob' or 'U:Bob,Alice' or 'M:hello' or 'D:{DATE_PLACEHOLDER}' (Enter)",
-                f"Поиск: 'текст' или 'U:Вася' или 'U:Петя,Маша' или 'M:привет' или 'D:{DATE_PLACEHOLDER}' (Enter)"
-            ),
             extra_widgets=(self.confirm_search_btn,),
+        )
+        self._tr_set(
+            self.search.field.setPlaceholderText,
+            f"Search: 'text' or 'U:Bob' or 'U:Bob,Alice' or 'M:hello' or 'D:{DATE_PLACEHOLDER}' (Enter)",
+            f"Поиск: 'текст' или 'U:Вася' или 'U:Петя,Маша' или 'M:привет' или 'D:{DATE_PLACEHOLDER}' (Enter)"
         )
         self.search.text_changed.connect(self._on_search_changed)
         self.search.return_pressed.connect(self._on_search_enter)

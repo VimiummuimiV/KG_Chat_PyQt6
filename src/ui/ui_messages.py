@@ -17,6 +17,7 @@ from helpers.fonts import get_font, FontType
 from helpers.scroll.scroll_buttons import ScrollButtonsPanel
 from helpers.presence_log import add_presence_entry, presence_entries_to_text
 from ui.ui_settings import DEFAULTS
+from helpers.translate import tr, on_language_changed, TranslatableMixin
 
 
 class _NullSearch:
@@ -27,7 +28,7 @@ class _NullSearch:
     def reset(self): pass
 
 
-class MessagesWidget(QWidget):
+class MessagesWidget(TranslatableMixin, QWidget):
     """Widget for displaying chat messages with virtual scrolling"""
     timestamp_left_clicked = pyqtSignal(str) # Opens chatlog for current day
     timestamp_right_clicked = pyqtSignal(str) # RMB on timestamp: date_str ("%Y-%m-%d"), opens chatlog as split view
@@ -41,6 +42,7 @@ class MessagesWidget(QWidget):
 
     def __init__(self, config, emoticon_manager, my_username: str = None, minimal: bool = False):
         super().__init__()
+        self._init_translatable()
         self.config = config
         self.minimal = minimal  # presence-only pane: no search bar, no scroll buttons
         self.cache = get_cache()
@@ -73,6 +75,7 @@ class MessagesWidget(QWidget):
         self.interactions.username_shift_clicked.connect(self.username_shift_clicked.emit)
         self.interactions.chip_clicked.connect(self.chip_clicked.emit)
         self.delegate.presence_log_clicked.connect(self._on_presence_log_clicked)
+        on_language_changed(self._retranslate)
 
     @property
     def search_visible(self) -> bool:
@@ -111,6 +114,9 @@ class MessagesWidget(QWidget):
         scroll(self.list_view, mode="middle", target_row=row, delay=100)
         QTimer.singleShot(250, lambda: self.delegate.highlight_row(row))
    
+    def _retranslate(self, _code=None):
+        self._retranslate_all()
+
     def set_compact_mode(self, compact: bool):
         if self.delegate.compact_mode != compact:
             self.delegate.set_compact_mode(compact)
@@ -132,7 +138,11 @@ class MessagesWidget(QWidget):
                 config_key="chat_search_visible",
                 get_messages=lambda: self.model._messages,
                 set_messages=self.model.set_messages,
-                placeholder="Search: 'text' or 'U:Bob' or 'U:Bob,Alice' or 'M:hello'",
+            )
+            self._tr_set(
+                self.search.field.setPlaceholderText,
+                "Search: 'text' or 'U:Bob' or 'U:Bob,Alice' or 'M:hello'",
+                "Поиск: 'текст' или 'U:Вася' или 'U:Петя,Маша' или 'M:привет'"
             )
             self.search.text_changed.connect(
                 lambda _t: self.delegate.set_highlight_text(self.search.highlight_text())
