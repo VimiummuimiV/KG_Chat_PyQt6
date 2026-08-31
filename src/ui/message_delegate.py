@@ -15,6 +15,7 @@ from helpers.me_action import format_me_action
 from helpers.cache import get_cache
 from ui.message_renderer import MessageRenderer
 from helpers.create import _render_svg_icon
+from helpers.translate import tr
 
 
 _DARK  = dict(bg="#0A0A0A", fg="#D4D4D4", sel_bg="#2E7D32", sel_fg="#E8F5E9")
@@ -87,15 +88,15 @@ class _TextSelectorOverlay(QTextEdit):
         def icon(name): return _render_svg_icon(icons_path / name, 16)
         menu = QMenu(self)
         if self._reply_callback is not None:
-            reply_act = menu.addAction(icon("reply.svg"), "Reply")
+            reply_act = menu.addAction(icon("reply.svg"), tr("Reply", "Ответить"))
             reply_act.setShortcut(QKeySequence("R"))
             reply_act.triggered.connect(self._reply)
             menu.addSeparator()
-        copy_act = menu.addAction(icon("clipboard.svg"), "Copy")
+        copy_act = menu.addAction(icon("clipboard.svg"), tr("Copy", "Копировать"))
         copy_act.setShortcut(QKeySequence("C"))
         copy_act.triggered.connect(self._copy_text)
         if self._paste_callback is not None:
-            paste_act = menu.addAction(icon("add-circle.svg"), "Paste")
+            paste_act = menu.addAction(icon("add-circle.svg"), tr("Paste", "Вставить"))
             paste_act.setShortcut(QKeySequence("V"))
             paste_act.triggered.connect(self._paste_text)
         menu.exec(global_pos)

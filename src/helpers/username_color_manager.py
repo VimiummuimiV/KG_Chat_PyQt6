@@ -6,6 +6,7 @@ from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import QColorDialog, QMessageBox
 
 from core.accounts import AccountManager
+from helpers.translate import tr
 
 
 def get_effective_background(account: Dict) -> str:
@@ -17,7 +18,7 @@ def set_color(account_manager: AccountManager, chat_username: str, color: Option
               mode: str = 'custom') -> Tuple[bool, str]:
     account = account_manager.get_account_by_chat_username(chat_username)
     if not account:
-        return False, "Account not found"
+        return False, tr("Account not found", "Аккаунт не найден")
 
     try:
         conn = sqlite3.connect(account_manager.db_path)
@@ -25,31 +26,31 @@ def set_color(account_manager: AccountManager, chat_username: str, color: Option
 
         if mode == 'custom':
             if not color:
-                return False, "Color is required for custom mode"
+                return False, tr("Color is required for custom mode", "Для своего цвета нужен цвет")
             cursor.execute(
                 'UPDATE accounts SET custom_background = ? WHERE chat_username = ?',
                 (color, chat_username)
             )
-            msg = f"Custom color set to {color}"
+            msg = tr(f"Custom color set to {color}", f"Свой цвет установлен: {color}")
 
         elif mode == 'reset':
             cursor.execute(
                 'UPDATE accounts SET custom_background = NULL WHERE chat_username = ?',
                 (chat_username,)
             )
-            msg = "Reset to original server color"
+            msg = tr("Reset to original server color", "Сброшено на цвет сервера")
 
         else:
-            return False, f"Invalid mode: {mode}"
+            return False, tr(f"Invalid mode: {mode}", f"Неверный режим: {mode}")
 
         updated = cursor.rowcount > 0
         conn.commit()
         conn.close()
 
-        return updated, msg if updated else "No changes made"
+        return updated, msg if updated else tr("No changes made", "Изменений нет")
 
     except Exception as e:
-        return False, f"Operation failed: {str(e)}"
+        return False, tr(f"Operation failed: {str(e)}", f"Ошибка операции: {str(e)}")
 
 
 def _refresh_cache(account_manager: AccountManager, account: Dict, cache) -> None:
@@ -63,11 +64,17 @@ def _refresh_cache(account_manager: AccountManager, account: Dict, cache) -> Non
 
 def change_username_color(parent, account_manager: AccountManager, account: Dict, cache) -> bool:
     if not account or not account.get('chat_username'):
-        QMessageBox.warning(parent, "No Account", "No account selected.")
+        QMessageBox.warning(
+            parent,
+            tr("No Account", "Нет аккаунта"),
+            tr("No account selected.", "Аккаунт не выбран.")
+        )
         return False
 
     current_color = get_effective_background(account)
-    color = QColorDialog.getColor(QColor(current_color), parent, "Choose Username Color")
+    color = QColorDialog.getColor(
+        QColor(current_color), parent, tr("Choose Username Color", "Выберите цвет имени")
+    )
 
     if not color.isValid():
         return False
@@ -77,28 +84,36 @@ def change_username_color(parent, account_manager: AccountManager, account: Dict
 
     if success:
         _refresh_cache(account_manager, account, cache)
-        QMessageBox.information(parent, "Success", message)
+        QMessageBox.information(parent, tr("Success", "Успех"), message)
         return True
     else:
-        QMessageBox.critical(parent, "Error", message)
+        QMessageBox.critical(parent, tr("Error", "Ошибка"), message)
         return False
 
 
 def reset_username_color(parent, account_manager: AccountManager, account: Dict, cache) -> bool:
     if not account or not account.get('chat_username'):
-        QMessageBox.warning(parent, "No Account", "No account selected.")
+        QMessageBox.warning(
+            parent,
+            tr("No Account", "Нет аккаунта"),
+            tr("No account selected.", "Аккаунт не выбран.")
+        )
         return False
 
     if not account.get('custom_background'):
-        QMessageBox.information(parent, "Info", "Nothing to reset - using original color.")
+        QMessageBox.information(
+            parent,
+            tr("Info", "Информация"),
+            tr("Nothing to reset - using original color.", "Нечего сбрасывать — используется исходный цвет.")
+        )
         return True
 
     success, message = set_color(account_manager, account['chat_username'], None, 'reset')
 
     if success:
         _refresh_cache(account_manager, account, cache)
-        QMessageBox.information(parent, "Success", message)
+        QMessageBox.information(parent, tr("Success", "Успех"), message)
         return True
     else:
-        QMessageBox.critical(parent, "Error", message)
+        QMessageBox.critical(parent, tr("Error", "Ошибка"), message)
         return False

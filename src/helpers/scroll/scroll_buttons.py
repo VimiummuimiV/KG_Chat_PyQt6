@@ -9,6 +9,7 @@ from PyQt6.QtCore import Qt, QObject, QTimer, QPropertyAnimation, QEvent, QPoint
 from helpers.config import Config
 from helpers.create import create_icon_button, create_disabled_icon
 from helpers.scroll.scroll import scroll, jump_to_date, _is_separator
+from helpers.translate import tr
 
 OPACITY_HIDDEN   = 0.0
 OPACITY_VISIBLE  = 1.0
@@ -17,18 +18,19 @@ BUTTON_GAP       = 6
 REVEAL_PADDING   = 150 
 
 # Top-to-bottom order, matching the on-screen stack: full-up, page-up, page-down, full-down
+# tooltips: (en, ru) resolved at button creation
 _BUTTONS = (
-    # icon_name,              tooltip,              action
-    ("arrow-up-double.svg",   "Scroll to top",       "top"),
-    ("arrow-up.svg",          "Scroll up a page",    "page_up"),
-    ("arrow-down.svg",        "Scroll down a page",  "page_down"),
-    ("arrow-down-double.svg", "Scroll to bottom",     "bottom"),
+    # icon_name,              tooltip_en,             tooltip_ru,              action
+    ("arrow-up-double.svg",   "Scroll to top",        "В начало",              "top"),
+    ("arrow-up.svg",          "Scroll up a page",     "Страница вверх",        "page_up"),
+    ("arrow-down.svg",        "Scroll down a page",   "Страница вниз",         "page_down"),
+    ("arrow-down-double.svg", "Scroll to bottom",     "В конец",               "bottom"),
 )
 
 
 _DATE_JUMP_ACTIONS = (
-    (-1, "calendar-arrow-up.svg", "Previous day"),
-    (1, "calendar-arrow-down.svg", "Next day"),
+    (-1, "calendar-arrow-up.svg",  "Previous day", "Предыдущий день"),
+    (1, "calendar-arrow-down.svg", "Next day",     "Следующий день"),
 )
 
 
@@ -79,8 +81,8 @@ class ScrollButtonsPanel(QObject):
         self.container.installEventFilter(self)
 
         self._entries = []
-        for icon_name, tooltip, action in _BUTTONS:
-            button = self._create_button(icon_name, tooltip)
+        for icon_name, tooltip_en, tooltip_ru, action in _BUTTONS:
+            button = self._create_button(icon_name, tr(tooltip_en, tooltip_ru))
             button.clicked.connect(lambda _checked=False, a=action: self._on_clicked(a))
 
             icon_normal = button.icon()
@@ -102,8 +104,8 @@ class ScrollButtonsPanel(QObject):
         self._date_buttons = []
         self._separator_rows = []
         if date_jump:
-            for direction, icon, tooltip in _DATE_JUMP_ACTIONS:
-                button = self._create_button(icon, tooltip)
+            for direction, icon, tooltip_en, tooltip_ru in _DATE_JUMP_ACTIONS:
+                button = self._create_button(icon, tr(tooltip_en, tooltip_ru))
                 button.clicked.connect((lambda d: lambda: jump_to_date(self.list_view, d))(direction))
                 self._date_buttons.append({
                     "button": button,
@@ -114,7 +116,10 @@ class ScrollButtonsPanel(QObject):
 
         if extra_actions:
             for extra in extra_actions:
-                button = self._create_button(extra["icon"], extra["tooltip"])
+                tip = extra["tooltip"]
+                if isinstance(tip, tuple) and len(tip) == 2:
+                    tip = tr(tip[0], tip[1])
+                button = self._create_button(extra["icon"], tip)
                 button.clicked.connect(extra["callback"])
 
         self.container.adjustSize()

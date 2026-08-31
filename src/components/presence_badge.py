@@ -5,11 +5,13 @@ from PyQt6.QtCore import Qt, pyqtSignal
 from helpers.fonts import get_font, FontType
 from helpers.color_utils import tinted_chip_colors, hex_to_rgb, rgb_to_hsl, hsl_to_rgb, rgb_to_hex
 
-# text, base accent color — bg/fg/border derived via tinted_chip_colors
+# text (en key resolved at use), base accent color — bg/fg/border via tinted_chip_colors
+from helpers.translate import tr
+
 _STYLES = {
-    "join": ("JOIN", "#2d6a4f"),
-    "left": ("LEFT", "#6a2d2d"),
-    "game": ("GAME", "#1d4e89"),
+    "join": ("JOIN", "ВХОД", "#2d6a4f"),
+    "left": ("LEFT", "ВЫХОД", "#6a2d2d"),
+    "game": ("GAME", "ИГРА", "#1d4e89"),
 }
 
 EVENT_TYPES = ("join", "left", "game")
@@ -22,9 +24,9 @@ def _lighten_hex(base_hex: str, lightness: float = 0.90) -> str:
 
 def presence_badge_style(event_type: str, is_dark: bool = True) -> Tuple[str, str, str, str]:
     """Return (text, bg, fg, border) for a presence badge."""
-    text, base = _STYLES.get(event_type, _STYLES["left"])
+    en, ru, base = _STYLES.get(event_type, _STYLES["left"])
     bg, fg, border = tinted_chip_colors(base, is_dark)
-    return text, bg, fg, border
+    return tr(en, ru), bg, fg, border
 
 
 def _pill_css(bg: str, fg: str, border: str) -> str:
@@ -53,7 +55,7 @@ def make_presence_badge(event_type: str, is_dark: bool = True) -> QLabel:
 def apply_counter_style(label: QLabel, event_type: str = "join", font_size: int = 9,
                         is_dark: bool = True):
     """Style the small unread counter with solid base fill and lightened text."""
-    _, base = _STYLES.get(event_type or "join", _STYLES["join"])
+    _, _, base = _STYLES.get(event_type or "join", _STYLES["join"])
     label.setStyleSheet(_counter_css(base, _lighten_hex(base), max(8, min(18, int(font_size)))))
 
 
@@ -104,7 +106,8 @@ class TypeFilterBadge(QLabel):
 
     def update_theme(self, is_dark: bool):
         self._is_dark = is_dark
-        _, bg, fg, border = presence_badge_style(self.event_type, is_dark)
+        text, bg, fg, border = presence_badge_style(self.event_type, is_dark)
+        self.setText(text)
         self.setStyleSheet(_pill_css(bg, fg, border))
 
     def mousePressEvent(self, event):

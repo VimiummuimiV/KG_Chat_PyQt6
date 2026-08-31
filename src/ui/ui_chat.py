@@ -537,9 +537,8 @@ class ChatWindow(TranslatableMixin, QWidget):
     
         self.messages_widget.set_input_field(self.input_field)
     
-        send_button_tooltip = tr("Send Message", "Отправить сообщение")
-        self.send_button = create_icon_button(self.icons_path, "send.svg", send_button_tooltip, config=self.config)
-        self._register_tr(self.send_button.setToolTip, send_button_tooltip)
+        self.send_button = create_icon_button(self.icons_path, "send.svg", "", config=self.config)
+        self._tr_set(self.send_button.setToolTip, "Send Message", "Отправить сообщение")
         self.send_button.clicked.connect(self.send_message)
         self.input_top_layout.addWidget(self.send_button)
     
@@ -551,8 +550,9 @@ class ChatWindow(TranslatableMixin, QWidget):
             self.icons_path,
             "emotion-normal.svg",
             "emotion-happy.svg",
-            "Toggle Emoticon Selector"
+            "",
         )
+        self._tr_set(self.emoticon_button.setToolTip, "Toggle Emoticon Selector", "Селектор эмотиконов")
         self.emoticon_button.clicked.connect(self._toggle_emoticon_selector)
         self.input_top_layout.addWidget(self.emoticon_button)
     
@@ -1030,11 +1030,10 @@ class ChatWindow(TranslatableMixin, QWidget):
     
         # Create exit button if it doesn't exist
         if self.exit_private_button is None:
-            exit_private_tooltip = tr("Exit Private Chat", "Выйти из приватного чата")
             self.exit_private_button = create_icon_button(
-                self.icons_path, "close.svg", exit_private_tooltip, config=self.config
+                self.icons_path, "close.svg", "", config=self.config
             )
-            self._register_tr(self.exit_private_button.setToolTip, exit_private_tooltip)
+            self._tr_set(self.exit_private_button.setToolTip, "Exit Private Chat", "Выйти из приватного чата")
             self.exit_private_button.clicked.connect(self.exit_private_mode)
         
             # Insert after emoticon button
@@ -1335,9 +1334,7 @@ class ChatWindow(TranslatableMixin, QWidget):
                 parent_window=self,
                 ban_manager=self.ban_manager
             )
-            close_split_tooltip = tr("Close split view", "Закрыть разделённый вид")
-            self.chatlog_split_widget.back_btn.setToolTip(close_split_tooltip)
-            self._register_tr(self.chatlog_split_widget.back_btn.setToolTip, close_split_tooltip)
+            self._tr_set(self.chatlog_split_widget.back_btn.setToolTip, "Close split view", "Закрыть разделённый вид")
             self.chatlog_split_widget.back_requested.connect(self._close_chatlog_split_view)
             # Match the live messages view's row layout so the two panes line up
             self._configure_chatlog_widget(self.chatlog_split_widget)
@@ -1565,9 +1562,8 @@ class ChatWindow(TranslatableMixin, QWidget):
         tab_bar.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         tab_bar.customContextMenuRequested.connect(self._on_room_tab_context_menu)
 
-        general_tab_text = tr("General", "Общая")
-        self.room_tabs.addTab(self.general_body, general_tab_text)
-        self._register_tr(lambda text: self.room_tabs.setTabText(0, text), general_tab_text)
+        self.room_tabs.addTab(self.general_body, "")
+        self._tr_set(lambda text: self.room_tabs.setTabText(0, text), "General", "Общая")
         # General is permanent — hide its close button
         tab_bar.setTabButton(0, QTabBar.ButtonPosition.RightSide, None)
 
@@ -1841,27 +1837,24 @@ class ChatWindow(TranslatableMixin, QWidget):
         parse_current_label = QLabel("")
         parse_status_layout.addWidget(parse_current_label)
 
-        stop_parse_tooltip = tr("Stop Parsing", "Остановить парсинг")
-        stop_parse_btn = create_icon_button(self.icons_path, "stop.svg", stop_parse_tooltip, config=self.config)
+        stop_parse_btn = create_icon_button(self.icons_path, "stop.svg", "", config=self.config)
+        self._tr_set(stop_parse_btn.setToolTip, "Stop Parsing", "Остановить парсинг")
         stop_parse_btn.setObjectName("stop_parse_btn")
         stop_parse_btn.clicked.connect(self._on_parse_status_stop)
         parse_status_layout.addWidget(stop_parse_btn)
-        self._register_tr(stop_parse_btn.setToolTip, stop_parse_tooltip)
 
-        view_results_tooltip = tr("View results", "Показать результаты")
-        view_parser_btn = create_icon_button(self.icons_path, "list.svg", view_results_tooltip, config=self.config)
+        view_parser_btn = create_icon_button(self.icons_path, "list.svg", "", config=self.config)
+        self._tr_set(view_parser_btn.setToolTip, "View results", "Показать результаты")
         view_parser_btn.setObjectName("view_parser_btn")
         view_parser_btn.clicked.connect(self.show_parser_view)
         parse_status_layout.addWidget(view_parser_btn)
-        self._register_tr(view_parser_btn.setToolTip, view_results_tooltip)
 
-        close_parse_tooltip = tr("Close", "Закрыть")
-        close_parse_btn = create_icon_button(self.icons_path, "close.svg", close_parse_tooltip, config=self.config)
+        close_parse_btn = create_icon_button(self.icons_path, "close.svg", "", config=self.config)
+        self._tr_set(close_parse_btn.setToolTip, "Close", "Закрыть")
         close_parse_btn.setObjectName("close_parse_btn")
         close_parse_btn.clicked.connect(self.stop_parse_status)
         close_parse_btn.setVisible(False)
         parse_status_layout.addWidget(close_parse_btn)
-        self._register_tr(close_parse_btn.setToolTip, close_parse_tooltip)
 
         self._parse_results_badge = QLabel(view_parser_btn)
         self._parse_results_badge.setAlignment(Qt.AlignmentFlag.AlignCenter)

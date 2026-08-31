@@ -12,9 +12,10 @@ from PyQt6.QtCore import Qt
 
 from helpers.create import create_icon_button
 from helpers.fonts import get_font, FontType
+from helpers.translate import tr, on_language_changed, TranslatableMixin
 
 
-class JoinRoomDialog(QDialog):
+class JoinRoomDialog(TranslatableMixin, QDialog):
     """Styled replacement for the plain QInputDialog room prompt, matching
     the emoji-header + icon-button look of the account manager window."""
 
@@ -25,9 +26,10 @@ class JoinRoomDialog(QDialog):
 
     def __init__(self, config, icons_path: Path, parent=None):
         super().__init__(parent)
+        self._init_translatable()
         self.config = config
         self.icons_path = icons_path
-        self.setWindowTitle("Join / Create Room")
+        self._tr_set(self.setWindowTitle, "Join / Create Room", "Войти / Создать комнату")
         self.setFixedWidth(self._WINDOW_WIDTH)
         self.setFont(get_font(FontType.UI))
 
@@ -39,16 +41,16 @@ class JoinRoomDialog(QDialog):
         layout = QVBoxLayout()
         layout.setSpacing(spacing)
         layout.setContentsMargins(margin, margin, margin, margin)
-        # Let the dialog size itself to fit visible widgets automatically
         layout.setSizeConstraint(QVBoxLayout.SizeConstraint.SetFixedSize)
         self.setLayout(layout)
 
-        header = QLabel("🚪 Join / Create Room")
-        header.setFont(get_font(FontType.HEADER))
-        layout.addWidget(header)
+        self.header = QLabel()
+        self.header.setFont(get_font(FontType.HEADER))
+        self._tr_set(self.header.setText, "🚪 Join / Create Room", "🚪 Войти / Создать комнату")
+        layout.addWidget(self.header)
 
         self.name_input = QLineEdit()
-        self.name_input.setPlaceholderText("Room name")
+        self._tr_set(self.name_input.setPlaceholderText, "Room name", "Название комнаты")
         self.name_input.setFixedHeight(input_height)
         self.name_input.setFont(get_font(FontType.UI))
         self.name_input.setStyleSheet(
@@ -64,15 +66,16 @@ class JoinRoomDialog(QDialog):
         self.saved_combo.setStyleSheet(
             f"QComboBox {{ height: {input_height}px; padding: 0px 8px; }}"
         )
-        self.saved_combo.setPlaceholderText("Saved rooms")
+        self._tr_set(self.saved_combo.setPlaceholderText, "Saved rooms", "Сохранённые комнаты")
         self.saved_combo.currentIndexChanged.connect(self._on_saved_picked)
         layout.addWidget(self.saved_combo)
 
         length_row = QHBoxLayout()
         length_row.setSpacing(button_spacing)
-        length_label = QLabel("Length")
-        length_label.setFont(get_font(FontType.UI))
-        length_row.addWidget(length_label)
+        self.length_label = QLabel(tr("Length", "Длина"))
+        self.length_label.setFont(get_font(FontType.UI))
+        self._tr_set(self.length_label.setText, "Length", "Длина")
+        length_row.addWidget(self.length_label)
 
         saved_len = self.config.get("join_room", "random_name_length") if self.config else None
         try:
@@ -96,7 +99,8 @@ class JoinRoomDialog(QDialog):
         layout.addLayout(length_row)
 
         remember = self.config.get("join_room", "remember") if self.config else None
-        self.remember_checkbox = QCheckBox("Remember this name")
+        self.remember_checkbox = QCheckBox()
+        self._tr_set(self.remember_checkbox.setText, "Remember this name", "Запомнить это имя")
         self.remember_checkbox.setFont(get_font(FontType.UI))
         self.remember_checkbox.setChecked(True if remember is None else bool(remember))
         self.remember_checkbox.toggled.connect(self._on_remember_toggled)
@@ -106,26 +110,30 @@ class JoinRoomDialog(QDialog):
         actions_row.setSpacing(button_spacing)
 
         cancel_button = create_icon_button(
-            self.icons_path, "go-back.svg", "Cancel (Esc)", config=self.config
+            self.icons_path, "go-back.svg", "", config=self.config
         )
+        self._tr_set(cancel_button.setToolTip, "Cancel (Esc)", "Отмена (Esc)")
         cancel_button.clicked.connect(self.reject)
         actions_row.addWidget(cancel_button)
 
         gen_button = create_icon_button(
-            self.icons_path, "dice-3.svg", "Generate random name", config=self.config
+            self.icons_path, "dice-3.svg", "", config=self.config
         )
+        self._tr_set(gen_button.setToolTip, "Generate random name", "Сгенерировать случайное имя")
         gen_button.clicked.connect(self._generate_name)
         actions_row.addWidget(gen_button)
 
         self.delete_button = create_icon_button(
-            self.icons_path, "trash.svg", "Remove from saved", config=self.config
+            self.icons_path, "trash.svg", "", config=self.config
         )
+        self._tr_set(self.delete_button.setToolTip, "Remove from saved", "Удалить из сохранённых")
         self.delete_button.clicked.connect(self._delete_saved)
         actions_row.addWidget(self.delete_button)
 
         join_button = create_icon_button(
-            self.icons_path, "login.svg", "Join / Create (Enter)", config=self.config
+            self.icons_path, "login.svg", "", config=self.config
         )
+        self._tr_set(join_button.setToolTip, "Join / Create (Enter)", "Войти / Создать (Enter)")
         join_button.clicked.connect(self.accept)
         actions_row.addWidget(join_button)
 
@@ -133,6 +141,7 @@ class JoinRoomDialog(QDialog):
 
         self._populate_saved()
         self.name_input.setFocus()
+        on_language_changed(self._retranslate_all)
 
     def _load_saved(self) -> list:
         if not self.config:

@@ -5,6 +5,7 @@ from typing import List, Optional, Tuple
 from lxml import etree
 
 from core.chatlogs_db import ChatlogDB, ChatMessage
+from helpers.translate import tr
 
 
 class ChatlogNotFoundError(Exception):
@@ -32,13 +33,19 @@ class ChatlogsParser:
         # Check minimum date
         date_obj = datetime.strptime(date, '%Y-%m-%d').date()
         if date_obj < self.MIN_DATE:
-            raise ValueError(f"Date cannot be before {self.MIN_DATE.strftime('%Y-%m-%d')}")
+            raise ValueError(tr(
+                f"Date cannot be before {self.MIN_DATE.strftime('%Y-%m-%d')}",
+                f"Дата не может быть раньше {self.MIN_DATE.strftime('%Y-%m-%d')}")
+            )
         
         # Check database status
         is_cached, was_truncated, is_404 = self.db.is_date_cached(date)
         
         if is_404:
-            raise ChatlogNotFoundError(f"Chatlog not found for date {date} (cached 404)")
+            raise ChatlogNotFoundError(tr(
+                f"Chatlog not found for date {date} (cached 404)",
+                f"Чатлог за {date} не найден (кэш 404)")
+            )
         
         if is_cached:
             # Return empty string since we don't need HTML when using DB
@@ -51,7 +58,10 @@ class ChatlogsParser:
             
             if response.status_code == 404:
                 self.db.mark_date_not_found(date)
-                raise ChatlogNotFoundError(f"Chatlog not found for date {date}")
+                raise ChatlogNotFoundError(tr(
+                    f"Chatlog not found for date {date}",
+                    f"Чатлог за {date} не найден")
+                )
             
             response.raise_for_status()
             response.encoding = 'utf-8'
@@ -75,7 +85,10 @@ class ChatlogsParser:
         except requests.exceptions.RequestException as e:
             if hasattr(e, 'response') and e.response and e.response.status_code == 404:
                 self.db.mark_date_not_found(date)
-                raise ChatlogNotFoundError(f"Chatlog not found for date {date}")
+                raise ChatlogNotFoundError(tr(
+                    f"Chatlog not found for date {date}",
+                    f"Чатлог за {date} не найден")
+                )
             raise
     
     def parse_messages(self, html: str, date: str) -> List[ChatMessage]:
@@ -198,7 +211,10 @@ class ChatlogsParser:
         is_cached, was_truncated, is_404 = self.db.is_date_cached(date)
         
         if is_404:
-            raise ChatlogNotFoundError(f"Chatlog not found for date {date}")
+            raise ChatlogNotFoundError(tr(
+                f"Chatlog not found for date {date}",
+                f"Чатлог за {date} не найден")
+            )
         
         if is_cached:
             # Get from database with filters

@@ -10,6 +10,12 @@ from PyQt6.QtWidgets import QWidget, QMessageBox
 from PyQt6.QtCore import QPoint, QTimer, Qt
 
 from components.loading_spinner import LoadingSpinner
+from helpers.translate import tr
+
+
+def _link(url: str) -> str:
+    """HTML link whose display text is the URL itself (language-independent)."""
+    return f'<a href="{url}">{url}</a>'
 
 
 class VideoPlayer(QWidget):
@@ -90,7 +96,7 @@ class VideoPlayer(QWidget):
         msg_box.setTextInteractionFlags(Qt.TextInteractionFlag.TextBrowserInteraction)  # Make links clickable
         
         # Add Copy and OK buttons
-        copy_button = msg_box.addButton("Copy", QMessageBox.ButtonRole.ActionRole)
+        copy_button = msg_box.addButton(tr("Copy", "Копировать"), QMessageBox.ButtonRole.ActionRole)
         msg_box.addButton(QMessageBox.StandardButton.Ok)
         
         msg_box.exec()
@@ -99,7 +105,6 @@ class VideoPlayer(QWidget):
         if msg_box.clickedButton() == copy_button:
             from PyQt6.QtWidgets import QApplication
             # Strip HTML tags for plain text copy
-            import re
             plain_text = f"{text}\n\n{informative_text}"
             plain_text = re.sub(r'<br>', '\n', plain_text)
             plain_text = re.sub(r'<[^>]+>', '', plain_text)
@@ -108,37 +113,50 @@ class VideoPlayer(QWidget):
     def _show_mpv_error(self):
         """Show a graphical error dialog when mpv is not found"""
         system = platform.system()
-        
+
         # Base message with official site
-        install_msg = 'Please install MPV from the official site:<br><a href="https://mpv.io/installation/">https://mpv.io/installation/</a>'
-        
+        official_site = _link("https://mpv.io/installation/")
+        install_msg = tr(
+            f'Please install MPV from the official site:<br>{official_site}',
+            f'Установите MPV с официального сайта:<br>{official_site}'
+        )
+
         # Add platform-specific additional options
         if system == 'Windows':
-            install_msg += (
-                '<br><br><b>Windows builds:</b><br>'
-                '<a href="https://github.com/mpvnet-player/mpv.net/releases/">https://github.com/mpvnet-player/mpv.net/releases/</a><br>'
-                'or<br>'
-                '<a href="https://github.com/zhongfly/mpv-winbuild/releases/">https://github.com/zhongfly/mpv-winbuild/releases/</a>'
-                '<br><br><b>.NET SDK</b> (required for mpv.net):<br>'
-                '<a href="https://dotnet.microsoft.com/en-us/download/dotnet/">https://dotnet.microsoft.com/en-us/download/dotnet/</a>'
+            mpvnet = _link("https://github.com/mpvnet-player/mpv.net/releases/")
+            winbuild = _link("https://github.com/zhongfly/mpv-winbuild/releases/")
+            dotnet = _link("https://dotnet.microsoft.com/en-us/download/dotnet/")
+            install_msg += tr(
+                f'<br><br><b>Windows builds:</b><br>{mpvnet}<br>'
+                f'or<br>{winbuild}'
+                f'<br><br><b>.NET SDK</b> (required for mpv.net):<br>{dotnet}',
+                f'<br><br><b>Сборки для Windows:</b><br>{mpvnet}<br>'
+                f'или<br>{winbuild}'
+                f'<br><br><b>.NET SDK</b> (нужен для mpv.net):<br>{dotnet}'
             )
         elif system == 'Darwin':
-            install_msg += '<br><br><b>macOS:</b> brew install mpv'
+            install_msg += tr(
+                '<br><br><b>macOS:</b> brew install mpv',
+                '<br><br><b>macOS:</b> brew install mpv'
+            )
         else:
-            install_msg += '<br><br><b>Linux:</b> sudo apt install mpv<br>(or use your distro\'s package manager)'
-        
+            install_msg += tr(
+                '<br><br><b>Linux:</b> sudo apt install mpv<br>(or use your distro\'s package manager)',
+                '<br><br><b>Linux:</b> sudo apt install mpv<br>(или менеджер пакетов вашего дистрибутива)'
+            )
+
         # Add custom GUI options
-        install_msg += (
-            '<br><br><b>Custom GUI (optional):</b><br>'
-            '<a href="https://github.com/tomasklaen/uosc/releases/">https://github.com/tomasklaen/uosc/releases/</a><br>'
-            'or<br>'
-            '<a href="https://github.com/Samillion/ModernZ/releases/">https://github.com/Samillion/ModernZ/releases/</a>'
+        uosc = _link("https://github.com/tomasklaen/uosc/releases/")
+        modernz = _link("https://github.com/Samillion/ModernZ/releases/")
+        install_msg += tr(
+            f'<br><br><b>Custom GUI (optional):</b><br>{uosc}<br>or<br>{modernz}',
+            f'<br><br><b>Сторонний GUI (опционально):</b><br>{uosc}<br>или<br>{modernz}'
         )
         
         # Show graphical dialog
         self._show_error_dialog(
-            "Video Player Not Found",
-            "MPV video player is not installed.",
+            tr("Video Player Not Found", "Видеоплеер не найден"),
+            tr("MPV video player is not installed.", "Видеоплеер MPV не установлен."),
             install_msg
         )
 
@@ -216,9 +234,9 @@ class VideoPlayer(QWidget):
             
             # Show error dialog for launch failures
             self._show_error_dialog(
-                "Video Player Error",
-                "Failed to launch video player.",
-                f"Error: {str(e)}",
+                tr("Video Player Error", "Ошибка видеоплеера"),
+                tr("Failed to launch video player.", "Не удалось запустить видеоплеер."),
+                tr(f"Error: {str(e)}", f"Ошибка: {str(e)}"),
                 QMessageBox.Icon.Critical
             )
     

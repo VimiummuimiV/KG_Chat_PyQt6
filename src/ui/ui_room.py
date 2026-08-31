@@ -9,12 +9,13 @@ from PyQt6.QtCore import Qt, pyqtSignal
 from helpers.create import create_icon_button, HoverIconButton
 from helpers.fonts import get_font, FontType, get_userlist_width
 from helpers.font_scaler import FontScaleSlider
+from helpers.translate import tr, on_language_changed, TranslatableMixin
 from ui.ui_messages import MessagesWidget
 from ui.ui_userlist import UserListWidget
 from core.xmpp import XMPPClient
 
 
-class RoomWidget(QWidget):
+class RoomWidget(TranslatableMixin, QWidget):
     """Self-contained chat for one MUC room — either a gameXXXX@conference
     game/competition room or a custom room.
     Layout matches the main general chat body:
@@ -46,6 +47,7 @@ class RoomWidget(QWidget):
         parent=None,
     ):
         super().__init__(parent)
+        self._init_translatable()
         self.config = config
         self.emoticon_manager = emoticon_manager
         self.icons_path = icons_path
@@ -63,6 +65,7 @@ class RoomWidget(QWidget):
         self.font_scaler = font_scaler
         self.auto_hide_userlist = True  # reset to True whenever the compact threshold is crossed
         self._init_ui()
+        on_language_changed(self._retranslate_all)
 
     @property
     def my_username(self):
@@ -102,8 +105,9 @@ class RoomWidget(QWidget):
         input_row.addWidget(self.input_field, stretch=1)
 
         self.send_button = create_icon_button(
-            self.icons_path, "send.svg", "Send", size_type="large", config=self.config
+            self.icons_path, "send.svg", "", size_type="large", config=self.config
         )
+        self._tr_set(self.send_button.setToolTip, "Send message", "Отправить сообщение")
         self.send_button.clicked.connect(self._on_send)
         input_row.addWidget(self.send_button)
 
@@ -111,8 +115,9 @@ class RoomWidget(QWidget):
             self.icons_path,
             "emotion-normal.svg",
             "emotion-happy.svg",
-            "Toggle Emoticon Selector",
+            "",
         )
+        self._tr_set(self.emoticon_button.setToolTip, "Toggle Emoticon Selector", "Селектор эмотиконов")
         self.emoticon_button.clicked.connect(self.emoticon_requested.emit)
         input_row.addWidget(self.emoticon_button)
 

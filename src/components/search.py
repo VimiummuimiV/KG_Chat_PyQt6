@@ -7,7 +7,7 @@ from PyQt6.QtCore import pyqtSignal
 
 from helpers.create import create_icon_button
 from helpers.fonts import get_font, FontType
-
+from helpers.translate import tr
 
 def parse_search_text(text: str):
     """Parse 'text' | 'U:Bob,Alice' | 'M:hello' | combined U:/M: prefixes.
@@ -116,9 +116,10 @@ class MessageSearchBar(QWidget):
             layout.addWidget(widget)
 
         self.clear_btn = create_icon_button(
-            icons_path, "trash.svg", "Clear search",
+            icons_path, "trash.svg", "",
             size_type="large", config=config,
         )
+        self.clear_btn.setToolTip(tr("Clear search", "Очистить поиск"))
         self.clear_btn.clicked.connect(self.clear)
         layout.addWidget(self.clear_btn)
 

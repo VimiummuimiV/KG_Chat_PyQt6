@@ -8,6 +8,7 @@ from pathlib import Path
 from datetime import datetime
 import threading
 
+from helpers.translate import tr
 from helpers.create import create_icon_button, HoverIconButton, _render_svg_icon, get_user_svg_color
 from helpers.load import make_rounded_pixmap
 from helpers.fonts import get_font, FontType
@@ -553,33 +554,33 @@ class PopupNotification(_AutoHidePopupMixin, QWidget):
         position_icons = {"left": "align-left.svg", "center": "align-center.svg", "right": "align-right.svg"}
         self.position_button = _icon_btn(
             self.icons_path, position_icons.get(current_position or "right", "align-right.svg"),
-            "Toggle Position", data.config
+            tr("Change Position", "Сменить расположение"), data.config
         )
         self.position_button.clicked.connect(self._on_toggle_position)
         buttons_layout.addWidget(self.position_button)
 
         # Answer button - hide for ban, system, competition, parser messages
         if not data.is_ban and not data.is_system and not data.is_parser and not data.is_competition:
-            self.answer_button = _icon_btn(self.icons_path, "reply.svg", "Reply", data.config)
+            self.answer_button = _icon_btn(self.icons_path, "reply.svg", tr("Reply", "Ответить"), data.config)
             self.answer_button.clicked.connect(self._on_answer)
             buttons_layout.addWidget(self.answer_button)
         else:
             self.answer_button = None
 
         if data.is_competition and data.open_room_callback and data.competition_game_id is not None:
-            self.open_room_button = _icon_btn(self.icons_path, "chat.svg", "Open competition room", data.config)
+            self.open_room_button = _icon_btn(self.icons_path, "chat.svg", tr("Open competition room", "Открыть комнату соревнования"), data.config)
             self.open_room_button.clicked.connect(self._on_open_room)
             buttons_layout.addWidget(self.open_room_button)
         else:
             self.open_room_button = None
       
         # Mute button
-        self.mute_button = _icon_btn(self.icons_path, "shut-down.svg", "Mute Notifications", data.config)
+        self.mute_button = _icon_btn(self.icons_path, "shut-down.svg", tr("Mute Notifications", "Отключить уведомления"), data.config)
         self.mute_button.clicked.connect(self._on_mute)
         buttons_layout.addWidget(self.mute_button)
       
         # Close button
-        self.close_button = _icon_btn(self.icons_path, "close.svg", "Close", data.config)
+        self.close_button = _icon_btn(self.icons_path, "close.svg", tr("Close", "Закрыть"), data.config)
         self.close_button.clicked.connect(self.manager.close_all)
         buttons_layout.addWidget(self.close_button)
       
@@ -626,7 +627,9 @@ class PopupNotification(_AutoHidePopupMixin, QWidget):
             self.reply_field.returnPressed.connect(self._on_send_reply)
             reply_layout.addWidget(self.reply_field, stretch=1)
           
-            self.send_button = _icon_btn(self.icons_path, "send.svg", "Send", data.config, size_type="large")
+            self.send_button = _icon_btn(
+                self.icons_path, "send.svg", tr("Send message", "Отправить сообщение"), data.config, size_type="large"
+            )
             self.send_button.clicked.connect(self._on_send_reply)
             reply_layout.addWidget(self.send_button)
           
@@ -635,7 +638,7 @@ class PopupNotification(_AutoHidePopupMixin, QWidget):
                     self.icons_path,
                     "emotion-normal.svg",
                     "emotion-happy.svg",
-                    "Toggle Emoticon Selector"
+                    tr("Toggle Emoticon Selector", "Селектор эмотиконов"),
                 )
                 self.emoticon_button.clicked.connect(self._toggle_emoticon_selector)
                 reply_layout.addWidget(self.emoticon_button)
@@ -808,7 +811,7 @@ class PopupNotification(_AutoHidePopupMixin, QWidget):
         # Update icon on all popup position buttons for consistency
         for popup in self.manager.popups:
             if hasattr(popup, 'position_button'):
-                new_btn = _icon_btn(self.icons_path, icons[new_pos], "Toggle Position", self.data.config)
+                new_btn = _icon_btn(self.icons_path, icons[new_pos], tr("Change Position", "Сменить расположение"), self.data.config)
                 popup.position_button.setIcon(new_btn.icon())
                 new_btn.deleteLater()
         self.manager._position_and_cleanup()
@@ -963,7 +966,7 @@ class PresenceMiniPopup(_AutoHidePopupMixin, QWidget):
         name.setStyleSheet(f"color: {username_color}; background: transparent;")
         layout.addWidget(name, stretch=1)
 
-        self.close_button = _icon_btn(self.icons_path, "close.svg", "Close", config)
+        self.close_button = _icon_btn(self.icons_path, "close.svg", tr("Close", "Закрыть"), config)
         self.close_button.clicked.connect(self.manager.close_all)
         layout.addWidget(self.close_button)
 
