@@ -3526,10 +3526,11 @@ class ChatWindow(TranslatableMixin, QWidget):
 
         uid = int(user_id)
 
-        # Already viewing this profile — do not reset pre_profile_view or re-fetch
+        # Already viewing this profile — toggle closed (same as Back)
         if (hasattr(self, 'profile_widget') and self.profile_widget
                 and self.stacked_widget.currentWidget() is self.profile_widget
                 and self.profile_widget.current_user_id == uid):
+            self._on_back()
             return
 
         self._ensure_general_tab_visible()
