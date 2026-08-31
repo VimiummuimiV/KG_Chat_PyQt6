@@ -118,7 +118,7 @@
         "y": 0
       }
     ],
-    "emoticon_last_group": "army",
+    "emoticon_last_group": "recent",
     "emoticon_nav_positions": {
       "recent": 0,
       "army": 0,
@@ -165,7 +165,7 @@
       "mentions_digest_interval_hours": 24,
       "mentions_digest_mode": "start"
     },
-    "language": "ru"
+    "language": "en"
   },
   "sound": {
     "tts_enabled": false,
@@ -223,7 +223,8 @@
     "show_cost": true,
     "show_scores": true,
     "show_bonuses": false,
-    "alert_chat_action": "move"
+    "alert_chat_action": "move",
+    "notification_style": "center"
   },
   "font": {
     "ui": {

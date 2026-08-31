@@ -443,6 +443,24 @@ class ClickableLabel(QLabel):
         super().mousePressEvent(event)
 
 
+class SettingsRow(QWidget):
+    """Label + control line with a soft hover fill so the pair stays readable when wide."""
+
+    def __init__(self, parent=None, spacing: int = 6):
+        super().__init__(parent)
+        self.setObjectName("settingsRow")
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(4, 4, 4, 4)
+        layout.setSpacing(spacing)
+        # Soft row fill; label/slider transparent so it shows through (combo/spin keep chrome).
+        self.setStyleSheet(
+            "#settingsRow { background: transparent; border-radius: 6px; }"
+            "#settingsRow:hover { background: rgba(128, 128, 128, 0.10); }"
+            "#settingsRow QLabel, #settingsRow QSlider { background: transparent; }"
+        )
+
+
 class SoundSelectorWidget(TranslatableMixin, QWidget):
     """Selector for one notification sound type.
 
@@ -863,8 +881,8 @@ class SettingsWidget(TranslatableMixin, QWidget):
         return checkbox
 
     def _add_combo_row(self, section_layout: QVBoxLayout, label_text: str, items: list, on_changed) -> QComboBox:
-        row = QHBoxLayout()
-        row.setSpacing(self._spacing())
+        row_widget = SettingsRow(spacing=self._spacing())
+        row = row_widget.layout()
         label = QLabel(label_text)
         label.setFont(get_font(FontType.UI))
         row.addWidget(label, stretch=1)
@@ -878,12 +896,12 @@ class SettingsWidget(TranslatableMixin, QWidget):
         combo.setFixedWidth(240)
         combo.currentTextChanged.connect(on_changed)
         row.addWidget(combo)
-        section_layout.addLayout(row)
+        section_layout.addWidget(row_widget)
         return combo
 
     def _add_slider_spin_row(self, section_layout: QVBoxLayout, label_text: str, minimum: int, maximum: int, on_changed, on_reset=None, default=None) -> QSpinBox:
-        row = QHBoxLayout()
-        row.setSpacing(self._spacing())
+        row_widget = SettingsRow(spacing=self._spacing())
+        row = row_widget.layout()
 
         label = QLabel(label_text)
         label.setFont(get_font(FontType.UI))
@@ -961,7 +979,7 @@ class SettingsWidget(TranslatableMixin, QWidget):
             spin._update_reset_state = update_reset_state
             self._register_tr(reset_button.setToolTip, reset_tooltip)
 
-        section_layout.addLayout(row)
+        section_layout.addWidget(row_widget)
         return spin
 
     # ------------------------------------------------------------------ #
@@ -1132,8 +1150,8 @@ class SettingsWidget(TranslatableMixin, QWidget):
         self._add_collapse_toggle(parser_header, parser_content, ("ui", "settings", "widgets", "chat_parser"))
 
     def _add_hotkey_row(self, section_layout: QVBoxLayout, label_text: str):
-        row = QHBoxLayout()
-        row.setSpacing(self._spacing())
+        row_widget = SettingsRow(spacing=self._spacing())
+        row = row_widget.layout()
 
         label = QLabel(label_text)
         label.setFont(get_font(FontType.UI))
@@ -1162,7 +1180,7 @@ class SettingsWidget(TranslatableMixin, QWidget):
         row.addWidget(self.hotkey_reset_button)
         self._register_tr(self.hotkey_reset_button.setToolTip, hotkey_reset_tooltip)
 
-        section_layout.addLayout(row)
+        section_layout.addWidget(row_widget)
 
     def _current_hotkey(self) -> str:
         return self.config.get("hotkey", "combo") or hotkey.DEFAULT_HOTKEY
@@ -2121,7 +2139,7 @@ class SettingsWidget(TranslatableMixin, QWidget):
             on_reset=self._on_tracker_retention_reset,
             default=24,
         )
-        row = section_layout.itemAt(section_layout.count() - 1).layout()
+        row = section_layout.itemAt(section_layout.count() - 1).widget().layout()
         self.tracker_retention_unit_combo = NoWheelComboBox()
         self.tracker_retention_unit_combo.setFont(get_font(FontType.UI))
         self.tracker_retention_unit_combo.addItem(tr("hours", "часов"), "hours")
