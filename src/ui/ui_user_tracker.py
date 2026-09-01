@@ -25,7 +25,7 @@ from helpers.fonts import (
 from helpers.translate import tr, on_language_changed, TranslatableMixin
 from helpers.user_tracker import UserTracker
 from helpers.cache import get_cache
-from helpers.flash_highlight import paint_flash, highlight_color
+from helpers.flash_highlight import paint_flash, highlight_color, FlashFade
 from helpers.scroll.auto_scroll import AutoScroller
 from helpers.scroll.scroll_buttons import ScrollButtonsPanel
 from helpers.scroll.scroll import scroll
@@ -233,10 +233,7 @@ class TrackerEventDelegate(QStyledItemDelegate):
         self.list_view = None
 
         self.highlighted_row = None
-        self.highlight_opacity = 0.0
-        self.highlight_timer = QTimer()
-        self.highlight_timer.timeout.connect(self.highlight_row)
-        self.highlight_timer.setInterval(50)
+        self.row_highlight = FlashFade(self._on_row_highlight_tick, parent=self, config=self.config)
 
         self._reload_fonts()
 
@@ -250,7 +247,7 @@ class TrackerEventDelegate(QStyledItemDelegate):
         self.list_view = list_view
 
     def cleanup(self):
-        self.highlight_timer.stop()
+        self.row_highlight.timer.stop()
         self.list_view = None
         self.click_rects.clear()
 
@@ -303,8 +300,8 @@ class TrackerEventDelegate(QStyledItemDelegate):
         painter.save()
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
-        if row == self.highlighted_row and self.highlight_opacity > 0:
-            paint_flash(painter, option.rect, highlight_color(self.is_dark_theme), self.highlight_opacity)
+        if row == self.highlighted_row and self.row_highlight.opacity > 0:
+            paint_flash(painter, option.rect, highlight_color(self.is_dark_theme), self.row_highlight.opacity)
 
         if event.get('is_separator'):
             DateSeparator.render(
@@ -425,19 +422,13 @@ class TrackerEventDelegate(QStyledItemDelegate):
 
         return super().editorEvent(event, model, option, index)
 
-    def highlight_row(self, row: int = None):
-        if row is not None:
-            self.highlighted_row = row
-            self.highlight_opacity = 1.0
-            if not self.highlight_timer.isActive():
-                self.highlight_timer.start()
-        else:
-            self.highlight_opacity -= 0.05
-            if self.highlight_opacity <= 0:
-                self.highlight_opacity = 0.0
-                self.highlighted_row = None
-                self.highlight_timer.stop()
+    def highlight_row(self, row: int):
+        self.highlighted_row = row
+        self.row_highlight.start()
 
+    def _on_row_highlight_tick(self):
+        if self.row_highlight.opacity <= 0:
+            self.highlighted_row = None
         if self.highlighted_row is not None and self.list_view and self.list_view.model():
             index = self.list_view.model().index(self.highlighted_row, 0)
             self.list_view.viewport().update(self.list_view.visualRect(index))

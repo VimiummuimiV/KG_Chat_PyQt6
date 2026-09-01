@@ -322,7 +322,7 @@ class ChatlogWidget(TranslatableMixin, QWidget):
         self.info_block.addWidget(self.date_label)
      
         # Info label
-        self.info_label = FlashLabel(tr("Loading...", "Загрузка..."), is_dark_fn=lambda: self.delegate.is_dark_theme)
+        self.info_label = FlashLabel(tr("Loading...", "Загрузка..."), is_dark_fn=lambda: self.delegate.is_dark_theme, config=self.config)
         self.info_label.setStyleSheet("color: #666666;")
         self.info_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         self.info_label.setWordWrap(True)

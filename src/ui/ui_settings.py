@@ -30,6 +30,7 @@ from helpers.data import get_data_dir
 from helpers.color_utils import blend_hex_colors, tinted_chip_colors
 from helpers.browser import get_available_browsers
 from helpers.translate import tr, set_language, get_language, on_language_changed, TrStr, TranslatableMixin
+from helpers.flash_highlight import TIMING_FUNCTIONS, FlashLabel
 
 DEFAULTS = {
     "notification": {
@@ -63,6 +64,10 @@ DEFAULTS = {
         "badge_font_size": 9,
         "mentions_digest_mode": "daily",
         "mentions_digest_interval_hours": 24,
+        "flash_easing": "linear",
+        "flash_duration_ms": 1000,
+        "flash_duration_ms_min": 200,
+        "flash_duration_ms_max": 3000,
     },
     "user_tracker": {
         "presence_log_split_percent": 20,
@@ -87,6 +92,13 @@ DEFAULTS = {
 FONT_PREVIEW_BORDER = 1
 FONT_PREVIEW_PADDING = 6
 SLIDER_DEBOUNCE_MS = 150
+
+
+def preview_box_colors(theme: str) -> tuple[str, str, str]:
+    """(bg, fg, border) for a themed preview box; shared by font and flash previews."""
+    if theme == "dark":
+        return "#1E1E1E", "#D4D4D4", "#3C3C3C"
+    return "#F5F5F5", "#333333", "#CCCCCC"
 
 
 class _SpinCommitSignal(QObject):
@@ -201,6 +213,25 @@ def mentions_digest_mode_options():
          tr("Check on every chat start (ignore the interval).",
             "Проверять при каждом запуске чата (игнорируя интервал).")),
     )
+
+def flash_easing_options():
+    labels = {
+        "linear": tr("Linear", "Линейно"),
+        "ease_out": tr("Ease out", "С замедлением"),
+        "ease_in_out": tr("Ease in-out", "Плавный переход"),
+        "ease_out_cubic": tr("Ease out (pronounced)", "С сильным замедлением"),
+        "ease_in_out_cubic": tr("Ease in-out (pronounced)", "Выраженный плавный переход"),
+        "ease_elastic_in_out": tr("Elastic in-out", "Пружина"),
+        "ease_elastic_out_in": tr("Elastic out-in", "Пружина (наоборот)"),
+        "ease_back_in": tr("Overshoot in", "С замахом"),
+        "ease_back_out": tr("Overshoot out", "С отскоком назад"),
+        "ease_back_in_out": tr("Overshoot in-out", "С замахом и отскоком"),
+        "ease_back_out_in": tr("Overshoot out-in", "С отскоком и замахом"),
+        "ease_bounce_in": tr("Bounce in", "Отскок (в начале)"),
+        "ease_bounce_out": tr("Bounce out", "Отскок (в конце)"),
+    }
+    return tuple((key, labels[key], labels[key]) for key in TIMING_FUNCTIONS)
+
 
 def notification_position_options():
     return (
@@ -461,6 +492,10 @@ def fill_tracker_default_tab_combo(combo, current=None):
 
 def fill_mentions_digest_mode_combo(combo, current=None):
     fill_tooltip_combo(combo, mentions_digest_mode_options(), current, "daily")
+
+
+def fill_flash_easing_combo(combo, current=None):
+    fill_tooltip_combo(combo, flash_easing_options(), current, DEFAULTS["chat"]["flash_easing"])
 
 
 def fill_notification_position_combo(combo, current=None):
@@ -1213,6 +1248,31 @@ class SettingsWidget(TranslatableMixin, QWidget):
         )
         self._add_collapse_toggle(parser_header, parser_content, ("ui", "settings", "widgets", "chat_parser"))
 
+        flash_header, flash_content, flash_layout = self._add_subsection(
+            section, tr("✨ Highlight Animation", "✨ Анимация подсветки")
+        )
+        self.flash_easing_combo = self._add_combo_row(
+            flash_layout, tr("Timing function", "Функция плавности"), [], self._on_flash_easing_changed
+        )
+        self.flash_easing_combo.setFixedWidth(240)
+        self.flash_duration_spin = self._add_slider_spin_row(
+            flash_layout, tr("Duration (ms)", "Длительность (мс)"),
+            DEFAULTS["chat"]["flash_duration_ms_min"], DEFAULTS["chat"]["flash_duration_ms_max"],
+            self._on_flash_duration_changed,
+            default=DEFAULTS["chat"]["flash_duration_ms"],
+        )
+        self.flash_duration_spin.setSingleStep(50)
+        self.flash_duration_spin._slider.setSingleStep(50)
+        self.flash_preview = FlashLabel(
+            tr("Sample text — flashes on change", "Пример текста — вспыхивает при изменении"),
+            is_dark_fn=lambda: (self.config.get("ui", "theme") or "dark") == "dark",
+            config=self.config,
+        )
+        self.flash_preview.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._apply_flash_preview_theme()
+        flash_layout.addWidget(self.flash_preview)
+        self._add_collapse_toggle(flash_header, flash_content, ("ui", "settings", "widgets", "chat_flash"))
+
     def _add_hotkey_row(self, section_layout: QVBoxLayout, label_text: str):
         row_widget = SettingsRow(spacing=self._spacing())
         row = row_widget.layout()
@@ -1670,6 +1730,7 @@ class SettingsWidget(TranslatableMixin, QWidget):
             self.parser_validate_usernames_checkbox,
             self.badge_size_spin, self.mentions_digest_mode_combo,
             self.mentions_digest_interval_spin,
+            self.flash_easing_combo, self.flash_duration_spin,
             self.browser_combo,
             self.track_competitions_checkbox,
             self.competitions_bypass_combo, self.mentions_bypass_combo, self.bans_bypass_combo,
@@ -1803,6 +1864,16 @@ class SettingsWidget(TranslatableMixin, QWidget):
         self.mentions_digest_interval_spin.setValue(digest_hours)
         self.mentions_digest_interval_spin._slider.setValue(digest_hours)
         self._sync_mentions_digest_interval_visibility()
+
+        fill_flash_easing_combo(self.flash_easing_combo, self.config.get("ui", "chat", "flash_easing"))
+        flash_duration = self.config.get("ui", "chat", "flash_duration_ms")
+        try:
+            flash_duration = int(flash_duration) if flash_duration is not None else DEFAULTS["chat"]["flash_duration_ms"]
+        except (TypeError, ValueError):
+            flash_duration = DEFAULTS["chat"]["flash_duration_ms"]
+        flash_duration = max(DEFAULTS["chat"]["flash_duration_ms_min"], min(DEFAULTS["chat"]["flash_duration_ms_max"], flash_duration))
+        self.flash_duration_spin.setValue(flash_duration)
+        self.flash_duration_spin._slider.setValue(flash_duration)
 
         browsers = get_available_browsers()
         self.browser_combo.blockSignals(True)
@@ -2021,6 +2092,7 @@ class SettingsWidget(TranslatableMixin, QWidget):
             (self.resource_combo, fill_resource_combo),
             (self.own_message_mode_combo, fill_own_message_mode_combo),
             (self.mentions_digest_mode_combo, fill_mentions_digest_mode_combo),
+            (self.flash_easing_combo, fill_flash_easing_combo),
             (self.notification_mode_combo, fill_notification_mode_combo),
             (self.notification_position_combo, fill_notification_position_combo),
             (self.reply_style_combo, fill_reply_style_combo),
@@ -2162,13 +2234,19 @@ class SettingsWidget(TranslatableMixin, QWidget):
     def _apply_font_preview_theme(self):
         if not hasattr(self, "font_preview"):
             return
-        theme = self.config.get("ui", "theme") or "dark"
-        if theme == "dark":
-            bg, fg, border = "#1E1E1E", "#D4D4D4", "#3C3C3C"
-        else:
-            bg, fg, border = "#F5F5F5", "#333333", "#CCCCCC"
+        bg, fg, border = preview_box_colors(self.config.get("ui", "theme") or "dark")
         self.font_preview.setStyleSheet(
             f"QTextEdit {{ background-color: {bg}; color: {fg}; "
+            f"border: {FONT_PREVIEW_BORDER}px solid {border}; border-radius: 4px; "
+            f"padding: {FONT_PREVIEW_PADDING}px; }}"
+        )
+
+    def _apply_flash_preview_theme(self):
+        if not hasattr(self, "flash_preview"):
+            return
+        bg, fg, border = preview_box_colors(self.config.get("ui", "theme") or "dark")
+        self.flash_preview.setStyleSheet(
+            f"QLabel {{ background-color: {bg}; color: {fg}; "
             f"border: {FONT_PREVIEW_BORDER}px solid {border}; border-radius: 4px; "
             f"padding: {FONT_PREVIEW_PADDING}px; }}"
         )
@@ -2303,6 +2381,16 @@ class SettingsWidget(TranslatableMixin, QWidget):
 
     def _on_mentions_digest_interval_changed(self, value: int):
         self.config.set("ui", "chat", "mentions_digest_interval_hours", value=int(value))
+
+    def _on_flash_easing_changed(self, _text: str = ""):
+        value = self.flash_easing_combo.currentData()
+        if value is not None:
+            self.config.set("ui", "chat", "flash_easing", value=value)
+        self.flash_preview.flash()
+
+    def _on_flash_duration_changed(self, value: int):
+        self.config.set("ui", "chat", "flash_duration_ms", value=int(value))
+        self.flash_preview.flash()
 
     def _on_tracker_events_changed(self, types):
         # Keep at least one type enabled
@@ -2521,11 +2609,12 @@ class SettingsWidget(TranslatableMixin, QWidget):
         self.competitions_log.setTextCursor(cursor)
 
     def update_theme(self):
-        """Re-apply theme-dependent colors after a theme toggle (competitions log + font preview)."""
+        """Re-apply theme-dependent colors after a theme toggle (competitions log + previews)."""
         theme = self.config.get("ui", "theme") or "dark"
         if hasattr(self, "tracker_events_bar"):
             self.tracker_events_bar.update_theme(theme == "dark")
         self._apply_font_preview_theme()
+        self._apply_flash_preview_theme()
         if not hasattr(self, "competitions_log"):
             return
         lines = self.competitions_log.toPlainText().splitlines()
