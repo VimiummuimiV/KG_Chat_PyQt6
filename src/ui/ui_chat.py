@@ -1397,15 +1397,28 @@ class ChatWindow(TranslatableMixin, QWidget):
             print(f"Failed to open competition: {e}")
         self._on_competition_entered(gid)
 
+    def _forget_live_competition(self, gid: int):
+        """Drop bookkeeping for a competition no longer in play (started racing, or its
+        message/notification was manually dismissed) so a reconnect can't restore it."""
+        self._competition_live.pop(gid, None)
+        if self._competition_focus_gid == gid:
+            self._competition_focus_gid = None
+        timer = self._competition_alert_timers.pop(gid, None)
+        if timer:
+            timer.stop()
+        self._competition_sound_repeat_timer.stop()
+
     def _on_competition_entered(self, gid: int):
         """competitions.remove_message_on_enter: instantly drop the chat message and close
-        the matching notification for a competition just entered (link click or hotkey E)."""
+        the matching notification for a competition just entered (link click or hotkey E).
+        Also forgets it as live so a brief reconnect doesn't restore the dismissed message."""
         if not self.config.get("competitions", "remove_message_on_enter"):
             return
         mw = getattr(self, "messages_widget", None)
         if mw and hasattr(mw, "clear_competition_messages"):
             mw.clear_competition_messages(gid)
         popup_manager.close_by_tag(f"competition:{gid}")
+        self._forget_live_competition(gid)
 
     def _create_room_widget(self, *, game_id=None, room_name: str = None, room_label: str = "Game"):
         """Build and wire a RoomWidget. Shared by game rooms and custom
@@ -2338,13 +2351,7 @@ class ChatWindow(TranslatableMixin, QWidget):
                 mw.clear_competition_messages(gid)
                 # Scroll to bottom to show current chat after competition message is removed
                 self._scroll_to_bottom(mw.list_view)
-            self._competition_live.pop(gid, None)
-            if self._competition_focus_gid == gid:
-                self._competition_focus_gid = None
-            alert_timer = self._competition_alert_timers.pop(gid, None)
-            if alert_timer:
-                alert_timer.stop()
-            self._competition_sound_repeat_timer.stop()
+            self._forget_live_competition(gid)
             return
 
         # chat + notification only for waiting (once)
