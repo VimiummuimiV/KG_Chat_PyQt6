@@ -111,11 +111,10 @@ class ChatlogWidget(TranslatableMixin, QWidget):
         # Connect message click handler
         self.delegate.message_clicked.connect(self._on_message_clicked)
         self.delegate.separator_clicked.connect(self._on_date_separator_clicked)
-        self.delegate.timestamp_clicked.connect(lambda url: QApplication.clipboard().setText(url))
         self.delegate.chatlog_link_clicked.connect(self._on_chatlog_link_clicked)
 
         # Shared username click detection (same component MessagesWidget uses).
-        # Timestamp clicks stay handled above via delegate.timestamp_clicked -
+        # Timestamp clicks are handled in MessageDelegate.editorEvent (copy_and_highlight) -
         # handle_timestamp=False keeps this component from also swallowing the
         # press for that region, which broke the copy-and-highlight behavior.
         # Exposed as self.interactions for callers to connect to directly.

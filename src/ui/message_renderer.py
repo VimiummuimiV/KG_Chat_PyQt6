@@ -3,7 +3,7 @@ from typing import Dict, Optional, List, Tuple
 from pathlib import Path
 import re
 
-from PyQt6.QtCore import Qt, QRect, QSize, pyqtSignal, QObject, QTimer
+from PyQt6.QtCore import Qt, QRect, QSize, pyqtSignal, QObject
 from PyQt6.QtGui import QPainter, QPen, QFontMetrics, QColor, QPixmap, QMovie
 from PyQt6.QtWidgets import QApplication
 
@@ -18,6 +18,7 @@ from helpers.color_utils import (
     get_search_highlight_colors,
     get_rank_chip_colors,
 )
+from helpers.flash_highlight import draw_rounded_fill, FlashFade, link_colors, timestamp_color
 from components.presence_badge import presence_badge_style, EVENT_TYPES
 from helpers.fonts import get_font, FontType
 from helpers.mention_parser import parse_mentions
@@ -51,6 +52,7 @@ class MessageRenderer(QObject):
         self.my_username = None
         self.mention_color = get_mention_color(is_dark_theme)
         self.highlight_colors = get_search_highlight_colors(is_dark_theme)
+        self.link_colors = link_colors(is_dark_theme)
         
         # Load message colors from config
         self.private_colors = get_private_message_colors(config, is_dark_theme)
@@ -72,6 +74,7 @@ class MessageRenderer(QObject):
         
         # Copy highlight state
         self._copied_url: Optional[str] = None
+        self.copy_flash = FlashFade(self.refresh_view.emit, parent=self)
         # None = follow config; False/True = force (e.g. parser bulk load)
         self._youtube_override: Optional[bool] = None
         
@@ -135,30 +138,20 @@ class MessageRenderer(QObject):
         self.copy_and_highlight(url)
 
     def copy_and_highlight(self, url: str):
-        """Copy url to clipboard and briefly flag it as copied (drives the highlight repaint)"""
+        """Copy url to clipboard and fade-flag it as copied (drives the highlight repaint)"""
         QApplication.clipboard().setText(url)
         self._copied_url = url
-        self.refresh_view.emit()
-        QTimer.singleShot(700, self._clear_copy_highlight)
-
-    def _clear_copy_highlight(self):
-        self._copied_url = None
-        self.refresh_view.emit()
+        self.copy_flash.start()
 
     def is_copied(self, url: str) -> bool:
         """Whether url is the one just copied (drives the flash highlight)"""
-        return self._copied_url == url
+        return self._copied_url == url and self.copy_flash.opacity > 0
 
-    @staticmethod
-    def draw_copy_highlight(painter: QPainter, rect: QRect, color: str):
-        """Translucent rounded-rect background flagging a just-copied URL/timestamp"""
+    def draw_copy_highlight(self, painter: QPainter, rect: QRect, color: str):
+        """Translucent rounded-rect background fading out on a just-copied URL/timestamp"""
         highlight = QColor(color)
-        highlight.setAlphaF(0.35)
-        painter.save()
-        painter.setPen(Qt.PenStyle.NoPen)
-        painter.setBrush(highlight)
-        painter.drawRoundedRect(rect.adjusted(-2, 0, 2, 0), 3, 3)
-        painter.restore()
+        highlight.setAlphaF(min(1.0, self.copy_flash.opacity) * 0.35)
+        draw_rounded_fill(painter, rect.adjusted(-2, 0, 2, 0), highlight)
 
     @staticmethod
     def get_link_at_pos(link_rects: List[Tuple[QRect, str, bool]], pos) -> Optional[Tuple[str, bool]]:
@@ -185,7 +178,7 @@ class MessageRenderer(QObject):
             return self.private_colors["text"]
         if is_system:
             return self.system_colors["text"]
-        return "#999999"
+        return timestamp_color(self.is_dark_theme)
 
     def set_my_username(self, username: str):
         """Set the current user's username for mention highlighting"""
@@ -197,6 +190,7 @@ class MessageRenderer(QObject):
         self.bg_hex = "#1E1E1E" if is_dark_theme else "#FFFFFF"
         self.mention_color = get_mention_color(is_dark_theme)
         self.highlight_colors = get_search_highlight_colors(is_dark_theme)
+        self.link_colors = link_colors(is_dark_theme)
         self.private_colors = get_private_message_colors(self.config, is_dark_theme)
         self.ban_colors = get_ban_message_colors(self.config, is_dark_theme)
         self.system_colors = get_system_message_colors(self.config, is_dark_theme)
@@ -342,11 +336,6 @@ class MessageRenderer(QObject):
         else:
             text_color = "#FFFFFF" if self.is_dark_theme else "#000000"
         
-        # Link colors
-        normal_link_color = "#4DA6FF" if self.is_dark_theme else "#0066CC"
-        media_link_color = "#4DFF88" if self.is_dark_theme else "#00AA44"
-        chatlog_link_color = "#FFD24D" if self.is_dark_theme else "#CC6600"
-
         highlight_pattern = re.compile(re.escape(highlight_text), re.IGNORECASE) if highlight_text else None
         highlight_bg, highlight_fg = self.highlight_colors
 
@@ -435,11 +424,11 @@ class MessageRenderer(QObject):
             
             # Choose color based on whether it's a media link or chatlog link
             if is_media:
-                link_color = media_link_color
+                link_color = self.link_colors["media"]
             elif self.parse_chatlog_url(url):
-                link_color = chatlog_link_color
+                link_color = self.link_colors["chatlog"]
             else:
-                link_color = normal_link_color
+                link_color = self.link_colors["normal"]
             painter.setPen(QColor(link_color))
             
             remaining = link_text
@@ -458,7 +447,7 @@ class MessageRenderer(QObject):
                 
                 painter.drawText(current_x, current_y + fm.ascent(), chunk)
                 link_rect = QRect(current_x, current_y, chunk_width, fm.height())
-                if self._copied_url == url:
+                if self.is_copied(url):
                     self.draw_copy_highlight(painter, link_rect, link_color)
                     painter.setPen(QColor(link_color))
                     painter.drawText(current_x, current_y + fm.ascent(), chunk)
