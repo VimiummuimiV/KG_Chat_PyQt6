@@ -25,10 +25,59 @@ class VideoPlayer(QWidget):
     """Video player that launches mpvnet for playback"""
     
     VIDEO_PATTERNS = [
-        re.compile(r'https?://[^\s<>"]+\.(?:mp4|webm|ogg|mov|avi|mkv|flv|wmv|m4v)(?:\?[^\s<>"]*)?', re.IGNORECASE),
-        re.compile(r'https?://(?:www\.|m\.)?(?:youtube\.com/(?:shorts/|live/|watch\?v=|embed/)|youtu\.be/)([a-zA-Z0-9_-]{11})', re.IGNORECASE),
-        re.compile(r'https?://(?:www\.)?rutube\.ru/video/[a-f0-9]{32}/?', re.IGNORECASE),
-        re.compile(r'https?://(?:www\.)?(?:vkvideo\.ru|vk\.com)/video-?\d+_\d+', re.IGNORECASE),
+        # Direct video files
+        re.compile(
+            r'https?://[^\s<>"]+\.(?:mp4|webm|ogg|mov|avi|mkv|flv|wmv|m4v)(?:\?[^\s<>"]*)?',
+            re.IGNORECASE
+        ),
+        # YouTube
+        re.compile(
+            r'https?://(?:www\.|m\.)?(?:'
+            r'youtube\.com/(?:shorts/|live/|watch\?v=|embed/)|'
+            r'youtu\.be/'
+            r')[a-zA-Z0-9_-]{11}',
+            re.IGNORECASE
+        ),
+        # RuTube
+        re.compile(
+            r'https?://(?:www\.)?rutube\.ru/video/[a-f0-9]{32}/?',
+            re.IGNORECASE
+        ),
+        # VK / VK Video
+        re.compile(
+            r'https?://(?:www\.)?(?:vkvideo\.ru|vk\.com)/(?:video|clip)-?\d+_\d+',
+            re.IGNORECASE
+        ),
+        # Vimeo
+        re.compile(
+            r'https?://(?:www\.)?vimeo\.com/(?:\d+|showcase/\d+/video/\d+)',
+            re.IGNORECASE
+        ),
+        # Twitch
+        re.compile(
+            r'https?://(?:www\.)?twitch\.tv/(?:videos/\d+|[^/\s<>"]+)',
+            re.IGNORECASE
+        ),
+        # Kick
+        re.compile(
+            r'https?://(?:www\.)?kick\.com/[^/\s<>"]+/(?:videos|categories)/[^?\s<>"]+',
+            re.IGNORECASE
+        ),
+        # OK / Odnoklassniki
+        re.compile(
+            r'https?://(?:www\.)?ok\.ru/video/\d+',
+            re.IGNORECASE
+        ),
+        # Dzen
+        re.compile(
+            r'https?://(?:www\.)?dzen\.ru/video/watch/[^?\s<>"]+',
+            re.IGNORECASE
+        ),
+        # Pikabu
+        re.compile(
+            r'https?://(?:www\.)?pikabu\.ru/[^?\s<>"]+',
+            re.IGNORECASE
+        ),
     ]
 
     def __init__(self, parent=None, icons_path: Path = None, config=None):
