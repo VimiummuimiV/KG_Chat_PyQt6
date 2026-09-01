@@ -518,6 +518,8 @@ class PopupNotification(_AutoHidePopupMixin, QWidget):
         self.username_label.setStyleSheet(f"color: {username_color};")
         self.username_label.setFont(get_font(FontType.TEXT))
         self.username_label.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        if data.profile_callback and not data.is_parser and not data.is_competition:
+            self.username_label.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
         
         # Timestamp
         ts_str = (data.timestamp or datetime.now()).strftime("%H:%M:%S")
