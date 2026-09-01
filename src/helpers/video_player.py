@@ -5,7 +5,9 @@ import platform
 import shutil
 import sys
 import time
+from datetime import datetime
 from pathlib import Path
+from urllib.parse import urlparse
 
 from PyQt6.QtWidgets import QWidget, QMessageBox
 from PyQt6.QtCore import QPoint, QTimer, Qt
@@ -234,19 +236,17 @@ class VideoPlayer(QWidget):
         
         # Launch mpv in a separate process
         try:
-            show_terminal = bool(self.config and self.config.get("player", "show_terminal"))
-            mpv_cmd = self._build_mpv_command(url, show_terminal=show_terminal)
+            log_enabled = bool(self.config and self.config.get("player", "log"))
+            log_path = self._debug_log_path(url) if log_enabled else None
+            mpv_cmd = self._build_mpv_command(url, log_path=log_path)
 
-            kwargs = {'stdin': subprocess.DEVNULL}
-            if show_terminal:
-                # Keep stdout/stderr so the console shows mpv/yt-dlp logs.
-                kwargs['stdout'] = None
-                kwargs['stderr'] = None
-            else:
-                kwargs['stdout'] = subprocess.DEVNULL
-                kwargs['stderr'] = subprocess.DEVNULL
-                if platform.system() == 'Windows':
-                    kwargs['creationflags'] = subprocess.CREATE_NO_WINDOW
+            kwargs = {
+                'stdin': subprocess.DEVNULL,
+                'stdout': subprocess.DEVNULL,
+                'stderr': subprocess.DEVNULL
+            }
+            if platform.system() == 'Windows':
+                kwargs['creationflags'] = subprocess.CREATE_NO_WINDOW
 
             self.mpv_process = subprocess.Popen(mpv_cmd, **kwargs)
 
@@ -265,15 +265,52 @@ class VideoPlayer(QWidget):
                 QMessageBox.Icon.Critical
             )
 
-    def _build_mpv_command(self, url: str, show_terminal: bool = False) -> list:
+    @staticmethod
+    def _debug_log_path(url: str) -> Path:
+        """Return a timestamped debug log path for the video source."""
+        log_dir = Path.home() / "Desktop" / "mpv-debug"
+        log_dir.mkdir(parents=True, exist_ok=True)
+
+        host = urlparse(url or "").hostname or "source"
+        host = host.lower().rstrip(".")
+
+        aliases = {
+            "youtube.com": "YouTube",
+            "youtu.be": "YouTube",
+            "pikabu.ru": "Pikabu",
+            "twitch.tv": "Twitch",
+            "vk.com": "VK",
+            "vkvideo.ru": "VKVideo",
+            "vimeo.com": "Vimeo",
+            "rutube.ru": "RuTube",
+            "dzen.ru": "Dzen",
+            "ok.ru": "OK",
+        }
+
+        resource = next(
+            (
+                name
+                for domain, name in aliases.items()
+                if host == domain or host.endswith(f".{domain}")
+            ),
+            host.split(".")[0] or "Source",
+        )
+        resource = re.sub(r"[^a-zA-Z0-9_-]", "_", resource) or "Source"
+
+        timestamp = datetime.now().strftime("%Y-%m-%d - %H-%M-%S")
+        return log_dir / f"[{resource}] {timestamp}.log"
+
+    def _build_mpv_command(self, url: str, log_path: Path | None = None) -> list:
         """Build mpv command with appropriate options"""
         cmd = [self.mpv_path]
         cfg = self.config
 
         cmd.append('--force-window=yes')
+        cmd.append('--no-terminal')
 
-        if not show_terminal:
-            cmd.append('--no-terminal')
+        if log_path:
+            cmd.append('--msg-level=all=trace')
+            cmd.append(f'--log-file={log_path}')
 
         if cfg:
             tls_disabled = cfg.get("player", "disable_tls_verify")

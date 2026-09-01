@@ -72,7 +72,7 @@ DEFAULTS = {
     "player": {
         # MPV
         "hwdec": "auto",
-        "show_terminal": False,
+        "log": False,
         "keep_open": False,
         "ontop": False,
         "volume": 100,
@@ -1324,10 +1324,10 @@ class SettingsWidget(TranslatableMixin, QWidget):
             self._on_player_volume_changed,
             default=DEFAULTS["player"]["volume"],
         )
-        self.player_show_terminal_checkbox = self._add_checkbox(
+        self.player_log_checkbox = self._add_checkbox(
             mpv_layout,
-            tr("Show terminal", "Показывать терминал"),
-            self._on_player_show_terminal_toggled,
+            tr("Save MPV log", "Сохранять лог MPV"),
+            self._on_player_log_toggled,
         )
         self.player_keep_open_checkbox = self._add_checkbox(
             mpv_layout,
@@ -1664,7 +1664,7 @@ class SettingsWidget(TranslatableMixin, QWidget):
             self.resource_combo, self.own_message_mode_combo,
             self.clear_private_checkbox, self.youtube_checkbox,
             self.player_tls_checkbox, self.player_hwdec_combo, self.player_volume_spin,
-            self.player_show_terminal_checkbox, self.player_keep_open_checkbox, self.player_ontop_checkbox,
+            self.player_log_checkbox, self.player_keep_open_checkbox, self.player_ontop_checkbox,
             self.player_ytdl_format_combo,
             self.chatlog_max_messages_spin, self.chatlog_live_search_spin,
             self.parser_validate_usernames_checkbox,
@@ -1733,9 +1733,9 @@ class SettingsWidget(TranslatableMixin, QWidget):
         self.player_volume_spin.setValue(volume)
         self.player_volume_spin._slider.setValue(volume)
 
-        show_terminal = self.config.get("player", "show_terminal")
-        self.player_show_terminal_checkbox.setChecked(
-            DEFAULTS["player"]["show_terminal"] if show_terminal is None else bool(show_terminal)
+        log = self.config.get("player", "log")
+        self.player_log_checkbox.setChecked(
+            DEFAULTS["player"]["log"] if log is None else bool(log)
         )
         keep_open = self.config.get("player", "keep_open")
         self.player_keep_open_checkbox.setChecked(
@@ -2128,8 +2128,8 @@ class SettingsWidget(TranslatableMixin, QWidget):
     def _on_player_volume_changed(self, value: int):
         self.config.set("player", "volume", value=int(value))
 
-    def _on_player_show_terminal_toggled(self, checked: bool):
-        self.config.set("player", "show_terminal", value=checked)
+    def _on_player_log_toggled(self, checked: bool):
+        self.config.set("player", "log", value=checked)
 
     def _on_player_keep_open_toggled(self, checked: bool):
         self.config.set("player", "keep_open", value=checked)
