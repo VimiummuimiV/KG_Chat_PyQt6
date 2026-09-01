@@ -40,7 +40,7 @@ class CacheManager:
         self._data: Dict[str, Dict] = {}          # user_id → {login, background?, light?, dark?}
         self._avatar_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="cache_avatar_loader")
         self._cache_lock = threading.Lock()
-        self._data_path = Path(__file__).parent.parent / "data" / "users.json"
+        self._data_path = get_data_dir("data") / "users.json"
         self._initialized = True
         self._load_data()
 

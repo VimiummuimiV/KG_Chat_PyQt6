@@ -11,13 +11,14 @@ from .accounts import AccountManager
 from .userlist import UserList
 from .messages import MessageParser
 from helpers.jid_utils import MUC_DOMAIN
+from helpers.config import get_config_path
 
 class XMPPClient:
     """XMPP BOSH Client"""
    
     def __init__(self, config_path: str = None):
         if config_path is None:
-            config_path = Path(__file__).parent / ".." / "settings/config.json"
+            config_path = str(get_config_path())
        
         self.account_manager = AccountManager(str(config_path))
         self.connected_account = None

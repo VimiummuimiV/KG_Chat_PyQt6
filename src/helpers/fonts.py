@@ -27,7 +27,6 @@ class FontManager:
             return
 
         self.fonts_dir = Path(__file__).parent.parent / "fonts"
-        self.config_path = Path(__file__).parent.parent / "settings" / "config.json"
         self.config = None
         self.loaded = False
         self.font_scaler = None
@@ -51,7 +50,7 @@ class FontManager:
         if self.config is None:
             try:
                 from helpers.config import Config
-                self.config = Config(str(self.config_path))
+                self.config = Config()
             except ImportError:
                 print("⚠️ Could not load config")
                 self.config = type('SimpleConfig', (), {

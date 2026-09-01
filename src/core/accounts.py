@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Optional, Dict, List
 
 from helpers.data import get_data_dir
+from helpers.config import get_config_path
 
 
 class AccountManager:
@@ -26,7 +27,9 @@ class AccountManager:
         ]
     }
 
-    def __init__(self, config_path: str = 'settings/config.json'):
+    def __init__(self, config_path: str = None):
+        if config_path is None:
+            config_path = str(get_config_path())
         self.config_path = config_path
         data_dir = get_data_dir("accounts")
         self.db_path = str(data_dir / "accounts.db")

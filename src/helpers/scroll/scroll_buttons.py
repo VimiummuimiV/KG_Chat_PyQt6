@@ -54,10 +54,9 @@ class ScrollButtonsPanel(QObject):
         # Paths
         base_path = Path(__file__).parent.parent.parent
         self.icons_path = base_path / "icons"
-        config_path = base_path / "settings" / "config.json"
 
         # Load config
-        self.config = Config(str(config_path))
+        self.config = Config()
 
         # Parent to list_view so the panel cannot spill over sibling panes (e.g. chatlog split)
         # and steal clicks from their toolbar buttons.

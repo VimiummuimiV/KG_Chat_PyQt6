@@ -25,7 +25,8 @@ from helpers.fonts import (
     get_font,
     FontType,
 )
-from helpers.config import Config
+from helpers.config import Config, get_config_path
+from helpers.data import get_data_dir
 from helpers.translate import tr, set_language, get_language, on_language_changed
 from helpers.username_color_manager import(
     change_username_color,
@@ -71,16 +72,13 @@ class Application(QObject):
             )
             sys.exit(0)
 
-        # Initialize settings path
-        self.settings_path = Path(__file__).parent / "settings"
-
-        # Initialize data path
-        self.data_path = Path(__file__).parent / "data"
+        # Initialize data path (user data lives under KG_Chat_Data/data)
+        self.data_path = get_data_dir("data")
 
         # Initialize account manager and config
-        self.config_path = self.settings_path / "config.json"
+        self.config_path = get_config_path()
         self.account_manager = AccountManager(str(self.config_path))
-        self.config = Config(str(self.config_path))
+        self.config = Config(self.config_path)
         set_config(self.config)
         set_language(self.config.get("ui", "language") or "en")
 

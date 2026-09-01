@@ -23,6 +23,7 @@ from helpers.username_color_manager import (
 )
 from ui.ui_settings import fill_resource_combo
 from helpers.translate import tr, on_language_changed, TranslatableMixin
+from helpers.config import get_config_path
 
 
 def _add_account_from_auth_data(account_manager, user_data: dict) -> bool:
@@ -52,11 +53,11 @@ class AccountWindow(TranslatableMixin, QWidget):
         self._init_translatable()
 
         # Paths
-        self.config_path = Path(__file__).parent.parent / "settings" / "config.json"
+        self.config_path = get_config_path()
         self.icons_path = Path(__file__).parent.parent / "icons"
 
         # Config and theme
-        self.config = config if config is not None else Config(str(self.config_path))
+        self.config = config if config is not None else Config(self.config_path)
         self.theme_manager = ThemeManager(self.config)
         self.theme_manager.apply_theme()
 

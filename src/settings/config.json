@@ -1,8 +1,7 @@
 {
   "server": {
     "url": "https://klavogonki.ru/xmpp-httpbind/",
-    "domain": "jabber.klavogonki.ru",
-    "resource": "web"
+    "domain": "jabber.klavogonki.ru"
   },
   "rooms": [
     {
@@ -20,13 +19,7 @@
     "lang": "en"
   },
   "ui": {
-    "chatlog_search_visible": false,
-    "chat_search_visible": false,
-    "theme": "dark",
-    "notification_width": 550,
-    "notification_position": "right",
     "emoticon_max_size": 140,
-    "clear_private_messages_on_exit": true,
     "private_message_color": {
       "hue": 0,
       "saturation": 75
@@ -38,9 +31,6 @@
     "system_message_color": {
       "hue": 240,
       "saturation": 0
-    },
-    "youtube": {
-      "enabled": true
     },
     "buttons": {
       "large_button": {
@@ -71,200 +61,6 @@
       "vertical_spacing": 2,
       "element_spacing": 10
     },
-    "input_height": 48,
-    "emoticon_selector_visible": false,
-    "always_on_top": false,
-    "recent_emoticons": [
-      "pogranminigun",
-      "carpet",
-      "uzi",
-      "dwarf",
-      "ghost",
-      "firework",
-      "confetti",
-      "moose",
-      "cheers",
-      "vdv",
-      "comandos",
-      "barret",
-      "vpered",
-      "first",
-      "grats",
-      "pirates",
-      "boredom",
-      "sick",
-      "spiteful",
-      "badcomp"
-    ],
-    "window": {
-      "width": 1792,
-      "height": 1368,
-      "x": 384,
-      "y": 0
-    },
-    "window_presets": [
-      {
-        "name": "Full height Narrow Left",
-        "width": 638,
-        "height": 1368,
-        "x": 1,
-        "y": 0
-      },
-      {
-        "name": "Full height Narrow Right",
-        "width": 638,
-        "height": 1368,
-        "x": 1921,
-        "y": 0
-      }
-    ],
-    "emoticon_last_group": "recent",
-    "emoticon_nav_positions": {
-      "recent": 0,
-      "army": 0,
-      "boys": 0,
-      "christmas": 0,
-      "girls": 21,
-      "halloween": 0,
-      "inlove": 0
-    },
-    "settings": {
-      "sections": {
-        "startup": true,
-        "chat": true,
-        "fonts": true,
-        "notifications": true,
-        "competitions": false,
-        "sound": true,
-        "user_tracker": true,
-        "": true
-      },
-      "widgets": {
-        "ws_log": true,
-        "font_preview": true,
-        "chat_limits": true,
-        "chat_xmpp": true,
-        "chat_parser": true,
-        "notifications_bypass": true
-      },
-      "accordion": true
-    },
-    "userlist": {
-      "tracker": true,
-      "messages": true,
-      "chatlog": true
-    },
-    "own_message_mode": "local",
-    "chatlog": {
-      "max_messages": 50000,
-      "live_search_max_messages": 5000
-    },
-    "chat": {
-      "max_messages": 1000,
-      "badge_font_size": 11,
-      "mentions_digest_interval_hours": 24,
-      "mentions_digest_mode": "start"
-    },
-    "language": "en"
-  },
-  "sound": {
-    "tts_enabled": false,
-    "effects_enabled": true,
-    "selected": {
-      "mention": "tick_short.mp3",
-      "competition": "kalimba_pluck_run.mp3",
-      "ban": "bullet_hit.mp3"
-    },
-    "competition_repeat_interval": 5,
-    "competition_repeat_enabled": false,
-    "play_competition_sound_always": true,
-    "play_mention_sound_always": false
-  },
-  "notification": {
-    "mode": "scroll",
-    "muted": true,
-    "competitions_bypass_mute": "default",
-    "mentions_bypass_mute": "default",
-    "bans_bypass_mute": "default",
-    "tracked_bypass_mute": "duration",
-    "messages_bypass_mute": "duration",
-    "hide_on": "mouse",
-    "fade_ms": 300,
-    "duration_ms": 5000,
-    "reply_style": "center",
-    "reply_center_offset_y": 0,
-    "reply_focus_expand_width": 200
-  },
-  "startup": {
-    "auto_login": true,
-    "start_minimized": true
-  },
-  "chatlog_parser": {
-    "saved_usernames": [
-      "Ri_chu_long",
-      "TolikWorkaholic",
-      "Кибертаксист",
-      "un4given",
-      "Пьяный_Качок",
-      "ПОТРОШИТЕЛЬЧАТА"
-    ],
-    "validate_usernames": false
-  },
-  "competitions": {
-    "enabled": true,
-    "min_multiplier": "x1+",
-    "notify_window_enabled": false,
-    "notify_window_start": 6,
-    "notify_window_end": 24,
-    "alert_lead_seconds": 30,
-    "max_player_chips": 100,
-    "show_players": true,
-    "sort_players_by_level": true,
-    "show_cost": true,
-    "show_scores": true,
-    "show_bonuses": false,
-    "alert_chat_action": "move",
-    "notification_style": "inline",
-    "remove_message_on_enter": true
-  },
-  "font": {
-    "ui": {
-      "size": 12,
-      "family": "Segoe UI"
-    },
-    "text": {
-      "size": 15,
-      "family": "Open Sans"
-    },
-    "header": {
-      "size": 18
-    },
-    "emoji_family": "Noto Color Emoji"
-  },
-  "user_tracker": {
-    "enabled": true,
-    "retention_hours": 24,
-    "retention_unit": "days",
-    "click_action": "chat",
-    "default_tab": "history",
-    "notifications": false,
-    "presence_log": true,
-    "presence_log_split_percent": 6,
-    "show_unread_badge": false,
-    "show_star_badge": true,
-    "track_events": [
-      "join",
-      "game",
-      "left"
-    ]
-  },
-  "join_room": {
-    "remember": true,
-    "saved": [],
-    "random_name_length": 10
-  },
-  "hotkey": {
-    "combo": "win+c"
-  },
-  "browser": "C:\\Program Files\\Mozilla Firefox\\firefox.exe"
+    "input_height": 48
+  }
 }

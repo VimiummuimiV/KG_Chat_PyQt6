@@ -13,7 +13,7 @@ from PyQt6.QtCore import Qt, pyqtSignal, QObject, QTimer, QEvent
 from PyQt6.QtGui import QAction, QCursor
             
 
-from helpers.config import Config
+from helpers.config import Config, get_config_path
 from helpers.create import (
     create_icon_button,
     _render_svg_icon,
@@ -181,13 +181,13 @@ class ChatWindow(TranslatableMixin, QWidget):
 
         # Initialize paths and config — share Config with app_controller to avoid
         # two instances overwriting config.json (family vs size race).
-        self.config_path = Path(__file__).parent.parent / "settings" / "config.json"
+        self.config_path = get_config_path()
         self.icons_path = Path(__file__).parent.parent / "icons"
 
         if app_controller is not None and getattr(app_controller, "config", None) is not None:
             self.config = app_controller.config
         else:
-            self.config = Config(str(self.config_path))
+            self.config = Config(self.config_path)
         # rating competitions tracking
         track = self.config.get("competitions", "enabled")
         if track is None or track:

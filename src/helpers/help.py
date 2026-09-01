@@ -5,6 +5,7 @@ from pathlib import Path
 import json
 
 from helpers.translate import tr, on_language_changed
+from helpers.config import get_config_path
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -282,7 +283,7 @@ class HelpPanel(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
 
-        self._config_path = Path(__file__).parent.parent / "settings" / "config.json"
+        self._config_path = get_config_path()
         self._current_context = None
 
         self.setWindowFlags(
