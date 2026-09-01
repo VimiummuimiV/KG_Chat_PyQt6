@@ -266,6 +266,14 @@ class PronunciationWidget(TranslatableMixin, QWidget):
         
         self.items.append(item)
         self._recalculate_layout()
+
+    def refresh(self):
+        """Reload mappings after adding, editing, or removing one from the context menu."""
+        for item in self.items:
+            self.items_layout.removeWidget(item)
+            item.deleteLater()
+        self.items.clear()
+        self._load_mappings()
     
     def _add_new_item(self):
         """Add a new empty pronunciation item"""
