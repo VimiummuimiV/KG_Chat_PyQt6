@@ -101,6 +101,15 @@ def preview_box_colors(theme: str) -> tuple[str, str, str]:
     return "#F5F5F5", "#333333", "#CCCCCC"
 
 
+def preview_box_stylesheet(widget_selector: str, theme: str) -> str:
+    bg, fg, border = preview_box_colors(theme)
+    return (
+        f"{widget_selector} {{ background-color: {bg}; color: {fg}; "
+        f"border: {FONT_PREVIEW_BORDER}px solid {border}; border-radius: 4px; "
+        f"padding: {FONT_PREVIEW_PADDING}px; }}"
+    )
+
+
 class _SpinCommitSignal(QObject):
     """Fires once a slider/spin row's debounced value has been committed, for
     external listeners that need the settled value rather than every step."""
@@ -1249,7 +1258,7 @@ class SettingsWidget(TranslatableMixin, QWidget):
         self._add_collapse_toggle(parser_header, parser_content, ("ui", "settings", "widgets", "chat_parser"))
 
         flash_header, flash_content, flash_layout = self._add_subsection(
-            section, tr("✨ Highlight Animation", "✨ Анимация подсветки")
+            section, tr("🪄 Highlight Animation", "🪄 Анимация подсветки")
         )
         self.flash_easing_combo = self._add_combo_row(
             flash_layout, tr("Timing function", "Функция плавности"), [], self._on_flash_easing_changed
@@ -2234,21 +2243,15 @@ class SettingsWidget(TranslatableMixin, QWidget):
     def _apply_font_preview_theme(self):
         if not hasattr(self, "font_preview"):
             return
-        bg, fg, border = preview_box_colors(self.config.get("ui", "theme") or "dark")
         self.font_preview.setStyleSheet(
-            f"QTextEdit {{ background-color: {bg}; color: {fg}; "
-            f"border: {FONT_PREVIEW_BORDER}px solid {border}; border-radius: 4px; "
-            f"padding: {FONT_PREVIEW_PADDING}px; }}"
+            preview_box_stylesheet("QTextEdit", self.config.get("ui", "theme") or "dark")
         )
 
     def _apply_flash_preview_theme(self):
         if not hasattr(self, "flash_preview"):
             return
-        bg, fg, border = preview_box_colors(self.config.get("ui", "theme") or "dark")
         self.flash_preview.setStyleSheet(
-            f"QLabel {{ background-color: {bg}; color: {fg}; "
-            f"border: {FONT_PREVIEW_BORDER}px solid {border}; border-radius: 4px; "
-            f"padding: {FONT_PREVIEW_PADDING}px; }}"
+            preview_box_stylesheet("QLabel", self.config.get("ui", "theme") or "dark")
         )
 
     def _update_font_preview(self):

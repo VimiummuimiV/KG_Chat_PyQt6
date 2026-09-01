@@ -232,8 +232,7 @@ class TrackerEventDelegate(QStyledItemDelegate):
         self.click_rects: Dict[int, Dict] = {}
         self.list_view = None
 
-        self.highlighted_row = None
-        self.row_highlight = FlashFade(self._on_row_highlight_tick, parent=self, config=self.config)
+        self.row_flashes: dict[int, FlashFade] = {}
 
         self._reload_fonts()
 
@@ -247,7 +246,9 @@ class TrackerEventDelegate(QStyledItemDelegate):
         self.list_view = list_view
 
     def cleanup(self):
-        self.row_highlight.timer.stop()
+        for flash in self.row_flashes.values():
+            flash.timer.stop()
+        self.row_flashes.clear()
         self.list_view = None
         self.click_rects.clear()
 
@@ -300,8 +301,9 @@ class TrackerEventDelegate(QStyledItemDelegate):
         painter.save()
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
-        if row == self.highlighted_row and self.row_highlight.opacity > 0:
-            paint_flash(painter, option.rect, highlight_color(self.is_dark_theme), self.row_highlight.opacity)
+        row_flash = self.row_flashes.get(row)
+        if row_flash is not None and row_flash.opacity > 0:
+            paint_flash(painter, option.rect, highlight_color(self.is_dark_theme), row_flash.opacity)
 
         if event.get('is_separator'):
             DateSeparator.render(
@@ -423,14 +425,18 @@ class TrackerEventDelegate(QStyledItemDelegate):
         return super().editorEvent(event, model, option, index)
 
     def highlight_row(self, row: int):
-        self.highlighted_row = row
-        self.row_highlight.start()
+        flash = self.row_flashes.get(row)
+        if flash is None:
+            flash = FlashFade(lambda r=row: self._on_row_highlight_tick(r), parent=self, config=self.config)
+            self.row_flashes[row] = flash
+        flash.start()
 
-    def _on_row_highlight_tick(self):
-        if self.row_highlight.opacity <= 0:
-            self.highlighted_row = None
-        if self.highlighted_row is not None and self.list_view and self.list_view.model():
-            index = self.list_view.model().index(self.highlighted_row, 0)
+    def _on_row_highlight_tick(self, row: int):
+        flash = self.row_flashes.get(row)
+        if flash is not None and flash.opacity <= 0:
+            del self.row_flashes[row]
+        if self.list_view and self.list_view.model():
+            index = self.list_view.model().index(row, 0)
             self.list_view.viewport().update(self.list_view.visualRect(index))
 
 
