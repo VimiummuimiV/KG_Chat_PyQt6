@@ -31,7 +31,7 @@ class VideoPlayer(QWidget):
 
     def __init__(self, parent=None, icons_path: Path = None, config=None):
         super().__init__(parent)
-        # icons_path and config are ignored but kept for compatibility with message_delegate.py
+        self.config = config
         self.current_url = None
         self.mpv_path = self._find_mpv()
         self.ytdlp_path = self._find_ytdlp()
@@ -234,54 +234,78 @@ class VideoPlayer(QWidget):
         
         # Launch mpv in a separate process
         try:
-            mpv_cmd = self._build_mpv_command(url)
-            
-            # On Windows, prevent console window
-            kwargs = {
-                'stdout': subprocess.DEVNULL,
-                'stderr': subprocess.DEVNULL,
-                'stdin': subprocess.DEVNULL
-            }
-            if platform.system() == 'Windows':
-                kwargs['creationflags'] = subprocess.CREATE_NO_WINDOW
-            
+            show_terminal = bool(self.config and self.config.get("player", "show_terminal"))
+            mpv_cmd = self._build_mpv_command(url, show_terminal=show_terminal)
+
+            kwargs = {'stdin': subprocess.DEVNULL}
+            if show_terminal:
+                # Keep stdout/stderr so the console shows mpv/yt-dlp logs.
+                kwargs['stdout'] = None
+                kwargs['stderr'] = None
+            else:
+                kwargs['stdout'] = subprocess.DEVNULL
+                kwargs['stderr'] = subprocess.DEVNULL
+                if platform.system() == 'Windows':
+                    kwargs['creationflags'] = subprocess.CREATE_NO_WINDOW
+
             self.mpv_process = subprocess.Popen(mpv_cmd, **kwargs)
-            
+
             # Stop spinner after brief delay (mpv is launching)
             QTimer.singleShot(1000, self._stop_loading)
-            
+
         except Exception as e:
             print(f"Failed to launch mpv: {e}")
             self._stop_loading()
             self.mpv_process = None
-            
-            # Show error dialog for launch failures
+
             self._show_error_dialog(
                 tr("Video Player Error", "Ошибка видеоплеера"),
                 tr("Failed to launch video player.", "Не удалось запустить видеоплеер."),
                 tr(f"Error: {str(e)}", f"Ошибка: {str(e)}"),
                 QMessageBox.Icon.Critical
             )
-    
-    def _build_mpv_command(self, url: str) -> list:
+
+    def _build_mpv_command(self, url: str, show_terminal: bool = False) -> list:
         """Build mpv command with appropriate options"""
         cmd = [self.mpv_path]
-        
-        # Basic options for good playback
-        cmd.extend([
-            '--no-terminal',
-            '--force-window=yes',
-            # '--ontop',
-        ])
+        cfg = self.config
 
-        # Point ytdl_hook at bundled/found yt-dlp instead of relying on PATH
+        cmd.append('--force-window=yes')
+
+        if not show_terminal:
+            cmd.append('--no-terminal')
+
+        if cfg:
+            tls_disabled = cfg.get("player", "disable_tls_verify")
+            if tls_disabled is None or tls_disabled:
+                cmd.append('--tls-verify=no')
+            hwdec = cfg.get("player", "hwdec") or "auto"
+            if hwdec and hwdec != "auto":
+                cmd.append(f'--hwdec={hwdec}')
+            volume = cfg.get("player", "volume")
+            try:
+                volume = int(volume) if volume is not None else 100
+            except (TypeError, ValueError):
+                volume = 100
+            if volume != 100:
+                cmd.append(f'--volume={max(0, min(100, volume))}')
+            if cfg.get("player", "keep_open"):
+                cmd.append('--keep-open=yes')
+            if cfg.get("player", "ontop"):
+                cmd.append('--ontop')
+            ytdl_format = (cfg.get("player", "ytdl_format") or "").strip()
+            if ytdl_format:
+                cmd.append(f'--ytdl-format={ytdl_format}')
+            extra = (cfg.get("player", "extra_args") or "").strip()
+            if extra:
+                cmd.extend(extra.split())
+
         if self.ytdlp_path:
             cmd.append(f'--script-opts=ytdl_hook-ytdl_path={self.ytdlp_path}')
-        
-        # Add the URL
+
         cmd.append(url)
-        
         return cmd
+
     
     def _stop_loading(self):
         """Stop the loading spinner"""

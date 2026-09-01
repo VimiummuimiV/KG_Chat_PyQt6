@@ -69,6 +69,19 @@ DEFAULTS = {
         "presence_log_split_percent_min": 5,
         "presence_log_split_percent_max": 70,
     },
+    "player": {
+        # MPV
+        "hwdec": "auto",
+        "show_terminal": False,
+        "keep_open": False,
+        "ontop": False,
+        "volume": 100,
+        # YT-DLP
+        "disable_tls_verify": True,
+        "ytdl_format": "",
+
+        "extra_args": "",
+    },
 }
 
 FONT_PREVIEW_BORDER = 1
@@ -231,6 +244,50 @@ def competition_notification_style_options():
            "Уведомление о соревновании отделяется от стека и центрируется на экране для большей заметности. "
            "Не действует, если «Расположение уведомлений» уже установлено на «По центру»."),
     )
+
+def player_hwdec_options():
+    return (
+        ("auto", "auto", tr(
+            "MPV picks the best available method. Low CPU, GPU does the work.",
+            "MVP выбирает лучший доступный способ. Низкая нагрузка на CPU, работает GPU.")),
+        ("no", "no", tr(
+            "Software only. Most compatible, higher CPU load.",
+            "Только программное. Совместимее всего, выше нагрузка на CPU.")),
+        ("d3d11va", "d3d11va", tr(
+            "Direct3D 11 (Windows). Low CPU, recommended on Windows.",
+            "Direct3D 11 (Windows). Низкая нагрузка на CPU, рекомендуется на Windows.")),
+        ("nvdec", "nvdec", tr(
+            "NVIDIA NVDEC (CUDA). Low CPU on NVIDIA GPUs.",
+            "NVIDIA NVDEC (CUDA). Низкая нагрузка на CPU на NVIDIA.")),
+        ("vulkan", "vulkan", tr(
+            "Vulkan Video. Low CPU where supported (needs --vo=gpu-next).",
+            "Vulkan Video. Низкая нагрузка на CPU там, где поддерживается (нужен --vo=gpu-next).")),
+    )
+
+
+def player_ytdl_format_options():
+    # Official yt-dlp selectors (see FORMAT SELECTION in yt-dlp README).
+    return (
+        ("", tr("Default", "По умолчанию"),
+         tr("yt-dlp default (usually bv*+ba/b).",
+            "Формат по умолчанию yt-dlp (обычно bv*+ba/b).")),
+        ("bv*+ba/b", "bv*+ba/b",
+         tr("Best separate video+audio, else best combined.",
+            "Лучшие отдельные видео+аудио, иначе лучший совмещённый.")),
+        ("bv*[height<=1080]+ba/b", "≤1080p",
+         tr("Best video up to 1080p + best audio.",
+            "Лучшее видео до 1080p + лучшее аудио.")),
+        ("bv*[height<=720]+ba/b", "≤720p",
+         tr("Best video up to 720p + best audio.",
+            "Лучшее видео до 720p + лучшее аудио.")),
+        ("bv*[height<=480]+ba/b", "≤480p",
+         tr("Best video up to 480p + best audio.",
+            "Лучшее видео до 480p + лучшее аудио.")),
+        ("bestaudio/best", tr("Audio only", "Только аудио"),
+         tr("Best audio stream only.", "Только лучший аудиопоток.")),
+    )
+
+
 
 LANGUAGE_OPTIONS = (
     ("en", "English", "English interface language"),
@@ -416,6 +473,12 @@ def fill_reply_style_combo(combo, current=None):
 
 def fill_competition_notification_style_combo(combo, current=None):
     fill_tooltip_combo(combo, competition_notification_style_options(), current, "inline")
+
+def fill_player_hwdec_combo(combo, current=None):
+    fill_tooltip_combo(combo, player_hwdec_options(), current, "auto")
+
+def fill_player_ytdl_format_combo(combo, current=None):
+    fill_tooltip_combo(combo, player_ytdl_format_options(), current, "")
 
 
 class NoWheelSlider(QSlider):
@@ -1029,6 +1092,7 @@ class SettingsWidget(TranslatableMixin, QWidget):
 
         self._build_startup_section()
         self._build_chat_section()
+        self._build_player_section()
         self._build_fonts_section()
         self._build_notifications_section()
         self._build_competitions_section()
@@ -1238,6 +1302,54 @@ class SettingsWidget(TranslatableMixin, QWidget):
         if hotkey.hotkey_manager.status == hotkey.STATUS_ACTIVE:
             return
         hotkey.hotkey_manager.register(self._current_hotkey())
+
+    def _build_player_section(self):
+        section = self._create_section(tr("🎬 Player", "🎬 Плеер"))
+
+        mpv_header, mpv_content, mpv_layout = self._add_subsection(
+            section, tr("MPV", "MPV")
+        )
+        self.player_tls_checkbox = self._add_checkbox(
+            mpv_layout,
+            tr("Disable TLS certificate verification", "Отключить проверку TLS-сертификатов"),
+            self._on_player_tls_toggled,
+        )
+        self.player_hwdec_combo = self._add_combo_row(
+            mpv_layout, tr("Hardware decoding", "Аппаратное декодирование"),
+            [], self._on_player_hwdec_changed
+        )
+        self.player_hwdec_combo.setFixedWidth(240)
+        self.player_volume_spin = self._add_slider_spin_row(
+            mpv_layout, tr("Startup volume", "Начальная громкость"), 0, 100,
+            self._on_player_volume_changed,
+            default=DEFAULTS["player"]["volume"],
+        )
+        self.player_show_terminal_checkbox = self._add_checkbox(
+            mpv_layout,
+            tr("Show terminal", "Показывать терминал"),
+            self._on_player_show_terminal_toggled,
+        )
+        self.player_keep_open_checkbox = self._add_checkbox(
+            mpv_layout,
+            tr("Keep window open", "Не закрывать окно"),
+            self._on_player_keep_open_toggled,
+        )
+        self.player_ontop_checkbox = self._add_checkbox(
+            mpv_layout,
+            tr("Always on top", "Поверх всех окон"),
+            self._on_player_ontop_toggled,
+        )
+        self._add_collapse_toggle(mpv_header, mpv_content, ("ui", "settings", "widgets", "player_mpv"))
+
+        ytdl_header, ytdl_content, ytdl_layout = self._add_subsection(
+            section, tr("YTDLP", "YTDLP")
+        )
+        self.player_ytdl_format_combo = self._add_combo_row(
+            ytdl_layout, tr("Preferred format", "Предпочитаемый формат"),
+            [], self._on_player_ytdl_format_changed
+        )
+        self.player_ytdl_format_combo.setFixedWidth(240)
+        self._add_collapse_toggle(ytdl_header, ytdl_content, ("ui", "settings", "widgets", "player_ytdl"))
 
     def _build_fonts_section(self):
         section = self._create_section(tr("🅰️ Fonts", "🅰️ Шрифты"))
@@ -1551,6 +1663,9 @@ class SettingsWidget(TranslatableMixin, QWidget):
             self.start_minimized_checkbox, self.start_with_system_checkbox,
             self.resource_combo, self.own_message_mode_combo,
             self.clear_private_checkbox, self.youtube_checkbox,
+            self.player_tls_checkbox, self.player_hwdec_combo, self.player_volume_spin,
+            self.player_show_terminal_checkbox, self.player_keep_open_checkbox, self.player_ontop_checkbox,
+            self.player_ytdl_format_combo,
             self.chatlog_max_messages_spin, self.chatlog_live_search_spin,
             self.parser_validate_usernames_checkbox,
             self.badge_size_spin, self.mentions_digest_mode_combo,
@@ -1602,6 +1717,37 @@ class SettingsWidget(TranslatableMixin, QWidget):
 
         youtube_enabled = self.config.get("ui", "youtube", "enabled")
         self.youtube_checkbox.setChecked(True if youtube_enabled is None else bool(youtube_enabled))
+
+        tls_disabled = self.config.get("player", "disable_tls_verify")
+        self.player_tls_checkbox.setChecked(
+            DEFAULTS["player"]["disable_tls_verify"] if tls_disabled is None else bool(tls_disabled)
+        )
+        fill_player_hwdec_combo(self.player_hwdec_combo, self.config.get("player", "hwdec"))
+
+        volume = self.config.get("player", "volume")
+        try:
+            volume = int(volume) if volume is not None else DEFAULTS["player"]["volume"]
+        except (TypeError, ValueError):
+            volume = DEFAULTS["player"]["volume"]
+        volume = max(0, min(100, volume))
+        self.player_volume_spin.setValue(volume)
+        self.player_volume_spin._slider.setValue(volume)
+
+        show_terminal = self.config.get("player", "show_terminal")
+        self.player_show_terminal_checkbox.setChecked(
+            DEFAULTS["player"]["show_terminal"] if show_terminal is None else bool(show_terminal)
+        )
+        keep_open = self.config.get("player", "keep_open")
+        self.player_keep_open_checkbox.setChecked(
+            DEFAULTS["player"]["keep_open"] if keep_open is None else bool(keep_open)
+        )
+        ontop = self.config.get("player", "ontop")
+        self.player_ontop_checkbox.setChecked(
+            DEFAULTS["player"]["ontop"] if ontop is None else bool(ontop)
+        )
+        fill_player_ytdl_format_combo(
+            self.player_ytdl_format_combo, self.config.get("player", "ytdl_format") or ""
+        )
 
         max_messages = self.config.get("ui", "chatlog", "max_messages")
         max_messages = DEFAULTS["chatlog"]["max_messages"] if max_messages is None else int(max_messages)
@@ -1888,6 +2034,8 @@ class SettingsWidget(TranslatableMixin, QWidget):
             (self.competition_notification_style_combo, fill_competition_notification_style_combo),
             (self.tracker_default_tab_combo, fill_tracker_default_tab_combo),
             (self.tracker_click_combo, fill_tracker_click_combo),
+            (self.player_hwdec_combo, fill_player_hwdec_combo),
+            (self.player_ytdl_format_combo, fill_player_ytdl_format_combo),
         ):
             fill(combo, combo.currentData())
 
@@ -1968,6 +2116,31 @@ class SettingsWidget(TranslatableMixin, QWidget):
 
     def _on_youtube_toggled(self, checked: bool):
         self.config.set("ui", "youtube", "enabled", value=checked)
+
+    def _on_player_tls_toggled(self, checked: bool):
+        self.config.set("player", "disable_tls_verify", value=checked)
+
+    def _on_player_hwdec_changed(self, _text: str = ""):
+        self._sync_combo_tooltip(self.player_hwdec_combo)
+        value = self.player_hwdec_combo.currentData() or "auto"
+        self.config.set("player", "hwdec", value=value)
+
+    def _on_player_volume_changed(self, value: int):
+        self.config.set("player", "volume", value=int(value))
+
+    def _on_player_show_terminal_toggled(self, checked: bool):
+        self.config.set("player", "show_terminal", value=checked)
+
+    def _on_player_keep_open_toggled(self, checked: bool):
+        self.config.set("player", "keep_open", value=checked)
+
+    def _on_player_ontop_toggled(self, checked: bool):
+        self.config.set("player", "ontop", value=checked)
+
+    def _on_player_ytdl_format_changed(self, _text: str = ""):
+        self._sync_combo_tooltip(self.player_ytdl_format_combo)
+        value = self.player_ytdl_format_combo.currentData()
+        self.config.set("player", "ytdl_format", value=value if value is not None else "")
 
     def _on_chatlog_max_messages_changed(self, value: int):
         self.config.set("ui", "chatlog", "max_messages", value=int(value))
