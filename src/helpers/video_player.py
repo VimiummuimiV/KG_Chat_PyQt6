@@ -279,7 +279,7 @@ class VideoPlayer(QWidget):
             "youtu.be": "YouTube",
             "pikabu.ru": "Pikabu",
             "twitch.tv": "Twitch",
-            "vk.com": "VK",
+            "vk.ru": "VK",
             "vkvideo.ru": "VKVideo",
             "vimeo.com": "Vimeo",
             "rutube.ru": "RuTube",
