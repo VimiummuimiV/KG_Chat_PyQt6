@@ -19,6 +19,7 @@ from ui.message_renderer import MessageRenderer
 from ui.ui_emoticon_selector import release_selector
 
 
+NOTIFICATION_DEFAULT_WIDTH = 550
 FADE_DURATION_MS_DEFAULT = 300
 NOTIFICATION_DURATION_MS_DEFAULT = 5000
 REPLY_FOCUS_WIDTH_EXPAND_DEFAULT = 200
@@ -1174,9 +1175,9 @@ class PopupManager:
       
         # Calculate width before creating popup (max 50% of screen)
         screen = QApplication.primaryScreen().availableGeometry()
-        notification_width = self.config.get("ui", "notification_width") if self.config else 500
-        width = min(int(screen.width() * 0.50), notification_width or 500)
-      
+        notification_width = self.config.get("ui", "notification_width") if self.config else NOTIFICATION_DEFAULT_WIDTH
+        width = min(int(screen.width() * 0.50), notification_width or NOTIFICATION_DEFAULT_WIDTH)
+
         popup = PopupNotification(data, self, width)
         if data.is_competition and self._competition_style() == "center":
             self.focused_popups.append(popup)
