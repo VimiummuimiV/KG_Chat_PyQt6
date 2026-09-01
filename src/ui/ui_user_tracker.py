@@ -25,7 +25,7 @@ from helpers.fonts import (
 from helpers.translate import tr, on_language_changed, TranslatableMixin
 from helpers.user_tracker import UserTracker
 from helpers.cache import get_cache
-from helpers.flash_highlight import paint_highlight
+from helpers.flash_highlight import paint_flash, highlight_color
 from helpers.scroll.auto_scroll import AutoScroller
 from helpers.scroll.scroll_buttons import ScrollButtonsPanel
 from helpers.scroll.scroll import scroll
@@ -304,7 +304,7 @@ class TrackerEventDelegate(QStyledItemDelegate):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
         if row == self.highlighted_row and self.highlight_opacity > 0:
-            paint_highlight(painter, option.rect, self.is_dark_theme, self.highlight_opacity)
+            paint_flash(painter, option.rect, highlight_color(self.is_dark_theme), self.highlight_opacity)
 
         if event.get('is_separator'):
             DateSeparator.render(

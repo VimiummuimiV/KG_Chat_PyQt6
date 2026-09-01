@@ -18,7 +18,7 @@ from helpers.color_utils import (
     get_search_highlight_colors,
     get_rank_chip_colors,
 )
-from helpers.flash_highlight import draw_rounded_fill, FlashFade, link_colors, timestamp_color
+from helpers.flash_highlight import link_colors, timestamp_color, paint_flash, FlashFade
 from components.presence_badge import presence_badge_style, EVENT_TYPES
 from helpers.fonts import get_font, FontType
 from helpers.mention_parser import parse_mentions
@@ -149,9 +149,7 @@ class MessageRenderer(QObject):
 
     def draw_copy_highlight(self, painter: QPainter, rect: QRect, color: str):
         """Translucent rounded-rect background fading out on a just-copied URL/timestamp"""
-        highlight = QColor(color)
-        highlight.setAlphaF(min(1.0, self.copy_flash.opacity) * 0.35)
-        draw_rounded_fill(painter, rect.adjusted(-2, 0, 2, 0), highlight)
+        paint_flash(painter, rect.adjusted(-2, 0, 2, 0), color, self.copy_flash.opacity, alpha=0.35)
 
     @staticmethod
     def get_link_at_pos(link_rects: List[Tuple[QRect, str, bool]], pos) -> Optional[Tuple[str, bool]]:

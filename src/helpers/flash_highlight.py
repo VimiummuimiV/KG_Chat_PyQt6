@@ -1,4 +1,4 @@
-"""Shared fade-out row/widget highlight (chatlog rows, tracker history, …)."""
+"""Shared fade-out highlight: one FlashFade drives opacity, callers supply color+rect."""
 from PyQt6.QtCore import QTimer, QObject, Qt
 from PyQt6.QtGui import QColor, QPainter
 from PyQt6.QtWidgets import QWidget, QLabel
@@ -20,10 +20,8 @@ def _theme_color(entry: dict, is_dark: bool) -> str:
     return entry["dark"] if is_dark else entry["light"]
 
 
-def highlight_fill_color(is_dark: bool, opacity: float) -> QColor:
-    color = QColor(_theme_color(DEFAULTS["highlight"], is_dark))
-    color.setAlphaF(max(0.0, min(1.0, opacity)) * 0.15)
-    return color
+def highlight_color(is_dark: bool) -> str:
+    return _theme_color(DEFAULTS["highlight"], is_dark)
 
 
 def link_colors(is_dark: bool) -> dict:
@@ -43,10 +41,12 @@ def draw_rounded_fill(painter: QPainter, rect, color: QColor, radius: int = HIGH
     painter.restore()
 
 
-def paint_highlight(painter: QPainter, rect, is_dark: bool, opacity: float):
+def paint_flash(painter: QPainter, rect, color: str, opacity: float, alpha: float = 0.15, radius: int = HIGHLIGHT_RADIUS):
     if opacity <= 0:
         return
-    draw_rounded_fill(painter, rect, highlight_fill_color(is_dark, opacity))
+    fill = QColor(color)
+    fill.setAlphaF(max(0.0, min(1.0, opacity)) * alpha)
+    draw_rounded_fill(painter, rect, fill, radius)
 
 
 class FlashFade(QObject):
@@ -74,9 +74,12 @@ class FlashFade(QObject):
             self.timer.stop()
         self.on_tick()
 
+    def paint(self, painter: QPainter, rect, color: str, alpha: float = 0.15, radius: int = HIGHLIGHT_RADIUS):
+        paint_flash(painter, rect, color, self.opacity, alpha, radius)
+
 
 class FlashHighlight(FlashFade):
-    """Attach to a QWidget: start() fades an overlay via paint_overlay()."""
+    """Attach to a QWidget: start() fades the shared highlight color via paint_overlay()."""
 
     def __init__(self, widget: QWidget, is_dark_fn, interval_ms: int = 50, step: float = 0.05):
         super().__init__(widget.update, parent=widget, interval_ms=interval_ms, step=step)
@@ -84,7 +87,7 @@ class FlashHighlight(FlashFade):
         self.is_dark_fn = is_dark_fn
 
     def paint_overlay(self, painter: QPainter, rect):
-        paint_highlight(painter, rect, bool(self.is_dark_fn()), self.opacity)
+        self.paint(painter, rect, highlight_color(bool(self.is_dark_fn())))
 
 
 class FlashLabel(QLabel):
