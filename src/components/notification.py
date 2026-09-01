@@ -727,7 +727,14 @@ class PopupNotification(_AutoHidePopupMixin, QWidget):
            
             if self.childAt(event.pos()) in clicked_widgets:
                 return super().mousePressEvent(event)
-            
+
+            # Username in the header - opens profile (skip synthetic titles: system/parser/competition)
+            if (self.childAt(event.pos()) is self.username_label and self.data.profile_callback
+                    and not self.data.is_parser and not self.data.is_competition):
+                _safe_call(self.data.window_show_callback, err_msg="Error showing window")
+                _safe_call(self.data.profile_callback, self.data.title, err_msg="Profile from notification username")
+                return
+
             # Chip / link clicks in message body
             if self.message_widget:
                 widget_pos = self.message_widget.mapFrom(self, event.pos())
