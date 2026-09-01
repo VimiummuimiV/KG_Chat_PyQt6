@@ -228,6 +228,11 @@ class MessageDelegate(QStyledItemDelegate):
         self.paste_callback = _paste
         self.reply_includes_timestamp = include_timestamp
  
+    def _refresh_viewport(self):
+        """Refresh the current list viewport if it still exists."""
+        if self.list_view is not None and self.list_view.viewport() is not None:
+            self.list_view.viewport().update()
+
     def set_list_view(self, list_view):
         self.list_view = list_view
         
@@ -244,7 +249,7 @@ class MessageDelegate(QStyledItemDelegate):
                 self.message_renderer.set_my_username(self.my_username)
             # Connect refresh signals
             self.message_renderer.refresh_row.connect(self._refresh_row)
-            self.message_renderer.refresh_view.connect(lambda: self.list_view.viewport().update())
+            self.message_renderer.refresh_view.connect(self._refresh_viewport)
             self.message_renderer.chatlog_link_clicked.connect(self.chatlog_link_clicked.emit)
  
     def cleanup(self):
