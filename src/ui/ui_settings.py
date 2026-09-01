@@ -1289,9 +1289,12 @@ class SettingsWidget(TranslatableMixin, QWidget):
         preview_layout = QHBoxLayout(preview_widget)
         preview_layout.setContentsMargins(0, 0, 0, 0)
         preview_layout.setSpacing(6)
-        for kind in ("row", "copy"):
+        for kind, label_text in (
+            ("row", tr("ROW", "СТРОКА")),
+            ("copy", tr("COPY", "КОПИРОВАНИЕ")),
+        ):
             label = FlashLabel(
-                kind.upper(),
+                label_text,
                 is_dark_fn=lambda: (self.config.get("ui", "theme") or "dark") == "dark",
                 config=self.config,
                 duration_kind=kind,
