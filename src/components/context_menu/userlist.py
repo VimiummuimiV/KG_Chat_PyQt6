@@ -52,23 +52,23 @@ def show_userlist_context_menu(
     copy_id_act = menu.addAction(icon("hashtag.svg"), tr("Copy ID", "Копировать ID"))
 
     track_act = None
+    menu.addSeparator()
     if show_track:
-        menu.addSeparator()
         if is_tracked:
             track_act = menu.addAction(icon("user-minus.svg"), tr("Untrack user", "Не Отслеживать"))
         else:
             track_act = menu.addAction(icon("user-add.svg"), tr("Track user", "Отслеживать"))
+
+    if has_pronunciation:
+        pronunciation_act = menu.addAction(icon("user-voice.svg"), tr("Edit Pronunciation", "Изменить произношение"))
+    else:
+        pronunciation_act = menu.addAction(icon("user-voice.svg"), tr("Set Pronunciation", "Задать произношение"))
 
     perm_act = temp_act = None
     if show_ban:
         menu.addSeparator()
         perm_act = menu.addAction(icon("prohibited.svg"), tr("Ban permanently", "Вечный бан"))
         temp_act = menu.addAction(icon("forbidden.svg"), tr("Ban temporarily", "Временный бан"))
-
-    if has_pronunciation:
-        pronunciation_act = menu.addAction(icon("user-voice.svg"), tr("Edit Pronunciation", "Изменить произношение"))
-    else:
-        pronunciation_act = menu.addAction(icon("user-voice.svg"), tr("Set Pronunciation", "Задать произношение"))
 
     filter_act = None
     if show_filter:
