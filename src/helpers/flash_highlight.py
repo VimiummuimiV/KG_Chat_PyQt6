@@ -1,13 +1,24 @@
 """Shared fade-out row/widget highlight (chatlog rows, tracker history, …)."""
-from PyQt6.QtCore import QTimer, QObject
+from PyQt6.QtCore import QTimer, QObject, Qt
 from PyQt6.QtGui import QColor, QPainter
 from PyQt6.QtWidgets import QWidget, QLabel
+
+HIGHLIGHT_RADIUS = 4
 
 
 def highlight_fill_color(is_dark: bool, opacity: float) -> QColor:
     color = QColor("#4DA6FF" if is_dark else "#0066CC")
     color.setAlphaF(max(0.0, min(1.0, opacity)) * 0.15)
     return color
+
+
+def paint_highlight(painter: QPainter, rect, is_dark: bool, opacity: float):
+    if opacity <= 0:
+        return
+    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+    painter.setPen(Qt.PenStyle.NoPen)
+    painter.setBrush(highlight_fill_color(is_dark, opacity))
+    painter.drawRoundedRect(rect, HIGHLIGHT_RADIUS, HIGHLIGHT_RADIUS)
 
 
 class FlashHighlight(QObject):
@@ -37,9 +48,7 @@ class FlashHighlight(QObject):
         self.widget.update()
 
     def paint_overlay(self, painter: QPainter, rect):
-        if self.opacity <= 0:
-            return
-        painter.fillRect(rect, highlight_fill_color(bool(self.is_dark_fn()), self.opacity))
+        paint_highlight(painter, rect, bool(self.is_dark_fn()), self.opacity)
 
 
 class FlashLabel(QLabel):
