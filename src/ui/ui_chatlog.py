@@ -2,7 +2,7 @@
 from PyQt6.QtWidgets import(
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QListView, QCalendarWidget, QLineEdit,
-    QStackedWidget, QSplitter, QFileDialog, QMessageBox, QApplication
+    QStackedWidget, QSplitter, QFileDialog, QMessageBox, QApplication, QSizePolicy
 )
 from PyQt6.QtCore import Qt, QDate, QTimer, pyqtSignal, QEvent
 from PyQt6.QtGui import QFont
@@ -252,6 +252,13 @@ class ChatlogWidget(TranslatableMixin, QWidget):
         at that date, scrolling to and highlighting the linked message if a time was given"""
         self._ensure_split_chatlog_widget().load_date_and_scroll(date_str, time_str)
 
+    def _on_info_label_clicked(self, event):
+        text = self.info_label.text().strip()
+        if not text:
+            return
+        QApplication.clipboard().setText(text)
+        event.accept()
+
     def _close_split_view(self):
         """Close the split pane showing a single date's full chatlog"""
         if not self.split_chatlog_widget:
@@ -315,15 +322,20 @@ class ChatlogWidget(TranslatableMixin, QWidget):
         self.info_label = QLabel(tr("Loading...", "Загрузка..."))
         self.info_label.setStyleSheet("color: #666666;")
         self.info_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        self.info_label.setWordWrap(True)
+        self.info_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        self.info_label.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.info_label.setToolTip(tr("Copy to clipboard", "Скопировать в буфер обмена"))
+        self.info_label.mousePressEvent = self._on_info_label_clicked
         self.info_block.addWidget(self.info_label)
-     
+
         self.main_bar.addLayout(self.info_block, stretch=1)
 
         # Right side: Navigation buttons (horizontally scrollable, MMB drag supported)
         self.nav_buttons_container = ScrollableButtonContainer(
             Qt.Orientation.Horizontal, config=self.config
         )
-
+        self.nav_buttons_container.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Preferred)
 
         self.back_btn = create_icon_button(self.icons_path, "go-back.svg", "",
                                           size_type="large", config=self.config)
