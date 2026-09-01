@@ -3031,6 +3031,7 @@ class ChatWindow(TranslatableMixin, QWidget):
                 is_ban=is_ban,
                 is_system=is_system,
                 is_mention=self._message_mentions_me(msg),
+                profile_callback=self._on_username_shift_click,
             )
         except Exception as e:
             print(f"Notification error: {e}")
