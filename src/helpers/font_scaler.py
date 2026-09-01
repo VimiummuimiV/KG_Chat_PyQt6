@@ -16,7 +16,7 @@ class FontScaler(QObject):
         self.config = config
         self._text_size = max(
             self.TEXT_MIN,
-            min(self.TEXT_MAX, self.config.get("font", "text", "size") or 17)
+            min(self.TEXT_MAX, self.config.get("font", "text", "size") or 12)
         )
 
         self._save_timer = QTimer(self)
