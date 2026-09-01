@@ -37,10 +37,12 @@ class ChatlogUserWidget(UserCountRow):
     ban_requested = pyqtSignal(str, str, str, bool, object)  # jid, username, user_id, permanent, duration
     pronunciation_requested = pyqtSignal(str)  # username
 
-    def __init__(self, username, msg_count, config, icons_path, user_id=None, user_tracker=None, my_username=None):
-        super().__init__(username, msg_count, config, icons_path, user_id)
-        self.user_tracker = user_tracker
+    def __init__(self, username, msg_count, config, icons_path, my_username=None, user_id=None,
+                       user_tracker=None, pronunciation_manager=None):
+        super().__init__(username, msg_count, config, icons_path, user_id=user_id)
         self.my_username = my_username
+        self.pronunciation_manager = pronunciation_manager
+        self.user_tracker = user_tracker
         self.is_tracked = False
         if (
             bool(config.get("user_tracker", "show_star_badge"))
@@ -63,8 +65,9 @@ class ChatlogUserWidget(UserCountRow):
             )
         )
         is_own_user = bool(self.my_username) and self.username == self.my_username
-        pm = getattr(self, 'pronunciation_manager', None)
-        has_pronunciation = bool(pm and self.username in pm.mappings)
+        has_pronunciation = bool(
+            self.pronunciation_manager and self.username in self.pronunciation_manager.mappings
+        )
         action = show_userlist_context_menu(
             self.icons_path, self, QCursor.pos(),
             show_filter=True, is_tracked=is_tracked,
@@ -116,6 +119,7 @@ class ChatlogUserlistWidget(TranslatableMixin, QWidget):
         self.ban_manager = ban_manager
         self.user_tracker = user_tracker
         self.my_username = my_username
+        self.pronunciation_manager = None
         self.show_banned = False  # Track if we should show banned users
         self.user_widgets = {}  # username -> widget
         self.filtered_usernames = set()
@@ -249,9 +253,10 @@ class ChatlogUserlistWidget(TranslatableMixin, QWidget):
             try:
                 user_id = self.cache.get_user_id(username)
                 widget = ChatlogUserWidget(
-                    username, count, self.config, self.icons_path, user_id, self.user_tracker, self.my_username
+                    username, count, self.config, self.icons_path,
+                    my_username=self.my_username, user_id=user_id,
+                    user_tracker=self.user_tracker, pronunciation_manager=self.pronunciation_manager,
                 )
-                widget.pronunciation_manager = getattr(self, 'pronunciation_manager', None)
                 widget.clicked.connect(self._handle_user_click)
                 widget.profile_requested.connect(self.profile_requested.emit)
                 widget.private_chat_requested.connect(self.private_chat_requested.emit)

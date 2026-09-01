@@ -44,12 +44,16 @@ class UserWidget(QWidget):
     ban_requested = pyqtSignal(str, str, str, bool, object)  # jid, username, user_id, permanent, duration
     pronunciation_requested = pyqtSignal(str)  # username
 
-    def __init__(self, user, config, icons_path, is_dark_theme, game_counter=None, is_tracked=False):
+    def __init__(self, user, config, icons_path, is_dark_theme, game_counter=None, is_tracked=False,
+                 user_tracker=None, my_username=None, pronunciation_manager=None):
         super().__init__()
         self.user = user
         self.icons_path = icons_path
         self.is_tracked = is_tracked
         self.is_blocked = False
+        self.user_tracker = user_tracker
+        self.my_username = my_username
+        self.pronunciation_manager = pronunciation_manager
         self.cache = get_cache()
         
         self.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
@@ -216,23 +220,21 @@ class UserWidget(QWidget):
             else:
                 self.profile_requested.emit(self.user.jid, self.user.login, self.user.user_id)
         elif event.button() == Qt.MouseButton.MiddleButton:
-            game_id = getattr(self.user, 'game_id', None)
-            if game_id:
-                self.open_game_requested.emit(str(game_id))
+            if self.user.game_id:
+                self.open_game_requested.emit(str(self.user.game_id))
         super().mousePressEvent(event)
 
     def contextMenuEvent(self, event):
-        has_game = bool(getattr(self.user, 'game_id', None))
-        tracker = getattr(self, 'user_tracker', None)
+        has_game = bool(self.user.game_id)
         is_tracked = bool(
-            tracker and tracker.is_tracked(
+            self.user_tracker and self.user_tracker.is_tracked(
                 user_id=self.user.user_id, login=self.user.login
             )
         )
-        my_username = getattr(self, 'my_username', None)
-        is_own_user = bool(my_username) and self.user.login == my_username
-        pm = getattr(self, 'pronunciation_manager', None)
-        has_pronunciation = bool(pm and self.user.login in pm.mappings)
+        is_own_user = bool(self.my_username) and self.user.login == self.my_username
+        has_pronunciation = bool(
+            self.pronunciation_manager and self.user.login in self.pronunciation_manager.mappings
+        )
         action = show_userlist_context_menu(
             self.icons_path, self, QCursor.pos(),
             has_game=has_game, is_tracked=is_tracked,
@@ -283,6 +285,7 @@ class UserListWidget(TranslatableMixin, QWidget):
         self.ban_manager = ban_manager
         self.user_tracker = user_tracker
         self.my_username = my_username
+        self.pronunciation_manager = None
         self.user_widgets = {}
         self.user_game_state = {}
         self.cache = get_cache()
@@ -461,9 +464,6 @@ class UserListWidget(TranslatableMixin, QWidget):
             self._update_game_counter(user)
 
         def _wire(widget):
-            widget.user_tracker = self.user_tracker
-            widget.my_username = self.my_username
-            widget.pronunciation_manager = getattr(self, 'pronunciation_manager', None)
             widget.profile_requested.connect(self.profile_requested.emit)
             widget.private_chat_requested.connect(self.private_chat_requested.emit)
             widget.paste_requested.connect(self.paste_requested.emit)
@@ -496,7 +496,11 @@ class UserListWidget(TranslatableMixin, QWidget):
             # Add to chat
             for user in in_chat:
                 try:
-                    widget = UserWidget(user, self.config, self.icons_path, self.is_dark_theme, is_tracked=self._is_tracked(user))
+                    widget = UserWidget(
+                        user, self.config, self.icons_path, self.is_dark_theme,
+                        is_tracked=self._is_tracked(user), user_tracker=self.user_tracker,
+                        my_username=self.my_username, pronunciation_manager=self.pronunciation_manager,
+                    )
                     _wire(widget)
                     self.chat_container.addWidget(widget)
                     self.user_widgets[user.jid] = widget
@@ -507,7 +511,11 @@ class UserListWidget(TranslatableMixin, QWidget):
             for user in in_game:
                 try:
                     game_counter = self.user_game_state.get(user.login, {}).get('game_counter', 1)
-                    widget = UserWidget(user, self.config, self.icons_path, self.is_dark_theme, game_counter, is_tracked=self._is_tracked(user))
+                    widget = UserWidget(
+                        user, self.config, self.icons_path, self.is_dark_theme, game_counter,
+                        is_tracked=self._is_tracked(user), user_tracker=self.user_tracker,
+                        my_username=self.my_username, pronunciation_manager=self.pronunciation_manager,
+                    )
                     _wire(widget)
                     self.game_container.addWidget(widget)
                     self.user_widgets[user.jid] = widget
@@ -534,7 +542,11 @@ class UserListWidget(TranslatableMixin, QWidget):
             container = self.game_container if is_game else self.chat_container
 
             try:
-                widget = UserWidget(user, self.config, self.icons_path, self.is_dark_theme, game_counter, is_tracked=self._is_tracked(user))
+                widget = UserWidget(
+                    user, self.config, self.icons_path, self.is_dark_theme, game_counter,
+                    is_tracked=self._is_tracked(user), user_tracker=self.user_tracker,
+                    my_username=self.my_username, pronunciation_manager=self.pronunciation_manager,
+                )
                 _wire(widget)
                 self.user_widgets[user.jid] = widget
                 

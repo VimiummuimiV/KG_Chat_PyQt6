@@ -1551,7 +1551,9 @@ class ChatWindow(TranslatableMixin, QWidget):
         userlist.track_requested.connect(self._on_track_user_requested)
         userlist.ban_requested.connect(self._on_ban_requested)
         userlist.pronunciation_requested.connect(self._set_username_pronunciation)
-        userlist.pronunciation_manager = self.pronunciation_manager
+        # For a RoomWidget, the pronunciation_manager has to live on its inner
+        # user_list_widget — that's the object whose contextMenuEvent actually reads it.
+        getattr(userlist, 'user_list_widget', userlist).pronunciation_manager = self.pronunciation_manager
 
     def _wire_username_signals(self, source, right_click_widget=None):
         """Connect username left/ctrl/shift/right click signals to their
@@ -4141,6 +4143,9 @@ class ChatWindow(TranslatableMixin, QWidget):
             self.pronunciation_manager.add_mapping(username, pronunciation)
         else:
             self.pronunciation_manager.remove_mapping(username)
+        widget = getattr(self, 'pronunciation_widget', None)
+        if widget is not None:
+            widget.refresh()
     
     def _remove_message(self, msg, single: bool = True, direction: str = None, widget=None):
         """Remove message(s) without banning user.
