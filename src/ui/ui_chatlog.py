@@ -24,6 +24,7 @@ from helpers.scroll.scroll_buttons import ScrollButtonsPanel
 from helpers.scroll.auto_scroll import AutoScroller
 from helpers.scroll.scrollable_buttons import ScrollableButtonContainer
 from helpers.message_interactions import MessageInteractions
+from helpers.flash_highlight import FlashLabel
 from ui.message_model import MessageListModel, MessageData
 from ui.message_delegate import MessageDelegate
 from ui.ui_chatlogs_parser import ChatlogsParserConfigWidget, ParserWorker
@@ -253,10 +254,13 @@ class ChatlogWidget(TranslatableMixin, QWidget):
         self._ensure_split_chatlog_widget().load_date_and_scroll(date_str, time_str)
 
     def _on_info_label_clicked(self, event):
+        if event.button() != Qt.MouseButton.LeftButton:
+            return
         text = self.info_label.text().strip()
         if not text:
             return
         QApplication.clipboard().setText(text)
+        self.info_label.flash()
         event.accept()
 
     def _close_split_view(self):
@@ -319,7 +323,7 @@ class ChatlogWidget(TranslatableMixin, QWidget):
         self.info_block.addWidget(self.date_label)
      
         # Info label
-        self.info_label = QLabel(tr("Loading...", "Загрузка..."))
+        self.info_label = FlashLabel(tr("Loading...", "Загрузка..."), is_dark_fn=lambda: self.delegate.is_dark_theme)
         self.info_label.setStyleSheet("color: #666666;")
         self.info_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         self.info_label.setWordWrap(True)

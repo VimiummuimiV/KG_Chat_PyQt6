@@ -1,7 +1,7 @@
 """Shared fade-out row/widget highlight (chatlog rows, tracker history, …)."""
 from PyQt6.QtCore import QTimer, QObject
 from PyQt6.QtGui import QColor, QPainter
-from PyQt6.QtWidgets import QWidget
+from PyQt6.QtWidgets import QWidget, QLabel
 
 
 def highlight_fill_color(is_dark: bool, opacity: float) -> QColor:
@@ -40,3 +40,19 @@ class FlashHighlight(QObject):
         if self.opacity <= 0:
             return
         painter.fillRect(rect, highlight_fill_color(bool(self.is_dark_fn()), self.opacity))
+
+
+class FlashLabel(QLabel):
+    """QLabel that flashes a fade-out highlight overlay via flash()."""
+
+    def __init__(self, *args, is_dark_fn, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.flash_highlight = FlashHighlight(self, is_dark_fn)
+
+    def flash(self):
+        self.flash_highlight.start()
+
+    def paintEvent(self, event):
+        super().paintEvent(event)
+        painter = QPainter(self)
+        self.flash_highlight.paint_overlay(painter, self.rect())
