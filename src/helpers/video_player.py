@@ -205,8 +205,8 @@ class VideoPlayer(QWidget):
         finally:
             self.mpv_process = None
 
-    def show_video(self, url: str, cursor_pos: QPoint = None):
-        """Launch mpv player with the video URL"""
+    def show_video(self, url: str, cursor_pos: QPoint = None, force_log: bool = False):
+        """Launch mpv player with the video URL."""
         self.current_url = url
         
         # Check if mpv is available
@@ -236,7 +236,7 @@ class VideoPlayer(QWidget):
         
         # Launch mpv in a separate process
         try:
-            log_enabled = bool(self.config and self.config.get("player", "log"))
+            log_enabled = force_log or bool(self.config and self.config.get("player", "log"))
             log_path = self._debug_log_path(url) if log_enabled else None
             mpv_cmd = self._build_mpv_command(url, log_path=log_path)
 

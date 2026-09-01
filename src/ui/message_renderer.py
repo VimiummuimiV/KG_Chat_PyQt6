@@ -109,7 +109,7 @@ class MessageRenderer(QObject):
             return None
         return match.group(1), match.group(2)
 
-    def handle_link_lmb(self, url: str, is_media: bool, global_pos, is_ctrl: bool = False):
+    def handle_link_lmb(self, url: str, is_media: bool, global_pos, is_ctrl: bool = False, is_shift: bool = False):
         # Chatlog URL opens in split view
         chatlog_match = self.parse_chatlog_url(url)
         if chatlog_match and not is_ctrl:
@@ -119,7 +119,7 @@ class MessageRenderer(QObject):
         if is_media and not is_ctrl:
             # Media link without Ctrl: open in viewer
             if VideoPlayer.is_video_url(url) and self.video_player:
-                self.video_player.show_video(url, global_pos)
+                self.video_player.show_video(url, global_pos, force_log=is_shift)
             elif ImageHoverView.is_image_url(url) and self.image_viewer:
                 self.image_viewer.show_preview(url, global_pos)
         else:

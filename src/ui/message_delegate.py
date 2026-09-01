@@ -636,12 +636,13 @@ class MessageDelegate(QStyledItemDelegate):
             # Link clicks
             if self.message_renderer:
                 is_ctrl = QApplication.keyboardModifiers() & Qt.KeyboardModifier.ControlModifier
+                is_shift = QApplication.keyboardModifiers() & Qt.KeyboardModifier.ShiftModifier
                 link_data = MessageRenderer.get_link_at_pos(rects['links'], pos)
                 if link_data:
                     url, is_media = link_data
                     if button == Qt.MouseButton.LeftButton:
                         global_pos = self.list_view.viewport().mapToGlobal(pos)
-                        self.message_renderer.handle_link_lmb(url, is_media, global_pos, is_ctrl)
+                        self.message_renderer.handle_link_lmb(url, is_media, global_pos, is_ctrl, is_shift)
                         gid = getattr(msg, 'competition_game_id', None)
                         if getattr(msg, 'is_competition', False) and gid is not None:
                             self.competition_entered.emit(gid)

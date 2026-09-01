@@ -769,7 +769,8 @@ class PopupNotification(_AutoHidePopupMixin, QWidget):
                         url, is_media = link_data
                         global_pos = self.mapToGlobal(event.pos())
                         is_ctrl = event.modifiers() & Qt.KeyboardModifier.ControlModifier
-                        self.message_renderer.handle_link_lmb(url, is_media, global_pos, is_ctrl)
+                        is_shift = event.modifiers() & Qt.KeyboardModifier.ShiftModifier
+                        self.message_renderer.handle_link_lmb(url, is_media, global_pos, is_ctrl, is_shift)
                         if self.data.is_competition and self.data.competition_game_id is not None:
                             _safe_call(self.data.competition_entered_callback, self.data.competition_game_id,
                                        err_msg="Competition entered callback")
