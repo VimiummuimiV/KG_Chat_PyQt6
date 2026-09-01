@@ -60,7 +60,7 @@ class VideoPlayer(QWidget):
         ),
         # Kick
         re.compile(
-            r'https?://(?:www\.)?kick\.com/[^/\s<>"]+/(?:videos|categories)/[^?\s<>"]+',
+            r'https?://(?:www\.)?kick\.com/[^/\s<>?"#]+',
             re.IGNORECASE
         ),
         # OK / Odnoklassniki
