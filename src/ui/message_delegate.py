@@ -787,7 +787,7 @@ class MessageDelegate(QStyledItemDelegate):
         """Highlight a row with fade-out effect, independent of any other row's fade"""
         flash = self.row_flashes.get(row)
         if flash is None:
-            flash = FlashFade(lambda r=row: self._on_row_highlight_tick(r), parent=self, config=self.config)
+            flash = FlashFade(lambda r=row: self._on_row_highlight_tick(r), parent=self, config=self.config, duration_kind="row")
             self.row_flashes[row] = flash
         flash.start()
 

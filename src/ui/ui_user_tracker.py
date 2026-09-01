@@ -427,7 +427,7 @@ class TrackerEventDelegate(QStyledItemDelegate):
     def highlight_row(self, row: int):
         flash = self.row_flashes.get(row)
         if flash is None:
-            flash = FlashFade(lambda r=row: self._on_row_highlight_tick(r), parent=self, config=self.config)
+            flash = FlashFade(lambda r=row: self._on_row_highlight_tick(r), parent=self, config=self.config, duration_kind="row")
             self.row_flashes[row] = flash
         flash.start()
 

@@ -30,7 +30,7 @@ from helpers.data import get_data_dir
 from helpers.color_utils import blend_hex_colors, tinted_chip_colors
 from helpers.browser import get_available_browsers
 from helpers.translate import tr, set_language, get_language, on_language_changed, TrStr, TranslatableMixin
-from helpers.flash_highlight import TIMING_FUNCTIONS, FlashLabel
+from helpers.flash_highlight import TIMING_FUNCTIONS, FlashLabel, DURATION_KEYS
 
 DEFAULTS = {
     "notification": {
@@ -65,7 +65,9 @@ DEFAULTS = {
         "mentions_digest_mode": "daily",
         "mentions_digest_interval_hours": 24,
         "flash_easing": "linear",
-        "flash_duration_ms": 1000,
+        "flash_duration_ms": 1000,  # legacy fallback
+        "flash_row_duration_ms": 1000,
+        "flash_copy_duration_ms": 1000,
         "flash_duration_ms_min": 200,
         "flash_duration_ms_max": 3000,
     },
@@ -1264,18 +1266,26 @@ class SettingsWidget(TranslatableMixin, QWidget):
             flash_layout, tr("Timing function", "Функция плавности"), [], self._on_flash_easing_changed
         )
         self.flash_easing_combo.setFixedWidth(240)
-        self.flash_duration_spin = self._add_slider_spin_row(
-            flash_layout, tr("Duration (ms)", "Длительность (мс)"),
-            DEFAULTS["chat"]["flash_duration_ms_min"], DEFAULTS["chat"]["flash_duration_ms_max"],
-            self._on_flash_duration_changed,
-            default=DEFAULTS["chat"]["flash_duration_ms"],
+        dmin = DEFAULTS["chat"]["flash_duration_ms_min"]
+        dmax = DEFAULTS["chat"]["flash_duration_ms_max"]
+        self.flash_row_duration_spin = self._add_slider_spin_row(
+            flash_layout, tr("Row highlight (ms)", "Подсветка строки (мс)"),
+            dmin, dmax, lambda v: self._on_flash_duration_changed("row", v),
+            default=DEFAULTS["chat"]["flash_row_duration_ms"],
         )
-        self.flash_duration_spin.setSingleStep(50)
-        self.flash_duration_spin._slider.setSingleStep(50)
+        self.flash_copy_duration_spin = self._add_slider_spin_row(
+            flash_layout, tr("Copy (ms)", "Копирование (мс)"),
+            dmin, dmax, lambda v: self._on_flash_duration_changed("copy", v),
+            default=DEFAULTS["chat"]["flash_copy_duration_ms"],
+        )
+        for spin in (self.flash_row_duration_spin, self.flash_copy_duration_spin):
+            spin.setSingleStep(50)
+            spin._slider.setSingleStep(50)
         self.flash_preview = FlashLabel(
-            tr("Sample text — flashes on change", "Пример текста — вспыхивает при изменении"),
+            tr("Preview — changes with slider or click", "Превью — меняется с ползунком или кликом"),
             is_dark_fn=lambda: (self.config.get("ui", "theme") or "dark") == "dark",
             config=self.config,
+            duration_kind="row",
         )
         self.flash_preview.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._apply_flash_preview_theme()
@@ -1739,7 +1749,7 @@ class SettingsWidget(TranslatableMixin, QWidget):
             self.parser_validate_usernames_checkbox,
             self.badge_size_spin, self.mentions_digest_mode_combo,
             self.mentions_digest_interval_spin,
-            self.flash_easing_combo, self.flash_duration_spin,
+            self.flash_easing_combo, self.flash_row_duration_spin, self.flash_copy_duration_spin,
             self.browser_combo,
             self.track_competitions_checkbox,
             self.competitions_bypass_combo, self.mentions_bypass_combo, self.bans_bypass_combo,
@@ -1875,14 +1885,7 @@ class SettingsWidget(TranslatableMixin, QWidget):
         self._sync_mentions_digest_interval_visibility()
 
         fill_flash_easing_combo(self.flash_easing_combo, self.config.get("ui", "chat", "flash_easing"))
-        flash_duration = self.config.get("ui", "chat", "flash_duration_ms")
-        try:
-            flash_duration = int(flash_duration) if flash_duration is not None else DEFAULTS["chat"]["flash_duration_ms"]
-        except (TypeError, ValueError):
-            flash_duration = DEFAULTS["chat"]["flash_duration_ms"]
-        flash_duration = max(DEFAULTS["chat"]["flash_duration_ms_min"], min(DEFAULTS["chat"]["flash_duration_ms_max"], flash_duration))
-        self.flash_duration_spin.setValue(flash_duration)
-        self.flash_duration_spin._slider.setValue(flash_duration)
+        self._load_flash_duration_spins()
 
         browsers = get_available_browsers()
         self.browser_combo.blockSignals(True)
@@ -2254,6 +2257,27 @@ class SettingsWidget(TranslatableMixin, QWidget):
             preview_box_stylesheet("QLabel", self.config.get("ui", "theme") or "dark")
         )
 
+    def _load_flash_duration_spins(self):
+        dmin = DEFAULTS["chat"]["flash_duration_ms_min"]
+        dmax = DEFAULTS["chat"]["flash_duration_ms_max"]
+        legacy = self.config.get("ui", "chat", "flash_duration_ms")
+        try:
+            legacy = int(legacy) if legacy is not None else DEFAULTS["chat"]["flash_duration_ms"]
+        except (TypeError, ValueError):
+            legacy = DEFAULTS["chat"]["flash_duration_ms"]
+        for kind, spin in (
+            ("row", self.flash_row_duration_spin),
+            ("copy", self.flash_copy_duration_spin),
+        ):
+            value = self.config.get("ui", "chat", DURATION_KEYS[kind])
+            try:
+                value = int(value) if value is not None else legacy
+            except (TypeError, ValueError):
+                value = legacy
+            value = max(dmin, min(dmax, value))
+            spin.setValue(value)
+            spin._slider.setValue(value)
+
     def _update_font_preview(self):
         if not hasattr(self, "font_preview"):
             return
@@ -2389,11 +2413,13 @@ class SettingsWidget(TranslatableMixin, QWidget):
         value = self.flash_easing_combo.currentData()
         if value is not None:
             self.config.set("ui", "chat", "flash_easing", value=value)
-        self.flash_preview.flash()
+        # Demonstrate with row duration (shared easing)
+        self.flash_preview.flash("row")
 
-    def _on_flash_duration_changed(self, value: int):
-        self.config.set("ui", "chat", "flash_duration_ms", value=int(value))
-        self.flash_preview.flash()
+    def _on_flash_duration_changed(self, kind: str, value: int):
+        self.config.set("ui", "chat", DURATION_KEYS[kind], value=int(value))
+        # Same preview, switch duration_kind so copy delay is applied correctly
+        self.flash_preview.flash(kind)
 
     def _on_tracker_events_changed(self, types):
         # Keep at least one type enabled

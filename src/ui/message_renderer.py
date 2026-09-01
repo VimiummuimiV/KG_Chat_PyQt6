@@ -74,7 +74,7 @@ class MessageRenderer(QObject):
         
         # Copy highlight state
         self._copied_url: Optional[str] = None
-        self.copy_flash = FlashFade(self.refresh_view.emit, parent=self, config=config)
+        self.copy_flash = FlashFade(self.refresh_view.emit, parent=self, config=config, duration_kind="copy")
         # None = follow config; False/True = force (e.g. parser bulk load)
         self._youtube_override: Optional[bool] = None
         
