@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from typing import List, Callable, Optional, Any, Tuple
 from PyQt6.QtWidgets import QWidget, QLabel, QVBoxLayout, QHBoxLayout, QLineEdit, QApplication
 from PyQt6.QtCore import Qt, QTimer, QPropertyAnimation, QVariantAnimation, QEasingCurve, QEvent, QRect, QSize, pyqtSignal
-from PyQt6.QtGui import QPainter, QPainterPath, QCursor, QPixmap
+from PyQt6.QtGui import QPainter, QPainterPath, QCursor, QPixmap, QFontMetrics
 from pathlib import Path
 from datetime import datetime
 import threading
@@ -621,6 +621,19 @@ class PopupNotification(_AutoHidePopupMixin, QWidget):
       
         top_row.addLayout(buttons_layout)
         main_layout.addLayout(top_row)
+
+        # Elide username if it doesn't fit next to the buttons
+        if not data.is_system:
+            other_width = top_row.sizeHint().width() - self.username_label.sizeHint().width()
+            available_width = self.base_width - 2 * margin - other_width
+            bold_font = self.username_label.font()
+            bold_font.setBold(True)
+            elided_title = QFontMetrics(bold_font).elidedText(
+                data.title, Qt.TextElideMode.ElideRight, max(available_width, 0)
+            )
+            self.username_label.setText(f"<b>{elided_title}</b>")
+            if elided_title != data.title:
+                self.username_label.setToolTip(data.title)
       
         # MIDDLE ROW: Message body
         msg_container = QWidget()
@@ -869,8 +882,7 @@ class PopupNotification(_AutoHidePopupMixin, QWidget):
                 self.manager.focused_popups.append(self)
           
             # Pre-fill with sender's username
-            sender_name = self.username_label.text().replace('<b>', '').replace('</b>', '')
-            self.reply_field.setText(f"{sender_name}, ")
+            self.reply_field.setText(f"{self.data.title}, ")
             self.reply_field.setFocus()
             self.reply_field.setCursorPosition(len(self.reply_field.text()))
           
