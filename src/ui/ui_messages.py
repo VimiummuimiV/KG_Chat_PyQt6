@@ -39,6 +39,7 @@ class MessagesWidget(TranslatableMixin, QWidget):
     username_shift_clicked = pyqtSignal(str)  # Shift+LMB → open profile
     chip_clicked = pyqtSignal(str)  # competition player chip → open profile
     chatlog_link_clicked = pyqtSignal(str, str)  # date_str, time_str ("" if none) - chatlog URL clicked in a message body
+    competition_entered = pyqtSignal(int)  # game_id - competition link opened in browser from a message
 
     def __init__(self, config, emoticon_manager, my_username: str = None, minimal: bool = False):
         super().__init__()
@@ -75,6 +76,7 @@ class MessagesWidget(TranslatableMixin, QWidget):
         self.interactions.username_shift_clicked.connect(self.username_shift_clicked.emit)
         self.interactions.chip_clicked.connect(self.chip_clicked.emit)
         self.delegate.presence_log_clicked.connect(self._on_presence_log_clicked)
+        self.delegate.competition_entered.connect(self.competition_entered.emit)
         on_language_changed(self._retranslate)
 
     @property

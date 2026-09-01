@@ -692,6 +692,7 @@ class ChatWindow(TranslatableMixin, QWidget):
         self.messages_widget.chip_clicked.connect(self._on_username_shift_click)
         self._wire_username_signals(self.messages_widget)
         self.messages_widget.chatlog_link_clicked.connect(self.show_chatlog_split_view)
+        self.messages_widget.competition_entered.connect(self._on_competition_entered)
     
         self._update_input_style()
 
@@ -1394,6 +1395,17 @@ class ChatWindow(TranslatableMixin, QWidget):
             open_url_in_browser(url, self.config.get("browser"))
         except Exception as e:
             print(f"Failed to open competition: {e}")
+        self._on_competition_entered(gid)
+
+    def _on_competition_entered(self, gid: int):
+        """competitions.remove_message_on_enter: instantly drop the chat message and close
+        the matching notification for a competition just entered (link click or hotkey E)."""
+        if not self.config.get("competitions", "remove_message_on_enter"):
+            return
+        mw = getattr(self, "messages_widget", None)
+        if mw and hasattr(mw, "clear_competition_messages"):
+            mw.clear_competition_messages(gid)
+        popup_manager.close_by_tag(f"competition:{gid}")
 
     def _create_room_widget(self, *, game_id=None, room_name: str = None, room_label: str = "Game"):
         """Build and wire a RoomWidget. Shared by game rooms and custom
@@ -2707,6 +2719,7 @@ class ChatWindow(TranslatableMixin, QWidget):
                     competition_game_id=gid,
                     open_room_callback=lambda g: self._open_game_room_by_id(g, room_label="Competition"),
                     profile_callback=self._on_username_shift_click,
+                    competition_entered_callback=self._on_competition_entered,
                     tag=tag,
                     players=chips,
                 )

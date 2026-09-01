@@ -134,13 +134,13 @@
         "chat": true,
         "fonts": true,
         "notifications": true,
-        "competitions": true,
+        "competitions": false,
         "sound": true,
         "user_tracker": true,
         "": true
       },
       "widgets": {
-        "ws_log": false,
+        "ws_log": true,
         "font_preview": true,
         "chat_limits": true,
         "chat_xmpp": true,
@@ -212,7 +212,7 @@
   },
   "competitions": {
     "enabled": true,
-    "min_multiplier": "x2+",
+    "min_multiplier": "x1+",
     "notify_window_enabled": false,
     "notify_window_start": 6,
     "notify_window_end": 24,
@@ -224,7 +224,8 @@
     "show_scores": true,
     "show_bonuses": false,
     "alert_chat_action": "move",
-    "notification_style": "inline"
+    "notification_style": "inline",
+    "remove_message_on_enter": true
   },
   "font": {
     "ui": {

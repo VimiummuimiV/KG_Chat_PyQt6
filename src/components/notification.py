@@ -229,6 +229,7 @@ class NotificationData:
     competition_game_id: Optional[int] = None
     open_room_callback: Optional[Callable] = None
     profile_callback: Optional[Callable] = None  # username → open profile
+    competition_entered_callback: Optional[Callable] = None  # game_id → remove chat message + close this notification
     icon: Optional[str] = None  # svg filename fallback avatar for non-user notifications
 
 
@@ -746,6 +747,9 @@ class PopupNotification(_AutoHidePopupMixin, QWidget):
                         global_pos = self.mapToGlobal(event.pos())
                         is_ctrl = event.modifiers() & Qt.KeyboardModifier.ControlModifier
                         self.message_renderer.handle_link_lmb(url, is_media, global_pos, is_ctrl)
+                        if self.data.is_competition and self.data.competition_game_id is not None:
+                            _safe_call(self.data.competition_entered_callback, self.data.competition_game_id,
+                                       err_msg="Competition entered callback")
                         return
           
             # Show chat window if callback exists

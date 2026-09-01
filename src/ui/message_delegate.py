@@ -139,6 +139,7 @@ class MessageDelegate(QStyledItemDelegate):
     timestamp_clicked = pyqtSignal(str)  # full chatlog URL for the clicked message
     chatlog_link_clicked = pyqtSignal(str, str)  # date_str, time_str ("" if none) - chatlog URL clicked in a message body
     presence_log_clicked = pyqtSignal(int)
+    competition_entered = pyqtSignal(int)  # game_id - competition link opened in browser from a message
  
     def __init__(
         self,
@@ -641,6 +642,9 @@ class MessageDelegate(QStyledItemDelegate):
                     if button == Qt.MouseButton.LeftButton:
                         global_pos = self.list_view.viewport().mapToGlobal(pos)
                         self.message_renderer.handle_link_lmb(url, is_media, global_pos, is_ctrl)
+                        gid = getattr(msg, 'competition_game_id', None)
+                        if getattr(msg, 'is_competition', False) and gid is not None:
+                            self.competition_entered.emit(gid)
                     elif button == Qt.MouseButton.RightButton:
                         self.message_renderer.handle_link_rmb(url)
                     return True

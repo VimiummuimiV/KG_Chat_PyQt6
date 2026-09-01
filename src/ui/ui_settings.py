@@ -1361,6 +1361,12 @@ class SettingsWidget(TranslatableMixin, QWidget):
             section, tr("Track rating competitions", "Отслеживать рейтинговые соревнования"), self._on_track_competitions_toggled
         )
 
+        self.remove_on_enter_checkbox = self._add_checkbox(
+            section,
+            tr("Remove message and notification on entering competition", "Удалять сообщение и уведомление при входе в соревнование"),
+            self._on_remove_on_enter_toggled,
+        )
+
         log_header, log_content, log_layout = self._add_subsection(section, tr("📜 WebSocket Log", "📜 Лог WebSocket"))
 
         copy_log_tooltip = tr("Copy log", "Скопировать лог")
@@ -1767,6 +1773,8 @@ class SettingsWidget(TranslatableMixin, QWidget):
         min_m = self.config.get("competitions", "min_multiplier") or "x1+"
         idx = self.min_multiplier_combo.findText(min_m)
         self.min_multiplier_combo.setCurrentIndex(idx if idx >= 0 else 0)
+
+        self.remove_on_enter_checkbox.setChecked(bool(self.config.get("competitions", "remove_message_on_enter")))
 
         show_cost = self.config.get("competitions", "show_cost")
         self.show_cost_checkbox.setChecked(True if show_cost is None else bool(show_cost))
@@ -2377,6 +2385,9 @@ class SettingsWidget(TranslatableMixin, QWidget):
 
     def _on_min_multiplier_changed(self, text: str):
         self.config.set("competitions", "min_multiplier", value=text)
+
+    def _on_remove_on_enter_toggled(self, checked: bool):
+        self.config.set("competitions", "remove_message_on_enter", value=checked)
 
     def _set_spin_enabled(self, spin, enabled: bool):
         spin.setEnabled(enabled)
