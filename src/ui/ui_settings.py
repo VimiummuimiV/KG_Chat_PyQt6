@@ -7,7 +7,8 @@ from pathlib import Path
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QScrollArea,
     QCheckBox, QComboBox, QSpinBox, QSlider, QMessageBox, QTextEdit,
-    QApplication, QInputDialog, QFileDialog, QToolButton, QPushButton
+    QApplication, QInputDialog, QFileDialog, QToolButton, QPushButton,
+    QSizePolicy,
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QObject, QTimer
 
@@ -1281,15 +1282,30 @@ class SettingsWidget(TranslatableMixin, QWidget):
         for spin in (self.flash_row_duration_spin, self.flash_copy_duration_spin):
             spin.setSingleStep(50)
             spin._slider.setSingleStep(50)
-        self.flash_preview = FlashLabel(
-            tr("Preview — changes with slider or click", "Превью — меняется с ползунком или кликом"),
-            is_dark_fn=lambda: (self.config.get("ui", "theme") or "dark") == "dark",
-            config=self.config,
-            duration_kind="row",
-        )
-        self.flash_preview.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        self.flash_preview = {}
+        preview_widget = QWidget()
+        preview_widget.setObjectName("flashPreview")
+        preview_layout = QHBoxLayout(preview_widget)
+        preview_layout.setContentsMargins(0, 0, 0, 0)
+        preview_layout.setSpacing(6)
+        for kind in ("row", "copy"):
+            label = FlashLabel(
+                kind.upper(),
+                is_dark_fn=lambda: (self.config.get("ui", "theme") or "dark") == "dark",
+                config=self.config,
+                duration_kind=kind,
+            )
+            label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            label.setMinimumHeight(26)
+            label.setFont(get_font(FontType.UI))
+            label.setMargin(0)
+            label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+            preview_layout.addWidget(label, stretch=1)
+            self.flash_preview[kind] = label
+
         self._apply_flash_preview_theme()
-        flash_layout.addWidget(self.flash_preview)
+        flash_layout.addWidget(preview_widget)
         self._add_collapse_toggle(flash_header, flash_content, ("ui", "settings", "widgets", "chat_flash"))
 
     def _add_hotkey_row(self, section_layout: QVBoxLayout, label_text: str):
@@ -2253,9 +2269,9 @@ class SettingsWidget(TranslatableMixin, QWidget):
     def _apply_flash_preview_theme(self):
         if not hasattr(self, "flash_preview"):
             return
-        self.flash_preview.setStyleSheet(
-            preview_box_stylesheet("QLabel", self.config.get("ui", "theme") or "dark")
-        )
+        preview_style = preview_box_stylesheet("QLabel", self.config.get("ui", "theme") or "dark")
+        for preview in self.flash_preview.values():
+            preview.setStyleSheet(preview_style)
 
     def _load_flash_duration_spins(self):
         dmin = DEFAULTS["chat"]["flash_duration_ms_min"]
@@ -2413,13 +2429,12 @@ class SettingsWidget(TranslatableMixin, QWidget):
         value = self.flash_easing_combo.currentData()
         if value is not None:
             self.config.set("ui", "chat", "flash_easing", value=value)
-        # Demonstrate with row duration (shared easing)
-        self.flash_preview.flash("row")
+        for kind, preview in self.flash_preview.items():
+            preview.flash(kind)
 
     def _on_flash_duration_changed(self, kind: str, value: int):
         self.config.set("ui", "chat", DURATION_KEYS[kind], value=int(value))
-        # Same preview, switch duration_kind so copy delay is applied correctly
-        self.flash_preview.flash(kind)
+        self.flash_preview[kind].flash(kind)
 
     def _on_tracker_events_changed(self, types):
         # Keep at least one type enabled
