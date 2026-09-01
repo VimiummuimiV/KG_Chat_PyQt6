@@ -26,6 +26,8 @@ class RoomWidget(TranslatableMixin, QWidget):
     paste_requested = pyqtSignal(str)
     open_game_requested = pyqtSignal(str)
     track_requested = pyqtSignal(str, str, bool)
+    ban_requested = pyqtSignal(str, str, str, bool, object)
+    pronunciation_requested = pyqtSignal(str)
     emoticon_requested = pyqtSignal()
     username_left_clicked = pyqtSignal(str, bool)
     username_right_clicked = pyqtSignal(object, object)
@@ -139,6 +141,8 @@ class RoomWidget(TranslatableMixin, QWidget):
         self.user_list_widget.paste_requested.connect(self.paste_requested.emit)
         self.user_list_widget.open_game_requested.connect(self.open_game_requested.emit)
         self.user_list_widget.track_requested.connect(self.track_requested.emit)
+        self.user_list_widget.ban_requested.connect(self.ban_requested.emit)
+        self.user_list_widget.pronunciation_requested.connect(self.pronunciation_requested.emit)
         ul_layout.addWidget(self.user_list_widget, stretch=1)
 
         if self.font_scaler is not None:

@@ -16,6 +16,7 @@ TRACK = "track"
 UNTRACK = "untrack"
 BAN_PERMANENT = "ban_permanent"
 BAN_TEMPORARY = "ban_temporary"
+SET_PRONUNCIATION = "set_pronunciation"
 REMOVE_MESSAGE = "remove_message"
 REMOVE_UP = "remove_up"
 REMOVE_DOWN = "remove_down"
@@ -34,6 +35,7 @@ def show_message_user_context_menu(
     show_private: bool = True,
     show_message_removes: bool = True,
     show_presence_remove: bool = False,
+    has_pronunciation: bool = False,
 ) -> Optional[str]:
     def icon(name: str):
         return _render_svg_icon(icons_path / name, 16)
@@ -64,6 +66,11 @@ def show_message_user_context_menu(
         perm_act = menu.addAction(icon("prohibited.svg"), tr("Ban permanently", "Вечный бан"))
         temp_act = menu.addAction(icon("forbidden.svg"), tr("Ban temporarily", "Временный бан"))
 
+    if has_pronunciation:
+        pronunciation_act = menu.addAction(icon("user-voice.svg"), tr("Edit Pronunciation", "Изменить произношение"))
+    else:
+        pronunciation_act = menu.addAction(icon("user-voice.svg"), tr("Set Pronunciation", "Задать произношение"))
+
     remove_msg_act = remove_up_act = remove_down_act = remove_all_act = presence_remove_act = None
     if show_presence_remove:
         menu.addSeparator()
@@ -92,6 +99,8 @@ def show_message_user_context_menu(
         return BAN_PERMANENT
     if temp_act is not None and chosen is temp_act:
         return BAN_TEMPORARY
+    if chosen is pronunciation_act:
+        return SET_PRONUNCIATION
     if presence_remove_act is not None and chosen is presence_remove_act:
         return REMOVE_PRESENCE
     if remove_msg_act is not None and chosen is remove_msg_act:

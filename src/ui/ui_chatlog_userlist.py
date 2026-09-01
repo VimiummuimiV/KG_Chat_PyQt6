@@ -20,7 +20,10 @@ from components.context_menu.userlist import (
     COPY_ID,
     FILTER,
     TRACK,
-    UNTRACK
+    UNTRACK,
+    BAN_PERMANENT,
+    BAN_TEMPORARY,
+    SET_PRONUNCIATION,
 )
 
 
@@ -31,6 +34,8 @@ class ChatlogUserWidget(UserCountRow):
     private_chat_requested = pyqtSignal(str, str, str)  # jid, username, user_id
     paste_requested = pyqtSignal(str) # username
     track_requested = pyqtSignal(str, str, bool)  # user_id, login, track
+    ban_requested = pyqtSignal(str, str, str, bool, object)  # jid, username, user_id, permanent, duration
+    pronunciation_requested = pyqtSignal(str)  # username
 
     def __init__(self, username, msg_count, config, icons_path, user_id=None, user_tracker=None, my_username=None):
         super().__init__(username, msg_count, config, icons_path, user_id)
@@ -58,10 +63,14 @@ class ChatlogUserWidget(UserCountRow):
             )
         )
         is_own_user = bool(self.my_username) and self.username == self.my_username
+        pm = getattr(self, 'pronunciation_manager', None)
+        has_pronunciation = bool(pm and self.username in pm.mappings)
         action = show_userlist_context_menu(
             self.icons_path, self, QCursor.pos(),
             show_filter=True, is_tracked=is_tracked,
             show_track=not is_own_user, show_private=not is_own_user,
+            show_ban=not is_own_user,
+            has_pronunciation=has_pronunciation,
         )
         if action == PROFILE:
             self.profile_requested.emit("", self.username, self.user_id or "")
@@ -79,6 +88,12 @@ class ChatlogUserWidget(UserCountRow):
             self.track_requested.emit(str(self.user_id or ""), self.username, True)
         elif action == UNTRACK:
             self.track_requested.emit(str(self.user_id or ""), self.username, False)
+        elif action == BAN_PERMANENT:
+            self.ban_requested.emit("", self.username, str(self.user_id or ""), True, None)
+        elif action == BAN_TEMPORARY:
+            self.ban_requested.emit("", self.username, str(self.user_id or ""), False, None)
+        elif action == SET_PRONUNCIATION:
+            self.pronunciation_requested.emit(self.username)
 
 
 class ChatlogUserlistWidget(TranslatableMixin, QWidget):
@@ -89,6 +104,8 @@ class ChatlogUserlistWidget(TranslatableMixin, QWidget):
     private_chat_requested = pyqtSignal(str, str, str)  # jid, username, user_id
     paste_requested = pyqtSignal(str) # username
     track_requested = pyqtSignal(str, str, bool)
+    ban_requested = pyqtSignal(str, str, str, bool, object)  # jid, username, user_id, permanent, duration
+    pronunciation_requested = pyqtSignal(str)  # username
 
     def __init__(self, config, icons_path, ban_manager=None, user_tracker=None, my_username=None):
         super().__init__()
@@ -234,11 +251,14 @@ class ChatlogUserlistWidget(TranslatableMixin, QWidget):
                 widget = ChatlogUserWidget(
                     username, count, self.config, self.icons_path, user_id, self.user_tracker, self.my_username
                 )
+                widget.pronunciation_manager = getattr(self, 'pronunciation_manager', None)
                 widget.clicked.connect(self._handle_user_click)
                 widget.profile_requested.connect(self.profile_requested.emit)
                 widget.private_chat_requested.connect(self.private_chat_requested.emit)
                 widget.paste_requested.connect(self.paste_requested.emit)
                 widget.track_requested.connect(self.track_requested.emit)
+                widget.ban_requested.connect(self.ban_requested.emit)
+                widget.pronunciation_requested.connect(self.pronunciation_requested.emit)
                 widget.set_filtered(username in self.filtered_usernames)
                 self.user_widgets[username] = widget
                 self.user_layout.insertWidget(self.user_layout.count() - 1, widget)

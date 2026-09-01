@@ -23,7 +23,10 @@ from components.context_menu.userlist import (
     COPY_ID,
     OPEN_GAME,
     TRACK,
-    UNTRACK
+    UNTRACK,
+    BAN_PERMANENT,
+    BAN_TEMPORARY,
+    SET_PRONUNCIATION,
 )
 from core.userlist import ChatUser
 
@@ -38,6 +41,8 @@ class UserWidget(QWidget):
     paste_requested = pyqtSignal(str)  # username
     open_game_requested = pyqtSignal(str)  # game_id
     track_requested = pyqtSignal(str, str, bool)  # user_id, login, track
+    ban_requested = pyqtSignal(str, str, str, bool, object)  # jid, username, user_id, permanent, duration
+    pronunciation_requested = pyqtSignal(str)  # username
 
     def __init__(self, user, config, icons_path, is_dark_theme, game_counter=None, is_tracked=False):
         super().__init__()
@@ -226,10 +231,14 @@ class UserWidget(QWidget):
         )
         my_username = getattr(self, 'my_username', None)
         is_own_user = bool(my_username) and self.user.login == my_username
+        pm = getattr(self, 'pronunciation_manager', None)
+        has_pronunciation = bool(pm and self.user.login in pm.mappings)
         action = show_userlist_context_menu(
             self.icons_path, self, QCursor.pos(),
             has_game=has_game, is_tracked=is_tracked,
             show_track=not is_own_user, show_private=not is_own_user,
+            show_ban=not is_own_user,
+            has_pronunciation=has_pronunciation,
         )
         if action == PROFILE:
             self.profile_requested.emit(self.user.jid, self.user.login, self.user.user_id)
@@ -247,6 +256,12 @@ class UserWidget(QWidget):
             self.track_requested.emit(str(self.user.user_id or ""), self.user.login, True)
         elif action == UNTRACK:
             self.track_requested.emit(str(self.user.user_id or ""), self.user.login, False)
+        elif action == BAN_PERMANENT:
+            self.ban_requested.emit(self.user.jid, self.user.login, str(self.user.user_id or ""), True, None)
+        elif action == BAN_TEMPORARY:
+            self.ban_requested.emit(self.user.jid, self.user.login, str(self.user.user_id or ""), False, None)
+        elif action == SET_PRONUNCIATION:
+            self.pronunciation_requested.emit(self.user.login)
 
 
 class UserListWidget(TranslatableMixin, QWidget):
@@ -257,6 +272,8 @@ class UserListWidget(TranslatableMixin, QWidget):
     paste_requested = pyqtSignal(str)  # username
     open_game_requested = pyqtSignal(str)  # game_id
     track_requested = pyqtSignal(str, str, bool)  # user_id, login, track
+    ban_requested = pyqtSignal(str, str, str, bool, object)  # jid, username, user_id, permanent, duration
+    pronunciation_requested = pyqtSignal(str)  # username
 
     def __init__(self, config, input_field=None, ban_manager=None, user_tracker=None, my_username=None):
         super().__init__()
@@ -446,11 +463,14 @@ class UserListWidget(TranslatableMixin, QWidget):
         def _wire(widget):
             widget.user_tracker = self.user_tracker
             widget.my_username = self.my_username
+            widget.pronunciation_manager = getattr(self, 'pronunciation_manager', None)
             widget.profile_requested.connect(self.profile_requested.emit)
             widget.private_chat_requested.connect(self.private_chat_requested.emit)
             widget.paste_requested.connect(self.paste_requested.emit)
             widget.open_game_requested.connect(self.open_game_requested.emit)
             widget.track_requested.connect(self.track_requested.emit)
+            widget.ban_requested.connect(self.ban_requested.emit)
+            widget.pronunciation_requested.connect(self.pronunciation_requested.emit)
         
         if bulk:
             # Clear all widgets safely

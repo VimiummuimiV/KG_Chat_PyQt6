@@ -86,12 +86,14 @@ from components.context_menu.message import (
     UNTRACK as MSG_UNTRACK,
     BAN_PERMANENT,
     BAN_TEMPORARY,
+    SET_PRONUNCIATION,
     REMOVE_MESSAGE,
     REMOVE_UP,
     REMOVE_DOWN,
     REMOVE_ALL,
     REMOVE_PRESENCE,
 )
+from ui.dialogs.pronunciation_dialog import PronunciationDialog
 from components.tag_button import update_all_tag_buttons
 from components.presence_badge import apply_counter_style
 from core.api_data import validate_username_and_get_id
@@ -1547,6 +1549,9 @@ class ChatWindow(TranslatableMixin, QWidget):
         userlist.private_chat_requested.connect(self.enter_private_mode)
         userlist.paste_requested.connect(self._paste_username_to_input)
         userlist.track_requested.connect(self._on_track_user_requested)
+        userlist.ban_requested.connect(self._on_ban_requested)
+        userlist.pronunciation_requested.connect(self._set_username_pronunciation)
+        userlist.pronunciation_manager = self.pronunciation_manager
 
     def _wire_username_signals(self, source, right_click_widget=None):
         """Connect username left/ctrl/shift/right click signals to their
@@ -3964,6 +3969,9 @@ class ChatWindow(TranslatableMixin, QWidget):
             is_own = bool(username) and username == self.my_username
             is_presence = bool(getattr(msg, 'is_presence_log', False))
 
+            has_pronunciation = bool(
+                self.pronunciation_manager and username and username in self.pronunciation_manager.mappings
+            )
             action = show_message_user_context_menu(
                 self.icons_path, self, global_pos,
                 is_tracked=is_tracked,
@@ -3972,6 +3980,7 @@ class ChatWindow(TranslatableMixin, QWidget):
                 show_private=not is_own,
                 show_message_removes=not is_presence,
                 show_presence_remove=is_presence,
+                has_pronunciation=has_pronunciation,
             )
             if not action:
                 return
@@ -3996,6 +4005,9 @@ class ChatWindow(TranslatableMixin, QWidget):
                 seconds, ok = DurationDialog.get_duration(self, default_seconds=3600)
                 if ok:
                     self._ban_user_from_msg(msg, permanent=False, duration=seconds, widget=source_widget)
+            elif action == SET_PRONUNCIATION:
+                if username:
+                    self._set_username_pronunciation(username)
             elif action == REMOVE_PRESENCE:
                 row = getattr(msg, 'presence_row', None)
                 if row is not None and hasattr(source_widget, 'model'):
@@ -4057,36 +4069,50 @@ class ChatWindow(TranslatableMixin, QWidget):
         # Extract user_id from JID using helper
         user_id, _ = extract_user_data_from_jid(jid)
         
+        self._ban_user(jid=jid, username=username, user_id=user_id, permanent=permanent, duration=duration, widget=widget)
+
+    def _on_ban_requested(self, jid, username, user_id, permanent, duration):
+        """Handle ban from userlist context menu."""
+        if not permanent and duration is None:
+            seconds, ok = DurationDialog.get_duration(self, default_seconds=3600)
+            if not ok:
+                return
+            duration = seconds
+        self._ban_user(jid=jid or None, username=username, user_id=user_id or None, permanent=permanent, duration=duration)
+
+    def _ban_user(self, jid=None, username=None, user_id=None, permanent: bool = True, duration: int = None, widget=None):
+        """Core ban logic shared by message and userlist context menus."""
+        widget = widget or self.messages_widget
+
         if not user_id and not username:
             return
-        
-        # Validate username via API to get correct user_id
+
         if username and not user_id:
             user_id = validate_username_and_get_id(username)
-        
+
         if not user_id:
-            QMessageBox.warning(self, tr("Error", "Ошибка"), tr(f"Could not find user ID for {username}", f"Не удалось найти ID пользователя для {username}"))
+            QMessageBox.warning(
+                self,
+                tr("Error", "Ошибка"),
+                tr(f"Could not find user ID for {username}", f"Не удалось найти ID пользователя для {username}"),
+            )
             return
-        
-        # Add to ban manager
+
         if permanent:
             self.ban_manager.add_user(user_id, username or user_id)
         else:
             self.ban_manager.add_user(user_id, username or user_id, duration=duration)
-        
-        # Remove messages by login
+
         if username:
             try:
                 widget.model.remove_messages_by_login(username)
             except Exception:
                 pass
-        
-        # Remove from userlist
+
         if hasattr(self, 'user_list_widget') and self.user_list_widget:
             try:
                 if jid:
                     self.user_list_widget.remove_users(jids=[jid])
-                # Fallback: remove by username
                 if username:
                     for ujid, uw in list(self.user_list_widget.user_widgets.items()):
                         ulogin = getattr(getattr(uw, 'user', None), 'login', None)
@@ -4094,13 +4120,27 @@ class ChatWindow(TranslatableMixin, QWidget):
                             self.user_list_widget.remove_users(jids=[ujid])
             except Exception:
                 pass
-        
-        # Refresh ban list UI if open
+
         if hasattr(self, 'ban_list_widget') and self.ban_list_widget:
             try:
                 self.ban_list_widget._load_bans()
             except Exception:
                 pass
+
+    def _set_username_pronunciation(self, username: str):
+        """Open pronunciation dialog for a username and save the result.
+        Empty input + OK removes the mapping."""
+        if not username or not self.pronunciation_manager:
+            return
+        pronunciation, ok = PronunciationDialog.get_pronunciation_for_user(
+            self, username=username
+        )
+        if not ok:
+            return
+        if pronunciation:
+            self.pronunciation_manager.add_mapping(username, pronunciation)
+        else:
+            self.pronunciation_manager.remove_mapping(username)
     
     def _remove_message(self, msg, single: bool = True, direction: str = None, widget=None):
         """Remove message(s) without banning user.

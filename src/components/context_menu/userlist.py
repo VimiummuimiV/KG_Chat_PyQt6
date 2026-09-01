@@ -17,6 +17,9 @@ FILTER = "filter"
 OPEN_GAME = "open_game"
 TRACK = "track"
 UNTRACK = "untrack"
+BAN_PERMANENT = "ban_permanent"
+BAN_TEMPORARY = "ban_temporary"
+SET_PRONUNCIATION = "set_pronunciation"
 
 
 def show_userlist_context_menu(
@@ -29,6 +32,8 @@ def show_userlist_context_menu(
     is_tracked: bool = False,
     show_track: bool = True,
     show_private: bool = True,
+    show_ban: bool = True,
+    has_pronunciation: bool = False,
 ) -> Optional[str]:
     def icon(name: str):
         return _render_svg_icon(icons_path / name, 16)
@@ -53,6 +58,17 @@ def show_userlist_context_menu(
             track_act = menu.addAction(icon("user-minus.svg"), tr("Untrack user", "Не Отслеживать"))
         else:
             track_act = menu.addAction(icon("user-add.svg"), tr("Track user", "Отслеживать"))
+
+    perm_act = temp_act = None
+    if show_ban:
+        menu.addSeparator()
+        perm_act = menu.addAction(icon("prohibited.svg"), tr("Ban permanently", "Вечный бан"))
+        temp_act = menu.addAction(icon("forbidden.svg"), tr("Ban temporarily", "Временный бан"))
+
+    if has_pronunciation:
+        pronunciation_act = menu.addAction(icon("user-voice.svg"), tr("Edit Pronunciation", "Изменить произношение"))
+    else:
+        pronunciation_act = menu.addAction(icon("user-voice.svg"), tr("Set Pronunciation", "Задать произношение"))
 
     filter_act = None
     if show_filter:
@@ -79,6 +95,12 @@ def show_userlist_context_menu(
         return COPY_ID
     if track_act is not None and chosen is track_act:
         return UNTRACK if is_tracked else TRACK
+    if perm_act is not None and chosen is perm_act:
+        return BAN_PERMANENT
+    if temp_act is not None and chosen is temp_act:
+        return BAN_TEMPORARY
+    if chosen is pronunciation_act:
+        return SET_PRONUNCIATION
     if filter_act is not None and chosen is filter_act:
         return FILTER
     if open_game_act is not None and chosen is open_game_act:

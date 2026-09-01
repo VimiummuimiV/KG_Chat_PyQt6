@@ -10,11 +10,12 @@ from components.context_menu.userlist import (
     OPEN_GAME,
     TRACK,
     UNTRACK,
+    BAN_PERMANENT,
+    BAN_TEMPORARY,
+    SET_PRONUNCIATION,
 )
 from components.context_menu.message import (
     show_message_user_context_menu,
-    BAN_PERMANENT,
-    BAN_TEMPORARY,
     REMOVE_MESSAGE,
     REMOVE_UP,
     REMOVE_DOWN,
@@ -36,6 +37,7 @@ __all__ = [
     "UNTRACK",
     "BAN_PERMANENT",
     "BAN_TEMPORARY",
+    "SET_PRONUNCIATION",
     "REMOVE_MESSAGE",
     "REMOVE_UP",
     "REMOVE_DOWN",
