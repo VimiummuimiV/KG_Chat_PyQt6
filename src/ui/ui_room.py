@@ -73,6 +73,14 @@ class RoomWidget(TranslatableMixin, QWidget):
     def my_username(self):
         return (self.account or {}).get("chat_username") or None
 
+    @property
+    def pronunciation_manager(self):
+        return self.user_list_widget.pronunciation_manager
+
+    @pronunciation_manager.setter
+    def pronunciation_manager(self, value):
+        self.user_list_widget.pronunciation_manager = value
+
     def _init_ui(self):
         root = QVBoxLayout()
         root.setContentsMargins(0, 0, 0, 0)
