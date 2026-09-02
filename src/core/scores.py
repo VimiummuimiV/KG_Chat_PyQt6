@@ -18,11 +18,25 @@ _HEADERS = {
 _SCORES_RE = re.compile(r'id\s*=\s*userpanel-scores[^>]*>\s*(\d+)\s*<')
 _BONUSES_RE = re.compile(r'id\s*=\s*userpanel-bonuses[^>]*>\s*(\d+)\s*<')
 
+# Explicit markers that the page was rendered for a guest (not logged in).
+# Any of these means session cookies were ignored / expired.
+_UNAUTH_MARKERS = (
+    re.compile(r'var\s+__user__\s*=\s*null\s*;'),
+    re.compile(r"\.constant\(\s*['\"]Me['\"]\s*,\s*null\s*\)"),
+    re.compile(r'class\s*=\s*["\']?login-block'),
+    re.compile(r'id\s*=\s*["\']?login-form'),
+    re.compile(r'id\s*=\s*["\']?login-link'),
+)
+
 # error codes returned as the second element on failure
 ERR_NO_COOKIES = "no_cookies"
 ERR_NETWORK = "network"
 ERR_AUTH = "auth"
 ERR_PARSE = "parse"
+
+
+def _is_unauthenticated(html: str) -> bool:
+    return any(m.search(html) for m in _UNAUTH_MARKERS)
 
 
 def fetch_scores_bonuses(
@@ -49,6 +63,9 @@ def fetch_scores_bonuses(
         return None, ERR_NETWORK, None
 
     if not response.ok or "/login" in response.url:
+        return None, ERR_AUTH, response.text
+
+    if _is_unauthenticated(response.text):
         return None, ERR_AUTH, response.text
 
     scores = _SCORES_RE.search(response.text)
