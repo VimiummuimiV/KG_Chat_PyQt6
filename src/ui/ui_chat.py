@@ -93,6 +93,7 @@ from components.context_menu.message import (
     REMOVE_ALL,
     REMOVE_PRESENCE,
 )
+from ui.dialogs.html_dialog import show_warning_with_html
 from ui.dialogs.pronunciation_dialog import PronunciationDialog
 from components.tag_button import update_all_tag_buttons
 from components.presence_badge import apply_counter_style
@@ -2498,9 +2499,9 @@ class ChatWindow(TranslatableMixin, QWidget):
             return
 
         def _fetch():
-            data, err = fetch_scores_bonuses(cookies)
+            data, err, debug_html = fetch_scores_bonuses(cookies)
             if err:
-                self._dispatch.emit(lambda: self._on_balance_fetch_failed(err))
+                self._dispatch.emit(lambda: self._on_balance_fetch_failed(err, debug_html))
                 return
             scores, bonuses, updated_cookies = data
             self._dispatch.emit(
@@ -2519,7 +2520,7 @@ class ChatWindow(TranslatableMixin, QWidget):
         if updated_cookies:
             self._persist_session_cookies(updated_cookies)
 
-    def _on_balance_fetch_failed(self, error_code: str):
+    def _on_balance_fetch_failed(self, error_code: str, debug_html: str = None):
         """One dialog + log line per error code per session."""
         if error_code in self._balance_fetch_errors_shown:
             return
@@ -2554,10 +2555,11 @@ class ChatWindow(TranslatableMixin, QWidget):
             f"Не удалось загрузить очки/бонусы ({error_code}).",
         ))
         self._append_competition_log(f"balance error: {error_code}")
-        QMessageBox.warning(
+        show_warning_with_html(
             self,
             tr("Scores / bonuses", "Очки / бонусы"),
             tr(en, ru),
+            debug_html,
         )
 
     def _persist_session_cookies(self, cookies: list):

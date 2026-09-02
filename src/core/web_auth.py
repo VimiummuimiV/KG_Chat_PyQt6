@@ -1,8 +1,9 @@
 from PyQt6.QtCore import QUrl, pyqtSignal, Qt
 from PyQt6.QtGui import QColor, QPalette
 from PyQt6.QtWebEngineCore import QWebEngineScript, QWebEngineProfile, QWebEnginePage
-from PyQt6.QtWidgets import QDialog, QVBoxLayout, QWidget, QStackedLayout, QMessageBox
+from PyQt6.QtWidgets import QDialog, QVBoxLayout, QWidget, QStackedLayout
 
+from ui.dialogs.html_dialog import show_warning_with_html
 from components.loading_spinner import LoadingSpinner
 from helpers.translate import tr
 
@@ -332,29 +333,25 @@ class LoginWebView(QDialog):
     def _on_data(self, data):
         if not data or not isinstance(data, dict):
             self._show_wait(False)
-            QMessageBox.warning(
-                self,
-                tr("Authorization", "Авторизация"),
+            self._page.toHtml(lambda html: self._reject_with_data_error(
                 tr(
                     "Could not read account data from the site page. Try again.",
                     "Не удалось прочитать данные аккаунта со страницы сайта. Попробуйте снова.",
                 ),
-            )
-            self.reject()
+                html,
+            ))
             return
 
         self._show_wait(False)
         user = data.get("user") or {}
         if not user.get("id") or not user.get("login"):
-            QMessageBox.warning(
-                self,
-                tr("Authorization", "Авторизация"),
+            self._page.toHtml(lambda html: self._reject_with_data_error(
                 tr(
                     "Account data is incomplete. Try signing in again.",
                     "Данные аккаунта неполные. Попробуйте войти ещё раз.",
                 ),
-            )
-            self.reject()
+                html,
+            ))
             return
 
         self.login_success.emit({
@@ -366,3 +363,14 @@ class LoginWebView(QDialog):
             "cookies": list(self._captured_cookies.values()),
         })
         self.accept()
+
+    def _reject_with_data_error(self, message: str, html: str):
+        """Show a parse-error dialog (with a 'copy page HTML' escape hatch
+        for diagnosing markup changes) and close the login dialog."""
+        show_warning_with_html(
+            self,
+            tr("Authorization", "Авторизация"),
+            message,
+            html,
+        )
+        self.reject()

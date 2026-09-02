@@ -27,12 +27,13 @@ ERR_PARSE = "parse"
 
 def fetch_scores_bonuses(
     cookies: list[dict], timeout: int = 5
-) -> tuple[Optional[tuple[int, int, Optional[list[dict]]]], Optional[str]]:
-    """Returns ((scores, bonuses, updated_cookies), None) on success,
-    or (None, error_code) on failure."""
+) -> tuple[Optional[tuple[int, int, Optional[list[dict]]]], Optional[str], Optional[str]]:
+    """Returns ((scores, bonuses, updated_cookies), None, None) on success.
+    On failure: (None, error_code, debug_html), where debug_html is the raw
+    response body for ERR_AUTH/ERR_PARSE, or None if no response was received."""
     sent = {c["name"]: c for c in cookies if c.get("name") and c.get("value")}
     if not sent:
-        return None, ERR_NO_COOKIES
+        return None, ERR_NO_COOKIES, None
 
     session = requests.Session()
     for c in sent.values():
@@ -45,19 +46,19 @@ def fetch_scores_bonuses(
     try:
         response = session.get(_URL, headers=_HEADERS, timeout=timeout)
     except requests.RequestException:
-        return None, ERR_NETWORK
+        return None, ERR_NETWORK, None
 
     if not response.ok or "/login" in response.url:
-        return None, ERR_AUTH
+        return None, ERR_AUTH, response.text
 
     scores = _SCORES_RE.search(response.text)
     bonuses = _BONUSES_RE.search(response.text)
     if not scores or not bonuses:
-        return None, ERR_PARSE
+        return None, ERR_PARSE, response.text
 
     rotated = {c.name: {"name": c.name, "value": c.value, "domain": c.domain, "path": c.path}
                for c in session.cookies if c.value != sent.get(c.name, {}).get("value")}
     updated_cookies = {**sent, **rotated}
     updated_cookies = list(updated_cookies.values()) if rotated else None
 
-    return (int(scores.group(1)), int(bonuses.group(1)), updated_cookies), None
+    return (int(scores.group(1)), int(bonuses.group(1)), updated_cookies), None, None
