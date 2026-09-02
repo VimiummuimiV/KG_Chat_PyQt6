@@ -187,13 +187,28 @@ class AccountManager:
     def update_session_cookies(self, chat_username: str, session_cookies: str) -> bool:
         """Refresh stored website session cookies for an existing account"""
         try:
+            names = []
+            try:
+                parsed = json.loads(session_cookies) if session_cookies else []
+                if isinstance(parsed, list):
+                    names = sorted(
+                        c.get("name") for c in parsed if isinstance(c, dict) and c.get("name")
+                    )
+            except Exception:
+                pass
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
                 cursor.execute(
                     'UPDATE accounts SET session_cookies = ? WHERE chat_username = ?',
                     (session_cookies, chat_username)
                 )
-                return cursor.rowcount > 0
+                ok = cursor.rowcount > 0
+            print(
+                f"💾 session_cookies UPDATE {chat_username!r}: "
+                f"{'ok' if ok else 'no row'} names={names} "
+                f"PHPSESSID={'yes' if 'PHPSESSID' in names else 'NO'}"
+            )
+            return ok
         except Exception as e:
             print(f"❌ Error updating session cookies: {e}")
             return False

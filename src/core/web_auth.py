@@ -1,4 +1,4 @@
-from PyQt6.QtCore import QUrl, pyqtSignal, Qt
+from PyQt6.QtCore import QUrl, pyqtSignal, Qt, QTimer
 from PyQt6.QtGui import QColor, QPalette
 from PyQt6.QtWebEngineCore import QWebEngineScript, QWebEngineProfile, QWebEnginePage
 from PyQt6.QtWidgets import QDialog, QVBoxLayout, QWidget, QStackedLayout
@@ -309,6 +309,14 @@ class LoginWebView(QDialog):
             return
         self._show_wait(False)
 
+    @staticmethod
+    def _mask_cookie_value(value: str) -> str:
+        if not value:
+            return ""
+        if len(value) <= 8:
+            return "***"
+        return f"{value[:4]}…{value[-4:]} (len={len(value)})"
+
     def _on_cookie_added(self, cookie):
         domain = cookie.domain().lstrip(".")
         if "klavogonki.ru" not in domain:
@@ -317,22 +325,32 @@ class LoginWebView(QDialog):
         value = bytes(cookie.value()).decode("utf-8", "ignore")
         if not name:
             return
+        prev = self._captured_cookies.get(name)
         self._captured_cookies[name] = {
             "name": name,
             "value": value,
             "domain": cookie.domain(),
             "path": cookie.path(),
         }
+        action = "update" if prev else "add"
+        print(
+            f"🍪 cookie {action}: {name} "
+            f"domain={cookie.domain()!r} path={cookie.path()!r} "
+            f"value={self._mask_cookie_value(value)}"
+        )
 
     def _on_logged_in_check(self, logged_in: bool):
+        print(f"🔎 auth: logged-in check → {logged_in}")
         if logged_in and not self._navigating_to_gamelist:
             self._navigating_to_gamelist = True
             self._show_wait(True)
+            print("➡️ auth: navigating to /gamelist/")
             self._view.load(QUrl("https://klavogonki.ru/gamelist/"))
 
     def _on_data(self, data):
         if not data or not isinstance(data, dict):
             self._show_wait(False)
+            print("❌ auth: chatParams missing or not a dict")
             self._page.toHtml(lambda html: self._reject_with_data_error(
                 tr(
                     "Could not read account data from the site page. Try again.",
@@ -345,6 +363,7 @@ class LoginWebView(QDialog):
         self._show_wait(False)
         user = data.get("user") or {}
         if not user.get("id") or not user.get("login"):
+            print(f"❌ auth: incomplete user in chatParams: {user!r}")
             self._page.toHtml(lambda html: self._reject_with_data_error(
                 tr(
                     "Account data is incomplete. Try signing in again.",
@@ -354,14 +373,44 @@ class LoginWebView(QDialog):
             ))
             return
 
-        self.login_success.emit({
+        self._pending_login = {
             "id": user.get("id"),
             "login": user.get("login"),
             "pass": data.get("pass"),
-            "avatar": (user.get("avatar") or "").replace("\\/", "/"),
+            "avatar": (user.get("avatar") or "").replace("\/", "/"),
             "background": user.get("background") or "#808080",
-            "cookies": list(self._captured_cookies.values()),
-        })
+        }
+        names = sorted(self._captured_cookies)
+        print(
+            f"🔑 auth: chatParams ok id={self._pending_login['id']} "
+            f"login={self._pending_login['login']!r}; "
+            f"cookies so far ({len(names)}): {names}"
+        )
+        self._profile.cookieStore().loadAllCookies()
+        QTimer.singleShot(150, self._finish_login_success)
+
+    def _finish_login_success(self):
+        pending = getattr(self, "_pending_login", None)
+        if not pending:
+            return
+        self._pending_login = None
+        cookies = list(self._captured_cookies.values())
+        names = sorted(c["name"] for c in cookies)
+        has_php = "PHPSESSID" in self._captured_cookies
+        has_user = "user" in self._captured_cookies
+        print(
+            f"✅ auth: final cookie jar ({len(cookies)}): {names}; "
+            f"PHPSESSID={'yes' if has_php else 'NO'} "
+            f"user={'yes' if has_user else 'no'}"
+        )
+        if has_php:
+            print(
+                f"PHPSESSID={self._mask_cookie_value(self._captured_cookies['PHPSESSID']['value'])}"
+            )
+        else:
+            print("⚠️ auth: PHPSESSID missing from jar — session may not stick")
+        pending["cookies"] = cookies
+        self.login_success.emit(pending)
         self.accept()
 
     def _reject_with_data_error(self, message: str, html: str):

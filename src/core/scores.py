@@ -18,14 +18,10 @@ _HEADERS = {
 _SCORES_RE = re.compile(r'id\s*=\s*userpanel-scores[^>]*>\s*(\d+)\s*<')
 _BONUSES_RE = re.compile(r'id\s*=\s*userpanel-bonuses[^>]*>\s*(\d+)\s*<')
 
-# Explicit markers that the page was rendered for a guest (not logged in).
-# Any of these means session cookies were ignored / expired.
+# Strong guest markers only (__user__/Me)
 _UNAUTH_MARKERS = (
-    re.compile(r'var\s+__user__\s*=\s*null\s*;'),
+    re.compile(r"var\s+__user__\s*=\s*null\s*;"),
     re.compile(r"\.constant\(\s*['\"]Me['\"]\s*,\s*null\s*\)"),
-    re.compile(r'class\s*=\s*["\']?login-block'),
-    re.compile(r'id\s*=\s*["\']?login-form'),
-    re.compile(r'id\s*=\s*["\']?login-link'),
 )
 
 # error codes returned as the second element on failure
@@ -47,7 +43,14 @@ def fetch_scores_bonuses(
     response body for ERR_AUTH/ERR_PARSE, or None if no response was received."""
     sent = {c["name"]: c for c in cookies if c.get("name") and c.get("value")}
     if not sent:
+        print("⚖️ scores: no cookies provided")
         return None, ERR_NO_COOKIES, None
+
+    names = sorted(sent)
+    print(
+        f"⚖️ scores: sending {len(sent)} cookies: {names}; "
+        f"PHPSESSID={'yes' if 'PHPSESSID' in sent else 'NO'}"
+    )
 
     session = requests.Session()
     for c in sent.values():
@@ -59,19 +62,29 @@ def fetch_scores_bonuses(
 
     try:
         response = session.get(_URL, headers=_HEADERS, timeout=timeout)
-    except requests.RequestException:
+    except requests.RequestException as e:
+        print(f"⚖️ scores: network error: {e}")
         return None, ERR_NETWORK, None
 
+    print(f"⚖️ scores: HTTP {response.status_code} url={response.url!r}")
     if not response.ok or "/login" in response.url:
+        print("⚖️ scores: ERR_AUTH (bad status or redirected to login)")
         return None, ERR_AUTH, response.text
 
     if _is_unauthenticated(response.text):
+        print("⚖️ scores: ERR_AUTH (guest markers: __user__/Me null)")
         return None, ERR_AUTH, response.text
 
     scores = _SCORES_RE.search(response.text)
     bonuses = _BONUSES_RE.search(response.text)
     if not scores or not bonuses:
+        print(
+            f"⚖️ scores: ERR_PARSE "
+            f"scores={'hit' if scores else 'miss'} bonuses={'hit' if bonuses else 'miss'}"
+        )
         return None, ERR_PARSE, response.text
+
+    print(f"⚖️ scores: ok scores={scores.group(1)} bonuses={bonuses.group(1)}")
 
     rotated = {c.name: {"name": c.name, "value": c.value, "domain": c.domain, "path": c.path}
                for c in session.cookies if c.value != sent.get(c.name, {}).get("value")}

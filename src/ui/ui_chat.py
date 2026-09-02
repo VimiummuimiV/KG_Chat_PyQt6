@@ -2577,15 +2577,23 @@ class ChatWindow(TranslatableMixin, QWidget):
         login = user_data.get("login")
         cookies = user_data.get("cookies")
         if not login or not cookies:
+            print(f"⚠️ reauth: missing login/cookies login={login!r} cookies={bool(cookies)}")
             return
+        names = sorted(c.get("name") for c in cookies if c.get("name"))
+        print(
+            f"🔄 reauth: login={login!r} cookies={names} "
+            f"PHPSESSID={'yes' if 'PHPSESSID' in names else 'NO'}"
+        )
         cookies_json = json.dumps(cookies)
         if self.xmpp_client:
-            self.xmpp_client.account_manager.update_session_cookies(login, cookies_json)
+            ok = self.xmpp_client.account_manager.update_session_cookies(login, cookies_json)
+            print(f"🔄 reauth: DB write → {ok}")
         if self.account and self.account.get("chat_username") == login:
             self.account["session_cookies"] = cookies_json
             # Clear any previous errors so the next fetch attempt can succeed
             self._balance_fetch_errors_shown.discard(ERR_NO_COOKIES)
             self._balance_fetch_errors_shown.discard(ERR_AUTH)
+            print("🔄 reauth: in-memory account.session_cookies updated")
 
     def _persist_session_cookies(self, cookies: list):
         """Write rotated session cookies back to storage (server-side renewal only)."""
