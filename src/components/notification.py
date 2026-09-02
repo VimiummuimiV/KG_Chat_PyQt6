@@ -23,6 +23,8 @@ NOTIFICATION_DEFAULT_WIDTH = 550
 FADE_DURATION_MS_DEFAULT = 300
 NOTIFICATION_DURATION_MS_DEFAULT = 5000
 REPLY_FOCUS_WIDTH_EXPAND_DEFAULT = 200
+NOTIFICATION_MARGIN_X_DEFAULT = 20
+NOTIFICATION_MARGIN_TOP_DEFAULT = 20
 
 
 def _resolve_focus_expand_width(config=None) -> int:
@@ -59,6 +61,30 @@ def _resolve_duration_ms(config=None) -> int:
             except (TypeError, ValueError):
                 pass
     return NOTIFICATION_DURATION_MS_DEFAULT
+
+
+def _resolve_margin_x(config=None) -> int:
+    """Side margin for left/right-positioned popups, from config('notification', 'margin_x')."""
+    if config is not None:
+        value = config.get("notification", "margin_x")
+        if value is not None:
+            try:
+                return max(0, min(500, int(value)))
+            except (TypeError, ValueError):
+                pass
+    return NOTIFICATION_MARGIN_X_DEFAULT
+
+
+def _resolve_margin_top(config=None) -> int:
+    """Top margin for the popup stack, from config('notification', 'margin_top')."""
+    if config is not None:
+        value = config.get("notification", "margin_top")
+        if value is not None:
+            try:
+                return max(0, min(500, int(value)))
+            except (TypeError, ValueError):
+                pass
+    return NOTIFICATION_MARGIN_TOP_DEFAULT
 
 
 def _mute_bypass_mode(config, key: str) -> str:
@@ -1233,10 +1259,11 @@ class PopupManager:
         return next((p for p in self.popups + self.focused_popups if getattr(p.data, "tag", None) == tag), None)
   
     def _popup_x(self, screen, position: str, popup_width: int) -> int:
+        margin_x = _resolve_margin_x(self.config)
         if position == "left":
-            return screen.x() + 20
+            return screen.x() + margin_x
         if position == "right":
-            return screen.x() + screen.width() - popup_width - 20
+            return screen.x() + screen.width() - popup_width - margin_x
         return screen.x() + (screen.width() - popup_width) // 2
 
     def _stack_popups(self, popups, x_fn, start_y):
@@ -1290,21 +1317,22 @@ class PopupManager:
         position = self.config.get("ui", "notification_position") if self.config else "center"
         position = (position or "center").lower()
 
+        margin_top = _resolve_margin_top(self.config)
         heights, total_height = self._group_height(self.popups)
-        available_height = screen.height() - 40
+        available_height = screen.height() - margin_top - 20
 
         # In scroll mode, clamp offset instead of dropping popups
         if self.notification_mode == "scroll":
             max_offset = max(0, total_height - available_height)
             self.scroll_offset = min(self.scroll_offset, max_offset)
 
-        start_y = screen.y() + 20 - (self.scroll_offset if self.notification_mode == "scroll" else 0)
+        start_y = screen.y() + margin_top - (self.scroll_offset if self.notification_mode == "scroll" else 0)
         self._stack_popups(self.popups, lambda p: self._popup_x(screen, position, p.width()), start_y)
 
         if self.notification_mode == "stack":
-            self._cleanup_overflow(screen, position, heights, total_height, available_height)
+            self._cleanup_overflow(screen, position, heights, total_height, available_height, margin_top)
 
-    def _cleanup_overflow(self, screen, position, heights, total_height, available_height):
+    def _cleanup_overflow(self, screen, position, heights, total_height, available_height, margin_top):
         """Drop the oldest popups without an active reply field until the stack fits."""
         while total_height > available_height and len(self.popups) > 1:
             # Find the oldest notification that doesn't have an active reply field
@@ -1323,7 +1351,7 @@ class PopupManager:
                 break
 
             # Reposition remaining popups
-            self._stack_popups(self.popups, lambda p: self._popup_x(screen, position, p.width()), screen.y() + 20)
+            self._stack_popups(self.popups, lambda p: self._popup_x(screen, position, p.width()), screen.y() + margin_top)
 
 
 # Global manager

@@ -40,6 +40,8 @@ DEFAULTS = {
         "fade_ms": 300,
         "reply_center_offset_y": 0,
         "reply_focus_expand_width": 200,
+        "margin_x": 20,
+        "margin_top": 20,
     },
     "competitions": {
         "alert_lead": 0,
@@ -1505,6 +1507,20 @@ class SettingsWidget(TranslatableMixin, QWidget):
         self.reply_style_combo = self._add_combo_row(
             section, tr("Reply style", "Стиль ответа"), [], self._on_reply_style_changed
         )
+        self.notification_margin_x_spin = self._add_slider_spin_row(
+            section,
+            tr("Notification side margin (X)", "Отступ уведомлений по X"),
+            0, 300,
+            self._on_notification_margin_x_changed,
+            default=DEFAULTS["notification"]["margin_x"],
+        )
+        self.notification_margin_top_spin = self._add_slider_spin_row(
+            section,
+            tr("Notification top margin (Y)", "Отступ уведомлений сверху (Y)"),
+            0, 300,
+            self._on_notification_margin_top_changed,
+            default=DEFAULTS["notification"]["margin_top"],
+        )
         self.reply_center_offset_spin = self._add_slider_spin_row(
             section,
             tr("Reply vertical offset", "Смещение ответа по Y"),
@@ -1786,6 +1802,7 @@ class SettingsWidget(TranslatableMixin, QWidget):
             self.competitions_notify_start_spin, self.competitions_notify_end_spin,
             self.notification_mode_combo, self.notification_position_combo, self.reply_style_combo,
             self.reply_center_offset_spin, self.notification_width_spin, self.reply_focus_expand_spin,
+            self.notification_margin_x_spin, self.notification_margin_top_spin,
             self.notification_hide_on_combo, self.notification_duration_spin, self.notification_fade_spin,
             self.mention_always_checkbox, self.competition_always_checkbox,
             self.competition_sound_repeat_checkbox, self.competition_sound_repeat_interval_spin,
@@ -2074,6 +2091,10 @@ class SettingsWidget(TranslatableMixin, QWidget):
         self.notification_width_spin._slider.setValue(self.notification_width_spin.value())
         self.reply_focus_expand_spin.setValue(int(self.config.get("notification", "reply_focus_expand_width") or DEFAULTS["notification"]["reply_focus_expand_width"]))
         self.reply_focus_expand_spin._slider.setValue(self.reply_focus_expand_spin.value())
+        self.notification_margin_x_spin.setValue(int(self.config.get("notification", "margin_x") or DEFAULTS["notification"]["margin_x"]))
+        self.notification_margin_x_spin._slider.setValue(self.notification_margin_x_spin.value())
+        self.notification_margin_top_spin.setValue(int(self.config.get("notification", "margin_top") or DEFAULTS["notification"]["margin_top"]))
+        self.notification_margin_top_spin._slider.setValue(self.notification_margin_top_spin.value())
 
         fill_notification_hide_on_combo(self.notification_hide_on_combo, self.config.get("notification", "hide_on"))
 
@@ -2784,6 +2805,7 @@ class SettingsWidget(TranslatableMixin, QWidget):
         position = self.notification_position_combo.currentData() or "right"
         centered = reply_style == "center" or competition_style == "center"
         self._set_spin_enabled(self.reply_center_offset_spin, centered and position != "center")
+        self._set_spin_enabled(self.notification_margin_x_spin, position != "center")
 
     def _on_reply_style_changed(self, _text: str = ""):
         self._sync_combo_tooltip(self.reply_style_combo)
@@ -2799,6 +2821,12 @@ class SettingsWidget(TranslatableMixin, QWidget):
 
     def _on_reply_focus_expand_changed(self, value: int):
         self.config.set("notification", "reply_focus_expand_width", value=value)
+
+    def _on_notification_margin_x_changed(self, value: int):
+        self.config.set("notification", "margin_x", value=value)
+
+    def _on_notification_margin_top_changed(self, value: int):
+        self.config.set("notification", "margin_top", value=value)
 
     def _on_notification_hide_on_changed(self, _text: str = ""):
         self._sync_combo_tooltip(self.notification_hide_on_combo)
