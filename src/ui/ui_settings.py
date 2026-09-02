@@ -868,12 +868,13 @@ class SettingsWidget(TranslatableMixin, QWidget):
     tracker_presence_log_split_changed = pyqtSignal(int)
     resource_changed = pyqtSignal()
 
-    def __init__(self, config, icons_path: Path, font_scaler=None):
+    def __init__(self, config, icons_path: Path, font_scaler=None, emoticon_manager=None):
         super().__init__()
         self._init_translatable()
         self.config = config
         self.icons_path = icons_path
         self.font_scaler = font_scaler
+        self.emoticon_manager = emoticon_manager
         self.startup_manager = StartupManager()
         self._competitions_accent_color = None
         self._hotkey_capture = None
@@ -2795,6 +2796,7 @@ class SettingsWidget(TranslatableMixin, QWidget):
         if value is not None:
             self.config.set("ui", "notification_position", value=value)
         self._update_center_offset_enabled()
+        self._refresh_notification_preview()
 
     def _update_center_offset_enabled(self):
         """Offset only does anything when something is actually centered
@@ -2812,32 +2814,105 @@ class SettingsWidget(TranslatableMixin, QWidget):
         value = self.reply_style_combo.currentData() or "inline"
         self.config.set("notification", "reply_style", value=value)
         self._update_center_offset_enabled()
+        self._refresh_notification_preview()
 
     def _on_reply_center_offset_changed(self, value: int):
         self.config.set("notification", "reply_center_offset_y", value=value)
+        self._refresh_notification_preview()
 
     def _on_notification_width_changed(self, value: int):
         self.config.set("ui", "notification_width", value=value)
+        self._refresh_notification_preview()
 
     def _on_reply_focus_expand_changed(self, value: int):
         self.config.set("notification", "reply_focus_expand_width", value=value)
+        self._refresh_notification_preview(show_expand=True)
 
     def _on_notification_margin_x_changed(self, value: int):
         self.config.set("notification", "margin_x", value=value)
+        self._refresh_notification_preview()
 
     def _on_notification_margin_top_changed(self, value: int):
         self.config.set("notification", "margin_top", value=value)
+        self._refresh_notification_preview()
 
     def _on_notification_hide_on_changed(self, _text: str = ""):
         self._sync_combo_tooltip(self.notification_hide_on_combo)
         value = self.notification_hide_on_combo.currentData() or "mouse_keyboard"
         self.config.set("notification", "hide_on", value=value)
+        self._refresh_notification_preview()
 
     def _on_notification_duration_changed(self, value: int):
         self.config.set("notification", "duration_ms", value=int(value) * 1000)
+        self._refresh_notification_preview()
 
     def _on_notification_fade_changed(self, value: int):
         self.config.set("notification", "fade_ms", value=int(value))
+        self._refresh_notification_preview()
+
+    def _refresh_notification_preview(self, show_expand: bool = False):
+        """Create a real test notification once; later setting changes update it in place.
+        show_expand=True temporarily widens by reply_focus_expand_width, then restores base width."""
+        from components.notification import show_notification, popup_manager, resolve_notification_width, expanded_reply_width
+        from PyQt6.QtWidgets import QApplication
+
+        preview_tag = "settings_notification_preview"
+        duration_ms = int(self.config.get("notification", "duration_ms") or 5000)
+        base_width = resolve_notification_width(self.config)
+        screen_width = QApplication.primaryScreen().availableGeometry().width()
+        width = expanded_reply_width(self.config, base_width, screen_width) if show_expand else base_width
+
+        popup = popup_manager.find_by_tag(preview_tag)
+        if popup is not None and popup.isVisible():
+            popup.config = self.config
+            popup.data.config = self.config
+            popup.manager.config = self.config
+            popup.duration = duration_ms
+            if popup.hide_timer is not None and popup.hide_timer.isActive():
+                popup.hide_timer.stop()
+            if popup._self_hides_after_duration():
+                popup._start_hide_timer()
+        else:
+            show_notification(
+                title=tr("Preview", "Пример"),
+                message=tr("Preview notification", "Пример уведомления"),
+                config=self.config,
+                emoticon_manager=self.emoticon_manager,
+                is_system=True,
+                tag=preview_tag,
+                duration=duration_ms,
+                auto_hide_after_duration=True,
+                force=True,
+            )
+            popup = popup_manager.find_by_tag(preview_tag)
+            if popup is None:
+                return
+
+        popup.base_width = base_width
+        popup._animate_width(width)
+        popup.manager._position_and_cleanup()
+        if show_expand:
+            self._schedule_preview_width_restore(base_width)
+
+    def _schedule_preview_width_restore(self, base_width: int):
+        """After briefly showing expand width, restore notification width."""
+        from components.notification import popup_manager
+
+        timer = getattr(self, "_preview_expand_timer", None)
+        if timer is not None:
+            timer.stop()
+        timer = QTimer(self)
+        timer.setSingleShot(True)
+
+        def _restore():
+            popup = popup_manager.find_by_tag("settings_notification_preview")
+            if popup is not None and popup.isVisible():
+                popup.base_width = base_width
+                popup._animate_width(base_width)
+
+        timer.timeout.connect(_restore)
+        timer.start(1200)
+        self._preview_expand_timer = timer
 
     def _on_mention_always_toggled(self, checked: bool):
         self.config.set("sound", "play_mention_sound_always", value=checked)

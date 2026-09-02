@@ -87,6 +87,23 @@ def _resolve_margin_top(config=None) -> int:
     return NOTIFICATION_MARGIN_TOP_DEFAULT
 
 
+def resolve_notification_width(config=None) -> int:
+    """Base popup width in px, clamped to 50% of the primary screen. From config('ui', 'notification_width')."""
+    value = config.get("ui", "notification_width") if config else None
+    try:
+        value = int(value)
+    except (TypeError, ValueError):
+        value = NOTIFICATION_DEFAULT_WIDTH
+    screen_width = QApplication.primaryScreen().availableGeometry().width()
+    return min(int(screen_width * 0.50), max(100, value))
+
+
+def expanded_reply_width(config, base_width: int, screen_width: int) -> int:
+    """Width while widened for reply focus, clamped to 80% of screen_width."""
+    expand = _resolve_focus_expand_width(config)
+    return max(base_width, min(int(screen_width * 0.8), base_width + expand))
+
+
 def _mute_bypass_mode(config, key: str) -> str:
     """Read notification.*_bypass_mute: off | default | duration."""
     if not config:
@@ -863,8 +880,7 @@ class PopupNotification(_AutoHidePopupMixin, QWidget):
         if self._reply_style() != "center":
             return self.base_width
         screen = self.screen().availableGeometry() if self.screen() else QApplication.primaryScreen().availableGeometry()
-        expand = _resolve_focus_expand_width(self.config)
-        return max(self.base_width, min(int(screen.width() * 0.8), self.base_width + expand))
+        return expanded_reply_width(self.config, self.base_width, screen.width())
 
     def _animate_width(self, target: int):
         if self._width_anim is not None:
@@ -1186,23 +1202,25 @@ class PopupManager:
         """competitions.notification_style: inline (default) | center."""
         return _resolve_centered_style(self.config, "competitions", "notification_style")
 
-    def show_notification(self, data: NotificationData):
-        """Create and show notification (unless muted). Mute-bypass modes per type."""
-        if data.is_competition:
-            key = "competitions_bypass_mute"
-        elif data.is_mention or data.is_private:
-            key = "mentions_bypass_mute"
-        elif data.is_ban:
-            key = "bans_bypass_mute"
-        elif not data.is_system and not data.is_parser:
-            key = "messages_bypass_mute"
-        else:
-            key = None
-        if key is not None:
-            if not _apply_mute_bypass(data, self.muted, key):
+    def show_notification(self, data: NotificationData, force: bool = False):
+        """Create and show notification (unless muted). Mute-bypass modes per type.
+        force=True skips mute checks (settings preview)."""
+        if not force:
+            if data.is_competition:
+                key = "competitions_bypass_mute"
+            elif data.is_mention or data.is_private:
+                key = "mentions_bypass_mute"
+            elif data.is_ban:
+                key = "bans_bypass_mute"
+            elif not data.is_system and not data.is_parser:
+                key = "messages_bypass_mute"
+            else:
+                key = None
+            if key is not None:
+                if not _apply_mute_bypass(data, self.muted, key):
+                    return None
+            elif self.muted:
                 return None
-        elif self.muted:
-            return None
        
         self.config = data.config
        
@@ -1215,9 +1233,7 @@ class PopupManager:
                     (self.focused_popups if popup in self.focused_popups else self.popups).remove(popup)
       
         # Calculate width before creating popup (max 50% of screen)
-        screen = QApplication.primaryScreen().availableGeometry()
-        notification_width = self.config.get("ui", "notification_width") if self.config else NOTIFICATION_DEFAULT_WIDTH
-        width = min(int(screen.width() * 0.50), notification_width or NOTIFICATION_DEFAULT_WIDTH)
+        width = resolve_notification_width(self.config)
 
         popup = PopupNotification(data, self, width)
         if data.is_competition and self._competition_style() == "center":
@@ -1360,7 +1376,8 @@ popup_manager = PopupManager()
 
 def show_notification(**kwargs):
     # Resolve duration from config (seconds → ms) when the caller didn't pass one.
+    force = kwargs.pop("force", False)
     if "duration" not in kwargs:
         kwargs["duration"] = _resolve_duration_ms(kwargs.get("config"))
     data = NotificationData(**kwargs)
-    return popup_manager.show_notification(data)
+    return popup_manager.show_notification(data, force=force)

@@ -3819,6 +3819,7 @@ class ChatWindow(TranslatableMixin, QWidget):
                 self.config,
                 self.icons_path,
                 font_scaler=getattr(self.app_controller, "font_scaler", None),
+                emoticon_manager=self.emoticon_manager,
             )
             self.settings_widget.back_requested.connect(self._on_stacked_back)
             self.settings_widget.track_competitions_checkbox.toggled.connect(self.set_track_competitions)
