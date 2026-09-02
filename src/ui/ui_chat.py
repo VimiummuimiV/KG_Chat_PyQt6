@@ -2555,12 +2555,37 @@ class ChatWindow(TranslatableMixin, QWidget):
             f"Не удалось загрузить очки/бонусы ({error_code}).",
         ))
         self._append_competition_log(f"balance error: {error_code}")
+        offer_auth = error_code in (ERR_NO_COOKIES, ERR_AUTH)
         show_warning_with_html(
             self,
             tr("Scores / bonuses", "Очки / бонусы"),
             tr(en, ru),
             debug_html,
+            action_text=tr("Authorize", "Авторизоваться") if offer_auth else None,
+            on_action=self._reauthorize_session if offer_auth else None,
         )
+
+    def _reauthorize_session(self):
+        """Open browser login to refresh website session cookies for this account."""
+        from core.web_auth import LoginWebView
+
+        dlg = LoginWebView(self)
+        dlg.login_success.connect(self._on_reauth_success)
+        dlg.exec()
+
+    def _on_reauth_success(self, user_data: dict):
+        login = user_data.get("login")
+        cookies = user_data.get("cookies")
+        if not login or not cookies:
+            return
+        cookies_json = json.dumps(cookies)
+        if self.xmpp_client:
+            self.xmpp_client.account_manager.update_session_cookies(login, cookies_json)
+        if self.account and self.account.get("chat_username") == login:
+            self.account["session_cookies"] = cookies_json
+            # Clear any previous errors so the next fetch attempt can succeed
+            self._balance_fetch_errors_shown.discard(ERR_NO_COOKIES)
+            self._balance_fetch_errors_shown.discard(ERR_AUTH)
 
     def _persist_session_cookies(self, cookies: list):
         """Write rotated session cookies back to storage (server-side renewal only)."""
