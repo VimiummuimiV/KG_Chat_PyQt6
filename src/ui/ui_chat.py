@@ -2594,6 +2594,8 @@ class ChatWindow(TranslatableMixin, QWidget):
             self._balance_fetch_errors_shown.discard(ERR_NO_COOKIES)
             self._balance_fetch_errors_shown.discard(ERR_AUTH)
             print("🔄 reauth: in-memory account.session_cookies updated")
+            for gid in list(self._competition_live):
+                self._fetch_own_balance(gid)
 
     def _persist_session_cookies(self, cookies: list):
         """Write rotated session cookies back to storage (server-side renewal only)."""
