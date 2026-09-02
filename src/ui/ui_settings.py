@@ -1057,6 +1057,12 @@ class SettingsWidget(TranslatableMixin, QWidget):
             commit_timer.start(SLIDER_DEBOUNCE_MS)
 
         def sync_from_slider(value):
+            # spin.signalsBlocked() doubles as a "we're bulk-loading config,
+            # don't commit" flag: callers blockSignals(True) on spin while
+            # populating from config, even when they set the slider directly
+            # (which isn't itself in that blocked-widgets list).
+            if spin.signalsBlocked():
+                return
             spin.blockSignals(True)
             spin.setValue(value)
             spin.blockSignals(False)
@@ -1064,6 +1070,8 @@ class SettingsWidget(TranslatableMixin, QWidget):
             update_reset_state(value)
 
         def sync_from_spin(value):
+            if spin.signalsBlocked():
+                return
             slider.blockSignals(True)
             slider.setValue(value)
             slider.blockSignals(False)
