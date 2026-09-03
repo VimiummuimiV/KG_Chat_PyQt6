@@ -82,6 +82,7 @@ class VideoPlayer(QWidget):
 
     def __init__(self, parent=None, icons_path: Path = None, config=None):
         super().__init__(parent)
+        self.hide()  # never painted - stays hidden so it can't eat viewport clicks
         self.config = config
         self.current_url = None
         self.mpv_path = self._find_mpv()
