@@ -12,7 +12,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QObject, QTimer
 
-from helpers.create import create_icon_button
+from helpers.create import create_icon_button, set_visual_active
 from components.presence_badge import TypeFilterBar, EVENT_TYPES
 from helpers import hotkey_manager as hotkey
 from helpers.fonts import (
@@ -425,6 +425,19 @@ def _read_selected_name(config, kind: str) -> str | None:
     return selected.get(kind)
 
 
+def is_sound_frozen(config, kind: str) -> bool:
+    """Whether the alert sound for this kind is muted via the freeze toggle."""
+    frozen = config.get("sound", "frozen") or {}
+    return isinstance(frozen, dict) and bool(frozen.get((kind or "").strip().lower(), False))
+
+
+def set_sound_frozen(config, kind: str, frozen: bool):
+    current = config.get("sound", "frozen") or {}
+    current = dict(current) if isinstance(current, dict) else {}
+    current[(kind or "").strip().lower()] = frozen
+    config.set("sound", "frozen", value=current)
+
+
 def get_sound_name(sound_root: Path, kind: str, config) -> str | None:
     """Filename currently chosen for this kind, or a sensible default."""
     system_dir = get_system_sound_dir(sound_root, kind)
@@ -618,6 +631,9 @@ class SoundSelectorWidget(TranslatableMixin, QWidget):
 
         self.next_button = _nav_button("arrow-right.svg", tr("Next sound", "Следующий звук"), self._on_next)
         self.play_button = _nav_button("play.svg", tr("Play sound", "Воспроизвести звук"), self._on_play)
+        self.freeze_button = _nav_button(
+            "snowflake.svg", self._freeze_tooltip(), self._on_freeze
+        )
         self.add_button = _nav_button("add.svg", tr("Add sound from file", "Добавить звук из файла"), self._on_add)
         self.delete_button = _nav_button("trash.svg", tr("Delete sound", "Удалить звук"), self._on_delete)
         self.rename_button = _nav_button("pencil.svg", tr("Rename sound", "Переименовать звук"), self._on_rename)
@@ -628,6 +644,26 @@ class SoundSelectorWidget(TranslatableMixin, QWidget):
     # ------------------------------------------------------------------ #
     # Helpers
     # ------------------------------------------------------------------ #
+    def _freeze_tooltip(self) -> str:
+        return (
+            tr("Unfreeze sound", "Разморозить звук")
+            if is_sound_frozen(self.config, self.config_key) else
+            tr("Freeze sound", "Заморозить звук")
+        )
+
+    def _on_freeze(self):
+        set_sound_frozen(self.config, self.config_key, not is_sound_frozen(self.config, self.config_key))
+        self._update_freeze_button()
+
+    def _update_freeze_button(self):
+        frozen = is_sound_frozen(self.config, self.config_key)
+        set_visual_active(self.freeze_button, not frozen)
+        self.freeze_button.setToolTip(self._freeze_tooltip())
+
+    def _retranslate_all(self, _code=None):
+        super()._retranslate_all(_code)
+        self._update_freeze_button()
+
     def _safe_name(self) -> str | None:
         return self.combo.currentData()
 
@@ -646,6 +682,10 @@ class SoundSelectorWidget(TranslatableMixin, QWidget):
         user_owned = self._is_user_owned(self._safe_name())
         self.delete_button.setEnabled(user_owned)
         self.rename_button.setEnabled(user_owned)
+
+    def _update_button_states(self):
+        self._update_edit_buttons()
+        self._update_freeze_button()
 
     def _persist_selection(self, name: str | None):
         if not self.config:
@@ -709,7 +749,7 @@ class SoundSelectorWidget(TranslatableMixin, QWidget):
             self.combo.setEnabled(False)
             self._persist_selection(None)
             self.combo.blockSignals(False)
-            self._update_edit_buttons()
+            self._update_button_states()
             return
 
         self.combo.setEnabled(True)
@@ -722,13 +762,13 @@ class SoundSelectorWidget(TranslatableMixin, QWidget):
 
         self._persist_selection(self.combo.currentData())
         self.combo.blockSignals(False)
-        self._update_edit_buttons()
+        self._update_button_states()
 
     def _on_combo_changed(self, _index: int):
         name = self.combo.currentData()
         if name is None:
             self._persist_selection(None)
-            self._update_edit_buttons()
+            self._update_button_states()
             return
         self._persist_selection(name)
         self._update_edit_buttons()

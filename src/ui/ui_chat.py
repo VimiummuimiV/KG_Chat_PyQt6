@@ -54,7 +54,7 @@ from ui.ui_emoticon_selector import EmoticonSelectorWidget, PANEL_WIDTH
 from ui.ui_pronunciation import PronunciationWidget
 from ui.ui_banlist import BanListWidget
 from ui.ui_user_tracker import UserTrackerWidget
-from ui.ui_settings import SettingsWidget, get_sound_path, DEFAULTS
+from ui.ui_settings import SettingsWidget, get_sound_path, is_sound_frozen, DEFAULTS
 from ui.dialogs.duration_dialog import DurationDialog
 from helpers.jid_utils import (
     extract_user_data_from_jid,
@@ -3087,9 +3087,11 @@ class ChatWindow(TranslatableMixin, QWidget):
         pattern = r'\b' + re.escape(my_username) + r'\b'
         return bool(re.search(pattern, msg.body.lower()))
 
-    def _play_notification_sound(self, path: str | None, force: bool = False, fallback_beep: bool = False):
+    def _play_notification_sound(self, path: str | None, kind: str, force: bool = False, fallback_beep: bool = False):
         """Play an effect by path. play_sound() already threads and handles its
         own errors, so no extra wrapping is needed here."""
+        if not force and is_sound_frozen(self.config, kind):
+            return
         if not path:
             if fallback_beep:
                 try:
@@ -3100,15 +3102,15 @@ class ChatWindow(TranslatableMixin, QWidget):
         play_sound(path, config=self.config, force=force)
 
     def _play_mention_sound(self):
-        self._play_notification_sound(self.mention_sound_path, fallback_beep=True)
+        self._play_notification_sound(self.mention_sound_path, "mention", fallback_beep=True)
 
     def _play_ban_sound(self):
-        self._play_notification_sound(self.ban_sound_path)
+        self._play_notification_sound(self.ban_sound_path, "ban")
 
     def _play_competition_sound(self):
         """Falls back to mention sound if no dedicated file is present."""
         path = self.competition_sound_path or self.mention_sound_path
-        self._play_notification_sound(path)
+        self._play_notification_sound(path, "competition")
 
     def on_presence(self, pres):
         if not self.xmpp_client or self.initial_roster_loading:
