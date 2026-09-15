@@ -171,6 +171,7 @@ class ChatWindow(TranslatableMixin, QWidget):
         self.allow_reconnect = True # Disable when switching accounts
         self.reconnect_count = 0 # Incremented each time a reconnect attempt is made
         self.reconnect_timer = None # Timer for delayed reconnect attempts
+        self._connect_generation = 0 # Bumped per attempt so a stale worker can't clobber a newer one's state
         self._connection_status = 'offline'  # normalized key, kept in sync by set_connection_status
 
         # Private messaging state
@@ -2151,67 +2152,91 @@ class ChatWindow(TranslatableMixin, QWidget):
                 nested._force_recalculate()
 
     def connect_xmpp(self):
+        self._connect_generation += 1
+        my_generation = self._connect_generation
+
         def _worker():
             self.is_connecting = True
+            # Local reference so a stale/superseded worker can't stomp on a newer
+            # attempt's self.xmpp_client when it finally unblocks and unwinds late.
+            client = XMPPClient(str(self.config_path))
+
+            def is_current():
+                return self._connect_generation == my_generation
+
             try:
                 # Clear old state before reconnecting
                 QTimer.singleShot(0, self._clear_for_reconnect)
-            
-                self.xmpp_client = XMPPClient(str(self.config_path))
-                if not self.xmpp_client.connect(self.account):
+
+                if not client.connect(self.account):
+                    if is_current():
+                        self.xmpp_client = client
+                        QTimer.singleShot(0, lambda: show_notification(
+                            title=tr("Connection Failed", "Ошибка подключения"),
+                            message=tr("Could not connect to XMPP server", "Не удалось подключиться к серверу XMPP"),
+                            config=self.config,
+                            emoticon_manager=self.emoticon_manager,
+                            account=self.account
+                        ))
+                        self.signal_emitter.connection_changed.emit('offline')
+                    return
+
+                client.set_message_callback(self.message_callback)
+                client.set_presence_callback(self.presence_callback)
+
+                self.initial_roster_loading = True
+                rooms = client.account_manager.get_rooms()
+                for room in rooms:
+                    if room.get('auto_join'):
+                        try:
+                            client.join_room(room['jid'])
+                        except:
+                            pass
+
+                self.initial_roster_loading = False
+
+                if not is_current():
+                    # A newer attempt already took over; drop this one quietly.
+                    try:
+                        client.disconnect()
+                    except Exception:
+                        pass
+                    return
+
+                self.xmpp_client = client
+                QTimer.singleShot(0, lambda: self.signal_emitter.bulk_update_complete.emit())
+                self.signal_emitter.connection_changed.emit('online')
+
+                listen_thread = threading.Thread(target=client.listen, daemon=True)
+                listen_thread.start()
+                listen_thread.join()
+
+                # Connection ended - clear sid to allow reconnection
+                client.sid = None
+                client.jid = None
+
+                if is_current():
+                    self.signal_emitter.connection_changed.emit('offline')
+            except Exception as e:
+                # Clear sid on error too
+                client.sid = None
+                client.jid = None
+
+                if is_current():
+                    self.xmpp_client = client
                     QTimer.singleShot(0, lambda: show_notification(
-                        title=tr("Connection Failed", "Ошибка подключения"),
-                        message=tr("Could not connect to XMPP server", "Не удалось подключиться к серверу XMPP"),
+                        title=tr("Error", "Ошибка"),
+                        message=tr(f"Connection error: {e}", f"Ошибка подключения: {e}"),
                         config=self.config,
                         emoticon_manager=self.emoticon_manager,
                         account=self.account
                     ))
                     self.signal_emitter.connection_changed.emit('offline')
-                    return
-
-                self.xmpp_client.set_message_callback(self.message_callback)
-                self.xmpp_client.set_presence_callback(self.presence_callback)
-
-                self.initial_roster_loading = True
-                rooms = self.xmpp_client.account_manager.get_rooms()
-                for room in rooms:
-                    if room.get('auto_join'):
-                        try:
-                            self.xmpp_client.join_room(room['jid'])
-                        except:
-                            pass
-
-                self.initial_roster_loading = False
-                QTimer.singleShot(0, lambda: self.signal_emitter.bulk_update_complete.emit())
-            
-                self.signal_emitter.connection_changed.emit('online')
-
-                listen_thread = threading.Thread(target=self.xmpp_client.listen, daemon=True)
-                listen_thread.start()
-                listen_thread.join()
-            
-                # Connection ended - clear sid to allow reconnection
-                if self.xmpp_client:
-                    self.xmpp_client.sid = None
-                    self.xmpp_client.jid = None
-            
-                self.signal_emitter.connection_changed.emit('offline')
-            except Exception as e:
-                # Clear sid on error too
-                if self.xmpp_client:
-                    self.xmpp_client.sid = None
-                    self.xmpp_client.jid = None
-            
-                QTimer.singleShot(0, lambda: show_notification(
-                    title=tr("Error", "Ошибка"),
-                    message=tr(f"Connection error: {e}", f"Ошибка подключения: {e}"),
-                    config=self.config,
-                    emoticon_manager=self.emoticon_manager,
-                    account=self.account
-                ))
-                self.signal_emitter.connection_changed.emit('offline')
             finally:
-                self.is_connecting = False
+                # A forced abort (e.g. system resume) may have already started a
+                # newer attempt; don't clear its in-progress flag when we unwind late.
+                if is_current():
+                    self.is_connecting = False
 
         threading.Thread(target=_worker, daemon=True).start()
 
@@ -3566,15 +3591,20 @@ class ChatWindow(TranslatableMixin, QWidget):
             except Exception:
                 pass
 
+        # abort() only closes the session; the old worker's blocked long-poll read
+        # can stay stuck until its 70s timeout expires. Bump the generation and
+        # clear the flag now so the new attempt isn't held up waiting for it to unwind.
+        self._connect_generation += 1
+        self.is_connecting = False
+
         if self.races_listener:
             try:
                 self.races_listener.reconnect()
             except Exception:
                 pass
 
-        if not self.is_connecting:
-            self.set_connection_status('connecting')
-            self._schedule_reconnect(500)
+        self.set_connection_status('connecting')
+        self._schedule_reconnect(500)
 
     def toggle_user_list(self):
         """Toggle userlist based on current view with proper recalculation"""
