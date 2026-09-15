@@ -962,6 +962,7 @@ class ChatWindow(TranslatableMixin, QWidget):
     def disable_reconnect(self):
         """Disable auto-reconnect (called when switching accounts)"""
         self.allow_reconnect = False
+        self._cancel_reconnect_timer()
 
     def _clear_for_reconnect(self):
         """Clear messages and userlist for fresh reconnection"""
@@ -3501,6 +3502,28 @@ class ChatWindow(TranslatableMixin, QWidget):
         # Force input style update – updates private chat placeholder
         self._update_input_style()
 
+    def _cancel_reconnect_timer(self):
+        """Stop and drop any pending scheduled reconnect attempt"""
+        if self.reconnect_timer is not None:
+            try:
+                self.reconnect_timer.stop()
+            except Exception:
+                pass
+            self.reconnect_timer = None
+
+    def _schedule_reconnect(self, delay_ms: int):
+        self._cancel_reconnect_timer()
+        self.reconnect_timer = QTimer(self)
+        self.reconnect_timer.setSingleShot(True)
+        self.reconnect_timer.timeout.connect(self._run_scheduled_reconnect)
+        self.reconnect_timer.start(delay_ms)
+
+    def _run_scheduled_reconnect(self):
+        self.reconnect_timer = None
+        if self.allow_reconnect and not self.is_connecting and not self._is_connected():
+            self.set_connection_status('connecting')
+            self.connect_xmpp()
+
     def _auto_reconnect(self):
         """Auto-reconnect with exponential backoff (max 10 attempts)"""
         if not self.allow_reconnect or self.is_connecting or self._is_connected() or not self.account:
@@ -3515,23 +3538,11 @@ class ChatWindow(TranslatableMixin, QWidget):
         delay = min(2 ** (self.reconnect_count - 1), 60)
         
         print(f"🔄 Auto-reconnect attempt {self.reconnect_count}/10 in {delay}s...")
-        
-        # Store timer so we can cancel it if user manually reconnects or app closes
-        self.reconnect_timer = QTimer.singleShot(delay * 1000, lambda: (
-            self.set_connection_status('connecting'),
-            self.connect_xmpp()
-        ) if self.allow_reconnect and not self.is_connecting else None)
+        self._schedule_reconnect(delay * 1000)
 
     def manual_reconnect(self):
         """Manual reconnect - cancels auto-reconnect and resets counter"""
-        # Cancel pending auto-reconnect timer
-        if self.reconnect_timer is not None:
-            try:
-                self.reconnect_timer.stop()
-            except:
-                pass
-            self.reconnect_timer = None
-        
+        self._cancel_reconnect_timer()
         self.reconnect_count = 0
 
         if hasattr(self, 'button_panel') and hasattr(self.button_panel, 'reconnect_button'):
@@ -3540,6 +3551,30 @@ class ChatWindow(TranslatableMixin, QWidget):
         print("🔄 Manual reconnection (auto-reconnect cancelled)...")
         self.set_connection_status('connecting')
         self.connect_xmpp()
+
+    def handle_system_resume(self):
+        """Called when the OS wakes from sleep: kill stale sockets and reconnect promptly"""
+        if not self.allow_reconnect or getattr(self, 'really_close', False) or not self.account:
+            return
+
+        print("🔄 System resumed - forcing reconnect...")
+        self.reconnect_count = 0
+
+        if self.xmpp_client:
+            try:
+                self.xmpp_client.abort()
+            except Exception:
+                pass
+
+        if self.races_listener:
+            try:
+                self.races_listener.reconnect()
+            except Exception:
+                pass
+
+        if not self.is_connecting:
+            self.set_connection_status('connecting')
+            self._schedule_reconnect(500)
 
     def toggle_user_list(self):
         """Toggle userlist based on current view with proper recalculation"""

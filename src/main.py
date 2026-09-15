@@ -37,6 +37,7 @@ from helpers.ban_manager import BanManager
 from helpers.user_tracker import UserTracker
 from helpers.font_scaler import FontScaler
 from helpers import hotkey_manager as hotkey
+from helpers.power_monitor import power_monitor
 from core.accounts import AccountManager
 from components.tray_badge import TrayIconWithBadge
 from components.notification import popup_manager
@@ -123,7 +124,10 @@ class Application(QObject):
         self.notification_enabled_action = None
 
         self.ban_list_action = None
-        
+
+        power_monitor.resumed.connect(self._on_system_resumed)
+        power_monitor.start()
+
         self.setup_system_tray()
 
     def setup_system_tray(self):
@@ -380,6 +384,11 @@ class Application(QObject):
         # Show account window
         self.show_account_window()
 
+    def _on_system_resumed(self):
+        """OS woke from sleep/hibernation - force the chat connection to restore now"""
+        if self.chat_window:
+            self.chat_window.handle_system_resume()
+
     def exit_application(self):
         """Exit the application completely"""
         hotkey.hotkey_manager.unregister()
@@ -412,6 +421,7 @@ class Application(QObject):
         if hasattr(self, 'lock_file'):
             self.lock_file.unlock()
 
+        power_monitor.stop()
         self.app.quit()
 
     def run(self):

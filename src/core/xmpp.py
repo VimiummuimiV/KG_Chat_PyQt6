@@ -454,6 +454,16 @@ class XMPPClient:
             print("\n👋 Bye")
         except Exception as e:
             print(f"\n❌ Error: {e}")
+
+    def abort(self):
+        """Force-close the session to unblock a stale in-flight request (e.g. after system sleep)."""
+        self.sid = None
+        self.jid = None
+        if hasattr(self, 'session'):
+            try:
+                self.session.close()
+            except Exception:
+                pass
    
     def disconnect(self):
         """Disconnect"""

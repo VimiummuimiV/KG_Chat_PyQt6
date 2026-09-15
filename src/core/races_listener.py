@@ -187,7 +187,20 @@ class RacesListener(QObject):
 
     def stop(self):
         self._stop.set()
+        self._close_ws()
         self.status_changed.emit("disconnected")
+
+    def reconnect(self):
+        """Force-close the active websocket so _run() reconnects immediately (e.g. after system wake)."""
+        self._close_ws()
+
+    def _close_ws(self):
+        ws = getattr(self, '_ws', None)
+        if ws:
+            try:
+                ws.close()
+            except Exception:
+                pass
 
     def _run(self):
         while not self._stop.is_set():
@@ -203,7 +216,7 @@ class RacesListener(QObject):
 
     def _connect_once(self):
         url = f"wss://klavogonki.ru/ws/{random.randint(0, 999)}/{_rand_id()}/websocket"
-        ws = websocket.WebSocketApp(
+        self._ws = websocket.WebSocketApp(
             url,
             on_open=self._on_open,
             on_message=self._on_message,
@@ -217,7 +230,7 @@ class RacesListener(QObject):
                 ),
             },
         )
-        ws.run_forever(ping_interval=25, ping_timeout=10)
+        self._ws.run_forever(ping_interval=25, ping_timeout=10)
 
     def _on_open(self, ws):
         self.status_changed.emit("connected")
