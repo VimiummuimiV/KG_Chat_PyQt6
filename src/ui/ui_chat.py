@@ -3525,19 +3525,19 @@ class ChatWindow(TranslatableMixin, QWidget):
             self.connect_xmpp()
 
     def _auto_reconnect(self):
-        """Auto-reconnect with exponential backoff (max 10 attempts)"""
+        """Auto-reconnect with exponential backoff, capped at 60s but never giving up.
+
+        Network can take much longer than a few minutes to come back after a long
+        sleep (Wi-Fi re-association, DHCP renewal, driver reset, etc.), so attempts
+        must keep retrying at the max delay instead of stopping after a fixed count.
+        """
         if not self.allow_reconnect or self.is_connecting or self._is_connected() or not self.account:
             return
-        
-        # Max 10 attempts
-        if self.reconnect_count >= 10:
-            print(f"❌ Max reconnection attempts (10) reached")
-            return  # Button already visible
-        
+
         self.reconnect_count += 1
         delay = min(2 ** (self.reconnect_count - 1), 60)
-        
-        print(f"🔄 Auto-reconnect attempt {self.reconnect_count}/10 in {delay}s...")
+
+        print(f"🔄 Auto-reconnect attempt {self.reconnect_count} in {delay}s...")
         self._schedule_reconnect(delay * 1000)
 
     def manual_reconnect(self):
