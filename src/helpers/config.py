@@ -22,7 +22,8 @@ class Config:
         self.data = self.load()
 
     def load(self):
-        with open(self.path, 'r', encoding='utf-8') as f:
+        # utf-8-sig transparently strips a BOM if present (e.g. from tools that save as "UTF-8")
+        with open(self.path, 'r', encoding='utf-8-sig') as f:
             return json.load(f)
 
     def save(self):
