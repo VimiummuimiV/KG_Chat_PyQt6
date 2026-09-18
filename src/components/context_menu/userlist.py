@@ -4,7 +4,7 @@ from typing import Optional
 
 from PyQt6.QtWidgets import QMenu
 
-from helpers.create import _render_svg_icon
+from helpers.button import _render_svg_icon
 from helpers.fonts import get_font, FontType
 from helpers.translate import tr
 

@@ -10,7 +10,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt
 
-from helpers.create import create_icon_button
+from helpers.button import create_icon_button
 from helpers.fonts import get_font, FontType
 from helpers.translate import tr, on_language_changed, TranslatableMixin
 

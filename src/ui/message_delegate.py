@@ -14,7 +14,7 @@ from helpers.fonts import get_font, FontType
 from helpers.me_action import format_me_action
 from helpers.cache import get_cache
 from ui.message_renderer import MessageRenderer
-from helpers.create import _render_svg_icon
+from helpers.button import _render_svg_icon
 from helpers.translate import tr
 
 

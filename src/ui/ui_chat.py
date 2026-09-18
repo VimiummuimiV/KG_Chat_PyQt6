@@ -14,7 +14,7 @@ from PyQt6.QtGui import QAction, QCursor
             
 
 from helpers.config import Config, get_config_path
-from helpers.create import (
+from helpers.button import (
     create_icon_button,
     _render_svg_icon,
     update_all_icons,

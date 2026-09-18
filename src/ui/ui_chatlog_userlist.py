@@ -5,7 +5,7 @@ from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QScrollAr
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QCursor
 
-from helpers.create import create_icon_button
+from helpers.button import create_icon_button
 from helpers.cache import get_cache
 from helpers.fonts import get_font, FontType
 from helpers.translate import on_language_changed, TranslatableMixin

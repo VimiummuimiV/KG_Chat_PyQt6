@@ -8,7 +8,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtGui import QFont, QIcon, QPixmap, QKeyEvent, QGuiApplication
 from PyQt6.QtCore import Qt, pyqtSignal, QSize, pyqtSlot, QEvent
 
-from helpers.create import create_icon_button, set_theme, _render_svg_icon
+from helpers.button import create_icon_button, set_theme, _render_svg_icon
 from helpers.help import HelpPanel
 from helpers.load import make_rounded_pixmap
 from helpers.cache import get_cache

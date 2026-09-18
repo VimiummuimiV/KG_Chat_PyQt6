@@ -8,7 +8,7 @@ from PyQt6.QtCore import Qt, QEvent, pyqtSignal
 
 from helpers.config import Config
 from components.presence_badge import apply_counter_style
-from helpers.create import (
+from helpers.button import (
     create_icon_button,
     _render_svg_icon,
     set_visual_active

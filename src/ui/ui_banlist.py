@@ -9,7 +9,7 @@ from PyQt6.QtSvg import QSvgRenderer
 from PyQt6.QtGui import QPixmap, QPainter, QFontMetrics
 import time
 
-from helpers.create import create_icon_button
+from helpers.button import create_icon_button
 from helpers.fonts import get_font, FontType
 from helpers.ban_manager import BanManager
 from helpers.translate import tr, on_language_changed, TranslatableMixin

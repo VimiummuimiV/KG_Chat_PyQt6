@@ -12,7 +12,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QObject, QTimer
 
-from helpers.create import create_icon_button, set_visual_active
+from helpers.button import create_icon_button, set_visual_active
 from components.presence_badge import TypeFilterBar, EVENT_TYPES
 from helpers import hotkey_manager as hotkey
 from helpers.fonts import (

@@ -9,7 +9,7 @@ from PyQt6 import sip
 
 
 from helpers.load import make_rounded_pixmap
-from helpers.create import _render_svg_icon, get_user_svg_color
+from helpers.button import _render_svg_icon, get_user_svg_color
 from helpers.cache import get_cache
 from helpers.fonts import get_font, FontType
 from helpers.scroll.auto_scroll import AutoScroller

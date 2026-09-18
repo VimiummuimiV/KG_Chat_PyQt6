@@ -41,7 +41,7 @@ from helpers.power_monitor import power_monitor
 from core.accounts import AccountManager
 from components.tray_badge import TrayIconWithBadge
 from components.notification import popup_manager
-from helpers.create import _render_svg_icon
+from helpers.button import _render_svg_icon
 
 
 class Application(QObject):

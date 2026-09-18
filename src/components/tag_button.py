@@ -5,7 +5,7 @@ from PyQt6.QtCore import QSize, QRect, QTimer, Qt, pyqtSignal, QMimeData
 from PyQt6.QtGui import QDrag
 from PyQt6 import sip
 
-from helpers import create as icon_helpers
+from helpers import button as icon_helpers
 
 _tag_registry = []
 
@@ -97,7 +97,7 @@ class TagButton(QWidget):
         drag.exec(Qt.DropAction.MoveAction)
 
     def _update_style(self):
-        """Re-apply colors for the current theme (read live from helpers.create)"""
+        """Re-apply colors for the current theme (read live from helpers.button)"""
         is_dark = icon_helpers._is_dark_theme
         bg, fg, border = _TAG_COLORS_DARK if is_dark else _TAG_COLORS_LIGHT
         close_hover_bg = _CLOSE_HOVER_BG_DARK if is_dark else _CLOSE_HOVER_BG_LIGHT

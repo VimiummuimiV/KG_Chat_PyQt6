@@ -6,7 +6,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, pyqtSignal
 
-from helpers.create import create_icon_button, HoverIconButton
+from helpers.button import create_icon_button, HoverIconButton
 from helpers.fonts import get_font, FontType, get_userlist_width
 from helpers.font_scaler import FontScaleSlider
 from helpers.translate import tr, on_language_changed, TranslatableMixin
