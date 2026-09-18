@@ -30,6 +30,7 @@ CHAT_GENERAL_KB = [
 ]
 
 CHAT_CTRL_KB = [
+    ("Ctrl+Space",     "Hold to dictate, release to stop", "Удерживать — диктовка, отпустить — остановить"),
     ("Ctrl+;",         "Toggle emoticon selector", "Селектор эмотиконов"),
     ("Ctrl+F",         "Toggle search bar", "Строка поиска"),
     ("Ctrl+T",         "Toggle theme", "Тема"),
@@ -87,6 +88,12 @@ MSG_URL_MOUSE = [
 
 NOTIFICATION_MOUSE = [
     ("Middle click", "Средний клик", "Quick reply from message notification popup", "Быстрый ответ из попапа уведомления о сообщении"),
+]
+
+VOICE_MIC_MOUSE = [
+    ("Hold mic",        "Удержать микрофон", "Dictate into the input field", "Диктовка в поле ввода"),
+    ("Click mic",       "Клик по микрофону", "Keep listening after send", "Непрерывный ввод после отправки"),
+    ("Right click mic", "ПКМ по микрофону",  "Choose microphone", "Выбор микрофона"),
 ]
 
 CHATLOG_TIMESTAMP_MOUSE = [
@@ -193,6 +200,7 @@ CONTEXTS = {
             (("Message Body Clicks", "Клики по телу сообщения"),          None, MSG_BODY_MOUSE),
             (("URL Interactions", "Взаимодействие с URL"),                None, MSG_URL_MOUSE),
             (("Notification Popup", "Всплывающее уведомление"),           None, NOTIFICATION_MOUSE),
+            (("Voice Input", "Голосовой ввод"),                          None, VOICE_MIC_MOUSE),
         ],
     },
     "chatlog": {
