@@ -8,3 +8,6 @@ playsound3
 gTTS
 keyboard
 websocket-client
+sounddevice
+numpy
+SpeechRecognition
