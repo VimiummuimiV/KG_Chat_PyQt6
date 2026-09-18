@@ -9,7 +9,7 @@ from PyQt6.QtGui import QPainter, QColor, QPainterPath, QPen, QPaintEvent, QMous
 from PyQt6.QtWidgets import QApplication, QPushButton, QMenu
 
 from helpers.button import _render_svg_icon, _icon_registry
-from helpers.translate import tr
+from helpers.translate import tr, on_language_changed
 from helpers.voice.voice_input import (
     InputDevice,
     list_input_devices,
@@ -79,6 +79,7 @@ class MicButton(QPushButton):
         _icon_registry.append(self)
         self.refresh_icon()
         self._refresh_tooltip()
+        on_language_changed(self._refresh_tooltip)
 
     # ── public API ──────────────────────────────────────────────────────────
 
@@ -307,7 +308,7 @@ class MicButton(QPushButton):
 
         menu.exec(QCursor.pos())
 
-    def _refresh_tooltip(self):
+    def _refresh_tooltip(self, _code=None):
         if self._latched:
             mode = tr("Listening (click to stop)", "Слушаю (клик — стоп)")
         elif self._listening:
