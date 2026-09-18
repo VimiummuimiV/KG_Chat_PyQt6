@@ -157,7 +157,9 @@ def update_all_icons():
     _icon_registry = [btn for btn in _icon_registry if not sip.isdeleted(btn)]
 
     for button in _icon_registry:
-        if isinstance(button, HoverIconButton):
+        if hasattr(button, "refresh_icon"):
+            button.refresh_icon()
+        elif isinstance(button, HoverIconButton):
             button._update_icon()
         elif hasattr(button, '_icon_path') and hasattr(button, '_icon_name'):
             icon = _render_svg_icon(button._icon_path / button._icon_name, button._icon_size)

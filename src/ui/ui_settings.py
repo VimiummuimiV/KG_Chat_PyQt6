@@ -26,7 +26,7 @@ from helpers.fonts import (
     set_config,
 )
 from helpers.startup_manager import StartupManager
-from helpers.voice_engine import play_sound
+from helpers.voice.voice_engine import play_sound
 from helpers.data import get_data_dir
 from helpers.color_utils import blend_hex_colors, tinted_chip_colors
 from helpers.browser import get_available_browsers

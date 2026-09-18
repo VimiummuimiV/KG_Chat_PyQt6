@@ -37,7 +37,8 @@ from helpers.fonts import (
     set_application_font
 )
 from helpers.font_scaler import FontScaleSlider
-from helpers.voice_engine import get_voice_engine, play_sound
+from helpers.voice.voice_engine import get_voice_engine, play_sound
+from helpers.voice.voice_input_attach import install_voice_input
 from helpers.me_action import format_me_action
 from helpers.window_size_manager import WindowSizeManager
 from ui.dialogs.window_presets_dialog import WindowPresetsDialog
@@ -552,6 +553,7 @@ class ChatWindow(TranslatableMixin, QWidget):
         self._tr_set(self.send_button.setToolTip, "Send Message", "Отправить сообщение")
         self.send_button.clicked.connect(self.send_message)
         self.input_top_layout.addWidget(self.send_button)
+        install_voice_input(self)
     
         # Exit private mode button reference (created dynamically when needed)
         self.exit_private_button = None
@@ -800,6 +802,25 @@ class ChatWindow(TranslatableMixin, QWidget):
         return width, height, x, y
 
     def eventFilter(self, obj, event):
+        # Ctrl+Space hold-to-talk. Must live here (not only keyPressEvent):
+        # the focused QLineEdit would otherwise swallow Space.
+        if event.type() == QEvent.Type.KeyPress and not event.isAutoRepeat():
+            if (event.key() == Qt.Key.Key_Space
+                    and event.modifiers() & Qt.KeyboardModifier.ControlModifier):
+                start = getattr(self, "start_voice_ptt", None)
+                if callable(start):
+                    start()
+                    return True
+        if event.type() == QEvent.Type.KeyRelease and not event.isAutoRepeat():
+            if getattr(self, "_voice_ptt_held", False) and event.key() in (
+                Qt.Key.Key_Space,
+                Qt.Key.Key_Control,
+            ):
+                stop = getattr(self, "stop_voice_ptt", None)
+                if callable(stop):
+                    stop()
+                return event.key() == Qt.Key.Key_Space
+
         font_scaler = getattr(self.app_controller, 'font_scaler', None)
         if font_scaler is not None:
             # Ctrl + Scroll → font size
@@ -4307,6 +4328,12 @@ class ChatWindow(TranslatableMixin, QWidget):
         ctrl_held = bool(mods & Qt.KeyboardModifier.ControlModifier)
         shift_held = bool(mods & Qt.KeyboardModifier.ShiftModifier)
 
+        if ctrl_held and key == Qt.Key.Key_Space:
+            start = getattr(self, "start_voice_ptt", None)
+            if callable(start) and not event.isAutoRepeat():
+                start()
+            return
+
         if ctrl_held and key == Qt.Key.Key_W and not shift_held:
             room = self._current_room()
             if room:
@@ -4559,6 +4586,14 @@ class ChatWindow(TranslatableMixin, QWidget):
         if event.isAutoRepeat():
             return
         key = event.key()
+        if getattr(self, "_voice_ptt_held", False) and key in (
+            Qt.Key.Key_Space,
+            Qt.Key.Key_Control,
+        ):
+            stop = getattr(self, "stop_voice_ptt", None)
+            if callable(stop):
+                stop()
+            return
         vk = self._KEY_ACTION.get(key) or self._KEY_ACTION.get(event.nativeVirtualKey())
         if vk in ('nav_backward', 'nav_forward'):
             cw = self._chatlog_for_hotkey()
@@ -4690,7 +4725,9 @@ class ChatWindow(TranslatableMixin, QWidget):
                 pass
         self.set_connection_status('offline')
 
-        # Shutdown voice engine
+        # Shutdown voice engine (TTS) and voice input (STT)
         if hasattr(self, 'voice_engine'):
             self.voice_engine.shutdown()
+        if getattr(self, "voice_input", None):
+            self.voice_input.shutdown()
         event.accept()
