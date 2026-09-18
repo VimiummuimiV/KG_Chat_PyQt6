@@ -200,7 +200,7 @@ CONTEXTS = {
             (("Message Body Clicks", "Клики по телу сообщения"),          None, MSG_BODY_MOUSE),
             (("URL Interactions", "Взаимодействие с URL"),                None, MSG_URL_MOUSE),
             (("Notification Popup", "Всплывающее уведомление"),           None, NOTIFICATION_MOUSE),
-            (("Voice Input", "Голосовой ввод"),                          None, VOICE_MIC_MOUSE),
+            (("Voice Input", "Голосовой ввод"),                           None, VOICE_MIC_MOUSE),
         ],
     },
     "chatlog": {
