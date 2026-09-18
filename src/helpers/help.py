@@ -91,8 +91,8 @@ NOTIFICATION_MOUSE = [
 ]
 
 VOICE_MIC_MOUSE = [
-    ("Hold mic",        "Удержать микрофон", "Dictate into the input field", "Диктовка в поле ввода"),
-    ("Click mic",       "Клик по микрофону", "Keep listening after send", "Непрерывный ввод после отправки"),
+    ("Hold mic",        "Удержать микрофон", "Dictate",           "Диктовка"),
+    ("Click mic",       "Клик по микрофону", "Keep listening",    "Непрерывный ввод"),
     ("Right click mic", "ПКМ по микрофону",  "Choose microphone", "Выбор микрофона"),
 ]
 
