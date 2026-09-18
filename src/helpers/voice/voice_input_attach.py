@@ -45,7 +45,7 @@ def install_voice_input(window) -> MicButton:
 
     mic = MicButton(icons_path, icon_size=icon_size, button_size=button_size, parent=window)
     mic.set_device(saved_name, saved_index)
-    mic.setVisible(bool(_cfg_get(config, "ui", "voice_input", "enabled", default=True)))
+    mic.setVisible(bool(_cfg_get(config, "voice_input", "enabled", default=True)))
 
     # [input] [mic] [send] [emoji]
     layout = window.input_top_layout

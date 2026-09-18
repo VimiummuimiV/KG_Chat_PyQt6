@@ -1886,7 +1886,7 @@ class SettingsWidget(TranslatableMixin, QWidget):
 
         youtube_enabled = self.config.get("ui", "youtube", "enabled")
         self.youtube_checkbox.setChecked(True if youtube_enabled is None else bool(youtube_enabled))
-        voice_input_enabled = self.config.get("ui", "voice_input", "enabled")
+        voice_input_enabled = self.config.get("voice_input", "enabled")
         self.voice_input_checkbox.setChecked(True if voice_input_enabled is None else bool(voice_input_enabled))
 
         tls_disabled = self.config.get("player", "disable_tls_verify")
@@ -2297,7 +2297,7 @@ class SettingsWidget(TranslatableMixin, QWidget):
         self.config.set("ui", "youtube", "enabled", value=checked)
 
     def _on_voice_input_toggled(self, checked: bool):
-        self.config.set("ui", "voice_input", "enabled", value=checked)
+        self.config.set("voice_input", "enabled", value=checked)
 
     def _on_player_tls_toggled(self, checked: bool):
         self.config.set("player", "disable_tls_verify", value=checked)
