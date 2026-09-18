@@ -1229,6 +1229,10 @@ class SettingsWidget(TranslatableMixin, QWidget):
             section, tr("YouTube link previews", "Превью ссылок YouTube"),
             self._on_youtube_toggled
         )
+        self.voice_input_checkbox = self._add_checkbox(
+            section, tr("Voice input button", "Кнопка голосового ввода"),
+            self._on_voice_input_toggled
+        )
         self.settings_accordion_checkbox = self._add_checkbox(
             section, tr("Accordion settings sections (opening one collapses others)",
                         "Аккордеон секций настроек (открытие одной сворачивает остальные)"),
@@ -1825,7 +1829,7 @@ class SettingsWidget(TranslatableMixin, QWidget):
             self.settings_accordion_checkbox, self.auto_login_checkbox,
             self.start_minimized_checkbox, self.start_with_system_checkbox,
             self.resource_combo, self.own_message_mode_combo,
-            self.clear_private_checkbox, self.youtube_checkbox,
+            self.clear_private_checkbox, self.youtube_checkbox, self.voice_input_checkbox,
             self.player_tls_checkbox, self.player_hwdec_combo, self.player_volume_spin,
             self.player_log_checkbox, self.player_keep_open_checkbox, self.player_ontop_checkbox,
             self.player_ytdl_format_combo,
@@ -1882,6 +1886,8 @@ class SettingsWidget(TranslatableMixin, QWidget):
 
         youtube_enabled = self.config.get("ui", "youtube", "enabled")
         self.youtube_checkbox.setChecked(True if youtube_enabled is None else bool(youtube_enabled))
+        voice_input_enabled = self.config.get("ui", "voice_input", "enabled")
+        self.voice_input_checkbox.setChecked(True if voice_input_enabled is None else bool(voice_input_enabled))
 
         tls_disabled = self.config.get("player", "disable_tls_verify")
         self.player_tls_checkbox.setChecked(
@@ -2289,6 +2295,9 @@ class SettingsWidget(TranslatableMixin, QWidget):
 
     def _on_youtube_toggled(self, checked: bool):
         self.config.set("ui", "youtube", "enabled", value=checked)
+
+    def _on_voice_input_toggled(self, checked: bool):
+        self.config.set("ui", "voice_input", "enabled", value=checked)
 
     def _on_player_tls_toggled(self, checked: bool):
         self.config.set("player", "disable_tls_verify", value=checked)

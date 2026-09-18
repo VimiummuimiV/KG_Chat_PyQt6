@@ -3263,6 +3263,14 @@ class ChatWindow(TranslatableMixin, QWidget):
             if widget:
                 widget._force_recalculate()
 
+    def _on_voice_input_enabled_toggled(self, enabled: bool):
+        mic = getattr(self, "mic_button", None)
+        if mic is None:
+            return
+        mic.setVisible(enabled)
+        if not enabled:
+            self.voice_input.stop()
+
     def _apply_chatlog_max_messages(self):
         for widget in (self.chatlog_widget, self.chatlog_split_widget):
             if widget is not None:
@@ -3971,6 +3979,9 @@ class ChatWindow(TranslatableMixin, QWidget):
             )
             self.settings_widget.youtube_checkbox.toggled.connect(
                 lambda _=None: self._refresh_youtube_previews()
+            )
+            self.settings_widget.voice_input_checkbox.toggled.connect(
+                self._on_voice_input_enabled_toggled
             )
             self.settings_widget.chatlog_max_messages_spin.committed.connect(
                 lambda _=None: self._apply_chatlog_max_messages()

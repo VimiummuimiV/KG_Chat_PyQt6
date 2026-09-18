@@ -134,8 +134,8 @@ def _level_from_rms(rms: float) -> float:
     return max(0.0, min(1.0, norm))
 
 
-def recognize_pcm(pcm: bytes, language: str = LANG_AUTO, fast: bool = False) -> str:
-    """Google Web Speech. `fast` unused."""
+def recognize_pcm(pcm: bytes, language: str = LANG_AUTO) -> str:
+    """Google Web Speech."""
     if not pcm or len(pcm) < SAMPLE_RATE * 2 * MIN_UTTERANCE_S:
         return ""
     try:
@@ -268,15 +268,14 @@ class _RecognizeWorker(QThread):
     finished_text = pyqtSignal(str)
     failed = pyqtSignal(str)
 
-    def __init__(self, pcm: bytes, language: str, parent=None, fast: bool = False):
+    def __init__(self, pcm: bytes, language: str, parent=None):
         super().__init__(parent)
         self._pcm = pcm
         self._language = language
-        self._fast = fast
 
     def run(self):
         try:
-            text = recognize_pcm(self._pcm, self._language, fast=self._fast)
+            text = recognize_pcm(self._pcm, self._language)
             self.finished_text.emit(text)
         except Exception as e:
             self.failed.emit(str(e))
@@ -372,7 +371,7 @@ class VoiceInputEngine(QObject):
     def _on_preview(self, pcm: bytes):
         if not pcm or self._preview_worker is not None:
             return
-        worker = _RecognizeWorker(pcm, self._language, parent=self, fast=True)
+        worker = _RecognizeWorker(pcm, self._language, parent=self)
         worker.finished_text.connect(lambda text, w=worker: self._on_preview_done(w, text))
         worker.failed.connect(lambda m, w=worker: self._on_preview_failed(w, m))
         self._preview_worker = worker

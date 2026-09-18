@@ -217,7 +217,7 @@ class MicButton(QPushButton):
 
             if self._peak > 0.02:
                 peak_y = rect.bottom() - rect.height() * self._peak
-                zone = self._zone_color(self._peak, filled=True)
+                zone = self._color_for_level(self._peak, filled=True)
                 zone.setAlpha(220)
                 pen = QPen(zone)
                 pen.setWidthF(1.5)
@@ -251,38 +251,6 @@ class MicButton(QPushButton):
         p.setPen(Qt.PenStyle.NoPen)
         p.setBrush(color)
         p.drawRect(QRectF(rect.left(), top, rect.width(), max(1.0, bot - top)))
-
-    def _zone_color(self, level: float, filled: bool) -> QColor:
-        return self._color_for_level(level, filled)
-
-    @staticmethod
-    def _round_rect(rect: QRectF, tl: float, tr: float, br: float, bl: float) -> QPainterPath:
-        cap = min(rect.width(), rect.height()) / 2.0
-        tl, tr, br, bl = (min(v, cap) for v in (tl, tr, br, bl))
-        path = QPainterPath()
-        path.moveTo(rect.left() + tl, rect.top())
-        path.lineTo(rect.right() - tr, rect.top())
-        if tr:
-            path.quadTo(rect.right(), rect.top(), rect.right(), rect.top() + tr)
-        else:
-            path.lineTo(rect.right(), rect.top())
-        path.lineTo(rect.right(), rect.bottom() - br)
-        if br:
-            path.quadTo(rect.right(), rect.bottom(), rect.right() - br, rect.bottom())
-        else:
-            path.lineTo(rect.right(), rect.bottom())
-        path.lineTo(rect.left() + bl, rect.bottom())
-        if bl:
-            path.quadTo(rect.left(), rect.bottom(), rect.left(), rect.bottom() - bl)
-        else:
-            path.lineTo(rect.left(), rect.bottom())
-        path.lineTo(rect.left(), rect.top() + tl)
-        if tl:
-            path.quadTo(rect.left(), rect.top(), rect.left() + tl, rect.top())
-        else:
-            path.lineTo(rect.left(), rect.top())
-        path.closeSubpath()
-        return path
 
     def _color_for_level(self, level: float, filled: bool) -> QColor:
         alpha = 150 if filled else 38
