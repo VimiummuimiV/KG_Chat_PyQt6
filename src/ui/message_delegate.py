@@ -4,11 +4,11 @@ from pathlib import Path
 from datetime import datetime
 
 from PyQt6.QtWidgets import QStyledItemDelegate, QStyleOptionViewItem, QApplication, QTextEdit, QMenu
-from PyQt6.QtCore import Qt, QSize, QRect, QModelIndex, pyqtSignal, QTimer, QEvent
+from PyQt6.QtCore import Qt, QSize, QRect, QRectF, QModelIndex, pyqtSignal, QTimer, QEvent
 from PyQt6.QtGui import QPainter, QPainterPath, QPen, QFontMetrics, QColor, QCursor, QMouseEvent, QKeySequence
 
 from components.messages_separator import NewMessagesSeparator, DateSeparator
-from helpers.flash_highlight import paint_flash, highlight_color, FlashFade
+from helpers.flash_highlight import paint_flash, highlight_color, FlashFade, HIGHLIGHT_RADIUS
 from helpers.emoticons import EmoticonManager
 from helpers.fonts import get_font, FontType
 from helpers.me_action import format_me_action
@@ -22,9 +22,14 @@ _DARK  = dict(bg="#0A0A0A", fg="#D4D4D4", sel_bg="#2E7D32", sel_fg="#E8F5E9")
 _LIGHT = dict(bg="#C8C8C8", fg="#1A1A1A", sel_bg="#388E3C", sel_fg="#FFFFFF")
 
 
+class MarkerGutter:
+    """Side space reserved in chatlog rows so row markers never overlap the text"""
+    LEFT = 12
+    RIGHT = 6
+
+
 class ContinuityRail:
     """Rounded '[' bracket linking a user's consecutive shown messages in a filtered chatlog"""
-    INSET = 8
     WIDTH = 2
     RADIUS = 3
     HOOK = 5
@@ -58,6 +63,24 @@ class ContinuityRail:
         painter.setPen(QPen(color, cls.WIDTH, Qt.PenStyle.SolidLine, Qt.PenCapStyle.FlatCap, Qt.PenJoinStyle.RoundJoin))
         painter.setBrush(Qt.BrushStyle.NoBrush)
         painter.drawPath(path)
+
+
+class AnchorMarker:
+    """Resting frame kept on the last clicked message after its flash has faded"""
+    GAP = 4
+    BORDER_ALPHA = 0.55
+    FILL_ALPHA = 0.06
+
+    @classmethod
+    def paint(cls, painter: QPainter, rect: QRect, color_hex: str):
+        frame = QRectF(rect).adjusted(MarkerGutter.LEFT - cls.GAP + 0.5, 0.5, -1.5, -0.5)
+        border = QColor(color_hex)
+        border.setAlphaF(cls.BORDER_ALPHA)
+        fill = QColor(color_hex)
+        fill.setAlphaF(cls.FILL_ALPHA)
+        painter.setPen(QPen(border, 1))
+        painter.setBrush(fill)
+        painter.drawRoundedRect(frame, HIGHLIGHT_RADIUS, HIGHLIGHT_RADIUS)
 
 
 class _TextSelectorOverlay(QTextEdit):
@@ -199,7 +222,10 @@ class MessageDelegate(QStyledItemDelegate):
         self.compact_mode = False
         self.padding = config.get("ui", "message", "padding") or 2
         self.spacing = config.get("ui", "message", "element_spacing") or 4
-        self.rail_inset = 0  # Left gutter for the continuity rail; non-zero only while it is shown
+        self.gutter_left = 0
+        self.gutter_right = 0
+        self.show_continuity = False
+        self.anchor_message = None
 
         self.click_rects: Dict[int, Dict] = {}
         self.reply_callback = None
@@ -310,8 +336,17 @@ class MessageDelegate(QStyledItemDelegate):
         if self.compact_mode != compact:
             self.compact_mode = compact
 
+    def set_marker_gutter(self, enabled: bool):
+        self.gutter_left = MarkerGutter.LEFT if enabled else 0
+        self.gutter_right = MarkerGutter.RIGHT if enabled else 0
+
     def set_continuity_rails(self, enabled: bool):
-        self.rail_inset = ContinuityRail.INSET if enabled else 0
+        self.show_continuity = enabled
+
+    def set_anchor(self, msg):
+        self.anchor_message = msg
+        if self.list_view:
+            self.list_view.viewport().update()
 
     @staticmethod
     def _get_display_body(msg) -> tuple:
@@ -364,7 +399,7 @@ class MessageDelegate(QStyledItemDelegate):
         if width <= 0:
             width = 800
         row = index.row()
-        content_width = width - self.rail_inset
+        content_width = width - self.gutter_left - self.gutter_right
         if getattr(msg, 'is_presence_log', False):
             height = self._presence_log_height(msg, content_width)
         else:
@@ -464,13 +499,16 @@ class MessageDelegate(QStyledItemDelegate):
         if row_flash is not None and row_flash.opacity > 0:
             paint_flash(painter, option.rect, highlight_color(self.is_dark_theme), row_flash.opacity)
   
-        content_rect = option.rect.adjusted(self.rail_inset, 0, 0, 0)
+        if msg is self.anchor_message:
+            AnchorMarker.paint(painter, option.rect, highlight_color(self.is_dark_theme))
+
+        content_rect = option.rect.adjusted(self.gutter_left, 0, -self.gutter_right, 0)
         if getattr(msg, 'is_presence_log', False):
             self._paint_presence_log(painter, content_rect, msg, row, self.compact_mode)
         else:
             self._paint_message(painter, content_rect, msg, row, self.compact_mode)
 
-        if self.rail_inset:
+        if self.show_continuity:
             first_line_middle = option.rect.top() + self.padding + QFontMetrics(self.body_font).height() // 2
             ContinuityRail.paint(
                 painter, option.rect, msg, first_line_middle,
@@ -834,8 +872,11 @@ class MessageDelegate(QStyledItemDelegate):
      
         return set(range(start_row, end_row + 1))
 
-    def highlight_row(self, row: int):
-        """Highlight a row with fade-out effect, independent of any other row's fade"""
+    def highlight_row(self, row: int, anchor: bool = False):
+        """Highlight a row with fade-out effect, independent of any other row's fade.
+        With anchor=True the message also keeps a resting frame until the next anchor."""
+        if anchor and self.list_view:
+            self.set_anchor(self.list_view.model().data(self.list_view.model().index(row, 0)))
         flash = self.row_flashes.get(row)
         if flash is None:
             flash = FlashFade(lambda r=row: self._on_row_highlight_tick(r), parent=self, config=self.config, duration_kind="row")

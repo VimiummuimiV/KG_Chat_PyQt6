@@ -75,6 +75,7 @@ class ChatlogWidget(TranslatableMixin, QWidget):
 
         self.model = MessageListModel(max_messages=self._max_messages_limit())
         self.delegate = MessageDelegate(config, self.emoticon_manager)
+        self.delegate.set_marker_gutter(True)
         
         # Set username for mention highlighting if account is available
         if account and account.get('chat_username'):
@@ -145,7 +146,7 @@ class ChatlogWidget(TranslatableMixin, QWidget):
     def _scroll_and_highlight(self, target_row: int, scroll_delay: int = 50, highlight_delay: int = 200):
         """Scroll to target row and highlight it after a delay."""
         scroll(self.list_view, mode="middle", target_row=target_row, delay=scroll_delay)
-        QTimer.singleShot(highlight_delay, lambda: self.delegate.highlight_row(target_row))
+        QTimer.singleShot(highlight_delay, lambda: self.delegate.highlight_row(target_row, anchor=True))
 
     def _filtered_click_opens_split(self) -> bool:
         action = self.config.get("ui", "chatlog", "filtered_click_action") or DEFAULTS["chatlog"]["filtered_click_action"]
@@ -163,7 +164,7 @@ class ChatlogWidget(TranslatableMixin, QWidget):
                 self._ensure_split_chatlog_widget().load_date_and_scroll(
                     clicked_msg.timestamp.strftime("%Y-%m-%d"), clicked_msg.get_time_str()
                 )
-            self.delegate.highlight_row(row)
+            self.delegate.highlight_row(row, anchor=True)
             return
 
         # No active filters → simple direct scroll + highlight
@@ -1130,6 +1131,7 @@ class ChatlogWidget(TranslatableMixin, QWidget):
         """Load single date chatlog - this is NORMAL viewing"""
         self._set_parsing_mode(False)
         self._set_parser_youtube_off(False)
+        self.delegate.set_anchor(None)
         self.model.clear()
         self.all_messages = []
         self._update_confirm_search_button()
