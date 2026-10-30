@@ -147,42 +147,31 @@ class ChatlogWidget(TranslatableMixin, QWidget):
         scroll(self.list_view, mode="middle", target_row=target_row, delay=scroll_delay)
         QTimer.singleShot(highlight_delay, lambda: self.delegate.highlight_row(target_row))
 
-    def _highlight_in_split(self, timestamp):
-        """Find a message by timestamp in the split pane (already showing the right date) and highlight it"""
-        target_row = self._find_message_row(
-            self.split_chatlog_widget.all_messages,
-            lambda msg: msg.timestamp == timestamp
-        )
-        if target_row is not None:
-            self.split_chatlog_widget._scroll_and_highlight(target_row, scroll_delay=50, highlight_delay=200)
+    def _filtered_click_opens_split(self) -> bool:
+        action = self.config.get("ui", "chatlog", "filtered_click_action") or DEFAULTS["chatlog"]["filtered_click_action"]
+        return action == "split"
 
     def _on_message_clicked(self, row: int):
-        """Handle message click - reveal all messages and scroll to clicked message"""
+        """Handle message click - show the message in the split pane, or reveal all messages and scroll to it"""
+        clicked_msg = self.model.data(self.model.index(row, 0), Qt.ItemDataRole.DisplayRole)
+        has_filters = self._has_active_search_or_filter()
 
-        # Split view open → find message in the split chatlog and highlight it there,
-        # loading that message's own date into the split pane first if it differs
-        if self.split_chatlog_widget:
-            clicked_msg = self.model.data(self.model.index(row, 0), Qt.ItemDataRole.DisplayRole)
+        # Split view open (or requested for filtered clicks) → show the message in the split
+        # chatlog, loading that message's own date first if it differs
+        if self.split_chatlog_widget or (has_filters and self._filtered_click_opens_split()):
             if clicked_msg and not getattr(clicked_msg, 'is_separator', False):
-                if clicked_msg.timestamp.date() == self.split_chatlog_widget.current_date:
-                    self._highlight_in_split(clicked_msg.timestamp)
-                else:
-                    def _on_loaded(_messages=None, ts=clicked_msg.timestamp):
-                        self.split_chatlog_widget.messages_loaded.disconnect(_on_loaded)
-                        self._highlight_in_split(ts)
-                    self.split_chatlog_widget.messages_loaded.connect(_on_loaded)
-                    self.split_chatlog_widget.suppress_bottom_scroll = True
-                    self.split_chatlog_widget.load_date(clicked_msg.timestamp.strftime("%Y-%m-%d"))
+                self._ensure_split_chatlog_widget().load_date_and_scroll(
+                    clicked_msg.timestamp.strftime("%Y-%m-%d"), clicked_msg.get_time_str()
+                )
             self.delegate.highlight_row(row)
             return
-        
+
         # No active filters → simple direct scroll + highlight
-        if not (self.filtered_usernames or self.search_text or self.filter_mentions):
+        if not has_filters:
             self._scroll_and_highlight(row, scroll_delay=50, highlight_delay=200)
             return
 
         # Filters are active → clear them and find message in full list
-        clicked_msg = self.model.data(self.model.index(row, 0), Qt.ItemDataRole.DisplayRole)
         if not clicked_msg:
             return
 

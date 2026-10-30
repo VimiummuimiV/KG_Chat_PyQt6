@@ -59,6 +59,7 @@ DEFAULTS = {
         "live_search_max_messages": 5000,
         "live_search_max_messages_min": 500,
         "live_search_max_messages_max": 50000,
+        "filtered_click_action": "reveal",
     },
     "chat": {
         "max_messages": 1000,
@@ -190,6 +191,16 @@ def alert_chat_action_options():
         ("move", tr("Move to bottom", "Переместить вниз"),
          tr("Removes the competition message and reposts it at the bottom of the chat.",
             "Удаляет сообщение о соревновании и публикует его заново внизу чата.")),
+    )
+
+def chatlog_filtered_click_options():
+    return (
+        ("reveal", tr("Reveal all messages", "Показать все сообщения"),
+         tr("Clears the filter, shows all messages again and scrolls to the clicked one.",
+            "Сбрасывает фильтр, снова показывает все сообщения и прокручивает к выбранному.")),
+        ("split", tr("Open split view", "Открыть разделённый вид"),
+         tr("Keeps the filtered list and shows the clicked message in the full chatlog in a split below.",
+            "Оставляет отфильтрованный список и показывает выбранное сообщение в полном чатлоге в нижнем сплите.")),
     )
 
 def tracker_click_options():
@@ -508,6 +519,9 @@ def fill_notification_mute_bypass_combo(combo, current=None):
 def fill_alert_chat_action_combo(combo, current=None):
     fill_tooltip_combo(combo, alert_chat_action_options(), current, "scroll")
 
+
+def fill_chatlog_filtered_click_combo(combo, current=None):
+    fill_tooltip_combo(combo, chatlog_filtered_click_options(), current, DEFAULTS["chatlog"]["filtered_click_action"])
 
 def fill_tracker_click_combo(combo, current=None):
     fill_tooltip_combo(combo, tracker_click_options(), current, "history")
@@ -1304,6 +1318,16 @@ class SettingsWidget(TranslatableMixin, QWidget):
         self.own_message_mode_combo.setFixedWidth(240)
         self._add_collapse_toggle(xmpp_header, xmpp_content, ("ui", "settings", "widgets", "chat_xmpp"))
 
+        chatlog_header, chatlog_content, chatlog_layout = self._add_subsection(
+            section, tr("📜 Chatlog", "📜 Чатлог")
+        )
+        self.chatlog_filtered_click_combo = self._add_combo_row(
+            chatlog_layout, tr("Click on filtered message", "Клик по отфильтрованному сообщению"), [],
+            self._on_chatlog_filtered_click_changed
+        )
+        self.chatlog_filtered_click_combo.setFixedWidth(240)
+        self._add_collapse_toggle(chatlog_header, chatlog_content, ("ui", "settings", "widgets", "chat_chatlog"))
+
         parser_header, parser_content, parser_layout = self._add_subsection(
             section, tr("🔍 Chatlog Parser", "🔍 Парсер чатлога")
         )
@@ -1834,6 +1858,7 @@ class SettingsWidget(TranslatableMixin, QWidget):
             self.player_log_checkbox, self.player_keep_open_checkbox, self.player_ontop_checkbox,
             self.player_ytdl_format_combo,
             self.chatlog_max_messages_spin, self.chatlog_live_search_spin,
+            self.chatlog_filtered_click_combo,
             self.parser_validate_usernames_checkbox,
             self.badge_size_spin, self.mentions_digest_mode_combo,
             self.mentions_digest_interval_spin,
@@ -1937,6 +1962,9 @@ class SettingsWidget(TranslatableMixin, QWidget):
         )
         self.chatlog_live_search_spin.setValue(live_search_max)
         self.chatlog_live_search_spin._slider.setValue(live_search_max)
+        fill_chatlog_filtered_click_combo(
+            self.chatlog_filtered_click_combo, self.config.get("ui", "chatlog", "filtered_click_action")
+        )
 
         validate_usernames = self.config.get("chatlog_parser", "validate_usernames")
         self.parser_validate_usernames_checkbox.setChecked(
@@ -2213,6 +2241,7 @@ class SettingsWidget(TranslatableMixin, QWidget):
             (self.competition_notification_style_combo, fill_competition_notification_style_combo),
             (self.tracker_default_tab_combo, fill_tracker_default_tab_combo),
             (self.tracker_click_combo, fill_tracker_click_combo),
+            (self.chatlog_filtered_click_combo, fill_chatlog_filtered_click_combo),
             (self.player_hwdec_combo, fill_player_hwdec_combo),
             (self.player_ytdl_format_combo, fill_player_ytdl_format_combo),
         ):
@@ -2329,6 +2358,11 @@ class SettingsWidget(TranslatableMixin, QWidget):
 
     def _on_chatlog_live_search_max_changed(self, value: int):
         self.config.set("ui", "chatlog", "live_search_max_messages", value=int(value))
+
+    def _on_chatlog_filtered_click_changed(self, _text: str = ""):
+        self._sync_combo_tooltip(self.chatlog_filtered_click_combo)
+        value = self.chatlog_filtered_click_combo.currentData() or DEFAULTS["chatlog"]["filtered_click_action"]
+        self.config.set("ui", "chatlog", "filtered_click_action", value=value)
 
     def _on_parser_validate_usernames_toggled(self, checked: bool):
         self.config.set("chatlog_parser", "validate_usernames", value=checked)
