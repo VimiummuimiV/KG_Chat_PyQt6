@@ -5,7 +5,7 @@ from datetime import datetime
 
 from PyQt6.QtWidgets import QStyledItemDelegate, QStyleOptionViewItem, QApplication, QTextEdit, QMenu
 from PyQt6.QtCore import Qt, QSize, QRect, QModelIndex, pyqtSignal, QTimer, QEvent
-from PyQt6.QtGui import QPainter, QFontMetrics, QColor, QCursor, QMouseEvent, QKeySequence
+from PyQt6.QtGui import QPainter, QPainterPath, QPen, QFontMetrics, QColor, QCursor, QMouseEvent, QKeySequence
 
 from components.messages_separator import NewMessagesSeparator, DateSeparator
 from helpers.flash_highlight import paint_flash, highlight_color, FlashFade
@@ -20,6 +20,44 @@ from helpers.translate import tr
 
 _DARK  = dict(bg="#0A0A0A", fg="#D4D4D4", sel_bg="#2E7D32", sel_fg="#E8F5E9")
 _LIGHT = dict(bg="#C8C8C8", fg="#1A1A1A", sel_bg="#388E3C", sel_fg="#FFFFFF")
+
+
+class ContinuityRail:
+    """Rounded '[' bracket linking a user's consecutive shown messages in a filtered chatlog"""
+    INSET = 8
+    WIDTH = 2
+    RADIUS = 3
+    HOOK = 5
+    ALPHA = 170
+
+    @classmethod
+    def paint(cls, painter: QPainter, rect: QRect, msg, first_line_middle: int, color_hex: str):
+        """Hooks sit at first_line_middle on a run's first and last rows; inner edges span the full row"""
+        if not (msg.joins_previous or msg.joins_next):
+            return
+        top = rect.top() if msg.joins_previous else first_line_middle
+        bottom = rect.bottom() + 1 if msg.joins_next else first_line_middle
+        x = rect.x() + 1
+
+        path = QPainterPath()
+        if msg.joins_previous:
+            path.moveTo(x, top)
+        else:
+            path.moveTo(x + cls.HOOK, top)
+            path.lineTo(x + cls.RADIUS, top)
+            path.quadTo(x, top, x, top + cls.RADIUS)
+        if msg.joins_next:
+            path.lineTo(x, bottom)
+        else:
+            path.lineTo(x, bottom - cls.RADIUS)
+            path.quadTo(x, bottom, x + cls.RADIUS, bottom)
+            path.lineTo(x + cls.HOOK, bottom)
+
+        color = QColor(color_hex)
+        color.setAlpha(cls.ALPHA)
+        painter.setPen(QPen(color, cls.WIDTH, Qt.PenStyle.SolidLine, Qt.PenCapStyle.FlatCap, Qt.PenJoinStyle.RoundJoin))
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.drawPath(path)
 
 
 class _TextSelectorOverlay(QTextEdit):
@@ -161,7 +199,8 @@ class MessageDelegate(QStyledItemDelegate):
         self.compact_mode = False
         self.padding = config.get("ui", "message", "padding") or 2
         self.spacing = config.get("ui", "message", "element_spacing") or 4
-     
+        self.rail_inset = 0  # Left gutter for the continuity rail; non-zero only while it is shown
+
         self.click_rects: Dict[int, Dict] = {}
         self.reply_callback = None
         self.paste_callback = None
@@ -271,6 +310,9 @@ class MessageDelegate(QStyledItemDelegate):
         if self.compact_mode != compact:
             self.compact_mode = compact
 
+    def set_continuity_rails(self, enabled: bool):
+        self.rail_inset = ContinuityRail.INSET if enabled else 0
+
     @staticmethod
     def _get_display_body(msg) -> tuple:
         """Return (display_body, is_system) with /me formatting and type emoji prefix applied."""
@@ -322,10 +364,11 @@ class MessageDelegate(QStyledItemDelegate):
         if width <= 0:
             width = 800
         row = index.row()
+        content_width = width - self.rail_inset
         if getattr(msg, 'is_presence_log', False):
-            height = self._presence_log_height(msg, width)
+            height = self._presence_log_height(msg, content_width)
         else:
-            height = self._calculate_compact_height(msg, width, row) if self.compact_mode else self._calculate_normal_height(msg, width, row)
+            height = self._calculate_compact_height(msg, content_width, row) if self.compact_mode else self._calculate_normal_height(msg, content_width, row)
         return QSize(width, height)
 
     def _presence_log_height(self, msg, width: int) -> int:
@@ -421,11 +464,19 @@ class MessageDelegate(QStyledItemDelegate):
         if row_flash is not None and row_flash.opacity > 0:
             paint_flash(painter, option.rect, highlight_color(self.is_dark_theme), row_flash.opacity)
   
+        content_rect = option.rect.adjusted(self.rail_inset, 0, 0, 0)
         if getattr(msg, 'is_presence_log', False):
-            self._paint_presence_log(painter, option.rect, msg, row, self.compact_mode)
+            self._paint_presence_log(painter, content_rect, msg, row, self.compact_mode)
         else:
-            self._paint_message(painter, option.rect, msg, row, self.compact_mode)
-  
+            self._paint_message(painter, content_rect, msg, row, self.compact_mode)
+
+        if self.rail_inset:
+            first_line_middle = option.rect.top() + self.padding + QFontMetrics(self.body_font).height() // 2
+            ContinuityRail.paint(
+                painter, option.rect, msg, first_line_middle,
+                self._get_username_color(msg.username, msg.background_color)
+            )
+
         painter.restore()
 
     def _paint_presence_log(self, painter: QPainter, rect: QRect, msg, row: int, compact: bool):

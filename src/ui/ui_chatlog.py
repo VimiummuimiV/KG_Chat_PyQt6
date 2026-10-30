@@ -1031,15 +1031,30 @@ class ChatlogWidget(TranslatableMixin, QWidget):
         search_users_lower = {u.lower() for u in search_users} if search_users else set()
         result = []
         pending_separator = None
+        previous_shown = None
+        hidden_since_previous = False
         for msg in messages:
             if msg.is_separator:
                 pending_separator = msg
+                previous_shown = None
                 continue
             if self._message_matches_filters(msg, search_users_lower, search_message, is_prefix_mode):
                 if pending_separator is not None:
                     result.append(pending_separator)
                     pending_separator = None
+                msg.joins_previous = (
+                    previous_shown is not None
+                    and not hidden_since_previous
+                    and previous_shown.username == msg.username
+                )
+                msg.joins_next = False
+                if previous_shown is not None:
+                    previous_shown.joins_next = msg.joins_previous
+                previous_shown = msg
+                hidden_since_previous = False
                 result.append(msg)
+            else:
+                hidden_since_previous = True
         return result
 
     def _apply_filter(self):
@@ -1053,6 +1068,7 @@ class ChatlogWidget(TranslatableMixin, QWidget):
 
         search_users, search_message, is_prefix_mode = self._parse_search_text()
         self.delegate.set_highlight_text(search_message if is_prefix_mode else self.search_text)
+        self.delegate.set_continuity_rails(self._has_active_search_or_filter())
         messages_to_show = self._filter_messages(self.all_messages, search_users, search_message, is_prefix_mode)
         self.model.set_messages(messages_to_show)
         self.list_view.setUpdatesEnabled(True)

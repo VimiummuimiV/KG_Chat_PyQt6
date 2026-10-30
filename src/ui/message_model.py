@@ -24,6 +24,8 @@ class MessageData:
     is_new_messages_marker: bool = False
     is_presence_log: bool = False
     presence_entries: Optional[list] = None
+    joins_previous: bool = False  # Filtered chatlog: same user's previous shown message, nothing hidden between
+    joins_next: bool = False
 
     def get_time_str(self) -> str:
         return self.timestamp.strftime("%H:%M:%S")
