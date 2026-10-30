@@ -226,6 +226,7 @@ class MessageDelegate(QStyledItemDelegate):
         self.gutter_right = 0
         self.show_continuity = False
         self.anchor_message = None
+        self.anchor_frame_enabled = lambda: True
 
         self.click_rects: Dict[int, Dict] = {}
         self.reply_callback = None
@@ -875,7 +876,7 @@ class MessageDelegate(QStyledItemDelegate):
     def highlight_row(self, row: int, anchor: bool = False):
         """Highlight a row with fade-out effect, independent of any other row's fade.
         With anchor=True the message also keeps a resting frame until the next anchor."""
-        if anchor and self.list_view:
+        if anchor and self.anchor_frame_enabled() and self.list_view:
             self.set_anchor(self.list_view.model().data(self.list_view.model().index(row, 0)))
         flash = self.row_flashes.get(row)
         if flash is None:

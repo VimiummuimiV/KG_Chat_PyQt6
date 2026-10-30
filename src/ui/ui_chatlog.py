@@ -76,6 +76,7 @@ class ChatlogWidget(TranslatableMixin, QWidget):
         self.model = MessageListModel(max_messages=self._max_messages_limit())
         self.delegate = MessageDelegate(config, self.emoticon_manager)
         self.delegate.set_marker_gutter(True)
+        self.delegate.anchor_frame_enabled = self._anchor_frame_active
         
         # Set username for mention highlighting if account is available
         if account and account.get('chat_username'):
@@ -148,6 +149,15 @@ class ChatlogWidget(TranslatableMixin, QWidget):
         scroll(self.list_view, mode="middle", target_row=target_row, delay=scroll_delay)
         QTimer.singleShot(highlight_delay, lambda: self.delegate.highlight_row(target_row, anchor=True))
 
+    def _anchor_frame_active(self) -> bool:
+        """The anchor frame is held only while a filtered list and its full-log split are shown together"""
+        return bool(self.split_chatlog_widget) and self._has_active_search_or_filter()
+
+    def _clear_anchors(self):
+        for widget in (self, self.split_chatlog_widget):
+            if widget:
+                widget.delegate.set_anchor(None)
+
     def _filtered_click_opens_split(self) -> bool:
         action = self.config.get("ui", "chatlog", "filtered_click_action") or DEFAULTS["chatlog"]["filtered_click_action"]
         return action == "split"
@@ -219,6 +229,7 @@ class ChatlogWidget(TranslatableMixin, QWidget):
                 parent_window=self,
                 ban_manager=self.ban_manager
             )
+            self.split_chatlog_widget.delegate.anchor_frame_enabled = self._anchor_frame_active
             self.split_chatlog_widget.back_btn.setToolTip(tr("Close split view", "Закрыть разделённый вид"))
             self.split_chatlog_widget.back_requested.connect(self._close_split_view)
             self.content_splitter.addWidget(self.split_chatlog_widget)
@@ -258,6 +269,7 @@ class ChatlogWidget(TranslatableMixin, QWidget):
             return
         widget = self.split_chatlog_widget
         self.split_chatlog_widget = None
+        self._clear_anchors()
         widget.cleanup()
         widget.setParent(None)
         widget.deleteLater()
@@ -1070,6 +1082,7 @@ class ChatlogWidget(TranslatableMixin, QWidget):
         search_users, search_message, is_prefix_mode = self._parse_search_text()
         self.delegate.set_highlight_text(search_message if is_prefix_mode else self.search_text)
         self.delegate.set_continuity_rails(self._has_active_search_or_filter())
+        self._clear_anchors()
         messages_to_show = self._filter_messages(self.all_messages, search_users, search_message, is_prefix_mode)
         self.model.set_messages(messages_to_show)
         self.list_view.setUpdatesEnabled(True)
@@ -1131,7 +1144,6 @@ class ChatlogWidget(TranslatableMixin, QWidget):
         """Load single date chatlog - this is NORMAL viewing"""
         self._set_parsing_mode(False)
         self._set_parser_youtube_off(False)
-        self.delegate.set_anchor(None)
         self.model.clear()
         self.all_messages = []
         self._update_confirm_search_button()
