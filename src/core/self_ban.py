@@ -33,14 +33,15 @@ class SelfBan:
     @staticmethod
     def find_in_chatlog(username: str) -> Optional[Tuple[float, int]]:
         """Latest still-active ban of `username` in today's chatlog (network call, run off the UI thread)."""
-        from core.chatlogs import ChatlogsParser
+        from core.chatlogs import CHATLOG_TIMEZONE, ChatlogsParser
 
-        messages, _, _ = ChatlogsParser().get_messages(datetime.now().strftime("%Y-%m-%d"))
+        messages, _, _ = ChatlogsParser().get_messages(datetime.now(CHATLOG_TIMEZONE).strftime("%Y-%m-%d"))
         now = time.time()
         for m in reversed(messages):
             total = SelfBan.parse(m.message, username) if m.username == _BOT else None
             if total:
-                until = datetime.strptime(f"{m.date} {m.timestamp}", "%Y-%m-%d %H:%M:%S").timestamp() + total
+                logged_at = datetime.strptime(f"{m.date} {m.timestamp}", "%Y-%m-%d %H:%M:%S").replace(tzinfo=CHATLOG_TIMEZONE)
+                until = logged_at.timestamp() + total
                 if until > now:
                     return until, total
         return None

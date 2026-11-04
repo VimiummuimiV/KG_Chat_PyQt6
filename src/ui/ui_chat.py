@@ -100,6 +100,7 @@ from components.tag_button import update_all_tag_buttons
 from components.presence_badge import apply_counter_style
 from core.api_data import validate_username_and_get_id
 from core.mentions_digest import MentionsDigest
+from core.chatlogs import CHATLOG_TIMEZONE
 from core.self_ban import SelfBan
 from helpers.translate import tr, on_language_changed, TranslatableMixin
 
@@ -1200,7 +1201,7 @@ class ChatWindow(TranslatableMixin, QWidget):
             except Exception:
                 return
             if ban:
-                self._dispatch.emit(lambda: self._register_self_ban(*ban))
+                self._dispatch.emit(lambda: self._self_muted and self._register_self_ban(*ban))
 
         threading.Thread(target=_fetch, daemon=True).start()
 
@@ -1397,11 +1398,12 @@ class ChatWindow(TranslatableMixin, QWidget):
         if not cw or cw.parser_widget.is_parsing:
             return
 
+        last_logged = last.astimezone(CHATLOG_TIMEZONE)
         config = ParseConfig(
             mode="personalmentions",
-            from_date=last.strftime("%Y-%m-%d"),
-            from_time=last.strftime("%H:%M:%S"),
-            to_date=datetime.now().strftime("%Y-%m-%d"),
+            from_date=last_logged.strftime("%Y-%m-%d"),
+            from_time=last_logged.strftime("%H:%M:%S"),
+            to_date=datetime.now(CHATLOG_TIMEZONE).strftime("%Y-%m-%d"),
             mention_keywords=[username],
         )
         self._mentions_digest_active = True

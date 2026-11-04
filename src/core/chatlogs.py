@@ -1,11 +1,14 @@
 """Chatlog fetcher and parser with SQLite database storage"""
 import requests
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional, Tuple
 from lxml import etree
 
 from core.chatlogs_db import ChatlogDB, ChatMessage
 from helpers.translate import tr
+
+
+CHATLOG_TIMEZONE = timezone(timedelta(hours=3))  # chatlog timestamps are Moscow time
 
 
 class ChatlogNotFoundError(Exception):
