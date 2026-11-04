@@ -100,7 +100,7 @@ from components.tag_button import update_all_tag_buttons
 from components.presence_badge import apply_counter_style
 from core.api_data import validate_username_and_get_id
 from core.mentions_digest import MentionsDigest
-from core.self_ban import parse_ban, active_ban, store_ban, clear_ban, ban_placeholder
+from core.self_ban import SelfBan
 from helpers.translate import tr, on_language_changed, TranslatableMixin
 
 class SignalEmitter(QObject):
@@ -135,6 +135,7 @@ class ChatWindow(TranslatableMixin, QWidget):
         self.signal_emitter = SignalEmitter()
         self.cache = get_cache()
         self.mentions_digest = MentionsDigest()
+        self.self_ban = SelfBan()
         self._mentions_digest_active = False
         self._mentions_digest_checked = False  # digest runs once per window, not on every reconnect
         self._presence_anchor_timer = QTimer(self)
@@ -1137,7 +1138,7 @@ class ChatWindow(TranslatableMixin, QWidget):
         is_dark = self.theme_manager.is_dark()
         ban_left = self._self_ban_left()
         ban_style = (get_self_ban_colors(self.config, is_dark),
-                     ban_placeholder(ban_left, self._self_ban_total)) if ban_left is not None else None
+                     self.self_ban.placeholder(ban_left, self._self_ban_total)) if ban_left is not None else None
 
         main_style = None
         if self.private_mode:
@@ -1174,17 +1175,34 @@ class ChatWindow(TranslatableMixin, QWidget):
                 return int(self._self_ban_until - now) + 1
             self._self_ban_until = None
             self._self_ban_timer.stop()
-            clear_ban(self.my_username)
+            self.self_ban.clear(self.my_username)
         return 0 if self._self_muted else None
 
     def _on_own_role(self, role: str):
         """Own MUC role in the general room: 'visitor' = muted. Authoritative over notices/storage."""
+        was_muted = self._self_muted
         self._self_muted = role == 'visitor'
         if not self._self_muted and self._self_ban_until:
             self._self_ban_until = None
             self._self_ban_timer.stop()
-            clear_ban(self.my_username)
+            self.self_ban.clear(self.my_username)
+        elif self._self_muted and not was_muted and not self._self_ban_until:
+            self._lookup_self_ban_in_chatlog()
         self._update_input_style()
+
+    def _lookup_self_ban_in_chatlog(self):
+        """Muted but no ban notice seen live: recover the duration from today's chatlog."""
+        username = self.my_username
+
+        def _fetch():
+            try:
+                ban = SelfBan.find_in_chatlog(username)
+            except Exception:
+                return
+            if ban:
+                self._dispatch.emit(lambda: self._register_self_ban(*ban))
+
+        threading.Thread(target=_fetch, daemon=True).start()
 
     def _is_general_jid(self, jid: str) -> bool:
         return not is_from_game_room(jid) and not custom_room_name_from_jid(jid)
@@ -1195,20 +1213,21 @@ class ChatWindow(TranslatableMixin, QWidget):
         self._update_input_style()
 
     def _restore_self_ban(self):
-        ban = active_ban(self.my_username)
+        ban = self.self_ban.get_active(self.my_username)
         if ban:
             self._set_self_ban(*ban)
 
-    def _track_self_ban(self, msg):
-        """Klavobot ban notice for our own account (live or replayed from history)"""
-        parsed = parse_ban(msg.body)
-        if not parsed or not self.my_username or parsed[0].casefold() != self.my_username.casefold():
-            return
-        until = (msg.timestamp or datetime.now()).timestamp() + parsed[1]
+    def _register_self_ban(self, until: float, total: int):
         if until <= max(datetime.now().timestamp(), self._self_ban_until or 0):
             return
-        store_ban(self.my_username, until, parsed[1])
-        self._set_self_ban(until, parsed[1])
+        self.self_ban.store(self.my_username, until, total)
+        self._set_self_ban(until, total)
+
+    def _track_self_ban(self, msg):
+        """Bot ban notice for our own account (live or replayed from history)"""
+        total = self.self_ban.parse(msg.body, self.my_username)
+        if total:
+            self._register_self_ban((msg.timestamp or datetime.now()).timestamp() + total, total)
 
     def show_messages_view(self):
         """Switch back to messages and conditionally destroy chatlog widgets"""
