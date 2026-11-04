@@ -136,6 +136,9 @@ class ChatWindow(TranslatableMixin, QWidget):
         self.cache = get_cache()
         self.mentions_digest = MentionsDigest()
         self._mentions_digest_active = False
+        self._mentions_digest_checked = False  # digest runs once per window, not on every reconnect
+        self._presence_anchor_timer = QTimer(self)
+        self._presence_anchor_timer.timeout.connect(self._touch_presence_anchor)
         self._self_ban_until = None  # epoch seconds while our own chat ban is active
         self._self_ban_total = 0
         self._self_muted = False  # MUC role 'visitor' in the general room (no voice)
@@ -1338,6 +1341,11 @@ class ChatWindow(TranslatableMixin, QWidget):
             size = 9
         return max(8, min(18, size))
 
+    def _touch_presence_anchor(self):
+        """While connected the user sees everything live, so the anchor follows 'now' (survives crashes/kills)"""
+        if self._connection_status == 'online' and self.my_username:
+            self.mentions_digest.mark_session_end(self.my_username)
+
     def _start_mentions_digest_check(self):
         """Background Personal Mentions parse since last_session_end (same path as manual parser).
         Frequency: off | start | daily (24h) | custom hours — per account timestamp."""
@@ -1349,7 +1357,12 @@ class ChatWindow(TranslatableMixin, QWidget):
         username = self.my_username
         if not username:
             return
+        if self._mentions_digest_checked:
+            return
+        self._mentions_digest_checked = True
+
         last = self.mentions_digest.get_last_session_end(username)
+        self._presence_anchor_timer.start(60_000)  # started only after the anchor was read above
         if last is None:
             self.mentions_digest.mark_session_end(username)
             return
