@@ -22,7 +22,7 @@ from helpers.button import (
     HoverIconButton
 )
 from helpers.resize import handle_chat_resize, recalculate_layout
-from helpers.color_utils import get_private_message_colors
+from helpers.color_utils import get_private_message_colors, get_self_ban_colors
 from helpers.scroll.scroll import scroll
 from helpers.cache import get_cache
 from helpers.username_color_manager import(
@@ -100,6 +100,7 @@ from components.tag_button import update_all_tag_buttons
 from components.presence_badge import apply_counter_style
 from core.api_data import validate_username_and_get_id
 from core.mentions_digest import MentionsDigest
+from core.self_ban import parse_ban, active_ban, store_ban, clear_ban, ban_placeholder
 from helpers.translate import tr, on_language_changed, TranslatableMixin
 
 class SignalEmitter(QObject):
@@ -135,6 +136,11 @@ class ChatWindow(TranslatableMixin, QWidget):
         self.cache = get_cache()
         self.mentions_digest = MentionsDigest()
         self._mentions_digest_active = False
+        self._self_ban_until = None  # epoch seconds while our own chat ban is active
+        self._self_ban_total = 0
+        self._self_muted = False  # MUC role 'visitor' in the general room (no voice)
+        self._self_ban_timer = QTimer(self)
+        self._self_ban_timer.timeout.connect(self._update_input_style)
 
         self.races_listener = None
         self._competition_notified = set()  # game_ids already announced this session
@@ -228,6 +234,7 @@ class ChatWindow(TranslatableMixin, QWidget):
         self._setup_sounds()
 
         self._init_ui()
+        self._restore_self_ban()
 
         self.signal_emitter.message_received.connect(self.on_message)
         self.signal_emitter.presence_received.connect(self.on_presence)
@@ -1123,27 +1130,82 @@ class ChatWindow(TranslatableMixin, QWidget):
             self.has_new_messages_marker = False
 
     def _update_input_style(self):
-        """Update input field styling based on private mode"""
+        """Private mode (main input) > self-ban (every input) > default"""
         is_dark = self.theme_manager.is_dark()
-    
+        ban_left = self._self_ban_left()
+        ban_style = (get_self_ban_colors(self.config, is_dark),
+                     ban_placeholder(ban_left, self._self_ban_total)) if ban_left is not None else None
+
+        main_style = None
         if self.private_mode:
-            # Get private message colors from config
-            colors = get_private_message_colors(self.config, is_dark)
-        
-            self.input_field.setStyleSheet(f"""
-                QLineEdit {{
-                    background-color: {colors["input_bg"]};
-                    color: {colors["text"]};
-                    border: 2px solid {colors["input_border"]};
-                    border-radius: 4px;
-                    padding: 8px;
-                }}
-            """)
-            self.input_field.setPlaceholderText(tr(f"Private message to {self.private_chat_username}", f"Приватное сообщение для {self.private_chat_username}"))
-        else:
-            # Normal mode - remove custom styling
-            self.input_field.setStyleSheet("")
-            self.input_field.setPlaceholderText("")
+            main_style = (get_private_message_colors(self.config, is_dark),
+                          tr(f"Private message to {self.private_chat_username}", f"Приватное сообщение для {self.private_chat_username}"))
+        elif ban_style:
+            main_style = ban_style
+
+        self._style_input(self.input_field, main_style)
+        for room in (*self.game_rooms.values(), *self.custom_rooms.values()):
+            self._style_input(room.input_field, ban_style)
+
+    @staticmethod
+    def _style_input(field, style):
+        colors, placeholder = style or (None, "")
+        sheet = f"""
+            QLineEdit {{
+                background-color: {colors["input_bg"]};
+                color: {colors["text"]};
+                border: 2px solid {colors["input_border"]};
+                border-radius: 4px;
+                padding: 8px;
+            }}
+        """ if colors else ""
+        if field.styleSheet() != sheet:
+            field.setStyleSheet(sheet)
+        field.setPlaceholderText(placeholder)
+
+    def _self_ban_left(self) -> int | None:
+        """Seconds left of our own ban (0 = muted, end unknown; None = not banned). Finalizes expiry."""
+        if self._self_ban_until:
+            now = datetime.now().timestamp()
+            if self._self_ban_until > now:
+                return int(self._self_ban_until - now) + 1
+            self._self_ban_until = None
+            self._self_ban_timer.stop()
+            clear_ban(self.my_username)
+        return 0 if self._self_muted else None
+
+    def _on_own_role(self, role: str):
+        """Own MUC role in the general room: 'visitor' = muted. Authoritative over notices/storage."""
+        self._self_muted = role == 'visitor'
+        if not self._self_muted and self._self_ban_until:
+            self._self_ban_until = None
+            self._self_ban_timer.stop()
+            clear_ban(self.my_username)
+        self._update_input_style()
+
+    def _is_general_jid(self, jid: str) -> bool:
+        return not is_from_game_room(jid) and not custom_room_name_from_jid(jid)
+
+    def _set_self_ban(self, until: float, total: int):
+        self._self_ban_until, self._self_ban_total = until, total
+        self._self_ban_timer.start(1000)
+        self._update_input_style()
+
+    def _restore_self_ban(self):
+        ban = active_ban(self.my_username)
+        if ban:
+            self._set_self_ban(*ban)
+
+    def _track_self_ban(self, msg):
+        """Klavobot ban notice for our own account (live or replayed from history)"""
+        parsed = parse_ban(msg.body)
+        if not parsed or not self.my_username or parsed[0].casefold() != self.my_username.casefold():
+            return
+        until = (msg.timestamp or datetime.now()).timestamp() + parsed[1]
+        if until <= max(datetime.now().timestamp(), self._self_ban_until or 0):
+            return
+        store_ban(self.my_username, until, parsed[1])
+        self._set_self_ban(until, parsed[1])
 
     def show_messages_view(self):
         """Switch back to messages and conditionally destroy chatlog widgets"""
@@ -1463,6 +1525,7 @@ class ChatWindow(TranslatableMixin, QWidget):
         widget.emoticon_requested.connect(lambda w=widget: self._on_room_emoticon_requested(w))
         self._wire_username_signals(widget, right_click_widget=widget.messages_widget)
         widget.set_compact_mode(self.width() <= 1000)  # match current window width immediately
+        QTimer.singleShot(0, self._update_input_style)  # picks up active ban styling once registered
         return widget
 
     def open_game_room_tab(self, msg, room_label: str = "Game"):
@@ -2920,6 +2983,9 @@ class ChatWindow(TranslatableMixin, QWidget):
         return None, None, None
 
     def on_message(self, msg):
+        if self._is_ban_message(msg):
+            self._track_self_ban(msg)
+
         # Check if initial load
         is_initial = getattr(msg, 'initial', False)
 
@@ -3185,7 +3251,10 @@ class ChatWindow(TranslatableMixin, QWidget):
             elif pres.presence_type == 'unavailable':
                 room.remove_users(presence=pres)
             return
-    
+
+        if pres and pres.presence_type == 'available' and pres.login == self.my_username:
+            self._on_own_role(pres.role)
+
         if pres and pres.presence_type == 'available':
             if pres.login and pres.user_id:
                 self.cache.update_user(pres.user_id, pres.login, pres.background)
@@ -3248,6 +3317,9 @@ class ChatWindow(TranslatableMixin, QWidget):
             return
         users = self.xmpp_client.user_list.get_online()
         self.user_list_widget.add_users(users=users, bulk=True)
+        own = next((u for u in users if u.login == self.my_username and self._is_general_jid(u.jid)), None)
+        if own:
+            self._on_own_role(own.role)
 
     def _refresh_youtube_previews(self):
         """Re-layout message views so YouTube link text matches the current setting."""

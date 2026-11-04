@@ -97,6 +97,14 @@ def get_private_message_colors(config, is_dark_theme: bool) -> dict:
     )
 
 
+def get_self_ban_colors(config, is_dark_theme: bool) -> dict:
+    return _themed_hsl_colors(
+        config, "self_ban_color", 30, 80, is_dark_theme,
+        {"text": 75, "input_bg": 15, "input_border": 40},
+        {"text": 35, "input_bg": 85, "input_border": 55},
+    )
+
+
 def get_ban_message_colors(config, is_dark_theme: bool) -> dict:
     return _themed_hsl_colors(config, "ban_message_color", 170, 75, is_dark_theme,
                                {"text": 75}, {"text": 35})
