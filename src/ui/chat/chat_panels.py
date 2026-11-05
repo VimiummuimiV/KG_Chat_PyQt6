@@ -2,9 +2,9 @@
 
 from ui.account.ui_profile import ProfileWidget
 from ui.settings.ui_settings import SettingsWidget
-from ui.tools.ui_banlist import BanListWidget
-from ui.tools.ui_pronunciation import PronunciationWidget
-from ui.tools.ui_user_tracker import UserTrackerWidget
+from ui.tracker.ui_user_tracker import UserTrackerWidget
+from ui.ui_banlist import BanListWidget
+from ui.ui_pronunciation import PronunciationWidget
 
 
 class ChatPanelsMixin:

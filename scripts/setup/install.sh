@@ -6,7 +6,7 @@
 
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 VENV="$ROOT/.venv"
 LOG_FILE="$ROOT/install_log.txt"
 ICON_FILE="$ROOT/src/icons/chat.svg"
@@ -63,14 +63,14 @@ install_python_packages() {
 }
 
 create_shortcuts() {
-    chmod +x "$ROOT/launchers/launcher.sh" "$ROOT/install.sh" "$ROOT/uninstall.sh" 2> /dev/null || true
+    chmod +x "$ROOT/scripts/launchers/launcher.sh" "$ROOT/scripts/setup/install.sh" "$ROOT/scripts/setup/uninstall.sh" 2> /dev/null || true
     mkdir -p "$APPLICATIONS_DIR"
     cat > "$DESKTOP_ENTRY" << DESKTOP
 [Desktop Entry]
 Type=Application
 Name=KG Chat
 Comment=Klavogonki chat client
-Exec=bash "$ROOT/launchers/launcher.sh"
+Exec=bash "$ROOT/scripts/launchers/launcher.sh"
 Icon=$ICON_FILE
 Terminal=false
 Categories=Network;Chat;InstantMessaging;
@@ -104,6 +104,6 @@ check_emoji_font
 
 info "Installation finished at $(date)"
 echo
-echo "Start KG Chat from the application menu or with: bash \"$ROOT/launchers/launcher.sh\""
+echo "Start KG Chat from the application menu or with: bash \"$ROOT/scripts/launchers/launcher.sh\""
 echo "Note: the global show/hide hotkey does not work on Wayland (and needs root on X11)."
 echo "Log file: $LOG_FILE"

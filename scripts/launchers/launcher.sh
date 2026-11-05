@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # KG Chat launcher (Linux): starts the app in the background
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 PYTHON="$ROOT/.venv/bin/python"
 [[ -x "$PYTHON" ]] || PYTHON="$(command -v python3 || true)"
 
 if [[ -z "$PYTHON" ]]; then
-    echo "Python not found. Run install.sh first." >&2
+    echo "Python not found. Run scripts/setup/install.sh first." >&2
     exit 1
 fi
 

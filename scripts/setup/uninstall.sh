@@ -15,11 +15,11 @@ ask() {
 # Everything runs inside one function so bash has read the whole script before the folder is deleted
 main() {
     local root data_dir desktop_dir
-    root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
     data_dir="$HOME/KG_Chat_Data"
     desktop_dir="$(xdg-user-dir DESKTOP 2> /dev/null || echo "$HOME/Desktop")"
 
-    if [[ ! -f "$root/src/main.py" || ! -d "$root/launchers" || "$root" == "/" || "$root" == "$HOME" ]]; then
+    if [[ ! -f "$root/src/main.py" || ! -d "$root/scripts/launchers" || "$root" == "/" || "$root" == "$HOME" ]]; then
         echo "ERROR: $root does not look like the KG Chat project folder, nothing was removed." >&2
         return 1
     fi

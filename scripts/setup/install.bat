@@ -1,6 +1,7 @@
 @echo off
 
 set "LOGFILE=%USERPROFILE%\Desktop\install_log.txt"
+for %%I in ("%~dp0..\..") do set "SCRIPT_DIR=%%~fI"
 
 echo Installation started at %date% %time% > "%LOGFILE%"
 echo. >> "%LOGFILE%"
@@ -10,7 +11,7 @@ echo Installing Python packages from requirements.txt... >> "%LOGFILE%"
 echo.
 echo. >> "%LOGFILE%"
 
-pip install -r requirements.txt >> "%LOGFILE%" 2>&1
+pip install -r "%SCRIPT_DIR%\requirements.txt" >> "%LOGFILE%" 2>&1
 
 echo Checking for PyQt6 and WebEngine upgrades...
 echo Checking for PyQt6 and WebEngine upgrades... >> "%LOGFILE%"
@@ -23,13 +24,10 @@ echo. >> "%LOGFILE%"
 echo Pip installation completed.
 echo.
 
-set "SCRIPT_DIR=%~dp0"
 set "DESKTOP=%USERPROFILE%\Desktop"
 set "SHORTCUT=%DESKTOP%\KG Chat.lnk"
 
-REM Build absolute paths - remove trailing backslash from SCRIPT_DIR
-set "SCRIPT_DIR=%SCRIPT_DIR:~0,-1%"
-set "TARGET=%SCRIPT_DIR%\launchers\launcher.pyw"
+set "TARGET=%SCRIPT_DIR%\scripts\launchers\launcher.pyw"
 set "ICON=%SCRIPT_DIR%\src\icons\chat.ico"
 
 echo Script Directory: %SCRIPT_DIR% >> "%LOGFILE%"

@@ -22,11 +22,11 @@ from helpers.scroll.auto_scroll import AutoScroller
 from helpers.scroll.scroll_buttons import ScrollButtonsPanel
 from helpers.translate import on_language_changed, tr, TranslatableMixin
 from helpers.users.user_tracker import UserTracker
-from ui.tools.tracker_delegate import TrackerEventDelegate
-from ui.tools.tracker_events import TrackerEventFilterProxy, TrackerEventModel
-from ui.tools.tracker_filters import TrackerFiltersMixin
-from ui.tools.tracker_history import TrackerHistoryMixin
-from ui.tools.tracker_selection import TrackerSelectionMixin
+from ui.tracker.tracker_delegate import TrackerEventDelegate
+from ui.tracker.tracker_events import TrackerEventFilterProxy, TrackerEventModel
+from ui.tracker.tracker_filters import TrackerFiltersMixin
+from ui.tracker.tracker_history import TrackerHistoryMixin
+from ui.tracker.tracker_selection import TrackerSelectionMixin
 
 
 class UserTrackerWidget(

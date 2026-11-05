@@ -2,7 +2,7 @@
 
 from PyQt6.QtCore import QTimer
 
-from ui.tools.tracker_items import TrackedUserItem, TrackerUserChip
+from ui.tracker.tracker_items import TrackedUserItem, TrackerUserChip
 
 
 class TrackerSelectionMixin:

@@ -1,8 +1,7 @@
 @echo off
 setlocal EnableExtensions
 
-set "ROOT=%~dp0"
-set "ROOT=%ROOT:~0,-1%"
+for %%I in ("%~dp0..\..") do set "ROOT=%%~fI"
 set "DESKTOP=%USERPROFILE%\Desktop"
 set "SHORTCUT=%DESKTOP%\KG Chat.lnk"
 set "INSTALL_LOG=%DESKTOP%\install_log.txt"
