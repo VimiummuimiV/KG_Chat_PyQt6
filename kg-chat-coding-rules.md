@@ -20,7 +20,15 @@ description: Coding conventions and project structure for KG_Chat_PyQt6, the PyQ
 
 Put every new file in the folder that owns its kind of code. Never drop a file in a folder just because it is nearby.
 
+A folder exists only for a group of related files (a shell file with its mixins, one concern split in several files). A single file with no related files sits directly in the parent folder: never create a folder for one file. When a second related file appears, move both into a feature folder and fix the imports.
+
 ```
+requirements.txt        Python dependencies
+doc/                    texts and notes, not code
+scripts/                nothing here is imported by the app
+  setup/                install.bat, install.sh, uninstall.bat, uninstall.sh
+  launchers/            launcher.pyw (Windows), launcher.sh (Linux)
+src/                    all application code below lives in src/ (the source root for imports)
 main.py                 application entry: tray, account window, global hotkey, exit
 settings/config.json    default configuration (the user config overrides it)
 themes/theme.py         theme manager, light/dark switching, stylesheets
@@ -46,11 +54,12 @@ components/             reusable widgets used by more than one screen
   presence_badge.py search.py tag_button.py mic_button.py loading_spinner.py user_count_row.py tracked_mark.py tray_badge.py
 ui/                     screens and windows of the app
   chat/                 ui_chat.py (ChatWindow shell) + chat_*.py mixins (chat_hotkeys.py = local keyboard shortcuts), ui_room, ui_messages, ui_userlist, ui_buttons, ui_emoticon_selector, voice_input_attach
+  tracker/              ui_user_tracker.py + tracker_*.py mixins and models
   chatlog/              ui_chatlog.py + chatlog_*.py mixins, ui_chatlog_userlist, ui_chatlogs_parser.py + parser_*.py
   messages/             message_model, message_delegate, message_renderer, messages_separator, message_interactions
   settings/             ui_settings.py (SettingsWidget shell) + settings_*.py mixins, settings_options, settings_widgets, sound_selector
   account/              ui_accounts, ui_profile
-  tools/                ui_banlist, ui_user_tracker.py + tracker_*.py, ui_pronunciation
+  ui_banlist.py ui_pronunciation.py   single panels with no related files, directly in ui/
   notification/         popup_manager, popup_notification, presence_popup, message_body, notification_data, notification_settings, popup_helpers, auto_hide_popup
   dialogs/              one file per modal dialog (including web_login_dialog.py)
 ```
@@ -65,7 +74,8 @@ ui/                     screens and windows of the app
 - Talks to the network, a database or the protocol, or is plain data and state → `core/<xmpp|chatlogs|web|state>/`
 - Non-visual helper or manager used by several files → `helpers/<topic>/`
 - Widget reused by two or more screens → `components/`
-- A whole screen, window or pane → its feature folder in `ui/` (`ui_<name>.py`)
+- A whole screen, window or pane → its feature folder in `ui/` (`ui_<name>.py`); if it has no related files, directly in `ui/` without its own folder
+- Install, uninstall or launch script → `scripts/setup/` or `scripts/launchers/`; they locate the project root two levels up
 - A modal dialog → `ui/dialogs/`
 - Default setting values → `settings/config.json`; colors and theming → `themes/` and `helpers/colors/color_utils.py`
 - Persistent user data goes under `KG_Chat_Data` via `get_data_dir()`, never next to the sources.
@@ -132,6 +142,6 @@ from helpers.translate import tr
 
 ## Delivery
 
-- Return only the files that were changed or newly created, at their project paths. After a restructure return the full tree as a zip plus the list of removed files.
+- Return only the files that were changed or newly created, at their project paths. After a restructure return the full tree as a zip plus the list of moved and removed files.
 - Files use CRLF line endings: keep them in edited files and use them in new ones.
 - Discuss with the user in Russian or English; keep all code and code comments in English.
