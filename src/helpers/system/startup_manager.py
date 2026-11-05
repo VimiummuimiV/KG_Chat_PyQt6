@@ -5,6 +5,7 @@ Supports Windows, Linux (systemd/autostart), and macOS
 
 import platform
 import sys
+import textwrap
 from pathlib import Path
 
 from helpers.data import get_app_dir
@@ -66,15 +67,16 @@ class StartupManager:
                 autostart_dir = Path.home() / ".config" / "autostart"
                 autostart_dir.mkdir(parents=True, exist_ok=True)
                 desktop_file = autostart_dir / f"{self.app_name.replace(' ', '-').lower()}.desktop"
-                content = f"""[Desktop Entry]
+                content = textwrap.dedent(f"""\
+                [Desktop Entry]
                 Type=Application
                 Name={self.app_name}
-                Exec={sys.executable} {self.main_script}
+                Exec="{sys.executable}" "{self.main_script}"
                 Hidden=false
                 NoDisplay=false
                 X-GNOME-Autostart-enabled=true
                 Comment=Start {self.app_name} on login
-                """
+                """)
                 desktop_file.write_text(content)
                 desktop_file.chmod(0o755)
                 return True
@@ -83,7 +85,8 @@ class StartupManager:
                 launch_agents_dir.mkdir(parents=True, exist_ok=True)
                 plist_name = f"com.{self.app_name.replace(' ', '-').lower()}.plist"
                 plist_path = launch_agents_dir / plist_name
-                content = f"""<?xml version="1.0" encoding="UTF-8"?>
+                content = textwrap.dedent(f"""\
+                <?xml version="1.0" encoding="UTF-8"?>
                 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
                 <plist version="1.0">
                 <dict>
@@ -100,7 +103,7 @@ class StartupManager:
                     <false/>
                 </dict>
                 </plist>
-                """
+                """)
                 plist_path.write_text(content)
                 return True
             return False

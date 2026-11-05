@@ -1,5 +1,6 @@
 """Unified font manager for text and emoji rendering"""
 
+import sys
 from enum import Enum
 
 from PyQt6.QtGui import QFont, QFontDatabase
@@ -111,9 +112,13 @@ class FontManager:
             return list(self._available_emoji_families)
 
         found: set[str] = set()
+        system_names = QFontDatabase.families()
+        system_set = set(system_names)
+        # The bundled COLRv1 emoji build does not render on Linux Qt, so a system emoji font wins there
+        prefer_system = sys.platform.startswith("linux") and any("emoji" in name.lower() for name in system_names)
 
         # Bundled under fonts/ (folder name has Emoji/Color — e.g. Noto_Color_Emoji)
-        if self.fonts_dir.exists():
+        if self.fonts_dir.exists() and not prefer_system:
             for d in sorted(self.fonts_dir.iterdir()):
                 if not d.is_dir() or d.name.startswith('.') or not self._is_emoji_dir(d.name):
                     continue
@@ -121,8 +126,6 @@ class FontManager:
                     found.add(name)
 
         # System color-emoji fonts already known to Qt
-        system_names = QFontDatabase.families()
-        system_set = set(system_names)
         for candidate in (
             "Noto Color Emoji",
             "Segoe UI Emoji",
