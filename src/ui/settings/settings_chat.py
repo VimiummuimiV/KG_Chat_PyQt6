@@ -1,0 +1,344 @@
+"""SettingsWidget: chat, chatlog, mentions digest and flash highlight options."""
+
+from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import QHBoxLayout, QSizePolicy, QWidget
+
+from components.flash_highlight import DURATION_KEYS, FlashLabel
+from helpers.browser import get_available_browsers
+from helpers.fonts.fonts import FontType, get_font
+from helpers.translate import tr
+from ui.settings.settings_options import (
+    DEFAULTS,
+    fill_chatlog_filtered_click_combo,
+    fill_flash_easing_combo,
+    fill_mentions_digest_mode_combo,
+    fill_tooltip_combo,
+    LANGUAGE_OPTIONS,
+)
+from ui.settings.settings_widgets import preview_box_stylesheet
+
+
+class SettingsChatMixin:
+    """SettingsWidget: chat, chatlog, mentions digest and flash highlight options."""
+
+    def _build_chat_section(self):
+        section = self._create_section(tr("🗯️ Chat", "🗯️ Чат"))
+        self.language_combo = self._add_combo_row(
+            section, tr("Language", "Язык"), [], self._on_language_changed
+        )
+        self.language_combo.setFixedWidth(240)
+        fill_tooltip_combo(
+            self.language_combo, LANGUAGE_OPTIONS,
+            self.config.get("ui", "language"), "en"
+        )
+        self.clear_private_checkbox = self._add_checkbox(
+            section, tr("Clear private messages on exit", "Очищать приватные сообщения при выходе"),
+            self._on_clear_private_toggled
+        )
+        self.youtube_checkbox = self._add_checkbox(
+            section, tr("YouTube link previews", "Превью ссылок YouTube"),
+            self._on_youtube_toggled
+        )
+        self.voice_input_checkbox = self._add_checkbox(
+            section, tr("Voice input button", "Кнопка голосового ввода"),
+            self._on_voice_input_toggled
+        )
+        self.settings_accordion_checkbox = self._add_checkbox(
+            section, tr("Accordion settings sections (opening one collapses others)",
+                        "Аккордеон секций настроек (открытие одной сворачивает остальные)"),
+            self._on_settings_accordion_toggled
+        )
+        self.browser_combo = self._add_combo_row(
+            section, tr("Open links in", "Открывать ссылки в"), [], self._on_browser_changed
+        )
+        self.browser_combo.setFixedWidth(240)
+        self.badge_size_spin = self._add_slider_spin_row(
+            section, tr("Badge font size", "Размер шрифта бейджа"), 8, 18,
+            self._on_badge_size_changed, default=DEFAULTS["chat"]["badge_font_size"],
+        )
+        self.mentions_digest_mode_combo = self._add_combo_row(
+            section, tr("Personal mentions check", "Проверка личных упоминаний"), [],
+            self._on_mentions_digest_mode_changed
+        )
+        self.mentions_digest_mode_combo.setFixedWidth(240)
+        self.mentions_digest_interval_spin = self._add_slider_spin_row(
+            section, tr("Custom interval (hours)", "Свой интервал (часы)"), 1, 168,
+            self._on_mentions_digest_interval_changed,
+            default=DEFAULTS["chat"]["mentions_digest_interval_hours"],
+        )
+        self._add_hotkey_row(section, tr("Toggle chat window", "Показать/скрыть окно чата"))
+
+        limits_header, limits_content, limits_layout = self._add_subsection(
+            section, tr("📏 Message Limits", "📏 Лимиты сообщений")
+        )
+        self.chatlog_max_messages_spin = self._add_slider_spin_row(
+            limits_layout, tr("Chatlog messages display limit", "Лимит отображения сообщений чатлога"),
+            DEFAULTS["chatlog"]["max_messages_min"], DEFAULTS["chatlog"]["max_messages_max"],
+            self._on_chatlog_max_messages_changed,
+            default=DEFAULTS["chatlog"]["max_messages"],
+        )
+        self.chatlog_max_messages_spin.setSingleStep(1000)
+        self.chatlog_max_messages_spin.linked_slider.setSingleStep(1000)
+        self.chatlog_max_messages_spin.linked_slider.setPageStep(5000)
+
+        self.chatlog_live_search_spin = self._add_slider_spin_row(
+            limits_layout, tr("Chatlog live search up to (messages)", "Живой поиск чатлога до (сообщений)"),
+            DEFAULTS["chatlog"]["live_search_max_messages_min"],
+            DEFAULTS["chatlog"]["live_search_max_messages_max"],
+            self._on_chatlog_live_search_max_changed,
+            default=DEFAULTS["chatlog"]["live_search_max_messages"],
+        )
+        self.chatlog_live_search_spin.setSingleStep(500)
+        self.chatlog_live_search_spin.linked_slider.setSingleStep(500)
+        self.chatlog_live_search_spin.linked_slider.setPageStep(2000)
+
+        self.chat_max_messages_spin = self._add_slider_spin_row(
+            limits_layout, tr("Chat messages display limit", "Лимит отображения сообщений чата"),
+            DEFAULTS["chat"]["max_messages_min"], DEFAULTS["chat"]["max_messages_max"],
+            self._on_chat_max_messages_changed,
+            default=DEFAULTS["chat"]["max_messages"],
+        )
+        self.chat_max_messages_spin.setSingleStep(100)
+        self.chat_max_messages_spin.linked_slider.setSingleStep(100)
+        self.chat_max_messages_spin.linked_slider.setPageStep(500)
+        self._add_collapse_toggle(limits_header, limits_content, ("ui", "settings", "widgets", "chat_limits"))
+
+        xmpp_header, xmpp_content, xmpp_layout = self._add_subsection(section, "🔌 XMPP")
+        self.resource_combo = self._add_combo_row(
+            xmpp_layout, tr("XMPP resource", "XMPP ресурс"), [], self._on_resource_changed
+        )
+        self.resource_combo.setFixedWidth(240)
+        self.own_message_mode_combo = self._add_combo_row(
+            xmpp_layout, tr("Own messages", "Свои сообщения"), [], self._on_own_message_mode_changed
+        )
+        self.own_message_mode_combo.setFixedWidth(240)
+        self._add_collapse_toggle(xmpp_header, xmpp_content, ("ui", "settings", "widgets", "chat_xmpp"))
+
+        chatlog_header, chatlog_content, chatlog_layout = self._add_subsection(
+            section, tr("📜 Chatlog", "📜 Чатлог")
+        )
+        self.chatlog_filtered_click_combo = self._add_combo_row(
+            chatlog_layout, tr("Click on filtered message", "Клик по отфильтрованному сообщению"), [],
+            self._on_chatlog_filtered_click_changed
+        )
+        self.chatlog_filtered_click_combo.setFixedWidth(240)
+        self._add_collapse_toggle(chatlog_header, chatlog_content, ("ui", "settings", "widgets", "chat_chatlog"))
+
+        parser_header, parser_content, parser_layout = self._add_subsection(
+            section, tr("🔍 Chatlog Parser", "🔍 Парсер чатлога")
+        )
+        self.parser_validate_usernames_checkbox = self._add_checkbox(
+            parser_layout,
+            tr("Validate usernames in chatlog parser (API check)",
+               "Проверять имена в парсере чатлога (через API)"),
+            self._on_parser_validate_usernames_toggled,
+        )
+        self._add_collapse_toggle(parser_header, parser_content, ("ui", "settings", "widgets", "chat_parser"))
+
+        flash_header, flash_content, flash_layout = self._add_subsection(
+            section, tr("🪄 Highlight Animation", "🪄 Анимация подсветки")
+        )
+        self.flash_easing_combo = self._add_combo_row(
+            flash_layout, tr("Timing function", "Функция плавности"), [], self._on_flash_easing_changed
+        )
+        self.flash_easing_combo.setFixedWidth(240)
+        dmin = DEFAULTS["chat"]["flash_duration_ms_min"]
+        dmax = DEFAULTS["chat"]["flash_duration_ms_max"]
+        self.flash_row_duration_spin = self._add_slider_spin_row(
+            flash_layout, tr("Row highlight (ms)", "Подсветка строки (мс)"),
+            dmin, dmax, lambda v: self._on_flash_duration_changed("row", v),
+            default=DEFAULTS["chat"]["flash_row_duration_ms"],
+        )
+        self.flash_copy_duration_spin = self._add_slider_spin_row(
+            flash_layout, tr("Copy (ms)", "Копирование (мс)"),
+            dmin, dmax, lambda v: self._on_flash_duration_changed("copy", v),
+            default=DEFAULTS["chat"]["flash_copy_duration_ms"],
+        )
+        for spin in (self.flash_row_duration_spin, self.flash_copy_duration_spin):
+            spin.setSingleStep(50)
+            spin.linked_slider.setSingleStep(50)
+
+        self.flash_preview = {}
+        preview_widget = QWidget()
+        preview_widget.setObjectName("flashPreview")
+        preview_layout = QHBoxLayout(preview_widget)
+        preview_layout.setContentsMargins(0, 0, 0, 0)
+        preview_layout.setSpacing(6)
+        for kind, label_text in (
+            ("row", tr("ROW", "СТРОКА")),
+            ("copy", tr("COPY", "КОПИРОВАНИЕ")),
+        ):
+            label = FlashLabel(
+                label_text,
+                is_dark_fn=lambda: (self.config.get("ui", "theme") or "dark") == "dark",
+                config=self.config,
+                duration_kind=kind,
+            )
+            label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            label.setMinimumHeight(26)
+            label.setFont(get_font(FontType.UI))
+            label.setMargin(0)
+            label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+            preview_layout.addWidget(label, stretch=1)
+            self.flash_preview[kind] = label
+
+        self._apply_flash_preview_theme()
+        flash_layout.addWidget(preview_widget)
+        self._add_collapse_toggle(flash_header, flash_content, ("ui", "settings", "widgets", "chat_flash"))
+
+    def _refresh_chat(self):
+        max_messages = self.config.get("ui", "chatlog", "max_messages")
+        max_messages = DEFAULTS["chatlog"]["max_messages"] if max_messages is None else int(max_messages)
+        max_messages = max(
+            DEFAULTS["chatlog"]["max_messages_min"],
+            min(DEFAULTS["chatlog"]["max_messages_max"], max_messages),
+        )
+        self.chatlog_max_messages_spin.setValue(max_messages)
+        self.chatlog_max_messages_spin.linked_slider.setValue(max_messages)
+
+        live_search_max = self.config.get("ui", "chatlog", "live_search_max_messages")
+        live_search_max = DEFAULTS["chatlog"]["live_search_max_messages"] if live_search_max is None else int(live_search_max)
+        live_search_max = max(
+            DEFAULTS["chatlog"]["live_search_max_messages_min"],
+            min(DEFAULTS["chatlog"]["live_search_max_messages_max"], live_search_max),
+        )
+        self.chatlog_live_search_spin.setValue(live_search_max)
+        self.chatlog_live_search_spin.linked_slider.setValue(live_search_max)
+        fill_chatlog_filtered_click_combo(
+            self.chatlog_filtered_click_combo, self.config.get("ui", "chatlog", "filtered_click_action")
+        )
+
+        validate_usernames = self.config.get("chatlog_parser", "validate_usernames")
+        self.parser_validate_usernames_checkbox.setChecked(
+            True if validate_usernames is None else bool(validate_usernames)
+        )
+
+        chat_max_messages = self.config.get("ui", "chat", "max_messages")
+        chat_max_messages = DEFAULTS["chat"]["max_messages"] if chat_max_messages is None else int(chat_max_messages)
+        chat_max_messages = max(
+            DEFAULTS["chat"]["max_messages_min"],
+            min(DEFAULTS["chat"]["max_messages_max"], chat_max_messages),
+        )
+        self.chat_max_messages_spin.setValue(chat_max_messages)
+        self.chat_max_messages_spin.linked_slider.setValue(chat_max_messages)
+
+        badge_size = self.config.get("ui", "chat", "badge_font_size")
+        try:
+            badge_size = int(badge_size) if badge_size is not None else DEFAULTS["chat"]["badge_font_size"]
+        except (TypeError, ValueError):
+            badge_size = DEFAULTS["chat"]["badge_font_size"]
+        badge_size = max(8, min(18, badge_size))
+        self.badge_size_spin.setValue(badge_size)
+        self.badge_size_spin.linked_slider.setValue(badge_size)
+
+        fill_mentions_digest_mode_combo(
+            self.mentions_digest_mode_combo,
+            self.config.get("ui", "chat", "mentions_digest_mode"),
+        )
+        digest_hours = self.config.get("ui", "chat", "mentions_digest_interval_hours")
+        try:
+            digest_hours = int(digest_hours) if digest_hours is not None else DEFAULTS["chat"]["mentions_digest_interval_hours"]
+        except (TypeError, ValueError):
+            digest_hours = DEFAULTS["chat"]["mentions_digest_interval_hours"]
+        digest_hours = max(1, min(168, digest_hours))
+        self.mentions_digest_interval_spin.setValue(digest_hours)
+        self.mentions_digest_interval_spin.linked_slider.setValue(digest_hours)
+        self._sync_mentions_digest_interval_visibility()
+
+        fill_flash_easing_combo(self.flash_easing_combo, self.config.get("ui", "chat", "flash_easing"))
+        self._load_flash_duration_spins()
+
+        browsers = get_available_browsers()
+        self.browser_combo.blockSignals(True)
+        self.browser_combo.clear()
+        for display_name, key in browsers:
+            self.browser_combo.addItem(display_name, key)
+        current_browser = self.config.get("browser") or "system"
+        idx = self.browser_combo.findData(current_browser)
+        self.browser_combo.setCurrentIndex(idx if idx >= 0 else 0)
+        self.browser_combo.blockSignals(False)
+
+    def _on_chatlog_max_messages_changed(self, value: int):
+        self.config.set("ui", "chatlog", "max_messages", value=int(value))
+
+    def _on_chatlog_live_search_max_changed(self, value: int):
+        self.config.set("ui", "chatlog", "live_search_max_messages", value=int(value))
+
+    def _on_chatlog_filtered_click_changed(self, _text: str = ""):
+        self._sync_combo_tooltip(self.chatlog_filtered_click_combo)
+        value = self.chatlog_filtered_click_combo.currentData() or DEFAULTS["chatlog"]["filtered_click_action"]
+        self.config.set("ui", "chatlog", "filtered_click_action", value=value)
+
+    def _on_parser_validate_usernames_toggled(self, checked: bool):
+        self.config.set("chatlog_parser", "validate_usernames", value=checked)
+
+    def _on_chat_max_messages_changed(self, value: int):
+        self.config.set("ui", "chat", "max_messages", value=int(value))
+
+    def _on_browser_changed(self, _text: str = ""):
+        key = self.browser_combo.currentData()
+        if key is not None:
+            self.config.set("browser", value=key)
+
+    def _apply_flash_preview_theme(self):
+        if not hasattr(self, "flash_preview"):
+            return
+        preview_style = preview_box_stylesheet("QLabel", self.config.get("ui", "theme") or "dark")
+        for preview in self.flash_preview.values():
+            preview.setStyleSheet(preview_style)
+
+    def _load_flash_duration_spins(self):
+        dmin = DEFAULTS["chat"]["flash_duration_ms_min"]
+        dmax = DEFAULTS["chat"]["flash_duration_ms_max"]
+        legacy = self.config.get("ui", "chat", "flash_duration_ms")
+        try:
+            legacy = int(legacy) if legacy is not None else DEFAULTS["chat"]["flash_duration_ms"]
+        except (TypeError, ValueError):
+            legacy = DEFAULTS["chat"]["flash_duration_ms"]
+        for kind, spin in (
+            ("row", self.flash_row_duration_spin),
+            ("copy", self.flash_copy_duration_spin),
+        ):
+            value = self.config.get("ui", "chat", DURATION_KEYS[kind])
+            try:
+                value = int(value) if value is not None else legacy
+            except (TypeError, ValueError):
+                value = legacy
+            value = max(dmin, min(dmax, value))
+            spin.setValue(value)
+            spin.linked_slider.setValue(value)
+
+    def _on_badge_size_changed(self, value: int):
+        self.config.set("ui", "chat", "badge_font_size", value=int(value))
+        self.tracker_badge_style_changed.emit()
+
+    def _on_mentions_digest_mode_changed(self, _text: str = ""):
+        mode = self.mentions_digest_mode_combo.currentData()
+        if mode is not None:
+            self.config.set("ui", "chat", "mentions_digest_mode", value=mode)
+        self._sync_mentions_digest_interval_visibility()
+        tip = self.mentions_digest_mode_combo.itemData(
+            self.mentions_digest_mode_combo.currentIndex(), Qt.ItemDataRole.ToolTipRole
+        )
+        self.mentions_digest_mode_combo.setToolTip(tip or "")
+
+    def _sync_mentions_digest_interval_visibility(self):
+        is_custom = self.mentions_digest_mode_combo.currentData() == "custom"
+        spin = self.mentions_digest_interval_spin
+        spin.setEnabled(is_custom)
+        if hasattr(spin, "linked_slider"):
+            spin.linked_slider.setEnabled(is_custom)
+
+    def _on_mentions_digest_interval_changed(self, value: int):
+        self.config.set("ui", "chat", "mentions_digest_interval_hours", value=int(value))
+
+    def _on_flash_easing_changed(self, _text: str = ""):
+        value = self.flash_easing_combo.currentData()
+        if value is not None:
+            self.config.set("ui", "chat", "flash_easing", value=value)
+        for kind, preview in self.flash_preview.items():
+            preview.flash(kind)
+
+    def _on_flash_duration_changed(self, kind: str, value: int):
+        self.config.set("ui", "chat", DURATION_KEYS[kind], value=int(value))
+        self.flash_preview[kind].flash(kind)

@@ -1,13 +1,22 @@
 """Shared presence event badge (join / left / game)."""
-from typing import Optional, Tuple, Iterable, Set
-from PyQt6.QtWidgets import QLabel, QGraphicsOpacityEffect, QWidget, QHBoxLayout
-from PyQt6.QtCore import Qt, pyqtSignal
-from helpers.fonts import get_font, FontType
-from helpers.color_utils import tinted_chip_colors, hex_to_rgb, rgb_to_hsl, hsl_to_rgb, rgb_to_hex
 
-# text (en key resolved at use), base accent color — bg/fg/border via tinted_chip_colors
+from typing import Iterable, Optional, Set, Tuple
+
+from PyQt6.QtCore import pyqtSignal, Qt
+from PyQt6.QtWidgets import QGraphicsOpacityEffect, QHBoxLayout, QLabel, QWidget
+
+from helpers.colors.color_utils import (
+    hex_to_rgb,
+    hsl_to_rgb,
+    rgb_to_hex,
+    rgb_to_hsl,
+    tinted_chip_colors,
+)
+from helpers.fonts.fonts import FontType, get_font
 from helpers.translate import tr
 
+
+# English text, Russian text, base accent color (bg/fg/border via tinted_chip_colors)
 _STYLES = {
     "join": ("JOIN", "ВХОД", "#2d6a4f"),
     "left": ("LEFT", "ВЫХОД", "#6a2d2d"),

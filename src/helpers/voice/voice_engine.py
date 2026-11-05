@@ -1,4 +1,5 @@
 """Voice Engine for TTS (Text-to-Speech)"""
+
 import os
 import re
 import tempfile
@@ -7,8 +8,9 @@ import time
 from queue import Queue
 from typing import Optional
 
-from playsound3 import playsound
 from gtts import gTTS
+from playsound3 import playsound
+from PyQt6.QtWidgets import QApplication
 
 
 def clean_text_for_tts(text: str) -> str:
@@ -19,16 +21,16 @@ def clean_text_for_tts(text: str) -> str:
         r'\1',
         text,
     )
-    
+
     # Convert hyphens, minus signs, and underscores to spaces for natural pauses
     text = re.sub(r'[-−_]', ' ', text)
-    
+
     # Remove special characters/symbols but KEEP periods and commas for natural pauses
     text = re.sub(r'[:;@"#$%&\'()*+/<=>[\\\]^`{|}~]', '', text)
-    
+
     # Collapse multiple spaces into one and remove leading/trailing spaces
     text = ' '.join(text.split()).strip()
-    
+
     return text
 
 
@@ -113,15 +115,15 @@ class VoiceEngine:
             return
 
         is_mention = my_username.lower() in message.lower()
-       
+
         # Get pronunciation for username if manager is available
         spoken_username = username
         if self.pronunciation_manager:
             spoken_username = self.pronunciation_manager.get_pronunciation(username)
-       
+
         # Clean the message for natural TTS reading
         cleaned_message = clean_text_for_tts(message)
-        
+
         # Split message into language chunks (Russian vs English)
         chunks = []
         current_chunk = []
@@ -151,11 +153,11 @@ class VoiceEngine:
                     chunks.append((' '.join(current_chunk), current_lang))
                 current_chunk = [word]
                 current_lang = word_lang
-        
+
         # Add last chunk
         if current_chunk:
             chunks.append((' '.join(current_chunk), current_lang))
-        
+
         # Determine if we need to announce the username
         announce_username = False
         verb = ''
@@ -177,7 +179,7 @@ class VoiceEngine:
             verb = 'пишет'
             announce_username = True
             self.last_username = username
-        
+
         # Prepend username announcement if needed
         if announce_username and chunks:
             # Username announcement: verb is ALWAYS in Russian
@@ -260,7 +262,6 @@ def play_sound(sound_path: str, volume: float = 1.0, config=None, force: bool = 
             except Exception as e:
                 print(f'Sound error: {e}')
                 try:
-                    from PyQt6.QtWidgets import QApplication
                     app = QApplication.instance()
                     if app:
                         app.beep()

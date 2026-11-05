@@ -5,13 +5,15 @@ Dependencies:
 
 Recognition: Google Web Speech via SpeechRecognition (needs network).
 """
+
 from __future__ import annotations
 
+import math
 import threading
 from dataclasses import dataclass
 from typing import Optional
 
-from PyQt6.QtCore import QObject, QThread, pyqtSignal
+from PyQt6.QtCore import pyqtSignal, QObject, QThread
 
 
 SAMPLE_RATE = 16000
@@ -22,8 +24,7 @@ BLOCKSIZE = SAMPLE_RATE * BLOCK_MS // 1000
 
 # Energy VAD (int16 RMS). Tuned for speech at typical headset gain.
 SPEECH_RMS = 450
-# Short breaths must not become a new "sentence" — Google capitalizes
-# every request, so a 0.4s split turns commas into " Вот".
+# Short breaths must not start a new sentence (Google capitalizes every request)
 SILENCE_TO_COMMIT_S = 0.85
 MAX_UTTERANCE_S = 12.0
 MIN_UTTERANCE_S = 0.30
@@ -38,12 +39,12 @@ SUPPORTED_LANGUAGES = (LANG_RU, LANG_EN, LANG_AUTO)
 
 
 def _sd():
-    import sounddevice as sd
+    import sounddevice as sd  # optional dependency, loaded on first use
     return sd
 
 
 def _np():
-    import numpy as np
+    import numpy as np  # optional dependency, loaded on first use
     return np
 
 
@@ -116,7 +117,7 @@ def resolve_device(saved_name: Optional[str], saved_index: Optional[int]) -> Opt
     return devices[0].index
 
 
-def _rms_int16(block) -> float:
+def _rms_pcm(block) -> float:
     np = _np()
     if block.size == 0:
         return 0.0
@@ -129,7 +130,6 @@ def _level_from_rms(rms: float) -> float:
     # ~800 quiet, ~2500 conversational, ~8000 loud, ~20000 clipping.
     if rms <= 0:
         return 0.0
-    import math
     norm = math.log10(max(rms, 1.0)) / math.log10(20000.0)
     return max(0.0, min(1.0, norm))
 
@@ -139,7 +139,7 @@ def recognize_pcm(pcm: bytes, language: str = LANG_AUTO) -> str:
     if not pcm or len(pcm) < SAMPLE_RATE * 2 * MIN_UTTERANCE_S:
         return ""
     try:
-        import speech_recognition as sr
+        import speech_recognition as sr  # optional dependency, loaded on first use
     except Exception as e:
         raise RuntimeError(
             "SpeechRecognition is not installed. pip install SpeechRecognition"
@@ -225,7 +225,7 @@ class _CaptureThread(QThread):
                     if overflowed:
                         pass
                     mono = block[:, 0] if block.ndim > 1 else block
-                    rms = _rms_int16(mono)
+                    rms = _rms_pcm(mono)
                     instant = _level_from_rms(rms)
                     smooth = 0.65 * smooth + 0.35 * instant
                     self.level.emit(smooth)

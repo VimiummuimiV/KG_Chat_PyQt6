@@ -5,7 +5,7 @@ unexpected content or site markup changes. The HTML can be attached to a
 bug report for debugging.
 """
 
-from PyQt6.QtWidgets import QMessageBox, QApplication
+from PyQt6.QtWidgets import QApplication, QMessageBox
 
 from helpers.translate import tr
 

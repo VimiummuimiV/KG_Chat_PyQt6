@@ -1,11 +1,14 @@
 """Reusable tag/chip UI components (e.g. saved-value quick-access buttons)."""
-from pathlib import Path
-from PyQt6.QtWidgets import QWidget, QHBoxLayout, QLabel, QPushButton, QLayout, QApplication
-from PyQt6.QtCore import QSize, QRect, QTimer, Qt, pyqtSignal, QMimeData
-from PyQt6.QtGui import QDrag
-from PyQt6 import sip
 
-from helpers import button as icon_helpers
+from pathlib import Path
+
+from PyQt6 import sip
+from PyQt6.QtCore import pyqtSignal, QMimeData, QRect, QSize, Qt, QTimer
+from PyQt6.QtGui import QDrag
+from PyQt6.QtWidgets import QApplication, QHBoxLayout, QLabel, QLayout, QPushButton, QWidget
+
+from components import button as icon_helpers
+
 
 _tag_registry = []
 
@@ -98,7 +101,7 @@ class TagButton(QWidget):
 
     def _update_style(self):
         """Re-apply colors for the current theme (read live from helpers.button)"""
-        is_dark = icon_helpers._is_dark_theme
+        is_dark = icon_helpers.is_dark_theme
         bg, fg, border = _TAG_COLORS_DARK if is_dark else _TAG_COLORS_LIGHT
         close_hover_bg = _CLOSE_HOVER_BG_DARK if is_dark else _CLOSE_HOVER_BG_LIGHT
 
@@ -110,7 +113,7 @@ class TagButton(QWidget):
             f"QPushButton {{ background: transparent; border: none; border-radius: {_CLOSE_BTN_RADIUS}px; }}"
             f"QPushButton:hover {{ background-color: {close_hover_bg}; }}"
         )
-        self.close_btn.setIcon(icon_helpers._render_svg_icon(
+        self.close_btn.setIcon(icon_helpers.render_svg_icon(
             self.icons_path / self.close_icon, _CLOSE_ICON_SIZE,
             color=_CLOSE_ICON_COLOR, stroke_width=_CLOSE_ICON_STROKE_WIDTH
         ))
@@ -248,7 +251,7 @@ class SavedValuesBar(QWidget):
             self._drop_indicator.hide()
             return
 
-        color = _DROP_LINE_COLOR_DARK if icon_helpers._is_dark_theme else _DROP_LINE_COLOR_LIGHT
+        color = _DROP_LINE_COLOR_DARK if icon_helpers.is_dark_theme else _DROP_LINE_COLOR_LIGHT
         self._drop_indicator.setStyleSheet(
             f"background-color: {color}; border-radius: {_DROP_LINE_RADIUS}px;"
         )

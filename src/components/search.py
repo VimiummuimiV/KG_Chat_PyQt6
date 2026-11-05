@@ -1,13 +1,15 @@
 """Reusable message search bar (field + clear, optional live filter with backup)."""
+
 import re
 from pathlib import Path
 
-from PyQt6.QtWidgets import QWidget, QHBoxLayout, QLineEdit
 from PyQt6.QtCore import pyqtSignal
+from PyQt6.QtWidgets import QHBoxLayout, QLineEdit, QWidget
 
-from helpers.button import create_icon_button
-from helpers.fonts import get_font, FontType
+from components.button import create_icon_button
+from helpers.fonts.fonts import FontType, get_font
 from helpers.translate import tr
+
 
 def parse_search_text(text: str):
     """Parse 'text' | 'U:Bob,Alice' | 'M:hello' | combined U:/M: prefixes.

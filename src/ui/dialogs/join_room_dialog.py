@@ -1,18 +1,25 @@
 """Join / Create Room dialog."""
-from pathlib import Path
+
 import random
 import re
 import string
+from pathlib import Path
 
-from PyQt6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QLineEdit, QLabel,
-    QSlider, QComboBox, QCheckBox,
-)
 from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import (
+    QCheckBox,
+    QComboBox,
+    QDialog,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QSlider,
+    QVBoxLayout,
+)
 
-from helpers.button import create_icon_button
-from helpers.fonts import get_font, FontType
-from helpers.translate import tr, on_language_changed, TranslatableMixin
+from components.button import create_icon_button
+from helpers.fonts.fonts import FontType, get_font
+from helpers.translate import on_language_changed, tr, TranslatableMixin
 
 
 class JoinRoomDialog(TranslatableMixin, QDialog):
@@ -26,10 +33,10 @@ class JoinRoomDialog(TranslatableMixin, QDialog):
 
     def __init__(self, config, icons_path: Path, parent=None):
         super().__init__(parent)
-        self._init_translatable()
+        self.init_translatable()
         self.config = config
         self.icons_path = icons_path
-        self._tr_set(self.setWindowTitle, "Join / Create Room", "Войти / Создать комнату")
+        self.tr_set(self.setWindowTitle, "Join / Create Room", "Войти / Создать комнату")
         self.setFixedWidth(self._WINDOW_WIDTH)
         self.setFont(get_font(FontType.UI))
 
@@ -46,11 +53,11 @@ class JoinRoomDialog(TranslatableMixin, QDialog):
 
         self.header = QLabel()
         self.header.setFont(get_font(FontType.HEADER))
-        self._tr_set(self.header.setText, "🚪 Join / Create Room", "🚪 Войти / Создать комнату")
+        self.tr_set(self.header.setText, "🚪 Join / Create Room", "🚪 Войти / Создать комнату")
         layout.addWidget(self.header)
 
         self.name_input = QLineEdit()
-        self._tr_set(self.name_input.setPlaceholderText, "Room name", "Название комнаты")
+        self.tr_set(self.name_input.setPlaceholderText, "Room name", "Название комнаты")
         self.name_input.setFixedHeight(input_height)
         self.name_input.setFont(get_font(FontType.UI))
         self.name_input.setStyleSheet(
@@ -66,7 +73,7 @@ class JoinRoomDialog(TranslatableMixin, QDialog):
         self.saved_combo.setStyleSheet(
             f"QComboBox {{ height: {input_height}px; padding: 0px 8px; }}"
         )
-        self._tr_set(self.saved_combo.setPlaceholderText, "Saved rooms", "Сохранённые комнаты")
+        self.tr_set(self.saved_combo.setPlaceholderText, "Saved rooms", "Сохранённые комнаты")
         self.saved_combo.currentIndexChanged.connect(self._on_saved_picked)
         layout.addWidget(self.saved_combo)
 
@@ -74,7 +81,7 @@ class JoinRoomDialog(TranslatableMixin, QDialog):
         length_row.setSpacing(button_spacing)
         self.length_label = QLabel(tr("Length", "Длина"))
         self.length_label.setFont(get_font(FontType.UI))
-        self._tr_set(self.length_label.setText, "Length", "Длина")
+        self.tr_set(self.length_label.setText, "Length", "Длина")
         length_row.addWidget(self.length_label)
 
         saved_len = self.config.get("join_room", "random_name_length") if self.config else None
@@ -100,7 +107,7 @@ class JoinRoomDialog(TranslatableMixin, QDialog):
 
         remember = self.config.get("join_room", "remember") if self.config else None
         self.remember_checkbox = QCheckBox()
-        self._tr_set(self.remember_checkbox.setText, "Remember this name", "Запомнить это имя")
+        self.tr_set(self.remember_checkbox.setText, "Remember this name", "Запомнить это имя")
         self.remember_checkbox.setFont(get_font(FontType.UI))
         self.remember_checkbox.setChecked(True if remember is None else bool(remember))
         self.remember_checkbox.toggled.connect(self._on_remember_toggled)
@@ -112,28 +119,28 @@ class JoinRoomDialog(TranslatableMixin, QDialog):
         cancel_button = create_icon_button(
             self.icons_path, "go-back.svg", "", config=self.config
         )
-        self._tr_set(cancel_button.setToolTip, "Cancel (Esc)", "Отмена (Esc)")
+        self.tr_set(cancel_button.setToolTip, "Cancel (Esc)", "Отмена (Esc)")
         cancel_button.clicked.connect(self.reject)
         actions_row.addWidget(cancel_button)
 
         gen_button = create_icon_button(
             self.icons_path, "dice-3.svg", "", config=self.config
         )
-        self._tr_set(gen_button.setToolTip, "Generate random name", "Сгенерировать случайное имя")
+        self.tr_set(gen_button.setToolTip, "Generate random name", "Сгенерировать случайное имя")
         gen_button.clicked.connect(self._generate_name)
         actions_row.addWidget(gen_button)
 
         self.delete_button = create_icon_button(
             self.icons_path, "trash.svg", "", config=self.config
         )
-        self._tr_set(self.delete_button.setToolTip, "Remove from saved", "Удалить из сохранённых")
+        self.tr_set(self.delete_button.setToolTip, "Remove from saved", "Удалить из сохранённых")
         self.delete_button.clicked.connect(self._delete_saved)
         actions_row.addWidget(self.delete_button)
 
         join_button = create_icon_button(
             self.icons_path, "login.svg", "", config=self.config
         )
-        self._tr_set(join_button.setToolTip, "Join / Create (Enter)", "Войти / Создать (Enter)")
+        self.tr_set(join_button.setToolTip, "Join / Create (Enter)", "Войти / Создать (Enter)")
         join_button.clicked.connect(self.accept)
         actions_row.addWidget(join_button)
 
@@ -141,7 +148,7 @@ class JoinRoomDialog(TranslatableMixin, QDialog):
 
         self._populate_saved()
         self.name_input.setFocus()
-        on_language_changed(self._retranslate_all)
+        on_language_changed(self.retranslate_all)
 
     def _load_saved(self) -> list:
         if not self.config:

@@ -1,5 +1,6 @@
 """Minimal bilingual helper (en/ru). Strings stay next to call sites."""
-from PyQt6.QtCore import QObject, pyqtSignal
+
+from PyQt6.QtCore import pyqtSignal, QObject
 
 
 class _Translator(QObject):
@@ -57,20 +58,20 @@ def on_language_changed(slot):
 class TranslatableMixin:
     """Opt-in real-time retranslation for widgets built with tr()."""
 
-    def _init_translatable(self):
+    def init_translatable(self):
         self._translatable = []
 
-    def _register_tr(self, setter, text):
+    def register_tr(self, setter, text):
         if isinstance(text, TrStr):
             self._translatable.append((setter, text))
 
-    def _tr_set(self, setter, en: str, ru: str) -> str:
+    def tr_set(self, setter, en: str, ru: str) -> str:
         text = tr(en, ru)
         setter(text)
-        self._register_tr(setter, text)
+        self.register_tr(setter, text)
         return text
 
-    def _retranslate_all(self, _code=None):
+    def retranslate_all(self, _code=None):
         new_list = []
         for setter, text in self._translatable:
             try:

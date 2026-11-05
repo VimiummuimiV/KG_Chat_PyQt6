@@ -1,13 +1,11 @@
-import sys
 import ctypes
+import sys
 from pathlib import Path
-from PyQt6.QtWidgets import(
-    QWidget, QApplication, QSystemTrayIcon,
-    QMenu, QMessageBox
-)
-from PyQt6.QtGui import QFont, QIcon, QAction, QPixmap, QPainter, QColor
-from PyQt6.QtCore import Qt, QLockFile, QDir, pyqtSignal, QObject, pyqtSlot, QMetaObject, QTimer
-from PyQt6.QtSvg import QSvgRenderer
+
+from PyQt6.QtCore import pyqtSignal, pyqtSlot, QDir, QLockFile, QMetaObject, QObject, Qt, QTimer
+from PyQt6.QtGui import QAction, QIcon
+from PyQt6.QtWidgets import QApplication, QMenu, QMessageBox, QSystemTrayIcon
+
 
 QApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
 
@@ -15,33 +13,30 @@ QApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
 src_path = Path(__file__).parent
 sys.path.insert(0, str(src_path if src_path.name == 'src' else src_path / 'src'))
 
-from ui.ui_accounts import AccountWindow
-from ui.ui_chat import ChatWindow
-from helpers.fonts import (
-    load_fonts,
-    set_application_font,
-    set_font_scaler,
-    set_config,
-    get_font,
-    FontType,
-)
+from components.button import render_svg_icon
+from components.tray_badge import TrayIconWithBadge
+from core.state.accounts import AccountManager
 from helpers.config import Config, get_config_path
 from helpers.data import get_data_dir
-from helpers.translate import tr, set_language, get_language, on_language_changed
-from helpers.username_color_manager import(
-    change_username_color,
-    reset_username_color,
+from helpers.fonts.font_scaler import FontScaler
+from helpers.fonts.fonts import (
+    FontType,
+    get_font,
+    load_fonts,
+    set_application_font,
+    set_config,
+    set_font_scaler,
 )
-from helpers.pronunciation_manager import PronunciationManager
-from helpers.ban_manager import BanManager
-from helpers.user_tracker import UserTracker
-from helpers.font_scaler import FontScaler
-from helpers import hotkey_manager as hotkey
-from helpers.power_monitor import power_monitor
-from core.accounts import AccountManager
-from components.tray_badge import TrayIconWithBadge
-from components.notification import popup_manager
-from helpers.button import _render_svg_icon
+from helpers.system import hotkey_manager as hotkey
+from helpers.system.power_monitor import power_monitor
+from helpers.translate import on_language_changed, set_language, tr
+from helpers.users.ban_manager import BanManager
+from helpers.users.pronunciation_manager import PronunciationManager
+from helpers.users.user_tracker import UserTracker
+from helpers.users.username_color_manager import change_username_color, reset_username_color
+from ui.account.ui_accounts import AccountWindow
+from ui.chat.ui_chat import ChatWindow
+from ui.notification.popup_manager import popup_manager
 
 
 class Application(QObject):
@@ -92,16 +87,16 @@ class Application(QObject):
 
         # Initialize icons path FIRST
         self.icons_path = Path(__file__).parent / "icons"
-        
+
         # Set global application icon EARLY - before any windows are created
         # Uses chat.ico for taskbar/dock on all platforms
         app_icon = self._get_app_icon()
         self.app.setWindowIcon(app_icon)
-        
+
         # Initialize tray badge manager
         self.tray_badge = TrayIconWithBadge(self.icons_path)
         self.unread_count = 0
-        
+
         # Initialize pronunciation manager
         self.pronunciation_manager = PronunciationManager(self.data_path)
         # Initialize ban manager
@@ -139,7 +134,7 @@ class Application(QObject):
         self.tray_icon = QSystemTrayIcon(self._get_icon(self.unread_count), self.app)
         self.tray_icon.activated.connect(lambda r: self.toggle_chat_visibility(ignore_active=True) if r == QSystemTrayIcon.ActivationReason.Trigger else None)
 
-        icon = lambda name: _render_svg_icon(self.icons_path / name, 16)
+        icon = lambda name: render_svg_icon(self.icons_path / name, 16)
 
         menu = QMenu()
         menu.setFont(get_font(FontType.UI))
@@ -237,7 +232,7 @@ class Application(QObject):
             # No account connected - hide reset option
             self.reset_color_action.setVisible(False)
             return
-       
+
         # Show reset only if custom_background exists
         has_custom_bg = bool(self.chat_window.account.get('custom_background'))
         self.reset_color_action.setVisible(has_custom_bg)
@@ -249,7 +244,7 @@ class Application(QObject):
         if voice_enabled is None:
             voice_enabled = False
         self.voice_sound_action.setChecked(voice_enabled)
-       
+
         # Update effects sound state
         effects_enabled = self.config.get("sound", "effects_enabled")
         if effects_enabled is None:
@@ -268,10 +263,10 @@ class Application(QObject):
     def _on_sound_toggled(self, config_key: str, action: QAction):
         """Handle sound toggle from tray menu"""
         enabled = action.isChecked()
-        
+
         # Save to config
         self.config.set("sound", config_key, value=enabled)
-        
+
         # Update chat window's config instance directly if it exists
         if self.chat_window:
             self.chat_window.config.data = self.config.data
@@ -309,7 +304,7 @@ class Application(QObject):
         self.unread_count += 1
         if self.tray_icon:
             self.tray_icon.setIcon(self._get_icon(self.unread_count))
-    
+
     def reset_unread(self):
         """Reset unread message count and update tray icon"""
         self.unread_count = 0
@@ -321,26 +316,26 @@ class Application(QObject):
         window.setWindowState(window.windowState() & ~Qt.WindowState.WindowMinimized | Qt.WindowState.WindowActive)
         window.activateWindow()
         window.raise_()
-        
+
         # Windows: Force window to foreground
         if sys.platform == 'win32':
             try:
                 hwnd = int(window.winId())
-                user32 = ctypes.windll.user32
-                foreground_hwnd = user32.GetForegroundWindow()
-                
+                user_library = ctypes.windll.user_library
+                foreground_hwnd = user_library.GetForegroundWindow()
+
                 if foreground_hwnd != hwnd:
-                    foreground_thread = user32.GetWindowThreadProcessId(foreground_hwnd, None)
+                    foreground_thread = user_library.GetWindowThreadProcessId(foreground_hwnd, None)
                     this_thread = ctypes.windll.kernel32.GetCurrentThreadId()
-                    
+
                     if foreground_thread != this_thread:
-                        user32.AttachThreadInput(foreground_thread, this_thread, True)
-                    
-                    user32.BringWindowToTop(hwnd)
-                    user32.SetForegroundWindow(hwnd)
-                    
+                        user_library.AttachThreadInput(foreground_thread, this_thread, True)
+
+                    user_library.BringWindowToTop(hwnd)
+                    user_library.SetForegroundWindow(hwnd)
+
                     if foreground_thread != this_thread:
-                        user32.AttachThreadInput(foreground_thread, this_thread, False)
+                        user_library.AttachThreadInput(foreground_thread, this_thread, False)
             except Exception as e:
                 print(f"⚠️ Could not force window to foreground: {e}")
 
@@ -428,10 +423,10 @@ class Application(QObject):
         """Run the application - check auto-login or show account window"""
         # Setup global hotkey after Qt is fully initialized
         self.setup_global_hotkey()
-        
+
         # Check if auto-login is enabled
         auto_login = self.config.get("startup", "auto_login")
-        
+
         if auto_login:
             # Get active account and connect directly
             active_account = self.account_manager.get_active_account()
@@ -446,7 +441,7 @@ class Application(QObject):
         else:
             # Normal flow - show account window
             self.show_account_window()
-        
+
         return self.app.exec()
 
     def show_account_window(self):
@@ -474,23 +469,23 @@ class Application(QObject):
             user_tracker=self.user_tracker
         )
         self.chat_window.set_tray_mode(True)
-        
+
         # Connect font size changes to refresh UI
         self.font_scaler.font_size_changed.connect(self.chat_window.on_font_size_changed)
-        
+
         # Initialize popup_manager mode and muted state from config
         notification_mode = self.config.get("notification", "mode")
         if notification_mode:
             popup_manager.set_notification_mode(notification_mode)
-        
+
         notification_muted = self.config.get("notification", "muted")
         if notification_muted:
             popup_manager.set_muted(notification_muted)
-        
+
         # Initialize notification button icon to match config state
         if hasattr(self.chat_window, 'button_panel') and hasattr(self.chat_window.button_panel, 'update_notification_button_icon'):
             self.chat_window.button_panel.update_notification_button_icon()
-        
+
         # === Respect "Start minimized" ONLY on initial launch ===
         # On account switch we ALWAYS show the window
         if self.is_initial_launch and self.config.get("startup", "start_minimized"):
@@ -503,7 +498,7 @@ class Application(QObject):
             QTimer.singleShot(50, lambda: self.chat_window.setWindowOpacity(1))
             self.is_initial_launch = False
 
-    def _refresh_own_username_color(self, operation_func):
+    def refresh_own_username_color(self, operation_func):
         """Execute operation and refresh own username color in UI if successful."""
         if not self.chat_window or not self.chat_window.account:
             QMessageBox.warning(
@@ -512,39 +507,39 @@ class Application(QObject):
                 tr("Please connect to an account first.", "Сначала подключитесь к аккаунту.")
             )
             return
-       
+
         success = operation_func(
             self.chat_window,
             self.account_manager,
             self.chat_window.account,
             self.chat_window.cache
         )
-       
+
         if not success:
             return
-       
+
         # Refresh account data to update custom_background/avatar state
         updated_account = self.account_manager.get_account_by_chat_username(
             self.chat_window.account['chat_username']
         )
-       
+
         if not updated_account:
             return
-       
+
         previous_avatar = self.chat_window.account.get('avatar')
         self.chat_window.account.update(updated_account)
-       
+
         effective_bg = updated_account.get('custom_background') or updated_account.get('background')
         own_login = updated_account['chat_username']
         own_id = updated_account['user_id']
-       
+
         # Update own color in cache
         self.chat_window.cache.update_user(own_id, own_login, effective_bg)
-       
+
         # Clear avatar cache if changed
         if updated_account.get('avatar') != previous_avatar:
             self.chat_window.cache.remove_avatar(own_id)
-       
+
         # Update userlist own user
         own_user = next(
             (u for u in self.chat_window.xmpp_client.user_list.users.values()
@@ -554,24 +549,24 @@ class Application(QObject):
         if own_user:
             own_user.background = effective_bg
             self.chat_window.user_list_widget.add_users(users=[own_user])
-       
+
         # Update messages
         own_messages_updated = False
-        for msg_data in self.chat_window.messages_widget.model._messages:
+        for msg_data in self.chat_window.messages_widget.model.stored_messages:
             if msg_data.username == own_login:
                 msg_data.background_color = effective_bg
                 own_messages_updated = True
-       
+
         if own_messages_updated:
-            self.chat_window.messages_widget._force_recalculate()
+            self.chat_window.messages_widget.force_recalculate()
 
     def handle_change_username_color(self):
         """Handle Change Username Color from tray menu."""
-        self._refresh_own_username_color(change_username_color)
+        self.refresh_own_username_color(change_username_color)
 
     def handle_reset_username_color(self):
         """Handle Reset to Original from tray menu."""
-        self._refresh_own_username_color(reset_username_color)
+        self.refresh_own_username_color(reset_username_color)
 
     def check_chat_ready(self, feature):
         if not self.chat_window or not self.chat_window.account:
@@ -617,18 +612,18 @@ class Application(QObject):
         window = self.chat_window or self.account_window
         if not window:
             return
-        
+
         # Cache the active state BEFORE any window operations to avoid race conditions
         is_visible = window.isVisible()
         is_active = window.isActiveWindow()
-        
+
         # Determine if we should hide the window
         should_hide = is_visible and (ignore_active or is_active)
-        
+
         if should_hide:
             if window == self.chat_window:
-                window._clear_new_messages_marker()
-                window._teardown_presence_log_widget()
+                window.clear_new_messages_marker()
+                window.teardown_presence_log_widget()
             window.hide()
         else:
             self._reveal_window(window)

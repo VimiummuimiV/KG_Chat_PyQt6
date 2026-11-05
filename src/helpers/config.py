@@ -1,8 +1,10 @@
 """Configuration manager"""
+
 import json
 from pathlib import Path
 
 from helpers.data import get_data_dir
+
 
 _DEFAULT_CONFIG_PATH = Path(__file__).resolve().parent.parent / "settings" / "config.json"
 _USER_CONFIG_PATH = get_data_dir("settings") / "config.json"

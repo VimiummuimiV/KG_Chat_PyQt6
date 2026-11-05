@@ -1,0 +1,200 @@
+"""Tracked user input rows and chips."""
+
+from pathlib import Path
+
+from PyQt6.QtCore import pyqtSignal, Qt
+from PyQt6.QtGui import QPainter, QPixmap
+from PyQt6.QtSvg import QSvgRenderer
+from PyQt6.QtWidgets import QHBoxLayout, QLabel, QLineEdit, QSizePolicy, QWidget
+
+from components.button import create_icon_button, set_visual_active
+from components.user_count_row import UserCountRow
+from core.web.api_data import validate_username_and_get_id
+from helpers.fonts.fonts import FontType, get_font, get_scaled_width
+from helpers.translate import on_language_changed, tr, TranslatableMixin
+
+
+class TrackedUserItem(TranslatableMixin, QWidget):
+    remove_requested = pyqtSignal(object)
+
+    USERNAME_BASE_WIDTH = 220
+    USER_ID_BASE_WIDTH = 125
+    ARROW_WIDTH = 26
+    BUTTON_WIDTH = 48
+
+    def __init__(self, config, icons_path: Path, username="", user_id=""):
+        super().__init__()
+        self.init_translatable()
+        self.config = config
+        self.icons_path = icons_path
+        self.user_id = user_id
+        self.frozen = False
+        self.parent_widget = None
+        self.username_valid = True
+
+        spacing = config.get("ui", "spacing", "widget_elements") or 6
+        layout = QHBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(spacing)
+        self.setLayout(layout)
+
+        input_height = config.get("ui", "input_height") or 44
+
+        self.username_input = QLineEdit()
+        self.tr_set(self.username_input.setPlaceholderText, "Username", "Имя пользователя")
+        self.username_input.setText(username)
+        self.username_input.setFont(get_font(FontType.TEXT))
+        self.username_input.setFixedHeight(input_height)
+        self._username_width = get_scaled_width(self.USERNAME_BASE_WIDTH)
+        self.username_input.setFixedWidth(self._username_width)
+        self.username_input.editingFinished.connect(self._validate)
+        layout.addWidget(self.username_input)
+
+        arrow_label = QLabel()
+        arrow_svg = icons_path / "arrow-right.svg"
+        if arrow_svg.exists():
+            with open(arrow_svg, 'r') as f:
+                svg_content = f.read().replace('fill="currentColor"', 'fill="#888888"')
+            renderer = QSvgRenderer()
+            renderer.load(svg_content.encode('utf-8'))
+            pixmap = QPixmap(26, 26)
+            pixmap.fill(Qt.GlobalColor.transparent)
+            painter = QPainter(pixmap)
+            renderer.render(painter)
+            painter.end()
+            arrow_label.setPixmap(pixmap)
+            arrow_label.setFixedSize(26, 26)
+        layout.addWidget(arrow_label)
+
+        self.user_id_input = QLineEdit()
+        self.tr_set(self.user_id_input.setPlaceholderText, "ID", "ID")
+        self.user_id_input.setText(user_id)
+        self.user_id_input.setFont(get_font(FontType.TEXT))
+        self.user_id_input.setFixedHeight(input_height)
+        self._user_id_width = get_scaled_width(self.USER_ID_BASE_WIDTH)
+        self.user_id_input.setFixedWidth(self._user_id_width)
+        self.user_id_input.setReadOnly(True)
+        layout.addWidget(self.user_id_input)
+
+        self.freeze_button = create_icon_button(
+            icons_path, "snowflake.svg", tr("Freeze tracking", "Заморозить отслеживание"),
+            size_type="large", config=config
+        )
+        self.freeze_button.clicked.connect(self._toggle_freeze)
+        layout.addWidget(self.freeze_button)
+
+        self.remove_button = create_icon_button(
+            icons_path, "trash.svg", "",
+            size_type="large", config=config
+        )
+        self.tr_set(self.remove_button.setToolTip, "Remove", "Удалить")
+        self.remove_button.clicked.connect(lambda: self.remove_requested.emit(self))
+        layout.addWidget(self.remove_button)
+
+        self._spacing = spacing
+        self._update_total_width()
+        self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+
+        if username and not user_id:
+            self._validate()
+        on_language_changed(self.retranslate_all)
+
+    def _update_total_width(self):
+        total_width = (
+            self._username_width + self.ARROW_WIDTH + self._user_id_width
+            + self.BUTTON_WIDTH * 2 + self._spacing * 4
+        )
+        self.setFixedWidth(total_width)
+
+    def update_font_scale(self):
+        self._username_width = get_scaled_width(self.USERNAME_BASE_WIDTH)
+        self._user_id_width = get_scaled_width(self.USER_ID_BASE_WIDTH)
+        self.username_input.setFont(get_font(FontType.TEXT))
+        self.user_id_input.setFont(get_font(FontType.TEXT))
+        self.username_input.setFixedWidth(self._username_width)
+        self.user_id_input.setFixedWidth(self._user_id_width)
+        self._update_total_width()
+
+    def _validate(self):
+        username = self.username_input.text().strip()
+        if not username:
+            self.username_valid = True
+            self.user_id = ""
+            self.user_id_input.clear()
+            self.update_input_style()
+            if self.parent_widget:
+                self.parent_widget.save_selected()
+            return
+
+        user_id = validate_username_and_get_id(username)
+        self.username_valid = user_id is not None
+        if self.username_valid:
+            self.user_id = user_id
+            self.user_id_input.setText(self.user_id)
+        else:
+            self.user_id = ""
+            self.user_id_input.clear()
+
+        self.update_input_style()
+        if self.parent_widget:
+            self.parent_widget.save_selected()
+
+    def update_input_style(self, highlight_empty=False):
+        if highlight_empty and not self.username_input.text().strip():
+            self.username_input.setStyleSheet("QLineEdit { border: 2px solid #ffb84d; }")
+            self.username_input.setToolTip(tr(
+                "Fill username before adding new item",
+                "Заполните имя пользователя перед добавлением новой записи")
+            )
+        elif self.username_input.text().strip() and not self.username_valid:
+            self.username_input.setStyleSheet("QLineEdit { border: 2px solid #ff4444; }")
+            self.username_input.setToolTip(tr("User not found", "Пользователь не найден"))
+        else:
+            self.username_input.setStyleSheet("")
+            self.username_input.setToolTip("")
+
+    def set_frozen(self, frozen: bool):
+        self.frozen = bool(frozen)
+        set_visual_active(self.username_input, not self.frozen)
+        set_visual_active(self.user_id_input, not self.frozen)
+        set_visual_active(self.freeze_button, not self.frozen)
+        self.freeze_button.setToolTip(
+            tr("Unfreeze tracking", "Разморозить отслеживание") if self.frozen
+            else tr("Freeze tracking", "Заморозить отслеживание")
+        )
+
+    def _toggle_freeze(self):
+        if not self.user_id:
+            return
+        self.set_frozen(not self.frozen)
+        if self.parent_widget:
+            self.parent_widget.user_tracker.set_frozen(self.user_id, self.frozen)
+
+    def is_empty(self):
+        return not self.username_input.text().strip()
+
+    def get_data(self):
+        return self.username_input.text().strip(), self.user_id
+
+    def cleanup(self):
+        pass
+
+
+class TrackerUserChip(UserCountRow):
+    """History filter chip: avatar + login + event count, orange highlight when filtered"""
+
+    delete_requested = pyqtSignal(str)
+
+    def __init__(self, config, icons_path: Path, login: str, count: int, user_id: str = None):
+        super().__init__(
+            login, count, config, icons_path, user_id,
+            margins=(2, 0, 2, 0), filter_radius=6,
+        )
+        self.login = login
+        self.delete_button = create_icon_button(
+            icons_path, "trash.svg", tr("Remove history for this user", "Удалить историю этого пользователя"),
+            size_type="small", config=config
+        )
+        self.delete_button.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        self.delete_button.clicked.connect(lambda: self.delete_requested.emit(self.login))
+        self.layout().addWidget(self.delete_button)

@@ -1,12 +1,14 @@
 """Context menu for userlist rows (general, game-room, chatlog)."""
+
 from pathlib import Path
 from typing import Optional
 
 from PyQt6.QtWidgets import QMenu
 
-from helpers.button import _render_svg_icon
-from helpers.fonts import get_font, FontType
+from components.button import render_svg_icon
+from helpers.fonts.fonts import FontType, get_font
 from helpers.translate import tr
+
 
 PROFILE = "profile"
 PRIVATE = "private"
@@ -36,7 +38,7 @@ def show_userlist_context_menu(
     has_pronunciation: bool = False,
 ) -> Optional[str]:
     def icon(name: str):
-        return _render_svg_icon(icons_path / name, 16)
+        return render_svg_icon(icons_path / name, 16)
 
     menu = QMenu(parent)
     menu.setFont(get_font(FontType.UI))

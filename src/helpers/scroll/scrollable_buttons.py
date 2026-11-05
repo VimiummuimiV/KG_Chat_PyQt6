@@ -1,6 +1,7 @@
 """Reusable scrollable button container with wheel and MMB drag scroll support"""
-from PyQt6.QtWidgets import QWidget, QScrollArea, QHBoxLayout, QVBoxLayout
-from PyQt6.QtCore import Qt, QEvent
+
+from PyQt6.QtCore import QEvent, Qt
+from PyQt6.QtWidgets import QHBoxLayout, QScrollArea, QVBoxLayout, QWidget
 
 
 class ScrollableButtonContainer(QWidget):

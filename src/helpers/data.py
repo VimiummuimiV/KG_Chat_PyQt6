@@ -6,6 +6,16 @@ from PyQt6.QtCore import QUrl
 from PyQt6.QtGui import QDesktopServices
 
 
+def get_app_dir() -> Path:
+    """Return the application root (the folder holding main.py and the resource folders)."""
+    return Path(__file__).resolve().parent.parent
+
+
+def get_resource_dir(name: str) -> Path:
+    """Return a bundled resource folder such as icons, sounds, fonts or emoticons."""
+    return get_app_dir() / name
+
+
 def get_data_dir(subdir: str = "") -> Path:
     """Return a user-accessible data directory based on OS."""
     system = platform.system()

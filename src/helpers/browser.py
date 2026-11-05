@@ -1,13 +1,14 @@
 """Detect installed browsers and open URLs with a chosen one."""
+
 from __future__ import annotations
 
-import os
 import platform
 import shutil
 import subprocess
-import sys
+import webbrowser
 from pathlib import Path
 from typing import List, Optional, Tuple
+
 
 # (display_name, key) — key is "system" or an executable path
 BrowserEntry = Tuple[str, str]
@@ -24,7 +25,7 @@ def _exists(path: str) -> bool:
 def _windows_browsers() -> List[BrowserEntry]:
     entries: List[BrowserEntry] = []
     try:
-        import winreg
+        import winreg  # Windows only
     except ImportError:
         return entries
 
@@ -141,12 +142,10 @@ def open_url(url: str, browser_key: Optional[str] = None) -> None:
         return
     key = (browser_key or "system").strip()
     if not key or key == "system":
-        import webbrowser
         webbrowser.open(url)
         return
 
     if not _exists(key) and not _which(key):
-        import webbrowser
         webbrowser.open(url)
         return
 
@@ -166,5 +165,4 @@ def open_url(url: str, browser_key: Optional[str] = None) -> None:
                 start_new_session=True,
             )
     except Exception:
-        import webbrowser
         webbrowser.open(url)

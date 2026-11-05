@@ -1,15 +1,23 @@
 """Reusable scroll buttons panel (top/bottom full + page up/down) for list views"""
-from pathlib import Path
+
+from PyQt6.QtCore import pyqtSignal, QEvent, QObject, QPoint, QPropertyAnimation, Qt, QTimer
 from PyQt6.QtWidgets import (
-    QListView, QScrollArea, QWidget, QVBoxLayout,
-    QGraphicsOpacityEffect, QAbstractItemView, QApplication,
-    QSpacerItem, QSizePolicy
+    QAbstractItemView,
+    QApplication,
+    QGraphicsOpacityEffect,
+    QListView,
+    QSizePolicy,
+    QSpacerItem,
+    QVBoxLayout,
+    QWidget,
 )
-from PyQt6.QtCore import Qt, QObject, QTimer, QPropertyAnimation, QEvent, QPoint, pyqtSignal
+
+from components.button import create_disabled_icon, create_icon_button
 from helpers.config import Config
-from helpers.button import create_icon_button, create_disabled_icon
-from helpers.scroll.scroll import scroll, jump_to_date, _is_separator
+from helpers.data import get_resource_dir
+from helpers.scroll.scroll import is_separator_row, jump_to_date, scroll
 from helpers.translate import tr
+
 
 OPACITY_HIDDEN   = 0.0
 OPACITY_VISIBLE  = 1.0
@@ -52,8 +60,7 @@ class ScrollButtonsPanel(QObject):
         self.list_view = list_view  # QListView or QScrollArea
 
         # Paths
-        base_path = Path(__file__).parent.parent.parent
-        self.icons_path = base_path / "icons"
+        self.icons_path = get_resource_dir("icons")
 
         # Load config
         self.config = Config()
@@ -85,7 +92,7 @@ class ScrollButtonsPanel(QObject):
             button.clicked.connect(lambda _checked=False, a=action: self._on_clicked(a))
 
             icon_normal = button.icon()
-            icon_dimmed = create_disabled_icon(self.icons_path, icon_name, icon_size=button._icon_size)
+            icon_dimmed = create_disabled_icon(self.icons_path, icon_name, icon_size=button.icon_size)
 
             self._entries.append({
                 "button": button,
@@ -110,7 +117,7 @@ class ScrollButtonsPanel(QObject):
                     "button": button,
                     "direction": direction,
                     "icon_normal": button.icon(),
-                    "icon_dimmed": create_disabled_icon(self.icons_path, icon, icon_size=button._icon_size),
+                    "icon_dimmed": create_disabled_icon(self.icons_path, icon, icon_size=button.icon_size),
                 })
 
         if extra_actions:
@@ -182,7 +189,7 @@ class ScrollButtonsPanel(QObject):
         self._separator_rows = []
         if model:
             for row in range(model.rowCount()):
-                if _is_separator(model.data(model.index(row, 0), Qt.ItemDataRole.DisplayRole)):
+                if is_separator_row(model.data(model.index(row, 0), Qt.ItemDataRole.DisplayRole)):
                     self._separator_rows.append(row)
 
         visible = bool(self._separator_rows)

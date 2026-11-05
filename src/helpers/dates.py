@@ -1,5 +1,7 @@
 """Shared date parsing helpers"""
+
 from datetime import datetime, timedelta
+
 
 DATE_PLACEHOLDER = "YYYY-MM-DD / YYMMDD / today / yesterday / -7"
 

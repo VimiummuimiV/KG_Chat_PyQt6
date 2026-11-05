@@ -1,12 +1,16 @@
 """Centralized cache system for avatars and user data"""
-import re, json, threading
-from pathlib import Path
-from typing import Optional, Dict, Callable
+
+import json
+import re
+import threading
 from concurrent.futures import ThreadPoolExecutor
+from typing import Callable, Dict, Optional
+
 from PyQt6.QtGui import QPixmap
-from helpers.load import fetch_avatar_bytes, load_avatar_from_disk
+
+from helpers.colors.color_contrast import optimize_color_contrast
 from helpers.data import get_data_dir
-from helpers.color_contrast import optimize_color_contrast
+from helpers.load import fetch_avatar_bytes, load_avatar_from_disk
 
 
 class CacheManager:

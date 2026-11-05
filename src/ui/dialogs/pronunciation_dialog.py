@@ -1,7 +1,8 @@
 """Dialog for setting username pronunciation"""
-from PyQt6.QtWidgets import QDialog, QVBoxLayout, QLabel, QLineEdit, QDialogButtonBox
 
-from helpers.translate import tr, on_language_changed, TranslatableMixin
+from PyQt6.QtWidgets import QDialog, QDialogButtonBox, QLabel, QLineEdit, QVBoxLayout
+
+from helpers.translate import on_language_changed, TranslatableMixin
 
 
 class PronunciationDialog(TranslatableMixin, QDialog):
@@ -9,9 +10,9 @@ class PronunciationDialog(TranslatableMixin, QDialog):
 
     def __init__(self, parent=None, username: str = ""):
         super().__init__(parent)
-        self._init_translatable()
+        self.init_translatable()
         self.username = username or ""
-        self._tr_set(self.setWindowTitle, "Username Pronunciation", "Произношение имени")
+        self.tr_set(self.setWindowTitle, "Username Pronunciation", "Произношение имени")
         self.setFixedWidth(360)
 
         layout = QVBoxLayout(self)
@@ -19,7 +20,7 @@ class PronunciationDialog(TranslatableMixin, QDialog):
         layout.setSpacing(12)
 
         self._lbl = QLabel()
-        self._tr_set(
+        self.tr_set(
             self._lbl.setText,
             f"Pronunciation for: {self.username}",
             f"Произношение для: {self.username}",
@@ -27,7 +28,7 @@ class PronunciationDialog(TranslatableMixin, QDialog):
         layout.addWidget(self._lbl)
 
         self.input = QLineEdit()
-        self._tr_set(self.input.setPlaceholderText, "Pronunciation", "Произношение")
+        self.tr_set(self.input.setPlaceholderText, "Pronunciation", "Произношение")
         layout.addWidget(self.input)
 
         buttons = QDialogButtonBox(
@@ -40,8 +41,8 @@ class PronunciationDialog(TranslatableMixin, QDialog):
         on_language_changed(self._retranslate)
 
     def _retranslate(self, _code=None):
-        self._retranslate_all()
-        self._tr_set(
+        self.retranslate_all()
+        self.tr_set(
             self._lbl.setText,
             f"Pronunciation for: {self.username}",
             f"Произношение для: {self.username}",

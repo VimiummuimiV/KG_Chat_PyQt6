@@ -1,19 +1,26 @@
 """Microphone button with hold-to-talk, click-to-latch, VU meter and device menu."""
+
 from __future__ import annotations
 
 import re
 from pathlib import Path
 
-from PyQt6.QtCore import Qt, QSize, QTimer, QRectF, QLineF, pyqtSignal, QElapsedTimer
-from PyQt6.QtGui import QPainter, QColor, QPainterPath, QPen, QPaintEvent, QMouseEvent, QActionGroup, QCursor
-from PyQt6.QtWidgets import QApplication, QPushButton, QMenu
-
-from helpers.button import _render_svg_icon, _icon_registry
-from helpers.translate import tr, on_language_changed
-from helpers.voice.voice_input import (
-    InputDevice,
-    list_input_devices,
+from PyQt6.QtCore import pyqtSignal, QElapsedTimer, QLineF, QRectF, QSize, Qt, QTimer
+from PyQt6.QtGui import (
+    QActionGroup,
+    QColor,
+    QCursor,
+    QMouseEvent,
+    QPainter,
+    QPainterPath,
+    QPaintEvent,
+    QPen,
 )
+from PyQt6.QtWidgets import QApplication, QMenu, QPushButton
+
+from components.button import register_icon_button, render_svg_icon
+from helpers.translate import on_language_changed, tr
+from helpers.voice.voice_input import list_input_devices
 
 
 # How long a press may last and still count as a click (latch toggle).
@@ -46,7 +53,7 @@ class MicButton(QPushButton):
     ):
         super().__init__(parent)
         self._icons_path = Path(icons_path)
-        self._icon_size = icon_size
+        self.icon_size = icon_size
         self._level = 0.0
         self._display_level = 0.0
         self._peak = 0.0
@@ -74,9 +81,9 @@ class MicButton(QPushButton):
         self._peak_decay.timeout.connect(self._tick_meters)
         self._peak_decay.start()
 
-        self._icon_path = self._icons_path
+        self.icon_path = self._icons_path
         self._icon_name = "mic-off.svg"
-        _icon_registry.append(self)
+        register_icon_button(self)
         self.refresh_icon()
         self._refresh_tooltip()
         on_language_changed(self._refresh_tooltip)
@@ -119,7 +126,7 @@ class MicButton(QPushButton):
         if not icon_path.exists():
             icon_path = self._icons_path / "mic-off.svg"
         self._icon_name = icon_path.name
-        self.setIcon(_render_svg_icon(icon_path, self._icon_size))
+        self.setIcon(render_svg_icon(icon_path, self.icon_size))
 
     # ── events ──────────────────────────────────────────────────────────────
 

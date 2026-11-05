@@ -1,12 +1,13 @@
 """Shared row widget: avatar + colored username + count, with filter highlight and click-to-filter."""
-from PyQt6.QtWidgets import QWidget, QHBoxLayout, QLabel, QSizePolicy
-from PyQt6.QtCore import Qt, QSize, pyqtSignal
-from PyQt6.QtGui import QCursor
 
-from helpers.button import _render_svg_icon, get_user_svg_color
-from helpers.load import make_rounded_pixmap
+from PyQt6.QtCore import pyqtSignal, QSize, Qt
+from PyQt6.QtGui import QCursor
+from PyQt6.QtWidgets import QHBoxLayout, QLabel, QSizePolicy, QWidget
+
+from components.button import get_user_svg_color, render_svg_icon
 from helpers.cache import get_cache
-from helpers.fonts import get_font, FontType
+from helpers.fonts.fonts import FontType, get_font
+from helpers.load import make_rounded_pixmap
 
 
 class UserCountRow(QWidget):
@@ -47,7 +48,7 @@ class UserCountRow(QWidget):
         else:
             svg_color = get_user_svg_color(self._cache.has_user(user_id), is_dark)
             self.avatar_label.setPixmap(
-                _render_svg_icon(icons_path / "user.svg", self.SVG_AVATAR_SIZE, svg_color)
+                render_svg_icon(icons_path / "user.svg", self.SVG_AVATAR_SIZE, svg_color)
                 .pixmap(QSize(self.SVG_AVATAR_SIZE, self.SVG_AVATAR_SIZE))
             )
             if user_id:

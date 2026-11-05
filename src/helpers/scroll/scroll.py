@@ -1,8 +1,8 @@
 from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtWidgets import QScrollArea, QListView, QAbstractItemView
+from PyQt6.QtWidgets import QAbstractItemView, QListView, QScrollArea
 
 
-def _is_separator(data) -> bool:
+def is_separator_row(data) -> bool:
     """Default separator check: works for MessageData (attribute) and tracker events (dict)."""
     if data is None:
         return False
@@ -11,7 +11,7 @@ def _is_separator(data) -> bool:
     return bool(getattr(data, 'is_separator', False))
 
 
-def has_separator_rows(model, is_separator=_is_separator) -> bool:
+def has_separator_rows(model, is_separator=is_separator_row) -> bool:
     """Whether any row in the model is a date separator - used to decide if date-jump
     buttons are worth showing at all."""
     if not model:
@@ -22,7 +22,7 @@ def has_separator_rows(model, is_separator=_is_separator) -> bool:
     return False
 
 
-def jump_to_date(view, direction: int, is_separator=_is_separator):
+def jump_to_date(view, direction: int, is_separator=is_separator_row):
     """Scroll a QListView to the next/previous date-separator row, aligned to the top.
     Works with any model whose rows expose an is_separator flag (dict key or attribute)."""
     model = view.model()
@@ -47,7 +47,7 @@ def scroll(widget, mode="bottom", pos=0.0, delay=10, target_row=None):
             widget.isVisible()
         except RuntimeError:
             return  # Widget has been deleted, skip scroll
-        
+
         # Get scrollbar - works for both widget types
         try:
             sb = getattr(widget, "verticalScrollBar", lambda: None)()
@@ -55,14 +55,14 @@ def scroll(widget, mode="bottom", pos=0.0, delay=10, target_row=None):
                 return
         except RuntimeError:
             return  # Widget deleted during access
-        
+
         # QListView - use model-based scrolling when possible
         if isinstance(widget, QListView):
             try:
                 m = widget.model()
                 if not m or not m.rowCount():
                     return
-                
+
                 hints = {
                     "top": QAbstractItemView.ScrollHint.PositionAtTop,
                     "bottom": QAbstractItemView.ScrollHint.PositionAtBottom,
@@ -84,7 +84,7 @@ def scroll(widget, mode="bottom", pos=0.0, delay=10, target_row=None):
                         return
             except RuntimeError:
                 return  # Widget or model deleted during access
-        
+
         # QScrollArea - refresh geometry
         if isinstance(widget, QScrollArea):
             try:
@@ -93,7 +93,7 @@ def scroll(widget, mode="bottom", pos=0.0, delay=10, target_row=None):
                     widget.updateGeometry()
             except RuntimeError:
                 return  # Widget deleted during access
-        
+
         # Common scrollbar-based scrolling for both types
         try:
             if mode == "top":
@@ -106,7 +106,7 @@ def scroll(widget, mode="bottom", pos=0.0, delay=10, target_row=None):
                 sb.setValue(int(sb.maximum() * max(0.0, min(1.0, pos))))
         except RuntimeError:
             return  # Scrollbar deleted during access
-    
+
     if delay > 0:
         QTimer.singleShot(delay, _scroll)
         if mode == "bottom" and delay < 50:
