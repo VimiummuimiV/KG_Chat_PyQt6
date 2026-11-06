@@ -36,7 +36,7 @@ bin/ emoticons/ fonts/ icons/ sounds/   bundled resources, not Python code
 core/                   no widgets: data, network, XMPP, parsing, persistence
   xmpp/                 client.py (BOSH), messages.py, userlist.py, jid_utils.py
   chatlogs/             fetch.py, database.py (SQLite), range_parser.py (workers), workers_calculator.py
-  web/                  api_data.py, scores.py, races_listener.py, youtube.py
+  web/                  api_data.py, scores.py, races_listener.py, youtube.py, image_loader.py (parallel image downloads + LRU cache)
   state/                accounts.py, user_state.py (ByUserStore), presence_db.py, mentions_digest.py, self_ban.py
 helpers/                shared non-visual logic and managers
   config.py data.py translate.py cache.py load.py dates.py browser.py sounds.py   (top level)
@@ -50,14 +50,15 @@ helpers/                shared non-visual logic and managers
   voice/                TTS and voice input engines
 components/             reusable widgets used by more than one screen
   context_menu/         message and userlist context menus
-  button.py image_viewer.py video_player.py help_panel.py flash_highlight.py font_scale_slider.py
+  image_viewer/         viewer.py (ImageHoverView) + gallery.py (image URLs, ImageGallery), layer.py (layers, transitions), overlay.py (gallery bar, source badge), options.py (config defaults and accessors)
+  button.py avatar.py video_player.py help_panel.py flash_highlight.py font_scale_slider.py
   presence_badge.py search.py tag_button.py mic_button.py loading_spinner.py user_count_row.py tracked_mark.py tray_badge.py
 ui/                     screens and windows of the app
   chat/                 ui_chat.py (ChatWindow shell) + chat_*.py mixins (chat_hotkeys.py = local keyboard shortcuts), ui_room, ui_messages, ui_userlist, ui_buttons, ui_emoticon_selector, voice_input_attach
   tracker/              ui_user_tracker.py + tracker_*.py mixins and models
   chatlog/              ui_chatlog.py + chatlog_*.py mixins, ui_chatlog_userlist, ui_chatlogs_parser.py + parser_*.py
   messages/             message_model, message_delegate, message_renderer, messages_separator, message_interactions
-  settings/             ui_settings.py (SettingsWidget shell) + settings_*.py mixins, settings_options, settings_widgets, sound_selector
+  settings/             ui_settings.py (SettingsWidget shell) + settings_*.py mixins (one per section, e.g. settings_image_viewer.py), settings_options, settings_widgets, sound_selector
   account/              ui_accounts, ui_profile
   ui_banlist.py ui_pronunciation.py   single panels with no related files, directly in ui/
   notification/         popup_manager, popup_notification, presence_popup, message_body, notification_data, notification_settings, popup_helpers, auto_hide_popup
@@ -67,7 +68,10 @@ ui/                     screens and windows of the app
 ### Rules for each folder
 - `core/`: nothing here builds a widget. Small per-account JSON state reuses `ByUserStore` from `core/state/user_state.py` instead of new load/save code.
 - `helpers/`: non-visual only. Colors: new app palettes follow the `get_*_colors` pattern in `helpers/colors/color_utils.py` (hue and saturation from config, defaults in code).
-- `components/`: widgets reused by two or more screens; must not import from `ui/`.
+- `components/`: widgets reused by two or more screens; must not import from `ui/`. Code that both a component and `ui/` need goes down into `components/` or `helpers/` (avatars: `components/avatar.py`), never imported upward.
+- A component with its own options keeps their defaults, limits and config accessors in its own `options.py`; the settings page imports them from there instead of repeating the numbers.
+- Switching an icon button's icon at runtime: `set_button_icon` from `components/button.py`.
+- Every new hotkey or mouse action of a view is registered in the matching context of `components/help_panel.py` (F1).
 - `ui/`: screens. A mixin file contains only methods of one concern of its shell class.
 
 ### Where does a new file go
