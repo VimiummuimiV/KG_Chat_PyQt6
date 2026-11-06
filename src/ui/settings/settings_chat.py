@@ -146,6 +146,7 @@ class SettingsChatMixin:
             preview = QLineEdit()
             preview.setReadOnly(True)
             preview.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+            preview.setPlaceholderText(placeholder)
             self.register_tr(preview.setPlaceholderText, placeholder)
             preview_row.addWidget(preview, stretch=1)
             self.input_preview[state] = preview
