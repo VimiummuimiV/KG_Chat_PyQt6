@@ -9,7 +9,7 @@ from PyQt6.QtGui import QCursor, QFontMetrics
 from PyQt6.QtWidgets import QApplication, QHBoxLayout, QLabel, QLineEdit, QVBoxLayout, QWidget
 
 from components.avatar import apply_user_avatar, make_avatar_label, make_avatar_pixmap
-from components.button import get_user_svg_color, HoverIconButton
+from components.button import get_user_svg_color, HoverIconButton, set_button_icon
 from core.xmpp.messages import Message
 from helpers.colors.color_utils import get_game_message_colors
 from helpers.data import get_resource_dir
@@ -500,9 +500,7 @@ class PopupNotification(AutoHidePopupMixin, QWidget):
         # Update icon on all popup position buttons for consistency
         for popup in self.manager.popups:
             if hasattr(popup, 'position_button'):
-                new_btn = icon_btn(self.icons_path, icons[new_pos], tr("Change Position", "Сменить расположение"), self.data.config)
-                popup.position_button.setIcon(new_btn.icon())
-                new_btn.deleteLater()
+                set_button_icon(popup.position_button, icons[new_pos])
         self.manager.position_and_cleanup()
 
     def _toggle_emoticon_selector(self):

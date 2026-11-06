@@ -15,7 +15,7 @@ from PyQt6.QtWidgets import (
 )
 
 from components.avatar import make_rounded_avatar, request_avatar
-from components.button import create_icon_button, render_svg_icon, set_theme
+from components.button import create_icon_button, set_button_icon, set_theme
 from components.help_panel import HelpPanel
 from core.state.accounts import AccountManager
 from helpers.cache import get_cache
@@ -31,7 +31,6 @@ from ui.settings.settings_options import fill_resource_combo
 
 
 _AVATAR_SIZE = 48
-_PLACEHOLDER_ICON_SIZE = 30
 
 
 def _add_account_from_auth_data(account_manager, user_data: dict) -> bool:
@@ -500,8 +499,8 @@ class AccountWindow(TranslatableMixin, QWidget):
             request_avatar(self, user_id, lambda pixmap: self._set_avatar(user_id, pixmap))
 
     def _show_default_avatar(self):
-        self.account_avatar.setIcon(render_svg_icon(self.icons_path / "user.svg", _PLACEHOLDER_ICON_SIZE))
-        self.account_avatar.setIconSize(QSize(_PLACEHOLDER_ICON_SIZE, _PLACEHOLDER_ICON_SIZE))
+        set_button_icon(self.account_avatar, "user.svg")
+        self.account_avatar.setIconSize(QSize(self.account_avatar.icon_size, self.account_avatar.icon_size))
         self.account_avatar.setStyleSheet("QPushButton { background: transparent; border: none; }")
 
     def _set_avatar(self, user_id: str, pixmap: QPixmap):

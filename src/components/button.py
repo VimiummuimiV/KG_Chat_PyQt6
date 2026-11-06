@@ -86,11 +86,9 @@ def create_icon_button(
 
     # Apply
     button.icon_path = icons_path
-    button._icon_name = icon_name
     button.icon_size = icon_size
 
-    # Set icon
-    button.setIcon(render_svg_icon(icons_path / icon_name, icon_size))
+    set_button_icon(button, icon_name)
     button.setIconSize(QSize(icon_size, icon_size))
     button.setFixedSize(button_size, button_size)
     button.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -149,8 +147,7 @@ class HoverIconButton(QPushButton):
 
     def _update_icon(self):
         """Update icon based on hover state"""
-        icon_name = self._hover_icon if self._hovered else self._normal_icon
-        self.setIcon(render_svg_icon(self.icon_path / icon_name, self.icon_size))
+        set_button_icon(self, self._hover_icon if self._hovered else self._normal_icon)
 
     def enterEvent(self, event):
         self._hovered = True
@@ -168,10 +165,5 @@ def update_all_icons():
     _icon_registry[:] = [btn for btn in _icon_registry if not sip.isdeleted(btn)]
 
     for button in _icon_registry:
-        if hasattr(button, "refresh_icon"):
-            button.refresh_icon()
-        elif isinstance(button, HoverIconButton):
-            button._update_icon()
-        elif hasattr(button, 'icon_path') and hasattr(button, '_icon_name'):
-            icon = render_svg_icon(button.icon_path / button._icon_name, button.icon_size)
-            button.setIcon(icon)
+        if hasattr(button, 'icon_path') and hasattr(button, '_icon_name'):
+            set_button_icon(button, button._icon_name)

@@ -18,7 +18,7 @@ from PyQt6.QtGui import (
 )
 from PyQt6.QtWidgets import QApplication, QMenu, QPushButton
 
-from components.button import register_icon_button, render_svg_icon
+from components.button import register_icon_button, set_button_icon
 from helpers.translate import on_language_changed, tr
 from helpers.voice.voice_input import list_input_devices
 
@@ -82,7 +82,6 @@ class MicButton(QPushButton):
         self._peak_decay.start()
 
         self.icon_path = self._icons_path
-        self._icon_name = "mic-off.svg"
         register_icon_button(self)
         self.refresh_icon()
         self._refresh_tooltip()
@@ -122,11 +121,9 @@ class MicButton(QPushButton):
     def refresh_icon(self):
         """Called from update_all_icons() on theme change."""
         name = "mic-on.svg" if self._listening else "mic-off.svg"
-        icon_path = self._icons_path / name
-        if not icon_path.exists():
-            icon_path = self._icons_path / "mic-off.svg"
-        self._icon_name = icon_path.name
-        self.setIcon(render_svg_icon(icon_path, self.icon_size))
+        if not (self._icons_path / name).exists():
+            name = "mic-off.svg"
+        set_button_icon(self, name)
 
     # ── events ──────────────────────────────────────────────────────────────
 
