@@ -306,3 +306,4 @@ class ChatlogParserControlsMixin:
 
     def _handle_error(self, error_msg: str):
         self.info_label.setText(error_msg)
+        self.day_loaded.emit()

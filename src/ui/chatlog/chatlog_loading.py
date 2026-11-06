@@ -216,6 +216,8 @@ class ChatlogLoadingMixin:
             self.messages_loaded.emit(message_data)
         except Exception as e:
             self.info_label.setText(tr(f"❌ Display error: {e}", f"❌ Ошибка отображения: {e}"))
+        finally:
+            self.day_loaded.emit()
 
     def _navigate(self, days):
         """Navigate by days offset (-1 for previous, +1 for next)"""

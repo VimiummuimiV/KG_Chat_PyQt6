@@ -1,8 +1,8 @@
-"""Floating panels of the image viewer: source badge (top left), close button (top right), gallery bar (bottom center), unavailable notice."""
+"""Floating panels of the image viewer: source badge (top left), close button (top right), gallery bar (bottom center), notice."""
 
 from datetime import date
 from pathlib import Path
-from typing import Optional
+from typing import NamedTuple, Optional
 
 from PyQt6.QtCore import pyqtSignal, QBuffer, QIODevice, QRect, QRectF, QSize, Qt
 from PyQt6.QtGui import QColor, QImageReader, QPainter, QPainterPath, QPen, QPixmap
@@ -26,9 +26,7 @@ _UNAVAILABLE_ICON = "image-fill.svg"
 _UNAVAILABLE_ICON_SIZE = 24
 _COUNTER_WIDTH = 90
 _FILLER_NAME = "galleryFiller"  # plain container widgets must not pick up the app-wide widget background
-_ERROR_ICON = "close.svg"
-_ERROR_ICON_SIZE = 40
-_ERROR_COLOR = "#e53935"
+_NOTICE_ICON_SIZE = 40
 _PANEL_MARGIN = 10
 _PANEL_SPACING = 8
 _PANEL_RADIUS = 12
@@ -230,7 +228,7 @@ class GalleryBar(QFrame):
 
     def set_position(self, index: int, count: int, show_thumbnails: bool, day_state: Optional[DayState]):
         """Update the counter, thumbnail window and day controls for the image at index of count."""
-        self._counter.setText(f"{index + 1} / {count}")
+        self._counter.setText(f"{index + 1 if count else 0} / {count}")
         for button in self._image_buttons:
             button.setEnabled(count > 1)
         self._set_day(day_state)
@@ -309,33 +307,42 @@ class CloseButton(QFrame):
         self._button.setToolTip(tr("Close (Esc / Space / Q / RMB)", "Закрыть (Esc / Space / Q / ПКМ)"))
 
 
-class UnavailableNotice(QFrame):
-    """Red cross with a caption shown instead of an image that cannot be loaded."""
+class NoticeKind(NamedTuple):
+    icon: str
+    color: str
+
+
+NOTICE_ERROR = NoticeKind("close-circle-line.svg", "#e53935")
+NOTICE_WARNING = NoticeKind("error-warning-line.svg", "#fbc02d")
+
+
+class Notice(QFrame):
+    """Icon with a caption on an opaque black plate, colored by its kind."""
 
     def __init__(self, icons_path: Path, parent=None):
         super().__init__(parent)
-        self.setObjectName("unavailableNotice")
-        icon = render_svg_icon(icons_path / _ERROR_ICON, _ERROR_ICON_SIZE, _ERROR_COLOR)
+        self.setObjectName("galleryNotice")
+        self.setStyleSheet(
+            f"#galleryNotice {{ background-color: #000000; border-radius: {_PANEL_RADIUS}px; }}"
+            "#galleryNotice QLabel { background: transparent; }"
+        )
+        self._icons_path = icons_path
         self._icon_label = QLabel()
-        self._icon_label.setPixmap(icon.pixmap(_ERROR_ICON_SIZE, _ERROR_ICON_SIZE))
         self._label = QLabel()
         self._label.setFont(get_font(FontType.UI))
         layout = QVBoxLayout(self)
         layout.setContentsMargins(_PANEL_MARGIN, _PANEL_MARGIN, _PANEL_MARGIN, _PANEL_MARGIN)
         layout.setSpacing(_PANEL_SPACING)
         layout.addWidget(self._icon_label, 0, Qt.AlignmentFlag.AlignHCenter)
-        layout.addWidget(self._label)
+        layout.addWidget(self._label, 0, Qt.AlignmentFlag.AlignHCenter)
 
-    def apply_theme(self, is_dark: bool):
-        self.setStyleSheet(_panel_stylesheet("unavailableNotice", is_dark))
-
-    def refresh_text(self):
-        """Re-translate the caption for the current interface language and resize to fit."""
-        self._label.setText(tr(
-            "Image unavailable: it was removed from the host or the link is broken",
-            "Изображение недоступно: удалено с хостинга или ссылка не работает",
-        ))
+    def show_notice(self, kind: NoticeKind, text: str):
+        icon = render_svg_icon(self._icons_path / kind.icon, _NOTICE_ICON_SIZE, kind.color)
+        self._icon_label.setPixmap(icon.pixmap(_NOTICE_ICON_SIZE, _NOTICE_ICON_SIZE))
+        self._label.setStyleSheet(f"color: {kind.color};")
+        self._label.setText(text)
         self.adjustSize()
+        self.show()
 
 
 class SourceBadge(QFrame):

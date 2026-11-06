@@ -7,7 +7,7 @@ from PyQt6.QtGui import QCursor, QPainter
 from PyQt6.QtWidgets import QApplication, QWidget
 
 from components.help_panel import HelpPanel
-from components.image_viewer.gallery import DayState, extract_image_url, GalleryImage, ImageGallery
+from components.image_viewer.gallery import DayState, extract_image_url, first_image, GalleryImage, ImageGallery
 from components.image_viewer.layer import ImageLayer, INSTANT_MODE, TransitionAnimator
 from components.image_viewer.options import (
     show_thumbnails,
@@ -15,10 +15,11 @@ from components.image_viewer.options import (
     transition_duration_ms,
     transition_mode,
 )
-from components.image_viewer.overlay import CloseButton, GalleryBar, make_thumbnail, SourceBadge, UnavailableNotice
+from components.image_viewer.overlay import CloseButton, GalleryBar, make_thumbnail, Notice, NOTICE_ERROR, NOTICE_WARNING, NoticeKind, SourceBadge
 from components.loading_spinner import LoadingSpinner
 from core.web.image_loader import ImageLoader
 from helpers.data import get_resource_dir
+from helpers.translate import tr
 
 
 _MIN_SCALE = 0.1
@@ -93,8 +94,8 @@ class ImageHoverView(QWidget):
         self._gallery_bar.thumbnail_clicked.connect(self._on_thumbnail_clicked)
         self._gallery_bar.day_requested.connect(self._on_day_requested)
         self._gallery_bar.hide()
-        self._unavailable_notice = UnavailableNotice(icons_path, self)
-        self._unavailable_notice.hide()
+        self._notice = Notice(icons_path, self)
+        self._notice.hide()
         self._source_badge = SourceBadge(icons_path, self)
         self._source_badge.clicked.connect(self._on_source_clicked)
         self._source_badge.hide()
@@ -109,7 +110,8 @@ class ImageHoverView(QWidget):
 
     @property
     def _current_image(self) -> Optional[GalleryImage]:
-        return self._gallery.images[self._index] if self._gallery else None
+        images = self._gallery.images if self._gallery else []
+        return images[self._index] if self._index < len(images) else None
 
     def paintEvent(self, event):
         """Paint the current image, and the outgoing one while a transition runs"""
@@ -140,6 +142,8 @@ class ImageHoverView(QWidget):
         self._gallery = gallery or ImageGallery.single(image_url)
         if self._gallery.messages_replaced:
             self._gallery.messages_replaced.connect(self._on_messages_replaced)
+        if self._gallery.day_navigation:
+            self._gallery.day_navigation.loaded.connect(self._on_day_loaded)
 
         spinner_pos = LoadingSpinner.calculate_position(
             cursor_pos, self._loading_spinner.width(), self._screen_rect
@@ -156,16 +160,19 @@ class ImageHoverView(QWidget):
         self._is_dark = is_dark
         self._gallery_bar.apply_theme(is_dark)
         self._close_button.apply_theme(is_dark)
-        self._unavailable_notice.apply_theme(is_dark)
         if self._gallery:
             self._update_overlays(self._current_image)
 
     def _on_messages_replaced(self):
         """Rebuild the gallery after its messages were replaced, keeping the current image if it is still there."""
-        current_url = self._current_image.url
+        current = self._current_image
+        current_url = current.url if current else None
         self._gallery = self._gallery.reloaded(current_url)
         self._gallery_bar.clear_thumbnails()
         self._position_timer.stop()
+        if not self._gallery.images:
+            self._update_overlays(None)
+            return
         kept_index = next((index for index, image in enumerate(self._gallery.images) if image.url == current_url), None)
         if kept_index is None:
             self._show_image(0, 1)
@@ -175,11 +182,21 @@ class ImageHoverView(QWidget):
         self._prefetch_neighbors()
         self._request_thumbnails()
 
+    def _on_day_loaded(self):
+        """A chatlog day finished loading: with no image in it, say so instead of keeping a stale image or a spinner."""
+        if self._day_state() is None or first_image(self._gallery.get_messages()):
+            return
+        self._gallery = self._gallery.without_images()
+        self._index = 0
+        self._gallery_bar.clear_thumbnails()
+        self._update_overlays(None)
+        self._show_notice(NOTICE_WARNING, tr("No images for this day", "В этот день нет изображений"))
+
     def _show_image(self, index: int, direction: int):
         """Make the image at index current: show it as soon as it is loaded, and warm up its neighbors."""
         self._index = index
         self._direction = direction
-        self._unavailable_notice.hide()
+        self._notice.hide()
         image = self._gallery.images[index]
         self._update_overlays(image)
 
@@ -226,7 +243,8 @@ class ImageHoverView(QWidget):
         if not self._gallery:
             return
         self._store_thumbnail(url, None if is_error else data)
-        if url != self._current_image.url:
+        current = self._current_image
+        if current is None or url != current.url:
             return
         if is_error:
             self._on_current_failed()
@@ -245,17 +263,22 @@ class ImageHoverView(QWidget):
             self._present(layer)
 
     def _on_current_failed(self):
-        """Replace the image with a red cross and a caption so the user sees why nothing is shown."""
+        self._show_notice(NOTICE_ERROR, tr(
+            "Image unavailable: it was removed from the host or the link is broken",
+            "Изображение недоступно: удалено с хостинга или ссылка не работает",
+        ))
+        self._restart_slideshow_timer()
+
+    def _show_notice(self, kind: NoticeKind, text: str):
+        """Replace the image with a notice so the user sees why nothing is shown."""
         self._stop_spinner()
         self._release_layers()
-        self._unavailable_notice.refresh_text()
-        self._unavailable_notice.move(
-            (self.width() - self._unavailable_notice.width()) // 2,
-            (self.height() - self._reserved_bottom() - self._unavailable_notice.height()) // 2,
+        self._notice.show_notice(kind, text)
+        self._notice.move(
+            (self.width() - self._notice.width()) // 2,
+            (self.height() - self._reserved_bottom() - self._notice.height()) // 2,
         )
-        self._unavailable_notice.show()
         self._show_widget()
-        self._restart_slideshow_timer()
 
     def _present(self, layer: ImageLayer):
         """Show the layer, animating from the previous one when there is one."""
@@ -294,12 +317,12 @@ class ImageHoverView(QWidget):
         """Height kept free at the bottom for the gallery bar."""
         return self._gallery_bar.height() + 2 * _OVERLAY_MARGIN if self._gallery_bar.isVisibleTo(self) else 0
 
-    def _update_overlays(self, image: GalleryImage):
+    def _update_overlays(self, image: Optional[GalleryImage]):
         count = len(self._gallery.images)
-        has_source = image.source is not None and self._gallery.on_source is not None
+        has_source = image is not None and image.source is not None and self._gallery.on_source is not None
         day_state = self._day_state()
         self._gallery_bar.setVisible(count > 1 or day_state is not None)
-        self._gallery_bar.set_position(self._index, count, show_thumbnails(self._config), day_state)
+        self._gallery_bar.set_position(self._index, count, count > 0 and show_thumbnails(self._config), day_state)
         self._gallery_bar.move(
             (self.width() - self._gallery_bar.width()) // 2,
             self.height() - self._gallery_bar.height() - _OVERLAY_MARGIN,
@@ -470,7 +493,7 @@ class ImageHoverView(QWidget):
         self._stop_spinner()
         self._loader.reset()
         self._release_layers()
-        self._unavailable_notice.hide()
+        self._notice.hide()
         if ImageHoverView._active_viewer is self:
             ImageHoverView._active_viewer = None
         self._set_slideshow_playing(False)
@@ -483,6 +506,11 @@ class ImageHoverView(QWidget):
                 self._gallery.messages_replaced.disconnect(self._on_messages_replaced)
             except (RuntimeError, TypeError):
                 pass  # the source model is already gone
+        if self._gallery and self._gallery.day_navigation:
+            try:
+                self._gallery.day_navigation.loaded.disconnect(self._on_day_loaded)
+            except (RuntimeError, TypeError):
+                pass  # the chatlog is already gone
         self._gallery = self._target_pos = None
         self._end_drag()
         self.hide()

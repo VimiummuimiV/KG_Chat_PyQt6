@@ -51,6 +51,7 @@ class ChatlogWidget(
     """Chatlog viewer with virtual scrolling, search, and parser"""
     back_requested = pyqtSignal()
     messages_loaded = pyqtSignal(list)
+    day_loaded = pyqtSignal()  # a day finished loading, with or without messages
     filter_changed = pyqtSignal(set)
     _error_occurred = pyqtSignal(str)
 
@@ -88,7 +89,7 @@ class ChatlogWidget(
         self.delegate = MessageDelegate(config, self.emoticon_manager)
         self.delegate.set_marker_gutter(True)
         self.delegate.anchor_frame_enabled = self._anchor_frame_active
-        self.delegate.day_navigation = DayNavigation(self._navigate, self._day_state)
+        self.delegate.day_navigation = DayNavigation(self._navigate, self._day_state, self.day_loaded)
 
         # Set username for mention highlighting if account is available
         if account and account.get('chat_username'):

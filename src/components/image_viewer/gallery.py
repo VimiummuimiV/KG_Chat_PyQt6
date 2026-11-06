@@ -67,6 +67,7 @@ class DayNavigation(NamedTuple):
     """Chatlog day switching the viewer can drive."""
     step: Callable[[int], None]  # go to the previous (-1) or next (+1) day
     state: Callable[[], Optional[DayState]]  # None while days do not apply (parser results)
+    loaded: pyqtBoundSignal  # emitted when a day finished loading, with or without messages
 
 
 @dataclass
@@ -98,7 +99,10 @@ class ImageGallery:
             return cls.single(clicked_url)
         return cls(images, start_index, on_source, get_messages, messages_replaced, day_navigation)
 
-    def reloaded(self, current_url: str) -> "ImageGallery":
+    def reloaded(self, current_url: Optional[str]) -> "ImageGallery":
         """Gallery rebuilt from the current messages; with no image left only the one being viewed stays."""
-        images = list(_iter_images(self.get_messages())) or [GalleryImage(current_url)]
+        images = list(_iter_images(self.get_messages())) or ([GalleryImage(current_url)] if current_url else [])
         return replace(self, images=images, start_index=0)
+
+    def without_images(self) -> "ImageGallery":
+        return replace(self, images=[], start_index=0)
