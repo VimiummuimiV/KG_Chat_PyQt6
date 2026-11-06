@@ -321,7 +321,7 @@ class Application(QObject):
         if sys.platform == 'win32':
             try:
                 hwnd = int(window.winId())
-                user_library = ctypes.windll.user_library
+                user_library = ctypes.windll.user32
                 foreground_hwnd = user_library.GetForegroundWindow()
 
                 if foreground_hwnd != hwnd:
