@@ -8,7 +8,8 @@ from PyQt6.QtGui import QColor, QFontMetrics, QMovie, QPainter, QPen, QPixmap
 from PyQt6.QtWidgets import QApplication
 
 from components.flash_highlight import FlashFade, link_colors, paint_flash, timestamp_color
-from components.image_viewer import ImageHoverView
+from components.image_viewer.gallery import ImageGallery, is_image_url, URL_PATTERN
+from components.image_viewer.viewer import ImageHoverView
 from components.presence_badge import EVENT_TYPES, presence_badge_style
 from components.video_player import VideoPlayer
 from core.web.youtube import fetch_async, get_cached_info, is_youtube_url
@@ -97,7 +98,7 @@ class MessageRenderer(QObject):
 
     def _init_viewers(self, parent_widget):
         """Initialize image and video viewers"""
-        self.image_viewer = ImageHoverView(parent=parent_widget)
+        self.image_viewer = ImageHoverView(parent=parent_widget, config=self.config)
         icons_path = get_resource_dir("icons")
         self.video_player = VideoPlayer(
             parent=parent_widget,
@@ -113,7 +114,8 @@ class MessageRenderer(QObject):
             return None
         return match.group(1), match.group(2)
 
-    def handle_link_lmb(self, url: str, is_media: bool, global_pos, is_ctrl: bool = False, is_shift: bool = False):
+    def handle_link_lmb(self, url: str, is_media: bool, global_pos, is_ctrl: bool = False, is_shift: bool = False,
+                        gallery: Optional[ImageGallery] = None):
         # Chatlog URL opens in split view
         chatlog_match = self.parse_chatlog_url(url)
         if chatlog_match and not is_ctrl:
@@ -124,8 +126,8 @@ class MessageRenderer(QObject):
             # Media link without Ctrl: open in viewer
             if VideoPlayer.is_video_url(url) and self.video_player:
                 self.video_player.show_video(url, global_pos, force_log=is_shift)
-            elif ImageHoverView.is_image_url(url) and self.image_viewer:
-                self.image_viewer.show_preview(url, global_pos)
+            elif is_image_url(url) and self.image_viewer:
+                self.image_viewer.show_preview(url, global_pos, gallery)
         else:
             # Normal link, media link with Ctrl, or chatlog link with Ctrl: open in browser
             browser_key = self.config.get("browser") if self.config else None
@@ -305,14 +307,13 @@ class MessageRenderer(QObject):
         text = self.VALUE_TAG_PATTERN.sub(replace_value, text)
 
         # Extract URLs and replace with placeholders
-        url_pattern = re.compile(r'https?://[^\s<>"]+')
         urls = []
         def replace_url(match):
             url = match.group(0)
             urls.append(url)
             return f"[URL{len(urls)-1}] "
 
-        processed_text = url_pattern.sub(replace_url, text)
+        processed_text = URL_PATTERN.sub(replace_url, text)
         segments = self.emoticon_manager.parse_emoticons(processed_text)
 
         painter.setFont(self.body_font)
@@ -681,7 +682,7 @@ class MessageRenderer(QObject):
 
     def _is_media_url(self, url: str) -> bool:
         """Check if URL is a media link"""
-        return ImageHoverView.is_image_url(url) or VideoPlayer.is_video_url(url)
+        return is_image_url(url) or VideoPlayer.is_video_url(url)
 
     def _get_link_text(self, url: str, row: Optional[int]) -> str:
         """Get display text for link (short label for game links, processed YouTube title, else the URL)"""

@@ -113,8 +113,7 @@ class MessagesWidget(TranslatableMixin, QWidget):
 
     def _on_message_clicked(self, row: int):
         """Handle message click - scroll to middle with highlight"""
-        scroll(self.list_view, mode="middle", target_row=row, delay=100)
-        QTimer.singleShot(250, lambda: self.delegate.highlight_row(row))
+        self.delegate.reveal_row(row)
 
     def _retranslate(self, _code=None):
         self.retranslate_all()

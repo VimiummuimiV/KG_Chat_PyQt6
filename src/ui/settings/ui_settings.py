@@ -26,12 +26,14 @@ from ui.settings.settings_competitions import SettingsCompetitionsMixin
 from ui.settings.settings_fonts import SettingsFontsMixin
 from ui.settings.settings_general import SettingsGeneralMixin
 from ui.settings.settings_hotkey import SettingsHotkeyMixin
+from ui.settings.settings_image_viewer import SettingsImageViewerMixin
 from ui.settings.settings_notifications import SettingsNotificationsMixin
 from ui.settings.settings_options import (
     fill_alert_chat_action_combo,
     fill_chatlog_filtered_click_combo,
     fill_competition_notification_style_combo,
     fill_flash_easing_combo,
+    fill_image_transition_combo,
     fill_mentions_digest_mode_combo,
     fill_notification_hide_on_combo,
     fill_notification_mode_combo,
@@ -64,6 +66,7 @@ class SettingsWidget(
     SettingsFontsMixin,
     SettingsGeneralMixin,
     SettingsHotkeyMixin,
+    SettingsImageViewerMixin,
     SettingsNotificationsMixin,
     SettingsPlayerMixin,
     SettingsSoundMixin,
@@ -354,6 +357,7 @@ class SettingsWidget(
         self._build_startup_section()
         self._build_chat_section()
         self._build_player_section()
+        self._build_image_viewer_section()
         self._build_fonts_section()
         self._build_notifications_section()
         self._build_competitions_section()
@@ -372,6 +376,8 @@ class SettingsWidget(
             self.player_tls_checkbox, self.player_hwdec_combo, self.player_volume_spin,
             self.player_log_checkbox, self.player_keep_open_checkbox, self.player_ontop_checkbox,
             self.player_ytdl_format_combo,
+            self.image_viewer_thumbnails_checkbox, self.image_viewer_slideshow_spin,
+            self.image_viewer_transition_combo, self.image_viewer_transition_spin,
             self.chatlog_max_messages_spin, self.chatlog_live_search_spin,
             self.chatlog_filtered_click_combo,
             self.parser_validate_usernames_checkbox,
@@ -408,6 +414,7 @@ class SettingsWidget(
 
         self._refresh_general()
         self._refresh_player()
+        self._refresh_image_viewer()
         self._refresh_chat()
         self._refresh_hotkey_row()
         self._refresh_fonts()
@@ -446,6 +453,7 @@ class SettingsWidget(
             (self.chatlog_filtered_click_combo, fill_chatlog_filtered_click_combo),
             (self.player_hwdec_combo, fill_player_hwdec_combo),
             (self.player_ytdl_format_combo, fill_player_ytdl_format_combo),
+            (self.image_viewer_transition_combo, fill_image_transition_combo),
         ):
             fill(combo, combo.currentData())
 

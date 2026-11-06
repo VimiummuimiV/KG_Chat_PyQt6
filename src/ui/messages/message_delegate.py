@@ -29,9 +29,11 @@ from components.flash_highlight import (
     paint_flash,
     RowFlashMixin,
 )
+from components.image_viewer.gallery import ImageGallery, is_image_url
 from helpers.cache import get_cache
 from helpers.data import get_resource_dir
 from helpers.fonts.fonts import FontType, get_font
+from helpers.scroll.scroll import scroll
 from helpers.text.emoticons import EmoticonManager
 from helpers.text.me_action import format_me_action
 from helpers.translate import tr
@@ -41,6 +43,8 @@ from ui.messages.messages_separator import DateSeparator, NewMessagesSeparator
 
 _DARK  = dict(bg="#0A0A0A", fg="#D4D4D4", sel_bg="#2E7D32", sel_fg="#E8F5E9")
 _LIGHT = dict(bg="#C8C8C8", fg="#1A1A1A", sel_bg="#388E3C", sel_fg="#FFFFFF")
+_REVEAL_SCROLL_DELAY_MS = 100
+_REVEAL_HIGHLIGHT_DELAY_MS = 250
 
 
 class MarkerGutter:
@@ -754,7 +758,8 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
                     url, is_media = link_data
                     if button == Qt.MouseButton.LeftButton:
                         global_pos = self.list_view.viewport().mapToGlobal(pos)
-                        self.message_renderer.handle_link_lmb(url, is_media, global_pos, is_ctrl, is_shift)
+                        gallery = self._image_gallery(model, msg, url) if is_media and not is_ctrl else None
+                        self.message_renderer.handle_link_lmb(url, is_media, global_pos, is_ctrl, is_shift, gallery)
                         gid = getattr(msg, 'competition_game_id', None)
                         if getattr(msg, 'is_competition', False) and gid is not None:
                             self.competition_entered.emit(gid)
@@ -891,6 +896,24 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
         end_row = end_row_base + 3
 
         return set(range(start_row, end_row + 1))
+
+    def reveal_row(self, row: int):
+        """Scroll a row to the middle of the view and highlight it."""
+        scroll(self.list_view, mode="middle", target_row=row, delay=_REVEAL_SCROLL_DELAY_MS)
+        QTimer.singleShot(_REVEAL_HIGHLIGHT_DELAY_MS, lambda: self.highlight_row(row))
+
+    def reveal_message(self, message):
+        """Reveal a message of this view's model (no-op if it is no longer there)."""
+        model = self.list_view.model() if self.list_view else None
+        row = next((i for i, item in enumerate(getattr(model, 'stored_messages', ())) if item is message), None)
+        if row is not None:
+            self.reveal_row(row)
+
+    def _image_gallery(self, model, msg, url: str) -> Optional[ImageGallery]:
+        """Every image link of the view with the clicked one opened; None for other links."""
+        if not is_image_url(url):
+            return None
+        return ImageGallery.from_messages(getattr(model, 'stored_messages', ()), msg, url, self.reveal_message)
 
     def highlight_row(self, row: int, anchor: bool = False):
         """Highlight a row with fade-out effect, independent of any other row's fade.

@@ -8,6 +8,7 @@ from PyQt6.QtCore import QEasingCurve, QEvent, Qt, QTimer, QVariantAnimation
 from PyQt6.QtGui import QCursor, QFontMetrics, QPixmap
 from PyQt6.QtWidgets import QApplication, QHBoxLayout, QLabel, QLineEdit, QVBoxLayout, QWidget
 
+from components.avatar import make_avatar_label, make_avatar_pixmap
 from components.button import get_user_svg_color, HoverIconButton
 from core.xmpp.messages import Message
 from helpers.colors.color_utils import get_game_message_colors
@@ -28,8 +29,6 @@ from ui.notification.notification_settings import (
 )
 from ui.notification.popup_helpers import (
     icon_btn,
-    make_avatar_label,
-    make_avatar_pixmap,
     safe_call,
     setup_popup_window,
 )

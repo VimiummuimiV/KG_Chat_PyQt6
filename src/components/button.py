@@ -101,6 +101,12 @@ def create_icon_button(
     return button
 
 
+def set_button_icon(button, icon_name: str) -> None:
+    """Switch an icon button to another icon; the name is kept so theme changes re-render it."""
+    button._icon_name = icon_name
+    button.setIcon(render_svg_icon(button.icon_path / icon_name, button.icon_size))
+
+
 def create_disabled_icon(icons_path: Path, icon_name: str, icon_size: int) -> QIcon:
     """Render an icon in the muted gray tone used for a disabled button state"""
     return render_svg_icon(icons_path / icon_name, icon_size, color=_COLOR_GRAY)

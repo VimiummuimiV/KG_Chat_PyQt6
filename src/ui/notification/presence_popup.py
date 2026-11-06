@@ -6,6 +6,7 @@ from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QCursor
 from PyQt6.QtWidgets import QHBoxLayout, QLabel, QWidget
 
+from components.avatar import make_avatar_label, make_avatar_pixmap
 from components.presence_badge import make_game_id_label, make_presence_badge
 from helpers.data import get_resource_dir
 from helpers.fonts.fonts import FontType, get_font
@@ -17,8 +18,6 @@ from ui.notification.notification_settings import (
 )
 from ui.notification.popup_helpers import (
     icon_btn,
-    make_avatar_label,
-    make_avatar_pixmap,
     safe_call,
     setup_popup_window,
 )

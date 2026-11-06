@@ -175,14 +175,19 @@ ACCOUNTS_CONNECT_MOUSE = [
 ]
 
 IMAGE_KB = [
+    ("H / ←",           "Previous image", "Предыдущее изображение"),
+    ("L / →",           "Next image", "Следующее изображение"),
+    ("P",               "Start / stop slideshow", "Запустить / остановить слайдшоу"),
     ("Esc / Space / Q", "Close image viewer", "Закрыть просмотр изображения"),
 ]
 
 IMAGE_MOUSE = [
-    ("Left drag",        "Перетаскивание (ЛКМ)",        "Pan / move image", "Переместить изображение"),
-    ("Ctrl + Left drag", "Ctrl + перетаскивание (ЛКМ)", "Scale image (up / down)", "Масштаб изображения (+ / −)"),
-    ("Wheel",            "Колесо мыши",                 "Zoom in / out", "Приблизить / отдалить"),
-    ("Right click",      "Правый клик",                 "Close image viewer", "Закрыть просмотр изображения"),
+    ("Click source badge", "Клик по плашке автора",       "Close viewer and scroll to the message with the image", "Закрыть просмотр и перейти к сообщению с изображением"),
+    ("Click thumbnail",    "Клик по миниатюре",           "Go to that image", "Перейти к этому изображению"),
+    ("Left drag",          "Перетаскивание (ЛКМ)",        "Pan / move image", "Переместить изображение"),
+    ("Ctrl + Left drag",   "Ctrl + перетаскивание (ЛКМ)", "Scale image (up / down)", "Масштаб изображения (+ / −)"),
+    ("Wheel",              "Колесо мыши",                 "Zoom in / out", "Приблизить / отдалить"),
+    ("Right click",        "Правый клик",                 "Close image viewer", "Закрыть просмотр изображения"),
 ]
 
 

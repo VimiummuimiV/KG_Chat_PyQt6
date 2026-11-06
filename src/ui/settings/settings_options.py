@@ -3,6 +3,8 @@
 from PyQt6.QtCore import Qt
 
 from components.flash_highlight import TIMING_FUNCTIONS
+from components.image_viewer.layer import TRANSITION_MODES
+from components.image_viewer.options import DEFAULT_TRANSITION_MODE
 from helpers.translate import tr
 
 
@@ -214,6 +216,26 @@ def flash_easing_options():
     return tuple((key, labels[key], labels[key]) for key in TIMING_FUNCTIONS)
 
 
+def image_transition_options():
+    labels = {
+        "instant": (tr("Instant", "Мгновенно"),
+                    tr("Switch images with no animation.", "Переключать изображения без анимации.")),
+        "fade": (tr("Fade", "Затухание"),
+                 tr("Cross-fade between images.", "Плавное перетекание одного изображения в другое.")),
+        "slide": (tr("Slide", "Сдвиг"),
+                  tr("Images slide sideways in the direction of navigation.",
+                     "Изображения сдвигаются в сторону навигации.")),
+        "drift": (tr("Drift", "Дрейф"),
+                  tr("A short slide combined with a fade.", "Короткий сдвиг вместе с затуханием.")),
+        "zoom": (tr("Zoom", "Масштаб"),
+                 tr("The old image grows and fades while the new one scales in.",
+                    "Старое изображение увеличивается и тает, новое появляется с масштабированием.")),
+        "flip": (tr("Flip", "Переворот"),
+                 tr("The image turns around its vertical axis.", "Изображение поворачивается вокруг вертикальной оси.")),
+    }
+    return tuple((key, *labels[key]) for key in TRANSITION_MODES)
+
+
 def notification_position_options():
     return (
         ("right", tr("Right", "Справа"),
@@ -399,6 +421,10 @@ def fill_mentions_digest_mode_combo(combo, current=None):
 
 def fill_flash_easing_combo(combo, current=None):
     fill_tooltip_combo(combo, flash_easing_options(), current, DEFAULTS["chat"]["flash_easing"])
+
+
+def fill_image_transition_combo(combo, current=None):
+    fill_tooltip_combo(combo, image_transition_options(), current, DEFAULT_TRANSITION_MODE)
 
 
 def fill_notification_position_combo(combo, current=None):
