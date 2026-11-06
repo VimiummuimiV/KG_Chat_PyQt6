@@ -383,6 +383,7 @@ class SettingsWidget(
             self.chatlog_filtered_click_combo,
             self.parser_validate_usernames_checkbox,
             self.badge_size_spin, self.input_hue_spin, self.input_saturation_spin,
+            self.input_opacity_spin, self.input_focus_only_checkbox,
             self.mentions_digest_mode_combo,
             self.mentions_digest_interval_spin,
             self.flash_easing_combo, self.flash_row_duration_spin, self.flash_copy_duration_spin,

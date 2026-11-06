@@ -85,6 +85,8 @@ INPUT_HUE_DEFAULT = 210
 INPUT_HUE_MAX = 359
 INPUT_SATURATION_DEFAULT = 25
 INPUT_SATURATION_MAX = 100
+INPUT_OPACITY_DEFAULT = 100
+INPUT_OPACITY_MAX = 100
 
 
 def _themed_hsl_colors(config, section, default_hue, default_sat, is_dark_theme,
@@ -115,12 +117,22 @@ def get_self_ban_colors(config, is_dark_theme: bool) -> dict:
 
 
 def get_input_colors(config, is_dark_theme: bool) -> dict:
-    """Colors of the regular input (outside private mode and self-ban)."""
-    return _themed_hsl_colors(
+    """Colors of the regular input (outside private mode and self-ban).
+
+    input_bg is the focused background, input_bg_idle the unfocused one.
+    """
+    colors = _themed_hsl_colors(
         config, "input_color", INPUT_HUE_DEFAULT, INPUT_SATURATION_DEFAULT, is_dark_theme,
         {"text": 90, "input_bg": 25, "input_border": 30, "selection_bg": 50, "selection_text": 95},
         {"text": 15, "input_bg": 92, "input_border": 75, "selection_bg": 70, "selection_text": 10},
     )
+    opacity = config.get("ui", "input_color", "background_opacity")
+    opacity = INPUT_OPACITY_DEFAULT if opacity is None else opacity
+    red, green, blue = hex_to_rgb(colors["input_bg"])
+    colors["input_bg"] = f"rgba({red}, {green}, {blue}, {opacity}%)"
+    focus_only = config.get("ui", "input_color", "background_on_focus_only")
+    colors["input_bg_idle"] = "transparent" if focus_only else colors["input_bg"]
+    return colors
 
 
 def get_ban_message_colors(config, is_dark_theme: bool) -> dict:

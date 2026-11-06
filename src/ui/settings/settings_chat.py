@@ -8,6 +8,8 @@ from helpers.browser import get_available_browsers
 from helpers.colors.color_utils import (
     INPUT_HUE_DEFAULT,
     INPUT_HUE_MAX,
+    INPUT_OPACITY_DEFAULT,
+    INPUT_OPACITY_MAX,
     INPUT_SATURATION_DEFAULT,
     INPUT_SATURATION_MAX,
 )
@@ -119,6 +121,14 @@ class SettingsChatMixin:
         self.input_saturation_spin = self._add_slider_spin_row(
             input_layout, tr("Saturation", "Насыщенность"), 0, INPUT_SATURATION_MAX,
             self._on_input_saturation_changed, default=INPUT_SATURATION_DEFAULT,
+        )
+        self.input_opacity_spin = self._add_slider_spin_row(
+            input_layout, tr("Background opacity", "Прозрачность фона"), 0, INPUT_OPACITY_MAX,
+            self._on_input_opacity_changed, default=INPUT_OPACITY_DEFAULT,
+        )
+        self.input_focus_only_checkbox = self._add_checkbox(
+            input_layout, tr("Show background only when focused", "Показывать фон только в фокусе"),
+            self._on_input_focus_only_toggled,
         )
         self._add_collapse_toggle(input_header, input_content, ("ui", "settings", "widgets", "chat_input"))
 
@@ -263,6 +273,17 @@ class SettingsChatMixin:
         self.input_saturation_spin.setValue(input_saturation)
         self.input_saturation_spin.linked_slider.setValue(input_saturation)
 
+        input_opacity = self.config.get("ui", "input_color", "background_opacity")
+        input_opacity = (
+            INPUT_OPACITY_DEFAULT if input_opacity is None
+            else max(0, min(INPUT_OPACITY_MAX, int(input_opacity)))
+        )
+        self.input_opacity_spin.setValue(input_opacity)
+        self.input_opacity_spin.linked_slider.setValue(input_opacity)
+        self.input_focus_only_checkbox.setChecked(
+            bool(self.config.get("ui", "input_color", "background_on_focus_only"))
+        )
+
         fill_mentions_digest_mode_combo(
             self.mentions_digest_mode_combo,
             self.config.get("ui", "chat", "mentions_digest_mode"),
@@ -350,6 +371,14 @@ class SettingsChatMixin:
 
     def _on_input_saturation_changed(self, value: int):
         self.config.set("ui", "input_color", "saturation", value=int(value))
+        self.input_style_changed.emit()
+
+    def _on_input_opacity_changed(self, value: int):
+        self.config.set("ui", "input_color", "background_opacity", value=int(value))
+        self.input_style_changed.emit()
+
+    def _on_input_focus_only_toggled(self, checked: bool):
+        self.config.set("ui", "input_color", "background_on_focus_only", value=checked)
         self.input_style_changed.emit()
 
     def _on_mentions_digest_mode_changed(self, _text: str = ""):
