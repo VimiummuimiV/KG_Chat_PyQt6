@@ -116,10 +116,16 @@ def get_self_ban_colors(config, is_dark_theme: bool) -> dict:
     )
 
 
+def _rgba_css(hex_color: str, opacity: int) -> str:
+    red, green, blue = hex_to_rgb(hex_color)
+    return f"rgba({red}, {green}, {blue}, {opacity}%)"
+
+
 def get_input_colors(config, is_dark_theme: bool) -> dict:
     """Colors of the regular input (outside private mode and self-ban).
 
-    input_bg is the focused background, input_bg_idle the unfocused one.
+    input_bg / input_border are the focused colors, the *_idle keys the unfocused ones.
+    Background and border share the configured opacity.
     """
     colors = _themed_hsl_colors(
         config, "input_color", INPUT_HUE_DEFAULT, INPUT_SATURATION_DEFAULT, is_dark_theme,
@@ -128,10 +134,13 @@ def get_input_colors(config, is_dark_theme: bool) -> dict:
     )
     opacity = config.get("ui", "input_color", "background_opacity")
     opacity = INPUT_OPACITY_DEFAULT if opacity is None else opacity
-    red, green, blue = hex_to_rgb(colors["input_bg"])
-    colors["input_bg"] = f"rgba({red}, {green}, {blue}, {opacity}%)"
     focus_only = config.get("ui", "input_color", "background_on_focus_only")
+    if focus_only:
+        lightness = rgb_to_hsl(hex_to_rgb(colors["input_border"]))[2]
+        colors["input_border_idle"] = _rgba_css(hsl_to_hex(0, 0, lightness * 100), opacity)
+    colors["input_bg"] = _rgba_css(colors["input_bg"], opacity)
     colors["input_bg_idle"] = "transparent" if focus_only else colors["input_bg"]
+    colors["input_border"] = _rgba_css(colors["input_border"], opacity)
     return colors
 
 
