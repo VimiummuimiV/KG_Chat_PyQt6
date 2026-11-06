@@ -3,7 +3,11 @@
 from PyQt6.QtCore import QTimer
 
 from components.button import create_icon_button
-from helpers.colors.color_utils import get_private_message_colors, get_self_ban_colors
+from helpers.colors.color_utils import (
+    get_input_selection_colors,
+    get_private_message_colors,
+    get_self_ban_colors,
+)
 from helpers.translate import tr
 from ui.messages.messages_separator import NewMessagesSeparator
 
@@ -113,22 +117,26 @@ class ChatPrivateModeMixin:
         elif ban_style:
             main_style = ban_style
 
-        self._style_input(self.input_field, main_style)
+        selection_colors = get_input_selection_colors(self.config, is_dark)
+        self._style_input(self.input_field, main_style, selection_colors)
         for room in (*self.game_rooms.values(), *self.custom_rooms.values()):
-            self._style_input(room.input_field, ban_style)
+            self._style_input(room.input_field, ban_style, selection_colors)
 
     @staticmethod
-    def _style_input(field, style):
-        colors, placeholder = style or (None, "")
-        sheet = f"""
-            QLineEdit {{
+    def _style_input(field, style, selection_colors):
+        colors, placeholder = style or (selection_colors, "")
+        frame = f"""
                 background-color: {colors["input_bg"]};
                 color: {colors["text"]};
                 border: 2px solid {colors["input_border"]};
                 border-radius: 4px;
-                padding: 8px;
+                padding: 8px;""" if style else ""
+        sheet = f"""
+            QLineEdit {{{frame}
+                selection-background-color: {colors["selection_bg"]};
+                selection-color: {colors["selection_text"]};
             }}
-        """ if colors else ""
+        """
         if field.styleSheet() != sheet:
             field.setStyleSheet(sheet)
         field.setPlaceholderText(placeholder)

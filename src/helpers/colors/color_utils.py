@@ -93,16 +93,25 @@ def _themed_hsl_colors(config, section, default_hue, default_sat, is_dark_theme,
 def get_private_message_colors(config, is_dark_theme: bool) -> dict:
     return _themed_hsl_colors(
         config, "private_message_color", 0, 75, is_dark_theme,
-        {"text": 75, "input_bg": 15, "input_border": 35},
-        {"text": 35, "input_bg": 85, "input_border": 55},
+        {"text": 75, "input_bg": 15, "input_border": 35, "selection_bg": 40, "selection_text": 95},
+        {"text": 35, "input_bg": 85, "input_border": 55, "selection_bg": 75, "selection_text": 15},
     )
 
 
 def get_self_ban_colors(config, is_dark_theme: bool) -> dict:
     return _themed_hsl_colors(
         config, "self_ban_color", 30, 80, is_dark_theme,
-        {"text": 75, "input_bg": 15, "input_border": 40},
-        {"text": 35, "input_bg": 85, "input_border": 55},
+        {"text": 75, "input_bg": 15, "input_border": 40, "selection_bg": 40, "selection_text": 95},
+        {"text": 35, "input_bg": 85, "input_border": 55, "selection_bg": 75, "selection_text": 15},
+    )
+
+
+def get_input_selection_colors(config, is_dark_theme: bool) -> dict:
+    """Text selection colors of the regular input (outside private mode and self-ban)."""
+    return _themed_hsl_colors(
+        config, "input_selection_color", 210, 75, is_dark_theme,
+        {"selection_bg": 40, "selection_text": 95},
+        {"selection_bg": 75, "selection_text": 15},
     )
 
 
