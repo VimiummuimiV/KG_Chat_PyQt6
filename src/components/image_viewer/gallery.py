@@ -3,7 +3,7 @@
 import re
 from dataclasses import dataclass, replace
 from datetime import date, datetime
-from typing import Callable, Iterable, NamedTuple, Optional
+from typing import Callable, Iterable, Iterator, NamedTuple, Optional
 
 from PyQt6.QtCore import pyqtBoundSignal
 
@@ -37,9 +37,8 @@ class GalleryImage(NamedTuple):
     source: object = None  # the message; handed back through ImageGallery.on_source
 
 
-def _collect_images(messages: Iterable) -> list[GalleryImage]:
+def _iter_images(messages: Iterable) -> Iterator[GalleryImage]:
     """Every image link of the messages in order."""
-    images = []
     seen = set()
     for message in messages:
         for match in URL_PATTERN.finditer(getattr(message, "body", "") or ""):
@@ -47,10 +46,14 @@ def _collect_images(messages: Iterable) -> list[GalleryImage]:
             if not url or (url, id(message)) in seen:
                 continue
             seen.add((url, id(message)))
-            images.append(GalleryImage(
+            yield GalleryImage(
                 url, getattr(message, "username", "") or "", getattr(message, "timestamp", None), message
-            ))
-    return images
+            )
+
+
+def first_image(messages: Iterable) -> Optional[GalleryImage]:
+    """The first image link of the messages, or None."""
+    return next(_iter_images(messages), None)
 
 
 class DayState(NamedTuple):
@@ -86,7 +89,7 @@ class ImageGallery:
                       day_navigation: Optional[DayNavigation] = None) -> "ImageGallery":
         """Collect every image link of the messages; start at the clicked one and follow later message changes."""
         clicked_url = extract_image_url(clicked_url)
-        images = _collect_images(get_messages())
+        images = list(_iter_images(get_messages()))
         start_index = next(
             (index for index, image in enumerate(images) if image.source is clicked_message and image.url == clicked_url),
             None,
@@ -97,5 +100,5 @@ class ImageGallery:
 
     def reloaded(self, current_url: str) -> "ImageGallery":
         """Gallery rebuilt from the current messages; with no image left only the one being viewed stays."""
-        images = _collect_images(self.get_messages()) or [GalleryImage(current_url)]
+        images = list(_iter_images(self.get_messages())) or [GalleryImage(current_url)]
         return replace(self, images=images, start_index=0)

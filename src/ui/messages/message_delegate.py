@@ -29,7 +29,7 @@ from components.flash_highlight import (
     paint_flash,
     RowFlashMixin,
 )
-from components.image_viewer.gallery import DayNavigation, ImageGallery, is_image_url
+from components.image_viewer.gallery import DayNavigation, first_image, ImageGallery, is_image_url
 from helpers.cache import get_cache
 from helpers.data import get_resource_dir
 from helpers.fonts.fonts import FontType, get_font
@@ -917,6 +917,14 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
         return ImageGallery.from_messages(
             lambda: model.stored_messages, msg, url, self.reveal_message, model.modelReset, self.day_navigation
         )
+
+    def open_first_image(self):
+        """Open the viewer at the first image of the view; nothing happens when there is none."""
+        model = self.list_view.model() if self.list_view else None
+        first = first_image(model.stored_messages) if model else None
+        if first and self.message_renderer and self.message_renderer.image_viewer:
+            gallery = self._image_gallery(model, first.source, first.url)
+            self.message_renderer.image_viewer.show_preview(first.url, QCursor.pos(), gallery)
 
     def highlight_row(self, row: int, anchor: bool = False):
         """Highlight a row with fade-out effect, independent of any other row's fade.

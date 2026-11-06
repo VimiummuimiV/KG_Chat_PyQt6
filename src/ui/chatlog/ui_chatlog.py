@@ -27,6 +27,7 @@ from helpers.scroll.scroll_buttons import ScrollButtonsPanel
 from helpers.scroll.scrollable_buttons import ScrollableButtonContainer
 from helpers.translate import on_language_changed, tr, TranslatableMixin
 from ui.chatlog.chatlog_export import ChatlogExportMixin
+from ui.chatlog.chatlog_images import ChatlogImagesMixin
 from ui.chatlog.chatlog_loading import ChatlogLoadingMixin
 from ui.chatlog.chatlog_parser_controls import ChatlogParserControlsMixin
 from ui.chatlog.chatlog_search import ChatlogSearchMixin
@@ -40,6 +41,7 @@ from ui.messages.message_model import MessageListModel
 class ChatlogWidget(
     TranslatableMixin,
     ChatlogExportMixin,
+    ChatlogImagesMixin,
     ChatlogLoadingMixin,
     ChatlogParserControlsMixin,
     ChatlogSearchMixin,
@@ -115,6 +117,8 @@ class ChatlogWidget(
         self.repeat_delay_timer.timeout.connect(self.repeat_timer.start)
 
         self._setup_ui()
+        self.model.modelReset.connect(self._update_image_button)
+        self._update_image_button()
         on_language_changed(self._retranslate)
 
         # Initialize auto-scroller after UI is set up
@@ -232,6 +236,12 @@ class ChatlogWidget(
         self.tr_set(self.mention_filter_btn.setToolTip, "Filter mentions (M)", "Фильтр упоминаний (M)")
         self.mention_filter_btn.clicked.connect(self.toggle_mention_filter)
         self.nav_buttons_container.add_widget(self.mention_filter_btn)
+
+        self.image_button = create_icon_button(self.icons_path, "gallery-line.svg", "",
+                                               size_type="large", config=self.config)
+        self.tr_set(self.image_button.setToolTip, "View images", "Просмотр изображений")
+        self.image_button.clicked.connect(lambda: self.delegate.open_first_image())
+        self.nav_buttons_container.add_widget(self.image_button)
 
         self.parse_btn = create_icon_button(self.icons_path, "play.svg", "",
                                            size_type="large", config=self.config)

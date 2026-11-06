@@ -25,8 +25,10 @@ _THUMBNAIL_DIMMED_OPACITY = 0.55
 _UNAVAILABLE_ICON = "image-fill.svg"
 _UNAVAILABLE_ICON_SIZE = 24
 _COUNTER_WIDTH = 90
-_DATE_SAMPLE = "0000-00-00"
-_SEPARATOR_HEIGHT = 28
+_FILLER_NAME = "galleryFiller"  # plain container widgets must not pick up the app-wide widget background
+_ERROR_ICON = "close.svg"
+_ERROR_ICON_SIZE = 40
+_ERROR_COLOR = "#e53935"
 _PANEL_MARGIN = 10
 _PANEL_SPACING = 8
 _PANEL_RADIUS = 12
@@ -45,6 +47,7 @@ def _panel_stylesheet(object_name: str, is_dark: bool) -> str:
     return (
         f"#{object_name} {{ background-color: {style['background']}; border-radius: {_PANEL_RADIUS}px; }}"
         f"#{object_name} QLabel {{ color: {style['text']}; background: transparent; }}"
+        f"#{object_name} #{_FILLER_NAME} {{ background: transparent; }}"
     )
 
 
@@ -172,8 +175,8 @@ class GalleryBar(QFrame):
         self._previous_button = create_icon_button(icons_path, "arrow-left.svg", config=config)
         self._slideshow_button = create_icon_button(icons_path, "play.svg", config=config)
         self._next_button = create_icon_button(icons_path, "arrow-right.svg", config=config)
-        self._previous_day_button = create_icon_button(icons_path, "calendar-arrow-up.svg", config=config)
-        self._next_day_button = create_icon_button(icons_path, "calendar-arrow-down.svg", config=config)
+        self._previous_day_button = create_icon_button(icons_path, "calendar-arrow-left.svg", config=config)
+        self._next_day_button = create_icon_button(icons_path, "calendar-arrow-right.svg", config=config)
         self._image_buttons = (self._previous_button, self._slideshow_button, self._next_button)
         for button in (*self._image_buttons, self._previous_day_button, self._next_day_button):
             button.setFocusPolicy(Qt.FocusPolicy.NoFocus)  # keys stay with the viewer
@@ -192,17 +195,16 @@ class GalleryBar(QFrame):
 
         self._date_label = QLabel()
         self._date_label.setFont(get_font(FontType.UI))
-        self._date_label.setFixedWidth(self._date_label.fontMetrics().horizontalAdvance(_DATE_SAMPLE))
-        self._day_separator = QFrame()
-        self._day_separator.setFixedSize(1, _SEPARATOR_HEIGHT)
         self._day_group = QWidget()
+        self._day_group.setObjectName(_FILLER_NAME)
         day_layout = QHBoxLayout(self._day_group)
-        day_layout.setContentsMargins(_PANEL_SPACING, 0, 0, 0)
+        day_layout.setContentsMargins(0, 0, 0, 0)
         day_layout.setSpacing(_PANEL_SPACING)
-        for widget in (self._day_separator, self._previous_day_button, self._next_day_button, self._date_label):
+        for widget in (self._previous_day_button, self._next_day_button, self._date_label):
             day_layout.addWidget(widget)
         self._mirror = QWidget()  # mirrors the counter so the buttons stay centered while there are no day controls
         self._mirror.setFixedWidth(_COUNTER_WIDTH)
+        self._mirror.setObjectName(_FILLER_NAME)
 
         controls = QHBoxLayout()
         controls.setSpacing(_PANEL_SPACING)
@@ -224,7 +226,6 @@ class GalleryBar(QFrame):
 
     def apply_theme(self, is_dark: bool):
         self.setStyleSheet(_panel_stylesheet("galleryBar", is_dark))
-        self._day_separator.setStyleSheet(f"background-color: {_PANEL_STYLES[is_dark]['muted']};")
         self._strip.set_theme(is_dark)
 
     def set_position(self, index: int, count: int, show_thumbnails: bool, day_state: Optional[DayState]):
@@ -249,6 +250,7 @@ class GalleryBar(QFrame):
 
     def _fit_to_content(self):
         self.layout().invalidate()  # a hidden widget keeps its stale layout until shown
+        self.layout().activate()  # nested layouts of just shown widgets would otherwise report stale sizes
         self.resize(self.sizeHint())
 
     def set_slideshow_playing(self, is_playing: bool):
@@ -308,15 +310,20 @@ class CloseButton(QFrame):
 
 
 class UnavailableNotice(QFrame):
-    """Caption under the error cross: the current image cannot be loaded."""
+    """Red cross with a caption shown instead of an image that cannot be loaded."""
 
-    def __init__(self, parent=None):
+    def __init__(self, icons_path: Path, parent=None):
         super().__init__(parent)
         self.setObjectName("unavailableNotice")
+        icon = render_svg_icon(icons_path / _ERROR_ICON, _ERROR_ICON_SIZE, _ERROR_COLOR)
+        self._icon_label = QLabel()
+        self._icon_label.setPixmap(icon.pixmap(_ERROR_ICON_SIZE, _ERROR_ICON_SIZE))
         self._label = QLabel()
         self._label.setFont(get_font(FontType.UI))
-        layout = QHBoxLayout(self)
+        layout = QVBoxLayout(self)
         layout.setContentsMargins(_PANEL_MARGIN, _PANEL_MARGIN, _PANEL_MARGIN, _PANEL_MARGIN)
+        layout.setSpacing(_PANEL_SPACING)
+        layout.addWidget(self._icon_label, 0, Qt.AlignmentFlag.AlignHCenter)
         layout.addWidget(self._label)
 
     def apply_theme(self, is_dark: bool):

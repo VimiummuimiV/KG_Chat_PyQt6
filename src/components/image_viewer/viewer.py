@@ -32,7 +32,6 @@ _SPINNER_SIZE = 60
 _SPINNER_FOLLOW_INTERVAL_MS = 16
 _SPINNER_FOLLOW_THRESHOLD = 5
 _OVERLAY_MARGIN = 16
-_NOTICE_GAP = 8
 _CURRENT_PRIORITY = 2
 _NEIGHBOR_PRIORITY = 1
 _THUMBNAIL_PRIORITY = 0
@@ -46,6 +45,8 @@ _NAVIGATION_KEYS = {
 
 class ImageHoverView(QWidget):
     """Fullscreen viewport for image view with internal image transformations"""
+
+    _active_viewer: Optional["ImageHoverView"] = None  # only one viewer is open at a time
 
     def __init__(self, parent=None, config=None):
         super().__init__(parent)
@@ -92,7 +93,7 @@ class ImageHoverView(QWidget):
         self._gallery_bar.thumbnail_clicked.connect(self._on_thumbnail_clicked)
         self._gallery_bar.day_requested.connect(self._on_day_requested)
         self._gallery_bar.hide()
-        self._unavailable_notice = UnavailableNotice(self)
+        self._unavailable_notice = UnavailableNotice(icons_path, self)
         self._unavailable_notice.hide()
         self._source_badge = SourceBadge(icons_path, self)
         self._source_badge.clicked.connect(self._on_source_clicked)
@@ -131,6 +132,10 @@ class ImageHoverView(QWidget):
             return
 
         self.hide_preview()
+        active = ImageHoverView._active_viewer
+        if active is not None and active is not self:
+            active.hide_preview()
+        ImageHoverView._active_viewer = self
         self.update_theme((self._config.get("ui", "theme") if self._config else None) != "light")
         self._gallery = gallery or ImageGallery.single(image_url)
         if self._gallery.messages_replaced:
@@ -241,16 +246,15 @@ class ImageHoverView(QWidget):
 
     def _on_current_failed(self):
         """Replace the image with a red cross and a caption so the user sees why nothing is shown."""
+        self._stop_spinner()
         self._release_layers()
-        self._show_widget()
-        self._center_spinner()
-        self._loading_spinner.show_error()
         self._unavailable_notice.refresh_text()
         self._unavailable_notice.move(
             (self.width() - self._unavailable_notice.width()) // 2,
-            self.height() // 2 + self._loading_spinner.height() // 2 + _NOTICE_GAP,
+            (self.height() - self._reserved_bottom() - self._unavailable_notice.height()) // 2,
         )
         self._unavailable_notice.show()
+        self._show_widget()
         self._restart_slideshow_timer()
 
     def _present(self, layer: ImageLayer):
@@ -263,6 +267,7 @@ class ImageHoverView(QWidget):
         mode = transition_mode(self._config)
         if previous is None:
             self._show_widget()
+            self.update()
         elif mode == INSTANT_MODE:
             previous.release()
             self.update()
@@ -307,14 +312,11 @@ class ImageHoverView(QWidget):
             self._source_badge.show_image(image, self._is_dark)
             self._source_badge.move(_OVERLAY_MARGIN, _OVERLAY_MARGIN)
 
-    def _center_spinner(self):
+    def _start_spinner_at_center(self):
         self._position_timer.stop()
         center = self._screen_rect.center()
         self._loading_spinner.move(center.x() - self._loading_spinner.width() // 2,
                                   center.y() - self._loading_spinner.height() // 2)
-
-    def _start_spinner_at_center(self):
-        self._center_spinner()
         self._loading_spinner.start()
 
     def _stop_spinner(self):
@@ -469,6 +471,8 @@ class ImageHoverView(QWidget):
         self._loader.reset()
         self._release_layers()
         self._unavailable_notice.hide()
+        if ImageHoverView._active_viewer is self:
+            ImageHoverView._active_viewer = None
         self._set_slideshow_playing(False)
         self._gallery_bar.clear_thumbnails()
         if self._help_panel:
