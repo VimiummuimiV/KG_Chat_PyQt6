@@ -33,7 +33,6 @@ _SPINNER_SIZE = 60
 _SPINNER_FOLLOW_INTERVAL_MS = 16
 _SPINNER_FOLLOW_THRESHOLD = 5
 _OVERLAY_MARGIN = 16
-_CURRENT_PRIORITY = 2
 _NEIGHBOR_PRIORITY = 1
 _THUMBNAIL_PRIORITY = 0
 _NAVIGATION_KEYS = {
@@ -179,8 +178,7 @@ class ImageHoverView(QWidget):
             return
         self._index = kept_index
         self._update_overlays(self._current_image)
-        self._prefetch_neighbors()
-        self._request_thumbnails()
+        self._warm_up()
 
     def _on_day_loaded(self):
         """A chatlog day finished loading: with no image in it, say so instead of keeping a stale image or a spinner."""
@@ -200,29 +198,37 @@ class ImageHoverView(QWidget):
         image = self._gallery.images[index]
         self._update_overlays(image)
 
-        data = self._loader.request(image.url, _CURRENT_PRIORITY)
-        self._prefetch_neighbors()
-        self._request_thumbnails()
+        data = self._loader.request(image.url)
         if data is not None:
             self._display(image.url, data)
         elif self._loader.has_failed(image.url):
             self._on_current_failed()
-        elif direction:
-            self._start_spinner_at_center()
+        else:
+            self._loader.cancel_except(image.url)
+            if direction:
+                self._start_spinner_at_center()
+        self._warm_up()
+
+    def _warm_up(self):
+        """Fetch neighbors and thumbnails only once the current image is settled, so they never slow it down."""
+        current = self._current_image
+        if current and self._loader.is_settled(current.url):
+            self._prefetch_neighbors()
+            self._request_thumbnails()
 
     def _prefetch_neighbors(self):
         images = self._gallery.images
         if len(images) < 2:
             return
         for step in (1, -1):
-            self._loader.request(images[(self._index + step) % len(images)].url, _NEIGHBOR_PRIORITY)
+            self._loader.request(images[(self._index + step) % len(images)].url, _NEIGHBOR_PRIORITY, background=True)
 
     def _request_thumbnails(self):
         for index in self._gallery_bar.visible_indices():
             if self._gallery_bar.has_thumbnail(index):
                 continue
             url = self._gallery.images[index].url
-            data = self._loader.request(url, _THUMBNAIL_PRIORITY)
+            data = self._loader.request(url, _THUMBNAIL_PRIORITY, background=True)
             if data is not None or self._loader.has_failed(url):
                 self._store_thumbnail(url, data)
 
@@ -250,6 +256,7 @@ class ImageHoverView(QWidget):
             self._on_current_failed()
         else:
             self._display(url, data)
+        self._warm_up()
 
     def _display(self, url: str, data: bytes):
         try:

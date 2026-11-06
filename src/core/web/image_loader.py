@@ -10,7 +10,8 @@ from PyQt6.QtCore import pyqtBoundSignal, pyqtSignal, QObject, QRunnable, QThrea
 DOWNLOAD_TIMEOUT_SECONDS = 60
 DOWNLOAD_CHUNK_BYTES = 8192
 DOWNLOAD_HEADERS = {"User-Agent": "Mozilla/5.0"}
-MAX_PARALLEL_DOWNLOADS = 4
+FOREGROUND_DOWNLOADS = 2
+BACKGROUND_DOWNLOADS = 1
 CACHE_LIMIT_BYTES = 64 * 1024 * 1024
 
 
@@ -35,10 +36,11 @@ def _download(url: str, is_cancelled: Callable[[], bool]) -> Optional[bytes]:
 class _DownloadTask(QRunnable):
     """One download running in the loader's thread pool."""
 
-    def __init__(self, url: str, finished: pyqtBoundSignal):
+    def __init__(self, url: str, pool: QThreadPool, finished: pyqtBoundSignal):
         super().__init__()
         self.setAutoDelete(False)
         self.url = url
+        self.pool = pool
         self.cancelled = False
         self._finished = finished
 
@@ -49,42 +51,57 @@ class _DownloadTask(QRunnable):
 
 
 class ImageLoader(QObject):
-    """Downloads images in parallel and keeps the most recent ones in memory."""
+    """Downloads the image being viewed right away and the rest one at a time, keeping the recent ones in memory."""
 
     loaded = pyqtSignal(str, bytes, bool)  # url, data, is_error
     _task_finished = pyqtSignal(str, bytes, bool)
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self._pool = QThreadPool(self)
-        self._pool.setMaxThreadCount(MAX_PARALLEL_DOWNLOADS)
+        self._foreground_pool = QThreadPool(self)
+        self._foreground_pool.setMaxThreadCount(FOREGROUND_DOWNLOADS)
+        self._background_pool = QThreadPool(self)
+        self._background_pool.setMaxThreadCount(BACKGROUND_DOWNLOADS)
         self._cache: OrderedDict[str, bytes] = OrderedDict()
         self._cache_bytes = 0
         self._tasks: dict[str, _DownloadTask] = {}
         self._failed: set[str] = set()
         self._task_finished.connect(self._on_task_finished)
 
-    def request(self, url: str, priority: int = 0) -> Optional[bytes]:
-        """Return the cached bytes, or start a download (emits loaded when done) and return None."""
+    def request(self, url: str, priority: int = 0, background: bool = False) -> Optional[bytes]:
+        """Return the cached bytes, or start a download (emits loaded when done) and return None.
+        Background downloads run one at a time, highest priority first, and never hold up foreground ones."""
         data = self._cache.get(url)
         if data is not None:
             self._cache.move_to_end(url)
             return data
         if url not in self._tasks and url not in self._failed:
-            task = _DownloadTask(url, self._task_finished)
+            task = _DownloadTask(url, self._background_pool if background else self._foreground_pool, self._task_finished)
             self._tasks[url] = task
-            self._pool.start(task, priority)
+            task.pool.start(task, priority)
         return None
 
     def has_failed(self, url: str) -> bool:
         """True when a previous download of this url failed (it is not retried until reset)."""
         return url in self._failed
 
+    def is_settled(self, url: str) -> bool:
+        """True when the url is cached or has failed, so nothing more is coming for it."""
+        return url in self._cache or url in self._failed
+
+    def cancel_except(self, keep_url: str):
+        """Cancel every other download so the image being waited for gets the whole connection."""
+        for url in [url for url in self._tasks if url != keep_url]:
+            task = self._tasks.pop(url)
+            task.cancelled = True
+            task.pool.tryTake(task)
+
     def reset(self):
         """Cancel every download and drop the cache."""
         for task in self._tasks.values():
             task.cancelled = True
-        self._pool.clear()
+        self._foreground_pool.clear()
+        self._background_pool.clear()
         self._tasks.clear()
         self._failed.clear()
         self._cache.clear()
