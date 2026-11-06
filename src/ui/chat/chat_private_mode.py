@@ -129,7 +129,7 @@ class ChatPrivateModeMixin:
             QLineEdit {{
                 background-color: {colors.get("input_bg_idle", colors["input_bg"])};
                 color: {colors["text"]};
-                border: 2px solid {colors.get("input_border_idle", colors["input_border"])};
+                border: 1px solid {colors.get("input_border_idle", colors["input_border"])};
                 border-radius: 4px;
                 padding: 8px;
                 selection-background-color: {colors["selection_bg"]};
