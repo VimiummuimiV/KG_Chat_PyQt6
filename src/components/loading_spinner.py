@@ -1,8 +1,12 @@
 """Shared loading spinner widget for async operations"""
 
-from PyQt6.QtCore import pyqtProperty, QPoint, QPropertyAnimation, QRect, Qt
+from PyQt6.QtCore import pyqtProperty, QPoint, QPointF, QPropertyAnimation, QRect, Qt
 from PyQt6.QtGui import QColor, QPainter, QPen
 from PyQt6.QtWidgets import QWidget
+
+
+_ERROR_COLOR = QColor(229, 57, 53)
+_ERROR_CROSS_RATIO = 0.17
 
 
 class LoadingSpinner(QWidget):
@@ -13,6 +17,7 @@ class LoadingSpinner(QWidget):
         self.spinner_size = size
         self.setFixedSize(size, size)
         self._angle = 0
+        self._is_error = False
 
         self.animation = QPropertyAnimation(self, b"angle")
         self.animation.setDuration(1200)
@@ -44,6 +49,13 @@ class LoadingSpinner(QWidget):
         painter.setBrush(QColor(5, 5, 5))
         painter.drawEllipse(int(center - bg_radius), int(center - bg_radius), int(bg_radius * 2), int(bg_radius * 2))
 
+        if self._is_error:
+            half = self.spinner_size * _ERROR_CROSS_RATIO
+            painter.setPen(QPen(_ERROR_COLOR, line_width, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap))
+            painter.drawLine(QPointF(center - half, center - half), QPointF(center + half, center + half))
+            painter.drawLine(QPointF(center - half, center + half), QPointF(center + half, center - half))
+            return
+
         painter.setPen(QPen(QColor(66, 133, 244), line_width, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap))
         painter.setBrush(Qt.BrushStyle.NoBrush)
         painter.drawArc(int(center - inner_radius), int(center - inner_radius),
@@ -51,8 +63,17 @@ class LoadingSpinner(QWidget):
 
     def start(self):
         """Start the spinner animation"""
+        self._is_error = False
         self.animation.start()
         self.show()
+
+    def show_error(self):
+        """Replace the animation with a red cross: loading failed"""
+        self.animation.stop()
+        self._is_error = True
+        self.update()
+        self.show()
+        self.raise_()
 
     def stop(self):
         """Stop and hide the spinner"""

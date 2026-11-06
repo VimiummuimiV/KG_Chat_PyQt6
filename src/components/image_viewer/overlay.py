@@ -1,4 +1,4 @@
-"""Floating panels of the image viewer: source badge (top left), close button (top right), gallery bar (bottom center)."""
+"""Floating panels of the image viewer: source badge (top left), close button (top right), gallery bar (bottom center), unavailable notice."""
 
 from datetime import date
 from pathlib import Path
@@ -9,8 +9,8 @@ from PyQt6.QtGui import QColor, QImageReader, QPainter, QPainterPath, QPen, QPix
 from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
 from components.avatar import apply_user_avatar, make_avatar_label
-from components.button import create_icon_button, get_user_svg_color, set_button_icon
-from components.image_viewer.gallery import GalleryImage
+from components.button import create_icon_button, get_user_svg_color, render_svg_icon, set_button_icon
+from components.image_viewer.gallery import DayState, GalleryImage
 from helpers.cache import get_cache
 from helpers.fonts.fonts import FontType, get_font
 from helpers.translate import tr
@@ -22,7 +22,11 @@ _THUMBNAIL_GAP = 6
 _THUMBNAIL_RADIUS = 4
 _THUMBNAIL_BORDER_WIDTH = 2
 _THUMBNAIL_DIMMED_OPACITY = 0.55
+_UNAVAILABLE_ICON = "image-line.svg"
+_UNAVAILABLE_ICON_SIZE = 24
 _COUNTER_WIDTH = 90
+_DATE_SAMPLE = "0000-00-00"
+_SEPARATOR_HEIGHT = 28
 _PANEL_MARGIN = 10
 _PANEL_SPACING = 8
 _PANEL_RADIUS = 12
@@ -76,12 +80,14 @@ class _ThumbnailStrip(QWidget):
 
     clicked = pyqtSignal(int)
 
-    def __init__(self, parent=None):
+    def __init__(self, icons_path: Path, parent=None):
         super().__init__(parent)
         self.indices = range(0)
+        self._icons_path = icons_path
         self._current = 0
         self._is_dark = True
-        self._thumbnails: dict[int, QPixmap] = {}
+        self._thumbnails: dict[int, Optional[QPixmap]] = {}  # None = image unavailable
+        self._unavailable_icon = QPixmap()
         self.setCursor(Qt.CursorShape.PointingHandCursor)
 
     def set_state(self, indices: range, current: int):
@@ -93,9 +99,12 @@ class _ThumbnailStrip(QWidget):
 
     def set_theme(self, is_dark: bool):
         self._is_dark = is_dark
+        icon = render_svg_icon(self._icons_path / _UNAVAILABLE_ICON, _UNAVAILABLE_ICON_SIZE, _PANEL_STYLES[is_dark]["muted"])
+        self._unavailable_icon = icon.pixmap(_UNAVAILABLE_ICON_SIZE, _UNAVAILABLE_ICON_SIZE)
         self.update()
 
-    def set_thumbnail(self, index: int, pixmap: QPixmap):
+    def set_thumbnail(self, index: int, pixmap: Optional[QPixmap]):
+        """Store the thumbnail of an image; None marks it as unavailable."""
         self._thumbnails[index] = pixmap
         self.update()
 
@@ -127,6 +136,10 @@ class _ThumbnailStrip(QWidget):
                 painter.drawPixmap(rect, pixmap)
             else:
                 painter.fillRect(rect, placeholder)
+                if index in self._thumbnails:
+                    icon_rect = QRect(0, 0, _UNAVAILABLE_ICON_SIZE, _UNAVAILABLE_ICON_SIZE)
+                    icon_rect.moveCenter(rect.center())
+                    painter.drawPixmap(icon_rect, self._unavailable_icon)
             painter.restore()
             if is_current:
                 painter.setPen(QPen(accent, _THUMBNAIL_BORDER_WIDTH))
@@ -149,6 +162,7 @@ class GalleryBar(QFrame):
     next_requested = pyqtSignal()
     slideshow_toggled = pyqtSignal()
     thumbnail_clicked = pyqtSignal(int)
+    day_requested = pyqtSignal(int)
 
     def __init__(self, icons_path: Path, config=None, parent=None):
         super().__init__(parent)
@@ -158,8 +172,13 @@ class GalleryBar(QFrame):
         self._previous_button = create_icon_button(icons_path, "arrow-left.svg", config=config)
         self._slideshow_button = create_icon_button(icons_path, "play.svg", config=config)
         self._next_button = create_icon_button(icons_path, "arrow-right.svg", config=config)
-        for button in (self._previous_button, self._slideshow_button, self._next_button):
+        self._previous_day_button = create_icon_button(icons_path, "calendar-arrow-up.svg", config=config)
+        self._next_day_button = create_icon_button(icons_path, "calendar-arrow-down.svg", config=config)
+        self._image_buttons = (self._previous_button, self._slideshow_button, self._next_button)
+        for button in (*self._image_buttons, self._previous_day_button, self._next_day_button):
             button.setFocusPolicy(Qt.FocusPolicy.NoFocus)  # keys stay with the viewer
+        self._previous_day_button.clicked.connect(lambda: self.day_requested.emit(-1))
+        self._next_day_button.clicked.connect(lambda: self.day_requested.emit(1))
         self._previous_button.clicked.connect(self.previous_requested)
         self._slideshow_button.clicked.connect(self.slideshow_toggled)
         self._next_button.clicked.connect(self.next_requested)
@@ -168,8 +187,22 @@ class GalleryBar(QFrame):
         self._counter.setFont(get_font(FontType.UI))
         self._counter.setFixedWidth(_COUNTER_WIDTH)
         self._counter.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        self._strip = _ThumbnailStrip(self)
+        self._strip = _ThumbnailStrip(icons_path, self)
         self._strip.clicked.connect(self.thumbnail_clicked)
+
+        self._date_label = QLabel()
+        self._date_label.setFont(get_font(FontType.UI))
+        self._date_label.setFixedWidth(self._date_label.fontMetrics().horizontalAdvance(_DATE_SAMPLE))
+        self._day_separator = QFrame()
+        self._day_separator.setFixedSize(1, _SEPARATOR_HEIGHT)
+        self._day_group = QWidget()
+        day_layout = QHBoxLayout(self._day_group)
+        day_layout.setContentsMargins(_PANEL_SPACING, 0, 0, 0)
+        day_layout.setSpacing(_PANEL_SPACING)
+        for widget in (self._day_separator, self._previous_day_button, self._next_day_button, self._date_label):
+            day_layout.addWidget(widget)
+        self._mirror = QWidget()  # mirrors the counter so the buttons stay centered while there are no day controls
+        self._mirror.setFixedWidth(_COUNTER_WIDTH)
 
         controls = QHBoxLayout()
         controls.setSpacing(_PANEL_SPACING)
@@ -177,7 +210,8 @@ class GalleryBar(QFrame):
         controls.addWidget(self._previous_button)
         controls.addWidget(self._slideshow_button)
         controls.addWidget(self._next_button)
-        controls.addSpacing(_COUNTER_WIDTH)  # mirrors the counter so the buttons stay centered
+        controls.addWidget(self._mirror)
+        controls.addWidget(self._day_group)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(_PANEL_MARGIN, _PANEL_MARGIN, _PANEL_MARGIN, _PANEL_MARGIN)
@@ -190,15 +224,28 @@ class GalleryBar(QFrame):
 
     def apply_theme(self, is_dark: bool):
         self.setStyleSheet(_panel_stylesheet("galleryBar", is_dark))
+        self._day_separator.setStyleSheet(f"background-color: {_PANEL_STYLES[is_dark]['muted']};")
         self._strip.set_theme(is_dark)
 
-    def set_position(self, index: int, count: int, show_thumbnails: bool):
-        """Update the counter and the thumbnail window for the image at index of count."""
+    def set_position(self, index: int, count: int, show_thumbnails: bool, day_state: Optional[DayState]):
+        """Update the counter, thumbnail window and day controls for the image at index of count."""
         self._counter.setText(f"{index + 1} / {count}")
+        for button in self._image_buttons:
+            button.setEnabled(count > 1)
+        self._set_day(day_state)
         self._strip.setVisible(show_thumbnails)
         self._strip.set_state(_thumbnail_window(index, count) if show_thumbnails else range(0), index)
         self._refresh_tooltips()
         self._fit_to_content()
+
+    def _set_day(self, state: Optional[DayState]):
+        """Show the chatlog day controls for the state, or hide them when days do not apply."""
+        self._day_group.setVisible(state is not None)
+        self._mirror.setVisible(state is None)
+        if state is not None:
+            self._date_label.setText(state.day.strftime("%Y-%m-%d"))
+            self._previous_day_button.setEnabled(state.has_previous)
+            self._next_day_button.setEnabled(state.has_next)
 
     def _fit_to_content(self):
         self.layout().invalidate()  # a hidden widget keeps its stale layout until shown
@@ -216,7 +263,7 @@ class GalleryBar(QFrame):
     def has_thumbnail(self, index: int) -> bool:
         return self._strip.has_thumbnail(index)
 
-    def set_thumbnail(self, index: int, pixmap: QPixmap):
+    def set_thumbnail(self, index: int, pixmap: Optional[QPixmap]):
         self._strip.set_thumbnail(index, pixmap)
 
     def clear_thumbnails(self):
@@ -225,6 +272,8 @@ class GalleryBar(QFrame):
     def _refresh_tooltips(self):
         self._previous_button.setToolTip(tr("Previous image (H / ←)", "Предыдущее изображение (H / ←)"))
         self._next_button.setToolTip(tr("Next image (L / →)", "Следующее изображение (L / →)"))
+        self._previous_day_button.setToolTip(tr("Previous day", "Предыдущий день"))
+        self._next_day_button.setToolTip(tr("Next day", "Следующий день"))
         self._slideshow_button.setToolTip(
             tr("Stop slideshow (P)", "Остановить слайдшоу (P)") if self._is_playing
             else tr("Start slideshow (P)", "Запустить слайдшоу (P)")
@@ -256,6 +305,30 @@ class CloseButton(QFrame):
     def refresh_tooltip(self):
         """Re-translate the tooltip for the current interface language."""
         self._button.setToolTip(tr("Close (Esc / Space / Q / RMB)", "Закрыть (Esc / Space / Q / ПКМ)"))
+
+
+class UnavailableNotice(QFrame):
+    """Caption under the error cross: the current image cannot be loaded."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setObjectName("unavailableNotice")
+        self._label = QLabel()
+        self._label.setFont(get_font(FontType.UI))
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(_PANEL_MARGIN, _PANEL_MARGIN, _PANEL_MARGIN, _PANEL_MARGIN)
+        layout.addWidget(self._label)
+
+    def apply_theme(self, is_dark: bool):
+        self.setStyleSheet(_panel_stylesheet("unavailableNotice", is_dark))
+
+    def refresh_text(self):
+        """Re-translate the caption for the current interface language and resize to fit."""
+        self._label.setText(tr(
+            "Image unavailable: it was removed from the host or the link is broken",
+            "Изображение недоступно: удалено с хостинга или ссылка не работает",
+        ))
+        self.adjustSize()
 
 
 class SourceBadge(QFrame):

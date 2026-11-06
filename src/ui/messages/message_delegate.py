@@ -29,7 +29,7 @@ from components.flash_highlight import (
     paint_flash,
     RowFlashMixin,
 )
-from components.image_viewer.gallery import ImageGallery, is_image_url
+from components.image_viewer.gallery import DayNavigation, ImageGallery, is_image_url
 from helpers.cache import get_cache
 from helpers.data import get_resource_dir
 from helpers.fonts.fonts import FontType, get_font
@@ -250,6 +250,7 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
         self.show_continuity = False
         self.anchor_message = None
         self.anchor_frame_enabled = lambda: True
+        self.day_navigation: Optional[DayNavigation] = None  # set by chatlog views
 
         self.click_rects: Dict[int, Dict] = {}
         self.reply_callback = None
@@ -914,7 +915,7 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
         if not is_image_url(url):
             return None
         return ImageGallery.from_messages(
-            lambda: model.stored_messages, msg, url, self.reveal_message, model.modelReset
+            lambda: model.stored_messages, msg, url, self.reveal_message, model.modelReset, self.day_navigation
         )
 
     def highlight_row(self, row: int, anchor: bool = False):

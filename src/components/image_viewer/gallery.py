@@ -2,7 +2,7 @@
 
 import re
 from dataclasses import dataclass, replace
-from datetime import datetime
+from datetime import date, datetime
 from typing import Callable, Iterable, NamedTuple, Optional
 
 from PyQt6.QtCore import pyqtBoundSignal
@@ -53,6 +53,19 @@ def _collect_images(messages: Iterable) -> list[GalleryImage]:
     return images
 
 
+class DayState(NamedTuple):
+    """Chatlog day behind the viewer and whether its neighbours exist."""
+    day: date
+    has_previous: bool
+    has_next: bool
+
+
+class DayNavigation(NamedTuple):
+    """Chatlog day switching the viewer can drive."""
+    step: Callable[[int], None]  # go to the previous (-1) or next (+1) day
+    state: Callable[[], Optional[DayState]]  # None while days do not apply (parser results)
+
+
 @dataclass
 class ImageGallery:
     """Images the viewer can page through, and which one was opened."""
@@ -61,6 +74,7 @@ class ImageGallery:
     on_source: Optional[Callable[[object], None]] = None  # called with the message of the current image
     get_messages: Optional[Callable[[], Iterable]] = None  # current messages the images were collected from
     messages_replaced: Optional[pyqtBoundSignal] = None  # emitted when get_messages starts returning other messages
+    day_navigation: Optional[DayNavigation] = None  # chatlog views only
 
     @classmethod
     def single(cls, url: str) -> "ImageGallery":
@@ -68,7 +82,8 @@ class ImageGallery:
 
     @classmethod
     def from_messages(cls, get_messages: Callable[[], Iterable], clicked_message, clicked_url: str,
-                      on_source: Callable[[object], None], messages_replaced: pyqtBoundSignal) -> "ImageGallery":
+                      on_source: Callable[[object], None], messages_replaced: pyqtBoundSignal,
+                      day_navigation: Optional[DayNavigation] = None) -> "ImageGallery":
         """Collect every image link of the messages; start at the clicked one and follow later message changes."""
         clicked_url = extract_image_url(clicked_url)
         images = _collect_images(get_messages())
@@ -78,7 +93,7 @@ class ImageGallery:
         )
         if start_index is None:
             return cls.single(clicked_url)
-        return cls(images, start_index, on_source, get_messages, messages_replaced)
+        return cls(images, start_index, on_source, get_messages, messages_replaced, day_navigation)
 
     def reloaded(self, current_url: str) -> "ImageGallery":
         """Gallery rebuilt from the current messages; with no image left only the one being viewed stays."""

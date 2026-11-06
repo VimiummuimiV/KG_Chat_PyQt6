@@ -2,10 +2,12 @@
 
 import threading
 from datetime import datetime, timedelta
+from typing import Optional
 
 from PyQt6.QtCore import QDate, Qt, QTimer
 from PyQt6.QtWidgets import QCalendarWidget
 
+from components.image_viewer.gallery import DayState
 from core.chatlogs.fetch import ChatlogNotFoundError
 from helpers.scroll.scroll import scroll
 from helpers.translate import tr
@@ -33,8 +35,17 @@ class ChatlogLoadingMixin:
 
     def update_date_display(self):
         self.date_label.setText(self.current_date.strftime("%Y-%m-%d (%A)"))
-        self.next_btn.setEnabled(self.current_date < datetime.now().date())
-        self.prev_btn.setEnabled(self.current_date > self.parser.MIN_DATE)
+        self.next_btn.setEnabled(self._can_navigate(1))
+        self.prev_btn.setEnabled(self._can_navigate(-1))
+
+    def _can_navigate(self, days: int) -> bool:
+        return self.parser.MIN_DATE <= self.current_date + timedelta(days=days) <= datetime.now().date()
+
+    def _day_state(self) -> Optional[DayState]:
+        """Current day for the image viewer; None while parser results are shown."""
+        if self.is_parsing:
+            return None
+        return DayState(self.current_date, self._can_navigate(-1), self._can_navigate(1))
 
     def load_date(self, date_str: str):
         try:
@@ -208,9 +219,8 @@ class ChatlogLoadingMixin:
 
     def _navigate(self, days):
         """Navigate by days offset (-1 for previous, +1 for next)"""
-        new_date = self.current_date + timedelta(days=days)
-        if self.parser.MIN_DATE <= new_date <= datetime.now().date():
-            self.current_date = new_date
+        if self._can_navigate(days):
+            self.current_date += timedelta(days=days)
             self.update_date_display()
             self.load_timer.stop()
             self.load_timer.start(300)

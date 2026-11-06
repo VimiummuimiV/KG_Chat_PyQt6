@@ -17,6 +17,7 @@ from PyQt6.QtWidgets import (
 
 from components.button import create_icon_button
 from components.flash_highlight import FlashLabel
+from components.image_viewer.gallery import DayNavigation
 from components.search import MessageSearchBar
 from core.chatlogs.fetch import ChatlogsParser
 from helpers.dates import DATE_PLACEHOLDER
@@ -85,6 +86,7 @@ class ChatlogWidget(
         self.delegate = MessageDelegate(config, self.emoticon_manager)
         self.delegate.set_marker_gutter(True)
         self.delegate.anchor_frame_enabled = self._anchor_frame_active
+        self.delegate.day_navigation = DayNavigation(self._navigate, self._day_state)
 
         # Set username for mention highlighting if account is available
         if account and account.get('chat_username'):
