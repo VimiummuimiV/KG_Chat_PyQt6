@@ -5,6 +5,7 @@ from PyQt6.QtCore import QTimer
 from components.button import create_icon_button
 from helpers.colors.color_utils import (
     get_input_colors,
+    get_input_stylesheet,
     get_private_message_colors,
     get_self_ban_colors,
 )
@@ -125,21 +126,7 @@ class ChatPrivateModeMixin:
     @staticmethod
     def _style_input(field, style):
         colors, placeholder = style
-        sheet = f"""
-            QLineEdit {{
-                background-color: {colors.get("input_bg_idle", colors["input_bg"])};
-                color: {colors["text"]};
-                border: 1px solid {colors.get("input_border_idle", colors["input_border"])};
-                border-radius: 4px;
-                padding: 8px;
-                selection-background-color: {colors["selection_bg"]};
-                selection-color: {colors["selection_text"]};
-            }}
-            QLineEdit:focus {{
-                background-color: {colors["input_bg"]};
-                border-color: {colors["input_border"]};
-            }}
-        """
+        sheet = get_input_stylesheet(colors)
         if field.styleSheet() != sheet:
             field.setStyleSheet(sheet)
         field.setPlaceholderText(placeholder)

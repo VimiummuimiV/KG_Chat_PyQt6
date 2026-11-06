@@ -116,31 +116,56 @@ def get_self_ban_colors(config, is_dark_theme: bool) -> dict:
     )
 
 
+def _input_opacity(config, key: str) -> int:
+    value = config.get("ui", "input_color", key)
+    return INPUT_OPACITY_DEFAULT if value is None else value
+
+
 def _rgba_css(hex_color: str, opacity: int) -> str:
     red, green, blue = hex_to_rgb(hex_color)
     return f"rgba({red}, {green}, {blue}, {opacity}%)"
+
+
+def get_input_stylesheet(colors: dict) -> str:
+    """QLineEdit stylesheet from a palette with input_bg/input_border/text/selection keys."""
+    return f"""
+        QLineEdit {{
+            background-color: {colors.get("input_bg_idle", colors["input_bg"])};
+            color: {colors["text"]};
+            border: 1px solid {colors.get("input_border_idle", colors["input_border"])};
+            border-radius: 4px;
+            padding: 8px;
+            selection-background-color: {colors["selection_bg"]};
+            selection-color: {colors["selection_text"]};
+        }}
+        QLineEdit:focus {{
+            background-color: {colors["input_bg"]};
+            border-color: {colors["input_border"]};
+        }}
+    """
 
 
 def get_input_colors(config, is_dark_theme: bool) -> dict:
     """Colors of the regular input (outside private mode and self-ban).
 
     input_bg / input_border are the focused colors, the *_idle keys the unfocused ones.
-    Background and border share the configured opacity.
+    Background and border share each state's opacity; an unfocused input that is
+    dimmer than the focused one also gets a gray border.
     """
     colors = _themed_hsl_colors(
         config, "input_color", INPUT_HUE_DEFAULT, INPUT_SATURATION_DEFAULT, is_dark_theme,
         {"text": 90, "input_bg": 25, "input_border": 30, "selection_bg": 50, "selection_text": 95},
         {"text": 15, "input_bg": 92, "input_border": 75, "selection_bg": 70, "selection_text": 10},
     )
-    opacity = config.get("ui", "input_color", "background_opacity")
-    opacity = INPUT_OPACITY_DEFAULT if opacity is None else opacity
-    focus_only = config.get("ui", "input_color", "background_on_focus_only")
-    if focus_only:
-        lightness = rgb_to_hsl(hex_to_rgb(colors["input_border"]))[2]
-        colors["input_border_idle"] = _rgba_css(hsl_to_hex(0, 0, lightness * 100), opacity)
+    opacity = _input_opacity(config, "background_opacity")
+    idle_opacity = min(opacity, _input_opacity(config, "background_opacity_idle"))
+    border = colors["input_border"]
+    colors["input_bg_idle"] = _rgba_css(colors["input_bg"], idle_opacity)
     colors["input_bg"] = _rgba_css(colors["input_bg"], opacity)
-    colors["input_bg_idle"] = "transparent" if focus_only else colors["input_bg"]
-    colors["input_border"] = _rgba_css(colors["input_border"], opacity)
+    colors["input_border"] = _rgba_css(border, opacity)
+    if idle_opacity < opacity:
+        lightness = rgb_to_hsl(hex_to_rgb(border))[2]
+        colors["input_border_idle"] = _rgba_css(hsl_to_hex(0, 0, lightness * 100), idle_opacity)
     return colors
 
 

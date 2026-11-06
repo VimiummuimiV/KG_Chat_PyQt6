@@ -1,11 +1,14 @@
 """SettingsWidget: chat, chatlog, mentions digest and flash highlight options."""
 
 from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QHBoxLayout, QSizePolicy, QWidget
+from PyQt6.QtWidgets import QHBoxLayout, QLineEdit, QSizePolicy, QWidget
 
 from components.flash_highlight import DURATION_KEYS, FlashLabel
 from helpers.browser import get_available_browsers
 from helpers.colors.color_utils import (
+    get_input_colors,
+    get_input_stylesheet,
+    hsl_to_hex,
     INPUT_HUE_DEFAULT,
     INPUT_HUE_MAX,
     INPUT_OPACITY_DEFAULT,
@@ -23,7 +26,11 @@ from ui.settings.settings_options import (
     fill_tooltip_combo,
     LANGUAGE_OPTIONS,
 )
-from ui.settings.settings_widgets import preview_box_stylesheet
+from ui.settings.settings_widgets import gradient_slider_stylesheet, preview_box_stylesheet
+
+_HUE_GRADIENT_STEP = 60
+_GRADIENT_LIGHTNESS = 50
+_HUE_GRADIENT_STOPS = [hsl_to_hex(hue, 100, _GRADIENT_LIGHTNESS) for hue in range(0, 361, _HUE_GRADIENT_STEP)]
 
 
 class SettingsChatMixin:
@@ -123,13 +130,30 @@ class SettingsChatMixin:
             self._on_input_saturation_changed, default=INPUT_SATURATION_DEFAULT,
         )
         self.input_opacity_spin = self._add_slider_spin_row(
-            input_layout, tr("Background opacity", "Прозрачность фона"), 0, INPUT_OPACITY_MAX,
+            input_layout, tr("Opacity when focused", "Прозрачность в фокусе"), 0, INPUT_OPACITY_MAX,
             self._on_input_opacity_changed, default=INPUT_OPACITY_DEFAULT,
         )
-        self.input_focus_only_checkbox = self._add_checkbox(
-            input_layout, tr("Show background only when focused", "Показывать фон только в фокусе"),
-            self._on_input_focus_only_toggled,
+        self.input_idle_opacity_spin = self._add_slider_spin_row(
+            input_layout, tr("Opacity when unfocused", "Прозрачность без фокуса"), 0, INPUT_OPACITY_MAX,
+            self._on_input_idle_opacity_changed, default=INPUT_OPACITY_DEFAULT,
         )
+        self.input_opacity_spin.valueChanged.connect(self._limit_input_idle_opacity)
+        self.input_opacity_spin.linked_slider.valueChanged.connect(self._limit_input_idle_opacity)
+        self.input_preview = {}
+        preview_row = QHBoxLayout()
+        for state, placeholder in (("idle", tr("Unfocused", "Без фокуса")), ("focus", tr("Focused", "В фокусе"))):
+            preview = QLineEdit()
+            preview.setReadOnly(True)
+            preview.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+            self.register_tr(preview.setPlaceholderText, placeholder)
+            preview_row.addWidget(preview, stretch=1)
+            self.input_preview[state] = preview
+        input_layout.addLayout(preview_row)
+
+        self.input_hue_spin.linked_slider.setStyleSheet(gradient_slider_stylesheet(_HUE_GRADIENT_STOPS))
+        self.input_hue_spin.linked_slider.valueChanged.connect(self._update_input_saturation_gradient)
+        self._update_input_saturation_gradient()
+        self._apply_input_preview()
         self._add_collapse_toggle(input_header, input_content, ("ui", "settings", "widgets", "chat_input"))
 
         xmpp_header, xmpp_content, xmpp_layout = self._add_subsection(section, "🔌 XMPP")
@@ -280,9 +304,16 @@ class SettingsChatMixin:
         )
         self.input_opacity_spin.setValue(input_opacity)
         self.input_opacity_spin.linked_slider.setValue(input_opacity)
-        self.input_focus_only_checkbox.setChecked(
-            bool(self.config.get("ui", "input_color", "background_on_focus_only"))
+        self._limit_input_idle_opacity()
+
+        input_idle_opacity = self.config.get("ui", "input_color", "background_opacity_idle")
+        input_idle_opacity = (
+            INPUT_OPACITY_DEFAULT if input_idle_opacity is None else max(0, int(input_idle_opacity))
         )
+        input_idle_opacity = min(input_idle_opacity, input_opacity)
+        self.input_idle_opacity_spin.setValue(input_idle_opacity)
+        self.input_idle_opacity_spin.linked_slider.setValue(input_idle_opacity)
+        self._apply_input_preview()
 
         fill_mentions_digest_mode_combo(
             self.mentions_digest_mode_combo,
@@ -365,21 +396,47 @@ class SettingsChatMixin:
         self.config.set("ui", "chat", "badge_font_size", value=int(value))
         self.tracker_badge_style_changed.emit()
 
+    def _update_input_saturation_gradient(self, _value: int = 0):
+        hue = self.input_hue_spin.linked_slider.value()
+        self.input_saturation_spin.linked_slider.setStyleSheet(gradient_slider_stylesheet([
+            hsl_to_hex(hue, 0, _GRADIENT_LIGHTNESS),
+            hsl_to_hex(hue, INPUT_SATURATION_MAX, _GRADIENT_LIGHTNESS),
+        ]))
+
+    def _apply_input_preview(self):
+        """Show the unfocused and focused look of the regular input with the current settings."""
+        if not hasattr(self, "input_preview"):
+            return
+        colors = get_input_colors(self.config, (self.config.get("ui", "theme") or "dark") == "dark")
+        focused_colors = {**colors, "input_bg_idle": colors["input_bg"], "input_border_idle": colors["input_border"]}
+        self.input_preview["idle"].setStyleSheet(get_input_stylesheet(colors))
+        self.input_preview["focus"].setStyleSheet(get_input_stylesheet(focused_colors))
+
+    def _on_input_style_changed(self):
+        self._apply_input_preview()
+        self.input_style_changed.emit()
+
     def _on_input_hue_changed(self, value: int):
         self.config.set("ui", "input_color", "hue", value=int(value))
-        self.input_style_changed.emit()
+        self._on_input_style_changed()
 
     def _on_input_saturation_changed(self, value: int):
         self.config.set("ui", "input_color", "saturation", value=int(value))
-        self.input_style_changed.emit()
+        self._on_input_style_changed()
 
     def _on_input_opacity_changed(self, value: int):
         self.config.set("ui", "input_color", "background_opacity", value=int(value))
-        self.input_style_changed.emit()
+        self._on_input_style_changed()
 
-    def _on_input_focus_only_toggled(self, checked: bool):
-        self.config.set("ui", "input_color", "background_on_focus_only", value=checked)
-        self.input_style_changed.emit()
+    def _on_input_idle_opacity_changed(self, value: int):
+        self.config.set("ui", "input_color", "background_opacity_idle", value=int(value))
+        self._on_input_style_changed()
+
+    def _limit_input_idle_opacity(self, _value: int = 0):
+        """The unfocused opacity can never exceed the focused one."""
+        limit = self.input_opacity_spin.value()
+        for widget in (self.input_idle_opacity_spin, self.input_idle_opacity_spin.linked_slider):
+            widget.setMaximum(limit)
 
     def _on_mentions_digest_mode_changed(self, _text: str = ""):
         mode = self.mentions_digest_mode_combo.currentData()
