@@ -6,7 +6,7 @@ from functools import partial
 from PyQt6.QtCore import QTimer
 from PyQt6.QtWidgets import QLineEdit, QMessageBox
 
-from components.button import render_svg_icon
+from components.button import set_button_icon
 from core.web.api_data import get_exact_user_id_by_name, get_usernames_history
 from helpers.translate import tr
 
@@ -18,16 +18,14 @@ class ParserUsernamesMixin:
         """Change username fetch button icon to loader or back to normal"""
         icon_name = "loader.svg" if is_loading else "user-received.svg"
         tooltip = tr("Fetching...", "Загрузка...") if is_loading else tr("Fetch username history", "Загрузить историю имён")
-        icon_size = self.fetch_history_button.icon_size
-        self.fetch_history_button.setIcon(render_svg_icon(self.icons_path / icon_name, icon_size))
+        set_button_icon(self.fetch_history_button, icon_name)
         self.fetch_history_button.setToolTip(tooltip)
 
     def _set_search_fetch_loading(self, is_loading: bool):
         """Change search fetch button icon to loader or back to normal"""
         icon_name = "loader.svg" if is_loading else "user-received.svg"
         tooltip = tr("Fetching...", "Загрузка...") if is_loading else tr("Fetch username history", "Загрузить историю имён")
-        icon_size = self.search_fetch_history_button.icon_size
-        self.search_fetch_history_button.setIcon(render_svg_icon(self.icons_path / icon_name, icon_size))
+        set_button_icon(self.search_fetch_history_button, icon_name)
         self.search_fetch_history_button.setToolTip(tooltip)
 
     def _validate_usernames_enabled(self) -> bool:

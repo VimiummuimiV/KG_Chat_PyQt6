@@ -15,6 +15,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from components.avatar import request_avatar
 from components.button import create_icon_button
 from core.web.api_data import (
     format_registered_date,
@@ -27,6 +28,10 @@ from helpers.cache import get_cache
 from helpers.fonts.fonts import FontType, get_font
 from helpers.load import make_rounded_pixmap
 from helpers.translate import on_language_changed, tr, TranslatableMixin
+
+
+_AVATAR_SIZE = 120
+_AVATAR_RADIUS = 15
 
 
 class ProfileIcons:
@@ -265,7 +270,6 @@ class ProfileWidget(TranslatableMixin, QWidget):
     """Widget displaying user profile with summary and index data"""
 
     back_requested = pyqtSignal()
-    _avatar_loaded = pyqtSignal(str, QPixmap)
     _data_fetched = pyqtSignal(int, dict, dict)
 
     def __init__(self, config, icons_path):
@@ -280,7 +284,6 @@ class ProfileWidget(TranslatableMixin, QWidget):
         self.card_widgets = []
         self.history_widget = None
 
-        self._avatar_loaded.connect(self._set_avatar)
         self._data_fetched.connect(self._display_data)
         self._init_ui()
         on_language_changed(self._retranslate)
@@ -348,7 +351,7 @@ class ProfileWidget(TranslatableMixin, QWidget):
         """Initialize avatar display section"""
         # Single avatar label for both placeholder and image
         self.avatar_label = QLabel(ProfileIcons.AVATAR_PLACEHOLDER)
-        self.avatar_label.setFixedSize(120, 120)
+        self.avatar_label.setFixedSize(_AVATAR_SIZE, _AVATAR_SIZE)
         self.avatar_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.avatar_label.setFont(get_font(FontType.HEADER, size=48))
         self._update_avatar_style()
@@ -405,17 +408,15 @@ class ProfileWidget(TranslatableMixin, QWidget):
             card.value_label.setText("—")
 
         # Load data
-        self.cache.load_avatar_async(str(user_id), 
-            lambda uid, pm: uid == str(user_id) and self._avatar_loaded.emit(uid, pm), timeout=3)
+        request_avatar(self, str(user_id), lambda pixmap: self._set_avatar(str(user_id), pixmap))
         QTimer.singleShot(0, lambda: self._fetch_and_display_data(user_id))
 
-    @pyqtSlot(str, QPixmap)
     def _set_avatar(self, user_id: str, pixmap: QPixmap):
         """Set avatar pixmap — only applied if this user is still active"""
         if user_id != str(self.current_user_id):
             return
-        if pixmap and not pixmap.isNull():
-            self.avatar_label.setPixmap(make_rounded_pixmap(pixmap, 120, 15))
+        if not pixmap.isNull():
+            self.avatar_label.setPixmap(make_rounded_pixmap(pixmap, _AVATAR_SIZE, _AVATAR_RADIUS))
             self.avatar_label.setText("")  # Clear the emoji text
 
     def _fetch_and_display_data(self, user_id: int):

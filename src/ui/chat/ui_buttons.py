@@ -5,7 +5,7 @@ from pathlib import Path
 from PyQt6.QtCore import pyqtSignal, QEvent, Qt
 from PyQt6.QtWidgets import QApplication, QLabel, QVBoxLayout, QWidget
 
-from components.button import create_icon_button, render_svg_icon, set_visual_active
+from components.button import create_icon_button, set_button_icon, set_visual_active
 from components.presence_badge import apply_counter_style
 from helpers.config import Config
 from helpers.data import open_in_file_manager
@@ -388,7 +388,7 @@ class ButtonPanel(QWidget):
         if not self.theme_button:
             return
         is_dark = self.theme_manager.is_dark()
-        self.theme_button._icon_name = "moon.svg" if is_dark else "sun.svg"
+        set_button_icon(self.theme_button, "moon.svg" if is_dark else "sun.svg")
         self.theme_button.setToolTip(self._theme_tooltip(is_dark))
 
     def update_notification_button_icon(self):
@@ -403,22 +403,14 @@ class ButtonPanel(QWidget):
         """Update effects button icon after state change"""
         if not self.effects_button:
             return
-        new_icon_name = self._get_effects_icon()
-        self.effects_button._icon_name = new_icon_name
-        new_icon = render_svg_icon(self.icons_path / new_icon_name, self.effects_button.icon_size)
-        self.effects_button.setIcon(new_icon)
+        set_button_icon(self.effects_button, self._get_effects_icon())
         self.effects_button.setToolTip(self._get_effects_tooltip())
 
     def update_pin_button_icon(self):
         """Update pin button icon after always-on-top state change"""
         if not self.always_on_top_button:
             return
-        new_icon_name = self._get_pin_icon()
-        self.always_on_top_button._icon_name = new_icon_name
-        new_icon = render_svg_icon(
-            self.icons_path / new_icon_name, self.always_on_top_button.icon_size
-        )
-        self.always_on_top_button.setIcon(new_icon)
+        set_button_icon(self.always_on_top_button, self._get_pin_icon())
         self.always_on_top_button.setToolTip(self._get_pin_tooltip())
 
     def add_button(self, button):

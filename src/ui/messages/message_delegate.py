@@ -913,7 +913,9 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
         """Every image link of the view with the clicked one opened; None for other links."""
         if not is_image_url(url):
             return None
-        return ImageGallery.from_messages(getattr(model, 'stored_messages', ()), msg, url, self.reveal_message)
+        return ImageGallery.from_messages(
+            lambda: model.stored_messages, msg, url, self.reveal_message, model.modelReset
+        )
 
     def highlight_row(self, row: int, anchor: bool = False):
         """Highlight a row with fade-out effect, independent of any other row's fade.

@@ -112,8 +112,8 @@ class ImageLayer:
 
     def __init__(self, pixmap: Optional[QPixmap] = None, movie: Optional[QMovie] = None,
                  on_frame_changed: Optional[Callable] = None):
-        self.pixmap = pixmap
-        self.movie = movie
+        self._pixmap = pixmap
+        self._movie = movie
         self.offset = QPointF(0, 0)
         self.scale = 1.0
         self._on_frame_changed = on_frame_changed
@@ -142,12 +142,12 @@ class ImageLayer:
         pixmap.loadFromData(data)
         return None if pixmap.isNull() else cls(pixmap=pixmap)
 
-    def frame(self) -> Optional[QPixmap]:
-        return self.movie.currentPixmap() if self.movie else self.pixmap
+    def _frame(self) -> Optional[QPixmap]:
+        return self._movie.currentPixmap() if self._movie else self._pixmap
 
     def fit(self, viewport: QSize, reserved_bottom: int = 0):
         """Scale down to fit and center above the reserved bottom strip."""
-        frame = self.frame()
+        frame = self._frame()
         available_height = viewport.height() - reserved_bottom
         self.scale = min(
             viewport.width() * _FIT_RATIO / frame.width(),
@@ -160,7 +160,7 @@ class ImageLayer:
         )
 
     def paint(self, painter: QPainter, viewport: QSize, pose: _Pose = _IDENTITY_POSE):
-        frame = self.frame()
+        frame = self._frame()
         if not frame or frame.isNull() or pose.opacity <= 0 or pose.stretch <= 0:
             return
         painter.save()
@@ -175,11 +175,11 @@ class ImageLayer:
 
     def release(self):
         """Stop the animation and free the movie."""
-        if self.movie:
-            self.movie.stop()
+        if self._movie:
+            self._movie.stop()
             try:
-                self.movie.frameChanged.disconnect(self._on_frame_changed)
+                self._movie.frameChanged.disconnect(self._on_frame_changed)
             except (TypeError, RuntimeError):
                 pass
-            self.movie.deleteLater()
-        self.movie = self.pixmap = None
+            self._movie.deleteLater()
+        self._movie = self._pixmap = None

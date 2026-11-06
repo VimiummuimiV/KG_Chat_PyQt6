@@ -3,7 +3,7 @@
 import re
 from datetime import datetime
 
-from components.button import render_svg_icon
+from components.button import set_button_icon
 from components.search import parse_search_text
 from helpers.dates import parse_short_date
 from helpers.text.mention_parser import parse_mentions
@@ -36,10 +36,7 @@ class ChatlogSearchMixin:
         self.filter_mentions = not self.filter_mentions
 
         # Update icon based on state
-        icon_name = "at-fill.svg" if self.filter_mentions else "at-line.svg"
-        self.mention_filter_btn._icon_name = icon_name  # Update the attribute for theme consistency
-        icon = render_svg_icon(self.mention_filter_btn.icon_path / icon_name, self.mention_filter_btn.icon_size)
-        self.mention_filter_btn.setIcon(icon)
+        set_button_icon(self.mention_filter_btn, "at-fill.svg" if self.filter_mentions else "at-line.svg")
 
         # Reapply filter to show/hide messages
         self._apply_filter()

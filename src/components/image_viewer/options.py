@@ -8,7 +8,7 @@ DEFAULT_TRANSITION_MS = 350
 TRANSITION_MS_RANGE = (100, 1500)
 DEFAULT_SLIDESHOW_SECONDS = 3
 SLIDESHOW_SECONDS_RANGE = (1, 60)
-DEFAULT_SHOW_THUMBNAILS = True
+_DEFAULT_SHOW_THUMBNAILS = True
 
 _MS_PER_SECOND = 1000
 
@@ -40,4 +40,4 @@ def slideshow_interval_ms(config) -> int:
 
 def show_thumbnails(config) -> bool:
     value = config.get("image_viewer", "show_thumbnails") if config else None
-    return DEFAULT_SHOW_THUMBNAILS if value is None else bool(value)
+    return _DEFAULT_SHOW_THUMBNAILS if value is None else bool(value)

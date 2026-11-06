@@ -3,7 +3,7 @@
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtWidgets import QApplication
 
-from components.button import render_svg_icon
+from components.button import set_button_icon
 from helpers.scroll.scroll import scroll
 from helpers.translate import tr
 from ui.settings.settings_options import DEFAULTS
@@ -78,10 +78,7 @@ class ChatlogSplitViewMixin:
         # Only update icon if it was actually active
         if self.filter_mentions:
             self.filter_mentions = False
-            icon_name = "at-line.svg"
-            self.mention_filter_btn._icon_name = icon_name
-            icon = render_svg_icon(self.mention_filter_btn.icon_path / icon_name, self.mention_filter_btn.icon_size)
-            self.mention_filter_btn.setIcon(icon)
+            set_button_icon(self.mention_filter_btn, "at-line.svg")
 
         self._apply_filter()
         self.filter_changed.emit(self.filtered_usernames)

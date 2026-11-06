@@ -1,4 +1,4 @@
-"""Floating panels of the image viewer: source badge (top left) and gallery bar (bottom center)."""
+"""Floating panels of the image viewer: source badge (top left), close button (top right), gallery bar (bottom center)."""
 
 from datetime import date
 from pathlib import Path
@@ -8,17 +8,16 @@ from PyQt6.QtCore import pyqtSignal, QBuffer, QIODevice, QRect, QRectF, QSize, Q
 from PyQt6.QtGui import QColor, QImageReader, QPainter, QPainterPath, QPen, QPixmap
 from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
-from components.avatar import make_avatar_label, make_avatar_pixmap
+from components.avatar import apply_user_avatar, make_avatar_label
 from components.button import create_icon_button, get_user_svg_color, set_button_icon
 from components.image_viewer.gallery import GalleryImage
 from helpers.cache import get_cache
 from helpers.fonts.fonts import FontType, get_font
-from helpers.load import make_rounded_pixmap
 from helpers.translate import tr
 
 
-THUMBNAIL_SIZE = QSize(84, 56)
-THUMBNAIL_MAX_VISIBLE = 9
+_THUMBNAIL_SIZE = QSize(84, 56)
+_THUMBNAIL_MAX_VISIBLE = 9
 _THUMBNAIL_GAP = 6
 _THUMBNAIL_RADIUS = 4
 _THUMBNAIL_BORDER_WIDTH = 2
@@ -29,7 +28,6 @@ _PANEL_SPACING = 8
 _PANEL_RADIUS = 12
 _BADGE_AVATAR_SIZE = 28
 _BADGE_SVG_AVATAR_SIZE = 20
-_BADGE_AVATAR_RADIUS = 8
 _BADGE_MARGIN = 6
 _BADGE_SPACING = 8
 _PANEL_STYLES = {
@@ -46,9 +44,9 @@ def _panel_stylesheet(object_name: str, is_dark: bool) -> str:
     )
 
 
-def thumbnail_window(index: int, count: int) -> range:
+def _thumbnail_window(index: int, count: int) -> range:
     """Gallery indices shown in the strip: a window of thumbnails around the current image."""
-    visible = min(count, THUMBNAIL_MAX_VISIBLE)
+    visible = min(count, _THUMBNAIL_MAX_VISIBLE)
     start = max(0, min(index - visible // 2, count - visible))
     return range(start, start + visible)
 
@@ -61,16 +59,16 @@ def make_thumbnail(data: bytes) -> Optional[QPixmap]:
     reader = QImageReader(buffer)
     source_size = reader.size()
     if source_size.isValid():
-        reader.setScaledSize(source_size.scaled(THUMBNAIL_SIZE, Qt.AspectRatioMode.KeepAspectRatioByExpanding))
+        reader.setScaledSize(source_size.scaled(_THUMBNAIL_SIZE, Qt.AspectRatioMode.KeepAspectRatioByExpanding))
     image = reader.read()
     if image.isNull():
         return None
     image = image.scaled(
-        THUMBNAIL_SIZE, Qt.AspectRatioMode.KeepAspectRatioByExpanding, Qt.TransformationMode.SmoothTransformation
+        _THUMBNAIL_SIZE, Qt.AspectRatioMode.KeepAspectRatioByExpanding, Qt.TransformationMode.SmoothTransformation
     )
-    left = (image.width() - THUMBNAIL_SIZE.width()) // 2
-    top = (image.height() - THUMBNAIL_SIZE.height()) // 2
-    return QPixmap.fromImage(image.copy(left, top, THUMBNAIL_SIZE.width(), THUMBNAIL_SIZE.height()))
+    left = (image.width() - _THUMBNAIL_SIZE.width()) // 2
+    top = (image.height() - _THUMBNAIL_SIZE.height()) // 2
+    return QPixmap.fromImage(image.copy(left, top, _THUMBNAIL_SIZE.width(), _THUMBNAIL_SIZE.height()))
 
 
 class _ThumbnailStrip(QWidget):
@@ -89,8 +87,8 @@ class _ThumbnailStrip(QWidget):
     def set_state(self, indices: range, current: int):
         self.indices = indices
         self._current = current
-        width = len(indices) * (THUMBNAIL_SIZE.width() + _THUMBNAIL_GAP) - _THUMBNAIL_GAP
-        self.setFixedSize(max(width, 0), THUMBNAIL_SIZE.height())
+        width = len(indices) * (_THUMBNAIL_SIZE.width() + _THUMBNAIL_GAP) - _THUMBNAIL_GAP
+        self.setFixedSize(max(width, 0), _THUMBNAIL_SIZE.height())
         self.update()
 
     def set_theme(self, is_dark: bool):
@@ -109,7 +107,7 @@ class _ThumbnailStrip(QWidget):
         self.indices = range(0)
 
     def _slot_rect(self, slot: int) -> QRect:
-        return QRect(slot * (THUMBNAIL_SIZE.width() + _THUMBNAIL_GAP), 0, THUMBNAIL_SIZE.width(), THUMBNAIL_SIZE.height())
+        return QRect(slot * (_THUMBNAIL_SIZE.width() + _THUMBNAIL_GAP), 0, _THUMBNAIL_SIZE.width(), _THUMBNAIL_SIZE.height())
 
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -138,7 +136,7 @@ class _ThumbnailStrip(QWidget):
 
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
-            slot = int(event.position().x()) // (THUMBNAIL_SIZE.width() + _THUMBNAIL_GAP)
+            slot = int(event.position().x()) // (_THUMBNAIL_SIZE.width() + _THUMBNAIL_GAP)
             if 0 <= slot < len(self.indices):
                 self.clicked.emit(self.indices[slot])
         event.accept()
@@ -198,7 +196,7 @@ class GalleryBar(QFrame):
         """Update the counter and the thumbnail window for the image at index of count."""
         self._counter.setText(f"{index + 1} / {count}")
         self._strip.setVisible(show_thumbnails)
-        self._strip.set_state(thumbnail_window(index, count) if show_thumbnails else range(0), index)
+        self._strip.set_state(_thumbnail_window(index, count) if show_thumbnails else range(0), index)
         self._refresh_tooltips()
         self._fit_to_content()
 
@@ -233,17 +231,42 @@ class GalleryBar(QFrame):
         )
 
 
+class CloseButton(QFrame):
+    """Translucent panel with the button that closes the viewer."""
+
+    clicked = pyqtSignal()
+
+    def __init__(self, icons_path: Path, config=None, parent=None):
+        super().__init__(parent)
+        self.setObjectName("closeButton")
+        self._button = create_icon_button(icons_path, "close.svg", config=config)
+        self._button.setFocusPolicy(Qt.FocusPolicy.NoFocus)  # keys stay with the viewer
+        self._button.clicked.connect(self.clicked)
+
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(_PANEL_MARGIN, _PANEL_MARGIN, _PANEL_MARGIN, _PANEL_MARGIN)
+        layout.addWidget(self._button)
+        self.adjustSize()
+        self.refresh_tooltip()
+
+    def apply_theme(self, is_dark: bool):
+        """Restyle the panel for the theme."""
+        self.setStyleSheet(_panel_stylesheet("closeButton", is_dark))
+
+    def refresh_tooltip(self):
+        """Re-translate the tooltip for the current interface language."""
+        self._button.setToolTip(tr("Close (Esc / Space / Q / RMB)", "Закрыть (Esc / Space / Q / ПКМ)"))
+
+
 class SourceBadge(QFrame):
     """Compact avatar + username + time of the message the current image was posted in; click jumps to it."""
 
     clicked = pyqtSignal()
-    _avatar_ready = pyqtSignal(str, QPixmap)  # emitted from the avatar loader thread
 
     def __init__(self, icons_path: Path, parent=None):
         super().__init__(parent)
         self.setObjectName("sourceBadge")
         self._icons_path = icons_path
-        self._user_id = None
         self.setCursor(Qt.CursorShape.PointingHandCursor)
 
         self._avatar_label = make_avatar_label(_BADGE_AVATAR_SIZE)
@@ -259,20 +282,15 @@ class SourceBadge(QFrame):
         layout.addWidget(self._username_label)
         layout.addWidget(self._time_label)
 
-        self._avatar_ready.connect(self._on_avatar_ready)
         self._refresh_tooltip()
 
     def show_image(self, image: GalleryImage, is_dark: bool):
         """Fill the badge with the sender and time of the message that holds this image."""
         cache = get_cache()
-        self._user_id = cache.get_user_id(image.username)
-        color = get_user_svg_color(cache.has_user(self._user_id), is_dark)
-        cached_avatar = cache.get_avatar(self._user_id) if self._user_id else None
-        self._avatar_label.setPixmap(
-            make_avatar_pixmap(self._icons_path, cached_avatar, _BADGE_AVATAR_SIZE, _BADGE_SVG_AVATAR_SIZE, color)
+        apply_user_avatar(
+            self._avatar_label, cache.get_user_id(image.username), _BADGE_AVATAR_SIZE, _BADGE_SVG_AVATAR_SIZE,
+            is_dark, self._icons_path,
         )
-        if self._user_id and not cached_avatar:
-            cache.load_avatar_async(self._user_id, self._avatar_ready.emit)
         style = _PANEL_STYLES[is_dark]
         self.setStyleSheet(_panel_stylesheet("sourceBadge", is_dark))
         self._username_label.setText(image.username)
@@ -288,10 +306,6 @@ class SourceBadge(QFrame):
             return ""
         pattern = "%H:%M:%S" if image.timestamp.date() == date.today() else "%Y-%m-%d %H:%M:%S"
         return image.timestamp.strftime(pattern)
-
-    def _on_avatar_ready(self, user_id: str, pixmap: QPixmap):
-        if user_id == self._user_id:
-            self._avatar_label.setPixmap(make_rounded_pixmap(pixmap, _BADGE_AVATAR_SIZE, _BADGE_AVATAR_RADIUS))
 
     def _refresh_tooltip(self):
         self.setToolTip(tr("Go to message", "Перейти к сообщению"))

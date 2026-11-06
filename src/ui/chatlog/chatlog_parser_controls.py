@@ -5,7 +5,7 @@ from datetime import datetime
 from PyQt6.QtCore import QTimer
 from PyQt6.QtWidgets import QMessageBox
 
-from components.button import render_svg_icon
+from components.button import set_button_icon
 from core.chatlogs.range_parser import ParseConfig
 from helpers.scroll.scroll import scroll
 from helpers.translate import tr
@@ -27,7 +27,7 @@ class ChatlogParserControlsMixin:
             # Hide parser, show list
             self.parser_visible = False
             self.stacked.setCurrentWidget(self.list_view)
-            self.parse_btn.setIcon(render_svg_icon(self.icons_path / "play.svg", self.parse_btn.icon_size))
+            set_button_icon(self.parse_btn, "play.svg")
             self.parse_btn.setToolTip(
                 tr(
                     "Parse all chatlogs (P | Ctrl+P from anywhere)",
@@ -43,7 +43,7 @@ class ChatlogParserControlsMixin:
             # Show parser, hide list
             self.parser_visible = True
             self.stacked.setCurrentWidget(self.parser_widget)
-            self.parse_btn.setIcon(render_svg_icon(self.icons_path / "list.svg", self.parse_btn.icon_size))
+            set_button_icon(self.parse_btn, "list.svg")
             self.parse_btn.setToolTip(tr("Back to chat logs (P)", "Назад к чатлогам (P)"))
             self.date_label.setText(tr("Parser", "Парсер"))
 

@@ -5,16 +5,15 @@ from datetime import datetime
 from typing import Optional
 
 from PyQt6.QtCore import QEasingCurve, QEvent, Qt, QTimer, QVariantAnimation
-from PyQt6.QtGui import QCursor, QFontMetrics, QPixmap
+from PyQt6.QtGui import QCursor, QFontMetrics
 from PyQt6.QtWidgets import QApplication, QHBoxLayout, QLabel, QLineEdit, QVBoxLayout, QWidget
 
-from components.avatar import make_avatar_label, make_avatar_pixmap
+from components.avatar import apply_user_avatar, make_avatar_label, make_avatar_pixmap
 from components.button import get_user_svg_color, HoverIconButton
 from core.xmpp.messages import Message
 from helpers.colors.color_utils import get_game_message_colors
 from helpers.data import get_resource_dir
 from helpers.fonts.fonts import FontType, get_font
-from helpers.load import make_rounded_pixmap
 from helpers.translate import tr
 from ui.chat.ui_emoticon_selector import release_selector
 from ui.messages.message_renderer import MessageRenderer
@@ -146,15 +145,10 @@ class PopupNotification(AutoHidePopupMixin, QWidget):
             color = self.message_renderer.system_colors["text"]
             avatar_pixmap = make_avatar_pixmap(self.icons_path, None, AVATAR_SIZE, SVG_AVATAR_SIZE, color, "information.svg")
         elif not data.is_system and data.cache:
-            user_id = data.cache.get_user_id(data.title)
-            color = get_user_svg_color(data.cache.has_user(user_id), is_dark)
-            cached_avatar = data.cache.get_avatar(user_id) if user_id else None
-            if cached_avatar and not cached_avatar.isNull():
-                avatar_pixmap = make_avatar_pixmap(self.icons_path, cached_avatar, AVATAR_SIZE, SVG_AVATAR_SIZE, color, "user.svg")
-            else:
-                avatar_pixmap = make_avatar_pixmap(self.icons_path, None, AVATAR_SIZE, SVG_AVATAR_SIZE, color, "user.svg")
-                if user_id and not cached_avatar:
-                    data.cache.load_avatar_async(user_id, self._on_avatar_loaded)
+            apply_user_avatar(
+                self.avatar_label, data.cache.get_user_id(data.title), AVATAR_SIZE, SVG_AVATAR_SIZE, is_dark,
+                self.icons_path,
+            )
         elif not data.is_system and data.icon:
             color = get_user_svg_color(False, is_dark)
             avatar_pixmap = make_avatar_pixmap(self.icons_path, None, AVATAR_SIZE, SVG_AVATAR_SIZE, color, data.icon)
@@ -313,14 +307,6 @@ class PopupNotification(AutoHidePopupMixin, QWidget):
         """Body grew/shrank (e.g. player roster changed) - resize and reflow the stack."""
         self.adjustSize()
         self.manager.position_and_cleanup()
-
-    def _on_avatar_loaded(self, user_id: str, pixmap: QPixmap):
-        """Callback fired when avatar is loaded from disk or network"""
-        try:
-            if self.avatar_label:
-                self.avatar_label.setPixmap(make_rounded_pixmap(pixmap, 36, 8))
-        except RuntimeError:
-            pass  # Widget deleted before callback fired
 
     def mousePressEvent(self, event):
         """Handle clicks: buttons, links, or show window"""

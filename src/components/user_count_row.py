@@ -1,13 +1,12 @@
 """Shared row widget: avatar + colored username + count, with filter highlight and click-to-filter."""
 
-from PyQt6.QtCore import pyqtSignal, QSize, Qt
+from PyQt6.QtCore import pyqtSignal, Qt
 from PyQt6.QtGui import QCursor
 from PyQt6.QtWidgets import QHBoxLayout, QLabel, QSizePolicy, QWidget
 
-from components.button import get_user_svg_color, render_svg_icon
+from components.avatar import apply_user_avatar, make_avatar_label
 from helpers.cache import get_cache
 from helpers.fonts.fonts import FontType, get_font
-from helpers.load import make_rounded_pixmap
 
 
 class UserCountRow(QWidget):
@@ -35,24 +34,8 @@ class UserCountRow(QWidget):
 
         is_dark = config.get("ui", "theme") == "dark"
 
-        # Avatar
-        self.avatar_label = QLabel()
-        self.avatar_label.setFixedSize(self.AVATAR_SIZE, self.AVATAR_SIZE)
-        self.avatar_label.setStyleSheet("background: transparent; border: none; padding: 0; margin: 0;")
-        self.avatar_label.setScaledContents(False)
-        self.avatar_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-
-        cached_avatar = self._cache.get_avatar(user_id) if user_id else None
-        if cached_avatar:
-            self.avatar_label.setPixmap(make_rounded_pixmap(cached_avatar, self.AVATAR_SIZE, 8))
-        else:
-            svg_color = get_user_svg_color(self._cache.has_user(user_id), is_dark)
-            self.avatar_label.setPixmap(
-                render_svg_icon(icons_path / "user.svg", self.SVG_AVATAR_SIZE, svg_color)
-                .pixmap(QSize(self.SVG_AVATAR_SIZE, self.SVG_AVATAR_SIZE))
-            )
-            if user_id:
-                self._cache.load_avatar_async(user_id, self._on_avatar_loaded)
+        self.avatar_label = make_avatar_label(self.AVATAR_SIZE)
+        apply_user_avatar(self.avatar_label, user_id, self.AVATAR_SIZE, self.SVG_AVATAR_SIZE, is_dark, icons_path)
         layout.addWidget(self.avatar_label)
 
         self.username_label = QLabel(username)
@@ -72,13 +55,6 @@ class UserCountRow(QWidget):
         self.count_label.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Preferred)
         self.count_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         layout.addWidget(self.count_label)
-
-    def _on_avatar_loaded(self, user_id: str, pixmap):
-        try:
-            if user_id == self.user_id and self.avatar_label:
-                self.avatar_label.setPixmap(make_rounded_pixmap(pixmap, self.AVATAR_SIZE, 8))
-        except RuntimeError:
-            pass
 
     def set_filtered(self, filtered: bool):
         """Update visual state when filtered"""

@@ -1,6 +1,6 @@
 from PyQt6 import sip
-from PyQt6.QtCore import pyqtSignal, QSize, Qt, QTimer
-from PyQt6.QtGui import QCursor, QFont, QPixmap
+from PyQt6.QtCore import pyqtSignal, Qt, QTimer
+from PyQt6.QtGui import QCursor, QFont
 from PyQt6.QtWidgets import (
     QApplication,
     QHBoxLayout,
@@ -11,7 +11,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from components.button import get_user_svg_color, render_svg_icon
+from components.avatar import apply_user_avatar, make_avatar_label, make_rounded_avatar
 from components.context_menu.userlist import (
     BAN_PERMANENT,
     BAN_TEMPORARY,
@@ -31,7 +31,6 @@ from core.xmpp.userlist import ChatUser
 from helpers.cache import get_cache
 from helpers.data import get_resource_dir
 from helpers.fonts.fonts import FontType, get_font
-from helpers.load import make_rounded_pixmap
 from helpers.scroll.auto_scroll import AutoScroller
 from helpers.translate import on_language_changed, tr, TranslatableMixin
 
@@ -68,31 +67,10 @@ class UserWidget(TrackedMarkMixin, QWidget):
         layout.setSpacing(6)
         self.setLayout(layout)
 
-        # Avatar
-        self.avatar_label = QLabel()
-        self.avatar_label.setFixedSize(self.AVATAR_SIZE, self.AVATAR_SIZE)
-        self.avatar_label.setStyleSheet("background: transparent; border: none; padding: 0; margin: 0;")
-        self.avatar_label.setScaledContents(False)
-        self.avatar_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-
-        # Load avatar from cache
-        svg_color = get_user_svg_color(self.cache.has_user(user.user_id), is_dark_theme)
-        if user.user_id:
-            cached_avatar = self.cache.get_avatar(user.user_id)
-            if cached_avatar:
-                self.avatar_label.setPixmap(make_rounded_pixmap(cached_avatar, self.AVATAR_SIZE, 8))
-            else:
-                self.avatar_label.setPixmap(
-                    render_svg_icon(icons_path / "user.svg", self.SVG_AVATAR_SIZE, svg_color)
-                    .pixmap(QSize(self.SVG_AVATAR_SIZE, self.SVG_AVATAR_SIZE))
-                )
-                self.cache.load_avatar_async(user.user_id, self._on_avatar_loaded)
-        else:
-            self.avatar_label.setPixmap(
-                render_svg_icon(icons_path / "user.svg", self.SVG_AVATAR_SIZE, svg_color)
-                .pixmap(QSize(self.SVG_AVATAR_SIZE, self.SVG_AVATAR_SIZE))
-            )
-
+        self.avatar_label = make_avatar_label(self.AVATAR_SIZE)
+        apply_user_avatar(
+            self.avatar_label, user.user_id, self.AVATAR_SIZE, self.SVG_AVATAR_SIZE, is_dark_theme, icons_path
+        )
         layout.addWidget(self.avatar_label)
 
         if user.background:
@@ -185,14 +163,6 @@ class UserWidget(TrackedMarkMixin, QWidget):
             parts.append(f"{tr('Moderator', 'Модератор')}: {tr('Yes', 'Да')}")
 
         return "\n".join(parts) if parts else tr("Moderator", "Модератор")
-
-    def _on_avatar_loaded(self, user_id: str, pixmap: QPixmap):
-        """Callback when avatar is loaded from cache"""
-        try:
-            if user_id == self.user.user_id and self.avatar_label:
-                self.avatar_label.setPixmap(make_rounded_pixmap(pixmap, self.AVATAR_SIZE, 8))
-        except RuntimeError:
-            pass
 
     def _game_counter_style(self, is_dark: bool):
         color = "#CCCCCC" if is_dark else "#666666"
@@ -604,7 +574,7 @@ class UserListWidget(TranslatableMixin, QWidget):
         for w in self.user_widgets.values():
             try:
                 if w.user.user_id == user_id:
-                    w.avatar_label.setPixmap(make_rounded_pixmap(pixmap, w.AVATAR_SIZE, 8))
+                    w.avatar_label.setPixmap(make_rounded_avatar(pixmap, w.AVATAR_SIZE))
             except RuntimeError:
                 pass
 

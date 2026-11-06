@@ -5,7 +5,7 @@ from typing import List, Optional
 
 from PyQt6.QtWidgets import QLineEdit, QMessageBox
 
-from components.button import render_svg_icon
+from components.button import set_button_icon
 from core.chatlogs.range_parser import ParseConfig
 from core.web.api_data import get_registration_date
 from helpers.translate import tr
@@ -56,7 +56,7 @@ class ParserRunMixin:
 
             # Update UI for parsing state
             self.is_parsing = True
-            self.parse_button.setIcon(render_svg_icon(self.icons_path / "stop.svg", self.parse_button.icon_size))
+            set_button_icon(self.parse_button, "stop.svg")
             self.parse_button.setToolTip(tr("Stop parsing (C)", "Остановить парсинг (C)"))
             self.progress_bar.setVisible(True)
             self.progress_bar.setValue(0)
@@ -86,7 +86,7 @@ class ParserRunMixin:
     def reset_ui(self):
         """Reset UI to non-parsing state"""
         self.is_parsing = False
-        self.parse_button.setIcon(render_svg_icon(self.icons_path / "play.svg", self.parse_button.icon_size))
+        set_button_icon(self.parse_button, "play.svg")
         self.parse_button.setToolTip(tr("Start parsing (S)", "Начать парсинг (S)"))
         self.progress_bar.setVisible(False)
         self.progress_label.setVisible(False)

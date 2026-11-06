@@ -199,6 +199,8 @@ class MessageRenderer(QObject):
         self.competition_value_colors = get_competition_value_colors(is_dark_theme)
         self.parser_colors = get_parser_message_colors(self.config, is_dark_theme)
         self.emoticon_cache.clear()
+        if self.image_viewer:
+            self.image_viewer.update_theme(is_dark_theme)
 
     @staticmethod
     def emoji_prefix(text: str, is_private: bool, is_ban: bool, is_system: bool, is_competition: bool = False, is_parser: bool = False) -> str:

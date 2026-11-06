@@ -1,7 +1,7 @@
 import json
 import sys
 
-from PyQt6.QtCore import pyqtSignal, pyqtSlot, QEvent, QSize, Qt
+from PyQt6.QtCore import pyqtSignal, QEvent, QSize, Qt
 from PyQt6.QtGui import QGuiApplication, QIcon, QKeyEvent, QPixmap
 from PyQt6.QtWidgets import (
     QApplication,
@@ -14,6 +14,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from components.avatar import make_rounded_avatar, request_avatar
 from components.button import create_icon_button, render_svg_icon, set_theme
 from components.help_panel import HelpPanel
 from core.state.accounts import AccountManager
@@ -21,13 +22,16 @@ from helpers.cache import get_cache
 from helpers.config import Config, get_config_path
 from helpers.data import get_resource_dir
 from helpers.fonts.fonts import FontType, get_font
-from helpers.load import make_rounded_pixmap
 from helpers.system.startup_manager import StartupManager
 from helpers.translate import on_language_changed, tr, TranslatableMixin
 from helpers.users.username_color_manager import change_username_color, reset_username_color
 from themes.theme import ThemeManager
 from ui.dialogs.web_login_dialog import LoginWebView
 from ui.settings.settings_options import fill_resource_combo
+
+
+_AVATAR_SIZE = 48
+_PLACEHOLDER_ICON_SIZE = 30
 
 
 def _add_account_from_auth_data(account_manager, user_data: dict) -> bool:
@@ -50,7 +54,6 @@ def _add_account_from_auth_data(account_manager, user_data: dict) -> bool:
 
 class AccountWindow(TranslatableMixin, QWidget):
     account_connected = pyqtSignal(dict)
-    _avatar_loaded = pyqtSignal(str, QPixmap)
 
     def __init__(self, config=None):
         super().__init__()
@@ -73,12 +76,10 @@ class AccountWindow(TranslatableMixin, QWidget):
         self.startup_manager = StartupManager()
 
         # Track current avatar loading to avoid race conditions
-        self.current_loading_user_id = None
+        self._loading_user_id = None
 
         # Get standard input height from config
         self.input_height = self._get_config('input_height', 48)
-
-        self._avatar_loaded.connect(self._set_avatar)
 
         # Initialize UI
         self.initializeUI()
@@ -492,58 +493,24 @@ class AccountWindow(TranslatableMixin, QWidget):
         if account and account.get('chat_username'):
             self.account_manager.switch_account(account['chat_username'])
 
-        if not account or not account.get('user_id'):
-            # Reset to default user icon
-            self.current_loading_user_id = None
-            icon = render_svg_icon(self.icons_path / "user.svg", 30)
-            self.account_avatar.setIcon(icon)
-            self.account_avatar.setIconSize(QSize(30, 30))
-            self.account_avatar.setStyleSheet("QPushButton { background: transparent; border: none; }")
-            return
+        user_id = account.get('user_id') if account else None
+        self._loading_user_id = user_id
+        self._show_default_avatar()
+        if user_id:
+            request_avatar(self, user_id, lambda pixmap: self._set_avatar(user_id, pixmap))
 
-        user_id = account['user_id']
+    def _show_default_avatar(self):
+        self.account_avatar.setIcon(render_svg_icon(self.icons_path / "user.svg", _PLACEHOLDER_ICON_SIZE))
+        self.account_avatar.setIconSize(QSize(_PLACEHOLDER_ICON_SIZE, _PLACEHOLDER_ICON_SIZE))
+        self.account_avatar.setStyleSheet("QPushButton { background: transparent; border: none; }")
 
-        # Set this as the current loading user - prevents race conditions
-        self.current_loading_user_id = user_id
-
-        # Try to get from cache first
-        cached_avatar = self.cache.get_avatar(user_id)
-        if cached_avatar:
-            # Only set if this is still the current user
-            if self.current_loading_user_id == user_id:
-                self._set_avatar(user_id, cached_avatar)
-        else:
-            # Set placeholder first
-            icon = render_svg_icon(self.icons_path / "user.svg", 30)
-            self.account_avatar.setIcon(icon)
-            self.account_avatar.setIconSize(QSize(30, 30))
-
-            # Load async with race condition check
-            def avatar_callback(uid: str, pixmap: QPixmap):
-                # Only emit signal if this is still the current user being viewed
-                if uid == self.current_loading_user_id:
-                    self._avatar_loaded.emit(uid, pixmap)
-
-            self.cache.load_avatar_async(user_id, avatar_callback, timeout=3)
-
-    @pyqtSlot(str, QPixmap)
     def _set_avatar(self, user_id: str, pixmap: QPixmap):
-        if user_id != self.current_loading_user_id:
+        """Show the loaded avatar unless another account was selected meanwhile."""
+        if user_id != self._loading_user_id or pixmap.isNull():
             return
-
-        if pixmap and not pixmap.isNull():
-            rounded = make_rounded_pixmap(pixmap, 48, radius=8)
-            self.account_avatar.setIcon(QIcon(rounded))
-            self.account_avatar.setIconSize(QSize(48, 48))
-            self.account_avatar.setStyleSheet(
-                "QPushButton { background: transparent; border: none; padding: 0; }"
-            )
-        else:
-            # Fallback to default icon
-            icon = render_svg_icon(self.icons_path / "user.svg", 30)
-            self.account_avatar.setIcon(icon)
-            self.account_avatar.setIconSize(QSize(30, 30))
-            self.account_avatar.setStyleSheet("QPushButton { background: transparent; border: none; }")
+        self.account_avatar.setIcon(QIcon(make_rounded_avatar(pixmap, _AVATAR_SIZE)))
+        self.account_avatar.setIconSize(QSize(_AVATAR_SIZE, _AVATAR_SIZE))
+        self.account_avatar.setStyleSheet("QPushButton { background: transparent; border: none; padding: 0; }")
 
     def on_web_login(self):
         """Open browser login dialog to add an account."""

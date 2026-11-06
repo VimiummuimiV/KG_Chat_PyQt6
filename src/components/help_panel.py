@@ -184,6 +184,7 @@ IMAGE_KB = [
 IMAGE_MOUSE = [
     ("Click source badge", "Клик по плашке автора",       "Close viewer and scroll to the message with the image", "Закрыть просмотр и перейти к сообщению с изображением"),
     ("Click thumbnail",    "Клик по миниатюре",           "Go to that image", "Перейти к этому изображению"),
+    ("Click close button", "Клик по кнопке закрытия",     "Close image viewer", "Закрыть просмотр изображения"),
     ("Left drag",          "Перетаскивание (ЛКМ)",        "Pan / move image", "Переместить изображение"),
     ("Ctrl + Left drag",   "Ctrl + перетаскивание (ЛКМ)", "Scale image (up / down)", "Масштаб изображения (+ / −)"),
     ("Wheel",              "Колесо мыши",                 "Zoom in / out", "Приблизить / отдалить"),
