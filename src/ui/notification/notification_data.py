@@ -37,6 +37,7 @@ class NotificationData:
     open_room_callback: Optional[Callable] = None
     profile_callback: Optional[Callable] = None  # username → open profile
     competition_entered_callback: Optional[Callable] = None  # game_id → remove chat message + close this notification
+    self_ban_placeholder_callback: Optional[Callable] = None  # () → input placeholder while our own ban is active, else None
     icon: Optional[str] = None  # svg filename fallback avatar for non-user notifications
 
 

@@ -7,8 +7,6 @@ from PyQt6.QtWidgets import QComboBox, QHBoxLayout, QLabel, QSlider, QWidget
 FONT_PREVIEW_BORDER = 1
 FONT_PREVIEW_PADDING = 6
 SLIDER_DEBOUNCE_MS = 150
-SLIDER_GROOVE_HEIGHT = 6
-SLIDER_HANDLE_SIZE = 14
 
 
 def preview_box_colors(theme: str) -> tuple[str, str, str]:
@@ -28,16 +26,13 @@ def preview_box_stylesheet(widget_selector: str, theme: str) -> str:
 
 
 def gradient_slider_stylesheet(color_stops: list[str]) -> str:
-    """Horizontal slider whose groove is an even gradient through the given colors."""
+    """Horizontal slider whose groove is an even gradient; size and square ends match the theme's sliders."""
     last_index = len(color_stops) - 1
     stops = ", ".join(f"stop:{index / last_index:.3f} {color}" for index, color in enumerate(color_stops))
-    handle_margin = (SLIDER_HANDLE_SIZE - SLIDER_GROOVE_HEIGHT) // 2
     return (
-        f"QSlider::groove:horizontal {{ height: {SLIDER_GROOVE_HEIGHT}px; "
-        f"border-radius: {SLIDER_GROOVE_HEIGHT // 2}px; "
-        f"background: qlineargradient(x1:0, y1:0, x2:1, y2:0, {stops}); }}"
-        f"QSlider::handle:horizontal {{ width: {SLIDER_HANDLE_SIZE}px; margin: -{handle_margin}px 0; "
-        f"border-radius: {SLIDER_HANDLE_SIZE // 2}px; background: #F2F2F2; border: 1px solid #404040; }}"
+        f"QSlider::groove:horizontal {{ border-radius: 0; background: qlineargradient(x1:0, y1:0, x2:1, y2:0, {stops}); }}"
+        "QSlider::sub-page:horizontal, QSlider::add-page:horizontal { background: transparent; }"
+        "QSlider::handle:horizontal, QSlider::handle:horizontal:hover { background-color: #F2F2F2; }"
     )
 
 

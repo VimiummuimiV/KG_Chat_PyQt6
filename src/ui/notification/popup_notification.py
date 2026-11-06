@@ -14,6 +14,7 @@ from core.xmpp.messages import Message
 from helpers.colors.color_utils import get_game_message_colors
 from helpers.data import get_resource_dir
 from helpers.fonts.fonts import FontType, get_font
+from helpers.input_style import resolve_input_style
 from helpers.translate import tr
 from ui.chat.ui_emoticon_selector import release_selector
 from ui.messages.message_renderer import MessageRenderer
@@ -62,6 +63,7 @@ class PopupNotification(AutoHidePopupMixin, QWidget):
 
         # Determine theme
         is_dark = data.config.get("ui", "theme") == "dark" if data.config else True
+        self.is_dark = is_dark
 
         # Initialize MessageRenderer
         self.message_renderer = MessageRenderer(
@@ -434,6 +436,19 @@ class PopupNotification(AutoHidePopupMixin, QWidget):
         anim.start()
         self._width_anim = anim
 
+    def _apply_reply_style(self):
+        """Same input look as the chat: private recipient, own ban, regular."""
+        if not self.config:
+            return
+        ban_callback = self.data.self_ban_placeholder_callback
+        sheet, placeholder = resolve_input_style(
+            self.config, self.is_dark,
+            self.data.title if self.data.is_private else None,
+            ban_callback() if ban_callback else None,
+        )
+        self.reply_field.setStyleSheet(sheet)
+        self.reply_field.setPlaceholderText(placeholder)
+
     def _on_answer(self):
         """Toggle reply field visibility. In 'center' reply_style, the popup
         also detaches from its stack and joins the centered focus group."""
@@ -458,6 +473,7 @@ class PopupNotification(AutoHidePopupMixin, QWidget):
             # Show reply field
             self.reply_field_visible = True
             self.reply_container.setVisible(True)
+            self._apply_reply_style()
             if self._reply_style() == "center" and self in self.manager.popups:
                 self.manager.popups.remove(self)
                 self.manager.focused_popups.append(self)

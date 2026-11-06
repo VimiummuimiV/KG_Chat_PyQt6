@@ -137,8 +137,9 @@ class SettingsChatMixin:
             input_layout, tr("Opacity when unfocused", "Прозрачность без фокуса"), 0, INPUT_OPACITY_MAX,
             self._on_input_idle_opacity_changed, default=INPUT_OPACITY_DEFAULT,
         )
-        self.input_opacity_spin.valueChanged.connect(self._limit_input_idle_opacity)
-        self.input_opacity_spin.linked_slider.valueChanged.connect(self._limit_input_idle_opacity)
+        for spin in (self.input_opacity_spin, self.input_idle_opacity_spin):
+            spin.valueChanged.connect(self._clamp_input_idle_opacity)
+            spin.linked_slider.valueChanged.connect(self._clamp_input_idle_opacity)
         self.input_preview = {}
         preview_row = QHBoxLayout()
         for state, placeholder in (("idle", tr("Unfocused", "Без фокуса")), ("focus", tr("Focused", "В фокусе"))):
@@ -228,7 +229,6 @@ class SettingsChatMixin:
                 duration_kind=kind,
             )
             label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            label.setMinimumHeight(26)
             label.setFont(get_font(FontType.UI))
             label.setMargin(0)
             label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
@@ -304,7 +304,6 @@ class SettingsChatMixin:
         )
         self.input_opacity_spin.setValue(input_opacity)
         self.input_opacity_spin.linked_slider.setValue(input_opacity)
-        self._limit_input_idle_opacity()
 
         input_idle_opacity = self.config.get("ui", "input_color", "background_opacity_idle")
         input_idle_opacity = (
@@ -432,11 +431,10 @@ class SettingsChatMixin:
         self.config.set("ui", "input_color", "background_opacity_idle", value=int(value))
         self._on_input_style_changed()
 
-    def _limit_input_idle_opacity(self, _value: int = 0):
+    def _clamp_input_idle_opacity(self, _value: int = 0):
         """The unfocused opacity can never exceed the focused one."""
-        limit = self.input_opacity_spin.value()
-        for widget in (self.input_idle_opacity_spin, self.input_idle_opacity_spin.linked_slider):
-            widget.setMaximum(limit)
+        if self.input_idle_opacity_spin.value() > self.input_opacity_spin.value():
+            self.input_idle_opacity_spin.setValue(self.input_opacity_spin.value())
 
     def _on_mentions_digest_mode_changed(self, _text: str = ""):
         mode = self.mentions_digest_mode_combo.currentData()

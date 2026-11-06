@@ -21,6 +21,11 @@ class ChatSelfBanMixin:
             self.self_ban.clear(self.my_username)
         return 0 if self._self_muted else None
 
+    def self_ban_placeholder(self) -> str | None:
+        """Input placeholder while our own ban is active; None when not banned."""
+        ban_left = self._self_ban_left()
+        return None if ban_left is None else self.self_ban.placeholder(ban_left, self._self_ban_total)
+
     def _on_own_role(self, role: str):
         """Own MUC role in the general room: 'visitor' = muted. Authoritative over notices/storage."""
         was_muted = self._self_muted

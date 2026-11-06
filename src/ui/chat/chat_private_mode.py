@@ -3,13 +3,7 @@
 from PyQt6.QtCore import QTimer
 
 from components.button import create_icon_button
-from helpers.colors.color_utils import (
-    get_input_colors,
-    get_input_stylesheet,
-    get_private_message_colors,
-    get_self_ban_colors,
-)
-from helpers.translate import tr
+from helpers.input_style import resolve_input_style
 from ui.messages.messages_separator import NewMessagesSeparator
 
 
@@ -107,26 +101,17 @@ class ChatPrivateModeMixin:
     def update_input_style(self):
         """Private mode (main input) > self-ban (every input) > default"""
         is_dark = self.theme_manager.is_dark()
-        ban_left = self._self_ban_left()
-        ban_style = (get_self_ban_colors(self.config, is_dark),
-                     self.self_ban.placeholder(ban_left, self._self_ban_total)) if ban_left is not None else None
+        ban_placeholder = self.self_ban_placeholder()
+        private_username = self.private_chat_username if self.private_mode else None
 
-        default_style = (get_input_colors(self.config, is_dark), "")
-        main_style = default_style
-        if self.private_mode:
-            main_style = (get_private_message_colors(self.config, is_dark),
-                          tr(f"Private message to {self.private_chat_username}", f"Приватное сообщение для {self.private_chat_username}"))
-        elif ban_style:
-            main_style = ban_style
-
-        self._style_input(self.input_field, main_style)
+        self._style_input(self.input_field, resolve_input_style(self.config, is_dark, private_username, ban_placeholder))
+        room_style = resolve_input_style(self.config, is_dark, None, ban_placeholder)
         for room in (*self.game_rooms.values(), *self.custom_rooms.values()):
-            self._style_input(room.input_field, ban_style or default_style)
+            self._style_input(room.input_field, room_style)
 
     @staticmethod
     def _style_input(field, style):
-        colors, placeholder = style
-        sheet = get_input_stylesheet(colors)
+        sheet, placeholder = style
         if field.styleSheet() != sheet:
             field.setStyleSheet(sheet)
         field.setPlaceholderText(placeholder)

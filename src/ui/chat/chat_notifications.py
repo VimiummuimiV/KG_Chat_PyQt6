@@ -205,6 +205,7 @@ class ChatNotificationsMixin:
                 is_system=is_system,
                 is_mention=self._message_mentions_me(msg),
                 profile_callback=self._on_username_shift_click,
+                self_ban_placeholder_callback=self.self_ban_placeholder,
             )
         except Exception as e:
             print(f"Notification error: {e}")
