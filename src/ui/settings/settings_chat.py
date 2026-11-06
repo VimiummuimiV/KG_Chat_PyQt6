@@ -5,6 +5,12 @@ from PyQt6.QtWidgets import QHBoxLayout, QSizePolicy, QWidget
 
 from components.flash_highlight import DURATION_KEYS, FlashLabel
 from helpers.browser import get_available_browsers
+from helpers.colors.color_utils import (
+    INPUT_HUE_DEFAULT,
+    INPUT_HUE_MAX,
+    INPUT_SATURATION_DEFAULT,
+    INPUT_SATURATION_MAX,
+)
 from helpers.fonts.fonts import FontType, get_font
 from helpers.translate import tr
 from ui.settings.settings_options import (
@@ -102,6 +108,19 @@ class SettingsChatMixin:
         self.chat_max_messages_spin.linked_slider.setSingleStep(100)
         self.chat_max_messages_spin.linked_slider.setPageStep(500)
         self._add_collapse_toggle(limits_header, limits_content, ("ui", "settings", "widgets", "chat_limits"))
+
+        input_header, input_content, input_layout = self._add_subsection(
+            section, tr("⌨️ Input Field", "⌨️ Строка ввода")
+        )
+        self.input_hue_spin = self._add_slider_spin_row(
+            input_layout, tr("Hue", "Оттенок"), 0, INPUT_HUE_MAX,
+            self._on_input_hue_changed, default=INPUT_HUE_DEFAULT,
+        )
+        self.input_saturation_spin = self._add_slider_spin_row(
+            input_layout, tr("Saturation", "Насыщенность"), 0, INPUT_SATURATION_MAX,
+            self._on_input_saturation_changed, default=INPUT_SATURATION_DEFAULT,
+        )
+        self._add_collapse_toggle(input_header, input_content, ("ui", "settings", "widgets", "chat_input"))
 
         xmpp_header, xmpp_content, xmpp_layout = self._add_subsection(section, "🔌 XMPP")
         self.resource_combo = self._add_combo_row(
@@ -231,6 +250,19 @@ class SettingsChatMixin:
         self.badge_size_spin.setValue(badge_size)
         self.badge_size_spin.linked_slider.setValue(badge_size)
 
+        input_hue = self.config.get("ui", "input_color", "hue")
+        input_hue = INPUT_HUE_DEFAULT if input_hue is None else max(0, min(INPUT_HUE_MAX, int(input_hue)))
+        self.input_hue_spin.setValue(input_hue)
+        self.input_hue_spin.linked_slider.setValue(input_hue)
+
+        input_saturation = self.config.get("ui", "input_color", "saturation")
+        input_saturation = (
+            INPUT_SATURATION_DEFAULT if input_saturation is None
+            else max(0, min(INPUT_SATURATION_MAX, int(input_saturation)))
+        )
+        self.input_saturation_spin.setValue(input_saturation)
+        self.input_saturation_spin.linked_slider.setValue(input_saturation)
+
         fill_mentions_digest_mode_combo(
             self.mentions_digest_mode_combo,
             self.config.get("ui", "chat", "mentions_digest_mode"),
@@ -311,6 +343,14 @@ class SettingsChatMixin:
     def _on_badge_size_changed(self, value: int):
         self.config.set("ui", "chat", "badge_font_size", value=int(value))
         self.tracker_badge_style_changed.emit()
+
+    def _on_input_hue_changed(self, value: int):
+        self.config.set("ui", "input_color", "hue", value=int(value))
+        self.input_style_changed.emit()
+
+    def _on_input_saturation_changed(self, value: int):
+        self.config.set("ui", "input_color", "saturation", value=int(value))
+        self.input_style_changed.emit()
 
     def _on_mentions_digest_mode_changed(self, _text: str = ""):
         mode = self.mentions_digest_mode_combo.currentData()

@@ -80,6 +80,7 @@ class SettingsWidget(
     competition_log_clear_requested = pyqtSignal()
     font_family_changed = pyqtSignal()
     tracker_badge_style_changed = pyqtSignal()
+    input_style_changed = pyqtSignal()
     tracker_enabled_changed = pyqtSignal(bool)
     tracker_presence_log_changed = pyqtSignal(bool)
     tracker_userlist_star_changed = pyqtSignal(bool)
@@ -381,7 +382,8 @@ class SettingsWidget(
             self.chatlog_max_messages_spin, self.chatlog_live_search_spin,
             self.chatlog_filtered_click_combo,
             self.parser_validate_usernames_checkbox,
-            self.badge_size_spin, self.mentions_digest_mode_combo,
+            self.badge_size_spin, self.input_hue_spin, self.input_saturation_spin,
+            self.mentions_digest_mode_combo,
             self.mentions_digest_interval_spin,
             self.flash_easing_combo, self.flash_row_duration_spin, self.flash_copy_duration_spin,
             self.browser_combo,

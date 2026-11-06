@@ -185,6 +185,7 @@ class ChatPanelsMixin:
             self.settings_widget.tracker_badge_style_changed.connect(
                 self.button_panel.refresh_tracker_badge_style
             )
+            self.settings_widget.input_style_changed.connect(self.update_input_style)
             self.settings_widget.tracker_presence_log_changed.connect(
                 self.set_presence_log_enabled
             )

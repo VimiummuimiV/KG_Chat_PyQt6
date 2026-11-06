@@ -4,7 +4,7 @@ from PyQt6.QtCore import QTimer
 
 from components.button import create_icon_button
 from helpers.colors.color_utils import (
-    get_input_selection_colors,
+    get_input_colors,
     get_private_message_colors,
     get_self_ban_colors,
 )
@@ -110,29 +110,28 @@ class ChatPrivateModeMixin:
         ban_style = (get_self_ban_colors(self.config, is_dark),
                      self.self_ban.placeholder(ban_left, self._self_ban_total)) if ban_left is not None else None
 
-        main_style = None
+        default_style = (get_input_colors(self.config, is_dark), "")
+        main_style = default_style
         if self.private_mode:
             main_style = (get_private_message_colors(self.config, is_dark),
                           tr(f"Private message to {self.private_chat_username}", f"Приватное сообщение для {self.private_chat_username}"))
         elif ban_style:
             main_style = ban_style
 
-        selection_colors = get_input_selection_colors(self.config, is_dark)
-        self._style_input(self.input_field, main_style, selection_colors)
+        self._style_input(self.input_field, main_style)
         for room in (*self.game_rooms.values(), *self.custom_rooms.values()):
-            self._style_input(room.input_field, ban_style, selection_colors)
+            self._style_input(room.input_field, ban_style or default_style)
 
     @staticmethod
-    def _style_input(field, style, selection_colors):
-        colors, placeholder = style or (selection_colors, "")
-        frame = f"""
+    def _style_input(field, style):
+        colors, placeholder = style
+        sheet = f"""
+            QLineEdit {{
                 background-color: {colors["input_bg"]};
                 color: {colors["text"]};
                 border: 2px solid {colors["input_border"]};
                 border-radius: 4px;
-                padding: 8px;""" if style else ""
-        sheet = f"""
-            QLineEdit {{{frame}
+                padding: 8px;
                 selection-background-color: {colors["selection_bg"]};
                 selection-color: {colors["selection_text"]};
             }}

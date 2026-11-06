@@ -81,11 +81,19 @@ def blend_hex_colors(base_hex: str, accent_hex: str, ratio: float = 0.15) -> str
     ))
 
 
+INPUT_HUE_DEFAULT = 210
+INPUT_HUE_MAX = 359
+INPUT_SATURATION_DEFAULT = 25
+INPUT_SATURATION_MAX = 100
+
+
 def _themed_hsl_colors(config, section, default_hue, default_sat, is_dark_theme,
                         dark_values, light_values) -> dict:
     """Shared lookup for the get_*_message_colors helpers below."""
-    hue = config.get("ui", section, "hue") or default_hue
-    saturation = config.get("ui", section, "saturation") or default_sat
+    hue = config.get("ui", section, "hue")
+    hue = default_hue if hue is None else hue
+    saturation = config.get("ui", section, "saturation")
+    saturation = default_sat if saturation is None else saturation
     lightness_values = dark_values if is_dark_theme else light_values
     return {key: hsl_to_hex(hue, saturation, lightness) for key, lightness in lightness_values.items()}
 
@@ -106,12 +114,12 @@ def get_self_ban_colors(config, is_dark_theme: bool) -> dict:
     )
 
 
-def get_input_selection_colors(config, is_dark_theme: bool) -> dict:
-    """Text selection colors of the regular input (outside private mode and self-ban)."""
+def get_input_colors(config, is_dark_theme: bool) -> dict:
+    """Colors of the regular input (outside private mode and self-ban)."""
     return _themed_hsl_colors(
-        config, "input_selection_color", 210, 75, is_dark_theme,
-        {"selection_bg": 40, "selection_text": 95},
-        {"selection_bg": 75, "selection_text": 15},
+        config, "input_color", INPUT_HUE_DEFAULT, INPUT_SATURATION_DEFAULT, is_dark_theme,
+        {"text": 90, "input_bg": 25, "input_border": 30, "selection_bg": 50, "selection_text": 95},
+        {"text": 15, "input_bg": 92, "input_border": 75, "selection_bg": 70, "selection_text": 10},
     )
 
 
