@@ -10,6 +10,7 @@ from helpers.fonts.fonts import FontType, get_font
 from helpers.pets.catalog import (
     list_pet_kinds,
     MAXIMUM_PET_COUNT,
+    DEFAULT_SIZE_MULTIPLIER,
     MAXIMUM_SIZE_MULTIPLIER,
     pet_counts,
     pet_size_multiplier,
@@ -134,7 +135,7 @@ class SettingsPetsMixin:
         for species in self._pet_species_kinds:
             spin = self._add_slider_spin_row(
                 size_layout, species.title(), 1, MAXIMUM_SIZE_MULTIPLIER,
-                lambda value, species=species: self._on_pet_size_changed(species, value), default=1,
+                lambda value, species=species: self._on_pet_size_changed(species, value), default=DEFAULT_SIZE_MULTIPLIER,
             )
             spin.setPrefix("×")
             self._pet_size_spins[species] = spin

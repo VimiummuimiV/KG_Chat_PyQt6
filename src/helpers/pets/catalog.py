@@ -10,6 +10,7 @@ from helpers.data import get_resource_dir
 
 MAXIMUM_PET_COUNT = 10
 MAXIMUM_SIZE_MULTIPLIER = 10
+DEFAULT_SIZE_MULTIPLIER = 2
 _DEFAULT_PET_COUNTS = {"dog/akita": 1}
 _SPRITE_SUFFIX = "_8fps.gif"
 # Longest names first so "walk_fast" is not read as "walk".
@@ -114,7 +115,7 @@ def pets_stepped(config) -> bool:
 
 def pet_size_multiplier(config, species: str) -> int:
     """Return the size the user chose for a species: how many times its base size."""
-    multiplier = (config.get("ui", "pets", "sizes") or {}).get(species, 1)
+    multiplier = (config.get("ui", "pets", "sizes") or {}).get(species, DEFAULT_SIZE_MULTIPLIER)
     return max(1, min(int(multiplier), MAXIMUM_SIZE_MULTIPLIER))
 
 
