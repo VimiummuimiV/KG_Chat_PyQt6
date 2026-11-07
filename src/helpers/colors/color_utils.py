@@ -86,6 +86,7 @@ INPUT_HUE_MAX = 359
 INPUT_SATURATION_DEFAULT = 30
 INPUT_SATURATION_MAX = 100
 INPUT_OPACITY_DEFAULT = 60
+INPUT_IDLE_OPACITY_DEFAULT = 50
 INPUT_OPACITY_MAX = 100
 
 
@@ -116,9 +117,9 @@ def get_self_ban_colors(config, is_dark_theme: bool) -> dict:
     )
 
 
-def _input_opacity(config, key: str) -> int:
+def _input_opacity(config, key: str, default: int) -> int:
     value = config.get("ui", "input_color", key)
-    return INPUT_OPACITY_DEFAULT if value is None else value
+    return default if value is None else value
 
 
 def _rgba_css(hex_color: str, opacity: int) -> str:
@@ -157,8 +158,8 @@ def get_input_colors(config, is_dark_theme: bool) -> dict:
         {"text": 90, "input_bg": 25, "input_border": 30, "selection_bg": 50, "selection_text": 95},
         {"text": 15, "input_bg": 92, "input_border": 75, "selection_bg": 70, "selection_text": 10},
     )
-    opacity = _input_opacity(config, "background_opacity")
-    idle_opacity = min(opacity, _input_opacity(config, "background_opacity_idle"))
+    opacity = _input_opacity(config, "background_opacity", INPUT_OPACITY_DEFAULT)
+    idle_opacity = min(opacity, _input_opacity(config, "background_opacity_idle", INPUT_IDLE_OPACITY_DEFAULT))
     border = colors["input_border"]
     colors["input_bg_idle"] = _rgba_css(colors["input_bg"], idle_opacity)
     colors["input_bg"] = _rgba_css(colors["input_bg"], opacity)

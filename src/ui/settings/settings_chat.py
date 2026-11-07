@@ -11,6 +11,7 @@ from helpers.colors.color_utils import (
     hsl_to_hex,
     INPUT_HUE_DEFAULT,
     INPUT_HUE_MAX,
+    INPUT_IDLE_OPACITY_DEFAULT,
     INPUT_OPACITY_DEFAULT,
     INPUT_OPACITY_MAX,
     INPUT_SATURATION_DEFAULT,
@@ -135,7 +136,7 @@ class SettingsChatMixin:
         )
         self.input_idle_opacity_spin = self._add_slider_spin_row(
             input_layout, tr("Opacity when unfocused", "Прозрачность без фокуса"), 0, INPUT_OPACITY_MAX,
-            self._on_input_idle_opacity_changed, default=INPUT_OPACITY_DEFAULT,
+            self._on_input_idle_opacity_changed, default=INPUT_IDLE_OPACITY_DEFAULT,
         )
         for spin in (self.input_opacity_spin, self.input_idle_opacity_spin):
             spin.valueChanged.connect(self._clamp_input_idle_opacity)
@@ -308,7 +309,7 @@ class SettingsChatMixin:
 
         input_idle_opacity = self.config.get("ui", "input_color", "background_opacity_idle")
         input_idle_opacity = (
-            INPUT_OPACITY_DEFAULT if input_idle_opacity is None else max(0, int(input_idle_opacity))
+            INPUT_IDLE_OPACITY_DEFAULT if input_idle_opacity is None else max(0, int(input_idle_opacity))
         )
         input_idle_opacity = min(input_idle_opacity, input_opacity)
         self.input_idle_opacity_spin.setValue(input_idle_opacity)
