@@ -113,8 +113,6 @@ class RoomWidget(TranslatableMixin, QWidget):
         left.addWidget(self.input_row)
         body.addLayout(left, stretch=3)
 
-        self.pet_overlay = PetOverlay(self, self.input_row, self.config)
-
         # Right column: userlist + font slider (same layout as general chat)
         self.userlist_panel = QWidget()
         ul_layout = QVBoxLayout()
@@ -149,6 +147,8 @@ class RoomWidget(TranslatableMixin, QWidget):
         body.addWidget(self.userlist_panel)
 
         root.addLayout(body, stretch=1)
+        # After the layout tree is attached so input_row is under this widget for mapTo
+        self.pet_overlay = PetOverlay(self, self.input_row, self.config)
 
     def tab_title(self) -> str:
         if self.room_name:

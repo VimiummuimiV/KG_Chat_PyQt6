@@ -34,8 +34,22 @@ class PetOverlay(QWidget):
         self.hide()
         self.reload()
 
+    def shutdown(self) -> None:
+        """Detach filters/parent so a deferred _place cannot mapTo after the room is gone."""
+        self._timer.stop()
+        if self._anchor is not None:
+            self._anchor.removeEventFilter(self)
+        parent = self.parentWidget()
+        if parent is not None:
+            parent.removeEventFilter(self)
+        self.hide()
+        self.setParent(None)
+        self._anchor = None
+
     def reload(self) -> None:
         """Apply the pet options from the config, keeping pets that stay on."""
+        if self._anchor is None:
+            return
         counts = pet_counts(self._config) if pets_enabled(self._config) else {}
         spare: dict[tuple[str, int], list[Pet]] = {}
         for pet in self._pets:
@@ -111,7 +125,12 @@ class PetOverlay(QWidget):
         )
 
     def _place(self) -> None:
-        top_left = self._anchor.mapTo(self.parentWidget(), QPoint(0, 0))
+        if self._anchor is None:
+            return
+        parent = self.parentWidget()
+        if parent is None:
+            return
+        top_left = self._anchor.mapTo(parent, QPoint(0, 0))
         if not self._pets or not self._anchor.isVisible() or top_left.y() <= 0:
             self.hide()
             return
