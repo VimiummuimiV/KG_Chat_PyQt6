@@ -1,0 +1,97 @@
+"""Pet sprite animations loaded from GIF files."""
+
+import math
+from dataclasses import dataclass
+from functools import lru_cache
+
+from PyQt6.QtCore import QRect, Qt
+from PyQt6.QtGui import QBitmap, QImage, QImageReader, QPixmap, QRegion
+
+from helpers.pets.catalog import PetKind, PixelGrid
+
+
+_MINIMUM_FRAME_MS = 10
+_GRID_TOLERANCE = 0.05  # cells; absorbs float error when the canvas holds a whole number of cells
+_LUNGE_RATIO = 0.6  # share of a frame during which a step moves the pet; the rest of the frame it stays planted
+
+
+@dataclass(frozen=True)
+class PetAnimation:
+    """Frames of one pet state facing right and mirrored, with timing and visible area."""
+
+    frames_right: tuple[QPixmap, ...]
+    frames_left: tuple[QPixmap, ...]
+    frame_ends_ms: tuple[int, ...]
+    body: QRect  # union of the visible pixels over all frames, facing right
+
+    @property
+    def cycle_ms(self) -> int:
+        return self.frame_ends_ms[-1]
+
+    def pixmap(self, elapsed_ms: int, facing_right: bool) -> QPixmap:
+        """Return the frame shown after elapsed_ms of the looping animation."""
+        index, _ = self._frame_at(elapsed_ms % self.cycle_ms)
+        return (self.frames_right if facing_right else self.frames_left)[index]
+
+    def stepped_ms(self, elapsed_ms: int) -> float:
+        """Return elapsed_ms with each frame's time pulled to its start: motion measured by it advances in steps."""
+        cycles, moment = divmod(elapsed_ms, self.cycle_ms)
+        index, start = self._frame_at(moment)
+        delay = self.frame_ends_ms[index] - start
+        progress = min((moment - start) / delay / _LUNGE_RATIO, 1.0)
+        return cycles * self.cycle_ms + start + delay * progress * progress * (3 - 2 * progress)
+
+    def _frame_at(self, moment_ms: int) -> tuple[int, int]:
+        """Return the index and start time of the frame shown at moment_ms of one cycle."""
+        index = next(index for index, end in enumerate(self.frame_ends_ms) if moment_ms < end)
+        return index, self.frame_ends_ms[index - 1] if index else 0
+
+    def visible_span(self, facing_right: bool) -> tuple[int, int]:
+        """Return the horizontal [left, right) range of the visible pixels inside the frame."""
+        right = self.body.x() + self.body.width()
+        if facing_right:
+            return self.body.x(), right
+        width = self.frames_right[0].width()
+        return width - right, width - self.body.x()
+
+
+def _cell_centers(length: int, scale: float, offset: int) -> list[int]:
+    """Return the source pixel at the middle of every art cell along one axis."""
+    count = math.ceil((length - offset) / scale - _GRID_TOLERANCE)
+    centers = [min(length - 1, int(offset + (cell + 0.5) * scale)) for cell in range(count)]
+    return [offset // 2, *centers] if offset else centers
+
+
+def _redraw_at_pixel_size(image: QImage, grid: PixelGrid, pixel_size: int) -> QImage:
+    """Rebuild the original art from the upscaled frame and enlarge it by a whole factor."""
+    columns = _cell_centers(image.width(), grid.scale[0], grid.offset[0])
+    rows = _cell_centers(image.height(), grid.scale[1], grid.offset[1])
+    art = QImage(len(columns), len(rows), QImage.Format.Format_ARGB32)
+    for row_index, row in enumerate(rows):
+        for column_index, column in enumerate(columns):
+            art.setPixel(column_index, row_index, image.pixel(column, row))
+    return art.scaled(
+        art.width() * pixel_size, art.height() * pixel_size,
+        Qt.AspectRatioMode.IgnoreAspectRatio, Qt.TransformationMode.FastTransformation,
+    )
+
+
+@lru_cache(maxsize=None)
+def load_animation(kind: PetKind, state: str, pixel_size: int) -> PetAnimation:
+    """Load one state of a pet; every art pixel becomes pixel_size screen pixels, never a fraction."""
+    reader = QImageReader(str(kind.sprite_path(state)))
+    frames_right, frames_left, frame_ends_ms = [], [], []
+    body = QRect()
+    elapsed_ms = 0
+    while reader.canRead():
+        delay_ms = max(reader.nextImageDelay(), _MINIMUM_FRAME_MS)
+        image = reader.read()
+        if image.isNull():
+            break
+        image = _redraw_at_pixel_size(image.convertToFormat(QImage.Format.Format_ARGB32), kind.pixel_grid, pixel_size)
+        frames_right.append(QPixmap.fromImage(image))
+        frames_left.append(QPixmap.fromImage(image.mirrored(True, False)))
+        elapsed_ms += delay_ms
+        frame_ends_ms.append(elapsed_ms)
+        body = body.united(QRegion(QBitmap.fromImage(image.createAlphaMask())).boundingRect())
+    return PetAnimation(tuple(frames_right), tuple(frames_left), tuple(frame_ends_ms), body)

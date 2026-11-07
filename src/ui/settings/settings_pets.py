@@ -1,0 +1,183 @@
+"""SettingsWidget: pets master switch, per-kind pet counts and per-species pixel sizes."""
+
+from itertools import groupby
+
+from PyQt6.QtCore import pyqtSignal, QRect, Qt
+from PyQt6.QtGui import QImage, QPainter, QPixmap
+from PyQt6.QtWidgets import QGridLayout, QLabel, QVBoxLayout, QWidget
+
+from helpers.fonts.fonts import FontType, get_font
+from helpers.pets.catalog import (
+    list_pet_kinds,
+    MAXIMUM_PET_COUNT,
+    pet_counts,
+    pet_pixel_size,
+    pets_enabled,
+    pets_stepped,
+)
+from helpers.translate import tr
+
+
+_TILE_COLUMNS = 8
+_TILE_SIZE = 40
+_DIMMED_OPACITY = 0.35
+_BADGE_HEIGHT = 14
+_BADGE_PADDING = 6
+_BADGE_FONT_PIXELS = 10
+_BADGE_RADIUS = 4
+_HINT_FONT_SCALE = 0.85
+
+
+def _dimmed_grayscale_pixmap(pixmap: QPixmap) -> QPixmap:
+    """Return the pixmap in grays and faded, keeping its transparency."""
+    image = pixmap.toImage().convertToFormat(QImage.Format.Format_ARGB32)
+    gray = image.convertToFormat(QImage.Format.Format_Grayscale8).convertToFormat(QImage.Format.Format_ARGB32)
+    gray.setAlphaChannel(image.convertToFormat(QImage.Format.Format_Alpha8))
+    dimmed = QPixmap(gray.size())
+    dimmed.fill(Qt.GlobalColor.transparent)
+    painter = QPainter(dimmed)
+    painter.setOpacity(_DIMMED_OPACITY)
+    painter.drawImage(0, 0, gray)
+    painter.end()
+    return dimmed
+
+
+class _PetTile(QLabel):
+    """Icon of one pet kind: left click adds a pet, right click removes one."""
+
+    added = pyqtSignal()
+    removed = pyqtSignal()
+
+    def __init__(self, icon: QPixmap, tooltip: str):
+        super().__init__()
+        self._icons = (_dimmed_grayscale_pixmap(icon), icon)
+        self._count = 0
+        self.setFixedSize(_TILE_SIZE, _TILE_SIZE)
+        self.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setToolTip(tooltip)
+        self.set_count(0)
+
+    def set_count(self, count: int) -> None:
+        self._count = count
+        self.setPixmap(self._icons[count > 0])
+        self.update()
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.added.emit()
+        elif event.button() == Qt.MouseButton.RightButton:
+            self.removed.emit()
+
+    def paintEvent(self, event):
+        super().paintEvent(event)
+        if self._count < 2:
+            return
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        font = painter.font()
+        font.setBold(True)
+        font.setPixelSize(_BADGE_FONT_PIXELS)
+        painter.setFont(font)
+        text = str(self._count)
+        width = max(_BADGE_HEIGHT, painter.fontMetrics().horizontalAdvance(text) + _BADGE_PADDING)
+        badge = QRect(self.width() - width, self.height() - _BADGE_HEIGHT, width, _BADGE_HEIGHT)
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(self.palette().highlight())
+        painter.drawRoundedRect(badge, _BADGE_RADIUS, _BADGE_RADIUS)
+        painter.setPen(self.palette().highlightedText().color())
+        painter.drawText(badge, Qt.AlignmentFlag.AlignCenter, text)
+
+
+class SettingsPetsMixin:
+    """SettingsWidget: pets master switch, per-kind pet counts and per-species pixel sizes."""
+
+    def _build_pets_section(self):
+        section = self._create_section(tr("🐾 Pets", "🐾 Питомцы"))
+        self.pets_checkbox = self._add_checkbox(
+            section, tr("Pets walk above the input line", "Питомцы гуляют над строкой ввода"), self._on_pets_toggled
+        )
+        self.pets_stepped_checkbox = self._add_checkbox(
+            section, tr("Move in steps like real paws", "Двигаться шагами, как на настоящих лапах"), self._on_pets_stepped_toggled
+        )
+        hint = tr("Left click: add a pet · Right click: remove one", "ЛКМ: добавить питомца · ПКМ: убрать")
+        hint_label = QLabel(hint)
+        hint_font = get_font(FontType.UI)
+        hint_font.setPointSizeF(hint_font.pointSizeF() * _HINT_FONT_SCALE)
+        hint_label.setFont(hint_font)
+        hint_label.setStyleSheet("color: palette(placeholder-text);")
+        section.addWidget(hint_label)
+        self.register_tr(hint_label.setText, hint)
+        tiles_widget = QWidget()
+        grid = QGridLayout(tiles_widget)
+        grid.setContentsMargins(0, 0, 0, 0)
+        grid.setSpacing(2)
+        grid.setAlignment(Qt.AlignmentFlag.AlignLeft)
+        self._pet_tiles = {}
+        self._pet_species_kinds = {}
+        row = 0
+        for species, species_kinds in groupby(list_pet_kinds(), key=lambda kind: kind.species):
+            self._pet_species_kinds[species] = species_kinds = list(species_kinds)
+            for index, kind in enumerate(species_kinds):
+                tile = _PetTile(QPixmap(str(kind.icon_path)), kind.title)
+                tile.added.connect(lambda key=kind.key: self._on_pet_added(key))
+                tile.removed.connect(lambda key=kind.key: self._on_pet_removed(key))
+                grid.addWidget(tile, row + index // _TILE_COLUMNS, index % _TILE_COLUMNS)
+                self._pet_tiles[kind.key] = tile
+            row += index // _TILE_COLUMNS + 1
+        section.addWidget(tiles_widget)
+        size_layout = QVBoxLayout()
+        size_layout.setSpacing(self._spacing())
+        section.addLayout(size_layout)
+        self._pet_size_spins = {}
+        for species, species_kinds in self._pet_species_kinds.items():
+            spin = self._add_slider_spin_row(
+                size_layout, species.title(), 1, min(kind.maximum_pixel_size for kind in species_kinds),
+                lambda value, species=species: self._on_pet_size_changed(species, value), default=1,
+            )
+            spin.setPrefix("×")
+            self._pet_size_spins[species] = spin
+
+    def _refresh_pets(self):
+        self.pets_checkbox.setChecked(pets_enabled(self.config))
+        self.pets_stepped_checkbox.setChecked(pets_stepped(self.config))
+        counts = pet_counts(self.config)
+        for key, tile in self._pet_tiles.items():
+            tile.set_count(counts.get(key, 0))
+        for species, spin in self._pet_size_spins.items():
+            kinds = self._pet_species_kinds[species]
+            spin.parentWidget().setVisible(any(kind.key in counts for kind in kinds))
+            size = min(pet_pixel_size(self.config, kinds[0]), spin.maximum())
+            spin.setValue(size)
+            spin.linked_slider.setValue(size)
+
+    def _on_pets_toggled(self, checked: bool):
+        self.config.set("ui", "pets", "enabled", value=checked)
+        self.pets_changed.emit()
+
+    def _on_pets_stepped_toggled(self, checked: bool):
+        self.config.set("ui", "pets", "stepped", value=checked)
+        self.pets_changed.emit()
+
+    def _on_pet_size_changed(self, species: str, value: int):
+        sizes = dict(self.config.get("ui", "pets", "sizes") or {})
+        sizes[species] = int(value)
+        self.config.set("ui", "pets", "sizes", value=sizes)
+        self.pets_changed.emit()
+
+    def _on_pet_added(self, key: str):
+        self._change_pet_count(key, 1)
+
+    def _on_pet_removed(self, key: str):
+        self._change_pet_count(key, -1)
+
+    def _change_pet_count(self, key: str, step: int):
+        counts = pet_counts(self.config)
+        count = max(0, min(counts.get(key, 0) + step, MAXIMUM_PET_COUNT))
+        if count:
+            counts[key] = count
+        else:
+            counts.pop(key, None)
+        self.config.set("ui", "pets", "counts", value=counts)
+        self._refresh_pets()
+        self.pets_changed.emit()

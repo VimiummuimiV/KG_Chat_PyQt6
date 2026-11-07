@@ -203,6 +203,7 @@ class ChatPanelsMixin:
             )
             self.settings_widget.font_family_changed.connect(self.on_font_family_changed)
             self.settings_widget.resource_changed.connect(self.manual_reconnect)
+            self.settings_widget.pets_changed.connect(self.pet_overlay.reload)
             self.stacked_widget.addWidget(self.settings_widget)
         else:
             # Reflect any state changed elsewhere (tray menu, hotkeys) since it was last shown

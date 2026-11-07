@@ -28,6 +28,7 @@ from ui.settings.settings_general import SettingsGeneralMixin
 from ui.settings.settings_hotkey import SettingsHotkeyMixin
 from ui.settings.settings_image_viewer import SettingsImageViewerMixin
 from ui.settings.settings_notifications import SettingsNotificationsMixin
+from ui.settings.settings_pets import SettingsPetsMixin
 from ui.settings.settings_options import (
     fill_alert_chat_action_combo,
     fill_chatlog_filtered_click_combo,
@@ -68,6 +69,7 @@ class SettingsWidget(
     SettingsHotkeyMixin,
     SettingsImageViewerMixin,
     SettingsNotificationsMixin,
+    SettingsPetsMixin,
     SettingsPlayerMixin,
     SettingsSoundMixin,
     SettingsTrackerMixin,
@@ -86,6 +88,7 @@ class SettingsWidget(
     tracker_userlist_star_changed = pyqtSignal(bool)
     tracker_presence_log_split_changed = pyqtSignal(int)
     resource_changed = pyqtSignal()
+    pets_changed = pyqtSignal()
 
     def __init__(self, config, icons_path: Path, font_scaler=None, emoticon_manager=None):
         super().__init__()
@@ -359,6 +362,7 @@ class SettingsWidget(
         self._build_chat_section()
         self._build_player_section()
         self._build_image_viewer_section()
+        self._build_pets_section()
         self._build_fonts_section()
         self._build_notifications_section()
         self._build_competitions_section()
@@ -379,6 +383,7 @@ class SettingsWidget(
             self.player_ytdl_format_combo,
             self.image_viewer_thumbnails_checkbox, self.image_viewer_slideshow_spin,
             self.image_viewer_transition_combo, self.image_viewer_transition_spin,
+            self.pets_checkbox, self.pets_stepped_checkbox, *self._pet_size_spins.values(),
             self.chatlog_max_messages_spin, self.chatlog_live_search_spin,
             self.chatlog_filtered_click_combo,
             self.parser_validate_usernames_checkbox,
@@ -418,6 +423,7 @@ class SettingsWidget(
         self._refresh_general()
         self._refresh_player()
         self._refresh_image_viewer()
+        self._refresh_pets()
         self._refresh_chat()
         self._refresh_hotkey_row()
         self._refresh_fonts()

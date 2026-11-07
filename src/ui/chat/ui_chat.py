@@ -48,6 +48,7 @@ from ui.chat.chat_views import ChatViewsMixin
 from ui.chat.ui_buttons import ButtonPanel
 from ui.chat.ui_emoticon_selector import EmoticonSelectorWidget
 from ui.chat.ui_messages import MessagesWidget
+from ui.chat.ui_pets import PetOverlay
 from ui.chat.ui_userlist import UserListWidget
 from ui.chat.voice_input_attach import install_voice_input
 from ui.notification.popup_manager import popup_manager
@@ -450,6 +451,8 @@ class ChatWindow(
         else:
             # Default to visible
             self.button_panel.set_button_state(self.button_panel.toggle_userlist_button, True)
+
+        self.pet_overlay = PetOverlay(self, self.input_container, self.config)
 
         # Emoticon selector widget (overlay - positioned absolutely)
         # Create AFTER userlist so positioning works correctly

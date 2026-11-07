@@ -1,0 +1,12 @@
+{
+  "chicken": {"scale": [5.2857, 5.3158]},
+  "clippy": {"scale": 2},
+  "dog/akita": {"scale": [6, 6.0526]},
+  "dog/black": {"scale": 5},
+  "dog/brown": {"scale": 5},
+  "dog/white": {"scale": 5},
+  "fox/red": {"scale": 2, "offset": [0, 1]},
+  "fox/white": {"scale": 4, "offset": [2, 3]},
+  "rat": {"scale": 5},
+  "snail": {"scale": 4}
+}
