@@ -48,7 +48,7 @@ def install_voice_input(window) -> MicButton:
     mic.set_device(saved_name, saved_index)
     mic.setVisible(bool(_cfg_get(config, "voice_input", "enabled", default=True)))
 
-    window.input_row.insert_before_send(mic)  # [input] [mic] [send] [emoji]
+    window.input_row.append_button(mic)  # [input] [send] [emoji] [mic]
 
     window.voice_input = engine
     window.mic_button = mic

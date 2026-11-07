@@ -50,12 +50,8 @@ class InputRow(TranslatableMixin, QWidget):
             self._layout.addWidget(self.emoticon_button)
         on_language_changed(self.retranslate_all)
 
-    def insert_before_send(self, widget: QWidget):
-        """Place a widget (e.g. the microphone) directly left of the send button."""
-        self._layout.insertWidget(self._layout.indexOf(self.send_button), widget)
-
     def append_button(self, widget: QWidget):
-        """Place a widget at the right end of the row."""
+        """Place an extra button (microphone, exit private mode) after the send and emoticon buttons."""
         self._layout.addWidget(widget)
 
     def insert_emoticon(self, emoticon_name: str):
