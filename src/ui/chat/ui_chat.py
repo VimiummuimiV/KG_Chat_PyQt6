@@ -130,6 +130,7 @@ class ChatWindow(
         self._history_settle_timer = QTimer(self)  # fires when history stream goes quiet
         self._history_settle_timer.setSingleShot(True)
         self._history_settle_timer.timeout.connect(self._on_history_settled)
+        self._history_settle_timer.timeout.connect(self.release_memory_soon)
 
         # Live-updating competition messages: game_id -> {mult, url, begintime, players}
         self._competition_live = {}

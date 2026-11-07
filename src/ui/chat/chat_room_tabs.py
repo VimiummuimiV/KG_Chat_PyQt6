@@ -411,6 +411,7 @@ class ChatRoomTabsMixin:
         widget.cleanup()
         widget.setParent(None)
         widget.deleteLater()
+        self.release_memory_soon()
 
         # Last room closed → collapse back to plain General view,
         # so a lone permanent tab doesn't waste vertical space.

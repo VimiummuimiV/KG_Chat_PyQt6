@@ -6,6 +6,7 @@ from PyQt6.QtWidgets import QApplication
 from components.button import set_theme, update_all_icons
 from components.tag_button import update_all_tag_buttons
 from helpers.fonts.fonts import set_application_font
+from helpers.system.memory import release_unused_memory
 
 
 class ChatLifecycleMixin:
@@ -205,3 +206,7 @@ class ChatLifecycleMixin:
         if getattr(self, "voice_input", None):
             self.voice_input.shutdown()
         event.accept()
+
+    def release_memory_soon(self):
+        """gc + return freed pages after deleteLater has run (same delay as image viewer)."""
+        QTimer.singleShot(500, release_unused_memory)
