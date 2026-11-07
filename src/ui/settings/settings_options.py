@@ -4,7 +4,7 @@ from PyQt6.QtCore import Qt
 
 from components.flash_highlight import TIMING_FUNCTIONS
 from components.image_viewer.layer import TRANSITION_MODES
-from components.image_viewer.options import DEFAULT_TRANSITION_MODE
+from components.image_viewer.options import DEFAULT_REPLY_MODE, DEFAULT_TRANSITION_MODE, REPLY_MODE_CLOSE, REPLY_MODE_INLINE
 from helpers.translate import tr
 
 
@@ -216,6 +216,17 @@ def flash_easing_options():
     return tuple((key, labels[key], labels[key]) for key in TIMING_FUNCTIONS)
 
 
+def image_reply_mode_options():
+    return [
+        (REPLY_MODE_INLINE, tr("Field in the viewer", "Поле в просмотрщике"),
+         tr("Write the reply in an input field over the viewer; the viewer stays open.",
+            "Писать ответ в поле ввода поверх просмотрщика; просмотрщик остаётся открытым.")),
+        (REPLY_MODE_CLOSE, tr("Close the viewer", "Закрыть просмотрщик"),
+         tr("Close the viewer and write the reply in the chat input.",
+            "Закрыть просмотрщик и писать ответ в строке ввода чата.")),
+    ]
+
+
 def image_transition_options():
     labels = {
         "instant": (tr("Instant", "Мгновенно"),
@@ -421,6 +432,10 @@ def fill_mentions_digest_mode_combo(combo, current=None):
 
 def fill_flash_easing_combo(combo, current=None):
     fill_tooltip_combo(combo, flash_easing_options(), current, DEFAULTS["chat"]["flash_easing"])
+
+
+def fill_image_reply_mode_combo(combo, current=None):
+    fill_tooltip_combo(combo, image_reply_mode_options(), current, DEFAULT_REPLY_MODE)
 
 
 def fill_image_transition_combo(combo, current=None):

@@ -29,7 +29,7 @@ from components.flash_highlight import (
     paint_flash,
     RowFlashMixin,
 )
-from components.image_viewer.gallery import DayNavigation, first_image, ImageGallery, is_image_url
+from components.image_viewer.gallery import DayNavigation, first_image, ImageGallery, InlineReply, is_image_url
 from helpers.cache import get_cache
 from helpers.data import get_resource_dir
 from helpers.fonts.fonts import FontType, get_font
@@ -39,6 +39,7 @@ from helpers.text.me_action import format_me_action
 from helpers.translate import tr
 from ui.messages.message_renderer import MessageRenderer
 from ui.messages.messages_separator import DateSeparator, NewMessagesSeparator
+from ui.notification.popup_manager import popup_manager
 
 
 _DARK  = dict(bg="#0A0A0A", fg="#D4D4D4", sel_bg="#2E7D32", sel_fg="#E8F5E9")
@@ -255,6 +256,7 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
         self.click_rects: Dict[int, Dict] = {}
         self.reply_callback = None
         self.paste_callback = None
+        self.send_callback = None
         self.reply_includes_timestamp = False  # Chatlog sets True; realtime messages omit timestamp
         self.my_username = None # Store username for mention highlighting
         self.highlight_text = "" # Active search term to highlight in message bodies
@@ -299,6 +301,7 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
         if not input_field:
             self.reply_callback = None
             self.paste_callback = None
+            self.send_callback = None
             return
 
         def _reply(username: str, text: str, timestamp=None):
@@ -314,8 +317,16 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
             input_field.setCursorPosition(cursor_pos + len(text))
             input_field.setFocus()
 
+        def _send(text: str):
+            """Send through the input field's own send handler, leaving a draft in it untouched."""
+            draft = input_field.text()
+            input_field.setText(text)
+            input_field.returnPressed.emit()
+            input_field.setText(draft)
+
         self.reply_callback = _reply
         self.paste_callback = _paste
+        self.send_callback = _send
         self.reply_includes_timestamp = include_timestamp
 
     def _refresh_viewport(self):
@@ -823,6 +834,11 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
         timestamp = getattr(msg, 'timestamp', None) if self.reply_includes_timestamp else None
         return username, timestamp
 
+    def reply_text(self, message) -> str:
+        """The text a reply to the whole message starts with."""
+        username, timestamp = self._reply_context(message)
+        return MessageDelegate.format_reply_text(username, message.body, timestamp)
+
     def reply_to_message(self, message):
         """Start a reply quoting the whole message in the input field."""
         username, timestamp = self._reply_context(message)
@@ -929,6 +945,8 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
         return ImageGallery.from_messages(
             lambda: model.stored_messages, msg, url, self.reveal_message, model.modelReset, self.day_navigation,
             self.reply_to_message if self.reply_callback is not None else None,
+            InlineReply(self.reply_text, self.send_callback, lambda: popup_manager.emoticon_selector)
+            if self.send_callback is not None else None,
         )
 
     def open_first_image(self):

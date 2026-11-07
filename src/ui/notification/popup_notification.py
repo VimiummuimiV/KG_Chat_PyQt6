@@ -6,10 +6,11 @@ from typing import Optional
 
 from PyQt6.QtCore import QEasingCurve, QEvent, Qt, QTimer, QVariantAnimation
 from PyQt6.QtGui import QCursor, QFontMetrics
-from PyQt6.QtWidgets import QApplication, QHBoxLayout, QLabel, QLineEdit, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QApplication, QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
 from components.avatar import apply_user_avatar, make_avatar_label, make_avatar_pixmap
-from components.button import get_user_svg_color, HoverIconButton, set_button_icon
+from components.button import get_user_svg_color, set_button_icon
+from components.input_row import InputRow
 from core.xmpp.messages import Message
 from helpers.colors.color_utils import get_game_message_colors
 from helpers.data import get_resource_dir
@@ -252,37 +253,14 @@ class PopupNotification(AutoHidePopupMixin, QWidget):
         self.emoticon_button = None
 
         if not data.is_ban and not data.is_system and not data.is_parser:
-            self.reply_container = QWidget()
+            self.reply_container = InputRow(self.icons_path, data.config, with_emoticons=bool(data.emoticon_manager))
             self.reply_container.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-            reply_layout = QHBoxLayout(self.reply_container)
-            reply_layout.setContentsMargins(0, 0, 0, 0)
-            reply_layout.setSpacing(button_spacing)
-
-            send_button_size = data.config.get("ui", "buttons", "large_button", "button_size") if data.config else 48
-
-            self.reply_field = QLineEdit()
-            self.reply_field.setFont(get_font(FontType.TEXT))
-            self.reply_field.setFixedHeight(send_button_size)
-            self.reply_field.returnPressed.connect(self._on_send_reply)
+            self.reply_container.submitted.connect(self._on_send_reply)
+            self.reply_container.emoticon_requested.connect(self._toggle_emoticon_selector)
+            self.reply_field = self.reply_container.input_field
             self.reply_field.installEventFilter(self)
-            reply_layout.addWidget(self.reply_field, stretch=1)
-
-            self.send_button = icon_btn(
-                self.icons_path, "send.svg", tr("Send message", "Отправить сообщение"), data.config, size_type="large"
-            )
-            self.send_button.clicked.connect(self._on_send_reply)
-            reply_layout.addWidget(self.send_button)
-
-            if data.emoticon_manager:
-                self.emoticon_button = HoverIconButton(
-                    self.icons_path,
-                    "emotion-normal.svg",
-                    "emotion-happy.svg",
-                    tr("Toggle Emoticon Selector", "Селектор эмотиконов"),
-                )
-                self.emoticon_button.clicked.connect(self._toggle_emoticon_selector)
-                reply_layout.addWidget(self.emoticon_button)
-
+            self.send_button = self.reply_container.send_button
+            self.emoticon_button = self.reply_container.emoticon_button
             self.reply_container.setVisible(False)
             main_layout.addWidget(self.reply_container, stretch=0)
         else:
@@ -536,27 +514,13 @@ class PopupNotification(AutoHidePopupMixin, QWidget):
 
     def _on_emoticon_selected(self, emoticon_name: str):
         """Insert emoticon into reply field"""
-        if not self.reply_field:
-            return
+        if self.reply_container:
+            self.reply_container.insert_emoticon(emoticon_name)
 
-        cursor_pos = self.reply_field.cursorPosition()
-        emoticon_code = f":{emoticon_name}: "
-        text = self.reply_field.text()
-
-        self.reply_field.setText(text[:cursor_pos] + emoticon_code + text[cursor_pos:])
-        self.reply_field.setCursorPosition(cursor_pos + len(emoticon_code))
-        self.reply_field.setFocus()
-
-    def _on_send_reply(self):
+    def _on_send_reply(self, text: str):
         """Send reply message"""
-        if not self.reply_field:
+        if not self.data.xmpp_client:
             return
-
-        text = self.reply_field.text().strip()
-        if not text or not self.data.xmpp_client:
-            return
-
-        self.reply_field.clear()
 
         # room_jid routes the reply to its room; without it send_message falls back to General
         msg_type = 'chat' if self.data.is_private and self.data.recipient_jid else 'groupchat'

@@ -180,6 +180,7 @@ IMAGE_KB = [
     ("P",               "Start / stop slideshow", "Запустить / остановить слайдшоу"),
     ("R",               "Reply to the message with the image", "Ответить на сообщение с изображением"),
     ("G",               "Go to the message with the image", "Перейти к сообщению с изображением"),
+    ("Enter / Esc",     "Reply field: send / close it", "Поле ответа: отправить / закрыть"),
     ("Esc / Space / Q", "Close image viewer", "Закрыть просмотр изображения"),
 ]
 

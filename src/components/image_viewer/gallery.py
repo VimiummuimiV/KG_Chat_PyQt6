@@ -70,6 +70,13 @@ class DayNavigation(NamedTuple):
     loaded: pyqtBoundSignal  # emitted when a day finished loading, with or without messages
 
 
+class InlineReply(NamedTuple):
+    """What the viewer needs to write a reply without closing."""
+    prefill: Callable[[object], str]  # reply text for a message
+    send: Callable[[str], None]
+    emoticon_selector: Callable[[], Optional[object]]  # the shared selector widget, None while it does not exist
+
+
 @dataclass
 class ImageGallery:
     """Images the viewer can page through, and which one was opened."""
@@ -80,6 +87,7 @@ class ImageGallery:
     messages_replaced: Optional[pyqtBoundSignal] = None  # emitted when get_messages starts returning other messages
     day_navigation: Optional[DayNavigation] = None  # chatlog views only
     on_reply: Optional[Callable[[object], None]] = None  # called with the message of the current image
+    inline_reply: Optional[InlineReply] = None
 
     @classmethod
     def single(cls, url: str) -> "ImageGallery":
@@ -89,7 +97,8 @@ class ImageGallery:
     def from_messages(cls, get_messages: Callable[[], Iterable], clicked_message, clicked_url: str,
                       on_source: Callable[[object], None], messages_replaced: pyqtBoundSignal,
                       day_navigation: Optional[DayNavigation] = None,
-                      on_reply: Optional[Callable[[object], None]] = None) -> "ImageGallery":
+                      on_reply: Optional[Callable[[object], None]] = None,
+                      inline_reply: Optional[InlineReply] = None) -> "ImageGallery":
         """Collect every image link of the messages; start at the clicked one and follow later message changes."""
         clicked_url = extract_image_url(clicked_url)
         images = list(_iter_images(get_messages()))
@@ -99,7 +108,7 @@ class ImageGallery:
         )
         if start_index is None:
             return cls.single(clicked_url)
-        return cls(images, start_index, on_source, get_messages, messages_replaced, day_navigation, on_reply)
+        return cls(images, start_index, on_source, get_messages, messages_replaced, day_navigation, on_reply, inline_reply)
 
     def reloaded(self, current_url: Optional[str]) -> "ImageGallery":
         """Gallery rebuilt from the current messages; with no image left only the one being viewed stays."""

@@ -7,9 +7,18 @@ from PyQt6.QtGui import QCursor, QPainter
 from PyQt6.QtWidgets import QApplication, QWidget
 
 from components.help_panel import HelpPanel
-from components.image_viewer.gallery import DayState, extract_image_url, first_image, GalleryImage, ImageGallery
+from components.image_viewer.gallery import (
+    DayState,
+    extract_image_url,
+    first_image,
+    GalleryImage,
+    ImageGallery,
+    InlineReply,
+)
 from components.image_viewer.layer import ImageLayer, INSTANT_MODE, TransitionAnimator
 from components.image_viewer.options import (
+    REPLY_MODE_INLINE,
+    reply_mode,
     show_thumbnails,
     slideshow_interval_ms,
     transition_duration_ms,
@@ -24,6 +33,7 @@ from components.image_viewer.overlay import (
     NOTICE_WARNING,
     NoticeKind,
     PositionBadge,
+    ReplyPanel,
     SourceBadge,
 )
 from components.loading_spinner import LoadingSpinner
@@ -45,6 +55,10 @@ _SPINNER_FOLLOW_INTERVAL_MS = 16
 _SPINNER_FOLLOW_THRESHOLD = 5
 _OVERLAY_MARGIN = 16
 _OVERLAY_SPACING = 8
+_REPLY_PANEL_WIDTH = 560
+_SELECTOR_SETTLE_MS = 50
+_EMOTICON_MIN_HEIGHT = 250
+_EMOTICON_MAX_HEIGHT = 650
 _MEMORY_RELEASE_DELAY_MS = 500  # lets deleteLater() of released movies run first
 _NEIGHBOR_PRIORITY = 1
 _THUMBNAIL_PRIORITY = 0
@@ -115,6 +129,13 @@ class ImageHoverView(QWidget):
         self._source_badge.hide()
         self._position_badge = PositionBadge(self)
         self._position_badge.hide()
+        self._reply_panel = ReplyPanel(icons_path, config, self)
+        self._reply_panel.input_row.submitted.connect(self._on_reply_submitted)
+        self._reply_panel.input_row.emoticon_requested.connect(self._toggle_emoticons)
+        self._reply_panel.cancelled.connect(self._close_reply)
+        self._reply_panel.hide()
+        self._inline_reply: Optional[InlineReply] = None
+        self._emoticon_selector = None  # the shared selector while it is borrowed from the chat
         self._close_button = CloseButton(icons_path, config, self)
         self._close_button.clicked.connect(self.hide_preview)
         self._close_button.hide()
@@ -213,6 +234,7 @@ class ImageHoverView(QWidget):
         """Make the image at index current: show it as soon as it is loaded, and warm up its neighbors."""
         self._index = index
         self._direction = direction
+        self._close_reply()
         self._notice.hide()
         image = self._gallery.images[index]
         self._update_overlays(image)
@@ -369,6 +391,8 @@ class ImageHoverView(QWidget):
             self._position_badge.show_position(self._index, count, day_state.day if day_state else None, self._is_dark)
             left = self._source_badge.geometry().right() + _OVERLAY_SPACING if has_source else _OVERLAY_MARGIN
             self._position_badge.move(left, _OVERLAY_MARGIN)
+        if self._reply_panel.isVisible():
+            self._place_reply()
 
     def _start_spinner_at_center(self):
         self._position_timer.stop()
@@ -431,8 +455,79 @@ class ImageHoverView(QWidget):
         self._leave_to_message(lambda gallery: gallery.on_source)
 
     def _on_reply_requested(self):
-        """Close the viewer and start a reply to the message of the current image."""
-        self._leave_to_message(lambda gallery: gallery.on_reply)
+        """Reply to the message of the current image: in a field here, or in the chat after closing the viewer."""
+        image = self._current_image
+        inline = self._gallery.inline_reply if self._gallery else None
+        if inline and image and image.source is not None and reply_mode(self._config) == REPLY_MODE_INLINE:
+            self._open_reply(inline, image.source)
+        else:
+            self._leave_to_message(lambda gallery: gallery.on_reply)
+
+    def _open_reply(self, inline: InlineReply, message):
+        if self._reply_panel.isVisible():
+            self._reply_panel.focus_field()
+            return
+        self._inline_reply = inline
+        self._set_slideshow_playing(False)
+        self._reply_panel.open(inline.prefill(message), inline.emoticon_selector() is not None, self._is_dark)
+        self._place_reply()
+
+    def _place_reply(self):
+        """Put the reply panel above the gallery bar, and the emoticon selector above the panel."""
+        panel = self._reply_panel
+        panel.setFixedWidth(min(_REPLY_PANEL_WIDTH, self.width() - 2 * _OVERLAY_MARGIN))
+        panel.adjustSize()
+        bottom = self._gallery_bar.y() if self._gallery_bar.isVisibleTo(self) else self.height() - _OVERLAY_MARGIN
+        panel.move((self.width() - panel.width()) // 2, bottom - _OVERLAY_SPACING - panel.height())
+        panel.raise_()
+        if self._emoticon_selector is not None and self._emoticon_selector.isVisible():
+            self._place_emoticons()
+
+    def _place_emoticons(self):
+        selector = self._emoticon_selector
+        button = self._reply_panel.input_row.emoticon_button
+        right = button.mapTo(self, button.rect().topRight()).x()
+        bottom = self._reply_panel.y() - _OVERLAY_SPACING
+        height = max(_EMOTICON_MIN_HEIGHT, min(_EMOTICON_MAX_HEIGHT, bottom - _OVERLAY_MARGIN))
+        selector.setFixedHeight(height)
+        left = max(_OVERLAY_MARGIN, min(right - selector.width(), self.width() - selector.width() - _OVERLAY_MARGIN))
+        selector.move(left, max(_OVERLAY_MARGIN, bottom - height))
+        selector.raise_()
+
+    def _toggle_emoticons(self):
+        """Show the shared emoticon selector over the viewer, or hand it back."""
+        if self._emoticon_selector is not None and self._emoticon_selector.isVisible():
+            self._release_emoticons()
+            return
+        selector = self._inline_reply.emoticon_selector() if self._inline_reply else None
+        if selector is None:
+            return
+        selector.attach(self, self._reply_panel.input_row.insert_emoticon)
+        self._emoticon_selector = selector
+        selector.setVisible(True)
+        self._place_emoticons()
+        QTimer.singleShot(_SELECTOR_SETTLE_MS, selector.resume_animations)
+        self._reply_panel.focus_field()
+
+    def _release_emoticons(self):
+        """Hide the borrowed selector and unparent it so the chat can reclaim it."""
+        selector, self._emoticon_selector = self._emoticon_selector, None
+        if selector is not None and selector.parent() is self:
+            selector.setVisible(False)
+            selector.setParent(None)
+
+    def _close_reply(self):
+        """Hide the reply field, hand the emoticon selector back and return the keys to the viewer."""
+        self._release_emoticons()
+        self._inline_reply = None
+        if self._reply_panel.isVisible():
+            self._reply_panel.hide()
+            self.setFocus(Qt.FocusReason.OtherFocusReason)
+
+    def _on_reply_submitted(self, text: str):
+        inline = self._inline_reply
+        self._close_reply()
+        inline.send(text)
 
     def _leave_to_message(self, pick_action: Callable[[ImageGallery], Optional[Callable[[object], None]]]):
         """Close the viewer and hand the message of the current image to the gallery action, when there is one."""
@@ -543,6 +638,7 @@ class ImageHoverView(QWidget):
         self._position_timer.stop()
         self._slideshow_timer.stop()
         self._stop_spinner()
+        self._close_reply()
         self._loader.reset()
         self._release_layers()
         self._notice.hide()

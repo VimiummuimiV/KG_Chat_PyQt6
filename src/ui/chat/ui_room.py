@@ -3,12 +3,12 @@
 from pathlib import Path
 
 from PyQt6.QtCore import pyqtSignal
-from PyQt6.QtWidgets import QHBoxLayout, QLineEdit, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QHBoxLayout, QVBoxLayout, QWidget
 
-from components.button import create_icon_button, HoverIconButton
 from components.font_scale_slider import FontScaleSlider
+from components.input_row import InputRow
 from core.xmpp.client import XMPPClient
-from helpers.fonts.fonts import FontType, get_font, get_userlist_width
+from helpers.fonts.fonts import get_userlist_width
 from helpers.translate import on_language_changed, TranslatableMixin
 from ui.chat.ui_messages import MessagesWidget
 from ui.chat.ui_userlist import UserListWidget
@@ -103,34 +103,13 @@ class RoomWidget(TranslatableMixin, QWidget):
         self.messages_widget.username_shift_clicked.connect(self.username_shift_clicked.emit)
         left.addWidget(self.messages_widget, stretch=1)
 
-        input_row = QHBoxLayout()
-        input_row.setContentsMargins(0, 0, 0, 0)
-        input_row.setSpacing(self.config.get("ui", "buttons", "spacing") or 8)
-
-        self.input_field = QLineEdit()
-        self.input_field.setFont(get_font(FontType.TEXT))
-        self.input_field.setFixedHeight(48)
-        self.input_field.returnPressed.connect(self._on_send)
-        input_row.addWidget(self.input_field, stretch=1)
-
-        self.send_button = create_icon_button(
-            self.icons_path, "send.svg", "", size_type="large", config=self.config
-        )
-        self.tr_set(self.send_button.setToolTip, "Send message", "Отправить сообщение")
-        self.send_button.clicked.connect(self._on_send)
-        input_row.addWidget(self.send_button)
-
-        self.emoticon_button = HoverIconButton(
-            self.icons_path,
-            "emotion-normal.svg",
-            "emotion-happy.svg",
-            "",
-        )
-        self.tr_set(self.emoticon_button.setToolTip, "Toggle Emoticon Selector", "Селектор эмотиконов")
-        self.emoticon_button.clicked.connect(self.emoticon_requested.emit)
-        input_row.addWidget(self.emoticon_button)
-
-        left.addLayout(input_row)
+        input_row = InputRow(self.icons_path, self.config)
+        input_row.submitted.connect(self.send_requested)
+        input_row.emoticon_requested.connect(self.emoticon_requested)
+        self.input_field = input_row.input_field
+        self.send_button = input_row.send_button
+        self.emoticon_button = input_row.emoticon_button
+        left.addWidget(input_row)
         body.addLayout(left, stretch=3)
 
         # Right column: userlist + font slider (same layout as general chat)
@@ -172,13 +151,6 @@ class RoomWidget(TranslatableMixin, QWidget):
         if self.room_name:
             return self.room_label
         return f"{self.room_label} #{self.game_id}" if self.game_id else self.room_label
-
-    def _on_send(self):
-        text = self.input_field.text().strip()
-        if not text:
-            return
-        self.input_field.clear()
-        self.send_requested.emit(text)
 
     def set_game_id(self, game_id):
         self.game_id = game_id

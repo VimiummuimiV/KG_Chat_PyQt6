@@ -10,7 +10,7 @@ from components.image_viewer.options import (
     TRANSITION_MS_RANGE,
 )
 from helpers.translate import tr
-from ui.settings.settings_options import fill_image_transition_combo
+from ui.settings.settings_options import fill_image_reply_mode_combo, fill_image_transition_combo
 
 
 class SettingsImageViewerMixin:
@@ -34,6 +34,13 @@ class SettingsImageViewerMixin:
         )
         self._add_collapse_toggle(gallery_header, gallery_content, ("ui", "settings", "widgets", "image_viewer_gallery"))
 
+        reply_header, reply_content, reply_layout = self._add_subsection(section, tr("Reply", "Ответ"))
+        self.image_viewer_reply_combo = self._add_combo_row(
+            reply_layout, tr("Reply button", "Кнопка ответа"), [], self._on_image_viewer_reply_mode_changed
+        )
+        self.image_viewer_reply_combo.setFixedWidth(240)
+        self._add_collapse_toggle(reply_header, reply_content, ("ui", "settings", "widgets", "image_viewer_reply"))
+
         transition_header, transition_content, transition_layout = self._add_subsection(
             section, tr("Transition", "Переход")
         )
@@ -51,6 +58,7 @@ class SettingsImageViewerMixin:
 
     def _refresh_image_viewer(self):
         self.image_viewer_thumbnails_checkbox.setChecked(show_thumbnails(self.config))
+        fill_image_reply_mode_combo(self.image_viewer_reply_combo, self.config.get("image_viewer", "reply_mode"))
         fill_image_transition_combo(self.image_viewer_transition_combo, self.config.get("image_viewer", "transition"))
         for spin, value in (
             (self.image_viewer_slideshow_spin, slideshow_interval_seconds(self.config)),
@@ -64,6 +72,10 @@ class SettingsImageViewerMixin:
 
     def _on_image_viewer_slideshow_changed(self, value: int):
         self.config.set("image_viewer", "slideshow_interval", value=int(value))
+
+    def _on_image_viewer_reply_mode_changed(self, _text: str = ""):
+        self._sync_combo_tooltip(self.image_viewer_reply_combo)
+        self.config.set("image_viewer", "reply_mode", value=self.image_viewer_reply_combo.currentData())
 
     def _on_image_viewer_transition_changed(self, _text: str = ""):
         self._sync_combo_tooltip(self.image_viewer_transition_combo)

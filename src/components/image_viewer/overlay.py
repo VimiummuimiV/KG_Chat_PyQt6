@@ -1,18 +1,20 @@
-"""Floating panels of the image viewer: source and position badges (top left), close button (top right), gallery bar (bottom center), notice."""
+"""Floating panels of the image viewer: source and position badges (top left), close button (top right), gallery bar and reply panel (bottom center), notice."""
 
 from datetime import date
 from pathlib import Path
 from typing import NamedTuple, Optional
 
-from PyQt6.QtCore import pyqtSignal, QBuffer, QIODevice, QRect, QRectF, QSize, Qt
+from PyQt6.QtCore import pyqtSignal, QBuffer, QEvent, QIODevice, QRect, QRectF, QSize, Qt
 from PyQt6.QtGui import QColor, QImageReader, QPainter, QPainterPath, QPen, QPixmap
 from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
 from components.avatar import apply_user_avatar, make_avatar_label
 from components.button import create_icon_button, get_user_svg_color, render_svg_icon, set_button_icon
 from components.image_viewer.gallery import DayState, GalleryImage
+from components.input_row import InputRow
 from helpers.cache import get_cache
 from helpers.fonts.fonts import FontType, get_font
+from helpers.input_style import resolve_input_style
 from helpers.translate import tr
 
 
@@ -422,3 +424,42 @@ class PositionBadge(QFrame):
         text = f"{index + 1 if count else 0} / {count}"
         self._label.setText(f"{text}{_POSITION_SEPARATOR}{day:%Y-%m-%d}" if day else text)
         self.adjustSize()
+
+
+class ReplyPanel(QFrame):
+    """Translucent panel with the input of a reply written inside the viewer; Esc cancels."""
+
+    cancelled = pyqtSignal()
+
+    def __init__(self, icons_path: Path, config=None, parent=None):
+        super().__init__(parent)
+        self.setObjectName("replyPanel")
+        self._config = config
+        self.input_row = InputRow(icons_path, config, parent=self)
+        self.input_row.input_field.installEventFilter(self)
+        for button in (self.input_row.send_button, self.input_row.emoticon_button):
+            button.setFocusPolicy(Qt.FocusPolicy.NoFocus)  # typing stays in the field
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(_PANEL_MARGIN, _PANEL_MARGIN, _PANEL_MARGIN, _PANEL_MARGIN)
+        layout.addWidget(self.input_row)
+
+    def open(self, text: str, has_emoticons: bool, is_dark: bool):
+        """Show the panel with the text in the field and the cursor at its end."""
+        self.setStyleSheet(_panel_stylesheet("replyPanel", is_dark))
+        field = self.input_row.input_field
+        if self._config:
+            field.setStyleSheet(resolve_input_style(self._config, is_dark)[0])
+        self.input_row.emoticon_button.setVisible(has_emoticons)
+        field.setText(text)
+        field.setCursorPosition(len(text))
+        self.show()
+        field.setFocus()
+
+    def focus_field(self):
+        self.input_row.input_field.setFocus()
+
+    def eventFilter(self, watched, event):
+        if watched is self.input_row.input_field and event.type() == QEvent.Type.KeyPress and event.key() == Qt.Key.Key_Escape:
+            self.cancelled.emit()
+            return True
+        return super().eventFilter(watched, event)
