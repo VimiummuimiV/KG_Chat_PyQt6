@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from PyQt6.QtCore import pyqtSignal
+from PyQt6.QtCore import pyqtSignal, Qt
 from PyQt6.QtWidgets import QHBoxLayout, QLineEdit, QWidget
 
 from components.button import create_icon_button, HoverIconButton
@@ -23,9 +23,9 @@ class InputRow(TranslatableMixin, QWidget):
     def __init__(self, icons_path: Path, config=None, with_emoticons: bool = True, parent=None):
         super().__init__(parent)
         self.init_translatable()
-        layout = QHBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing((config.get("ui", "buttons", "spacing") if config else None) or _DEFAULT_SPACING)
+        self._layout = QHBoxLayout(self)
+        self._layout.setContentsMargins(0, 0, 0, 0)
+        self._layout.setSpacing((config.get("ui", "buttons", "spacing") if config else None) or _DEFAULT_SPACING)
 
         self.input_field = QLineEdit()
         self.input_field.setFont(get_font(FontType.TEXT))
@@ -33,20 +33,30 @@ class InputRow(TranslatableMixin, QWidget):
             (config.get("ui", "buttons", "large_button", "button_size") if config else None) or _DEFAULT_FIELD_HEIGHT
         )
         self.input_field.returnPressed.connect(self._submit)
-        layout.addWidget(self.input_field, stretch=1)
+        self._layout.addWidget(self.input_field, stretch=1)
 
         self.send_button = create_icon_button(icons_path, "send.svg", "", size_type="large", config=config)
         self.tr_set(self.send_button.setToolTip, "Send message", "Отправить сообщение")
         self.send_button.clicked.connect(self._submit)
-        layout.addWidget(self.send_button)
+        self.send_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)  # clicking it must not take focus from the field
+        self._layout.addWidget(self.send_button)
 
         self.emoticon_button = None
         if with_emoticons:
             self.emoticon_button = HoverIconButton(icons_path, "emotion-normal.svg", "emotion-happy.svg", "")
             self.tr_set(self.emoticon_button.setToolTip, "Toggle Emoticon Selector", "Селектор эмотиконов")
             self.emoticon_button.clicked.connect(self.emoticon_requested)
-            layout.addWidget(self.emoticon_button)
+            self.emoticon_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+            self._layout.addWidget(self.emoticon_button)
         on_language_changed(self.retranslate_all)
+
+    def insert_before_send(self, widget: QWidget):
+        """Place a widget (e.g. the microphone) directly left of the send button."""
+        self._layout.insertWidget(self._layout.indexOf(self.send_button), widget)
+
+    def append_button(self, widget: QWidget):
+        """Place a widget at the right end of the row."""
+        self._layout.addWidget(widget)
 
     def insert_emoticon(self, emoticon_name: str):
         """Insert the emoticon code at the cursor and keep typing in the field."""

@@ -4,22 +4,22 @@ from PyQt6.QtCore import pyqtSignal, QObject, Qt, QTimer
 from PyQt6.QtWidgets import (
     QApplication,
     QHBoxLayout,
-    QLineEdit,
     QSplitter,
     QStackedWidget,
     QVBoxLayout,
     QWidget,
 )
 
-from components.button import create_icon_button, HoverIconButton, set_theme
+from components.button import set_theme
 from components.font_scale_slider import FontScaleSlider
 from components.help_panel import HelpPanel
+from components.input_row import InputRow
 from core.state.mentions_digest import MentionsDigest
 from core.state.self_ban import SelfBan
 from helpers.cache import get_cache
 from helpers.config import Config, get_config_path
 from helpers.data import get_resource_dir
-from helpers.fonts.fonts import FontType, get_font, get_userlist_width, set_application_font
+from helpers.fonts.fonts import get_userlist_width, set_application_font
 from helpers.text.emoticons import EmoticonManager
 from helpers.translate import on_language_changed, tr, TranslatableMixin
 from helpers.voice.voice_engine import get_voice_engine
@@ -326,41 +326,23 @@ class ChatWindow(
 
         button_spacing = self.config.get("ui", "buttons", "spacing") or 8
 
-        self.input_top_layout = QHBoxLayout()
-        self.input_top_layout.setSpacing(button_spacing)
-        input_main_layout.addLayout(self.input_top_layout)
+        self.input_row = InputRow(self.icons_path, self.config)
+        self.input_row.submitted.connect(self.send_message)
+        self.input_row.emoticon_requested.connect(self._toggle_emoticon_selector)
+        self.input_field = self.input_row.input_field
+        self.send_button = self.input_row.send_button
+        self.emoticon_button = self.input_row.emoticon_button
+        input_main_layout.addWidget(self.input_row)
 
         self.input_bottom_layout = QHBoxLayout()
         self.input_bottom_layout.setSpacing(button_spacing)
         input_main_layout.addLayout(self.input_bottom_layout)
 
-        self.input_field = QLineEdit()
-        self.input_field.setFont(get_font(FontType.TEXT))
-        self.input_field.setFixedHeight(48)
-        self.input_field.returnPressed.connect(self.send_message)
-        self.input_top_layout.addWidget(self.input_field, stretch=1)
-
         self.messages_widget.set_input_field(self.input_field)
-
-        self.send_button = create_icon_button(self.icons_path, "send.svg", "", config=self.config)
-        self.tr_set(self.send_button.setToolTip, "Send Message", "Отправить сообщение")
-        self.send_button.clicked.connect(self.send_message)
-        self.input_top_layout.addWidget(self.send_button)
         install_voice_input(self)
 
         # Exit private mode button reference (created dynamically when needed)
         self.exit_private_button = None
-
-        # Emoticon button with hover icons
-        self.emoticon_button = HoverIconButton(
-            self.icons_path,
-            "emotion-normal.svg",
-            "emotion-happy.svg",
-            "",
-        )
-        self.tr_set(self.emoticon_button.setToolTip, "Toggle Emoticon Selector", "Селектор эмотиконов")
-        self.emoticon_button.clicked.connect(self._toggle_emoticon_selector)
-        self.input_top_layout.addWidget(self.emoticon_button)
 
         # User list widget (right side, vertical scrollable)
         self.user_list_widget = UserListWidget(

@@ -164,7 +164,8 @@ class GalleryBar(QFrame):
     next_requested = pyqtSignal()
     slideshow_toggled = pyqtSignal()
     thumbnail_clicked = pyqtSignal(int)
-    day_requested = pyqtSignal(int)
+    day_pressed = pyqtSignal(int)  # -1 / +1; the viewer repeats it while the button stays down
+    day_released = pyqtSignal()
     reply_requested = pyqtSignal()
     source_requested = pyqtSignal()
 
@@ -190,8 +191,9 @@ class GalleryBar(QFrame):
             button.setSizePolicy(policy)
         self._reply_button.clicked.connect(self.reply_requested)
         self._source_button.clicked.connect(self.source_requested)
-        self._previous_day_button.clicked.connect(lambda: self.day_requested.emit(-1))
-        self._next_day_button.clicked.connect(lambda: self.day_requested.emit(1))
+        for button, step in ((self._previous_day_button, -1), (self._next_day_button, 1)):
+            button.pressed.connect(lambda step=step: self.day_pressed.emit(step))
+            button.released.connect(self.day_released)
         self._previous_button.clicked.connect(self.previous_requested)
         self._slideshow_button.clicked.connect(self.slideshow_toggled)
         self._next_button.clicked.connect(self.next_requested)
@@ -274,8 +276,8 @@ class GalleryBar(QFrame):
         self._source_button.setToolTip(tr("Go to the message (G)", "Перейти к сообщению (G)"))
         self._previous_button.setToolTip(tr("Previous image (H / ←)", "Предыдущее изображение (H / ←)"))
         self._next_button.setToolTip(tr("Next image (L / →)", "Следующее изображение (L / →)"))
-        self._previous_day_button.setToolTip(tr("Previous day", "Предыдущий день"))
-        self._next_day_button.setToolTip(tr("Next day", "Следующий день"))
+        self._previous_day_button.setToolTip(tr("Previous day (Shift+H / Shift+←)", "Предыдущий день (Shift+H / Shift+←)"))
+        self._next_day_button.setToolTip(tr("Next day (Shift+L / Shift+→)", "Следующий день (Shift+L / Shift+→)"))
         self._slideshow_button.setToolTip(
             tr("Stop slideshow (P)", "Остановить слайдшоу (P)") if self._is_playing
             else tr("Start slideshow (P)", "Запустить слайдшоу (P)")
@@ -437,8 +439,6 @@ class ReplyPanel(QFrame):
         self._config = config
         self.input_row = InputRow(icons_path, config, parent=self)
         self.input_row.input_field.installEventFilter(self)
-        for button in (self.input_row.send_button, self.input_row.emoticon_button):
-            button.setFocusPolicy(Qt.FocusPolicy.NoFocus)  # typing stays in the field
         layout = QHBoxLayout(self)
         layout.setContentsMargins(_PANEL_MARGIN, _PANEL_MARGIN, _PANEL_MARGIN, _PANEL_MARGIN)
         layout.addWidget(self.input_row)

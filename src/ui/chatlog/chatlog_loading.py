@@ -97,8 +97,11 @@ class ChatlogLoadingMixin:
         self.info_label.setText(tr("Loading...", "Загрузка..."))
 
         date_str = self.current_date.strftime("%Y-%m-%d")
+        self._load_generation += 1
+        generation = self._load_generation
 
         def _load():
+            error = None
             try:
                 messages, was_truncated, from_cache = self.parser.get_messages(date_str)
 
@@ -106,15 +109,20 @@ class ChatlogLoadingMixin:
                 estimated_bytes = len(messages) * 100  # ~100 bytes per message average
                 size_kb = estimated_bytes / 1024
                 size_text = f"{size_kb:.1f} KB" if size_kb < 1024 else f"{size_kb/1024:.1f} MB"
-
-                self._pending_data = (messages, size_text, was_truncated, from_cache)
-                QTimer.singleShot(0, self._display_messages)
             except ChatlogNotFoundError:
-                self._error_occurred.emit(f"No chatlog found for {date_str}")
+                error = f"No chatlog found for {date_str}"
             except ValueError as e:
-                self._error_occurred.emit(str(e))
+                error = str(e)
             except Exception as e:
-                self._error_occurred.emit(f"Error: {e}")
+                error = f"Error: {e}"
+
+            if generation != self._load_generation:
+                return  # another day was requested meanwhile
+            if error:
+                self._error_occurred.emit(error)
+                return
+            self._pending_data = (messages, size_text, was_truncated, from_cache)
+            QTimer.singleShot(0, self._display_messages)
 
         threading.Thread(target=_load, daemon=True).start()
 

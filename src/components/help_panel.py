@@ -177,6 +177,8 @@ ACCOUNTS_CONNECT_MOUSE = [
 IMAGE_KB = [
     ("H / ←",           "Previous image", "Предыдущее изображение"),
     ("L / →",           "Next image", "Следующее изображение"),
+    ("Shift + H / ←",   "Previous day (hold to fast-seek)", "Предыдущий день (удерживать для быстрой перемотки)"),
+    ("Shift + L / →",   "Next day (hold to fast-seek)", "Следующий день (удерживать для быстрой перемотки)"),
     ("P",               "Start / stop slideshow", "Запустить / остановить слайдшоу"),
     ("R",               "Reply to the message with the image", "Ответить на сообщение с изображением"),
     ("G",               "Go to the message with the image", "Перейти к сообщению с изображением"),

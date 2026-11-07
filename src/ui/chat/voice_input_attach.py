@@ -1,6 +1,6 @@
 """Wire VoiceInputEngine + MicButton into ChatWindow with minimal edits.
 
-Call from ChatWindow._init_ui() after send_button is created:
+Call from ChatWindow._init_ui() after input_row is created:
 
     from ui.chat.voice_input_attach import install_voice_input
     install_voice_input(self)
@@ -48,13 +48,7 @@ def install_voice_input(window) -> MicButton:
     mic.set_device(saved_name, saved_index)
     mic.setVisible(bool(_cfg_get(config, "voice_input", "enabled", default=True)))
 
-    # [input] [mic] [send] [emoji]
-    layout = window.input_top_layout
-    send = getattr(window, "send_button", None)
-    if send is not None:
-        layout.insertWidget(layout.indexOf(send), mic)
-    else:
-        layout.addWidget(mic)
+    window.input_row.insert_before_send(mic)  # [input] [mic] [send] [emoji]
 
     window.voice_input = engine
     window.mic_button = mic

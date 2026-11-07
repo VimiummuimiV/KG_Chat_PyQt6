@@ -105,6 +105,7 @@ class ChatlogWidget(
         self.load_timer = QTimer()
         self.load_timer.setSingleShot(True)
         self.load_timer.timeout.connect(self.load_current_date)
+        self._load_generation = 0
 
         self.day_hold = HoldRepeater(self._navigate, self)
 

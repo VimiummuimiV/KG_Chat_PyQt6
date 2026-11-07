@@ -45,10 +45,7 @@ class ChatPrivateModeMixin:
             )
             self.tr_set(self.exit_private_button.setToolTip, "Exit Private Chat", "Выйти из приватного чата")
             self.exit_private_button.clicked.connect(self.exit_private_mode)
-
-            # Insert after emoticon button
-            emoticon_button_index = self.input_top_layout.indexOf(self.emoticon_button)
-            self.input_top_layout.insertWidget(emoticon_button_index + 1, self.exit_private_button)
+            self.input_row.append_button(self.exit_private_button)
         else:
             self.exit_private_button.setVisible(True)
 
@@ -75,8 +72,6 @@ class ChatPrivateModeMixin:
 
         # Remove and destroy exit button
         if self.exit_private_button is not None:
-            # Remove from layout and destroy
-            self.input_top_layout.removeWidget(self.exit_private_button)
             self.exit_private_button.deleteLater()
             self.exit_private_button = None
 

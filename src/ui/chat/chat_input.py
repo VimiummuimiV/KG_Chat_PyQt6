@@ -10,12 +10,10 @@ from core.xmpp.messages import Message
 class ChatInputMixin:
     """ChatWindow: composing and sending messages."""
 
-    def send_message(self):
-        text = self.input_field.text().strip()
-        if not text or not self.xmpp_client:
+    def send_message(self, text: str):
+        if not self.xmpp_client:
+            self.input_field.setText(text)  # keep what was typed while disconnected
             return
-
-        self.input_field.clear()
 
         # Determine message type and recipient
         if self.private_mode and self.private_chat_jid:

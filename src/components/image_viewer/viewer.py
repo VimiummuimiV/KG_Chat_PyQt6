@@ -39,6 +39,7 @@ from components.image_viewer.overlay import (
 from components.loading_spinner import LoadingSpinner
 from core.web.image_loader import ImageLoader
 from helpers.data import get_resource_dir
+from helpers.hold_repeater import HoldRepeater
 from helpers.system.memory import release_unused_memory
 from helpers.translate import tr
 
@@ -118,7 +119,9 @@ class ImageHoverView(QWidget):
         self._gallery_bar.next_requested.connect(lambda: self._navigate(1))
         self._gallery_bar.slideshow_toggled.connect(self._toggle_slideshow)
         self._gallery_bar.thumbnail_clicked.connect(self._on_thumbnail_clicked)
-        self._gallery_bar.day_requested.connect(self._on_day_requested)
+        self._day_hold = HoldRepeater(self._on_day_requested, self)
+        self._gallery_bar.day_pressed.connect(self._day_hold.press)
+        self._gallery_bar.day_released.connect(self._day_hold.release)
         self._gallery_bar.reply_requested.connect(self._on_reply_requested)
         self._gallery_bar.source_requested.connect(self._on_source_clicked)
         self._gallery_bar.hide()
@@ -429,6 +432,8 @@ class ImageHoverView(QWidget):
 
     def _on_day_requested(self, step: int):
         """Switch the chatlog behind the viewer by a day; the gallery follows once its messages are replaced."""
+        self._loader.cancel_except(())  # the old day's downloads would only compete with the chatlog being loaded
+        self._stop_spinner()
         self._gallery.day_navigation.step(step)
         self._update_overlays(self._current_image)
 
@@ -611,11 +616,16 @@ class ImageHoverView(QWidget):
         """Handle keyboard shortcuts - layout independent"""
         key, native_key = event.key(), event.nativeVirtualKey()
         step = _NAVIGATION_KEYS.get(key) or _NAVIGATION_KEYS.get(native_key)
+        is_day_step = bool(step) and bool(event.modifiers() & Qt.KeyboardModifier.ShiftModifier) and self._day_state() is not None
 
         if key == Qt.Key.Key_F1:
             self._help_panel.show_for_context('image')
         elif key in (Qt.Key.Key_Space, Qt.Key.Key_Escape) or Qt.Key.Key_Q in (key, native_key):
             self.hide_preview()
+            event.accept()
+        elif is_day_step:
+            if not event.isAutoRepeat():
+                self._day_hold.press(step)
             event.accept()
         elif step:
             self._navigate(step)
@@ -633,8 +643,18 @@ class ImageHoverView(QWidget):
         else:
             super().keyPressEvent(event)
 
+    def keyReleaseEvent(self, event):
+        if not event.isAutoRepeat() and (event.key() in _NAVIGATION_KEYS or event.nativeVirtualKey() in _NAVIGATION_KEYS):
+            self._day_hold.release()
+        super().keyReleaseEvent(event)
+
+    def focusOutEvent(self, event):
+        self._day_hold.release()  # the key release would go to another window
+        super().focusOutEvent(event)
+
     def hide_preview(self):
         """Hide preview and reset state"""
+        self._day_hold.release()
         self._position_timer.stop()
         self._slideshow_timer.stop()
         self._stop_spinner()
