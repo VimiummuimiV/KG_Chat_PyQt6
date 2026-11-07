@@ -22,6 +22,7 @@ from components.search import MessageSearchBar
 from core.chatlogs.fetch import ChatlogsParser
 from helpers.dates import DATE_PLACEHOLDER
 from helpers.fonts.fonts import FontType, get_font
+from helpers.hold_repeater import HoldRepeater
 from helpers.scroll.auto_scroll import AutoScroller
 from helpers.scroll.scroll_buttons import ScrollButtonsPanel
 from helpers.scroll.scrollable_buttons import ScrollableButtonContainer
@@ -105,17 +106,7 @@ class ChatlogWidget(
         self.load_timer.setSingleShot(True)
         self.load_timer.timeout.connect(self.load_current_date)
 
-        # Repeat timer for holding mouse buttons
-        self.repeat_timer = QTimer()
-        self.repeat_timer.setInterval(100)  # Repeat every 100ms
-        self.repeat_direction = None
-        self.repeat_timer.timeout.connect(self._on_repeat_timer)
-
-        # Delay timer before repeat starts
-        self.repeat_delay_timer = QTimer()
-        self.repeat_delay_timer.setSingleShot(True)
-        self.repeat_delay_timer.setInterval(400)  # 400ms delay before repeat starts
-        self.repeat_delay_timer.timeout.connect(self.repeat_timer.start)
+        self.day_hold = HoldRepeater(self._navigate, self)
 
         self._setup_ui()
         self.model.modelReset.connect(self._update_image_button)

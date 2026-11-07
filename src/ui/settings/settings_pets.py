@@ -7,6 +7,7 @@ from PyQt6.QtGui import QImage, QPainter, QPixmap
 from PyQt6.QtWidgets import QGridLayout, QLabel, QVBoxLayout, QWidget
 
 from helpers.fonts.fonts import FontType, get_font
+from helpers.hold_repeater import HoldRepeater
 from helpers.pets.catalog import (
     list_pet_kinds,
     MAXIMUM_PET_COUNT,
@@ -45,7 +46,7 @@ def _dimmed_grayscale_pixmap(pixmap: QPixmap) -> QPixmap:
 
 
 class _PetTile(QLabel):
-    """Icon of one pet kind: left click adds a pet, right click removes one."""
+    """Icon of one pet kind: left click adds a pet, right click removes one; holding the button repeats."""
 
     added = pyqtSignal()
     removed = pyqtSignal()
@@ -54,6 +55,10 @@ class _PetTile(QLabel):
         super().__init__()
         self._icons = (_dimmed_grayscale_pixmap(icon), icon)
         self._count = 0
+        self._repeaters = {
+            Qt.MouseButton.LeftButton: HoldRepeater(self.added.emit, self),
+            Qt.MouseButton.RightButton: HoldRepeater(self.removed.emit, self),
+        }
         self.setFixedSize(_TILE_SIZE, _TILE_SIZE)
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -66,10 +71,17 @@ class _PetTile(QLabel):
         self.update()
 
     def mousePressEvent(self, event):
-        if event.button() == Qt.MouseButton.LeftButton:
-            self.added.emit()
-        elif event.button() == Qt.MouseButton.RightButton:
-            self.removed.emit()
+        if event.button() in self._repeaters:
+            self._repeaters[event.button()].press()
+
+    def mouseReleaseEvent(self, event):
+        if event.button() in self._repeaters:
+            self._repeaters[event.button()].release()
+
+    def hideEvent(self, event):
+        for repeater in self._repeaters.values():
+            repeater.release()
+        super().hideEvent(event)
 
     def paintEvent(self, event):
         super().paintEvent(event)
@@ -102,7 +114,10 @@ class SettingsPetsMixin:
         self.pets_stepped_checkbox = self._add_checkbox(
             section, tr("Move in steps like real paws", "Двигаться шагами, как на настоящих лапах"), self._on_pets_stepped_toggled
         )
-        hint = tr("Left click: add a pet · Right click: remove one", "ЛКМ: добавить питомца · ПКМ: убрать")
+        hint = tr(
+            "Left click: add a pet · Right click: remove one · Hold to repeat",
+            "ЛКМ: добавить питомца · ПКМ: убрать · удерживайте для повтора",
+        )
         hint_label = QLabel(hint)
         hint_font = get_font(FontType.UI)
         hint_font.setPointSizeF(hint_font.pointSizeF() * _HINT_FONT_SCALE)
@@ -179,6 +194,8 @@ class SettingsPetsMixin:
     def _change_pet_count(self, key: str, step: int):
         counts = pet_counts(self.config)
         count = max(0, min(counts.get(key, 0) + step, MAXIMUM_PET_COUNT))
+        if count == counts.get(key, 0):
+            return
         if count:
             counts[key] = count
         else:

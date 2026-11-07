@@ -17,21 +17,12 @@ from ui.messages.message_model import MessageData
 class ChatlogLoadingMixin:
     """ChatlogWidget: loading, displaying and navigating dates."""
 
-    def _on_repeat_timer(self):
-        """Handle repeated navigation when button/mouse is held"""
-        if self.repeat_direction is not None:
-            self._navigate(self.repeat_direction)
-
     def navigate_hold(self, direction=None):
         """Start/stop hold navigation (None to stop, -1/1 to start)"""
         if direction is None:
-            self.repeat_delay_timer.stop()
-            self.repeat_timer.stop()
-            self.repeat_direction = None
+            self.day_hold.release()
         else:
-            self._navigate(direction)
-            self.repeat_direction = direction
-            self.repeat_delay_timer.start()  # Start delay before repeating
+            self.day_hold.press(direction)
 
     def update_date_display(self):
         self.date_label.setText(self.current_date.strftime("%Y-%m-%d (%A)"))
