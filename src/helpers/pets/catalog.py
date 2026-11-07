@@ -9,6 +9,7 @@ from helpers.data import get_resource_dir
 
 
 MAXIMUM_PET_COUNT = 10
+MAXIMUM_SIZE_MULTIPLIER = 10
 _DEFAULT_PET_COUNTS = {"dog/akita": 1}
 _SPRITE_SUFFIX = "_8fps.gif"
 # Longest names first so "walk_fast" is not read as "walk".
@@ -19,10 +20,10 @@ _PIXEL_GRID_FILE = "pixel_grid.json"
 
 @dataclass(frozen=True)
 class PixelGrid:
-    """Size of one original art pixel inside the upscaled GIF, and where the grid starts."""
+    """Size of one original art pixel inside the upscaled GIF, and the screen pixels per art pixel at x1."""
 
     scale: tuple[float, float]
-    offset: tuple[int, int]
+    base: int
 
 
 @dataclass(frozen=True)
@@ -55,11 +56,6 @@ class PetKind:
         grids = _load_pixel_grids()
         return grids.get(self.key) or grids[self.species]
 
-    @property
-    def maximum_pixel_size(self) -> int:
-        """Largest pixel size: one art pixel as big as in the shipped GIF."""
-        return round(max(self.pixel_grid.scale))
-
     def sprite_path(self, state: str) -> Path:
         return self.folder / f"{self.color}_{state}{_SPRITE_SUFFIX}"
 
@@ -73,7 +69,7 @@ def _load_pixel_grids() -> dict[str, PixelGrid]:
     for key, entry in raw.items():
         scale = entry["scale"]
         scale_x, scale_y = scale if isinstance(scale, list) else (scale, scale)
-        grids[key] = PixelGrid((scale_x, scale_y), tuple(entry.get("offset", (0, 0))))
+        grids[key] = PixelGrid((scale_x, scale_y), entry["base"])
     return grids
 
 
@@ -116,7 +112,12 @@ def pets_stepped(config) -> bool:
     return True if stepped is None else bool(stepped)
 
 
+def pet_size_multiplier(config, species: str) -> int:
+    """Return the size the user chose for a species: how many times its base size."""
+    multiplier = (config.get("ui", "pets", "sizes") or {}).get(species, 1)
+    return max(1, min(int(multiplier), MAXIMUM_SIZE_MULTIPLIER))
+
+
 def pet_pixel_size(config, kind: PetKind) -> int:
-    """Return the chosen pixel size of a species (screen pixels per art pixel), kept inside the kind's range."""
-    size = (config.get("ui", "pets", "sizes") or {}).get(kind.species, 1)
-    return max(1, min(int(size), kind.maximum_pixel_size))
+    """Return the screen pixels one art pixel of this pet is drawn with."""
+    return kind.pixel_grid.base * pet_size_multiplier(config, kind.species)

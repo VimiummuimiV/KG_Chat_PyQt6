@@ -12,6 +12,7 @@ from helpers.pets.catalog import PetKind, PixelGrid
 
 _MINIMUM_FRAME_MS = 10
 _GRID_TOLERANCE = 0.05  # cells; absorbs float error when the canvas holds a whole number of cells
+_OFFSET_LINE_STEP = 3  # only every third line is compared when looking for the grid start
 _LUNGE_RATIO = 0.6  # share of a frame during which a step moves the pet; the rest of the frame it stays planted
 
 
@@ -62,10 +63,30 @@ def _cell_centers(length: int, scale: float, offset: int) -> list[int]:
     return [offset // 2, *centers] if offset else centers
 
 
-def _redraw_at_pixel_size(image: QImage, grid: PixelGrid, pixel_size: int) -> QImage:
+def _grid_offset(image: QImage, scale: float, horizontal: bool) -> int:
+    """Return where the art cells start along one axis: the shift that makes the cells most uniform."""
+    length, lines = (image.width(), image.height()) if horizontal else (image.height(), image.width())
+
+    def uniform_pixels(offset: int) -> int:
+        total = 0
+        for position in range(length):
+            cell = math.floor((position - offset) / scale)
+            center = max(0, min(length - 1, int(offset + (cell + 0.5) * scale)))
+            for line in range(0, lines, _OFFSET_LINE_STEP):
+                same = (
+                    image.pixel(position, line) == image.pixel(center, line) if horizontal
+                    else image.pixel(line, position) == image.pixel(line, center)
+                )
+                total += same
+        return total
+
+    return max(range(math.ceil(scale)), key=uniform_pixels)
+
+
+def _redraw_at_pixel_size(image: QImage, grid: PixelGrid, offsets: tuple[int, int], pixel_size: int) -> QImage:
     """Rebuild the original art from the upscaled frame and enlarge it by a whole factor."""
-    columns = _cell_centers(image.width(), grid.scale[0], grid.offset[0])
-    rows = _cell_centers(image.height(), grid.scale[1], grid.offset[1])
+    columns = _cell_centers(image.width(), grid.scale[0], offsets[0])
+    rows = _cell_centers(image.height(), grid.scale[1], offsets[1])
     art = QImage(len(columns), len(rows), QImage.Format.Format_ARGB32)
     for row_index, row in enumerate(rows):
         for column_index, column in enumerate(columns):
@@ -80,6 +101,8 @@ def _redraw_at_pixel_size(image: QImage, grid: PixelGrid, pixel_size: int) -> QI
 def load_animation(kind: PetKind, state: str, pixel_size: int) -> PetAnimation:
     """Load one state of a pet; every art pixel becomes pixel_size screen pixels, never a fraction."""
     reader = QImageReader(str(kind.sprite_path(state)))
+    grid = kind.pixel_grid
+    offsets = None
     frames_right, frames_left, frame_ends_ms = [], [], []
     body = QRect()
     elapsed_ms = 0
@@ -88,7 +111,9 @@ def load_animation(kind: PetKind, state: str, pixel_size: int) -> PetAnimation:
         image = reader.read()
         if image.isNull():
             break
-        image = _redraw_at_pixel_size(image.convertToFormat(QImage.Format.Format_ARGB32), kind.pixel_grid, pixel_size)
+        image = image.convertToFormat(QImage.Format.Format_ARGB32)
+        offsets = offsets or (_grid_offset(image, grid.scale[0], True), _grid_offset(image, grid.scale[1], False))
+        image = _redraw_at_pixel_size(image, grid, offsets, pixel_size)
         frames_right.append(QPixmap.fromImage(image))
         frames_left.append(QPixmap.fromImage(image.mirrored(True, False)))
         elapsed_ms += delay_ms

@@ -10,8 +10,9 @@ from helpers.fonts.fonts import FontType, get_font
 from helpers.pets.catalog import (
     list_pet_kinds,
     MAXIMUM_PET_COUNT,
+    MAXIMUM_SIZE_MULTIPLIER,
     pet_counts,
-    pet_pixel_size,
+    pet_size_multiplier,
     pets_enabled,
     pets_stepped,
 )
@@ -130,13 +131,17 @@ class SettingsPetsMixin:
         size_layout.setSpacing(self._spacing())
         section.addLayout(size_layout)
         self._pet_size_spins = {}
-        for species, species_kinds in self._pet_species_kinds.items():
+        for species in self._pet_species_kinds:
             spin = self._add_slider_spin_row(
-                size_layout, species.title(), 1, min(kind.maximum_pixel_size for kind in species_kinds),
+                size_layout, species.title(), 1, MAXIMUM_SIZE_MULTIPLIER,
                 lambda value, species=species: self._on_pet_size_changed(species, value), default=1,
             )
             spin.setPrefix("×")
             self._pet_size_spins[species] = spin
+        labels = [spin.parentWidget().findChild(QLabel) for spin in self._pet_size_spins.values()]
+        label_width = max(label.sizeHint().width() for label in labels)
+        for label in labels:
+            label.setFixedWidth(label_width)
 
     def _refresh_pets(self):
         self.pets_checkbox.setChecked(pets_enabled(self.config))
@@ -145,11 +150,10 @@ class SettingsPetsMixin:
         for key, tile in self._pet_tiles.items():
             tile.set_count(counts.get(key, 0))
         for species, spin in self._pet_size_spins.items():
-            kinds = self._pet_species_kinds[species]
-            spin.parentWidget().setVisible(any(kind.key in counts for kind in kinds))
-            size = min(pet_pixel_size(self.config, kinds[0]), spin.maximum())
-            spin.setValue(size)
-            spin.linked_slider.setValue(size)
+            spin.parentWidget().setVisible(any(kind.key in counts for kind in self._pet_species_kinds[species]))
+            multiplier = pet_size_multiplier(self.config, species)
+            spin.setValue(multiplier)
+            spin.linked_slider.setValue(multiplier)
 
     def _on_pets_toggled(self, checked: bool):
         self.config.set("ui", "pets", "enabled", value=checked)
