@@ -178,11 +178,14 @@ IMAGE_KB = [
     ("H / ←",           "Previous image", "Предыдущее изображение"),
     ("L / →",           "Next image", "Следующее изображение"),
     ("P",               "Start / stop slideshow", "Запустить / остановить слайдшоу"),
+    ("R",               "Reply to the message with the image", "Ответить на сообщение с изображением"),
+    ("G",               "Go to the message with the image", "Перейти к сообщению с изображением"),
     ("Esc / Space / Q", "Close image viewer", "Закрыть просмотр изображения"),
 ]
 
 IMAGE_MOUSE = [
     ("Click source badge", "Клик по плашке автора",       "Close viewer and scroll to the message with the image", "Закрыть просмотр и перейти к сообщению с изображением"),
+    ("Click reply / go-to buttons", "Клик по кнопкам ответа / перехода", "Close viewer; reply to the message or scroll to it", "Закрыть просмотр; ответить на сообщение или перейти к нему"),
     ("Click thumbnail",    "Клик по миниатюре",           "Go to that image", "Перейти к этому изображению"),
     ("Click day buttons",  "Клик по кнопкам дня",         "Chatlog only: previous / next day", "Только чатлог: предыдущий / следующий день"),
     ("Click close button", "Клик по кнопке закрытия",     "Close image viewer", "Закрыть просмотр изображения"),

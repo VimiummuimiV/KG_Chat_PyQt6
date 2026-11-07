@@ -817,16 +817,28 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
 
         return super().editorEvent(event, model, option, index)
 
+    def _reply_context(self, msg):
+        """Sender and, for chatlogs, timestamp that a reply to the message quotes."""
+        username = getattr(msg, 'username', '') or getattr(msg, 'login', '') or ''
+        timestamp = getattr(msg, 'timestamp', None) if self.reply_includes_timestamp else None
+        return username, timestamp
+
+    def reply_to_message(self, message):
+        """Start a reply quoting the whole message in the input field."""
+        username, timestamp = self._reply_context(message)
+        self.reply_callback(username, message.body, timestamp)
+
     def _show_text_selector(self, msg, rect: QRect):
         if self.text_selector:
             self.text_selector.close()
+        username, timestamp = self._reply_context(msg)
         self.text_selector = _TextSelectorOverlay(
             msg.body, self.body_font, rect, self.is_dark_theme,
             self.list_view.viewport(),
             reply_callback=self.reply_callback,
             paste_callback=self.paste_callback,
-            username=getattr(msg, 'username', '') or getattr(msg, 'login', '') or '',
-            timestamp=getattr(msg, 'timestamp', None) if self.reply_includes_timestamp else None,
+            username=username,
+            timestamp=timestamp,
         )
         self.text_selector.destroyed.connect(lambda: setattr(self, 'text_selector', None))
 
@@ -915,7 +927,8 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
         if not is_image_url(url):
             return None
         return ImageGallery.from_messages(
-            lambda: model.stored_messages, msg, url, self.reveal_message, model.modelReset, self.day_navigation
+            lambda: model.stored_messages, msg, url, self.reveal_message, model.modelReset, self.day_navigation,
+            self.reply_to_message if self.reply_callback is not None else None,
         )
 
     def open_first_image(self):

@@ -79,6 +79,7 @@ class ImageGallery:
     get_messages: Optional[Callable[[], Iterable]] = None  # current messages the images were collected from
     messages_replaced: Optional[pyqtBoundSignal] = None  # emitted when get_messages starts returning other messages
     day_navigation: Optional[DayNavigation] = None  # chatlog views only
+    on_reply: Optional[Callable[[object], None]] = None  # called with the message of the current image
 
     @classmethod
     def single(cls, url: str) -> "ImageGallery":
@@ -87,7 +88,8 @@ class ImageGallery:
     @classmethod
     def from_messages(cls, get_messages: Callable[[], Iterable], clicked_message, clicked_url: str,
                       on_source: Callable[[object], None], messages_replaced: pyqtBoundSignal,
-                      day_navigation: Optional[DayNavigation] = None) -> "ImageGallery":
+                      day_navigation: Optional[DayNavigation] = None,
+                      on_reply: Optional[Callable[[object], None]] = None) -> "ImageGallery":
         """Collect every image link of the messages; start at the clicked one and follow later message changes."""
         clicked_url = extract_image_url(clicked_url)
         images = list(_iter_images(get_messages()))
@@ -97,7 +99,7 @@ class ImageGallery:
         )
         if start_index is None:
             return cls.single(clicked_url)
-        return cls(images, start_index, on_source, get_messages, messages_replaced, day_navigation)
+        return cls(images, start_index, on_source, get_messages, messages_replaced, day_navigation, on_reply)
 
     def reloaded(self, current_url: Optional[str]) -> "ImageGallery":
         """Gallery rebuilt from the current messages; with no image left only the one being viewed stays."""

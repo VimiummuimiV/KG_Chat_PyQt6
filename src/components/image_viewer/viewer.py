@@ -1,6 +1,6 @@
 """Fullscreen image viewer: gallery navigation, slideshow, transitions and source badge."""
 
-from typing import Optional
+from typing import Callable, Optional
 
 from PyQt6.QtCore import QPoint, QPointF, Qt, QTimer
 from PyQt6.QtGui import QCursor, QPainter
@@ -15,10 +15,21 @@ from components.image_viewer.options import (
     transition_duration_ms,
     transition_mode,
 )
-from components.image_viewer.overlay import CloseButton, GalleryBar, make_thumbnail, Notice, NOTICE_ERROR, NOTICE_WARNING, NoticeKind, SourceBadge
+from components.image_viewer.overlay import (
+    CloseButton,
+    GalleryBar,
+    make_thumbnail,
+    Notice,
+    NOTICE_ERROR,
+    NOTICE_WARNING,
+    NoticeKind,
+    PositionBadge,
+    SourceBadge,
+)
 from components.loading_spinner import LoadingSpinner
 from core.web.image_loader import ImageLoader
 from helpers.data import get_resource_dir
+from helpers.system.memory import release_unused_memory
 from helpers.translate import tr
 
 
@@ -33,6 +44,8 @@ _SPINNER_SIZE = 60
 _SPINNER_FOLLOW_INTERVAL_MS = 16
 _SPINNER_FOLLOW_THRESHOLD = 5
 _OVERLAY_MARGIN = 16
+_OVERLAY_SPACING = 8
+_MEMORY_RELEASE_DELAY_MS = 500  # lets deleteLater() of released movies run first
 _NEIGHBOR_PRIORITY = 1
 _THUMBNAIL_PRIORITY = 0
 _NAVIGATION_KEYS = {
@@ -92,12 +105,16 @@ class ImageHoverView(QWidget):
         self._gallery_bar.slideshow_toggled.connect(self._toggle_slideshow)
         self._gallery_bar.thumbnail_clicked.connect(self._on_thumbnail_clicked)
         self._gallery_bar.day_requested.connect(self._on_day_requested)
+        self._gallery_bar.reply_requested.connect(self._on_reply_requested)
+        self._gallery_bar.source_requested.connect(self._on_source_clicked)
         self._gallery_bar.hide()
         self._notice = Notice(icons_path, self)
         self._notice.hide()
         self._source_badge = SourceBadge(icons_path, self)
         self._source_badge.clicked.connect(self._on_source_clicked)
         self._source_badge.hide()
+        self._position_badge = PositionBadge(self)
+        self._position_badge.hide()
         self._close_button = CloseButton(icons_path, config, self)
         self._close_button.clicked.connect(self.hide_preview)
         self._close_button.hide()
@@ -167,6 +184,7 @@ class ImageHoverView(QWidget):
         current = self._current_image
         current_url = current.url if current else None
         self._gallery = self._gallery.reloaded(current_url)
+        self._loader.retain_only({image.url for image in self._gallery.images})
         self._gallery_bar.clear_thumbnails()
         self._position_timer.stop()
         if not self._gallery.images:
@@ -185,6 +203,7 @@ class ImageHoverView(QWidget):
         if self._day_state() is None or first_image(self._gallery.get_messages()):
             return
         self._gallery = self._gallery.without_images()
+        self._loader.retain_only(())
         self._index = 0
         self._gallery_bar.clear_thumbnails()
         self._update_overlays(None)
@@ -204,7 +223,7 @@ class ImageHoverView(QWidget):
         elif self._loader.has_failed(image.url):
             self._on_current_failed()
         else:
-            self._loader.cancel_except(image.url)
+            self._loader.cancel_except((image.url,))
             if direction:
                 self._start_spinner_at_center()
         self._warm_up()
@@ -326,9 +345,12 @@ class ImageHoverView(QWidget):
 
     def _update_overlays(self, image: Optional[GalleryImage]):
         count = len(self._gallery.images)
-        has_source = image is not None and image.source is not None and self._gallery.on_source is not None
+        has_message = image is not None and image.source is not None
+        has_source = has_message and self._gallery.on_source is not None
+        can_reply = has_message and self._gallery.on_reply is not None
         day_state = self._day_state()
-        self._gallery_bar.setVisible(count > 1 or day_state is not None)
+        self._gallery_bar.setVisible(count > 1 or day_state is not None or has_source or can_reply)
+        self._gallery_bar.set_message_actions(has_source, can_reply)
         self._gallery_bar.set_position(self._index, count, count > 0 and show_thumbnails(self._config), day_state)
         self._gallery_bar.move(
             (self.width() - self._gallery_bar.width()) // 2,
@@ -341,6 +363,12 @@ class ImageHoverView(QWidget):
         if has_source:
             self._source_badge.show_image(image, self._is_dark)
             self._source_badge.move(_OVERLAY_MARGIN, _OVERLAY_MARGIN)
+        has_position = count > 1 or day_state is not None
+        self._position_badge.setVisible(has_position)
+        if has_position:
+            self._position_badge.show_position(self._index, count, day_state.day if day_state else None, self._is_dark)
+            left = self._source_badge.geometry().right() + _OVERLAY_SPACING if has_source else _OVERLAY_MARGIN
+            self._position_badge.move(left, _OVERLAY_MARGIN)
 
     def _start_spinner_at_center(self):
         self._position_timer.stop()
@@ -400,9 +428,20 @@ class ImageHoverView(QWidget):
 
     def _on_source_clicked(self):
         """Close the viewer and let the owning view scroll to the message of the current image."""
+        self._leave_to_message(lambda gallery: gallery.on_source)
+
+    def _on_reply_requested(self):
+        """Close the viewer and start a reply to the message of the current image."""
+        self._leave_to_message(lambda gallery: gallery.on_reply)
+
+    def _leave_to_message(self, pick_action: Callable[[ImageGallery], Optional[Callable[[object], None]]]):
+        """Close the viewer and hand the message of the current image to the gallery action, when there is one."""
         gallery, image = self._gallery, self._current_image
+        action = pick_action(gallery) if gallery else None
+        if action is None or image is None or image.source is None:
+            return
         self.hide_preview()
-        gallery.on_source(image.source)
+        action(image.source)
 
     def _update_spinner_position(self):
         """Update spinner position to follow cursor"""
@@ -490,6 +529,12 @@ class ImageHoverView(QWidget):
             if not event.isAutoRepeat():
                 self._toggle_slideshow()
             event.accept()
+        elif Qt.Key.Key_R in (key, native_key):
+            self._on_reply_requested()
+            event.accept()
+        elif Qt.Key.Key_G in (key, native_key):
+            self._on_source_clicked()
+            event.accept()
         else:
             super().keyPressEvent(event)
 
@@ -521,6 +566,7 @@ class ImageHoverView(QWidget):
         self._gallery = self._target_pos = None
         self._end_drag()
         self.hide()
+        QTimer.singleShot(_MEMORY_RELEASE_DELAY_MS, release_unused_memory)
 
     def cleanup(self):
         """Cleanup resources"""

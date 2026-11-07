@@ -1,4 +1,4 @@
-"""Floating panels of the image viewer: source badge (top left), close button (top right), gallery bar (bottom center), notice."""
+"""Floating panels of the image viewer: source and position badges (top left), close button (top right), gallery bar (bottom center), notice."""
 
 from datetime import date
 from pathlib import Path
@@ -24,8 +24,8 @@ _THUMBNAIL_BORDER_WIDTH = 2
 _THUMBNAIL_DIMMED_OPACITY = 0.55
 _UNAVAILABLE_ICON = "image-fill.svg"
 _UNAVAILABLE_ICON_SIZE = 24
-_COUNTER_WIDTH = 90
-_FILLER_NAME = "galleryFiller"  # plain container widgets must not pick up the app-wide widget background
+_GROUP_SPACING = 16
+_POSITION_SEPARATOR = "  ·  "
 _NOTICE_ICON_SIZE = 40
 _PANEL_MARGIN = 10
 _PANEL_SPACING = 8
@@ -45,7 +45,6 @@ def _panel_stylesheet(object_name: str, is_dark: bool) -> str:
     return (
         f"#{object_name} {{ background-color: {style['background']}; border-radius: {_PANEL_RADIUS}px; }}"
         f"#{object_name} QLabel {{ color: {style['text']}; background: transparent; }}"
-        f"#{object_name} #{_FILLER_NAME} {{ background: transparent; }}"
     )
 
 
@@ -157,61 +156,57 @@ class _ThumbnailStrip(QWidget):
 
 
 class GalleryBar(QFrame):
-    """Translucent panel with navigation buttons, position counter and thumbnail strip."""
+    """Translucent panel with message actions, navigation buttons, day buttons and thumbnail strip."""
 
     previous_requested = pyqtSignal()
     next_requested = pyqtSignal()
     slideshow_toggled = pyqtSignal()
     thumbnail_clicked = pyqtSignal(int)
     day_requested = pyqtSignal(int)
+    reply_requested = pyqtSignal()
+    source_requested = pyqtSignal()
 
     def __init__(self, icons_path: Path, config=None, parent=None):
         super().__init__(parent)
         self.setObjectName("galleryBar")
         self._is_playing = False
 
+        self._reply_button = create_icon_button(icons_path, "reply.svg", config=config)
+        self._source_button = create_icon_button(icons_path, "crosshair.svg", config=config)
         self._previous_button = create_icon_button(icons_path, "arrow-left.svg", config=config)
         self._slideshow_button = create_icon_button(icons_path, "play.svg", config=config)
         self._next_button = create_icon_button(icons_path, "arrow-right.svg", config=config)
         self._previous_day_button = create_icon_button(icons_path, "calendar-arrow-left.svg", config=config)
         self._next_day_button = create_icon_button(icons_path, "calendar-arrow-right.svg", config=config)
         self._image_buttons = (self._previous_button, self._slideshow_button, self._next_button)
-        for button in (*self._image_buttons, self._previous_day_button, self._next_day_button):
+        side_buttons = (self._reply_button, self._source_button, self._previous_day_button, self._next_day_button)
+        for button in (*self._image_buttons, *side_buttons):
             button.setFocusPolicy(Qt.FocusPolicy.NoFocus)  # keys stay with the viewer
+        for button in side_buttons:
+            policy = button.sizePolicy()
+            policy.setRetainSizeWhenHidden(True)  # equal side groups keep the navigation buttons centered
+            button.setSizePolicy(policy)
+        self._reply_button.clicked.connect(self.reply_requested)
+        self._source_button.clicked.connect(self.source_requested)
         self._previous_day_button.clicked.connect(lambda: self.day_requested.emit(-1))
         self._next_day_button.clicked.connect(lambda: self.day_requested.emit(1))
         self._previous_button.clicked.connect(self.previous_requested)
         self._slideshow_button.clicked.connect(self.slideshow_toggled)
         self._next_button.clicked.connect(self.next_requested)
 
-        self._counter = QLabel()
-        self._counter.setFont(get_font(FontType.UI))
-        self._counter.setFixedWidth(_COUNTER_WIDTH)
-        self._counter.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         self._strip = _ThumbnailStrip(icons_path, self)
         self._strip.clicked.connect(self.thumbnail_clicked)
 
-        self._date_label = QLabel()
-        self._date_label.setFont(get_font(FontType.UI))
-        self._day_group = QWidget()
-        self._day_group.setObjectName(_FILLER_NAME)
-        day_layout = QHBoxLayout(self._day_group)
-        day_layout.setContentsMargins(0, 0, 0, 0)
-        day_layout.setSpacing(_PANEL_SPACING)
-        for widget in (self._previous_day_button, self._next_day_button, self._date_label):
-            day_layout.addWidget(widget)
-        self._mirror = QWidget()  # mirrors the counter so the buttons stay centered while there are no day controls
-        self._mirror.setFixedWidth(_COUNTER_WIDTH)
-        self._mirror.setObjectName(_FILLER_NAME)
-
         controls = QHBoxLayout()
         controls.setSpacing(_PANEL_SPACING)
-        controls.addWidget(self._counter)
-        controls.addWidget(self._previous_button)
-        controls.addWidget(self._slideshow_button)
-        controls.addWidget(self._next_button)
-        controls.addWidget(self._mirror)
-        controls.addWidget(self._day_group)
+        controls.addWidget(self._reply_button)
+        controls.addWidget(self._source_button)
+        controls.addSpacing(_GROUP_SPACING)
+        for button in self._image_buttons:
+            controls.addWidget(button)
+        controls.addSpacing(_GROUP_SPACING)
+        controls.addWidget(self._previous_day_button)
+        controls.addWidget(self._next_day_button)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(_PANEL_MARGIN, _PANEL_MARGIN, _PANEL_MARGIN, _PANEL_MARGIN)
@@ -226,9 +221,13 @@ class GalleryBar(QFrame):
         self.setStyleSheet(_panel_stylesheet("galleryBar", is_dark))
         self._strip.set_theme(is_dark)
 
+    def set_message_actions(self, can_go_to_source: bool, can_reply: bool):
+        """Show the buttons that act on the message of the current image."""
+        self._source_button.setVisible(can_go_to_source)
+        self._reply_button.setVisible(can_reply)
+
     def set_position(self, index: int, count: int, show_thumbnails: bool, day_state: Optional[DayState]):
-        """Update the counter, thumbnail window and day controls for the image at index of count."""
-        self._counter.setText(f"{index + 1 if count else 0} / {count}")
+        """Update the navigation buttons, thumbnail window and day buttons for the image at index of count."""
         for button in self._image_buttons:
             button.setEnabled(count > 1)
         self._set_day(day_state)
@@ -238,11 +237,10 @@ class GalleryBar(QFrame):
         self._fit_to_content()
 
     def _set_day(self, state: Optional[DayState]):
-        """Show the chatlog day controls for the state, or hide them when days do not apply."""
-        self._day_group.setVisible(state is not None)
-        self._mirror.setVisible(state is None)
+        """Show the chatlog day buttons for the state, or hide them when days do not apply."""
+        for button in (self._previous_day_button, self._next_day_button):
+            button.setVisible(state is not None)
         if state is not None:
-            self._date_label.setText(state.day.strftime("%Y-%m-%d"))
             self._previous_day_button.setEnabled(state.has_previous)
             self._next_day_button.setEnabled(state.has_next)
 
@@ -270,6 +268,8 @@ class GalleryBar(QFrame):
         self._strip.clear()
 
     def _refresh_tooltips(self):
+        self._reply_button.setToolTip(tr("Reply to the message (R)", "Ответить на сообщение (R)"))
+        self._source_button.setToolTip(tr("Go to the message (G)", "Перейти к сообщению (G)"))
         self._previous_button.setToolTip(tr("Previous image (H / ←)", "Предыдущее изображение (H / ←)"))
         self._next_button.setToolTip(tr("Next image (L / →)", "Следующее изображение (L / →)"))
         self._previous_day_button.setToolTip(tr("Previous day", "Предыдущий день"))
@@ -401,3 +401,24 @@ class SourceBadge(QFrame):
         if event.button() == Qt.MouseButton.LeftButton:
             self.clicked.emit()
         event.accept()
+
+
+class PositionBadge(QFrame):
+    """Compact "index / count" of the current image with the chatlog day when days apply."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setObjectName("positionBadge")
+        self._label = QLabel()
+        self._label.setFont(get_font(FontType.TEXT))
+        self.setMinimumHeight(_BADGE_AVATAR_SIZE + 2 * _BADGE_MARGIN)  # same height as the source badge
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(_BADGE_MARGIN + _BADGE_SPACING, _BADGE_MARGIN, _BADGE_MARGIN + _BADGE_SPACING, _BADGE_MARGIN)
+        layout.addWidget(self._label)
+
+    def show_position(self, index: int, count: int, day: Optional[date], is_dark: bool):
+        """Fill the badge for the image at index of count; day is None outside chatlog days."""
+        self.setStyleSheet(_panel_stylesheet("positionBadge", is_dark))
+        text = f"{index + 1 if count else 0} / {count}"
+        self._label.setText(f"{text}{_POSITION_SEPARATOR}{day:%Y-%m-%d}" if day else text)
+        self.adjustSize()

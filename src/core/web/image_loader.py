@@ -1,7 +1,7 @@
 """Background image downloader with an in-memory LRU cache, shared by the viewer and its thumbnails."""
 
 from collections import OrderedDict
-from typing import Callable, Optional
+from typing import Callable, Collection, Optional
 
 import requests
 from PyQt6.QtCore import pyqtBoundSignal, pyqtSignal, QObject, QRunnable, QThreadPool
@@ -12,7 +12,7 @@ DOWNLOAD_CHUNK_BYTES = 8192
 DOWNLOAD_HEADERS = {"User-Agent": "Mozilla/5.0"}
 FOREGROUND_DOWNLOADS = 2
 BACKGROUND_DOWNLOADS = 1
-CACHE_LIMIT_BYTES = 64 * 1024 * 1024
+CACHE_LIMIT_BYTES = 32 * 1024 * 1024
 
 
 def _download(url: str, is_cancelled: Callable[[], bool]) -> Optional[bytes]:
@@ -89,12 +89,18 @@ class ImageLoader(QObject):
         """True when the url is cached or has failed, so nothing more is coming for it."""
         return url in self._cache or url in self._failed
 
-    def cancel_except(self, keep_url: str):
-        """Cancel every other download so the image being waited for gets the whole connection."""
-        for url in [url for url in self._tasks if url != keep_url]:
+    def cancel_except(self, keep_urls: Collection[str]):
+        """Cancel every other download so the images being waited for get the whole connection."""
+        for url in [url for url in self._tasks if url not in keep_urls]:
             task = self._tasks.pop(url)
             task.cancelled = True
             task.pool.tryTake(task)
+
+    def retain_only(self, urls: Collection[str]):
+        """Cancel downloads and drop cached images that are not in urls."""
+        self.cancel_except(urls)
+        for url in [url for url in self._cache if url not in urls]:
+            self._cache_bytes -= len(self._cache.pop(url))
 
     def reset(self):
         """Cancel every download and drop the cache."""
