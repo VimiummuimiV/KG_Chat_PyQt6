@@ -1,6 +1,6 @@
 {
   "chicken": {"scale": [5.2857, 5.3158], "base": 1},
-  "clippy": {"scale": 2, "base": 1},
+  "clippy": {"scale": 4, "base": 1},
   "dog": {"scale": 5, "base": 1},
   "dog/akita": {"scale": [6, 6.0526], "base": 1},
   "fox": {"scale": 4, "base": 1},
