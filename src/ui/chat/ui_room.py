@@ -193,8 +193,7 @@ class RoomWidget(TranslatableMixin, QWidget):
 
     def cleanup(self):
         if getattr(self, "pet_overlay", None):
-            self.pet_overlay.hide()
-            self.pet_overlay.setParent(None)
+            self.pet_overlay.shutdown()
             self.pet_overlay.deleteLater()
             self.pet_overlay = None
         if hasattr(self, "messages_widget") and self.messages_widget:
