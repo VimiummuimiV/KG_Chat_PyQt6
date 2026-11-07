@@ -120,11 +120,11 @@ from helpers.translate import tr
 - Full, readable words. No abbreviations a reader would have to guess, no single letters (loop indices excepted), no cryptic shortenings.
 - No digits in names of variables, constants, functions, classes, methods or arguments (`is_not_found`, not `is_404`; `auth_encoded`, not `auth_b64`). Describe the difference in words instead.
 - Keep names simple, but specific enough that they cannot collide with other names in scope or in the module, and never shadow builtins (`type`, `id`, `list`, `input`).
-- A leading underscore marks what is used only inside its own file (or, for a shell class and its mixin files, only inside that one class); a bare name marks what other files use. This applies to variables, constants, functions, classes and methods:
-  - used only in this file / this class and its mixins → `_name`, `_CONSTANT`, `_helper()`, `_PrivateClass`
-  - imported, called or read from another file or another class → `name`, `CONSTANT`, `helper()`, `PublicClass`
+- A leading underscore marks file-private names; a bare name marks names used from other files. This applies to every kind of name — variables, constants, functions, classes, methods, attributes:
+  - used only inside this one file → `_name`, `_CONSTANT`, `_helper()`, `_PrivateClass`
+  - read, called, connected or imported from another file (including a sibling mixin of the same shell class, e.g. `ui_chat.py` ↔ `chat_*.py`) → `name`, `CONSTANT`, `helper()`, `PublicClass` — no leading underscore
   - local variables inside a function need no underscore
-  - when something becomes shared or stops being shared, rename it project-wide so the prefix stays truthful (also dynamic attributes set on other objects and `getattr` strings)
+  - when something becomes shared across files or stops being shared, rename it project-wide so the prefix stays truthful (also dynamic attributes set on other objects and `getattr` strings)
 - Constants are UPPER_SNAKE_CASE, classes PascalCase, everything else snake_case. Related constants of one concept are grouped, not scattered as many sibling names.
 
 ## Good practices
