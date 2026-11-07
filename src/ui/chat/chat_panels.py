@@ -203,7 +203,7 @@ class ChatPanelsMixin:
             )
             self.settings_widget.font_family_changed.connect(self.on_font_family_changed)
             self.settings_widget.resource_changed.connect(self.manual_reconnect)
-            self.settings_widget.pets_changed.connect(self.pet_overlay.reload)
+            self.settings_widget.pets_changed.connect(self._reload_all_pets)
             self.stacked_widget.addWidget(self.settings_widget)
         else:
             # Reflect any state changed elsewhere (tray menu, hotkeys) since it was last shown
@@ -212,3 +212,12 @@ class ChatPanelsMixin:
         self._setup_sounds()
         self._sync_competitions_settings_ui()
         self.stacked_widget.setCurrentWidget(self.settings_widget)
+
+    def _reload_all_pets(self):
+        """Apply pet settings to the general overlay and every open room overlay."""
+        if getattr(self, "pet_overlay", None):
+            self.pet_overlay.reload()
+        for room in self._all_room_widgets():
+            overlay = getattr(room, "pet_overlay", None)
+            if overlay:
+                overlay.reload()

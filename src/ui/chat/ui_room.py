@@ -11,6 +11,7 @@ from core.xmpp.client import XMPPClient
 from helpers.fonts.fonts import get_userlist_width
 from helpers.translate import on_language_changed, TranslatableMixin
 from ui.chat.ui_messages import MessagesWidget
+from ui.chat.ui_pets import PetOverlay
 from ui.chat.ui_userlist import UserListWidget
 
 
@@ -103,14 +104,16 @@ class RoomWidget(TranslatableMixin, QWidget):
         self.messages_widget.username_shift_clicked.connect(self.username_shift_clicked.emit)
         left.addWidget(self.messages_widget, stretch=1)
 
-        input_row = InputRow(self.icons_path, self.config)
-        input_row.submitted.connect(self.send_requested)
-        input_row.emoticon_requested.connect(self.emoticon_requested)
-        self.input_field = input_row.input_field
-        self.send_button = input_row.send_button
-        self.emoticon_button = input_row.emoticon_button
-        left.addWidget(input_row)
+        self.input_row = InputRow(self.icons_path, self.config)
+        self.input_row.submitted.connect(self.send_requested)
+        self.input_row.emoticon_requested.connect(self.emoticon_requested)
+        self.input_field = self.input_row.input_field
+        self.send_button = self.input_row.send_button
+        self.emoticon_button = self.input_row.emoticon_button
+        left.addWidget(self.input_row)
         body.addLayout(left, stretch=3)
+
+        self.pet_overlay = PetOverlay(self, self.input_row, self.config)
 
         # Right column: userlist + font slider (same layout as general chat)
         self.userlist_panel = QWidget()
@@ -189,6 +192,11 @@ class RoomWidget(TranslatableMixin, QWidget):
         return visible
 
     def cleanup(self):
+        if getattr(self, "pet_overlay", None):
+            self.pet_overlay.hide()
+            self.pet_overlay.setParent(None)
+            self.pet_overlay.deleteLater()
+            self.pet_overlay = None
         if hasattr(self, "messages_widget") and self.messages_widget:
             self.messages_widget.cleanup()
         if hasattr(self, "user_list_widget") and self.user_list_widget:
