@@ -30,6 +30,7 @@ class PetOverlay(QWidget):
         self._timer.setInterval(_TICK_MS)
         self._timer.timeout.connect(self._tick)
         anchor.installEventFilter(self)
+        parent.installEventFilter(self)
         self.hide()
         self.reload()
 
@@ -57,6 +58,8 @@ class PetOverlay(QWidget):
     def eventFilter(self, watched, event):
         if watched is self._anchor and event.type() in _ANCHOR_EVENTS:
             self._place()
+        elif watched is self.parentWidget() and event.type() == QEvent.Type.LayoutRequest:
+            QTimer.singleShot(0, self._place)  # an ancestor of the anchor may have moved, which the anchor itself never reports
         return False
 
     def showEvent(self, event):
@@ -114,6 +117,7 @@ class PetOverlay(QWidget):
             return
         self.setGeometry(top_left.x(), 0, self._anchor.width(), top_left.y())
         self.show()
+        self.raise_()  # panes re-adopted by the window (room tabs opened or closed) land above the pets
         self._refresh_region()
 
     def _refresh_region(self) -> None:
