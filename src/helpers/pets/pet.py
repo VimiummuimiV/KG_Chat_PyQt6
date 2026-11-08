@@ -1,6 +1,8 @@
-"""Pet behavior: random states, stepwise walking, laying eggs, and being picked up and thrown."""
+"""Pet behavior: random states, stepwise walking, laying and eating eggs, and being picked up and thrown."""
 
 import random
+from dataclasses import dataclass
+from typing import Iterable
 
 from PyQt6.QtCore import QRect
 
@@ -30,6 +32,19 @@ _SCARE_MS = (1200, 2200)
 _LAYING_SPECIES = frozenset({"chicken"})
 _EGG_INTERVAL_MS = (20000, 50000)  # walking time between two eggs
 _EGG_DROP_ART_PIXELS = 4  # height the egg leaves the pet from, in art pixels
+_NOSE_OVER_EGG_ART_PIXELS = 1  # how far the nose of an eating pet reaches into the edge of the egg
+_CHASE_STATE = "run"
+_EAT_STATE = "eat"
+
+
+@dataclass
+class _Meal:
+    """A broken egg a pet is running to or eating."""
+
+    egg: Egg
+    from_left: bool  # the pet stands at the left end of the egg and faces right
+    is_eating: bool = False
+    bites: int = 0
 
 
 class Pet(Throwable):
@@ -43,6 +58,9 @@ class Pet(Throwable):
         self._lays_eggs = kind.species in _LAYING_SPECIES
         self._egg_countdown_ms = random.randint(*_EGG_INTERVAL_MS)
         self._egg_due = False
+        self._eats_eggs = _EAT_STATE in kind.states
+        self._meal: _Meal | None = None
+        self._is_scared = False
         walk = self._load("walk")
         self._walk_speed = walk.body.width() * _WALK_STRIDE_RATIO * 1000 / walk.cycle_ms
         self._facing_right = random.choice((True, False))
@@ -78,6 +96,18 @@ class Pet(Throwable):
         tail = self.x + (left if self._facing_right else right)
         return Egg(tail, _EGG_DROP_ART_PIXELS * self.pixel_size, self.pixel_size)
 
+    def look_for_food(self, eggs: Iterable[Egg]) -> None:
+        """Start running to the nearest broken egg nobody else has claimed, if this pet eats eggs."""
+        if not self._eats_eggs or self._meal or self._is_scared or self.is_held or self.is_flying:
+            return
+        edible = (egg for egg in eggs if egg.is_edible)
+        for egg in sorted(edible, key=lambda egg: self._approach(egg)[0]):
+            if egg.claim(self):
+                self._meal = _Meal(egg, self._approach(egg)[1])
+                self._facing_right = self._meal.from_left
+                self._start_state(_CHASE_STATE, 0)
+                return
+
     def click(self) -> None:
         self._scare()
 
@@ -104,14 +134,17 @@ class Pet(Throwable):
         self._animation = self._load(state)
 
     def _choose_state(self) -> None:
-        states = sorted(self.kind.states)
+        self._is_scared = False
+        states = [state for state in sorted(self.kind.states) if state in _STATE_PLAN]
         state = random.choices(states, [_STATE_PLAN[state][0] for state in states])[0]
         self._start_state(state, random.randint(*_STATE_PLAN[state][1:]))
         if state in _GAIT_SPEED_FACTOR and random.random() < _TURN_CHANCE:
             self._facing_right = not self._facing_right
 
     def _scare(self) -> None:
-        """Run around in panic for a moment."""
+        """Run around in panic for a moment, forgetting any egg."""
+        self._meal = None
+        self._is_scared = True
         self._facing_right = random.choice((True, False))
         self._start_state("run", random.randint(*_SCARE_MS))
 
@@ -125,8 +158,62 @@ class Pet(Throwable):
             self.x += direction * self._walk_speed * gait_factor * moved_ms / 1000
             if self._lays_eggs:
                 self._count_down_egg(step_ms)
-        if self._state_elapsed_ms >= self._state_limit_ms:
+        if self._meal:
+            self._follow_meal(step_ms)
+        elif self._state_elapsed_ms >= self._state_limit_ms:
             self._choose_state()
+
+    def _follow_meal(self, step_ms: int) -> None:
+        """Run to the egg of the meal, then eat it bite by bite."""
+        meal = self._meal
+        if not meal.egg.claim(self) or not (meal.is_eating or meal.egg.is_edible):
+            self._end_meal()
+            return
+        self._facing_right = meal.from_left
+        if meal.is_eating:
+            self._eat(meal, step_ms)
+        else:
+            self._reach_egg(meal)
+
+    def _reach_egg(self, meal: _Meal) -> None:
+        """Keep running until the nose touches the egg, then stop and start eating."""
+        stop = self._nose_stop(meal.egg, meal.from_left)
+        if (stop - self.x) * (1 if meal.from_left else -1) > 0:
+            return
+        self.x = stop
+        meal.is_eating = True
+        self._start_state(_EAT_STATE, 0)
+
+    def _eat(self, meal: _Meal, step_ms: int) -> None:
+        """Take one bite at the start of every eating cycle and step forward to the new end of the egg."""
+        egg = meal.egg
+        egg.keep_fresh(step_ms)
+        cycle_ms = self._animation.cycle_ms
+        bites_due = self._state_elapsed_ms // cycle_ms + 1
+        while meal.bites < bites_due and not egg.is_eaten:
+            egg.bite(meal.from_left)
+            meal.bites += 1
+            self.x = self._nose_stop(egg, meal.from_left)
+        if egg.is_eaten and self._state_elapsed_ms >= meal.bites * cycle_ms:
+            self._end_meal()
+
+    def _end_meal(self) -> None:
+        self._meal = None
+        self._choose_state()
+
+    def _approach(self, egg: Egg) -> tuple[float, bool]:
+        """Return how far to go to reach the nearer end of the egg, and whether that is its left end."""
+        return min(
+            (abs(self._nose_stop(egg, True) - self.x), True),
+            (abs(self._nose_stop(egg, False) - self.x), False),
+        )
+
+    def _nose_stop(self, egg: Egg, from_left: bool) -> float:
+        """Return the x at which an eating pet has its nose just inside the chosen end of the egg."""
+        left, right = self._load(_EAT_STATE).visible_span(from_left)
+        edge = egg.remaining_span()[0 if from_left else 1]
+        reach = _NOSE_OVER_EGG_ART_PIXELS * self.pixel_size
+        return edge + reach - right if from_left else edge - reach - left
 
     def _count_down_egg(self, step_ms: int) -> None:
         self._egg_countdown_ms -= step_ms

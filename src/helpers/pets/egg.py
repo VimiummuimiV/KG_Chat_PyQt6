@@ -1,10 +1,10 @@
-"""Egg laid by a pet: falls, tips over, rolls by its shape, breaks on a hard landing or when old, then evaporates."""
+"""Egg laid by a pet: falls, tips over, rolls by its shape, breaks on a hard landing or when old, then evaporates unless eaten."""
 
 import math
 import random
 
-from PyQt6.QtCore import QPoint, QRect
-from PyQt6.QtGui import QPixmap
+from PyQt6.QtCore import QPoint, QRect, Qt
+from PyQt6.QtGui import QPainter, QPixmap
 
 from helpers.pets.animation import load_animation
 from helpers.pets.catalog import PetKind
@@ -16,6 +16,8 @@ _INTACT_LIFETIME_MS = 90000
 _BROKEN_LIFETIME_MS = 8000  # counted from the break; the break animation plays within it, then the puddle evaporates
 _BREAK_IMPACT_SPEED = 600  # device pixels per second; about a 75 pixel fall
 _MAXIMUM_ROLL_SPEED = 700  # device pixels per second
+_BITES_PER_EGG = 4  # a broken egg is eaten in this many bites, each taking an equal part of its width
+_CLAIM_MS = 300  # a pet keeps its claim on a broken egg only while it renews it
 _START_TILT = 0.05  # radians; a laid egg stands on its blunt end only until this tilt grows
 _WALL_BOUNCE = 0.4  # share of the spin kept after hitting the side of the area
 _RESTING_SPIN = 0.2  # radians per second; an old egg bursts only when it lies about this still
@@ -34,6 +36,10 @@ class Egg(Throwable):
         self._age_ms = 0
         self._angle = random.choice((-_START_TILT, _START_TILT)) % math.tau  # clockwise turn; zero is upright
         self._spin = 0.0  # radians per second, clockwise
+        self._bites = [0, 0]  # taken from the left end and from the right end
+        self._fresh_ms = 0  # time spent being eaten, which does not count toward the evaporation of the broken egg
+        self._eater = None
+        self._claim_ms = 0
         self.x = center_x - self.pixmap.width() / 2
         self.lift = lift
         self.is_flying = True
@@ -46,7 +52,7 @@ class Egg(Throwable):
     def pixmap(self) -> QPixmap:
         animation = self._animation
         if self._state != _ROLL:
-            return animation.pixmap_once(self._age_ms)
+            return self._without_eaten(animation.pixmap_once(self._age_ms))
         return animation.frames_right[round(self._angle / math.tau * len(animation.frames_right)) % len(animation.frames_right)]
 
     @property
@@ -54,9 +60,19 @@ class Egg(Throwable):
         return self._state == _ROLL
 
     @property
+    def is_eaten(self) -> bool:
+        """Whether every bite of the broken egg has been taken."""
+        return sum(self._bites) >= _BITES_PER_EGG
+
+    @property
+    def is_edible(self) -> bool:
+        """Whether the egg is broken, not yet evaporating and not yet eaten up."""
+        return self._state not in (_ROLL, _EVAPORATE) and not self.is_eaten
+
+    @property
     def expired(self) -> bool:
-        """Whether the egg has evaporated and should be removed."""
-        return self._state == _EVAPORATE and self._age_ms >= self._animation.cycle_ms
+        """Whether the egg has evaporated or been eaten and should be removed."""
+        return self.is_eaten or (self._state == _EVAPORATE and self._age_ms >= self._animation.cycle_ms)
 
     def maximum_lift(self, area_height: int) -> float:
         return area_height - self.pixmap.height()
@@ -79,6 +95,28 @@ class Egg(Throwable):
             return
         self._begin(_BREAK)
 
+    def claim(self, pet: object) -> bool:
+        """Reserve the egg for pet, or renew its claim; False while another pet holds it."""
+        if self._claim_ms > 0 and self._eater is not pet:
+            return False
+        self._eater, self._claim_ms = pet, _CLAIM_MS
+        return True
+
+    def keep_fresh(self, step_ms: int) -> None:
+        """Do not count step_ms spent being eaten toward the evaporation of the broken egg."""
+        self._fresh_ms += step_ms
+
+    def bite(self, from_left: bool) -> None:
+        """Take one bite off the left or the right end of the broken egg."""
+        self._bites[0 if from_left else 1] += 1
+
+    def remaining_span(self) -> tuple[int, int]:
+        """Return the horizontal [left, right) range of the uneaten egg on the line."""
+        eaten_left, eaten_right = self._eaten_widths()
+        body = self._animation.body
+        start = round(self.x) + body.x()
+        return start + eaten_left, start + body.width() - eaten_right
+
     def rect(self, area_height: int) -> QRect:
         """Return the area covered by the visible pixels of the egg."""
         body = self._animation.body
@@ -94,13 +132,14 @@ class Egg(Throwable):
             self.x += distance
         if not self.is_held:
             self._age_ms += step_ms
+            self._claim_ms -= step_ms
             self._advance_life()
         self._keep_inside(line_width)
 
     def _begin(self, state: str) -> None:
         """Switch to another sprite state around the same center."""
         center = self.x + self.pixmap.width() / 2
-        self._state, self._age_ms = state, 0
+        self._state, self._age_ms, self._fresh_ms = state, 0, 0
         self.x = center - self.pixmap.width() / 2
 
     def _advance_life(self) -> None:
@@ -108,8 +147,28 @@ class Egg(Throwable):
         if self._state == _ROLL:
             if self._age_ms >= _INTACT_LIFETIME_MS and not self.is_flying and abs(self._spin) < _RESTING_SPIN:
                 self._begin(_BURST_RIGHT if math.sin(self._angle) > 0 else _BURST_LEFT)
-        elif self._state != _EVAPORATE and self._age_ms >= _BROKEN_LIFETIME_MS:
+        elif self._state != _EVAPORATE and self._age_ms - self._fresh_ms >= _BROKEN_LIFETIME_MS:
             self._begin(_EVAPORATE)
+
+    def _eaten_widths(self) -> tuple[int, int]:
+        """Return how many pixels of the broken egg are eaten from its left end and from its right end."""
+        columns = self._animation.body.width() // self._pixel_size
+        left, right = (columns * bites // _BITES_PER_EGG * self._pixel_size for bites in self._bites)
+        return left, right
+
+    def _without_eaten(self, frame: QPixmap) -> QPixmap:
+        """Return the frame with the eaten ends made transparent."""
+        eaten_left, eaten_right = self._eaten_widths()
+        if not (eaten_left or eaten_right):
+            return frame
+        body = self._animation.body
+        pixmap = frame.copy()
+        painter = QPainter(pixmap)
+        painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_Clear)
+        painter.fillRect(0, 0, body.x() + eaten_left, pixmap.height(), Qt.GlobalColor.transparent)
+        painter.fillRect(body.x() + body.width() - eaten_right, 0, eaten_right, pixmap.height(), Qt.GlobalColor.transparent)
+        painter.end()
+        return pixmap
 
     @staticmethod
     def _limited_speed(speed: float) -> float:

@@ -14,7 +14,7 @@ DEFAULT_SIZE_MULTIPLIER = 2
 _DEFAULT_PET_COUNTS = {"dog/akita": 1}
 _SPRITE_SUFFIX = "_8fps.gif"
 # Longest names first so "walk_fast" is not read as "walk".
-_STATE_NAMES = ("walk_fast", "with_ball", "walk", "run", "idle", "swipe", "lie", "stand")
+_STATE_NAMES = ("walk_fast", "with_ball", "walk", "run", "idle", "swipe", "lie", "stand", "eat")
 _ICON_NAME_PATTERNS = ("icon_{color}.png", "{color}_icon.png", "icon.png")
 _PIXEL_GRID_FILE = "pixel_grid.json"
 

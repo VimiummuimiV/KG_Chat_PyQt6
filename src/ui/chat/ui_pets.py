@@ -163,6 +163,7 @@ class PetOverlay(QWidget):
         step_ms = min(self._clock.restart(), _MAXIMUM_STEP_MS)
         line_width, area_height = self._device_size()
         for pet in self._pets:
+            pet.look_for_food(self._eggs)
             pet.update(step_ms, line_width, area_height)
             egg = pet.take_egg()
             if egg:
