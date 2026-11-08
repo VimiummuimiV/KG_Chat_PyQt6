@@ -12,3 +12,4 @@ sounddevice
 numpy
 SpeechRecognition
 pillow
+resvg_py

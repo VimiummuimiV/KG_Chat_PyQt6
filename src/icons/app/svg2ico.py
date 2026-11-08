@@ -5,12 +5,10 @@ from io import BytesIO
 from pathlib import Path
 
 try:
+    import resvg_py
     from PIL import Image
-    from PyQt6.QtCore import QByteArray, QBuffer, QIODevice, Qt
-    from PyQt6.QtGui import QGuiApplication, QImage, QPainter
-    from PyQt6.QtSvg import QSvgRenderer
 except ImportError:
-    print("Install dependencies: pip install PyQt6 pillow")
+    print("Install dependencies: pip install resvg_py pillow")
     sys.exit(1)
 
 
@@ -20,45 +18,31 @@ SIZE = 256
 def svg_to_ico(svg_path: Path) -> Path:
     ico_path = svg_path.with_suffix(".ico")
 
-    renderer = QSvgRenderer(str(svg_path))
-    if not renderer.isValid():
-        raise ValueError(f"Invalid SVG: {svg_path}")
+    png_data = resvg_py.svg_to_bytes(
+        svg_path=str(svg_path),
+        width=SIZE,
+        height=SIZE,
+    )
 
-    image = QImage(SIZE, SIZE, QImage.Format.Format_ARGB32_Premultiplied)
-    image.fill(Qt.GlobalColor.transparent)
-
-    painter = QPainter(image)
-    renderer.setAspectRatioMode(Qt.AspectRatioMode.KeepAspectRatio)
-    renderer.render(painter)
-    painter.end()
-
-    data = QByteArray()
-    buffer = QBuffer(data)
-    buffer.open(QIODevice.OpenModeFlag.WriteOnly)
-    image.save(buffer, "PNG")
-    buffer.close()
-
-    with Image.open(BytesIO(bytes(data))) as rendered:
-        rendered.convert("RGBA").save(
+    with Image.open(BytesIO(png_data)) as image:
+        image.convert("RGBA").save(
             ico_path,
             format="ICO",
-            sizes=[(SIZE, SIZE)]
+            sizes=[(SIZE, SIZE)],
         )
 
     return ico_path
 
 
 def main():
-    app = QGuiApplication([])
-
     script_dir = Path(__file__).resolve().parent
-    files = sorted(script_dir.glob("*.svg"))
+    svg_files = sorted(script_dir.glob("*.svg"))
 
-    if not files:
+    if not svg_files:
         print(f"No SVG files found in: {script_dir}")
         sys.exit(1)
 
-    for svg in files:
+    for svg in svg_files:
         try:
             print(f"Created: {svg_to_ico(svg)}")
         except Exception as error:
