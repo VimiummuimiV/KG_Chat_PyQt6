@@ -7,11 +7,14 @@ from PyQt6.QtGui import QPainter, QRegion
 from PyQt6.QtWidgets import QWidget
 
 from helpers.pets.catalog import get_pet_kind, pet_counts, pet_pixel_size, pets_enabled, pets_stepped
+from helpers.pets.egg import Egg
 from helpers.pets.pet import Pet
+from helpers.pets.throwable import Throwable
 
 
 _TICK_MS = 33
 _MAXIMUM_STEP_MS = 100  # a stall (sleep, window drag) must not make pets jump across the line
+_HOVER_STALE_MS = 100  # a cursor still for this long has no speed to push with
 _ANCHOR_EVENTS = (QEvent.Type.Move, QEvent.Type.Resize, QEvent.Type.Show, QEvent.Type.Hide)
 
 
@@ -23,8 +26,11 @@ class PetOverlay(QWidget):
         self._anchor = anchor
         self._config = config
         self._pets: list[Pet] = []
-        self._grabbed: Pet | None = None
+        self._eggs: list[Egg] = []
+        self._grabbed: Throwable | None = None
+        self._hover: tuple[QPoint, int] | None = None  # last cursor point over the area and its time
         self._painted = QRegion()
+        self.setMouseTracking(True)
         self._clock = QElapsedTimer()
         self._timer = QTimer(self)
         self._timer.setInterval(_TICK_MS)
@@ -66,6 +72,8 @@ class PetOverlay(QWidget):
         stepped = pets_stepped(self._config)
         for pet in self._pets:
             pet.stepped = stepped
+        if not self._pets:
+            self._eggs.clear()
         self._grabbed = None
         self._place()
 
@@ -89,25 +97,48 @@ class PetOverlay(QWidget):
         painter = QPainter(self)
         painter.scale(1 / self.devicePixelRatioF(), 1 / self.devicePixelRatioF())  # draw in device pixels
         area_height = self._device_size()[1]
-        for pet in self._pets:
-            painter.drawPixmap(pet.position(area_height), pet.pixmap)
+        for body in self._bodies():
+            painter.drawPixmap(body.position(area_height), body.pixmap)
 
     def mousePressEvent(self, event):
         if event.button() != Qt.MouseButton.LeftButton:
             return
         point, area_height = self._device_point(event), self._device_size()[1]
-        self._grabbed = next((pet for pet in reversed(self._pets) if pet.rect(area_height).contains(point)), None)
+        holdable = (body for body in reversed(self._bodies()) if body.can_be_held)
+        self._grabbed = next((body for body in holdable if body.rect(area_height).contains(point)), None)
         if self._grabbed:
             self._grabbed.grab(point, area_height, event.timestamp())
 
     def mouseMoveEvent(self, event):
+        point = self._device_point(event)
         if self._grabbed:
-            self._grabbed.drag_to(self._device_point(event), self._device_size()[1], event.timestamp())
+            self._grabbed.drag_to(point, self._device_size()[1], event.timestamp())
+            return
+        self._push_eggs(point, event.timestamp())
+
+    def leaveEvent(self, event):
+        super().leaveEvent(event)
+        self._hover = None
 
     def mouseReleaseEvent(self, event):
         if self._grabbed and event.button() == Qt.MouseButton.LeftButton:
             self._grabbed.release(event.timestamp())
             self._grabbed = None
+
+    def _push_eggs(self, point: QPoint, timestamp_ms: int) -> None:
+        """Roll the topmost egg under the cursor by the horizontal speed of the cursor."""
+        previous, self._hover = self._hover, (point, timestamp_ms)
+        if previous is None or timestamp_ms - previous[1] > _HOVER_STALE_MS:
+            return
+        speed = (point.x() - previous[0].x()) * 1000 / max(timestamp_ms - previous[1], 1)
+        area_height = self._device_size()[1]
+        egg = next((egg for egg in reversed(self._eggs) if egg.rect(area_height).contains(point)), None)
+        if egg:
+            egg.push(speed)
+
+    def _bodies(self) -> list[Throwable]:
+        """Everything drawn on the line; eggs come last so they lie over the pets and are picked first."""
+        return [*self._pets, *self._eggs]
 
     def _device_size(self) -> tuple[int, int]:
         ratio = self.devicePixelRatioF()
@@ -143,8 +174,8 @@ class PetOverlay(QWidget):
         """Limit mouse input to the pets and repaint only where they were and are."""
         area_height = self._device_size()[1]
         region = QRegion()
-        for pet in self._pets:
-            region = region.united(self._logical_rect(pet.rect(area_height)))
+        for body in self._bodies():
+            region = region.united(self._logical_rect(body.rect(area_height)))
         self.setMask(region)
         self.update(self._painted.united(region))
         self._painted = region
@@ -154,4 +185,10 @@ class PetOverlay(QWidget):
         line_width, area_height = self._device_size()
         for pet in self._pets:
             pet.update(step_ms, line_width, area_height)
+            egg = pet.take_egg()
+            if egg:
+                self._eggs.append(egg)
+        for egg in self._eggs:
+            egg.update(step_ms, line_width, area_height)
+        self._eggs = [egg for egg in self._eggs if not egg.expired]
         self._refresh_region()

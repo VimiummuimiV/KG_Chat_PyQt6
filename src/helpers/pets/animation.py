@@ -34,6 +34,11 @@ class _PetAnimation:
         index, _ = self._frame_at(elapsed_ms % self.cycle_ms)
         return (self.frames_right if facing_right else self._frames_left)[index]
 
+    def pixmap_once(self, elapsed_ms: int) -> QPixmap:
+        """Return the frame shown after elapsed_ms of the animation played once and then held on its last frame."""
+        index, _ = self._frame_at(min(elapsed_ms, self.cycle_ms - 1))
+        return self.frames_right[index]
+
     def stepped_ms(self, elapsed_ms: int) -> float:
         """Return elapsed_ms with each frame's time pulled to its start: motion measured by it advances in steps."""
         cycles, moment = divmod(elapsed_ms, self.cycle_ms)
