@@ -1,89 +1,76 @@
 #!/usr/bin/env python3
-"""
-SVG → ICO converter
-Usage:
-    python svg2ico.py                  # all .svg files in the current folder
-    python svg2ico.py icon.svg         # convert a specific file
-    python svg2ico.py icon.svg out.ico # specify the output filename
-
-Requires: pip install cairosvg pillow
-"""
-
-from __future__ import annotations
+"""Convert SVG files to 256x256 ICO files."""
 
 import sys
+from io import BytesIO
 from pathlib import Path
 
 try:
-    import cairosvg
     from PIL import Image
-    from io import BytesIO
+    from PyQt6.QtCore import QByteArray, QBuffer, QIODevice, Qt
+    from PyQt6.QtGui import QGuiApplication, QImage, QPainter
+    from PyQt6.QtSvg import QSvgRenderer
 except ImportError:
-    print("Required packages: pip install cairosvg pillow")
+    print("Install dependencies: pip install PyQt6 pillow")
     sys.exit(1)
 
-# ICO sizes (preferred by Windows)
-SIZES = [16, 24, 32, 48, 64, 128, 256]
+
+SIZE = 256
 
 
 def svg_to_ico(svg_path: Path, ico_path: Path | None = None) -> Path:
     svg_path = svg_path.resolve()
-    if not svg_path.exists():
+    if not svg_path.is_file():
         raise FileNotFoundError(f"SVG not found: {svg_path}")
 
-    if ico_path is None:
-        ico_path = svg_path.with_suffix(".ico")
-    else:
-        ico_path = ico_path.resolve()
+    ico_path = (ico_path or svg_path.with_suffix(".ico")).resolve()
+    renderer = QSvgRenderer(str(svg_path))
+    if not renderer.isValid():
+        raise ValueError(f"Invalid SVG: {svg_path}")
 
-    # Render the SVG to PNG images at different sizes.
-    images = []
-    for size in SIZES:
-        png_data = cairosvg.svg2png(
-            url=str(svg_path),
-            output_width=size,
-            output_height=size,
-        )
-        img = Image.open(BytesIO(png_data)).convert("RGBA")
-        images.append(img)
+    image = QImage(SIZE, SIZE, QImage.Format.Format_ARGB32_Premultiplied)
+    image.fill(Qt.GlobalColor.transparent)
 
-    # Pillow assembles the multi-size ICO.
-    images[0].save(
-        ico_path,
-        format="ICO",
-        sizes=[(s, s) for s in SIZES],
-        append_images=images[1:],
-    )
+    painter = QPainter(image)
+    renderer.setAspectRatioMode(Qt.AspectRatioMode.KeepAspectRatio)
+    renderer.render(painter)
+    painter.end()
+
+    data = QByteArray()
+    buffer = QBuffer(data)
+    if not buffer.open(QIODevice.OpenModeFlag.WriteOnly) or not image.save(buffer, "PNG"):
+        raise RuntimeError("Could not render SVG to PNG")
+    buffer.close()
+
+    with Image.open(BytesIO(bytes(data))) as rendered:
+        rendered.convert("RGBA").save(ico_path, format="ICO", sizes=[(SIZE, SIZE)])
+
     return ico_path
 
 
 def main() -> None:
+    app = QGuiApplication([])
     args = sys.argv[1:]
 
-    if not args:
-        # Convert all .svg files in the current folder.
-        svgs = sorted(Path(".").glob("*.svg"))
-        if not svgs:
-            print("No .svg files found in the current folder.")
-            sys.exit(1)
-        for svg in svgs:
-            ico = svg.with_suffix(".ico")
-            if ico.exists():
-                print(f"  {svg.name} → {ico.name}  (already exists, overwriting)")
-            else:
-                print(f"  {svg.name} → {ico.name}")
-            svg_to_ico(svg, ico)
-        print("Done.")
-        return
+    if len(args) > 2:
+        print("Usage: python svg2ico.py [input.svg [output.ico]]")
+        sys.exit(1)
 
-    svg = Path(args[0])
-    ico = Path(args[1]) if len(args) > 1 else None
+    if args:
+        files = [Path(args[0])]
+        output = Path(args[1]) if len(args) == 2 else None
+    else:
+        files = sorted(Path.cwd().glob("*.svg"))
+        output = None
+        if not files:
+            print("No SVG files found in the current folder.")
+            sys.exit(1)
 
     try:
-        out = svg_to_ico(svg, ico)
-        print(f"Created: {out}")
-    except Exception as e:
-        print(f"Error: {e}")
+        for svg in files:
+            print(f"Created: {svg_to_ico(svg, output)}")
+    except Exception as error:
+        print(f"Error: {error}")
         sys.exit(1)
 
 
