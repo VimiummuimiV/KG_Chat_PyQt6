@@ -19,11 +19,11 @@ from helpers.scroll.scroll import is_separator_row, jump_to_date, scroll
 from helpers.translate import tr
 
 
-OPACITY_HIDDEN   = 0.0
-OPACITY_VISIBLE  = 1.0
-FADE_DURATION    = 180
-BUTTON_GAP       = 6
-REVEAL_PADDING   = 150 
+_OPACITY_HIDDEN   = 0.0
+_OPACITY_VISIBLE  = 1.0
+_FADE_DURATION    = 180
+_BUTTON_GAP       = 6
+_REVEAL_PADDING   = 150 
 
 # Top-to-bottom order, matching the on-screen stack: full-up, page-up, page-down, full-down
 # tooltips: (en, ru) resolved at button creation
@@ -50,7 +50,7 @@ class ScrollButtonsPanel(QObject):
     dims further while disabled (already at the top/bottom, so that direction is a
     no-op).
     """
-    clicked_scroll = pyqtSignal(str)  # emits the action that was triggered: top/page_up/page_down/bottom
+    _clicked_scroll = pyqtSignal(str)  # emits the action that was triggered: top/page_up/page_down/bottom
 
     def __init__(self, list_view, parent=None, extra_actions=None, date_jump=False):
         """extra_actions: optional list of {"icon", "tooltip", "callback"} dicts for
@@ -74,15 +74,15 @@ class ScrollButtonsPanel(QObject):
         self._layout = QVBoxLayout(self.container)
         # No right margin: that side sits against the scrollbar, so padding there
         # would steal its hover/click events. Left/top/bottom keep the full reveal zone.
-        self._layout.setContentsMargins(REVEAL_PADDING, REVEAL_PADDING, 0, REVEAL_PADDING)
-        self._layout.setSpacing(BUTTON_GAP)
+        self._layout.setContentsMargins(_REVEAL_PADDING, _REVEAL_PADDING, 0, _REVEAL_PADDING)
+        self._layout.setSpacing(_BUTTON_GAP)
 
         self._container_effect = QGraphicsOpacityEffect(self.container)
-        self._container_effect.setOpacity(OPACITY_HIDDEN)
+        self._container_effect.setOpacity(_OPACITY_HIDDEN)
         self.container.setGraphicsEffect(self._container_effect)
 
         self._container_anim = QPropertyAnimation(self._container_effect, b"opacity", self)
-        self._container_anim.setDuration(FADE_DURATION)
+        self._container_anim.setDuration(_FADE_DURATION)
 
         self.container.installEventFilter(self)
 
@@ -104,7 +104,7 @@ class ScrollButtonsPanel(QObject):
         self._has_extra_actions = bool(extra_actions)
         self._date_spacer = None
         if date_jump or extra_actions:
-            self._date_spacer = QSpacerItem(0, BUTTON_GAP * 2, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
+            self._date_spacer = QSpacerItem(0, _BUTTON_GAP * 2, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
             self._layout.addItem(self._date_spacer)
 
         self._date_buttons = []
@@ -150,9 +150,9 @@ class ScrollButtonsPanel(QObject):
             self._update_date_buttons()
 
         # Position update timer
-        self.position_timer = QTimer(self)  # Parent timer to the QObject
-        self.position_timer.timeout.connect(self._update_position)
-        self.position_timer.start(100)
+        self._position_timer = QTimer(self)  # Parent timer to the QObject
+        self._position_timer.timeout.connect(self._update_position)
+        self._position_timer.start(100)
 
     def _create_button(self, icon_name, tooltip):
         button = create_icon_button(
@@ -196,7 +196,7 @@ class ScrollButtonsPanel(QObject):
         for entry in self._date_buttons:
             entry["button"].setVisible(visible)
         if self._date_spacer is not None:
-            h = BUTTON_GAP * 2 if (visible or self._has_extra_actions) else 0
+            h = _BUTTON_GAP * 2 if (visible or self._has_extra_actions) else 0
             self._date_spacer.changeSize(0, h, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
             self._layout.invalidate()
             self.container.adjustSize()
@@ -219,9 +219,9 @@ class ScrollButtonsPanel(QObject):
     def eventFilter(self, obj, event):
         if obj is self.container:
             if event.type() == QEvent.Type.Enter:
-                self._animate_container(OPACITY_VISIBLE)
+                self._animate_container(_OPACITY_VISIBLE)
             elif event.type() == QEvent.Type.Leave:
-                self._animate_container(OPACITY_HIDDEN)
+                self._animate_container(_OPACITY_HIDDEN)
             elif event.type() == QEvent.Type.Wheel:
                 QApplication.sendEvent(self.list_view.viewport(), event)
                 return True
@@ -244,7 +244,7 @@ class ScrollButtonsPanel(QObject):
             self._page_scroll(-1)
         elif action == "page_down":
             self._page_scroll(1)
-        self.clicked_scroll.emit(action)
+        self._clicked_scroll.emit(action)
 
     def _page_scroll(self, direction: int):
         """Scroll by one page. For QListView uses whole rows; for QScrollArea uses scrollbar page step."""
@@ -299,8 +299,8 @@ class ScrollButtonsPanel(QObject):
 
     def cleanup(self):
         """Stop timers and release the container"""
-        if self.position_timer:
-            self.position_timer.stop()
+        if self._position_timer:
+            self._position_timer.stop()
         if self._date_update_timer:
             self._date_update_timer.stop()
         if self.list_view:

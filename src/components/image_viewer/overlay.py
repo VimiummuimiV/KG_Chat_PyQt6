@@ -92,7 +92,7 @@ class _ThumbnailStrip(QWidget):
         self._unavailable_icon = QPixmap()
         self.setCursor(Qt.CursorShape.PointingHandCursor)
 
-    def set_state(self, indices: range, current: int):
+    def _set_state(self, indices: range, current: int):
         self.indices = indices
         self._current = current
         width = len(indices) * (_THUMBNAIL_SIZE.width() + _THUMBNAIL_GAP) - _THUMBNAIL_GAP
@@ -236,7 +236,7 @@ class GalleryBar(QFrame):
             button.setEnabled(count > 1)
         self._set_day(day_state)
         self._strip.setVisible(show_thumbnails)
-        self._strip.set_state(_thumbnail_window(index, count) if show_thumbnails else range(0), index)
+        self._strip._set_state(_thumbnail_window(index, count) if show_thumbnails else range(0), index)
         self._refresh_tooltips()
         self._fit_to_content()
 

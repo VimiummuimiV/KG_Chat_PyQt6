@@ -5,6 +5,7 @@ from PyQt6.QtWidgets import QApplication
 
 from components.button import set_button_icon
 from helpers.scroll.scroll import scroll
+from helpers.system.memory import release_memory_soon
 from helpers.translate import tr
 from ui.settings.settings_options import DEFAULTS
 
@@ -12,23 +13,23 @@ from ui.settings.settings_options import DEFAULTS
 class ChatlogSplitViewMixin:
     """ChatlogWidget: message clicks and the nested split chatlog."""
 
-    def _find_message_row(self, messages, predicate):
+    def find_message_row(self, messages, predicate):
         return next(
             (i for i, msg in enumerate(messages)
              if not getattr(msg, 'is_separator', False) and predicate(msg)),
             None
         )
 
-    def _scroll_and_highlight(self, target_row: int, scroll_delay: int = 50, highlight_delay: int = 200):
+    def scroll_and_highlight(self, target_row: int, scroll_delay: int = 50, highlight_delay: int = 200):
         """Scroll to target row and highlight it after a delay."""
         scroll(self.list_view, mode="middle", target_row=target_row, delay=scroll_delay)
         QTimer.singleShot(highlight_delay, lambda: self.delegate.highlight_row(target_row, anchor=True))
 
-    def _anchor_frame_active(self) -> bool:
+    def anchor_frame_active(self) -> bool:
         """The anchor frame is held only while a filtered list and its full-log split are shown together"""
-        return bool(self.split_chatlog_widget) and self._has_active_search_or_filter()
+        return bool(self.split_chatlog_widget) and self.has_active_search_or_filter()
 
-    def _clear_anchors(self):
+    def clear_anchors(self):
         for widget in (self, self.split_chatlog_widget):
             if widget:
                 widget.delegate.set_anchor(None)
@@ -37,10 +38,10 @@ class ChatlogSplitViewMixin:
         action = self.config.get("ui", "chatlog", "filtered_click_action") or DEFAULTS["chatlog"]["filtered_click_action"]
         return action == "split"
 
-    def _on_message_clicked(self, row: int):
+    def on_message_clicked(self, row: int):
         """Handle message click - show the message in the split pane, or reveal all messages and scroll to it"""
         clicked_msg = self.model.data(self.model.index(row, 0), Qt.ItemDataRole.DisplayRole)
-        has_filters = self._has_active_search_or_filter()
+        has_filters = self.has_active_search_or_filter()
 
         # Split view open (or requested for filtered clicks) → show the message in the split
         # chatlog, loading that message's own date first if it differs
@@ -54,7 +55,7 @@ class ChatlogSplitViewMixin:
 
         # No active filters → simple direct scroll + highlight
         if not has_filters:
-            self._scroll_and_highlight(row, scroll_delay=50, highlight_delay=200)
+            self.scroll_and_highlight(row, scroll_delay=50, highlight_delay=200)
             return
 
         # Filters are active → clear them and find message in full list
@@ -80,11 +81,11 @@ class ChatlogSplitViewMixin:
             self.filter_mentions = False
             set_button_icon(self.mention_filter_btn, "at-line.svg")
 
-        self._apply_filter()
+        self.apply_filter()
         self.filter_changed.emit(self.filtered_usernames)
 
         # Scroll + highlight after the list has rebuilt
-        QTimer.singleShot(100, lambda: self._scroll_and_highlight(
+        QTimer.singleShot(100, lambda: self.scroll_and_highlight(
             target_row,
             scroll_delay=100,
             highlight_delay=250
@@ -101,7 +102,7 @@ class ChatlogSplitViewMixin:
                 parent_window=self,
                 ban_manager=self.ban_manager
             )
-            self.split_chatlog_widget.delegate.anchor_frame_enabled = self._anchor_frame_active
+            self.split_chatlog_widget.delegate.anchor_frame_enabled = self.anchor_frame_active
             self.split_chatlog_widget.back_btn.setToolTip(tr("Close split view", "Закрыть разделённый вид"))
             self.split_chatlog_widget.back_requested.connect(self.close_split_view)
             self.content_splitter.addWidget(self.split_chatlog_widget)
@@ -113,19 +114,19 @@ class ChatlogSplitViewMixin:
 
         return self.split_chatlog_widget
 
-    def _on_date_separator_clicked(self, date_str: str):
+    def on_date_separator_clicked(self, date_str: str):
         """Open (or update) a split pane showing the full chatlog for the clicked date"""
         widget = self._ensure_split_chatlog_widget()
         if widget.current_date.strftime("%Y-%m-%d") == date_str and widget.all_messages:
             return
         widget.load_date(date_str)
 
-    def _on_chatlog_link_clicked(self, date_str: str, time_str: str):
+    def on_chatlog_link_clicked(self, date_str: str, time_str: str):
         """A chatlog URL inside a message body was clicked - open/update the split pane
         at that date, scrolling to and highlighting the linked message if a time was given"""
         self._ensure_split_chatlog_widget().load_date_and_scroll(date_str, time_str)
 
-    def _on_info_label_clicked(self, event):
+    def on_info_label_clicked(self, event):
         if event.button() != Qt.MouseButton.LeftButton:
             return
         text = self.info_label.text().strip()
@@ -141,7 +142,8 @@ class ChatlogSplitViewMixin:
             return
         widget = self.split_chatlog_widget
         self.split_chatlog_widget = None
-        self._clear_anchors()
+        self.clear_anchors()
         widget.cleanup()
         widget.setParent(None)
         widget.deleteLater()
+        release_memory_soon()

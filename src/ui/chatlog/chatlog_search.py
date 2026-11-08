@@ -13,7 +13,7 @@ from helpers.translate import tr
 class ChatlogSearchMixin:
     """ChatlogWidget: search bar, mention and username filters."""
 
-    def _has_active_search_or_filter(self) -> bool:
+    def has_active_search_or_filter(self) -> bool:
         return bool(
             self.search_text
             or self.filtered_usernames
@@ -25,7 +25,7 @@ class ChatlogSearchMixin:
         return self.search.visible_state
 
     @property
-    def search_field(self):
+    def _search_field(self):
         return self.search.field
 
     def toggle_search(self):
@@ -39,14 +39,14 @@ class ChatlogSearchMixin:
         set_button_icon(self.mention_filter_btn, "at-fill.svg" if self.filter_mentions else "at-line.svg")
 
         # Reapply filter to show/hide messages
-        self._apply_filter()
+        self.apply_filter()
 
-    def _on_search_changed(self, text: str):
+    def on_search_changed(self, text: str):
         self.search_text = text
-        if not self._requires_confirmed_search():
-            self._apply_filter()
+        if not self.requires_confirmed_search():
+            self.apply_filter()
 
-    def _on_search_enter(self):
+    def on_search_enter(self):
         """Enter/search button - jump to date for a 'D:<date>' entry, otherwise apply the search."""
         match = re.match(r'^[Dd]:\s*(\S+)', self.search_text)
         if match:
@@ -65,23 +65,23 @@ class ChatlogSearchMixin:
             self.load_date(date_str)
             return
 
-        self._apply_filter()
+        self.apply_filter()
 
-    def _parse_search_text(self):
+    def parse_current_search_text(self):
         return parse_search_text(self.search_text)
 
     def _clear_search(self):
         self.search.clear()
-        self._apply_filter()
+        self.apply_filter()
 
     def set_username_filter(self, usernames: set):
         self.filtered_usernames = usernames
-        self._apply_filter()
+        self.apply_filter()
         self.filter_changed.emit(self.filtered_usernames)
 
     def clear_filter(self):
         self.filtered_usernames = set()
-        self._apply_filter()
+        self.apply_filter()
         self.filter_changed.emit(self.filtered_usernames)
 
     def _message_matches_filters(self, msg, search_users, search_message, is_prefix_mode) -> bool:
@@ -104,11 +104,11 @@ class ChatlogSearchMixin:
                     return False
         return True
 
-    def _filter_messages(self, messages, search_users, search_message, is_prefix_mode):
+    def filter_messages(self, messages, search_users, search_message, is_prefix_mode):
         """Keep matching messages together with the date separator that precedes them.
         search_users/search_message/is_prefix_mode come from _parse_search_text(),
         parsed once by the caller and shared - never re-parsed here."""
-        if not self._has_active_search_or_filter():
+        if not self.has_active_search_or_filter():
             return list(messages)
 
         search_users_lower = {u.lower() for u in search_users} if search_users else set()
@@ -140,26 +140,26 @@ class ChatlogSearchMixin:
                 hidden_since_previous = True
         return result
 
-    def _apply_filter(self):
+    def apply_filter(self):
         self.list_view.setUpdatesEnabled(False)
         self.model.clear()
 
         if not self.all_messages:
             self.list_view.setUpdatesEnabled(True)
-            self._update_copy_save_tooltips()
+            self.update_copy_save_tooltips()
             return
 
-        search_users, search_message, is_prefix_mode = self._parse_search_text()
+        search_users, search_message, is_prefix_mode = self.parse_current_search_text()
         self.delegate.set_highlight_text(search_message if is_prefix_mode else self.search_text)
-        self.delegate.set_continuity_rails(self._has_active_search_or_filter())
-        self._clear_anchors()
-        messages_to_show = self._filter_messages(self.all_messages, search_users, search_message, is_prefix_mode)
+        self.delegate.set_continuity_rails(self.has_active_search_or_filter())
+        self.clear_anchors()
+        messages_to_show = self.filter_messages(self.all_messages, search_users, search_message, is_prefix_mode)
         self.model.set_messages(messages_to_show)
         self.list_view.setUpdatesEnabled(True)
-        self._update_copy_save_tooltips()
+        self.update_copy_save_tooltips()
 
-        total = self._message_count()
-        shown = self._count_messages(messages_to_show)
+        total = self.message_count()
+        shown = self.count_messages(messages_to_show)
 
         filters = []
         if self.filter_mentions:
@@ -181,8 +181,8 @@ class ChatlogSearchMixin:
                 f"Показано {shown}/{total} сообщений ({' | '.join(filters)})")
             )
         else:
-            if hasattr(self, '_pending_data'):
-                _, size_text, was_truncated, from_cache = self._pending_data
+            if hasattr(self, 'pending_data'):
+                _, size_text, was_truncated, from_cache = self.pending_data
                 cache_marker = " 📁" if from_cache else ""
                 if was_truncated:
                     self.info_label.setText(tr(
@@ -197,4 +197,4 @@ class ChatlogSearchMixin:
             else:
                 self.info_label.setText(tr(f"Loaded {total} messages", f"Загружено {total} сообщений"))
 
-        self._scroll_to_bottom()
+        self.scroll_to_bottom()

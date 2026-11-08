@@ -11,7 +11,7 @@ SLIDESHOW_SECONDS_RANGE = (1, 60)
 _DEFAULT_SHOW_THUMBNAILS = True
 REPLY_MODE_INLINE = "inline"  # write the reply in a field inside the viewer
 REPLY_MODE_CLOSE = "close"  # close the viewer and write the reply in the chat input
-REPLY_MODES = (REPLY_MODE_INLINE, REPLY_MODE_CLOSE)
+_REPLY_MODES = (REPLY_MODE_INLINE, REPLY_MODE_CLOSE)
 DEFAULT_REPLY_MODE = REPLY_MODE_INLINE
 
 _MS_PER_SECOND = 1000
@@ -44,7 +44,7 @@ def slideshow_interval_ms(config) -> int:
 
 def reply_mode(config) -> str:
     value = config.get("image_viewer", "reply_mode") if config else None
-    return value if value in REPLY_MODES else DEFAULT_REPLY_MODE
+    return value if value in _REPLY_MODES else DEFAULT_REPLY_MODE
 
 
 def show_thumbnails(config) -> bool:

@@ -11,7 +11,7 @@ def is_separator_row(data) -> bool:
     return bool(getattr(data, 'is_separator', False))
 
 
-def has_separator_rows(model, is_separator=is_separator_row) -> bool:
+def _has_separator_rows(model, is_separator=is_separator_row) -> bool:
     """Whether any row in the model is a date separator - used to decide if date-jump
     buttons are worth showing at all."""
     if not model:

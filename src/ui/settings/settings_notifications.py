@@ -19,61 +19,61 @@ from ui.settings.settings_options import (
 class SettingsNotificationsMixin:
     """SettingsWidget: popup notification options and live preview."""
 
-    def _build_notifications_section(self):
-        section = self._create_section(tr("🔔 Notifications", "🔔 Уведомления"))
-        self.notification_mode_combo = self._add_combo_row(
+    def build_notifications_section(self):
+        section = self.create_section(tr("🔔 Notifications", "🔔 Уведомления"))
+        self.notification_mode_combo = self.add_combo_row(
             section, tr("Notification mode", "Режим уведомлений"), [], self._on_notification_mode_changed
         )
-        self.notification_position_combo = self._add_combo_row(
+        self.notification_position_combo = self.add_combo_row(
             section, tr("Notification position", "Расположение уведомлений"), [],
             self._on_notification_position_changed
         )
-        self.reply_style_combo = self._add_combo_row(
+        self.reply_style_combo = self.add_combo_row(
             section, tr("Reply style", "Стиль ответа"), [], self._on_reply_style_changed
         )
-        self.notification_margin_x_spin = self._add_slider_spin_row(
+        self.notification_margin_x_spin = self.add_slider_spin_row(
             section,
             tr("Notification side margin (X)", "Отступ уведомлений по X"),
             0, 300,
             self._on_notification_margin_x_changed,
             default=DEFAULTS["notification"]["margin_x"],
         )
-        self.notification_margin_top_spin = self._add_slider_spin_row(
+        self.notification_margin_top_spin = self.add_slider_spin_row(
             section,
             tr("Notification top margin (Y)", "Отступ уведомлений сверху (Y)"),
             0, 300,
             self._on_notification_margin_top_changed,
             default=DEFAULTS["notification"]["margin_top"],
         )
-        self.reply_center_offset_spin = self._add_slider_spin_row(
+        self.reply_center_offset_spin = self.add_slider_spin_row(
             section,
             tr("Reply vertical offset", "Смещение ответа по Y"),
             -400, 400,
             self._on_reply_center_offset_changed,
             default=DEFAULTS["notification"]["reply_center_offset_y"],
         )
-        self.notification_width_spin = self._add_slider_spin_row(
+        self.notification_width_spin = self.add_slider_spin_row(
             section, tr("Notification width", "Ширина уведомления"), DEFAULTS["notification"]["width"], 1000, self._on_notification_width_changed,
             default=DEFAULTS["notification"]["width"],
         )
-        self.reply_focus_expand_spin = self._add_slider_spin_row(
+        self.reply_focus_expand_spin = self.add_slider_spin_row(
             section,
             tr("Reply field expand width", "Расширение поля ответа"),
             0, 600,
             self._on_reply_focus_expand_changed,
             default=DEFAULTS["notification"]["reply_focus_expand_width"],
         )
-        self.notification_hide_on_combo = self._add_combo_row(
+        self.notification_hide_on_combo = self.add_combo_row(
             section, tr("Hide notifications on", "Скрывать уведомления по"), [], self._on_notification_hide_on_changed
         )
-        self.notification_duration_spin = self._add_slider_spin_row(
+        self.notification_duration_spin = self.add_slider_spin_row(
             section,
             tr("Auto-hide delay (sec)", "Задержка автоскрытия (сек)"),
             1, 60,
             self._on_notification_duration_changed,
             default=DEFAULTS["notification"]["duration"],
         )
-        self.notification_fade_spin = self._add_slider_spin_row(
+        self.notification_fade_spin = self.add_slider_spin_row(
             section,
             tr("Fade duration (ms)", "Длительность затухания (мс)"),
             50, 2000,
@@ -81,30 +81,30 @@ class SettingsNotificationsMixin:
             default=DEFAULTS["notification"]["fade_ms"],
         )
 
-        bypass_header, bypass_content, bypass_layout = self._add_subsection(section, tr("🚧 Bypass When Muted", "🚧 Показ при отключении уведомлений"))
-        self.competitions_bypass_combo = self._add_combo_row(
+        bypass_header, bypass_content, bypass_layout = self.add_subsection(section, tr("🚧 Bypass When Muted", "🚧 Показ при отключении уведомлений"))
+        self.competitions_bypass_combo = self.add_combo_row(
             bypass_layout, tr("Competitions", "Соревнования"), [],
             lambda _t: self._on_mute_bypass_changed(self.competitions_bypass_combo, "competitions_bypass_mute"),
         )
-        self.mentions_bypass_combo = self._add_combo_row(
+        self.mentions_bypass_combo = self.add_combo_row(
             bypass_layout, tr("Mentions & private messages", "Упоминания и приватные сообщения"), [],
             lambda _t: self._on_mute_bypass_changed(self.mentions_bypass_combo, "mentions_bypass_mute"),
         )
-        self.bans_bypass_combo = self._add_combo_row(
+        self.bans_bypass_combo = self.add_combo_row(
             bypass_layout, tr("Bans", "Баны"), [],
             lambda _t: self._on_mute_bypass_changed(self.bans_bypass_combo, "bans_bypass_mute"),
         )
-        self.tracker_bypass_combo = self._add_combo_row(
+        self.tracker_bypass_combo = self.add_combo_row(
             bypass_layout, tr("Tracked users", "Отслеживаемые пользователи"), [],
             lambda _t: self._on_mute_bypass_changed(self.tracker_bypass_combo, "tracked_bypass_mute"),
         )
-        self.messages_bypass_combo = self._add_combo_row(
+        self.messages_bypass_combo = self.add_combo_row(
             bypass_layout, tr("Regular messages", "Обычные сообщения"), [],
             lambda _t: self._on_mute_bypass_changed(self.messages_bypass_combo, "messages_bypass_mute"),
         )
-        self._add_collapse_toggle(bypass_header, bypass_content, ("ui", "settings", "widgets", "notifications_bypass"))
+        self.add_collapse_toggle(bypass_header, bypass_content, ("ui", "settings", "widgets", "notifications_bypass"))
 
-    def _refresh_notification_bypass(self):
+    def refresh_notification_bypass(self):
         fill_notification_mute_bypass_combo(
             self.competitions_bypass_combo, self.config.get("notification", "competitions_bypass_mute")
         )
@@ -121,7 +121,7 @@ class SettingsNotificationsMixin:
             self.messages_bypass_combo, self.config.get("notification", "messages_bypass_mute")
         )
 
-    def _refresh_notifications(self):
+    def refresh_notifications(self):
         fill_notification_mode_combo(self.notification_mode_combo, self.config.get("notification", "mode"))
 
         fill_notification_position_combo(self.notification_position_combo, self.config.get("ui", "notification_position"))
@@ -133,7 +133,7 @@ class SettingsNotificationsMixin:
             offset_y = DEFAULTS["notification"]["reply_center_offset_y"]
         self.reply_center_offset_spin.setValue(offset_y)
         self.reply_center_offset_spin.linked_slider.setValue(offset_y)
-        self._update_center_offset_enabled()
+        self.update_center_offset_enabled()
         self.notification_width_spin.setValue(int(self.config.get("ui", "notification_width") or DEFAULTS["notification"]["width"]))
         self.notification_width_spin.linked_slider.setValue(self.notification_width_spin.value())
         self.reply_focus_expand_spin.setValue(int(self.config.get("notification", "reply_focus_expand_width") or DEFAULTS["notification"]["reply_focus_expand_width"]))
@@ -163,25 +163,25 @@ class SettingsNotificationsMixin:
         self.notification_fade_spin.linked_slider.setValue(fade_ms)
 
     def _on_mute_bypass_changed(self, combo, config_key: str):
-        self._sync_combo_tooltip(combo)
+        self.sync_combo_tooltip(combo)
         value = combo.currentData() or "off"
         self.config.set("notification", config_key, value=value)
 
     def _on_notification_mode_changed(self, _text: str = ""):
-        self._sync_combo_tooltip(self.notification_mode_combo)
+        self.sync_combo_tooltip(self.notification_mode_combo)
         mode = self.notification_mode_combo.currentData() or "stack"
         self.config.set("notification", "mode", value=mode)
         popup_manager.set_notification_mode(mode)
 
     def _on_notification_position_changed(self, _text: str = ""):
-        self._sync_combo_tooltip(self.notification_position_combo)
+        self.sync_combo_tooltip(self.notification_position_combo)
         value = self.notification_position_combo.currentData()
         if value is not None:
             self.config.set("ui", "notification_position", value=value)
-        self._update_center_offset_enabled()
+        self.update_center_offset_enabled()
         self._refresh_notification_preview()
 
-    def _update_center_offset_enabled(self):
+    def update_center_offset_enabled(self):
         """Offset only does anything when something is actually centered
         (reply or competition) and notifications aren't already centered
         (see _resolve_centered_style() in notification.py)."""
@@ -189,14 +189,14 @@ class SettingsNotificationsMixin:
         competition_style = self.competition_notification_style_combo.currentData() or "inline"
         position = self.notification_position_combo.currentData() or "right"
         centered = reply_style == "center" or competition_style == "center"
-        self._set_spin_enabled(self.reply_center_offset_spin, centered and position != "center")
-        self._set_spin_enabled(self.notification_margin_x_spin, position != "center")
+        self.set_spin_enabled(self.reply_center_offset_spin, centered and position != "center")
+        self.set_spin_enabled(self.notification_margin_x_spin, position != "center")
 
     def _on_reply_style_changed(self, _text: str = ""):
-        self._sync_combo_tooltip(self.reply_style_combo)
+        self.sync_combo_tooltip(self.reply_style_combo)
         value = self.reply_style_combo.currentData() or "inline"
         self.config.set("notification", "reply_style", value=value)
-        self._update_center_offset_enabled()
+        self.update_center_offset_enabled()
         self._refresh_notification_preview()
 
     def _on_reply_center_offset_changed(self, value: int):
@@ -220,7 +220,7 @@ class SettingsNotificationsMixin:
         self._refresh_notification_preview()
 
     def _on_notification_hide_on_changed(self, _text: str = ""):
-        self._sync_combo_tooltip(self.notification_hide_on_combo)
+        self.sync_combo_tooltip(self.notification_hide_on_combo)
         value = self.notification_hide_on_combo.currentData() or "mouse_keyboard"
         self.config.set("notification", "hide_on", value=value)
         self._refresh_notification_preview()

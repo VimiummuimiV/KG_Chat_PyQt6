@@ -9,7 +9,7 @@ FONT_PREVIEW_PADDING = 6
 SLIDER_DEBOUNCE_MS = 150
 
 
-def preview_box_colors(theme: str) -> tuple[str, str, str]:
+def _preview_box_colors(theme: str) -> tuple[str, str, str]:
     """(bg, fg, border) for a themed preview box; shared by font and flash previews."""
     if theme == "dark":
         return "#1E1E1E", "#D4D4D4", "#3C3C3C"
@@ -17,7 +17,7 @@ def preview_box_colors(theme: str) -> tuple[str, str, str]:
 
 
 def preview_box_stylesheet(widget_selector: str, theme: str) -> str:
-    bg, fg, border = preview_box_colors(theme)
+    bg, fg, border = _preview_box_colors(theme)
     return (
         f"{widget_selector} {{ background-color: {bg}; color: {fg}; "
         f"border: {FONT_PREVIEW_BORDER}px solid {border}; border-radius: 4px; "

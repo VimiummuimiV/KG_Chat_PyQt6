@@ -6,7 +6,7 @@ from typing import List, Optional, Set
 from PyQt6.QtCore import QAbstractListModel, QModelIndex, QSortFilterProxyModel, Qt
 
 
-def event_date_str(event: dict) -> Optional[str]:
+def _event_date_str(event: dict) -> Optional[str]:
     if event.get('is_separator'):
         return event.get('date_str')
     ts = event.get('timestamp')
@@ -18,14 +18,14 @@ def event_date_str(event: dict) -> Optional[str]:
         return None
 
 
-def inject_date_separators(events: List[dict]) -> List[dict]:
+def _inject_date_separators(events: List[dict]) -> List[dict]:
     """Insert a DateSeparator row before each new calendar day."""
     result = []
     last_date = None
     for event in events:
         if event.get('is_separator'):
             continue
-        date_str = event_date_str(event)
+        date_str = _event_date_str(event)
         if date_str and date_str != last_date:
             result.append({
                 'is_separator': True,
@@ -58,17 +58,17 @@ class TrackerEventModel(QAbstractListModel):
 
     def set_events(self, events: List[dict]):
         self.beginResetModel()
-        self._events = inject_date_separators(events)
+        self._events = _inject_date_separators(events)
         self.endResetModel()
 
     def append_event(self, event: dict) -> int:
-        date_str = event_date_str(event)
+        date_str = _event_date_str(event)
         last_date = None
         for existing in reversed(self._events):
             if existing.get('is_separator'):
                 last_date = existing.get('date_str')
                 break
-            last_date = event_date_str(existing)
+            last_date = _event_date_str(existing)
             if last_date:
                 break
 
@@ -99,7 +99,7 @@ class TrackerEventModel(QAbstractListModel):
             if not e.get('is_separator') and e.get('login') == login
         )
         self.beginResetModel()
-        self._events = inject_date_separators(raw)
+        self._events = _inject_date_separators(raw)
         self.endResetModel()
         return removed
 
@@ -132,12 +132,12 @@ class TrackerEventFilterProxy(QSortFilterProxyModel):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.filtered_logins: Set[str] = set()
-        self.filtered_types: Set[str] = set()
+        self._filtered_types: Set[str] = set()
         self.filtered_dates: Set[str] = set()
 
     def set_filters(self, logins: Set[str], types: Set[str], dates: Set[str] = None):
         self.filtered_logins = set(logins)
-        self.filtered_types = set(types)
+        self._filtered_types = set(types)
         self.filtered_dates = set(dates or ())
         self.invalidateFilter()
 
@@ -150,7 +150,7 @@ class TrackerEventFilterProxy(QSortFilterProxyModel):
         if not event:
             return True
 
-        date_str = event_date_str(event)
+        date_str = _event_date_str(event)
 
         if event.get('is_separator'):
             if self.filtered_dates and date_str not in self.filtered_dates:
@@ -174,6 +174,6 @@ class TrackerEventFilterProxy(QSortFilterProxyModel):
     def _event_matches(self, event: dict) -> bool:
         if self.filtered_logins and event.get('login') not in self.filtered_logins:
             return False
-        if self.filtered_types and (event.get('type') or '') not in self.filtered_types:
+        if self._filtered_types and (event.get('type') or '') not in self._filtered_types:
             return False
         return True

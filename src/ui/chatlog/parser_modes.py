@@ -12,7 +12,7 @@ from ui.chatlog.parser_modes_data import MENTION_SUB_KEYS, MENTION_SUB_LABELS
 class ParserModesMixin:
     """Parser config: search mode and date-mode switching."""
 
-    def _update_mention_label(self):
+    def update_mention_label(self):
         """Update the mention label based on current mode and inputs"""
         mode = self.mode_combo.currentData() or self.mode_combo.currentText()
 
@@ -23,7 +23,7 @@ class ParserModesMixin:
         self.mention_label_widget.setVisible(True)
 
         # Get current username
-        current_username = self._get_current_username()
+        current_username = self.get_current_username()
 
         # Get search terms (mentions to search for)
         search_text = self.search_input.text().strip()
@@ -67,7 +67,7 @@ class ParserModesMixin:
                 "⚠️ Упоминания не указаны. Войдите или добавьте ключевые слова в поле Упоминания.")
             )
 
-    def _on_mode_changed(self, index: int):
+    def on_mode_changed(self, index: int):
         """Update UI based on selected mode"""
         # Clear existing date inputs
         while self.date_layout.count():
@@ -90,7 +90,7 @@ class ParserModesMixin:
 
             # Prefill current username in Mentions field
             if not self.search_input.text().strip():
-                current_username = self._get_current_username()
+                current_username = self.get_current_username()
                 if current_username:
                     self.search_input.setText(current_username)
         else:
@@ -108,7 +108,7 @@ class ParserModesMixin:
         self._previous_mode = mode
 
         # Update mention label
-        self._update_mention_label()
+        self.update_mention_label()
 
         # Hide username and search inputs for sync mode
         self.username_container_widget.setVisible(not self.is_sync_mode)
@@ -160,7 +160,7 @@ class ParserModesMixin:
         elif mode == "Personal Mentions":
             sub_mode_layout = QHBoxLayout()
             sub_mode_layout.setSpacing(self.spacing)
-            sub_mode_label = self._create_label(tr("Date Mode:", "Режим дат:"))
+            sub_mode_label = self.create_label(tr("Date Mode:", "Режим дат:"))
             sub_mode_layout.addWidget(sub_mode_label)
 
             self.mention_date_combo = QComboBox()
@@ -198,7 +198,7 @@ class ParserModesMixin:
         elif sub_mode == "From Start":
             pass # No input needed
         elif sub_mode == "Last N Days":
-            days_layout, self.days_input = self._create_input_row(tr("Days:", "Дней:"), "7")
+            days_layout, self.days_input = self.create_input_row(tr("Days:", "Дней:"), "7")
             self.days_input.setText("7")
 
             container = QWidget()
@@ -207,17 +207,17 @@ class ParserModesMixin:
 
     def _add_date_input(self, label_text: str, obj_name: str, placeholder: str = None):
         """Add a date input field with calendar picker"""
-        layout, line_edit = self._create_input_row(label_text, placeholder or DATE_PLACEHOLDER, obj_name)
+        layout, line_edit = self.create_input_row(label_text, placeholder or DATE_PLACEHOLDER, obj_name)
 
         # Add auto-format on blur
-        line_edit.editingFinished.connect(lambda: self._auto_format_date(line_edit))
+        line_edit.editingFinished.connect(lambda: self.auto_format_date(line_edit))
 
         # Add calendar button
         calendar_btn = create_icon_button(
             self.icons_path, "calendar.svg", "Select date",
             size_type="large", config=self.config
         )
-        calendar_btn.clicked.connect(lambda: self._show_date_picker(line_edit, calendar_btn))
+        calendar_btn.clicked.connect(lambda: self.show_date_picker(line_edit, calendar_btn))
         layout.addWidget(calendar_btn)
 
         container = QWidget()

@@ -20,7 +20,7 @@ class WindowSizeManager:
         self.save_timer = QTimer()
         self.save_timer.setSingleShot(True)
         self.save_timer.timeout.connect(self._save_geometry)
-        self.debounce_ms = debounce_ms
+        self._debounce_ms = debounce_ms
 
         # Pending geometry to save
         self._pending_width = None
@@ -28,7 +28,7 @@ class WindowSizeManager:
         self._pending_x = None
         self._pending_y = None
 
-    def get_saved_size(self) -> tuple[int | None, int | None]:
+    def _get_saved_size(self) -> tuple[int | None, int | None]:
         """Get saved window size from config
 
         Returns:
@@ -38,7 +38,7 @@ class WindowSizeManager:
         height = self.config.get("ui", "window", "height")
         return (width, height)
 
-    def get_saved_position(self) -> tuple[int | None, int | None]:
+    def _get_saved_position(self) -> tuple[int | None, int | None]:
         """Get saved window position from config
 
         Returns:
@@ -54,8 +54,8 @@ class WindowSizeManager:
         Returns:
             Tuple of (width, height, x, y) or (None, None, None, None) if not saved
         """
-        width, height = self.get_saved_size()
-        x, y = self.get_saved_position()
+        width, height = self._get_saved_size()
+        x, y = self._get_saved_position()
         return (width, height, x, y)
 
     def has_saved_size(self) -> bool:
@@ -79,7 +79,7 @@ class WindowSizeManager:
 
         # Restart timer (debounce)
         self.save_timer.stop()
-        self.save_timer.start(self.debounce_ms)
+        self.save_timer.start(self._debounce_ms)
 
     def _save_geometry(self):
         """Internal: Save pending geometry to config"""

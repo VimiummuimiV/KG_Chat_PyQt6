@@ -54,8 +54,8 @@ class UserTrackerWidget(
         userlist_visible = config.get("ui", "userlist", "tracker")
         self.userlist_visible = True if userlist_visible is None else bool(userlist_visible)
         self._setup_ui()
-        self._load_selected()
-        self._rebuild_events()
+        self.load_selected()
+        self.rebuild_events()
         self._apply_default_tab()
         self._on_tab_changed(self.tabs.currentIndex())
         if self.font_scaler is not None:
@@ -82,12 +82,12 @@ class UserTrackerWidget(
         header_layout.setSpacing(self.config.get("ui", "spacing", "widget_elements") or 6)
         main_layout.addLayout(header_layout)
 
-        self.back_button = create_icon_button(
+        self._back_button = create_icon_button(
             self.icons_path, "go-back.svg", "", config=self.config
         )
-        self.tr_set(self.back_button.setToolTip, "Back to Messages", "Назад к сообщениям")
-        self.back_button.clicked.connect(self.back_requested.emit)
-        header_layout.addWidget(self.back_button)
+        self.tr_set(self._back_button.setToolTip, "Back to Messages", "Назад к сообщениям")
+        self._back_button.clicked.connect(self.back_requested.emit)
+        header_layout.addWidget(self._back_button)
 
         title_label = QLabel()
         title_label.setFont(get_font(FontType.HEADER))
@@ -101,26 +101,26 @@ class UserTrackerWidget(
         self.info_label.setVisible(False)
         header_layout.addWidget(self.info_label, stretch=1)
 
-        self.add_user_button = create_icon_button(
+        self._add_user_button = create_icon_button(
             self.icons_path, "add.svg", "", config=self.config
         )
-        self.tr_set(self.add_user_button.setToolTip, "Add user", "Добавить пользователя")
-        self.add_user_button.clicked.connect(self._add_new_item)
-        header_layout.addWidget(self.add_user_button)
+        self.tr_set(self._add_user_button.setToolTip, "Add user", "Добавить пользователя")
+        self._add_user_button.clicked.connect(self.add_new_item)
+        header_layout.addWidget(self._add_user_button)
 
         self.clear_filter_button = create_icon_button(
             self.icons_path, "filter.svg", tr("Clear history filter", "Сбросить фильтр истории"), config=self.config
         )
-        self.clear_filter_button.clicked.connect(self._clear_filter)
+        self.clear_filter_button.clicked.connect(self.clear_filter)
         self.clear_filter_button.setVisible(False)
         header_layout.addWidget(self.clear_filter_button)
 
-        self.clear_history_button = create_icon_button(
+        self._clear_history_button = create_icon_button(
             self.icons_path, "trash.svg", "", config=self.config
         )
-        self.tr_set(self.clear_history_button.setToolTip, "Clear History", "Очистить историю")
-        self.clear_history_button.clicked.connect(self._clear_history)
-        header_layout.addWidget(self.clear_history_button)
+        self.tr_set(self._clear_history_button.setToolTip, "Clear History", "Очистить историю")
+        self._clear_history_button.clicked.connect(self.clear_history)
+        header_layout.addWidget(self._clear_history_button)
 
         self.tabs = QTabWidget()
         self.tabs.setFont(get_font(FontType.UI))
@@ -135,19 +135,19 @@ class UserTrackerWidget(
         tracked_layout.setContentsMargins(4, 4, 4, 4)
         tracked_layout.setSpacing(6)
 
-        self.users_scroll = QScrollArea()
-        self.users_scroll.setWidgetResizable(True)
-        self.users_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.users_container = QWidget()
+        self._users_scroll = QScrollArea()
+        self._users_scroll.setWidgetResizable(True)
+        self._users_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self._users_container = QWidget()
         self.users_grid = QGridLayout()
         self.users_grid.setContentsMargins(0, 0, 0, 0)
         self.users_grid.setSpacing(list_spacing)
         self.users_grid.setVerticalSpacing(list_spacing * 2)
         self.users_grid.setHorizontalSpacing(list_spacing * 4)
         self.users_grid.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
-        self.users_container.setLayout(self.users_grid)
-        self.users_scroll.setWidget(self.users_container)
-        tracked_layout.addWidget(self.users_scroll, stretch=1)
+        self._users_container.setLayout(self.users_grid)
+        self._users_scroll.setWidget(self._users_container)
+        tracked_layout.addWidget(self._users_scroll, stretch=1)
 
         tracked_tab_index = self.tabs.addTab(tracked_page, "")
         self.tr_set(lambda text, i=tracked_tab_index: self.tabs.setTabText(i, text), "Tracked", "Отслеживаемые")
@@ -179,9 +179,9 @@ class UserTrackerWidget(
         self.history_list_view.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.history_list_view.setMouseTracking(True)
         self.history_list_view.viewport().setMouseTracking(True)
-        self.history_delegate.filter_clicked.connect(self._handle_filter_click)
-        self.history_delegate.type_filter_clicked.connect(self._handle_type_filter_click)
-        self.history_delegate.date_filter_clicked.connect(self._handle_date_filter_click)
+        self.history_delegate.filter_clicked.connect(self.handle_filter_click)
+        self.history_delegate.type_filter_clicked.connect(self.handle_type_filter_click)
+        self.history_delegate.date_filter_clicked.connect(self.handle_date_filter_click)
 
         self._empty_history_label = QLabel()
         self._empty_history_label.setFont(get_font(FontType.UI))
@@ -194,8 +194,8 @@ class UserTrackerWidget(
         self.history_stack.addWidget(self._empty_history_label)
         history_row.addWidget(self.history_stack, stretch=1)
 
-        self.history_scroll_buttons = ScrollButtonsPanel(self.history_list_view, parent=self, date_jump=True)
-        self.history_auto_scroller = AutoScroller(self.history_list_view)
+        self._history_scroll_buttons = ScrollButtonsPanel(self.history_list_view, parent=self, date_jump=True)
+        self._history_auto_scroller = AutoScroller(self.history_list_view)
 
         self.filter_panel = QWidget()
         self.filter_panel.setFixedWidth(get_userlist_width())
@@ -204,26 +204,26 @@ class UserTrackerWidget(
         filter_panel_layout.setContentsMargins(0, 0, 0, 0)
         filter_panel_layout.setSpacing(4)
 
-        self.filter_scroll = QScrollArea()
-        self.filter_scroll.setWidgetResizable(True)
-        self.filter_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self._filter_scroll = QScrollArea()
+        self._filter_scroll.setWidgetResizable(True)
+        self._filter_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         filter_container = QWidget()
         self.filter_chips_layout = QVBoxLayout()
         self.filter_chips_layout.setContentsMargins(4, 4, 4, 4)
         self.filter_chips_layout.setSpacing(2)
         filter_container.setLayout(self.filter_chips_layout)
         self.filter_chips_layout.addStretch()
-        self.filter_scroll.setWidget(filter_container)
-        filter_panel_layout.addWidget(self.filter_scroll, stretch=1)
+        self._filter_scroll.setWidget(filter_container)
+        filter_panel_layout.addWidget(self._filter_scroll, stretch=1)
 
         theme = self.config.get("ui", "theme") or "dark"
         self.type_filter_bar = TypeFilterBar(empty_means_all=True, is_dark=(theme == "dark"))
-        self.type_filter_bar.changed.connect(self._on_type_filter_changed)
+        self.type_filter_bar.changed.connect(self.on_type_filter_changed)
         filter_panel_layout.addWidget(self.type_filter_bar)
 
         history_row.addWidget(self.filter_panel)
 
-        self.filter_auto_scroller = AutoScroller(self.filter_scroll)
+        self._filter_auto_scroller = AutoScroller(self._filter_scroll)
 
         history_tab_index = self.tabs.addTab(history_page, "")
         self.tr_set(lambda text, i=history_tab_index: self.tabs.setTabText(i, text), "History", "История")
@@ -232,17 +232,17 @@ class UserTrackerWidget(
     def toggle_userlist(self) -> bool:
         self.userlist_visible = not self.userlist_visible
         self.config.set("ui", "userlist", "tracker", value=self.userlist_visible)
-        self._update_filter_panel_visibility()
+        self.update_filter_panel_visibility()
         return self.userlist_visible
 
     def _on_tab_changed(self, index: int):
         is_tracked = index == 0
-        self.add_user_button.setVisible(is_tracked)
-        self.clear_history_button.setVisible(not is_tracked)
-        self.clear_filter_button.setVisible(not is_tracked and self._has_active_filters())
+        self._add_user_button.setVisible(is_tracked)
+        self._clear_history_button.setVisible(not is_tracked)
+        self.clear_filter_button.setVisible(not is_tracked and self.has_active_filters())
         self.info_label.setVisible(not is_tracked)
         if not is_tracked:
-            self._update_info_label()
+            self.update_info_label()
         if is_tracked and self.user_items:
             QTimer.singleShot(0, self.recalculate_layout)
 
@@ -250,7 +250,7 @@ class UserTrackerWidget(
         if not self.user_items:
             return
 
-        available_width = self.users_scroll.viewport().width()
+        available_width = self._users_scroll.viewport().width()
         h_spacing = self.users_grid.horizontalSpacing()
         if h_spacing == -1:
             h_spacing = self.users_grid.spacing()
@@ -287,15 +287,15 @@ class UserTrackerWidget(
                 item.apply_theme()
         theme = self.config.get("ui", "theme") or "dark"
         self.type_filter_bar.update_theme(theme == "dark")
-        self._rebuild_filter_chips()
+        self.rebuild_filter_chips()
 
     def _apply_default_tab(self):
         tab = self.config.get("user_tracker", "default_tab") or "tracked"
         self.tabs.setCurrentIndex(1 if tab == "history" else 0)
 
     def refresh(self):
-        self._load_selected()
-        self._rebuild_events()
+        self.load_selected()
+        self.rebuild_events()
         self._apply_default_tab()
         self._on_tab_changed(self.tabs.currentIndex())
 
@@ -304,9 +304,9 @@ class UserTrackerWidget(
             item.cleanup()
         if getattr(self, "history_delegate", None):
             self.history_delegate.cleanup()
-        if getattr(self, "history_scroll_buttons", None):
-            self.history_scroll_buttons.cleanup()
-        if getattr(self, "history_auto_scroller", None):
-            self.history_auto_scroller.cleanup()
-        if getattr(self, "filter_auto_scroller", None):
-            self.filter_auto_scroller.cleanup()
+        if getattr(self, "_history_scroll_buttons", None):
+            self._history_scroll_buttons.cleanup()
+        if getattr(self, "_history_auto_scroller", None):
+            self._history_auto_scroller.cleanup()
+        if getattr(self, "_filter_auto_scroller", None):
+            self._filter_auto_scroller.cleanup()

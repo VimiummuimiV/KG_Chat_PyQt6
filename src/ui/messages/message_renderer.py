@@ -38,10 +38,10 @@ class MessageRenderer(QObject):
     refresh_view = pyqtSignal() # general refresh (link rmb highlight)
     chatlog_link_clicked = pyqtSignal(str, str) # date_str, time_str ("" if none) - chatlog URL clicked in a message body
 
-    CHATLOG_URL_PATTERN = re.compile(r'^https?://klavogonki\.ru/chatlogs/(\d{4}-\d{2}-\d{2})\.html(?:#(\d{2}:\d{2}:\d{2}))?$')
-    GAME_URL_PATTERN = re.compile(r'^https?://klavogonki\.ru/g/\?gmid=(\d+)$')
-    VALUE_TAG_PATTERN = re.compile(r'\[(COST|SCORE|BONUS)\](.*?)\[/\1\]')
-    CHIP_GAP = 6
+    _CHATLOG_URL_PATTERN = re.compile(r'^https?://klavogonki\.ru/chatlogs/(\d{4}-\d{2}-\d{2})\.html(?:#(\d{2}:\d{2}:\d{2}))?$')
+    _GAME_URL_PATTERN = re.compile(r'^https?://klavogonki\.ru/g/\?gmid=(\d+)$')
+    _VALUE_TAG_PATTERN = re.compile(r'\[(COST|SCORE|BONUS)\](.*?)\[/\1\]')
+    _CHIP_GAP = 6
 
     def __init__(self, config, emoticon_manager, is_dark_theme: bool, parent_widget=None):
         super().__init__()
@@ -52,23 +52,23 @@ class MessageRenderer(QObject):
 
         # Track own username for mention highlighting
         self.my_username = None
-        self.mention_color = get_mention_color(is_dark_theme)
-        self.highlight_colors = get_search_highlight_colors(is_dark_theme)
-        self.link_colors = link_colors(is_dark_theme)
+        self._mention_color = get_mention_color(is_dark_theme)
+        self._highlight_colors = get_search_highlight_colors(is_dark_theme)
+        self._link_colors = link_colors(is_dark_theme)
 
         # Load message colors from config
-        self.private_colors = get_private_message_colors(config, is_dark_theme)
-        self.ban_colors = get_ban_message_colors(config, is_dark_theme)
+        self._private_colors = get_private_message_colors(config, is_dark_theme)
+        self._ban_colors = get_ban_message_colors(config, is_dark_theme)
         self.system_colors = get_system_message_colors(config, is_dark_theme)
         self.competition_colors = get_competition_message_colors(config, is_dark_theme)
-        self.competition_value_colors = get_competition_value_colors(is_dark_theme)
+        self._competition_value_colors = get_competition_value_colors(is_dark_theme)
         self.parser_colors = get_parser_message_colors(config, is_dark_theme)
 
         # Font setup
         self.body_font = get_font(FontType.TEXT)
 
         # Emoticon settings
-        self.emoticon_max_size = int(config.get("ui", "emoticon_max_size") or 140)
+        self._emoticon_max_size = int(config.get("ui", "emoticon_max_size") or 140)
 
         # Caches
         self.emoticon_cache: Dict[str, QPixmap] = {}
@@ -76,13 +76,13 @@ class MessageRenderer(QObject):
 
         # Copy highlight state
         self._copied_url: Optional[str] = None
-        self.copy_flash = FlashFade(self.refresh_view.emit, parent=self, config=config, duration_kind="copy")
+        self._copy_flash = FlashFade(self.refresh_view.emit, parent=self, config=config, duration_kind="copy")
         # None = follow config; False/True = force (e.g. parser bulk load)
         self._youtube_override: Optional[bool] = None
 
         # Create viewer instances
         self.image_viewer = None
-        self.video_player = None
+        self._video_player = None
         if parent_widget:
             self._init_viewers(parent_widget)
 
@@ -100,16 +100,16 @@ class MessageRenderer(QObject):
         """Initialize image and video viewers"""
         self.image_viewer = ImageHoverView(parent=parent_widget, config=self.config)
         icons_path = get_resource_dir("icons")
-        self.video_player = VideoPlayer(
+        self._video_player = VideoPlayer(
             parent=parent_widget,
             icons_path=icons_path,
             config=self.config
         )
 
     @classmethod
-    def parse_chatlog_url(cls, url: str) -> Optional[Tuple[str, Optional[str]]]:
+    def _parse_chatlog_url(cls, url: str) -> Optional[Tuple[str, Optional[str]]]:
         """Parse a klavogonki chatlog URL into (date_str, time_str or None), or None if it doesn't match"""
-        match = cls.CHATLOG_URL_PATTERN.match(url)
+        match = cls._CHATLOG_URL_PATTERN.match(url)
         if not match:
             return None
         return match.group(1), match.group(2)
@@ -117,15 +117,15 @@ class MessageRenderer(QObject):
     def handle_link_lmb(self, url: str, is_media: bool, global_pos, is_ctrl: bool = False, is_shift: bool = False,
                         gallery: Optional[ImageGallery] = None):
         # Chatlog URL opens in split view
-        chatlog_match = self.parse_chatlog_url(url)
+        chatlog_match = self._parse_chatlog_url(url)
         if chatlog_match and not is_ctrl:
             date_str, time_str = chatlog_match
             self.chatlog_link_clicked.emit(date_str, time_str or "")
             return
         if is_media and not is_ctrl:
             # Media link without Ctrl: open in viewer
-            if VideoPlayer.is_video_url(url) and self.video_player:
-                self.video_player.show_video(url, global_pos, force_log=is_shift)
+            if VideoPlayer.is_video_url(url) and self._video_player:
+                self._video_player.show_video(url, global_pos, force_log=is_shift)
             elif is_image_url(url) and self.image_viewer:
                 self.image_viewer.show_preview(url, global_pos, gallery)
         else:
@@ -144,15 +144,15 @@ class MessageRenderer(QObject):
         """Copy url to clipboard and fade-flag it as copied (drives the highlight repaint)"""
         QApplication.clipboard().setText(url)
         self._copied_url = url
-        self.copy_flash.start()
+        self._copy_flash.start()
 
     def is_copied(self, url: str) -> bool:
         """Whether url is the one just copied (drives the flash highlight)"""
-        return self._copied_url == url and self.copy_flash.opacity > 0
+        return self._copied_url == url and self._copy_flash.opacity > 0
 
     def draw_copy_highlight(self, painter: QPainter, rect: QRect, color: str):
         """Translucent rounded-rect background fading out on a just-copied URL/timestamp"""
-        paint_flash(painter, rect.adjusted(-2, 0, 2, 0), color, self.copy_flash.opacity, alpha=0.35)
+        paint_flash(painter, rect.adjusted(-2, 0, 2, 0), color, self._copy_flash.opacity, alpha=0.35)
 
     @staticmethod
     def get_link_at_pos(link_rects: List[Tuple[QRect, str, bool]], pos) -> Optional[Tuple[str, bool]]:
@@ -174,9 +174,9 @@ class MessageRenderer(QObject):
         if is_competition:
             return self.competition_colors["text"]
         if is_ban:
-            return self.ban_colors["text"]
+            return self._ban_colors["text"]
         if is_private:
-            return self.private_colors["text"]
+            return self._private_colors["text"]
         if is_system:
             return self.system_colors["text"]
         return timestamp_color(self.is_dark_theme)
@@ -189,14 +189,14 @@ class MessageRenderer(QObject):
         """Update theme and reload colors"""
         self.is_dark_theme = is_dark_theme
         self.bg_hex = "#1E1E1E" if is_dark_theme else "#FFFFFF"
-        self.mention_color = get_mention_color(is_dark_theme)
-        self.highlight_colors = get_search_highlight_colors(is_dark_theme)
-        self.link_colors = link_colors(is_dark_theme)
-        self.private_colors = get_private_message_colors(self.config, is_dark_theme)
-        self.ban_colors = get_ban_message_colors(self.config, is_dark_theme)
+        self._mention_color = get_mention_color(is_dark_theme)
+        self._highlight_colors = get_search_highlight_colors(is_dark_theme)
+        self._link_colors = link_colors(is_dark_theme)
+        self._private_colors = get_private_message_colors(self.config, is_dark_theme)
+        self._ban_colors = get_ban_message_colors(self.config, is_dark_theme)
         self.system_colors = get_system_message_colors(self.config, is_dark_theme)
         self.competition_colors = get_competition_message_colors(self.config, is_dark_theme)
-        self.competition_value_colors = get_competition_value_colors(is_dark_theme)
+        self._competition_value_colors = get_competition_value_colors(is_dark_theme)
         self.parser_colors = get_parser_message_colors(self.config, is_dark_theme)
         self.emoticon_cache.clear()
         if self.image_viewer:
@@ -220,7 +220,7 @@ class MessageRenderer(QObject):
     def calculate_content_height(self, text: str, width: int, row: Optional[int] = None) -> int:
         """Calculate height needed for message content"""
         text = ' '.join(text.split())
-        text = self.VALUE_TAG_PATTERN.sub(lambda m: m.group(2), text)
+        text = self._VALUE_TAG_PATTERN.sub(lambda m: m.group(2), text)
 
         if self.youtube_enabled:
             url_pattern = re.compile(r'https?://[^\s<>"]+')
@@ -306,7 +306,7 @@ class MessageRenderer(QObject):
             values.append((match.group(1).lower(), match.group(2)))
             return f"[VAL{len(values)-1}] "
 
-        text = self.VALUE_TAG_PATTERN.sub(replace_value, text)
+        text = self._VALUE_TAG_PATTERN.sub(replace_value, text)
 
         # Extract URLs and replace with placeholders
         urls = []
@@ -332,14 +332,14 @@ class MessageRenderer(QObject):
         elif is_system:
             text_color = self.system_colors["text"]
         elif is_private:
-            text_color = self.private_colors["text"]
+            text_color = self._private_colors["text"]
         elif is_ban:
-            text_color = self.ban_colors["text"]
+            text_color = self._ban_colors["text"]
         else:
             text_color = "#FFFFFF" if self.is_dark_theme else "#000000"
 
         highlight_pattern = re.compile(re.escape(highlight_text), re.IGNORECASE) if highlight_text else None
-        highlight_bg, highlight_fg = self.highlight_colors
+        highlight_bg, highlight_fg = self._highlight_colors
 
         def new_line():
             nonlocal current_x, current_y, line_height
@@ -388,7 +388,7 @@ class MessageRenderer(QObject):
 
                 # Use mention color AND bold font for mentions
                 if is_mention:
-                    draw_color = self.mention_color
+                    draw_color = self._mention_color
                     painter.setFont(get_font(FontType.TEXT))
                     bold_font = painter.font()
                     bold_font.setBold(True)
@@ -424,11 +424,11 @@ class MessageRenderer(QObject):
 
             # Choose color based on whether it's a media link or chatlog link
             if is_media:
-                link_color = self.link_colors["media"]
-            elif self.parse_chatlog_url(url):
-                link_color = self.link_colors["chatlog"]
+                link_color = self._link_colors["media"]
+            elif self._parse_chatlog_url(url):
+                link_color = self._link_colors["chatlog"]
             else:
-                link_color = self.link_colors["normal"]
+                link_color = self._link_colors["normal"]
             painter.setPen(QColor(link_color))
 
             remaining = link_text
@@ -469,7 +469,7 @@ class MessageRenderer(QObject):
                         draw_link(url, self._is_media_url(url))
                     else:
                         val_kind, val_text = values[index]
-                        draw_text_chunk(val_text, self.competition_value_colors.get(val_kind, text_color))
+                        draw_text_chunk(val_text, self._competition_value_colors.get(val_kind, text_color))
                     last_pos = match.end()
 
                 if last_pos < len(content):
@@ -505,12 +505,12 @@ class MessageRenderer(QObject):
         rows = 1
         for player in players:
             chip_width = fm.horizontalAdvance(self._chip_label(player)) + 16
-            if row_width and row_width + self.CHIP_GAP + chip_width > width:
+            if row_width and row_width + self._CHIP_GAP + chip_width > width:
                 rows += 1
                 row_width = chip_width
             else:
-                row_width += (self.CHIP_GAP if row_width else 0) + chip_width
-        return rows * chip_height + (rows - 1) * self.CHIP_GAP
+                row_width += (self._CHIP_GAP if row_width else 0) + chip_width
+        return rows * chip_height + (rows - 1) * self._CHIP_GAP
 
     def paint_chips(self, painter: QPainter, x: int, y: int, width: int, players: list, is_dark: bool):
         """Paint usernames as pill-shaped chips. Returns (block_height, [(QRect, name), ...])."""
@@ -532,7 +532,7 @@ class MessageRenderer(QObject):
             bg_hex, fg_hex, border_hex = get_rank_chip_colors(level, is_dark)
             chip_width = fm.horizontalAdvance(name) + 16
             if current_x > x and current_x + chip_width > x + width:
-                current_y += chip_height + self.CHIP_GAP
+                current_y += chip_height + self._CHIP_GAP
                 current_x = x
             chip_rect = QRect(current_x, current_y, chip_width, chip_height)
 
@@ -546,16 +546,16 @@ class MessageRenderer(QObject):
             painter.setPen(QColor(fg_hex))
             painter.drawText(chip_rect, Qt.AlignmentFlag.AlignCenter, name)
             chip_rects.append((chip_rect, name))
-            current_x += chip_width + self.CHIP_GAP
+            current_x += chip_width + self._CHIP_GAP
 
         return current_y + chip_height - y, chip_rects
 
-    PRESENCE_GROUP_GAP = 12
-    PRESENCE_BADGE_GAP = 4
-    PRESENCE_LINE_GAP = 2
-    PRESENCE_BADGE_PAD_X = 12
-    PRESENCE_NAME_GAP = 8
-    PRESENCE_LAST_DOT = 6
+    _PRESENCE_GROUP_GAP = 12
+    _PRESENCE_BADGE_GAP = 4
+    _PRESENCE_LINE_GAP = 2
+    _PRESENCE_BADGE_PAD_X = 12
+    _PRESENCE_NAME_GAP = 8
+    _PRESENCE_LAST_DOT = 6
 
     def _presence_badge(self, event_type: str, count: int, is_last: bool = False):
         label, bg, fg, border = presence_badge_style(event_type, self.is_dark_theme)
@@ -567,7 +567,7 @@ class MessageRenderer(QObject):
         return fm.height() + 4
 
     def _presence_entry_width(self, entry: dict, fm: QFontMetrics) -> int:
-        w = fm.horizontalAdvance(entry.get('login', '')) + self.PRESENCE_NAME_GAP
+        w = fm.horizontalAdvance(entry.get('login', '')) + self._PRESENCE_NAME_GAP
         last = entry.get('last')
         dot = max(3, fm.height() // 4)
         for event_type in EVENT_TYPES:
@@ -575,7 +575,7 @@ class MessageRenderer(QObject):
             if not count:
                 continue
             text, _, _, _ = self._presence_badge(event_type, count)
-            w += fm.horizontalAdvance(text) + self.PRESENCE_BADGE_PAD_X + self.PRESENCE_BADGE_GAP
+            w += fm.horizontalAdvance(text) + self._PRESENCE_BADGE_PAD_X + self._PRESENCE_BADGE_GAP
             if event_type == last:
                 w += dot + 4
         return w
@@ -586,11 +586,11 @@ class MessageRenderer(QObject):
         lines, row_w = 1, 0
         for entry in entries:
             ew = self._presence_entry_width(entry, fm)
-            if row_w and row_w + self.PRESENCE_GROUP_GAP + ew > width:
+            if row_w and row_w + self._PRESENCE_GROUP_GAP + ew > width:
                 lines += 1
                 row_w = ew
             else:
-                row_w += (self.PRESENCE_GROUP_GAP if row_w else 0) + ew
+                row_w += (self._PRESENCE_GROUP_GAP if row_w else 0) + ew
         return lines
 
     def calculate_presence_entries_height(self, entries: list, width: int = 0) -> int:
@@ -599,7 +599,7 @@ class MessageRenderer(QObject):
         fm = QFontMetrics(self.body_font)
         line_h = self._presence_line_height(fm)
         lines = self._presence_line_count(entries, width, fm)
-        return lines * line_h + (lines - 1) * self.PRESENCE_LINE_GAP
+        return lines * line_h + (lines - 1) * self._PRESENCE_LINE_GAP
 
     def paint_presence_entries(self, painter: QPainter, x: int, y: int, width: int,
                                entries: list, get_username_color, line_height: int = 0):
@@ -618,7 +618,7 @@ class MessageRenderer(QObject):
             ew = self._presence_entry_width(entry, fm)
             if cx > x and cx + ew > x + width:
                 cx = x
-                cy += line_h + self.PRESENCE_LINE_GAP
+                cy += line_h + self._PRESENCE_LINE_GAP
 
             login = entry.get('login', '')
             name_w = fm.horizontalAdvance(login)
@@ -626,7 +626,7 @@ class MessageRenderer(QObject):
             painter.setPen(QColor(get_username_color(login)))
             painter.drawText(cx, cy + (line_h - fm.height()) // 2 + fm.ascent(), login)
             user_rects.append((name_rect, login))
-            cx += name_w + self.PRESENCE_NAME_GAP
+            cx += name_w + self._PRESENCE_NAME_GAP
 
             last = entry.get('last')
             dot = max(3, fm.height() // 4)
@@ -637,7 +637,7 @@ class MessageRenderer(QObject):
                 text, bg, fg, border = self._presence_badge(event_type, count)
                 text_w = fm.horizontalAdvance(text)
                 is_last = event_type == last
-                bw = text_w + self.PRESENCE_BADGE_PAD_X + (dot + 4 if is_last else 0)
+                bw = text_w + self._PRESENCE_BADGE_PAD_X + (dot + 4 if is_last else 0)
                 badge_rect = QRect(cx, cy + (line_h - badge_h) // 2, bw, badge_h)
 
                 border_width = 2
@@ -653,7 +653,7 @@ class MessageRenderer(QObject):
                 painter.setPen(QColor(fg))
                 painter.drawText(
                     QRect(badge_rect.x(), badge_rect.y(),
-                          text_w + self.PRESENCE_BADGE_PAD_X, badge_rect.height()),
+                          text_w + self._PRESENCE_BADGE_PAD_X, badge_rect.height()),
                     Qt.AlignmentFlag.AlignCenter,
                     text,
                 )
@@ -667,9 +667,9 @@ class MessageRenderer(QObject):
                         dot, dot,
                     )
 
-                cx += bw + self.PRESENCE_BADGE_GAP
+                cx += bw + self._PRESENCE_BADGE_GAP
 
-            cx += self.PRESENCE_GROUP_GAP
+            cx += self._PRESENCE_GROUP_GAP
 
         return QRect(x, y, width, (cy - y) + line_h), user_rects
 
@@ -688,7 +688,7 @@ class MessageRenderer(QObject):
 
     def _get_link_text(self, url: str, row: Optional[int]) -> str:
         """Get display text for link (short label for game links, processed YouTube title, else the URL)"""
-        game_match = self.GAME_URL_PATTERN.match(url)
+        game_match = self._GAME_URL_PATTERN.match(url)
         if game_match:
             return f"🔗 {game_match.group(1)}"
 
@@ -778,8 +778,8 @@ class MessageRenderer(QObject):
                 first_frame = movie.currentPixmap()
                 if not first_frame.isNull():
                     w, h = first_frame.width(), first_frame.height()
-                    if w > self.emoticon_max_size or h > self.emoticon_max_size:
-                        scale = self.emoticon_max_size / max(w, h)
+                    if w > self._emoticon_max_size or h > self._emoticon_max_size:
+                        scale = self._emoticon_max_size / max(w, h)
                         movie.setScaledSize(QSize(int(w * scale), int(h * scale)))
                 movie.setSpeed(100)
                 movie.start()
@@ -794,8 +794,8 @@ class MessageRenderer(QObject):
         pixmap = QPixmap(str(path))
         if not pixmap.isNull():
             w, h = pixmap.width(), pixmap.height()
-            if w > self.emoticon_max_size or h > self.emoticon_max_size:
-                scale = self.emoticon_max_size / max(w, h)
+            if w > self._emoticon_max_size or h > self._emoticon_max_size:
+                scale = self._emoticon_max_size / max(w, h)
                 pixmap = pixmap.scaled(
                     int(w * scale), int(h * scale),
                     Qt.AspectRatioMode.KeepAspectRatio,
@@ -819,7 +819,7 @@ class MessageRenderer(QObject):
             self.image_viewer.cleanup()
             self.image_viewer.deleteLater()
             self.image_viewer = None
-        if self.video_player:
-            self.video_player.cleanup()
-            self.video_player.deleteLater()
-            self.video_player = None
+        if self._video_player:
+            self._video_player.cleanup()
+            self._video_player.deleteLater()
+            self._video_player = None

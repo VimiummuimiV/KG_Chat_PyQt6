@@ -22,7 +22,7 @@ class UserCountRow(QWidget):
         self.username = username
         self.user_id = user_id
         self.icons_path = icons_path
-        self.is_filtered = False
+        self._is_filtered = False
         self._filter_radius = filter_radius
         self._cache = get_cache()
 
@@ -58,7 +58,7 @@ class UserCountRow(QWidget):
 
     def set_filtered(self, filtered: bool):
         """Update visual state when filtered"""
-        self.is_filtered = filtered
+        self._is_filtered = filtered
         if filtered:
             self.setStyleSheet(
                 f"background-color: rgba(226, 135, 67, 0.2); border-radius: {self._filter_radius}px;"

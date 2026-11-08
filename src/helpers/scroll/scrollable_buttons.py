@@ -24,12 +24,12 @@ class ScrollableButtonContainer(QWidget):
         outer.setSpacing(0)
         self.setLayout(outer)
 
-        self.scroll_area = QScrollArea()
-        self.scroll_area.setWidgetResizable(is_vertical)
-        self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self._scroll_area = QScrollArea()
+        self._scroll_area.setWidgetResizable(is_vertical)
+        self._scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self._scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         if not is_vertical:
-            self.scroll_area.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
+            self._scroll_area.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
 
         self.container = QWidget()
         self._layout = QVBoxLayout() if is_vertical else QHBoxLayout()
@@ -41,9 +41,9 @@ class ScrollableButtonContainer(QWidget):
         self._layout.setContentsMargins(0, 0, 0, 0)
         self.container.setLayout(self._layout)
 
-        self.scroll_area.setWidget(self.container)
-        outer.addWidget(self.scroll_area)
-        self.scroll_area.viewport().installEventFilter(self)
+        self._scroll_area.setWidget(self.container)
+        outer.addWidget(self._scroll_area)
+        self._scroll_area.viewport().installEventFilter(self)
 
     def _sync_content_size(self):
         if self._orientation != Qt.Orientation.Horizontal:
@@ -75,11 +75,11 @@ class ScrollableButtonContainer(QWidget):
 
     def _scrollbar(self):
         if self._orientation == Qt.Orientation.Vertical:
-            return self.scroll_area.verticalScrollBar()
-        return self.scroll_area.horizontalScrollBar()
+            return self._scroll_area.verticalScrollBar()
+        return self._scroll_area.horizontalScrollBar()
 
     def eventFilter(self, obj, event):
-        if obj != self.scroll_area.viewport():
+        if obj != self._scroll_area.viewport():
             return super().eventFilter(obj, event)
 
         t = event.type()
@@ -94,7 +94,7 @@ class ScrollableButtonContainer(QWidget):
             self._is_dragging = True
             self._drag_start_pos = event.pos()
             self._scroll_start_value = self._scrollbar().value()
-            self.scroll_area.viewport().setCursor(Qt.CursorShape.ClosedHandCursor)
+            self._scroll_area.viewport().setCursor(Qt.CursorShape.ClosedHandCursor)
             return True
 
         if t == QEvent.Type.MouseMove and self._is_dragging and self._drag_start_pos is not None:
@@ -107,7 +107,7 @@ class ScrollableButtonContainer(QWidget):
             self._is_dragging = False
             self._drag_start_pos = None
             self._scroll_start_value = None
-            self.scroll_area.viewport().setCursor(Qt.CursorShape.ArrowCursor)
+            self._scroll_area.viewport().setCursor(Qt.CursorShape.ArrowCursor)
             return True
 
         return super().eventFilter(obj, event)

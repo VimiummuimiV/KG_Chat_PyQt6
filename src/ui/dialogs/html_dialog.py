@@ -10,7 +10,7 @@ from PyQt6.QtWidgets import QApplication, QMessageBox
 from helpers.translate import tr
 
 
-class CopyableWarningBox(QMessageBox):
+class _CopyableWarningBox(QMessageBox):
     """QMessageBox.warning() plus optional ActionRole buttons for copy-HTML
     and a custom action (e.g. re-authorize). Copy does not close the dialog."""
 
@@ -60,7 +60,7 @@ def show_warning_with_html(
 ) -> None:
     """Drop-in replacement for QMessageBox.warning() with optional
     'Copy page HTML' and a custom action button (on_action runs after close)."""
-    box = CopyableWarningBox(parent, title, text, html, action_text)
+    box = _CopyableWarningBox(parent, title, text, html, action_text)
     box.exec()
     if on_action and box._action_button is not None and box.clickedButton() is box._action_button:
         on_action()

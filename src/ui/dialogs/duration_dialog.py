@@ -16,14 +16,14 @@ from helpers.translate import on_language_changed, tr, TranslatableMixin
 class DurationDialog(TranslatableMixin, QDialog):
     """Unified dialog for selecting ban duration with multiple time units"""
 
-    UNITS = {
+    _UNITS = {
         'minutes': 60,
         'hours': 3600,
         'days': 86400,
         'weeks': 604800
     }
-    UNIT_KEYS = ['minutes', 'hours', 'days', 'weeks']
-    UNIT_LABELS = {
+    _UNIT_KEYS = ['minutes', 'hours', 'days', 'weeks']
+    _UNIT_LABELS = {
         'minutes': ("minutes", "минуты"),
         'hours':   ("hours",   "часы"),
         'days':    ("days",    "дни"),
@@ -57,11 +57,11 @@ class DurationDialog(TranslatableMixin, QDialog):
         row.addWidget(self.spin, stretch=1)
 
         self.combo = QComboBox()
-        for key in self.UNIT_KEYS:
-            en, ru = self.UNIT_LABELS[key]
+        for key in self._UNIT_KEYS:
+            en, ru = self._UNIT_LABELS[key]
             self.combo.addItem(tr(en, ru), key)
         # select by data key
-        idx = self.UNIT_KEYS.index(self.unit) if self.unit in self.UNIT_KEYS else 0
+        idx = self._UNIT_KEYS.index(self.unit) if self.unit in self._UNIT_KEYS else 0
         self.combo.setCurrentIndex(idx)
         row.addWidget(self.combo, stretch=1)
 
@@ -78,11 +78,11 @@ class DurationDialog(TranslatableMixin, QDialog):
     def _retranslate(self, _code=None):
         self.retranslate_all()
         current = self.combo.currentData() or self.unit
-        for i, key in enumerate(self.UNIT_KEYS):
-            en, ru = self.UNIT_LABELS[key]
+        for i, key in enumerate(self._UNIT_KEYS):
+            en, ru = self._UNIT_LABELS[key]
             self.combo.setItemText(i, tr(en, ru))
-        if current in self.UNIT_KEYS:
-            self.combo.setCurrentIndex(self.UNIT_KEYS.index(current))
+        if current in self._UNIT_KEYS:
+            self.combo.setCurrentIndex(self._UNIT_KEYS.index(current))
 
     def _seconds_to_best_unit(self, seconds):
         """Convert seconds to most appropriate unit based on magnitude"""
@@ -100,14 +100,14 @@ class DurationDialog(TranslatableMixin, QDialog):
 
         return max(1, seconds // 60), 'minutes'
 
-    def get_seconds(self) -> int:
+    def _get_seconds(self) -> int:
         """Get duration in seconds"""
         key = self.combo.currentData() or self.combo.currentText()
-        return self.spin.value() * self.UNITS[key]
+        return self.spin.value() * self._UNITS[key]
 
     @staticmethod
     def get_duration(parent=None, default_seconds: int = 3600):
         """Show dialog and return (seconds, accepted)"""
         dlg = DurationDialog(parent, default_seconds)
         ok = dlg.exec() == QDialog.DialogCode.Accepted
-        return (dlg.get_seconds() if ok else default_seconds, ok)
+        return (dlg._get_seconds() if ok else default_seconds, ok)

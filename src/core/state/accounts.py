@@ -11,7 +11,7 @@ class AccountManager:
     """Manage multiple XMPP accounts using local SQLite database"""
 
     # Schema definition
-    SCHEMA = {
+    _SCHEMA = {
         'table_name': 'accounts',
         'columns': [
             ('id', 'INTEGER PRIMARY KEY AUTOINCREMENT'),
@@ -37,8 +37,8 @@ class AccountManager:
 
     def _get_create_table_sql(self):
         """Generate CREATE TABLE SQL from schema"""
-        table = self.SCHEMA['table_name']
-        cols = ', '.join(f"{name} {type_}" for name, type_ in self.SCHEMA['columns'])
+        table = self._SCHEMA['table_name']
+        cols = ', '.join(f"{name} {type_}" for name, type_ in self._SCHEMA['columns'])
         return f"CREATE TABLE IF NOT EXISTS {table} ({cols})"
 
     def _init_database(self):
@@ -123,7 +123,7 @@ class AccountManager:
         if row:
             return self._row_to_dict(row)
 
-        return self.get_account_by_index(0)
+        return self._get_account_by_index(0)
 
     def get_account_by_chat_username(self, chat_username: str) -> Optional[Dict]:
         """Get account by chat username"""
@@ -133,7 +133,7 @@ class AccountManager:
             row = cursor.fetchone()
         return self._row_to_dict(row) if row else None
 
-    def get_account_by_index(self, index: int) -> Optional[Dict]:
+    def _get_account_by_index(self, index: int) -> Optional[Dict]:
         """Get account by index"""
         accounts = self.list_accounts()
         if 0 <= index < len(accounts):
@@ -164,7 +164,7 @@ class AccountManager:
             print(f"❌ Error: {e}")
             return False
 
-    def update_account_color(self, chat_username: str, background: str,
+    def _update_account_color(self, chat_username: str, background: str,
                              avatar: Optional[str] = None) -> bool:
         try:
             with sqlite3.connect(self.db_path) as conn:
@@ -218,7 +218,7 @@ class AccountManager:
             return None
 
         result = {}
-        for i, (col_name, _) in enumerate(self.SCHEMA['columns']):
+        for i, (col_name, _) in enumerate(self._SCHEMA['columns']):
             result[col_name] = row[i]
 
         # Convert active to boolean

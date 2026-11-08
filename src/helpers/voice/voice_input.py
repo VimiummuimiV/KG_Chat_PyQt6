@@ -16,26 +16,26 @@ from typing import Optional
 from PyQt6.QtCore import pyqtSignal, QObject, QThread
 
 
-SAMPLE_RATE = 16000
-CHANNELS = 1
-DTYPE = "int16"
-BLOCK_MS = 40
-BLOCKSIZE = SAMPLE_RATE * BLOCK_MS // 1000
+_SAMPLE_RATE = 16000
+_CHANNELS = 1
+_DTYPE = "int16"
+_BLOCK_MS = 40
+_BLOCKSIZE = _SAMPLE_RATE * _BLOCK_MS // 1000
 
 # Energy VAD (int16 RMS). Tuned for speech at typical headset gain.
-SPEECH_RMS = 450
+_SPEECH_RMS = 450
 # Short breaths must not start a new sentence (Google capitalizes every request)
-SILENCE_TO_COMMIT_S = 0.85
-MAX_UTTERANCE_S = 12.0
-MIN_UTTERANCE_S = 0.30
-DRAFT_EVERY_S = 0.85
-DRAFT_FIRST_S = 0.55
+_SILENCE_TO_COMMIT_S = 0.85
+_MAX_UTTERANCE_S = 12.0
+_MIN_UTTERANCE_S = 0.30
+_DRAFT_EVERY_S = 0.85
+_DRAFT_FIRST_S = 0.55
 
-LANG_RU = "ru-RU"
-LANG_EN = "en-US"
-LANG_AUTO = "auto"
+_LANG_RU = "ru-RU"
+_LANG_EN = "en-US"
+_LANG_AUTO = "auto"
 
-SUPPORTED_LANGUAGES = (LANG_RU, LANG_EN, LANG_AUTO)
+_SUPPORTED_LANGUAGES = (_LANG_RU, _LANG_EN, _LANG_AUTO)
 
 
 def _sd():
@@ -49,7 +49,7 @@ def _np():
 
 
 @dataclass
-class InputDevice:
+class _InputDevice:
     index: int
     name: str
     hostapi: str
@@ -61,7 +61,7 @@ class InputDevice:
         return f"{self.name}{extra}{suffix}"
 
 
-def list_input_devices() -> list[InputDevice]:
+def list_input_devices() -> list[_InputDevice]:
     """Every PortAudio input endpoint. Names are whatever the host API reports
     (MME on Windows is capped at 31 characters — that is not our truncation)."""
     try:
@@ -69,7 +69,7 @@ def list_input_devices() -> list[InputDevice]:
     except Exception:
         return []
 
-    devices: list[InputDevice] = []
+    devices: list[_InputDevice] = []
     try:
         default_in = sd.default.device[0] if sd.default.device else None
         hostapis = sd.query_hostapis()
@@ -82,7 +82,7 @@ def list_input_devices() -> list[InputDevice]:
             except Exception:
                 pass
             devices.append(
-                InputDevice(
+                _InputDevice(
                     index=i,
                     name=str(info.get("name") or f"Device {i}"),
                     hostapi=host,
@@ -134,9 +134,9 @@ def _level_from_rms(rms: float) -> float:
     return max(0.0, min(1.0, norm))
 
 
-def recognize_pcm(pcm: bytes, language: str = LANG_AUTO) -> str:
+def _recognize_pcm(pcm: bytes, language: str = _LANG_AUTO) -> str:
     """Google Web Speech."""
-    if not pcm or len(pcm) < SAMPLE_RATE * 2 * MIN_UTTERANCE_S:
+    if not pcm or len(pcm) < _SAMPLE_RATE * 2 * _MIN_UTTERANCE_S:
         return ""
     try:
         import speech_recognition as sr  # optional dependency, loaded on first use
@@ -145,7 +145,7 @@ def recognize_pcm(pcm: bytes, language: str = LANG_AUTO) -> str:
             "SpeechRecognition is not installed. pip install SpeechRecognition"
         ) from e
 
-    audio = sr.AudioData(pcm, SAMPLE_RATE, 2)
+    audio = sr.AudioData(pcm, _SAMPLE_RATE, 2)
 
     def one(lang: str) -> str:
         rec = sr.Recognizer()
@@ -158,16 +158,16 @@ def recognize_pcm(pcm: bytes, language: str = LANG_AUTO) -> str:
         except sr.RequestError as e:
             raise RuntimeError(f"STT request failed: {e}") from e
 
-    return one(LANG_RU if language != LANG_EN else LANG_EN)
+    return one(_LANG_RU if language != _LANG_EN else _LANG_EN)
 
 
 class _CaptureThread(QThread):
     """Pulls mic audio, emits level, slices utterances by VAD."""
 
     level = pyqtSignal(float)
-    utterance = pyqtSignal(bytes)
+    _utterance = pyqtSignal(bytes)
     preview = pyqtSignal(bytes)
-    failed = pyqtSignal(str)
+    _failed = pyqtSignal(str)
 
     def __init__(self, device_index: Optional[int], parent=None):
         super().__init__(parent)
@@ -182,7 +182,7 @@ class _CaptureThread(QThread):
             sd = _sd()
             np = _np()
         except Exception:
-            self.failed.emit(
+            self._failed.emit(
                 "Install audio deps: pip install sounddevice numpy SpeechRecognition"
             )
             return
@@ -196,15 +196,15 @@ class _CaptureThread(QThread):
         smooth = 0.0
 
         def emit_preview():
-            if speech_chunks and speech_s >= MIN_UTTERANCE_S:
+            if speech_chunks and speech_s >= _MIN_UTTERANCE_S:
                 self.preview.emit(np.concatenate(speech_chunks).tobytes())
 
         def flush():
             nonlocal speech_chunks, speaking, silence_s, speech_s
             nonlocal last_draft_at, sent_first_draft
-            if speech_chunks and speech_s >= MIN_UTTERANCE_S:
+            if speech_chunks and speech_s >= _MIN_UTTERANCE_S:
                 pcm = np.concatenate(speech_chunks).tobytes()
-                self.utterance.emit(pcm)
+                self._utterance.emit(pcm)
             speech_chunks = []
             speaking = False
             silence_s = 0.0
@@ -214,14 +214,14 @@ class _CaptureThread(QThread):
 
         try:
             with sd.InputStream(
-                samplerate=SAMPLE_RATE,
-                channels=CHANNELS,
-                dtype=DTYPE,
-                blocksize=BLOCKSIZE,
+                samplerate=_SAMPLE_RATE,
+                channels=_CHANNELS,
+                dtype=_DTYPE,
+                blocksize=_BLOCKSIZE,
                 device=self._device_index,
             ) as stream:
                 while not self._stop.is_set():
-                    block, overflowed = stream.read(BLOCKSIZE)
+                    block, overflowed = stream.read(_BLOCKSIZE)
                     if overflowed:
                         pass
                     mono = block[:, 0] if block.ndim > 1 else block
@@ -230,43 +230,43 @@ class _CaptureThread(QThread):
                     smooth = 0.65 * smooth + 0.35 * instant
                     self.level.emit(smooth)
 
-                    is_speech = rms >= SPEECH_RMS
+                    is_speech = rms >= _SPEECH_RMS
                     if is_speech:
                         speech_chunks.append(np.ascontiguousarray(mono))
                         speaking = True
                         silence_s = 0.0
-                        speech_s += BLOCK_MS / 1000.0
-                        if not sent_first_draft and speech_s >= DRAFT_FIRST_S:
+                        speech_s += _BLOCK_MS / 1000.0
+                        if not sent_first_draft and speech_s >= _DRAFT_FIRST_S:
                             emit_preview()
                             sent_first_draft = True
                             last_draft_at = speech_s
-                        elif speech_s - last_draft_at >= DRAFT_EVERY_S:
+                        elif speech_s - last_draft_at >= _DRAFT_EVERY_S:
                             emit_preview()
                             last_draft_at = speech_s
-                        if speech_s >= MAX_UTTERANCE_S:
+                        if speech_s >= _MAX_UTTERANCE_S:
                             flush()
                     elif speaking:
                         speech_chunks.append(np.ascontiguousarray(mono))
-                        silence_s += BLOCK_MS / 1000.0
-                        speech_s += BLOCK_MS / 1000.0
-                        if silence_s >= SILENCE_TO_COMMIT_S:
+                        silence_s += _BLOCK_MS / 1000.0
+                        speech_s += _BLOCK_MS / 1000.0
+                        if silence_s >= _SILENCE_TO_COMMIT_S:
                             flush()
         except Exception as e:
-            self.failed.emit(str(e))
+            self._failed.emit(str(e))
             return
 
         # Release: commit whatever was buffered
         try:
             np = _np()
-            if speech_chunks and speech_s >= MIN_UTTERANCE_S:
-                self.utterance.emit(np.concatenate(speech_chunks).tobytes())
+            if speech_chunks and speech_s >= _MIN_UTTERANCE_S:
+                self._utterance.emit(np.concatenate(speech_chunks).tobytes())
         except Exception:
             pass
 
 
 class _RecognizeWorker(QThread):
-    finished_text = pyqtSignal(str)
-    failed = pyqtSignal(str)
+    _finished_text = pyqtSignal(str)
+    _failed = pyqtSignal(str)
 
     def __init__(self, pcm: bytes, language: str, parent=None):
         super().__init__(parent)
@@ -275,10 +275,10 @@ class _RecognizeWorker(QThread):
 
     def run(self):
         try:
-            text = recognize_pcm(self._pcm, self._language)
-            self.finished_text.emit(text)
+            text = _recognize_pcm(self._pcm, self._language)
+            self._finished_text.emit(text)
         except Exception as e:
-            self.failed.emit(str(e))
+            self._failed.emit(str(e))
 
 
 class VoiceInputEngine(QObject):
@@ -295,7 +295,7 @@ class VoiceInputEngine(QObject):
         self._capture: Optional[_CaptureThread] = None
         self._workers: list[_RecognizeWorker] = []
         self._preview_worker: Optional[_RecognizeWorker] = None
-        self._language = LANG_RU
+        self._language = _LANG_RU
         self._device_index: Optional[int] = None
         self._listening = False
         self._state = "idle"
@@ -313,7 +313,7 @@ class VoiceInputEngine(QObject):
         return self._language
 
     def set_language(self, language: str):
-        if language in SUPPORTED_LANGUAGES:
+        if language in _SUPPORTED_LANGUAGES:
             self._language = language
 
     def set_device_index(self, index: Optional[int]):
@@ -330,9 +330,9 @@ class VoiceInputEngine(QObject):
         self._set_state("listening")
         cap = _CaptureThread(self._device_index, parent=self)
         cap.level.connect(self.level_changed)
-        cap.utterance.connect(self._on_utterance)
+        cap._utterance.connect(self._on_utterance)
         cap.preview.connect(self._on_preview)
-        cap.failed.connect(self._on_capture_failed)
+        cap._failed.connect(self._on_capture_failed)
         cap.finished.connect(self._on_capture_finished)
         self._capture = cap
         cap.start()
@@ -372,8 +372,8 @@ class VoiceInputEngine(QObject):
         if not pcm or self._preview_worker is not None:
             return
         worker = _RecognizeWorker(pcm, self._language, parent=self)
-        worker.finished_text.connect(lambda text, w=worker: self._on_preview_done(w, text))
-        worker.failed.connect(lambda m, w=worker: self._on_preview_failed(w, m))
+        worker._finished_text.connect(lambda text, w=worker: self._on_preview_done(w, text))
+        worker._failed.connect(lambda m, w=worker: self._on_preview_failed(w, m))
         self._preview_worker = worker
         worker.start()
 
@@ -395,8 +395,8 @@ class VoiceInputEngine(QObject):
             return
         self._set_state("recognizing")
         worker = _RecognizeWorker(pcm, self._language, parent=self)
-        worker.finished_text.connect(lambda text, w=worker: self._on_recognized(w, text))
-        worker.failed.connect(lambda m, w=worker: self._on_recognize_failed(w, m))
+        worker._finished_text.connect(lambda text, w=worker: self._on_recognized(w, text))
+        worker._failed.connect(lambda m, w=worker: self._on_recognize_failed(w, m))
         self._workers.append(worker)
         worker.start()
 

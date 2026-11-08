@@ -35,7 +35,7 @@ from helpers.scroll.auto_scroll import AutoScroller
 from helpers.translate import on_language_changed, tr, TranslatableMixin
 
 
-class UserWidget(TrackedMarkMixin, QWidget):
+class _UserWidget(TrackedMarkMixin, QWidget):
     """Widget for a single user display"""
     AVATAR_SIZE = 36
     SVG_AVATAR_SIZE = 24
@@ -86,8 +86,8 @@ class UserWidget(TrackedMarkMixin, QWidget):
         username_text = user.login
         tooltip_parts = []
 
-        self.is_moderator = user.role in ('moderator', 'owner') or user.affiliation == 'owner' or user.moderator
-        if self.is_moderator:
+        self._is_moderator = user.role in ('moderator', 'owner') or user.affiliation == 'owner' or user.moderator
+        if self._is_moderator:
             username_text += " ⚔️"
             tooltip_parts.append(self._build_moderator_tooltip(user))
 
@@ -123,12 +123,12 @@ class UserWidget(TrackedMarkMixin, QWidget):
             layout.addWidget(self.game_counter_label)
         layout.addStretch()
 
-    def retranslate_tooltip(self):
+    def _retranslate_tooltip(self):
         """Recompute the combined tooltip in the current language. Called by
         the parent list on language change since the tooltip is built from
         live user state, not a single static tr() call."""
         tooltip_parts = []
-        if self.is_moderator:
+        if self._is_moderator:
             tooltip_parts.append(self._build_moderator_tooltip(self.user))
         if self.is_tracked:
             tooltip_parts.append(tr("Tracked", "Отслеживается"))
@@ -255,7 +255,7 @@ class UserListWidget(TranslatableMixin, QWidget):
         self.my_username = my_username
         self.pronunciation_manager = None
         self.user_widgets = {}
-        self.user_game_state = {}
+        self._user_game_state = {}
         self.cache = get_cache()
         self.bg_hex = "#1E1E1E" if config.get("ui", "theme") == "dark" else "#FFFFFF"
         self.is_dark_theme = config.get("ui", "theme") == "dark"
@@ -296,14 +296,14 @@ class UserListWidget(TranslatableMixin, QWidget):
         self.main_layout.addWidget(self.chat_label)
         self.register_tr(self.chat_label.setText, tr("Chat", "Чат"))
 
-        self.chat_container = QVBoxLayout()
-        self.chat_container.setSpacing(list_spacing)
-        self.main_layout.addLayout(self.chat_container)
+        self._chat_container = QVBoxLayout()
+        self._chat_container.setSpacing(list_spacing)
+        self.main_layout.addLayout(self._chat_container)
 
-        self.section_spacer = QWidget()
-        self.section_spacer.setFixedHeight(section_gap)
-        self.section_spacer.setVisible(False)
-        self.main_layout.addWidget(self.section_spacer)
+        self._section_spacer = QWidget()
+        self._section_spacer.setFixedHeight(section_gap)
+        self._section_spacer.setVisible(False)
+        self.main_layout.addWidget(self._section_spacer)
 
         # Game section
         self.game_label = QLabel(tr("Game", "Игра"))
@@ -313,9 +313,9 @@ class UserListWidget(TranslatableMixin, QWidget):
         self.main_layout.addWidget(self.game_label)
         self.register_tr(self.game_label.setText, tr("Game", "Игра"))
 
-        self.game_container = QVBoxLayout()
-        self.game_container.setSpacing(list_spacing)
-        self.main_layout.addLayout(self.game_container)
+        self._game_container = QVBoxLayout()
+        self._game_container.setSpacing(list_spacing)
+        self.main_layout.addLayout(self._game_container)
 
         self.main_layout.addStretch()
 
@@ -324,33 +324,33 @@ class UserListWidget(TranslatableMixin, QWidget):
     def _retranslate(self, _code=None):
         self.retranslate_all()
         for widget in self.user_widgets.values():
-            widget.retranslate_tooltip()
+            widget._retranslate_tooltip()
 
     def _update_section_visibility(self):
         """Update visibility of section headers"""
-        has_chat_users = self.chat_container.count() > 0
-        has_game_users = self.game_container.count() > 0
+        has_chat_users = self._chat_container.count() > 0
+        has_game_users = self._game_container.count() > 0
 
         self.chat_label.setVisible(has_chat_users)
         self.game_label.setVisible(has_game_users)
-        self.section_spacer.setVisible(has_chat_users and has_game_users)
+        self._section_spacer.setVisible(has_chat_users and has_game_users)
 
     def _update_game_counter(self, user):
         if user.game_id:
-            state = self.user_game_state.get(user.login)
+            state = self._user_game_state.get(user.login)
             if not state:
                 game_counter = 1
             elif state.get('last_game_id') != user.game_id:
                 game_counter = state.get('game_counter', 1) + 1
             else:
                 game_counter = state.get('game_counter', 1)
-            self.user_game_state[user.login] = {
+            self._user_game_state[user.login] = {
                 'last_game_id': user.game_id,
                 'game_counter': game_counter,
             }
             return game_counter
-        if user.login in self.user_game_state:
-            self.user_game_state.pop(user.login, None)
+        if user.login in self._user_game_state:
+            self._user_game_state.pop(user.login, None)
         return None
 
     def _tracked_star_enabled(self) -> bool:
@@ -450,8 +450,8 @@ class UserListWidget(TranslatableMixin, QWidget):
             self.user_widgets.clear()
 
             # Clear containers
-            self._clear_container(self.chat_container)
-            self._clear_container(self.game_container)
+            self._clear_container(self._chat_container)
+            self._clear_container(self._game_container)
 
             # Process deletions
             QApplication.processEvents()
@@ -459,18 +459,18 @@ class UserListWidget(TranslatableMixin, QWidget):
             # Separate and sort
             in_chat = sorted([u for u in users if not u.game_id], key=lambda u: u.login.lower())
             in_game = sorted([u for u in users if u.game_id], 
-                           key=lambda u: (-self.user_game_state.get(u.login, {}).get('game_counter', 1), u.login.lower()))
+                           key=lambda u: (-self._user_game_state.get(u.login, {}).get('game_counter', 1), u.login.lower()))
 
             # Add to chat
             for user in in_chat:
                 try:
-                    widget = UserWidget(
+                    widget = _UserWidget(
                         user, self.config, self.icons_path, self.is_dark_theme,
                         is_tracked=self._is_tracked(user), user_tracker=self.user_tracker,
                         my_username=self.my_username, pronunciation_manager=self.pronunciation_manager,
                     )
                     _wire(widget)
-                    self.chat_container.addWidget(widget)
+                    self._chat_container.addWidget(widget)
                     self.user_widgets[user.jid] = widget
                 except Exception as e:
                     print(f"❌ Error creating user widget: {e}")
@@ -478,14 +478,14 @@ class UserListWidget(TranslatableMixin, QWidget):
             # Add to game
             for user in in_game:
                 try:
-                    game_counter = self.user_game_state.get(user.login, {}).get('game_counter', 1)
-                    widget = UserWidget(
+                    game_counter = self._user_game_state.get(user.login, {}).get('game_counter', 1)
+                    widget = _UserWidget(
                         user, self.config, self.icons_path, self.is_dark_theme, game_counter,
                         is_tracked=self._is_tracked(user), user_tracker=self.user_tracker,
                         my_username=self.my_username, pronunciation_manager=self.pronunciation_manager,
                     )
                     _wire(widget)
-                    self.game_container.addWidget(widget)
+                    self._game_container.addWidget(widget)
                     self.user_widgets[user.jid] = widget
                 except Exception as e:
                     print(f"❌ Error creating user widget: {e}")
@@ -506,11 +506,11 @@ class UserListWidget(TranslatableMixin, QWidget):
 
             # Determine section and game counter
             is_game = bool(user.game_id)
-            game_counter = self.user_game_state.get(user.login, {}).get('game_counter', 1) if is_game else None
-            container = self.game_container if is_game else self.chat_container
+            game_counter = self._user_game_state.get(user.login, {}).get('game_counter', 1) if is_game else None
+            container = self._game_container if is_game else self._chat_container
 
             try:
-                widget = UserWidget(
+                widget = _UserWidget(
                     user, self.config, self.icons_path, self.is_dark_theme, game_counter,
                     is_tracked=self._is_tracked(user), user_tracker=self.user_tracker,
                     my_username=self.my_username, pronunciation_manager=self.pronunciation_manager,
@@ -522,14 +522,14 @@ class UserListWidget(TranslatableMixin, QWidget):
                 inserted = False
                 for i in range(container.count()):
                     item = container.itemAt(i)
-                    if not item or not isinstance(item.widget(), UserWidget):
+                    if not item or not isinstance(item.widget(), _UserWidget):
                         continue
                     existing = item.widget()
 
                     if is_game:
                         # Sort by game_counter desc, then name asc
                         my_counter = game_counter or 1
-                        their_counter = self.user_game_state.get(existing.user.login, {}).get('game_counter', 1)
+                        their_counter = self._user_game_state.get(existing.user.login, {}).get('game_counter', 1)
                         if my_counter > their_counter or (my_counter == their_counter and user.login.lower() < existing.user.login.lower()):
                             container.insertWidget(i, widget)
                             inserted = True
@@ -588,11 +588,11 @@ class UserListWidget(TranslatableMixin, QWidget):
         self.user_widgets.clear()
 
         # Clear game state
-        self.user_game_state.clear()
+        self._user_game_state.clear()
 
         # Clear containers
-        self._clear_container(self.chat_container)
-        self._clear_container(self.game_container)
+        self._clear_container(self._chat_container)
+        self._clear_container(self._game_container)
 
         # Update visibility
         self._update_section_visibility()

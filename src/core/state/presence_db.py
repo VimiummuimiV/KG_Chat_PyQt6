@@ -77,7 +77,7 @@ class PresenceDB:
                     ),
                 )
 
-    def insert_many(self, events: List[dict]) -> None:
+    def _insert_many(self, events: List[dict]) -> None:
         if not events:
             return
         rows = [

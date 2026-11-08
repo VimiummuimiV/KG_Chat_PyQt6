@@ -34,28 +34,28 @@ _AVATAR_SIZE = 120
 _AVATAR_RADIUS = 15
 
 
-class ProfileIcons:
+class _ProfileIcons:
     """Centralized profile card icons"""
-    USER_ID = "🆔"
-    LEVEL = "🏅"
-    STATUS_ONLINE = "🟢"
-    STATUS_OFFLINE = "🔴"
-    ACCOUNT_ACTIVE = "⚡️"
-    ACCOUNT_BANNED = "🔒"
-    REGISTERED = "🗓️"
-    ACHIEVEMENTS = "🏆"
-    TOTAL_RACES = "🏁"
-    BEST_SPEED = "🚀"
-    RATING = "🎯"
-    FRIENDS = "🤝"
-    VOCABULARIES = "📖"
-    CARS = "🚘"
-    AVATAR_PLACEHOLDER = "👤"
-    USERNAME_HISTORY = "📜"
+    _USER_ID = "🆔"
+    _LEVEL = "🏅"
+    _STATUS_ONLINE = "🟢"
+    _STATUS_OFFLINE = "🔴"
+    _ACCOUNT_ACTIVE = "⚡️"
+    _ACCOUNT_BANNED = "🔒"
+    _REGISTERED = "🗓️"
+    _ACHIEVEMENTS = "🏆"
+    _TOTAL_RACES = "🏁"
+    _BEST_SPEED = "🚀"
+    _RATING = "🎯"
+    _FRIENDS = "🤝"
+    _VOCABULARIES = "📖"
+    _CARS = "🚘"
+    _AVATAR_PLACEHOLDER = "👤"
+    _USERNAME_HISTORY = "📜"
 
 
 # RANKS: level -> (name, dark_color, light_color)
-RANKS = {
+_RANKS = {
     1: ('Новичок',      '#C8C8C8', '#888888'),
     2: ('Любитель',     '#7DCFCD', '#2E8B8A'),
     3: ('Таксист',      '#3DC860', '#1A7A35'),
@@ -68,11 +68,11 @@ RANKS = {
 }
 
 
-class ContainerStyleMixin:
+class _ContainerStyleMixin:
     """Unified styling for elevated container components"""
 
     @staticmethod
-    def get_container_style(is_dark: bool) -> str:
+    def _get_container_style(is_dark: bool) -> str:
         """Get container background and border styling"""
         if is_dark:
             return """
@@ -89,12 +89,12 @@ class ContainerStyleMixin:
         """
 
     @staticmethod
-    def get_secondary_label_color(is_dark: bool) -> str:
+    def _get_secondary_label_color(is_dark: bool) -> str:
         """Get secondary label color"""
         return "rgba(255, 255, 255, 0.6)" if is_dark else "rgba(0, 0, 0, 0.5)"
 
 
-class StatCard(QFrame):
+class _StatCard(QFrame):
     """Styled card for displaying a stat"""
     def __init__(self, icon: str, label: str, value: str, config, is_dark: bool, value_color: str = None):
         super().__init__()
@@ -112,14 +112,14 @@ class StatCard(QFrame):
         header = QHBoxLayout()
         header.setSpacing(6)
 
-        self.icon_label = QLabel(icon)
-        self.icon_label.setFont(get_font(FontType.TEXT, size=20))
-        header.addWidget(self.icon_label)
+        self._icon_label = QLabel(icon)
+        self._icon_label.setFont(get_font(FontType.TEXT, size=20))
+        header.addWidget(self._icon_label)
 
-        self.label_widget = QLabel(label)
-        self.label_widget.setFont(get_font(FontType.TEXT))
-        self.label_widget.setWordWrap(True)
-        header.addWidget(self.label_widget, stretch=1)
+        self._label_widget = QLabel(label)
+        self._label_widget.setFont(get_font(FontType.TEXT))
+        self._label_widget.setWordWrap(True)
+        header.addWidget(self._label_widget, stretch=1)
 
         layout.addLayout(header)
 
@@ -135,20 +135,20 @@ class StatCard(QFrame):
 
     def _update_style(self):
         """Update card and label styling"""
-        self.setStyleSheet(f"QFrame {{ {ContainerStyleMixin.get_container_style(self.is_dark)} }}")
-        if hasattr(self, 'label_widget'):
-            self.label_widget.setStyleSheet(f"color: {ContainerStyleMixin.get_secondary_label_color(self.is_dark)};")
+        self.setStyleSheet(f"QFrame {{ {_ContainerStyleMixin._get_container_style(self.is_dark)} }}")
+        if hasattr(self, '_label_widget'):
+            self._label_widget.setStyleSheet(f"color: {_ContainerStyleMixin._get_secondary_label_color(self.is_dark)};")
 
     def update_theme(self, is_dark: bool):
         """Update theme"""
         self.is_dark = is_dark
         self._update_style()
 
-    def set_label(self, label: str):
-        self.label_widget.setText(label)
+    def _set_label(self, label: str):
+        self._label_widget.setText(label)
 
 
-class UsernameHistoryWidget(TranslatableMixin, QWidget):
+class _UsernameHistoryWidget(TranslatableMixin, QWidget):
     """Compact username history widget with card-style header and transparent scrollable list"""
 
     def __init__(self, config, is_dark: bool, max_height: int = 300):
@@ -166,13 +166,13 @@ class UsernameHistoryWidget(TranslatableMixin, QWidget):
         layout.setSpacing(8)
 
         # Card-style header using StatCard
-        self.header_card = StatCard(
-            ProfileIcons.USERNAME_HISTORY,
+        self._header_card = _StatCard(
+            _ProfileIcons._USERNAME_HISTORY,
             tr("Username History", "История ников"),
             "", config, is_dark
         )
-        self.header_card.value_label.hide()
-        layout.addWidget(self.header_card)
+        self._header_card.value_label.hide()
+        layout.addWidget(self._header_card)
 
         # Transparent scrollable content
         scroll = QScrollArea()
@@ -192,16 +192,16 @@ class UsernameHistoryWidget(TranslatableMixin, QWidget):
         layout.addWidget(scroll)
         self.scroll = scroll
         scroll.wheelEvent = self._scroll_wheel_event
-        self.content_widget = content
+        self._content_widget = content
 
         on_language_changed(self._retranslate)
 
     def _retranslate(self, _code=None):
-        self.header_card.set_label(tr("Username History", "История ников"))
+        self._header_card._set_label(tr("Username History", "История ников"))
         if self._history_data is not None:
-            self.set_history(self._current_username, self._history_data)
+            self._set_history(self._current_username, self._history_data)
 
-    def set_history(self, current_username: str, history_data: list):
+    def _set_history(self, current_username: str, history_data: list):
         """Set username history data"""
         self._current_username = current_username
         self._history_data = history_data
@@ -222,7 +222,7 @@ class UsernameHistoryWidget(TranslatableMixin, QWidget):
             return lbl
 
         # Current username (highlighted)
-        self.current_label = create_label(
+        self._current_label = create_label(
             f"<b>{current_username}</b>", 
             '#00aaff' if self.is_dark else '#0066cc'
         )
@@ -246,11 +246,11 @@ class UsernameHistoryWidget(TranslatableMixin, QWidget):
 
     def adjust_height(self):
         """Adjust widget height to fit content, capped at max_height scaled to font size"""
-        self.content_widget.adjustSize()
+        self._content_widget.adjustSize()
         text_size = get_font(FontType.TEXT).pointSize()
         max_h = int(self._max_height * text_size / 17)
-        header_h = self.header_card.sizeHint().height()
-        content_h = self.content_widget.sizeHint().height()
+        header_h = self._header_card.sizeHint().height()
+        content_h = self._content_widget.sizeHint().height()
         self.setFixedHeight(min(header_h + content_h + 30, max_h))
 
     def _scroll_wheel_event(self, event):
@@ -260,9 +260,9 @@ class UsernameHistoryWidget(TranslatableMixin, QWidget):
     def update_theme(self, is_dark: bool):
         """Update theme"""
         self.is_dark = is_dark
-        self.header_card.update_theme(is_dark)
-        if hasattr(self, 'current_label'):
-            self.current_label.setStyleSheet(f"color: {'#00aaff' if is_dark else '#0066cc'}; background: transparent;")
+        self._header_card.update_theme(is_dark)
+        if hasattr(self, '_current_label'):
+            self._current_label.setStyleSheet(f"color: {'#00aaff' if is_dark else '#0066cc'}; background: transparent;")
         QTimer.singleShot(0, self.adjust_height)
 
 
@@ -281,7 +281,7 @@ class ProfileWidget(TranslatableMixin, QWidget):
         self.current_username = None
         self.cache = get_cache()
         self.is_dark = config.get("ui", "theme") == "dark"
-        self.card_widgets = []
+        self._card_widgets = []
         self.history_widget = None
 
         self._data_fetched.connect(self._display_data)
@@ -301,20 +301,20 @@ class ProfileWidget(TranslatableMixin, QWidget):
         top_bar = QHBoxLayout()
         top_bar.setSpacing(8)
 
-        self.back_button = create_icon_button(
+        self._back_button = create_icon_button(
             self.icons_path, "go-back.svg", "", config=self.config
         )
-        self.tr_set(self.back_button.setToolTip, "Back to Messages", "Назад к сообщениям")
-        self.back_button.clicked.connect(self.back_requested.emit)
-        top_bar.addWidget(self.back_button)
+        self.tr_set(self._back_button.setToolTip, "Back to Messages", "Назад к сообщениям")
+        self._back_button.clicked.connect(self.back_requested.emit)
+        top_bar.addWidget(self._back_button)
 
-        self.open_profile_button = create_icon_button(
+        self._open_profile_button = create_icon_button(
             self.icons_path, "user.svg", "", config=self.config
         )
-        self.tr_set(self.open_profile_button.setToolTip, "Open Profile in Browser", "Открыть профиль в браузере")
-        self.open_profile_button.clicked.connect(self._open_profile_in_browser)
-        self.open_profile_button.setEnabled(False)
-        top_bar.addWidget(self.open_profile_button)
+        self.tr_set(self._open_profile_button.setToolTip, "Open Profile in Browser", "Открыть профиль в браузере")
+        self._open_profile_button.clicked.connect(self._open_profile_in_browser)
+        self._open_profile_button.setEnabled(False)
+        top_bar.addWidget(self._open_profile_button)
 
         self.title_label = QLabel()
         self.title_label.setFont(get_font(FontType.HEADER))
@@ -338,19 +338,19 @@ class ProfileWidget(TranslatableMixin, QWidget):
         self._init_avatar_section()
 
         # Data cards container
-        self.cards_container = QWidget()
-        self.cards_layout = QGridLayout(self.cards_container)
-        self.cards_layout.setContentsMargins(0, 10, 0, 10)
-        self.cards_layout.setSpacing(10)
+        self._cards_container = QWidget()
+        self._cards_layout = QGridLayout(self._cards_container)
+        self._cards_layout.setContentsMargins(0, 10, 0, 10)
+        self._cards_layout.setSpacing(10)
         for i in range(3):
-            self.cards_layout.setColumnStretch(i, 1)
-        self.content_layout.addWidget(self.cards_container, alignment=Qt.AlignmentFlag.AlignHCenter)
+            self._cards_layout.setColumnStretch(i, 1)
+        self.content_layout.addWidget(self._cards_container, alignment=Qt.AlignmentFlag.AlignHCenter)
         self.content_layout.addStretch()
 
     def _init_avatar_section(self):
         """Initialize avatar display section"""
         # Single avatar label for both placeholder and image
-        self.avatar_label = QLabel(ProfileIcons.AVATAR_PLACEHOLDER)
+        self.avatar_label = QLabel(_ProfileIcons._AVATAR_PLACEHOLDER)
         self.avatar_label.setFixedSize(_AVATAR_SIZE, _AVATAR_SIZE)
         self.avatar_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.avatar_label.setFont(get_font(FontType.HEADER, size=48))
@@ -363,7 +363,7 @@ class ProfileWidget(TranslatableMixin, QWidget):
         """Update avatar styling based on theme"""
         style = f"""
             QLabel {{
-                {ContainerStyleMixin.get_container_style(self.is_dark)}
+                {_ContainerStyleMixin._get_container_style(self.is_dark)}
                 border: none;
                 border-radius: 15px;
                 padding: 0px;
@@ -388,23 +388,23 @@ class ProfileWidget(TranslatableMixin, QWidget):
             # Keep title in sync in case the login string changed
             self.current_username = username
             self.title_label.setText(username)
-            self.open_profile_button.setEnabled(True)
+            self._open_profile_button.setEnabled(True)
             return
 
         self.current_user_id = user_id
         self.current_username = username
         self.title_label.setText(username)
-        self.open_profile_button.setEnabled(True)
+        self._open_profile_button.setEnabled(True)
 
         # Reset to placeholder
         self.avatar_label.clear()
-        self.avatar_label.setText(ProfileIcons.AVATAR_PLACEHOLDER)
+        self.avatar_label.setText(_ProfileIcons._AVATAR_PLACEHOLDER)
 
         if self.history_widget:
             self.history_widget.deleteLater()
             self.history_widget = None
 
-        for card in self.card_widgets:
+        for card in self._card_widgets:
             card.value_label.setText("—")
 
         # Load data
@@ -449,9 +449,9 @@ class ProfileWidget(TranslatableMixin, QWidget):
         # Display username history widget
         if history and isinstance(history, list):
             if not self.history_widget:
-                self.history_widget = UsernameHistoryWidget(self.config, self.is_dark)
+                self.history_widget = _UsernameHistoryWidget(self.config, self.is_dark)
                 self.content_layout.insertWidget(2, self.history_widget, alignment=Qt.AlignmentFlag.AlignHCenter)
-            self.history_widget.set_history(user_data.get('login', ''), history)
+            self.history_widget._set_history(user_data.get('login', ''), history)
 
         self._populate_cards(summary, index_data)
 
@@ -463,7 +463,7 @@ class ProfileWidget(TranslatableMixin, QWidget):
         is_blocked = user_data.get('blocked')
 
         level = summary.get('level')
-        rank_name, rank_dark, rank_light = RANKS.get(level, ('N/A', None, None))
+        rank_name, rank_dark, rank_light = _RANKS.get(level, ('N/A', None, None))
         rank_color = rank_dark if self.is_dark else rank_light
 
         online_text = tr("Online", "В сети") if is_online else tr("Offline", "Не в сети")
@@ -474,23 +474,23 @@ class ProfileWidget(TranslatableMixin, QWidget):
         )
 
         self.cards_data = [
-            (ProfileIcons.USER_ID, tr("User ID", "ID пользователя"), str(user_data.get('id', 'N/A')), None),
-            (ProfileIcons.LEVEL, tr("Rank", "Ранг"), rank_name, rank_color),
-            (ProfileIcons.STATUS_ONLINE if is_online else ProfileIcons.STATUS_OFFLINE,
+            (_ProfileIcons._USER_ID, tr("User ID", "ID пользователя"), str(user_data.get('id', 'N/A')), None),
+            (_ProfileIcons._LEVEL, tr("Rank", "Ранг"), rank_name, rank_color),
+            (_ProfileIcons._STATUS_ONLINE if is_online else _ProfileIcons._STATUS_OFFLINE,
              tr("Status", "Статус"), online_text, None),
-            (ProfileIcons.ACCOUNT_ACTIVE if not is_blocked else ProfileIcons.ACCOUNT_BANNED,
+            (_ProfileIcons._ACCOUNT_ACTIVE if not is_blocked else _ProfileIcons._ACCOUNT_BANNED,
              tr("Account", "Аккаунт"), account_text, None),
-            (ProfileIcons.REGISTERED, tr("Registered", "Регистрация"),
+            (_ProfileIcons._REGISTERED, tr("Registered", "Регистрация"),
              format_registered_date(stats.get('registered')) or 'N/A', None),
-            (ProfileIcons.ACHIEVEMENTS, tr("Achievements", "Достижения"),
+            (_ProfileIcons._ACHIEVEMENTS, tr("Achievements", "Достижения"),
              str(stats.get('achieves_cnt', 'N/A')), None),
-            (ProfileIcons.TOTAL_RACES, tr("Total Races", "Всего заездов"),
+            (_ProfileIcons._TOTAL_RACES, tr("Total Races", "Всего заездов"),
              str(stats.get('total_num_races', 'N/A')), None),
-            (ProfileIcons.BEST_SPEED, tr("Best Speed", "Лучшая скорость"), speed_text, None),
-            (ProfileIcons.RATING, tr("Rating", "Рейтинг"), str(stats.get('rating_level', 'N/A')), None),
-            (ProfileIcons.FRIENDS, tr("Friends", "Друзья"), str(stats.get('friends_cnt', 'N/A')), None),
-            (ProfileIcons.VOCABULARIES, tr("Vocabularies", "Словари"), str(stats.get('vocs_cnt', 'N/A')), None),
-            (ProfileIcons.CARS, tr("Cars", "Машины"), str(stats.get('cars_cnt', 'N/A')), None),
+            (_ProfileIcons._BEST_SPEED, tr("Best Speed", "Лучшая скорость"), speed_text, None),
+            (_ProfileIcons._RATING, tr("Rating", "Рейтинг"), str(stats.get('rating_level', 'N/A')), None),
+            (_ProfileIcons._FRIENDS, tr("Friends", "Друзья"), str(stats.get('friends_cnt', 'N/A')), None),
+            (_ProfileIcons._VOCABULARIES, tr("Vocabularies", "Словари"), str(stats.get('vocs_cnt', 'N/A')), None),
+            (_ProfileIcons._CARS, tr("Cars", "Машины"), str(stats.get('cars_cnt', 'N/A')), None),
         ]
 
         cols = max(1, min(3, self.width() // self._grid_width(1)))
@@ -509,23 +509,23 @@ class ProfileWidget(TranslatableMixin, QWidget):
             return
 
         # Clear existing
-        self.card_widgets.clear()
-        while self.cards_layout.count():
-            self.cards_layout.takeAt(0).widget().deleteLater()
+        self._card_widgets.clear()
+        while self._cards_layout.count():
+            self._cards_layout.takeAt(0).widget().deleteLater()
 
         # Update column stretch
         for i in range(3):
-            self.cards_layout.setColumnStretch(i, 1 if i < cols else 0)
+            self._cards_layout.setColumnStretch(i, 1 if i < cols else 0)
 
         # Create cards
         w = self._grid_width(cols)
-        self.cards_container.setFixedWidth(w)
+        self._cards_container.setFixedWidth(w)
         if self.history_widget:
             self.history_widget.setFixedWidth(self._grid_width(1))
         for idx, (icon, label, value, value_color) in enumerate(self.cards_data):
-            card = StatCard(icon, label, value, self.config, self.is_dark, value_color)
-            self.card_widgets.append(card)
-            self.cards_layout.addWidget(card, idx // cols, idx % cols)
+            card = _StatCard(icon, label, value, self.config, self.is_dark, value_color)
+            self._card_widgets.append(card)
+            self._cards_layout.addWidget(card, idx // cols, idx % cols)
 
     def update_theme(self):
         """Update widget styling for theme changes"""
@@ -535,7 +535,7 @@ class ProfileWidget(TranslatableMixin, QWidget):
         if self.history_widget:
             self.history_widget.update_theme(self.is_dark)
 
-        for card in self.card_widgets:
+        for card in self._card_widgets:
             card.update_theme(self.is_dark)
 
     def _retranslate(self, _code=None):

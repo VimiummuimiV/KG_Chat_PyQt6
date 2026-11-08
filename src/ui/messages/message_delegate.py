@@ -48,18 +48,18 @@ _REVEAL_SCROLL_DELAY_MS = 100
 _REVEAL_HIGHLIGHT_DELAY_MS = 250
 
 
-class MarkerGutter:
+class _MarkerGutter:
     """Side space reserved in chatlog rows so row markers never overlap the text"""
     LEFT = 12
-    RIGHT = 6
+    _RIGHT = 6
 
 
-class ContinuityRail:
+class _ContinuityRail:
     """Rounded '[' bracket linking a user's consecutive shown messages in a filtered chatlog"""
-    WIDTH = 2
-    RADIUS = 3
-    HOOK = 5
-    ALPHA = 170
+    _WIDTH = 2
+    _RADIUS = 3
+    _HOOK = 5
+    _ALPHA = 170
 
     @classmethod
     def paint(cls, painter: QPainter, rect: QRect, msg, first_line_middle: int, color_hex: str):
@@ -74,36 +74,36 @@ class ContinuityRail:
         if msg.joins_previous:
             path.moveTo(x, top)
         else:
-            path.moveTo(x + cls.HOOK, top)
-            path.lineTo(x + cls.RADIUS, top)
-            path.quadTo(x, top, x, top + cls.RADIUS)
+            path.moveTo(x + cls._HOOK, top)
+            path.lineTo(x + cls._RADIUS, top)
+            path.quadTo(x, top, x, top + cls._RADIUS)
         if msg.joins_next:
             path.lineTo(x, bottom)
         else:
-            path.lineTo(x, bottom - cls.RADIUS)
-            path.quadTo(x, bottom, x + cls.RADIUS, bottom)
-            path.lineTo(x + cls.HOOK, bottom)
+            path.lineTo(x, bottom - cls._RADIUS)
+            path.quadTo(x, bottom, x + cls._RADIUS, bottom)
+            path.lineTo(x + cls._HOOK, bottom)
 
         color = QColor(color_hex)
-        color.setAlpha(cls.ALPHA)
-        painter.setPen(QPen(color, cls.WIDTH, Qt.PenStyle.SolidLine, Qt.PenCapStyle.FlatCap, Qt.PenJoinStyle.RoundJoin))
+        color.setAlpha(cls._ALPHA)
+        painter.setPen(QPen(color, cls._WIDTH, Qt.PenStyle.SolidLine, Qt.PenCapStyle.FlatCap, Qt.PenJoinStyle.RoundJoin))
         painter.setBrush(Qt.BrushStyle.NoBrush)
         painter.drawPath(path)
 
 
-class AnchorMarker:
+class _AnchorMarker:
     """Resting frame kept on the last clicked message after its flash has faded"""
-    GAP = 4
-    BORDER_ALPHA = 0.55
-    FILL_ALPHA = 0.06
+    _GAP = 4
+    _BORDER_ALPHA = 0.55
+    _FILL_ALPHA = 0.06
 
     @classmethod
     def paint(cls, painter: QPainter, rect: QRect, color_hex: str):
-        frame = QRectF(rect).adjusted(MarkerGutter.LEFT - cls.GAP + 0.5, 0.5, -1.5, -0.5)
+        frame = QRectF(rect).adjusted(_MarkerGutter.LEFT - cls._GAP + 0.5, 0.5, -1.5, -0.5)
         border = QColor(color_hex)
-        border.setAlphaF(cls.BORDER_ALPHA)
+        border.setAlphaF(cls._BORDER_ALPHA)
         fill = QColor(color_hex)
-        fill.setAlphaF(cls.FILL_ALPHA)
+        fill.setAlphaF(cls._FILL_ALPHA)
         painter.setPen(QPen(border, 1))
         painter.setBrush(fill)
         painter.drawRoundedRect(frame, HIGHLIGHT_RADIUS, HIGHLIGHT_RADIUS)
@@ -221,7 +221,7 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
     row_needs_refresh = pyqtSignal(int)
     message_clicked = pyqtSignal(int)
     separator_clicked = pyqtSignal(str)  # date_str of clicked chatlog date separator
-    timestamp_clicked = pyqtSignal(str)  # full chatlog URL for the clicked message
+    _timestamp_clicked = pyqtSignal(str)  # full chatlog URL for the clicked message
     chatlog_link_clicked = pyqtSignal(str, str)  # date_str, time_str ("" if none) - chatlog URL clicked in a message body
     presence_log_clicked = pyqtSignal(int)
     competition_entered = pyqtSignal(int)  # game_id - competition link opened in browser from a message
@@ -246,25 +246,25 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
         self.compact_mode = False
         self.padding = config.get("ui", "message", "padding") or 2
         self.spacing = config.get("ui", "message", "element_spacing") or 4
-        self.gutter_left = 0
-        self.gutter_right = 0
-        self.show_continuity = False
-        self.anchor_message = None
+        self._gutter_left = 0
+        self._gutter_right = 0
+        self._show_continuity = False
+        self._anchor_message = None
         self.anchor_frame_enabled = lambda: True
         self.day_navigation: Optional[DayNavigation] = None  # set by chatlog views
 
         self.click_rects: Dict[int, Dict] = {}
         self.reply_callback = None
         self.paste_callback = None
-        self.send_callback = None
-        self.reply_includes_timestamp = False  # Chatlog sets True; realtime messages omit timestamp
+        self._send_callback = None
+        self._reply_includes_timestamp = False  # Chatlog sets True; realtime messages omit timestamp
         self.my_username = None # Store username for mention highlighting
         self.highlight_text = "" # Active search term to highlight in message bodies
 
         # Animation support for GIF emoticons
         self.list_view = None
-        self.animated_rows = set()
-        self.animation_frames = {}
+        self._animated_rows = set()
+        self._animation_frames = {}
         self.animation_timer = QTimer()
         self.animation_timer.timeout.connect(self._update_animations)
         self.animation_timer.start(33) # 30 FPS
@@ -301,11 +301,11 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
         if not input_field:
             self.reply_callback = None
             self.paste_callback = None
-            self.send_callback = None
+            self._send_callback = None
             return
 
         def _reply(username: str, text: str, timestamp=None):
-            reply_text = MessageDelegate.format_reply_text(username, text, timestamp)
+            reply_text = MessageDelegate._format_reply_text(username, text, timestamp)
             input_field.setText(reply_text)
             input_field.setCursorPosition(len(reply_text))
             input_field.setFocus()
@@ -326,8 +326,8 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
 
         self.reply_callback = _reply
         self.paste_callback = _paste
-        self.send_callback = _send
-        self.reply_includes_timestamp = include_timestamp
+        self._send_callback = _send
+        self._reply_includes_timestamp = include_timestamp
 
     def _refresh_viewport(self):
         """Refresh the current list viewport if it still exists."""
@@ -373,14 +373,14 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
             self.compact_mode = compact
 
     def set_marker_gutter(self, enabled: bool):
-        self.gutter_left = MarkerGutter.LEFT if enabled else 0
-        self.gutter_right = MarkerGutter.RIGHT if enabled else 0
+        self._gutter_left = _MarkerGutter.LEFT if enabled else 0
+        self._gutter_right = _MarkerGutter._RIGHT if enabled else 0
 
     def set_continuity_rails(self, enabled: bool):
-        self.show_continuity = enabled
+        self._show_continuity = enabled
 
     def set_anchor(self, msg):
-        self.anchor_message = msg
+        self._anchor_message = msg
         if self.list_view:
             self.list_view.viewport().update()
 
@@ -398,7 +398,7 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
         return body, is_system or is_competition
 
     @staticmethod
-    def format_reply_text(username: str, text: str, timestamp=None) -> str:
+    def _format_reply_text(username: str, text: str, timestamp=None) -> str:
         time_prefix = ""
         if timestamp:
             date_str = timestamp.strftime("%Y-%m-%d")
@@ -435,7 +435,7 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
         if width <= 0:
             width = 800
         row = index.row()
-        content_width = width - self.gutter_left - self.gutter_right
+        content_width = width - self._gutter_left - self._gutter_right
         if getattr(msg, 'is_presence_log', False):
             height = self._presence_log_height(msg, content_width)
         else:
@@ -521,9 +521,9 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
         row = index.row()
 
         if self.message_renderer and self.message_renderer.has_animated_emoticons(msg.body):
-            self.animated_rows.add(row)
+            self._animated_rows.add(row)
         else:
-            self.animated_rows.discard(row)
+            self._animated_rows.discard(row)
 
         self.click_rects[row] = {'timestamp': QRect(), 'username': QRect(), 'links': [], 'chips': [], 'presence_users': []}
 
@@ -535,18 +535,18 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
         if row_flash is not None and row_flash.opacity > 0:
             paint_flash(painter, option.rect, highlight_color(self.is_dark_theme), row_flash.opacity)
 
-        if msg is self.anchor_message:
-            AnchorMarker.paint(painter, option.rect, highlight_color(self.is_dark_theme))
+        if msg is self._anchor_message:
+            _AnchorMarker.paint(painter, option.rect, highlight_color(self.is_dark_theme))
 
-        content_rect = option.rect.adjusted(self.gutter_left, 0, -self.gutter_right, 0)
+        content_rect = option.rect.adjusted(self._gutter_left, 0, -self._gutter_right, 0)
         if getattr(msg, 'is_presence_log', False):
             self._paint_presence_log(painter, content_rect, msg, row, self.compact_mode)
         else:
             self._paint_message(painter, content_rect, msg, row, self.compact_mode)
 
-        if self.show_continuity:
+        if self._show_continuity:
             first_line_middle = option.rect.top() + self.padding + QFontMetrics(self.body_font).height() // 2
-            ContinuityRail.paint(
+            _ContinuityRail.paint(
                 painter, option.rect, msg, first_line_middle,
                 self._get_username_color(msg.username, msg.background_color)
             )
@@ -742,7 +742,7 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
             if rects['timestamp'].contains(pos):
                 if button == Qt.MouseButton.LeftButton:
                     url = self._chatlog_url(msg)
-                    self.timestamp_clicked.emit(url)
+                    self._timestamp_clicked.emit(url)
                     if self.message_renderer:
                         self.message_renderer.copy_and_highlight(url)
                 return True
@@ -831,15 +831,15 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
     def _reply_context(self, msg):
         """Sender and, for chatlogs, timestamp that a reply to the message quotes."""
         username = getattr(msg, 'username', '') or getattr(msg, 'login', '') or ''
-        timestamp = getattr(msg, 'timestamp', None) if self.reply_includes_timestamp else None
+        timestamp = getattr(msg, 'timestamp', None) if self._reply_includes_timestamp else None
         return username, timestamp
 
-    def reply_text(self, message) -> str:
+    def _reply_text(self, message) -> str:
         """The text a reply to the whole message starts with."""
         username, timestamp = self._reply_context(message)
-        return MessageDelegate.format_reply_text(username, message.body, timestamp)
+        return MessageDelegate._format_reply_text(username, message.body, timestamp)
 
-    def reply_to_message(self, message):
+    def _reply_to_message(self, message):
         """Start a reply quoting the whole message in the input field."""
         username, timestamp = self._reply_context(message)
         self.reply_callback(username, message.body, timestamp)
@@ -865,7 +865,7 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
         return cache.get_username_color(username, self.is_dark_theme)
 
     def _update_animations(self):
-        if not self.animated_rows or not self.message_renderer:
+        if not self._animated_rows or not self.message_renderer:
             return
 
         # Poll frames for all movies
@@ -875,8 +875,8 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
                 current_frame = movie.currentFrameNumber()
             except Exception:
                 continue
-            if self.animation_frames.get(key, -1) != current_frame:
-                self.animation_frames[key] = current_frame
+            if self._animation_frames.get(key, -1) != current_frame:
+                self._animation_frames[key] = current_frame
                 has_changes = True
 
         if not has_changes:
@@ -894,7 +894,7 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
         if not visible_rows:
             return
 
-        rows_to_update = self.animated_rows & visible_rows
+        rows_to_update = self._animated_rows & visible_rows
         if not rows_to_update:
             return
 
@@ -931,7 +931,7 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
         scroll(self.list_view, mode="middle", target_row=row, delay=_REVEAL_SCROLL_DELAY_MS)
         QTimer.singleShot(_REVEAL_HIGHLIGHT_DELAY_MS, lambda: self.highlight_row(row))
 
-    def reveal_message(self, message):
+    def _reveal_message(self, message):
         """Reveal a message of this view's model (no-op if it is no longer there)."""
         model = self.list_view.model() if self.list_view else None
         row = next((i for i, item in enumerate(getattr(model, 'stored_messages', ())) if item is message), None)
@@ -943,10 +943,10 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
         if not is_image_url(url):
             return None
         return ImageGallery.from_messages(
-            lambda: model.stored_messages, msg, url, self.reveal_message, model.modelReset, self.day_navigation,
-            self.reply_to_message if self.reply_callback is not None else None,
-            InlineReply(self.reply_text, self.send_callback, lambda: popup_manager.emoticon_selector)
-            if self.send_callback is not None else None,
+            lambda: model.stored_messages, msg, url, self._reveal_message, model.modelReset, self.day_navigation,
+            self._reply_to_message if self.reply_callback is not None else None,
+            InlineReply(self._reply_text, self._send_callback, lambda: popup_manager.emoticon_selector)
+            if self._send_callback is not None else None,
         )
 
     def open_first_image(self):

@@ -35,9 +35,9 @@ class ChatControlsMixin:
     def on_toggle_voice_sound(self):
         """Toggle TTS (Voice Sound) from the panel button."""
         current = self.config.get("sound", "tts_enabled") or False
-        self.apply_voice_sound(not current)
+        self._apply_voice_sound(not current)
 
-    def apply_voice_sound(self, new: bool):
+    def _apply_voice_sound(self, new: bool):
         """Set TTS (Voice Sound) to an explicit state. Shared by the panel button and Settings."""
         # Persist centrally via app controller so tray stays in sync
         config = self.app_controller.config if self.app_controller else self.config
@@ -68,9 +68,9 @@ class ChatControlsMixin:
         current = self.config.get("sound", "effects_enabled")
         if current is None:
             current = True
-        self.apply_effects_sound(not current)
+        self._apply_effects_sound(not current)
 
-    def apply_effects_sound(self, new: bool):
+    def _apply_effects_sound(self, new: bool):
         """Set effects sound to an explicit state. Shared by the panel button and Settings."""
         # Persist centrally via app controller so tray stays in sync
         config = self.app_controller.config if self.app_controller else self.config
@@ -117,7 +117,7 @@ class ChatControlsMixin:
         self.button_panel.update_notification_button_icon()
         print(f"🔔 Notifications: {'Disabled' if muted else 'Enabled'}")
 
-    def apply_notification_mode(self, mode: str):
+    def _apply_notification_mode(self, mode: str):
         """Set stack/replace mode (Settings only)."""
         if mode not in ("stack", "replace"):
             return
@@ -148,9 +148,9 @@ class ChatControlsMixin:
     def on_toggle_always_on_top(self):
         """Toggle always on top window flag"""
         current = self.config.get("ui", "always_on_top") or False
-        self.apply_always_on_top(not current)
+        self._apply_always_on_top(not current)
 
-    def apply_always_on_top(self, new: bool):
+    def _apply_always_on_top(self, new: bool):
         """Set always-on-top to an explicit state. Shared by the panel button and Settings."""
         # Save to config
         config = self.app_controller.config if self.app_controller else self.config
@@ -191,7 +191,7 @@ class ChatControlsMixin:
         else:
             QApplication.quit()
 
-    def _setup_sounds(self):
+    def setup_sounds(self):
         """Setup sound paths using the per-category sound folders."""
         sounds_dir = get_resource_dir("sounds")
         for kind, attr in (
@@ -216,18 +216,18 @@ class ChatControlsMixin:
             return
         play_sound(path, config=self.config, force=force)
 
-    def _play_mention_sound(self):
+    def play_mention_sound(self):
         self._play_notification_sound(self.mention_sound_path, "mention", fallback_beep=True)
 
-    def _play_ban_sound(self):
+    def play_ban_sound(self):
         self._play_notification_sound(self.ban_sound_path, "ban")
 
-    def _play_competition_sound(self):
+    def play_competition_sound(self):
         """Falls back to mention sound if no dedicated file is present."""
         path = self.competition_sound_path or self.mention_sound_path
         self._play_notification_sound(path, "competition")
 
-    def _on_voice_input_enabled_toggled(self, enabled: bool):
+    def on_voice_input_enabled_toggled(self, enabled: bool):
         mic = getattr(self, "mic_button", None)
         if mic is None:
             return

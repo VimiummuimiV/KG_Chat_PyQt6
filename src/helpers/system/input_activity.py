@@ -6,7 +6,7 @@ import sys
 from PyQt6.QtGui import QCursor
 
 
-def any_key_pressed() -> bool:
+def _any_key_pressed() -> bool:
     """True if any key is currently down (Windows only, silent fallback elsewhere)."""
     try:
         if sys.platform == "win32":
@@ -35,6 +35,6 @@ def activity_detected(initial_pos, mode: str = "mouse_keyboard", threshold: int 
     if mode == "mouse":
         return cursor_moved(initial_pos, threshold)
     if mode == "keyboard":
-        return any_key_pressed()
+        return _any_key_pressed()
     # "mouse_keyboard" (default) and any unknown value
-    return cursor_moved(initial_pos, threshold) or any_key_pressed()
+    return cursor_moved(initial_pos, threshold) or _any_key_pressed()

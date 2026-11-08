@@ -64,7 +64,7 @@ class ChatHotkeysMixin:
                 if current_view == self.messages_splitter:
                     # Close the split chatlog pane if open, otherwise switch to full chatlog view
                     if self.chatlog_split_widget:
-                        self._close_chatlog_split_view()
+                        self.close_chatlog_split_view()
                     else:
                         self.show_chatlog_view()
                 elif current_view == self.chatlog_widget:
@@ -73,17 +73,17 @@ class ChatHotkeysMixin:
                         self.chatlog_widget.close_split_view()
                     else:
                         # Restore room tab if chatlog was opened from a game tab (Tab / ensure)
-                        self._on_stacked_back()
+                        self.on_stacked_back()
                 else:
                     # Profile / settings / ban / pronun → messages, restore room tab if any
-                    self._on_stacked_back()
+                    self.on_stacked_back()
                 return True
 
         # Handle mouse button presses/releases for navigation and focus reclaim
         if event.type() == QEvent.Type.MouseButtonPress:
             # Back/Forward mouse buttons navigate chatlog days
             # (works on main stacked chatlog OR split view under cursor)
-            cw = self._get_hovered_chatlog_widget()
+            cw = self.get_hovered_chatlog_widget()
             if cw:
                 direction = {Qt.MouseButton.BackButton: -1, Qt.MouseButton.ForwardButton: 1}.get(event.button())
                 if direction is not None:
@@ -96,7 +96,7 @@ class ChatHotkeysMixin:
                     gp = event.globalPosition().toPoint() if hasattr(event, 'globalPosition') else event.globalPos()
                     w = QApplication.widgetAt(gp)
                     # Walk up parents to see if click landed inside selector or on the button
-                    btn = self._active_emoticon_button()
+                    btn = self.active_emoticon_button()
                     inside = False
                     while w:
                         if w == self.emoticon_selector or w == btn:
@@ -126,7 +126,7 @@ class ChatHotkeysMixin:
                 pass
 
         if event.type() == QEvent.Type.MouseButtonRelease:
-            cw = self._get_hovered_chatlog_widget()
+            cw = self.get_hovered_chatlog_widget()
             if cw and event.button() in (Qt.MouseButton.BackButton, Qt.MouseButton.ForwardButton):
                 cw.navigate_hold()
                 return True
@@ -175,9 +175,9 @@ class ChatHotkeysMixin:
             return
 
         if ctrl_held and key == Qt.Key.Key_W and not shift_held:
-            room = self._current_room()
+            room = self.current_room()
             if room:
-                self._close_game_room_tab(room.game_id)
+                self.close_game_room_tab(room.game_id)
             return
 
         if ctrl_held and key in (Qt.Key.Key_Tab, Qt.Key.Key_Backtab):
@@ -223,7 +223,7 @@ class ChatHotkeysMixin:
                 sel.toggle_visibility()
                 self.input_field.setFocus()
                 return
-            cw = self._chatlog_for_hotkey()
+            cw = self.chatlog_for_hotkey()
             if cw and cw.search_visible:
                 cw.toggle_search()
                 return
@@ -235,11 +235,11 @@ class ChatHotkeysMixin:
         # Ctrl+; toggle emoticon selector (works even when input focused, layout-independent)
         # nativeScanCode 0x27 = physical semicolon key on all standard keyboards
         if ctrl and (key == Qt.Key.Key_Semicolon or event.nativeScanCode() == 0x27):
-            self._toggle_emoticon_selector()
+            self.toggle_emoticon_selector()
             return
         # Ctrl+F toggle search for current view (chatlog or messages)
         if ctrl and (key == Qt.Key.Key_F or event.nativeVirtualKey() == Qt.Key.Key_F):
-            self._toggle_search_for_current_view()
+            self.toggle_search_for_current_view()
             return
         # Ctrl+C / Ctrl+S in chatlog parser — copy / save results
         if ctrl and self.chatlog_widget and self.stacked_widget.currentWidget() == self.chatlog_widget:
@@ -272,11 +272,11 @@ class ChatHotkeysMixin:
             return
         # Ctrl+J join / create room
         if ctrl and (key == Qt.Key.Key_J or event.nativeVirtualKey() == Qt.Key.Key_J):
-            self._on_join_room_requested()
+            self.on_join_room_requested()
             return
         # Ctrl+U switch account
         if ctrl and (key == Qt.Key.Key_U or event.nativeVirtualKey() == Qt.Key.Key_U):
-            self._on_switch_account()
+            self.on_switch_account()
             return
         # Ctrl+T toggle theme
         if ctrl and (key == Qt.Key.Key_T or event.nativeVirtualKey() == Qt.Key.Key_T):
@@ -305,7 +305,7 @@ class ChatHotkeysMixin:
         is_e = (key == Qt.Key.Key_E or event.nativeVirtualKey() == Qt.Key.Key_E) and not ctrl and not shift
         if is_e:
             if not focused or not (self.active_input_field().text() or "").strip():
-                self._open_latest_competition_in_browser()
+                self.open_latest_competition_in_browser()
                 return
 
         if not vk or focused:
@@ -336,17 +336,17 @@ class ChatHotkeysMixin:
                 self.toggle_pronunciation_view()
         # Mute effects sound (M) or toggle mention filter in chatlog (M)
         elif vk == 'mute':
-            cw = self._chatlog_for_hotkey()
+            cw = self.chatlog_for_hotkey()
             if cw:
                 cw.toggle_mention_filter()
             else:
                 self.on_toggle_effects_sound()
         # Toggle search (S) — chatlog or messages; parser: start parse when visible
         elif vk == 'search':
-            self._toggle_search_for_current_view()
+            self.toggle_search_for_current_view()
         # Navigate chatlog days — H backward, L forward, supports hold
         elif vk in ('nav_backward', 'nav_forward'):
-            cw = self._chatlog_for_hotkey()
+            cw = self.chatlog_for_hotkey()
             if cw and not event.isAutoRepeat():
                 cw.navigate_hold(-1 if vk == 'nav_backward' else 1)
         # Vim-style scroll — J down, K up, works in chat and chatlog
@@ -402,7 +402,7 @@ class ChatHotkeysMixin:
             self.on_toggle_notification()
         # Open calendar date picker in chatlog (D)
         elif vk == 'calendar':
-            cw = self._chatlog_for_hotkey()
+            cw = self.chatlog_for_hotkey()
             if cw:
                 cw.show_calendar()
         # Exit private mode / clear private messages / clear new messages marker and presence logs (X)
@@ -410,13 +410,13 @@ class ChatHotkeysMixin:
             if self.private_mode:
                 self.exit_private_mode()
             else:
-                self._clear_private_messages()
+                self.clear_private_messages()
             self.clear_new_messages_marker()
             if self.presence_log_widget:
                 self.presence_log_widget.clear_presence_messages()
         # Enter last competition race in browser (E)
         elif vk == 'enter_competition':
-            self._open_latest_competition_in_browser()
+            self.open_latest_competition_in_browser()
 
     def keyReleaseEvent(self, event):
         if event.isAutoRepeat():
@@ -432,7 +432,7 @@ class ChatHotkeysMixin:
             return
         vk = self._KEY_ACTION.get(key) or self._KEY_ACTION.get(event.nativeVirtualKey())
         if vk in ('nav_backward', 'nav_forward'):
-            cw = self._chatlog_for_hotkey()
+            cw = self.chatlog_for_hotkey()
             if cw:
                 cw.navigate_hold()  # Stop hold
                 return

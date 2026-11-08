@@ -23,33 +23,33 @@ TIMING_FUNCTIONS = {
     "ease_bounce_in": QEasingCurve.Type.InBounce,
     "ease_bounce_out": QEasingCurve.Type.OutBounce,
 }
-DEFAULT_FLASH_DURATION_MS = 1000
-DEFAULT_FLASH_EASING = "linear"
+_DEFAULT_FLASH_DURATION_MS = 1000
+_DEFAULT_FLASH_EASING = "linear"
 
 DURATION_KEYS = {
     "row": "flash_row_duration_ms",
     "copy": "flash_copy_duration_ms",
 }
 
-LEGACY_DURATION_KEY = "flash_duration_ms"
+_LEGACY_DURATION_KEY = "flash_duration_ms"
 
 
 def flash_duration_ms(config, kind: str = "row") -> int:
     if not config:
-        return DEFAULT_FLASH_DURATION_MS
+        return _DEFAULT_FLASH_DURATION_MS
     key = DURATION_KEYS.get(kind, DURATION_KEYS["row"])
     value = config.get("ui", "chat", key)
     if value is None:
-        value = config.get("ui", "chat", LEGACY_DURATION_KEY)
+        value = config.get("ui", "chat", _LEGACY_DURATION_KEY)
     try:
-        return int(value) if value is not None else DEFAULT_FLASH_DURATION_MS
+        return int(value) if value is not None else _DEFAULT_FLASH_DURATION_MS
     except (TypeError, ValueError):
-        return DEFAULT_FLASH_DURATION_MS
+        return _DEFAULT_FLASH_DURATION_MS
 
 
 def flash_easing(config) -> QEasingCurve.Type:
     name = config.get("ui", "chat", "flash_easing") if config else None
-    return TIMING_FUNCTIONS.get(name, TIMING_FUNCTIONS[DEFAULT_FLASH_EASING])
+    return TIMING_FUNCTIONS.get(name, TIMING_FUNCTIONS[_DEFAULT_FLASH_EASING])
 
 
 DEFAULTS = {
@@ -79,7 +79,7 @@ def timestamp_color(is_dark: bool) -> str:
     return _theme_color(DEFAULTS["timestamp"], is_dark)
 
 
-def draw_rounded_fill(painter: QPainter, rect, color: QColor, radius: int = HIGHLIGHT_RADIUS):
+def _draw_rounded_fill(painter: QPainter, rect, color: QColor, radius: int = HIGHLIGHT_RADIUS):
     painter.save()
     painter.setRenderHint(QPainter.RenderHint.Antialiasing)
     painter.setPen(Qt.PenStyle.NoPen)
@@ -93,7 +93,7 @@ def paint_flash(painter: QPainter, rect, color: str, opacity: float, alpha: floa
         return
     fill = QColor(color)
     fill.setAlphaF(max(0.0, min(1.0, opacity)) * alpha)
-    draw_rounded_fill(painter, rect, fill, radius)
+    _draw_rounded_fill(painter, rect, fill, radius)
 
 
 class FlashFade(QObject):
@@ -103,11 +103,11 @@ class FlashFade(QObject):
         super().__init__(parent)
         self.opacity = 0.0
         self.config = config
-        self.on_tick = on_tick
+        self._on_tick = on_tick
         self.duration_kind = duration_kind
         self._elapsed_ms = 0
-        self._duration_ms = DEFAULT_FLASH_DURATION_MS
-        self._easing = QEasingCurve(TIMING_FUNCTIONS[DEFAULT_FLASH_EASING])
+        self._duration_ms = _DEFAULT_FLASH_DURATION_MS
+        self._easing = QEasingCurve(TIMING_FUNCTIONS[_DEFAULT_FLASH_EASING])
         self.timer = QTimer(self)
         self.timer.setInterval(interval_ms)
         self.timer.timeout.connect(self._tick)
@@ -119,7 +119,7 @@ class FlashFade(QObject):
         self._easing = QEasingCurve(flash_easing(self.config))
         if not self.timer.isActive():
             self.timer.start()
-        self.on_tick()
+        self._on_tick()
 
     def _tick(self):
         self._elapsed_ms += self.timer.interval()
@@ -128,13 +128,13 @@ class FlashFade(QObject):
         if progress >= 1.0:
             self.opacity = 0.0
             self.timer.stop()
-        self.on_tick()
+        self._on_tick()
 
     def paint(self, painter: QPainter, rect, color: str, alpha: float = 0.15, radius: int = HIGHLIGHT_RADIUS):
         paint_flash(painter, rect, color, self.opacity, alpha, radius)
 
 
-class FlashHighlight(FlashFade):
+class _FlashHighlight(FlashFade):
     """Attach to a QWidget: start() fades a color via paint_overlay()."""
 
     def __init__(self, widget: QWidget, is_dark_fn, config=None, interval_ms: int = 50,
@@ -143,11 +143,11 @@ class FlashHighlight(FlashFade):
                          duration_kind=duration_kind)
         self.widget = widget
         self.is_dark_fn = is_dark_fn
-        self.color_fn = color_fn  # optional: () -> hex color; default highlight_color
+        self._color_fn = color_fn  # optional: () -> hex color; default highlight_color
         self.alpha = alpha
 
-    def paint_overlay(self, painter: QPainter, rect):
-        color = self.color_fn() if self.color_fn else highlight_color(bool(self.is_dark_fn()))
+    def _paint_overlay(self, painter: QPainter, rect):
+        color = self._color_fn() if self._color_fn else highlight_color(bool(self.is_dark_fn()))
         self.paint(painter, rect, color, alpha=self.alpha)
 
 
@@ -157,7 +157,7 @@ class FlashLabel(QLabel):
     def __init__(self, *args, is_dark_fn, config=None, duration_kind: str = "row",
                  color_fn=None, alpha: float = 0.15, **kwargs):
         super().__init__(*args, **kwargs)
-        self.flash_highlight = FlashHighlight(
+        self._flash_highlight = _FlashHighlight(
             self, is_dark_fn, config=config, duration_kind=duration_kind,
             color_fn=color_fn, alpha=alpha,
         )
@@ -165,8 +165,8 @@ class FlashLabel(QLabel):
 
     def flash(self, kind: str | None = None):
         if kind is not None and kind in DURATION_KEYS:
-            self.flash_highlight.duration_kind = kind
-        self.flash_highlight.start()
+            self._flash_highlight.duration_kind = kind
+        self._flash_highlight.start()
 
     def mousePressEvent(self, event: QMouseEvent):
         if event.button() == Qt.MouseButton.LeftButton:
@@ -176,7 +176,7 @@ class FlashLabel(QLabel):
     def paintEvent(self, event):
         super().paintEvent(event)
         painter = QPainter(self)
-        self.flash_highlight.paint_overlay(painter, self.rect())
+        self._flash_highlight._paint_overlay(painter, self.rect())
 
 
 class RowFlashMixin:

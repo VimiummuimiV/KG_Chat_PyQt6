@@ -57,7 +57,7 @@ class SoundSelectorWidget(TranslatableMixin, QWidget):
             self.register_tr(button.setToolTip, tooltip)
             return button
 
-        self.prev_button = _nav_button("arrow-left.svg", tr("Previous sound", "Предыдущий звук"), self._on_prev)
+        self._prev_button = _nav_button("arrow-left.svg", tr("Previous sound", "Предыдущий звук"), self._on_prev)
 
         self.combo = NoWheelComboBox()
         self.combo.setFont(get_font(FontType.UI))
@@ -65,14 +65,14 @@ class SoundSelectorWidget(TranslatableMixin, QWidget):
         self.combo.setMinimumWidth(180)
         layout.addWidget(self.combo, stretch=1)
 
-        self.next_button = _nav_button("arrow-right.svg", tr("Next sound", "Следующий звук"), self._on_next)
-        self.play_button = _nav_button("play.svg", tr("Play sound", "Воспроизвести звук"), self._on_play)
-        self.freeze_button = _nav_button(
+        self._next_button = _nav_button("arrow-right.svg", tr("Next sound", "Следующий звук"), self._on_next)
+        self._play_button = _nav_button("play.svg", tr("Play sound", "Воспроизвести звук"), self._on_play)
+        self._freeze_button = _nav_button(
             "snowflake.svg", self._freeze_tooltip(), self._on_freeze
         )
-        self.add_button = _nav_button("add.svg", tr("Add sound from file", "Добавить звук из файла"), self._on_add)
-        self.delete_button = _nav_button("trash.svg", tr("Delete sound", "Удалить звук"), self._on_delete)
-        self.rename_button = _nav_button("pencil.svg", tr("Rename sound", "Переименовать звук"), self._on_rename)
+        self._add_button = _nav_button("add.svg", tr("Add sound from file", "Добавить звук из файла"), self._on_add)
+        self._delete_button = _nav_button("trash.svg", tr("Delete sound", "Удалить звук"), self._on_delete)
+        self._rename_button = _nav_button("pencil.svg", tr("Rename sound", "Переименовать звук"), self._on_rename)
 
         self.refresh()
         on_language_changed(self.retranslate_all)
@@ -90,8 +90,8 @@ class SoundSelectorWidget(TranslatableMixin, QWidget):
 
     def _update_freeze_button(self):
         frozen = is_sound_frozen(self.config, self.config_key)
-        set_visual_active(self.freeze_button, not frozen)
-        self.freeze_button.setToolTip(self._freeze_tooltip())
+        set_visual_active(self._freeze_button, not frozen)
+        self._freeze_button.setToolTip(self._freeze_tooltip())
 
     def retranslate_all(self, _code=None):
         super().retranslate_all(_code)
@@ -113,8 +113,8 @@ class SoundSelectorWidget(TranslatableMixin, QWidget):
     def _update_edit_buttons(self):
         """Delete/Rename only for user-owned files."""
         user_owned = self._is_user_owned(self._safe_name())
-        self.delete_button.setEnabled(user_owned)
-        self.rename_button.setEnabled(user_owned)
+        self._delete_button.setEnabled(user_owned)
+        self._rename_button.setEnabled(user_owned)
 
     def _update_button_states(self):
         self._update_edit_buttons()

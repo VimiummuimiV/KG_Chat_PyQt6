@@ -13,7 +13,7 @@ from playsound3 import playsound
 from PyQt6.QtWidgets import QApplication
 
 
-def clean_text_for_tts(text: str) -> str:
+def _clean_text_for_tts(text: str) -> str:
     """Clean text for TTS by removing symbols, URLs, and punctuation"""
     # Extract domain from URLs (e.g., "https://mail.google.com/path" -> "mail.google.com")
     text = re.sub(
@@ -34,13 +34,13 @@ def clean_text_for_tts(text: str) -> str:
     return text
 
 
-class VoiceEngine:
+class _VoiceEngine:
     """Manages TTS playback with queuing support"""
 
     def __init__(self):
         self.enabled = False
-        self.queue = Queue()
-        self.last_username = None
+        self._queue = Queue()
+        self._last_username = None
         self.worker = None
         self.pronunciation_manager = None
 
@@ -59,13 +59,13 @@ class VoiceEngine:
     def _process_queue(self):
         while True:
             try:
-                item = self.queue.get()
+                item = self._queue.get()
                 if item is None:
                     break
                 if self.enabled:
                     text, lang = item
                     self._speak(text, lang)
-                self.queue.task_done()
+                self._queue.task_done()
             except Exception as e:
                 print(f"TTS error: {e}")
 
@@ -88,9 +88,9 @@ class VoiceEngine:
                     print(f"Temp file cleanup error: {e}")
 
     def _clear_queue(self):
-        while not self.queue.empty():
+        while not self._queue.empty():
             try:
-                self.queue.get_nowait()
+                self._queue.get_nowait()
             except Exception:
                 break
 
@@ -122,7 +122,7 @@ class VoiceEngine:
             spoken_username = self.pronunciation_manager.get_pronunciation(username)
 
         # Clean the message for natural TTS reading
-        cleaned_message = clean_text_for_tts(message)
+        cleaned_message = _clean_text_for_tts(message)
 
         # Split message into language chunks (Russian vs English)
         chunks = []
@@ -174,11 +174,11 @@ class VoiceEngine:
             # Private message or mention: ALWAYS announce with "обращается"
             verb = 'обращается'
             announce_username = True
-        elif username != self.last_username:
+        elif username != self._last_username:
             # Regular message: announce with "пишет" only when username changes
             verb = 'пишет'
             announce_username = True
-            self.last_username = username
+            self._last_username = username
 
         # Prepend username announcement if needed
         if announce_username and chunks:
@@ -194,22 +194,22 @@ class VoiceEngine:
 
         # Queue each chunk separately with its language
         for text, lang in chunks:
-            self.queue.put((text, lang))
+            self._queue.put((text, lang))
 
     def shutdown(self):
         self.enabled = False
         self._clear_queue()
         if self.worker:
-            self.queue.put(None)
+            self._queue.put(None)
 
 
-_voice_engine: Optional[VoiceEngine] = None
+_voice_engine: Optional[_VoiceEngine] = None
 
 
-def get_voice_engine() -> VoiceEngine:
+def get_voice_engine() -> _VoiceEngine:
     global _voice_engine
     if _voice_engine is None:
-        _voice_engine = VoiceEngine()
+        _voice_engine = _VoiceEngine()
     return _voice_engine
 
 
@@ -218,7 +218,7 @@ _sound_lock = threading.Lock()
 _sound_obj = None
 
 
-def cancel_current_sound():
+def _cancel_current_sound():
     """Stop the effect currently playing, if any."""
     global _sound_obj
     with _sound_lock:

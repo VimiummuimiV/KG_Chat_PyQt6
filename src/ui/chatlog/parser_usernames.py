@@ -32,7 +32,7 @@ class ParserUsernamesMixin:
         value = self.config.get("chatlog_parser", "validate_usernames")
         return True if value is None else bool(value)
 
-    def _validate_usernames(self, usernames: list, on_done):
+    def validate_usernames(self, usernames: list, on_done):
         """Check which usernames exist via API (background), then on_done(valid, invalid).
         When validation is disabled, every name is treated as valid."""
         if not self._validate_usernames_enabled():
@@ -46,7 +46,7 @@ class ParserUsernamesMixin:
 
         threading.Thread(target=_check, daemon=True).start()
 
-    def _confirm_unknown_usernames(self, invalid: list, action: str) -> bool:
+    def confirm_unknown_usernames(self, invalid: list, action: str) -> bool:
         """Ask whether to proceed with names the API does not know (renamed accounts, etc.)."""
         reply = QMessageBox.question(
             self,
@@ -64,27 +64,27 @@ class ParserUsernamesMixin:
         )
         return reply == QMessageBox.StandardButton.Yes
 
-    def _add_usernames_to_saved(self):
+    def add_usernames_to_saved(self):
         """Optionally validate typed usernames before saving them as chips"""
-        usernames = self._get_usernames()
+        usernames = self.get_usernames()
         if not usernames:
             return
         self.add_username_button.setEnabled(False)
-        self._validate_usernames(usernames, self._on_add_validated)
+        self.validate_usernames(usernames, self._on_add_validated)
 
     def _on_add_validated(self, valid: list, invalid: list):
         """Save usernames; ask before saving names the API does not know."""
-        self._update_buttons_state()
+        self.update_buttons_state()
         to_save = list(valid)
         if invalid:
-            if self._confirm_unknown_usernames(
+            if self.confirm_unknown_usernames(
                 invalid, tr("Save them to the list anyway?", "Всё равно сохранить в список?")
             ):
                 to_save.extend(invalid)
         if to_save:
             self.saved_usernames_bar.add_values(to_save)
 
-    def _fetch_username_history(self, input_field: QLineEdit):
+    def fetch_username_history(self, input_field: QLineEdit):
         """Generic fetch username history for any input field"""
         text = input_field.text().strip()
         if not text:
@@ -105,7 +105,7 @@ class ParserUsernamesMixin:
             self.is_fetching_search = True
             self._set_search_fetch_loading(True)
 
-        self._update_buttons_state()
+        self.update_buttons_state()
 
         def _fetch():
             expanded = set()
@@ -153,7 +153,7 @@ class ParserUsernamesMixin:
             self.is_fetching_search = False
             self._set_search_fetch_loading(False)
 
-        self._update_buttons_state()
+        self.update_buttons_state()
 
         # Always update username field with valid usernames (even if empty)
         if usernames:
@@ -200,7 +200,7 @@ class ParserUsernamesMixin:
             self.is_fetching_search = False
             self._set_search_fetch_loading(False)
 
-        self._update_buttons_state()
+        self.update_buttons_state()
 
         QMessageBox.critical(
             self,
@@ -210,7 +210,7 @@ class ParserUsernamesMixin:
                 f"Не удалось загрузить историю ников:\n{error}")
             )
 
-    def _get_current_username(self):
+    def get_current_username(self):
         """Get current username from account - try chat_username first, fall back to login"""
         if not self.account:
             return None

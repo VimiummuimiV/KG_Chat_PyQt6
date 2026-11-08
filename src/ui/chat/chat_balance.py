@@ -12,7 +12,7 @@ from ui.dialogs.web_login_dialog import LoginWebView
 class ChatBalanceMixin:
     """ChatWindow: own balance fetching and session re-authorization."""
 
-    def _fetch_own_balance(self, gid: int):
+    def fetch_own_balance(self, gid: int):
         """Headless one-shot fetch of scores/bonuses."""
         # If both display options are off, no need to fetch
         show_scores = self.config.get("competitions", "show_scores")
@@ -33,30 +33,30 @@ class ChatBalanceMixin:
         def _fetch():
             data, err, debug_html = fetch_scores_bonuses(cookies)
             if err:
-                self._dispatch.emit(lambda: self._on_balance_fetch_failed(err, debug_html))
+                self.dispatch.emit(lambda: self._on_balance_fetch_failed(err, debug_html))
                 return
             scores, bonuses, updated_cookies = data
-            self._dispatch.emit(
+            self.dispatch.emit(
                 lambda: self._on_own_balance_fetched(gid, scores, bonuses, updated_cookies)
             )
 
         threading.Thread(target=_fetch, daemon=True).start()
 
     def _on_own_balance_fetched(self, gid: int, scores: int, bonuses: int, updated_cookies=None):
-        live = self._competition_live.get(gid)
+        live = self.competition_live.get(gid)
         if live is None:
             return
-        self._balance_fetch_errors_shown.clear()
+        self.balance_fetch_errors_shown.clear()
         live.update(scores=scores, bonuses=bonuses)
-        self._refresh_competition_message(gid)
+        self.refresh_competition_message(gid)
         if updated_cookies:
             self._persist_session_cookies(updated_cookies)
 
     def _on_balance_fetch_failed(self, error_code: str, debug_html: str = None):
         """One dialog + log line per error code per session."""
-        if error_code in self._balance_fetch_errors_shown:
+        if error_code in self.balance_fetch_errors_shown:
             return
-        self._balance_fetch_errors_shown.add(error_code)
+        self.balance_fetch_errors_shown.add(error_code)
 
         messages = {
             ERR_NO_COOKIES: (
@@ -86,7 +86,7 @@ class ChatBalanceMixin:
             f"Failed to load scores/bonuses ({error_code}).",
             f"Не удалось загрузить очки/бонусы ({error_code}).",
         ))
-        self._append_competition_log(f"balance error: {error_code}")
+        self.append_competition_log(f"balance error: {error_code}")
         offer_auth = error_code in (ERR_NO_COOKIES, ERR_AUTH)
         show_warning_with_html(
             self,
@@ -122,11 +122,11 @@ class ChatBalanceMixin:
         if self.account and self.account.get("chat_username") == login:
             self.account["session_cookies"] = cookies_json
             # Clear any previous errors so the next fetch attempt can succeed
-            self._balance_fetch_errors_shown.discard(ERR_NO_COOKIES)
-            self._balance_fetch_errors_shown.discard(ERR_AUTH)
+            self.balance_fetch_errors_shown.discard(ERR_NO_COOKIES)
+            self.balance_fetch_errors_shown.discard(ERR_AUTH)
             print("🔄 reauth: in-memory account.session_cookies updated")
-            for gid in list(self._competition_live):
-                self._fetch_own_balance(gid)
+            for gid in list(self.competition_live):
+                self.fetch_own_balance(gid)
 
     def _persist_session_cookies(self, cookies: list):
         """Write rotated session cookies back to storage (server-side renewal only)."""

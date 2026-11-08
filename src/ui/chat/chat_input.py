@@ -23,19 +23,19 @@ class ChatInputMixin:
             msg_type = 'groupchat'
             recipient_jid = None
 
-        self._dispatch_chat_message(text, msg_type, recipient_jid, self.messages_widget.add_message)
+        self.dispatch_chat_message(text, msg_type, recipient_jid, self.messages_widget.add_message)
 
     def _own_message_mode(self) -> str:
         return self.config.get("ui", "own_message_mode") or "local"
 
-    def _should_skip_own_echo(self, msg, is_initial: bool) -> bool:
+    def should_skip_own_echo(self, msg, is_initial: bool) -> bool:
         return (
             msg.login == self.my_username
             and not is_initial
             and self._own_message_mode() == "local"
         )
 
-    def _dispatch_chat_message(self, text: str, msg_type: str, target_jid, add_message_fn):
+    def dispatch_chat_message(self, text: str, msg_type: str, target_jid, add_message_fn):
         """Chunk `text`, optionally echo each chunk locally via add_message_fn,
         then send each chunk to target_jid on a staggered delay. Shared by the
         general chat's send_message and room tabs' _send_room_message so

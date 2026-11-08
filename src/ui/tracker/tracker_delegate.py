@@ -38,10 +38,10 @@ class TrackerEventDelegate(RowFlashMixin, QStyledItemDelegate):
         self._reload_fonts()
 
     def _reload_fonts(self):
-        self.time_font = get_font(FontType.TEXT)
-        self.badge_font = get_font(FontType.TEXT)
-        self.name_font = get_font(FontType.TEXT)
-        self.gid_font = get_font(FontType.TEXT)
+        self._time_font = get_font(FontType.TEXT)
+        self._badge_font = get_font(FontType.TEXT)
+        self._name_font = get_font(FontType.TEXT)
+        self._gid_font = get_font(FontType.TEXT)
 
     def set_list_view(self, list_view):
         self.list_view = list_view
@@ -73,8 +73,8 @@ class TrackerEventDelegate(RowFlashMixin, QStyledItemDelegate):
                 pass
 
     def _row_height(self) -> int:
-        name_h = QFontMetrics(self.name_font).height()
-        badge_h = QFontMetrics(self.badge_font).height() + 6
+        name_h = QFontMetrics(self._name_font).height()
+        badge_h = QFontMetrics(self._badge_font).height() + 6
         return max(name_h, badge_h) + 4
 
     def sizeHint(self, option: QStyleOptionViewItem, index: QModelIndex) -> QSize:
@@ -111,7 +111,7 @@ class TrackerEventDelegate(RowFlashMixin, QStyledItemDelegate):
                 painter,
                 option.rect,
                 event.get('date_str') or '',
-                self.time_font,
+                self._time_font,
                 self.is_dark_theme,
             )
             self.click_rects[row]['separator'] = QRect(option.rect)
@@ -127,9 +127,9 @@ class TrackerEventDelegate(RowFlashMixin, QStyledItemDelegate):
             time_text = datetime.fromtimestamp(ts).strftime("%H:%M:%S")
         except Exception:
             time_text = "—"
-        painter.setFont(self.time_font)
+        painter.setFont(self._time_font)
         painter.setPen(QColor("#888888"))
-        ts_fm = QFontMetrics(self.time_font)
+        ts_fm = QFontMetrics(self._time_font)
         ts_width = ts_fm.horizontalAdvance(time_text)
         painter.drawText(
             QRect(x, y, ts_width, h),
@@ -142,8 +142,8 @@ class TrackerEventDelegate(RowFlashMixin, QStyledItemDelegate):
         badge_text, badge_bg, badge_fg, badge_border = presence_badge_style(
             event_type, self.is_dark_theme
         )
-        painter.setFont(self.badge_font)
-        badge_fm = QFontMetrics(self.badge_font)
+        painter.setFont(self._badge_font)
+        badge_fm = QFontMetrics(self._badge_font)
         badge_width = badge_fm.horizontalAdvance(badge_text) + 12
         badge_height = badge_fm.height() + 6
         badge_rect = QRect(x, y + (h - badge_height) // 2, badge_width, badge_height)
@@ -162,8 +162,8 @@ class TrackerEventDelegate(RowFlashMixin, QStyledItemDelegate):
         x += badge_width + self.spacing
 
         login = event.get('login', '') or ''
-        painter.setFont(self.name_font)
-        name_fm = QFontMetrics(self.name_font)
+        painter.setFont(self._name_font)
+        name_fm = QFontMetrics(self._name_font)
         name_color = get_cache().get_username_color(login, self.is_dark_theme)
         painter.setPen(QColor(name_color))
         name_width = name_fm.horizontalAdvance(login)
@@ -179,9 +179,9 @@ class TrackerEventDelegate(RowFlashMixin, QStyledItemDelegate):
         game_id = event.get('game_id')
         if game_id and event_type == 'game':
             gid_text = f"#{game_id}"
-            painter.setFont(self.gid_font)
+            painter.setFont(self._gid_font)
             painter.setPen(QColor("#888888"))
-            gid_width = QFontMetrics(self.gid_font).horizontalAdvance(gid_text)
+            gid_width = QFontMetrics(self._gid_font).horizontalAdvance(gid_text)
             painter.drawText(
                 QRect(x, y, gid_width, h),
                 Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,

@@ -18,7 +18,7 @@ def get_user_sound_dir(kind: str) -> Path:
     return get_data_dir("sounds") / (kind or "").strip().lower()
 
 
-def get_sound_files(sound_dir: Path) -> list[str]:
+def _get_sound_files(sound_dir: Path) -> list[str]:
     """Return sorted MP3 names from one directory."""
     if not sound_dir or not sound_dir.exists():
         return []
@@ -30,7 +30,7 @@ def get_sound_files(sound_dir: Path) -> list[str]:
 
 def get_merged_sound_files(system_dir: Path, user_dir: Path) -> list[str]:
     """Unique filenames from system + user dirs (user overrides on name clash)."""
-    names = set(get_sound_files(system_dir)) | set(get_sound_files(user_dir))
+    names = set(_get_sound_files(system_dir)) | set(_get_sound_files(user_dir))
     return sorted(names, key=lambda n: n.lower())
 
 

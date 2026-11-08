@@ -48,18 +48,18 @@ class ButtonPanel(QWidget):
 
         # Button references
         self.toggle_userlist_button = None
-        self.switch_account_button = None
-        self.ban_button = None
-        self.tracker_button = None
+        self._switch_account_button = None
+        self._ban_button = None
+        self._tracker_button = None
         self.voice_button = None
         self.effects_button = None
         self.notification_button = None
-        self.color_button = None
-        self.theme_button = None
+        self._color_button = None
+        self._theme_button = None
         self.reset_size_button = None
-        self.always_on_top_button = None
-        self.settings_button = None
-        self.exit_button = None
+        self._always_on_top_button = None
+        self._settings_button = None
+        self._exit_button = None
 
         self._init_ui()
         self._create_buttons()
@@ -92,7 +92,7 @@ class ButtonPanel(QWidget):
         """Helper to create and add a button with consistent pattern"""
         button = create_icon_button(self.icons_path, icon_name, tooltip, config=self.config)
         button.clicked.connect(callback)
-        self.add_button(button)
+        self._add_button(button)
         return button
 
     def _get_notification_tooltip(self) -> str:
@@ -144,26 +144,26 @@ class ButtonPanel(QWidget):
         )
         self.toggle_userlist_button._is_visually_active = True
 
-        self.switch_account_button = self._create_button(
+        self._switch_account_button = self._create_button(
             "user-switch.svg",
             tr("Switch Account (Ctrl+U)", "Сменить аккаунт (Ctrl+U)"),
             self.switch_account_requested.emit
         )
 
-        self.ban_button = self._create_button(
+        self._ban_button = self._create_button(
             "user-blocked.svg",
             tr("Show Ban List (B)", "Список забаненных (B)"),
             lambda: self.show_banlist_requested.emit()
         )
 
-        self.tracker_button = self._create_button(
+        self._tracker_button = self._create_button(
             "user-star.svg",
             self._tracker_base_tooltip(),
             lambda: self.show_tracker_requested.emit()
         )
         self._tracker_unread = 0
         self._tracker_last_type = "join"
-        self._tracker_badge = QLabel(self.tracker_button)
+        self._tracker_badge = QLabel(self._tracker_button)
         self._tracker_badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._tracker_badge.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
         apply_counter_style(
@@ -173,13 +173,13 @@ class ButtonPanel(QWidget):
         self._tracker_badge.hide()
         self._apply_tracker_enabled_state()
 
-        self.join_room_button = self._create_button(
+        self._join_room_button = self._create_button(
             "chat-new.svg",
             tr("Join / Create Room (Ctrl+J)", "Войти / создать комнату (Ctrl+J)"),
             lambda: self.join_room_requested.emit()
         )
 
-        self.search_button = self._create_button(
+        self._search_button = self._create_button(
             "search.svg",
             tr("Toggle search (S / Ctrl+F)", "Поиск (S / Ctrl+F)"),
             lambda: self.search_requested.emit()
@@ -209,18 +209,18 @@ class ButtonPanel(QWidget):
         muted = self.config.get("notification", "muted") or False
         self.set_button_state(self.notification_button, not muted)
 
-        self.color_button = self._create_button(
+        self._color_button = self._create_button(
             "palette.svg",
             tr("Username color (C: pick | Ctrl+C/Click: reset)",
                "Цвет имени (C: выбрать | Ctrl+C/клик: сбросить)"),
             lambda: self.change_color_requested.emit()
         )
         # Install event filter to capture Ctrl+Click / Shift+Click
-        self.color_button.installEventFilter(self)
+        self._color_button.installEventFilter(self)
 
         is_dark = self.theme_manager.is_dark()
         theme_icon = "moon.svg" if is_dark else "sun.svg"
-        self.theme_button = self._create_button(
+        self._theme_button = self._create_button(
             theme_icon,
             self._theme_tooltip(is_dark),
             self.toggle_theme_requested.emit
@@ -236,25 +236,25 @@ class ButtonPanel(QWidget):
         self.reset_size_button.installEventFilter(self)
 
         pin_icon = self._get_pin_icon()
-        self.always_on_top_button = self._create_button(
+        self._always_on_top_button = self._create_button(
             pin_icon,
             self._get_pin_tooltip(),
             lambda: self.toggle_always_on_top_requested.emit()
         )
 
-        self.settings_button = self._create_button(
+        self._settings_button = self._create_button(
             "settings.svg",
             tr("Settings (Ctrl+,)", "Настройки (Ctrl+,)"),
             lambda: self.show_settings_requested.emit()
         )
 
-        self.data_folder_button = self._create_button(
+        self._data_folder_button = self._create_button(
             "folder.svg",
             tr("Open Data Folder (KG_Chat_Data)", "Открыть папку данных (KG_Chat_Data)"),
             lambda: open_in_file_manager(),
         )
 
-        self.exit_button = self._create_button(
+        self._exit_button = self._create_button(
             "door-closed.svg",
             tr("Exit Application", "Выход"),
             lambda: self.exit_requested.emit()
@@ -276,37 +276,37 @@ class ButtonPanel(QWidget):
         if self.toggle_userlist_button:
             self.toggle_userlist_button.setToolTip(
                 tr("Toggle User List (U)", "Список пользователей (U)"))
-        if self.switch_account_button:
-            self.switch_account_button.setToolTip(
+        if self._switch_account_button:
+            self._switch_account_button.setToolTip(
                 tr("Switch Account (Ctrl+U)", "Сменить аккаунт (Ctrl+U)"))
-        if self.ban_button:
-            self.ban_button.setToolTip(
+        if self._ban_button:
+            self._ban_button.setToolTip(
                 tr("Show Ban List (B)", "Список забаненных (B)"))
-        if self.join_room_button:
-            self.join_room_button.setToolTip(
+        if self._join_room_button:
+            self._join_room_button.setToolTip(
                 tr("Join / Create Room (Ctrl+J)", "Войти / создать комнату (Ctrl+J)"))
-        if self.search_button:
-            self.search_button.setToolTip(
+        if self._search_button:
+            self._search_button.setToolTip(
                 tr("Toggle search (S / Ctrl+F)", "Поиск (S / Ctrl+F)"))
         if self.voice_button:
             self.voice_button.setToolTip(
                 tr("Toggle Voice Sound (V) (RMB for Username Pronunciation (P))",
                    "Голосовой звук (V) (ПКМ — произношение имён (P))"))
-        if self.color_button:
-            self.color_button.setToolTip(
+        if self._color_button:
+            self._color_button.setToolTip(
                 tr("Username color (C: pick | Ctrl+C/Click: reset)",
                    "Цвет имени (C: выбрать | Ctrl+C/клик: сбросить)"))
         if self.reset_size_button:
             self.reset_size_button.setToolTip(
                 tr("Reset Window Size and Position to Default (R) (RMB for Presets)",
                    "Сбросить размер и позицию окна (R) (ПКМ — пресеты)"))
-        if self.settings_button:
-            self.settings_button.setToolTip(tr("Settings (Ctrl+,)", "Настройки (Ctrl+,)"))
-        if self.data_folder_button:
-            self.data_folder_button.setToolTip(
+        if self._settings_button:
+            self._settings_button.setToolTip(tr("Settings (Ctrl+,)", "Настройки (Ctrl+,)"))
+        if self._data_folder_button:
+            self._data_folder_button.setToolTip(
                 tr("Open Data Folder (KG_Chat_Data)", "Открыть папку данных (KG_Chat_Data)"))
-        if self.exit_button:
-            self.exit_button.setToolTip(tr("Exit Application", "Выход"))
+        if self._exit_button:
+            self._exit_button.setToolTip(tr("Exit Application", "Выход"))
         if self.reconnect_button:
             self.reconnect_button.setToolTip(
                 tr("Reconnect to Chat", "Переподключиться к чату"))
@@ -327,7 +327,7 @@ class ButtonPanel(QWidget):
 
     def _apply_tracker_enabled_state(self):
         enabled = self._tracker_enabled()
-        set_visual_active(self.tracker_button, enabled)
+        set_visual_active(self._tracker_button, enabled)
         if not enabled:
             self._tracker_badge.hide()
         else:
@@ -364,7 +364,7 @@ class ButtonPanel(QWidget):
                 tip = base
             else:
                 tip = tr(f"{base} — {n} new", f"{base} — {n} новых")
-            self.tracker_button.setToolTip(tip)
+            self._tracker_button.setToolTip(tip)
             return
         size = self.config.get("ui", "chat", "badge_font_size")
         try:
@@ -378,18 +378,18 @@ class ButtonPanel(QWidget):
         )
         self._tracker_badge.setText("99+" if n > 99 else str(n))
         self._tracker_badge.adjustSize()
-        self._tracker_badge.move(1, self.tracker_button.height() - self._tracker_badge.height() - 1)
+        self._tracker_badge.move(1, self._tracker_button.height() - self._tracker_badge.height() - 1)
         self._tracker_badge.show()
         self._tracker_badge.raise_()
-        self.tracker_button.setToolTip(tr(f"{base} — {n} new", f"{base} — {n} новых"))
+        self._tracker_button.setToolTip(tr(f"{base} — {n} new", f"{base} — {n} новых"))
 
     def update_theme_button_icon(self):
         """Update theme button icon after theme change"""
-        if not self.theme_button:
+        if not self._theme_button:
             return
         is_dark = self.theme_manager.is_dark()
-        set_button_icon(self.theme_button, "moon.svg" if is_dark else "sun.svg")
-        self.theme_button.setToolTip(self._theme_tooltip(is_dark))
+        set_button_icon(self._theme_button, "moon.svg" if is_dark else "sun.svg")
+        self._theme_button.setToolTip(self._theme_tooltip(is_dark))
 
     def update_notification_button_icon(self):
         """Dim notification button when muted; keep the same notification.svg icon."""
@@ -408,20 +408,20 @@ class ButtonPanel(QWidget):
 
     def update_pin_button_icon(self):
         """Update pin button icon after always-on-top state change"""
-        if not self.always_on_top_button:
+        if not self._always_on_top_button:
             return
-        set_button_icon(self.always_on_top_button, self._get_pin_icon())
-        self.always_on_top_button.setToolTip(self._get_pin_tooltip())
+        set_button_icon(self._always_on_top_button, self._get_pin_icon())
+        self._always_on_top_button.setToolTip(self._get_pin_tooltip())
 
-    def add_button(self, button):
+    def _add_button(self, button):
         """Add a button to the panel (before the stretch)"""
         self._scroll_container.add_widget(button)
 
-    def remove_button(self, button):
+    def _remove_button(self, button):
         """Remove a button from the panel"""
         self._scroll_container.remove_widget(button)
 
-    def clear_buttons(self):
+    def _clear_buttons(self):
         """Remove all buttons from the panel"""
         self._scroll_container.clear_widgets()
 
@@ -434,7 +434,7 @@ class ButtonPanel(QWidget):
                 return True
 
         # Handle color button special clicks
-        if obj == self.color_button and event.type() == QEvent.Type.MouseButtonPress:
+        if obj == self._color_button and event.type() == QEvent.Type.MouseButtonPress:
             if event.button() == Qt.MouseButton.LeftButton:
                 modifiers = QApplication.keyboardModifiers()
                 if modifiers & Qt.KeyboardModifier.ControlModifier:

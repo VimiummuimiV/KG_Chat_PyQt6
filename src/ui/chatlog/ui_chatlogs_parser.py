@@ -49,9 +49,9 @@ class ChatlogsParserConfigWidget(ParserModesMixin, ParserRunMixin, ParserUsernam
     def set_account(self, account):
         """Set account for auto-populating mention usernames"""
         self.account = account
-        self._update_mention_label()
+        self.update_mention_label()
 
-    def _create_label(self, text: str) -> QLabel:
+    def create_label(self, text: str) -> QLabel:
         """Create a label with consistent height and alignment"""
         label = QLabel(text)
         label.setFixedHeight(self.input_height)
@@ -77,12 +77,12 @@ class ChatlogsParserConfigWidget(ParserModesMixin, ParserRunMixin, ParserUsernam
         combo.setFont(get_font(FontType.UI))
         return combo
 
-    def _create_input_row(self, label_text: str, placeholder: str = "", object_name: str = "", as_widget: bool = False):
+    def create_input_row(self, label_text: str, placeholder: str = "", object_name: str = "", as_widget: bool = False):
         """Create a complete input row with label and input field"""
         layout = QHBoxLayout()
         layout.setSpacing(self.spacing)
 
-        label = self._create_label(label_text)
+        label = self.create_label(label_text)
         layout.addWidget(label)
 
         input_field = self._create_input(placeholder, object_name)
@@ -95,7 +95,7 @@ class ChatlogsParserConfigWidget(ParserModesMixin, ParserRunMixin, ParserUsernam
 
         return layout, input_field
 
-    def _auto_format_date(self, input_field):
+    def auto_format_date(self, input_field):
         """Auto-format dates on blur"""
         text = input_field.text().strip()
         if not text:
@@ -104,7 +104,7 @@ class ChatlogsParserConfigWidget(ParserModesMixin, ParserRunMixin, ParserUsernam
         if parts:
             input_field.setText(' '.join(parts))
 
-    def _show_date_picker(self, input_field, calendar_btn):
+    def show_date_picker(self, input_field, calendar_btn):
         """Show calendar picker"""
         calendar = QCalendarWidget()
         calendar.setWindowFlags(Qt.WindowType.Popup)
@@ -146,7 +146,7 @@ class ChatlogsParserConfigWidget(ParserModesMixin, ParserRunMixin, ParserUsernam
         mode_container = QWidget()
         mode_layout = QHBoxLayout()
         mode_layout.setSpacing(self.spacing)
-        mode_label = self._create_label(tr("Mode:", "Режим:"))
+        mode_label = self.create_label(tr("Mode:", "Режим:"))
         self._mode_label = mode_label
         mode_layout.addWidget(mode_label)
 
@@ -156,22 +156,22 @@ class ChatlogsParserConfigWidget(ParserModesMixin, ParserRunMixin, ParserUsernam
         for key in MODE_KEYS:
             en, ru = MODE_LABELS[key]
             self.mode_combo.addItem(tr(en, ru), key)
-        self.mode_combo.currentIndexChanged.connect(self._on_mode_changed)
+        self.mode_combo.currentIndexChanged.connect(self.on_mode_changed)
         mode_layout.addWidget(self.mode_combo, stretch=1)
         mode_container.setLayout(mode_layout)
         layout.addWidget(mode_container)
 
         # Date inputs (dynamic based on mode)
-        self.date_container = QWidget()
+        self._date_container = QWidget()
         self.date_layout = QVBoxLayout()
         self.date_layout.setContentsMargins(0, 0, 0, 0)
         self.date_layout.setSpacing(self.spacing)
-        self.date_container.setLayout(self.date_layout)
-        layout.addWidget(self.date_container)
+        self._date_container.setLayout(self.date_layout)
+        layout.addWidget(self._date_container)
 
         # Username input with fetch history button (label changes in Personal Mentions mode)
         username_container = QWidget()
-        username_layout, self.username_input = self._create_input_row(
+        username_layout, self.username_input = self.create_input_row(
             tr("Usernames:", "Имена:"),
             tr("comma-separated (leave empty for all users)", "через запятую (пусто = все пользователи)")
         )
@@ -180,8 +180,8 @@ class ChatlogsParserConfigWidget(ParserModesMixin, ParserRunMixin, ParserUsernam
         self.username_label = username_layout.itemAt(0).widget()
 
         # Connect to enable/disable fetch button based on input
-        self.username_input.textChanged.connect(self._update_buttons_state)
-        self.username_input.textChanged.connect(self._update_mention_label)
+        self.username_input.textChanged.connect(self.update_buttons_state)
+        self.username_input.textChanged.connect(self.update_mention_label)
 
         # Fetch history button
         self.fetch_history_button = create_icon_button(
@@ -189,7 +189,7 @@ class ChatlogsParserConfigWidget(ParserModesMixin, ParserRunMixin, ParserUsernam
             size_type="large", config=self.config
         )
         self.tr_set(self.fetch_history_button.setToolTip, "Fetch username history", "Загрузить историю имён")
-        self.fetch_history_button.clicked.connect(lambda: self._fetch_username_history(self.username_input))
+        self.fetch_history_button.clicked.connect(lambda: self.fetch_username_history(self.username_input))
         self.fetch_history_button.setEnabled(False)
         username_layout.addWidget(self.fetch_history_button)
 
@@ -199,7 +199,7 @@ class ChatlogsParserConfigWidget(ParserModesMixin, ParserRunMixin, ParserUsernam
             size_type="large", config=self.config
         )
         self.tr_set(self.add_username_button.setToolTip, "Add to saved usernames", "Добавить в сохранённые имена")
-        self.add_username_button.clicked.connect(self._add_usernames_to_saved)
+        self.add_username_button.clicked.connect(self.add_usernames_to_saved)
         self.add_username_button.setEnabled(False)
         username_layout.addWidget(self.add_username_button)
 
@@ -215,7 +215,7 @@ class ChatlogsParserConfigWidget(ParserModesMixin, ParserRunMixin, ParserUsernam
 
         # Search terms input (label changes in Personal Mentions mode)
         search_container = QWidget()
-        search_layout, self.search_input = self._create_input_row(
+        search_layout, self.search_input = self.create_input_row(
             tr("Search:", "Поиск:"),
             tr("comma-separated search terms (leave empty for all messages)", "термины через запятую (пусто = все сообщения)")
         )
@@ -224,8 +224,8 @@ class ChatlogsParserConfigWidget(ParserModesMixin, ParserRunMixin, ParserUsernam
         self.search_label = search_layout.itemAt(0).widget()
 
         # Connect to update mention label and fetch button state
-        self.search_input.textChanged.connect(self._update_mention_label)
-        self.search_input.textChanged.connect(self._update_buttons_state)
+        self.search_input.textChanged.connect(self.update_mention_label)
+        self.search_input.textChanged.connect(self.update_buttons_state)
 
         # Fetch history button for search/mentions field
         self.search_fetch_history_button = create_icon_button(
@@ -233,7 +233,7 @@ class ChatlogsParserConfigWidget(ParserModesMixin, ParserRunMixin, ParserUsernam
             size_type="large", config=self.config
         )
         self.tr_set(self.search_fetch_history_button.setToolTip, "Fetch username history", "Загрузить историю имён")
-        self.search_fetch_history_button.clicked.connect(lambda: self._fetch_username_history(self.search_input))
+        self.search_fetch_history_button.clicked.connect(lambda: self.fetch_username_history(self.search_input))
         self.search_fetch_history_button.setEnabled(False)
         search_layout.addWidget(self.search_fetch_history_button)
 
@@ -276,7 +276,7 @@ class ChatlogsParserConfigWidget(ParserModesMixin, ParserRunMixin, ParserUsernam
             size_type="large", config=self.config
         )
         self.tr_set(self.copy_button.setToolTip, "Copy results to clipboard (Ctrl+C)", "Копировать результаты в буфер (Ctrl+C)")
-        self.copy_button.clicked.connect(self._on_copy_clicked)
+        self.copy_button.clicked.connect(self.on_copy_clicked)
         self.copy_button.setVisible(False)
         button_layout.addWidget(self.copy_button)
 
@@ -286,7 +286,7 @@ class ChatlogsParserConfigWidget(ParserModesMixin, ParserRunMixin, ParserUsernam
             size_type="large", config=self.config
         )
         self.tr_set(self.save_button.setToolTip, "Save results to file (Ctrl+S)", "Сохранить результаты в файл (Ctrl+S)")
-        self.save_button.clicked.connect(self._on_save_clicked)
+        self.save_button.clicked.connect(self.on_save_clicked)
         self.save_button.setVisible(False)
         button_layout.addWidget(self.save_button)
 
@@ -297,7 +297,7 @@ class ChatlogsParserConfigWidget(ParserModesMixin, ParserRunMixin, ParserUsernam
         layout.addStretch()
 
         # Initialize with first mode
-        self._on_mode_changed(0)
+        self.on_mode_changed(0)
         on_language_changed(self._retranslate)
 
     def _retranslate(self, _code=None):
@@ -309,9 +309,9 @@ class ChatlogsParserConfigWidget(ParserModesMixin, ParserRunMixin, ParserUsernam
         if hasattr(self, "_mode_label"):
             self._mode_label.setText(tr("Mode:", "Режим:"))
         # Re-apply mode UI to refresh dynamic labels
-        self._on_mode_changed(self.mode_combo.currentIndex())
+        self.on_mode_changed(self.mode_combo.currentIndex())
 
-    def _update_buttons_state(self):
+    def update_buttons_state(self):
         """Enable/disable the fetch and add buttons based on inputs"""
         has_username = bool(self.username_input.text().strip())
         has_search = bool(self.search_input.text().strip())
@@ -321,7 +321,7 @@ class ChatlogsParserConfigWidget(ParserModesMixin, ParserRunMixin, ParserUsernam
 
     def _on_saved_username_clicked(self, username: str):
         """Add a saved username chip into the usernames field"""
-        current = self._get_usernames()
+        current = self.get_usernames()
         if username not in current:
             current.append(username)
             self.username_input.setText(', '.join(current))
@@ -329,5 +329,5 @@ class ChatlogsParserConfigWidget(ParserModesMixin, ParserRunMixin, ParserUsernam
     def _on_saved_username_double_clicked(self, username: str):
         """Replace the usernames field with only the double-clicked chip,
         or clear it if that chip was already the sole entry"""
-        current = self._get_usernames()
+        current = self.get_usernames()
         self.username_input.setText("" if current == [username] else username)

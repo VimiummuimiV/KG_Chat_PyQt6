@@ -40,7 +40,7 @@ from components.loading_spinner import LoadingSpinner
 from core.web.image_loader import ImageLoader
 from helpers.data import get_resource_dir
 from helpers.hold_repeater import HoldRepeater
-from helpers.system.memory import release_unused_memory
+from helpers.system.memory import release_memory_soon
 from helpers.translate import tr
 
 
@@ -60,7 +60,6 @@ _REPLY_PANEL_WIDTH = 560
 _SELECTOR_SETTLE_MS = 50
 _EMOTICON_MIN_HEIGHT = 250
 _EMOTICON_MAX_HEIGHT = 650
-_MEMORY_RELEASE_DELAY_MS = 500  # lets deleteLater() of released movies run first
 _NEIGHBOR_PRIORITY = 1
 _THUMBNAIL_PRIORITY = 0
 _NAVIGATION_KEYS = {
@@ -140,7 +139,7 @@ class ImageHoverView(QWidget):
         self._inline_reply: Optional[InlineReply] = None
         self._emoticon_selector = None  # the shared selector while it is borrowed from the chat
         self._close_button = CloseButton(icons_path, config, self)
-        self._close_button.clicked.connect(self.hide_preview)
+        self._close_button.clicked.connect(self._hide_preview)
         self._close_button.hide()
 
         self._drag_mode: Optional[str] = None
@@ -173,10 +172,10 @@ class ImageHoverView(QWidget):
         if not image_url or (current and current.url == image_url and self.isVisible()):
             return
 
-        self.hide_preview()
+        self._hide_preview()
         active = ImageHoverView._active_viewer
         if active is not None and active is not self:
-            active.hide_preview()
+            active._hide_preview()
         ImageHoverView._active_viewer = self
         self.update_theme((self._config.get("ui", "theme") if self._config else None) != "light")
         self._gallery = gallery or ImageGallery.single(image_url)
@@ -540,7 +539,7 @@ class ImageHoverView(QWidget):
         action = pick_action(gallery) if gallery else None
         if action is None or image is None or image.source is None:
             return
-        self.hide_preview()
+        self._hide_preview()
         action(image.source)
 
     def _update_spinner_position(self):
@@ -580,7 +579,7 @@ class ImageHoverView(QWidget):
             self.setCursor(QCursor(Qt.CursorShape.ClosedHandCursor))
             event.accept()
         elif event.button() == Qt.MouseButton.RightButton:
-            self.hide_preview()
+            self._hide_preview()
             event.accept()
 
     def mouseMoveEvent(self, event):
@@ -621,7 +620,7 @@ class ImageHoverView(QWidget):
         if key == Qt.Key.Key_F1:
             self._help_panel.show_for_context('image')
         elif key in (Qt.Key.Key_Space, Qt.Key.Key_Escape) or Qt.Key.Key_Q in (key, native_key):
-            self.hide_preview()
+            self._hide_preview()
             event.accept()
         elif is_day_step:
             if not event.isAutoRepeat():
@@ -652,7 +651,7 @@ class ImageHoverView(QWidget):
         self._day_hold.release()  # the key release would go to another window
         super().focusOutEvent(event)
 
-    def hide_preview(self):
+    def _hide_preview(self):
         """Hide preview and reset state"""
         self._day_hold.release()
         self._position_timer.stop()
@@ -682,11 +681,11 @@ class ImageHoverView(QWidget):
         self._gallery = self._target_pos = None
         self._end_drag()
         self.hide()
-        QTimer.singleShot(_MEMORY_RELEASE_DELAY_MS, release_unused_memory)
+        release_memory_soon()
 
     def cleanup(self):
         """Cleanup resources"""
-        self.hide_preview()
+        self._hide_preview()
         if self._help_panel:
             self._help_panel.deleteLater()
             self._help_panel = None

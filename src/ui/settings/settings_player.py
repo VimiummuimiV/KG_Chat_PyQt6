@@ -11,55 +11,55 @@ from ui.settings.settings_options import (
 class SettingsPlayerMixin:
     """SettingsWidget: media player options."""
 
-    def _build_player_section(self):
-        section = self._create_section(tr("🎬 Player", "🎬 Плеер"))
+    def build_player_section(self):
+        section = self.create_section(tr("🎬 Player", "🎬 Плеер"))
 
-        mpv_header, mpv_content, mpv_layout = self._add_subsection(
+        mpv_header, mpv_content, mpv_layout = self.add_subsection(
             section, tr("MPV", "MPV")
         )
-        self.player_tls_checkbox = self._add_checkbox(
+        self.player_tls_checkbox = self.add_checkbox(
             mpv_layout,
             tr("Disable TLS certificate verification", "Отключить проверку TLS-сертификатов"),
             self._on_player_tls_toggled,
         )
-        self.player_hwdec_combo = self._add_combo_row(
+        self.player_hwdec_combo = self.add_combo_row(
             mpv_layout, tr("Hardware decoding", "Аппаратное декодирование"),
             [], self._on_player_hwdec_changed
         )
         self.player_hwdec_combo.setFixedWidth(240)
-        self.player_volume_spin = self._add_slider_spin_row(
+        self.player_volume_spin = self.add_slider_spin_row(
             mpv_layout, tr("Startup volume", "Начальная громкость"), 0, 100,
             self._on_player_volume_changed,
             default=DEFAULTS["player"]["volume"],
         )
-        self.player_log_checkbox = self._add_checkbox(
+        self.player_log_checkbox = self.add_checkbox(
             mpv_layout,
             tr("Save MPV log", "Сохранять лог MPV"),
             self._on_player_log_toggled,
         )
-        self.player_keep_open_checkbox = self._add_checkbox(
+        self.player_keep_open_checkbox = self.add_checkbox(
             mpv_layout,
             tr("Keep window open", "Не закрывать окно"),
             self._on_player_keep_open_toggled,
         )
-        self.player_ontop_checkbox = self._add_checkbox(
+        self.player_ontop_checkbox = self.add_checkbox(
             mpv_layout,
             tr("Always on top", "Поверх всех окон"),
             self._on_player_ontop_toggled,
         )
-        self._add_collapse_toggle(mpv_header, mpv_content, ("ui", "settings", "widgets", "player_mpv"))
+        self.add_collapse_toggle(mpv_header, mpv_content, ("ui", "settings", "widgets", "player_mpv"))
 
-        ytdl_header, ytdl_content, ytdl_layout = self._add_subsection(
+        ytdl_header, ytdl_content, ytdl_layout = self.add_subsection(
             section, tr("YTDLP", "YTDLP")
         )
-        self.player_ytdl_format_combo = self._add_combo_row(
+        self.player_ytdl_format_combo = self.add_combo_row(
             ytdl_layout, tr("Preferred format", "Предпочитаемый формат"),
             [], self._on_player_ytdl_format_changed
         )
         self.player_ytdl_format_combo.setFixedWidth(240)
-        self._add_collapse_toggle(ytdl_header, ytdl_content, ("ui", "settings", "widgets", "player_ytdl"))
+        self.add_collapse_toggle(ytdl_header, ytdl_content, ("ui", "settings", "widgets", "player_ytdl"))
 
-    def _refresh_player(self):
+    def refresh_player(self):
         tls_disabled = self.config.get("player", "disable_tls_verify")
         self.player_tls_checkbox.setChecked(
             DEFAULTS["player"]["disable_tls_verify"] if tls_disabled is None else bool(tls_disabled)
@@ -95,7 +95,7 @@ class SettingsPlayerMixin:
         self.config.set("player", "disable_tls_verify", value=checked)
 
     def _on_player_hwdec_changed(self, _text: str = ""):
-        self._sync_combo_tooltip(self.player_hwdec_combo)
+        self.sync_combo_tooltip(self.player_hwdec_combo)
         value = self.player_hwdec_combo.currentData() or "auto"
         self.config.set("player", "hwdec", value=value)
 
@@ -112,6 +112,6 @@ class SettingsPlayerMixin:
         self.config.set("player", "ontop", value=checked)
 
     def _on_player_ytdl_format_changed(self, _text: str = ""):
-        self._sync_combo_tooltip(self.player_ytdl_format_combo)
+        self.sync_combo_tooltip(self.player_ytdl_format_combo)
         value = self.player_ytdl_format_combo.currentData()
         self.config.set("player", "ytdl_format", value=value if value is not None else "")

@@ -169,7 +169,7 @@ class MessagesWidget(TranslatableMixin, QWidget):
         layout.addWidget(self.list_view)
 
         # Add scroll buttons panel for quick navigation
-        self.scroll_buttons = None if self.minimal else ScrollButtonsPanel(self.list_view, parent=self)
+        self._scroll_buttons = None if self.minimal else ScrollButtonsPanel(self.list_view, parent=self)
 
     def toggle_search(self):
         self.search.toggle()
@@ -282,14 +282,14 @@ class MessagesWidget(TranslatableMixin, QWidget):
         self.model.layoutChanged.emit()
         self.list_view.setUpdatesEnabled(True)
         self.list_view.viewport().update()
-        QTimer.singleShot(10, lambda: self.list_view.viewport().update())
+        QTimer.singleShot(10, self.list_view.viewport().update)  # a bound method is dropped with its widget
 
     def cleanup(self):
         """Cleanup delegate to stop animation timer"""
         if self.delegate:
             self.delegate.cleanup()
-        if getattr(self, 'scroll_buttons', None):
-            self.scroll_buttons.cleanup()
+        if getattr(self, '_scroll_buttons', None):
+            self._scroll_buttons.cleanup()
         if getattr(self, 'auto_scroller', None):
             self.auto_scroller.cleanup()
 
@@ -298,6 +298,6 @@ class MessagesWidget(TranslatableMixin, QWidget):
         self.search.reset()
 
     @property
-    def scroll_area(self):
+    def _scroll_area(self):
         """Compatibility property for scroll helpers"""
         return self.list_view

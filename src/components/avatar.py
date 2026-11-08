@@ -60,9 +60,13 @@ def _emit_loaded(bridge: _AvatarLoadBridge, pixmap: QPixmap):
 def _fetch_avatar(owner: QObject, user_id: str, on_loaded: Callable[[QPixmap], None]):
     """Load the avatar in the background and pass it to on_loaded in the GUI thread."""
     bridge = _AvatarLoadBridge(owner)
+    is_delivered = False
 
     def deliver(pixmap: QPixmap):
-        bridge.loaded.disconnect(deliver)  # a repeated callback must not deliver twice
+        nonlocal is_delivered
+        if is_delivered:  # a repeated callback may already be queued behind the deleted bridge
+            return
+        is_delivered = True
         bridge.deleteLater()
         on_loaded(pixmap)
 

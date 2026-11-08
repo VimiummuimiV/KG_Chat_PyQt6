@@ -13,7 +13,7 @@ EVENT_TYPES = ("join", "left", "game")
 
 class UserTracker:
     def __init__(self, data_path: Path, config):
-        self.file_path = data_path / "tracked.json"
+        self._file_path = data_path / "tracked.json"
         self.config = config
         self.db = PresenceDB()
         self.selected: Dict[str, str] = {}
@@ -23,9 +23,9 @@ class UserTracker:
         self.load()
 
     def load(self):
-        if self.file_path.exists():
+        if self._file_path.exists():
             try:
-                with open(self.file_path, "r", encoding="utf-8") as f:
+                with open(self._file_path, "r", encoding="utf-8") as f:
                     data = json.load(f)
                 self.selected = data.get("selected", {}) or {}
                 self.frozen = set(str(x) for x in (data.get("frozen") or []))
@@ -80,7 +80,7 @@ class UserTracker:
                 "selected": self.selected,
                 "frozen": sorted(self.frozen),
             }
-            with open(self.file_path, "w", encoding="utf-8") as f:
+            with open(self._file_path, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2, ensure_ascii=False)
         except Exception as e:
             print(f"Error saving user tracker: {e}")
@@ -92,7 +92,7 @@ class UserTracker:
     def set_enabled(self, enabled: bool):
         self.config.set("user_tracker", "enabled", value=bool(enabled))
 
-    def tracked_event_types(self) -> set:
+    def _tracked_event_types(self) -> set:
         """Which event types to record. Default: join, left, game."""
         value = self.config.get("user_tracker", "track_events")
         if not value:
@@ -107,7 +107,7 @@ class UserTracker:
             hours = 24
         return max(1, min(720, hours))
 
-    def set_retention_hours(self, hours: int):
+    def _set_retention_hours(self, hours: int):
         self.config.set("user_tracker", "retention_hours", value=max(1, min(720, int(hours))))
 
     def is_tracked(self, user_id: str = None, login: str = None) -> bool:
@@ -128,7 +128,7 @@ class UserTracker:
                     return True
         return False
 
-    def is_actively_tracked(self, user_id: str = None, login: str = None) -> bool:
+    def _is_actively_tracked(self, user_id: str = None, login: str = None) -> bool:
         return self.is_tracked(user_id=user_id, login=login) and not self.is_frozen(
             user_id=user_id, login=login
         )
@@ -196,7 +196,7 @@ class UserTracker:
             return None
         if not login:
             return None
-        if not self.is_actively_tracked(user_id=user_id, login=login):
+        if not self._is_actively_tracked(user_id=user_id, login=login):
             return None
 
         key = self._key(user_id, login)
@@ -209,7 +209,7 @@ class UserTracker:
         last = self._last_state.get(key)
         event = None
 
-        tracked = self.tracked_event_types()
+        tracked = self._tracked_event_types()
         if et == "left":
             if last == "left":
                 return None

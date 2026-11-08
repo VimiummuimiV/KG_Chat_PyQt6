@@ -7,6 +7,7 @@ from PyQt6.QtGui import QCursor
 from PyQt6.QtWidgets import QApplication
 
 from helpers.scroll.scroll import scroll
+from helpers.system.memory import release_memory_soon
 from ui.chatlog.ui_chatlog import ChatlogWidget
 from ui.chatlog.ui_chatlog_userlist import ChatlogUserlistWidget
 
@@ -16,7 +17,7 @@ class ChatViewsMixin:
 
     def show_messages_view(self):
         """Switch back to messages and conditionally destroy chatlog widgets"""
-        self._ensure_general_tab_visible()
+        self.ensure_general_tab_visible()
         # Cleanup and destroy chatlog userlist
         if self.chatlog_userlist_widget:
             try:
@@ -44,6 +45,7 @@ class ChatViewsMixin:
                 self.stacked_widget.removeWidget(self.chatlog_widget)
                 self.chatlog_widget.deleteLater()
                 self.chatlog_widget = None
+                release_memory_soon()
 
         self.stacked_widget.setCurrentWidget(self.messages_splitter)
 
@@ -66,7 +68,7 @@ class ChatViewsMixin:
             )
 
         self.messages_widget.force_recalculate()
-        self._scroll_to_bottom(self.messages_widget.list_view)
+        self.scroll_to_bottom(self.messages_widget.list_view)
         # If parsing ongoing, show status widget
         if self.chatlog_widget and self.chatlog_widget.parser_widget.is_parsing:
             self.start_parse_status()
@@ -85,9 +87,9 @@ class ChatViewsMixin:
         widget.set_compact_layout(compact)
 
         # Username click handlers (reuse same logic as live messages)
-        self._wire_username_signals(widget.interactions, right_click_widget=widget)
+        self.wire_username_signals(widget.interactions, right_click_widget=widget)
 
-    def _ensure_chatlog_widget(self):
+    def ensure_chatlog_widget(self):
         """Create chatlog + userlist widgets if needed (without switching the view)."""
         if not self.chatlog_widget:
             self.chatlog_widget = ChatlogWidget(
@@ -98,7 +100,7 @@ class ChatViewsMixin:
                 parent_window=self,
                 ban_manager=self.ban_manager,
             )
-            self.chatlog_widget.back_requested.connect(self._on_stacked_back)
+            self.chatlog_widget.back_requested.connect(self.on_stacked_back)
             self.chatlog_widget.messages_loaded.connect(self._on_chatlog_messages_loaded)
             self.chatlog_widget.filter_changed.connect(self._on_chatlog_filter_changed)
             self.stacked_widget.addWidget(self.chatlog_widget)
@@ -113,18 +115,18 @@ class ChatViewsMixin:
                 my_username=self.my_username,
             )
             self.chatlog_userlist_widget.filter_requested.connect(self._on_filter_requested)
-            self._wire_userlist_signals(self.chatlog_userlist_widget)
+            self.wire_userlist_signals(self.chatlog_userlist_widget)
             self.userlist_panel.layout().insertWidget(0, self.chatlog_userlist_widget, stretch=1)
             self.chatlog_userlist_widget.setVisible(False)
 
     def show_chatlog_view(self, timestamp: str = None, reload: bool = True):
         """Open chatlog for today. reload=False just re-shows the existing widget
         as-is (used when returning from the profile view)."""
-        self._ensure_general_tab_visible()
+        self.ensure_general_tab_visible()
         # Hide messages userlist when in chatlog view
         self.user_list_widget.setVisible(False)
 
-        self._ensure_chatlog_widget()
+        self.ensure_chatlog_widget()
 
         # Show chatlog userlist based on config, compact width, and auto-hide
         width = self.width()
@@ -169,7 +171,7 @@ class ChatViewsMixin:
                 ban_manager=self.ban_manager
             )
             self.tr_set(self.chatlog_split_widget.back_btn.setToolTip, "Close split view", "Закрыть разделённый вид")
-            self.chatlog_split_widget.back_requested.connect(self._close_chatlog_split_view)
+            self.chatlog_split_widget.back_requested.connect(self.close_chatlog_split_view)
             # Match the live messages view's row layout so the two panes line up
             self.configure_chatlog_widget(self.chatlog_split_widget)
             self.messages_splitter.insertWidget(0, self.chatlog_split_widget)
@@ -183,7 +185,7 @@ class ChatViewsMixin:
 
         self.chatlog_split_widget.load_date_and_scroll(date_str, time_str)
 
-    def _close_chatlog_split_view(self):
+    def close_chatlog_split_view(self):
         """Close the split pane opened via RMB on a live-chat timestamp"""
         if not self.chatlog_split_widget:
             return
@@ -192,11 +194,12 @@ class ChatViewsMixin:
         widget.cleanup()
         widget.setParent(None)
         widget.deleteLater()
+        release_memory_soon()
         if self.presence_log_widget:
             self.presence_log_widget.show()
-            self._apply_presence_split_sizes()
+            self.apply_presence_split_sizes()
 
-    def _get_hovered_chatlog_widget(self):
+    def get_hovered_chatlog_widget(self):
         """Return the ChatlogWidget (main or split) currently under the mouse cursor.
         Returns None if no suitable chatlog widget is hovered."""
         gp = QCursor.pos()
@@ -211,17 +214,17 @@ class ChatViewsMixin:
             widget = widget.parentWidget()
         return None
 
-    def _chatlog_for_hotkey(self):
+    def chatlog_for_hotkey(self):
         """Chatlog target for day-nav / search / mentions: pane under cursor, else main."""
         if not self.chatlog_widget or self.stacked_widget.currentWidget() != self.chatlog_widget:
             return None
-        return self._get_hovered_chatlog_widget() or self.chatlog_widget
+        return self.get_hovered_chatlog_widget() or self.chatlog_widget
 
-    def _toggle_search_for_current_view(self):
+    def toggle_search_for_current_view(self):
         """Context search: chatlog pane under cursor, or active messages tab."""
         current = self.stacked_widget.currentWidget()
         if current == self.chatlog_widget:
-            cw = self._chatlog_for_hotkey()
+            cw = self.chatlog_for_hotkey()
             if not cw:
                 return
             if cw.parser_visible and not cw.parser_widget.is_parsing:
@@ -252,22 +255,22 @@ class ChatViewsMixin:
         if self.chatlog_userlist_widget:
             self.chatlog_userlist_widget.update_filter_state(usernames)
 
-    def _scroll_to_bottom(self, view, delay: int = 50):
+    def scroll_to_bottom(self, view, delay: int = 50):
         """Scroll a list view to bottom after `delay` ms (lets layout settle first).
         Small shared helper — this exact QTimer+lambda+scroll pattern was repeated
         all over the file for messages/chatlog/competition scroll-to-bottom calls."""
         QTimer.singleShot(delay, lambda: scroll(view, mode="bottom"))
 
-    def _scroll_to_row(self, view, row: int, delay: int = 0):
+    def scroll_to_row(self, view, row: int, delay: int = 0):
         """Scroll a list view to a specific row, centered."""
         QTimer.singleShot(delay, lambda: scroll(view, mode="middle", target_row=row))
 
     def active_messages_widget(self):
         """MessagesWidget of the current tab (game room or General)."""
-        room = self._current_room()
+        room = self.current_room()
         return room.messages_widget if room else self.messages_widget
 
-    def _apply_chatlog_max_messages(self):
+    def apply_chatlog_max_messages(self):
         for widget in (self.chatlog_widget, self.chatlog_split_widget):
             if widget is not None:
                 widget.apply_max_messages_limit()
@@ -275,10 +278,10 @@ class ChatViewsMixin:
                 if split is not None:
                     split.apply_max_messages_limit()
 
-    def _apply_chat_max_messages(self):
+    def apply_chat_max_messages(self):
         widgets = [self.messages_widget, self.presence_log_widget]
         widgets.extend(
-            room.messages_widget for room in self._all_room_widgets()
+            room.messages_widget for room in self.all_room_widgets()
             if room and room.messages_widget
         )
         for widget in widgets:

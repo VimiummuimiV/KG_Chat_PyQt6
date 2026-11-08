@@ -60,7 +60,7 @@ class ChatFontsMixin:
             self.messages_widget, self.presence_log_widget,
             self.chatlog_widget, self.chatlog_split_widget,
         ]
-        all_room_widgets = self._all_room_widgets()
+        all_room_widgets = self.all_room_widgets()
         message_widgets.extend(
             room.messages_widget for room in all_room_widgets if room and room.messages_widget
         )

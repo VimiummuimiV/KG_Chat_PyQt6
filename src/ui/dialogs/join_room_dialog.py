@@ -56,33 +56,33 @@ class JoinRoomDialog(TranslatableMixin, QDialog):
         self.tr_set(self.header.setText, "🚪 Join / Create Room", "🚪 Войти / Создать комнату")
         layout.addWidget(self.header)
 
-        self.name_input = QLineEdit()
-        self.tr_set(self.name_input.setPlaceholderText, "Room name", "Название комнаты")
-        self.name_input.setFixedHeight(input_height)
-        self.name_input.setFont(get_font(FontType.UI))
-        self.name_input.setStyleSheet(
+        self._name_input = QLineEdit()
+        self.tr_set(self._name_input.setPlaceholderText, "Room name", "Название комнаты")
+        self._name_input.setFixedHeight(input_height)
+        self._name_input.setFont(get_font(FontType.UI))
+        self._name_input.setStyleSheet(
             f"QLineEdit {{ height: {input_height}px; padding: 0px 8px; }}"
         )
-        self.name_input.returnPressed.connect(self.accept)
-        layout.addWidget(self.name_input)
+        self._name_input.returnPressed.connect(self.accept)
+        layout.addWidget(self._name_input)
 
-        self.saved_combo = QComboBox()
-        self.saved_combo.setFont(get_font(FontType.UI))
-        self.saved_combo.setFixedHeight(input_height)
-        self.saved_combo.setEditable(False)
-        self.saved_combo.setStyleSheet(
+        self._saved_combo = QComboBox()
+        self._saved_combo.setFont(get_font(FontType.UI))
+        self._saved_combo.setFixedHeight(input_height)
+        self._saved_combo.setEditable(False)
+        self._saved_combo.setStyleSheet(
             f"QComboBox {{ height: {input_height}px; padding: 0px 8px; }}"
         )
-        self.tr_set(self.saved_combo.setPlaceholderText, "Saved rooms", "Сохранённые комнаты")
-        self.saved_combo.currentIndexChanged.connect(self._on_saved_picked)
-        layout.addWidget(self.saved_combo)
+        self.tr_set(self._saved_combo.setPlaceholderText, "Saved rooms", "Сохранённые комнаты")
+        self._saved_combo.currentIndexChanged.connect(self._on_saved_picked)
+        layout.addWidget(self._saved_combo)
 
         length_row = QHBoxLayout()
         length_row.setSpacing(button_spacing)
-        self.length_label = QLabel(tr("Length", "Длина"))
-        self.length_label.setFont(get_font(FontType.UI))
-        self.tr_set(self.length_label.setText, "Length", "Длина")
-        length_row.addWidget(self.length_label)
+        self._length_label = QLabel(tr("Length", "Длина"))
+        self._length_label.setFont(get_font(FontType.UI))
+        self.tr_set(self._length_label.setText, "Length", "Длина")
+        length_row.addWidget(self._length_label)
 
         saved_len = self.config.get("join_room", "random_name_length") if self.config else None
         try:
@@ -91,27 +91,27 @@ class JoinRoomDialog(TranslatableMixin, QDialog):
             length = self._LEN_DEFAULT
         length = max(self._LEN_MIN, min(self._LEN_MAX, length))
 
-        self.length_slider = QSlider(Qt.Orientation.Horizontal)
-        self.length_slider.setRange(self._LEN_MIN, self._LEN_MAX)
-        self.length_slider.setValue(length)
-        self.length_slider.setFixedHeight(24)
-        self.length_slider.valueChanged.connect(self._on_length_changed)
-        length_row.addWidget(self.length_slider, stretch=1)
+        self._length_slider = QSlider(Qt.Orientation.Horizontal)
+        self._length_slider.setRange(self._LEN_MIN, self._LEN_MAX)
+        self._length_slider.setValue(length)
+        self._length_slider.setFixedHeight(24)
+        self._length_slider.valueChanged.connect(self._on_length_changed)
+        length_row.addWidget(self._length_slider, stretch=1)
 
-        self.length_value = QLabel(str(length))
-        self.length_value.setFont(get_font(FontType.UI))
-        self.length_value.setFixedWidth(24)
-        self.length_value.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        length_row.addWidget(self.length_value)
+        self._length_value = QLabel(str(length))
+        self._length_value.setFont(get_font(FontType.UI))
+        self._length_value.setFixedWidth(24)
+        self._length_value.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        length_row.addWidget(self._length_value)
         layout.addLayout(length_row)
 
         remember = self.config.get("join_room", "remember") if self.config else None
-        self.remember_checkbox = QCheckBox()
-        self.tr_set(self.remember_checkbox.setText, "Remember this name", "Запомнить это имя")
-        self.remember_checkbox.setFont(get_font(FontType.UI))
-        self.remember_checkbox.setChecked(True if remember is None else bool(remember))
-        self.remember_checkbox.toggled.connect(self._on_remember_toggled)
-        layout.addWidget(self.remember_checkbox)
+        self._remember_checkbox = QCheckBox()
+        self.tr_set(self._remember_checkbox.setText, "Remember this name", "Запомнить это имя")
+        self._remember_checkbox.setFont(get_font(FontType.UI))
+        self._remember_checkbox.setChecked(True if remember is None else bool(remember))
+        self._remember_checkbox.toggled.connect(self._on_remember_toggled)
+        layout.addWidget(self._remember_checkbox)
 
         actions_row = QHBoxLayout()
         actions_row.setSpacing(button_spacing)
@@ -130,12 +130,12 @@ class JoinRoomDialog(TranslatableMixin, QDialog):
         gen_button.clicked.connect(self._generate_name)
         actions_row.addWidget(gen_button)
 
-        self.delete_button = create_icon_button(
+        self._delete_button = create_icon_button(
             self.icons_path, "trash.svg", "", config=self.config
         )
-        self.tr_set(self.delete_button.setToolTip, "Remove from saved", "Удалить из сохранённых")
-        self.delete_button.clicked.connect(self._delete_saved)
-        actions_row.addWidget(self.delete_button)
+        self.tr_set(self._delete_button.setToolTip, "Remove from saved", "Удалить из сохранённых")
+        self._delete_button.clicked.connect(self._delete_saved)
+        actions_row.addWidget(self._delete_button)
 
         join_button = create_icon_button(
             self.icons_path, "login.svg", "", config=self.config
@@ -147,7 +147,7 @@ class JoinRoomDialog(TranslatableMixin, QDialog):
         layout.addLayout(actions_row)
 
         self._populate_saved()
-        self.name_input.setFocus()
+        self._name_input.setFocus()
         on_language_changed(self.retranslate_all)
 
     def _load_saved(self) -> list:
@@ -172,25 +172,25 @@ class JoinRoomDialog(TranslatableMixin, QDialog):
         saved = self._load_saved()
         has_saved = bool(saved)
 
-        self.saved_combo.blockSignals(True)
-        self.saved_combo.clear()
+        self._saved_combo.blockSignals(True)
+        self._saved_combo.clear()
         for name in saved:
-            self.saved_combo.addItem(name, name)
-        self.saved_combo.setCurrentIndex(-1)
-        self.saved_combo.blockSignals(False)
+            self._saved_combo.addItem(name, name)
+        self._saved_combo.setCurrentIndex(-1)
+        self._saved_combo.blockSignals(False)
 
-        self.saved_combo.setVisible(has_saved)
-        self.delete_button.setVisible(has_saved)
+        self._saved_combo.setVisible(has_saved)
+        self._delete_button.setVisible(has_saved)
 
     def _on_saved_picked(self, index: int):
-        name = self.saved_combo.itemData(index)
+        name = self._saved_combo.itemData(index)
         if name:
-            self.name_input.setText(name)
-            self.name_input.setFocus()
-            self.name_input.selectAll()
+            self._name_input.setText(name)
+            self._name_input.setFocus()
+            self._name_input.selectAll()
 
     def _on_length_changed(self, value: int):
-        self.length_value.setText(str(value))
+        self._length_value.setText(str(value))
         if self.config:
             self.config.set("join_room", "random_name_length", value=int(value))
 
@@ -200,16 +200,16 @@ class JoinRoomDialog(TranslatableMixin, QDialog):
 
     def _generate_name(self):
         alphabet = string.ascii_lowercase + string.digits
-        name = "".join(random.choices(alphabet, k=self.length_slider.value()))
-        self.name_input.setText(name)
-        self.name_input.setFocus()
-        self.name_input.selectAll()
+        name = "".join(random.choices(alphabet, k=self._length_slider.value()))
+        self._name_input.setText(name)
+        self._name_input.setFocus()
+        self._name_input.selectAll()
 
     def room_name(self) -> str:
-        return self.name_input.text().strip().lower()
+        return self._name_input.text().strip().lower()
 
     def should_remember(self) -> bool:
-        return self.remember_checkbox.isChecked()
+        return self._remember_checkbox.isChecked()
 
     def remember_name(self, name: str):
         if not self.config or not name:
@@ -222,11 +222,11 @@ class JoinRoomDialog(TranslatableMixin, QDialog):
         self._populate_saved()
 
     def _delete_saved(self):
-        name = self.saved_combo.currentData() or self.room_name()
+        name = self._saved_combo.currentData() or self.room_name()
         if not name or not self.config:
             return
         saved = [n for n in self._load_saved() if n != name]
         self.config.set("join_room", "saved", value=saved)
         if self.room_name() == name:
-            self.name_input.clear()
+            self._name_input.clear()
         self._populate_saved()

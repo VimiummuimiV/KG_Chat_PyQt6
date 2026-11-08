@@ -29,71 +29,71 @@ if sys.platform == "win32":
 DEFAULT_HOTKEY = "win+c"
 
 STATUS_ACTIVE = "active"
-STATUS_CONFLICT = "conflict"
-STATUS_ERROR = "error"
+_STATUS_CONFLICT = "conflict"
+_STATUS_ERROR = "error"
 STATUS_DISABLED = "disabled"
 
 STATUS_COLORS = {
     STATUS_ACTIVE: "#2ecc71",
-    STATUS_CONFLICT: "#e67e22",
-    STATUS_ERROR: "#e74c3c",
+    _STATUS_CONFLICT: "#e67e22",
+    _STATUS_ERROR: "#e74c3c",
     STATUS_DISABLED: "#888888",
 }
 def get_status_tooltip(status: str) -> str:
     return {
         STATUS_ACTIVE: tr("Hotkey is registered and active", "Хоткей зарегистрирован и активен"),
-        STATUS_CONFLICT: tr(
+        _STATUS_CONFLICT: tr(
             "Combination is already claimed by Windows or another app — pick a different one",
             "Комбинация уже занята Windows или другим приложением — выберите другую",
         ),
-        STATUS_ERROR: tr("Hotkey registration failed", "Не удалось зарегистрировать хоткей"),
+        _STATUS_ERROR: tr("Hotkey registration failed", "Не удалось зарегистрировать хоткей"),
         STATUS_DISABLED: tr("Hotkey is not registered", "Хоткей не зарегистрирован"),
     }.get(status, "")
 
-HOTKEY_ID = 1
-WM_HOTKEY = 0x0312
-ERROR_HOTKEY_ALREADY_REGISTERED = 1409
-MAPVK_VSC_TO_VK = 0x01
+_HOTKEY_ID = 1
+_WM_HOTKEY = 0x0312
+_ERROR_HOTKEY_ALREADY_REGISTERED = 1409
+_MAPVK_VSC_TO_VK = 0x01
 
-MOD_ALT = 0x0001
-MOD_CONTROL = 0x0002
-MOD_SHIFT = 0x0004
-MOD_WIN = 0x0008
-MOD_NOREPEAT = 0x4000
+_MOD_ALT = 0x0001
+_MOD_CONTROL = 0x0002
+_MOD_SHIFT = 0x0004
+_MOD_WIN = 0x0008
+_MOD_NOREPEAT = 0x4000
 
-MODIFIER_ORDER = ["ctrl", "alt", "shift", "win"]
-MODIFIER_FLAGS = {"ctrl": MOD_CONTROL, "alt": MOD_ALT, "shift": MOD_SHIFT, "win": MOD_WIN}
-MODIFIER_DISPLAY = {"ctrl": "Ctrl", "alt": "Alt", "shift": "Shift", "win": "Win"}
-FUNCTION_KEYS = {f"f{i}": 0x6F + i for i in range(1, 25)}
-NAMED_KEYS = {
+_MODIFIER_ORDER = ["ctrl", "alt", "shift", "win"]
+_MODIFIER_FLAGS = {"ctrl": _MOD_CONTROL, "alt": _MOD_ALT, "shift": _MOD_SHIFT, "win": _MOD_WIN}
+_MODIFIER_DISPLAY = {"ctrl": "Ctrl", "alt": "Alt", "shift": "Shift", "win": "Win"}
+_FUNCTION_KEYS = {f"f{i}": 0x6F + i for i in range(1, 25)}
+_NAMED_KEYS = {
     "space": 0x20, "tab": 0x09, "esc": 0x1B, "enter": 0x0D,
     "backspace": 0x08, "delete": 0x2E, "insert": 0x2D,
     "home": 0x24, "end": 0x23, "pageup": 0x21, "pagedown": 0x22,
     "up": 0x26, "down": 0x28, "left": 0x25, "right": 0x27,
 }
-NAMED_KEYS.update(FUNCTION_KEYS)
-_VK_TO_NAME = {vk: name for name, vk in NAMED_KEYS.items()}
+_NAMED_KEYS.update(_FUNCTION_KEYS)
+_VK_TO_NAME = {vk: name for name, vk in _NAMED_KEYS.items()}
 
 user_library = ctypes.WinDLL("user32", use_last_error=True) if sys.platform == "win32" else None
 
 
-def parse_hotkey(combo: str) -> tuple[list[str], str]:
+def _parse_hotkey(combo: str) -> tuple[list[str], str]:
     """'win+c' -> (['win'], 'c'), modifiers ordered consistently."""
     parts = [p.strip().lower() for p in (combo or "").split("+") if p.strip()]
     if not parts:
         return [], ""
     *mods, key = parts
-    ordered_mods = [m for m in MODIFIER_ORDER if m in mods]
+    ordered_mods = [m for m in _MODIFIER_ORDER if m in mods]
     return ordered_mods, key
 
 
-def format_hotkey(mods: list[str], key: str) -> str:
+def _format_hotkey(mods: list[str], key: str) -> str:
     return "+".join([*mods, key.lower()]) if key else ""
 
 
 def display_hotkey(combo: str) -> str:
-    mods, key = parse_hotkey(combo)
-    parts = [MODIFIER_DISPLAY.get(m, m.title()) for m in mods]
+    mods, key = _parse_hotkey(combo)
+    parts = [_MODIFIER_DISPLAY.get(m, m.title()) for m in mods]
     if key:
         parts.append(key.upper() if len(key) == 1 else key.title())
     return " + ".join(parts) if parts else "—"
@@ -103,7 +103,7 @@ def _virtual_key_code(key: str) -> int | None:
     key = (key or "").lower()
     if len(key) == 1 and key.isalnum():
         return ord(key.upper())
-    return NAMED_KEYS.get(key)
+    return _NAMED_KEYS.get(key)
 
 
 def _normalize_key_name(name: str) -> str:
@@ -125,7 +125,7 @@ def _layout_independent_key(event) -> str | None:
     """
     scan = getattr(event, "scan_code", None)
     if sys.platform == "win32" and user_library is not None and scan is not None:
-        vk = user_library.MapVirtualKeyW(int(scan) & 0xFF, MAPVK_VSC_TO_VK)
+        vk = user_library.MapVirtualKeyW(int(scan) & 0xFF, _MAPVK_VSC_TO_VK)
         if 0x41 <= vk <= 0x5A:  # A–Z
             return chr(vk).lower()
         if 0x30 <= vk <= 0x39:  # 0–9
@@ -139,7 +139,7 @@ def _layout_independent_key(event) -> str | None:
         return None
     if len(name) == 1 and name.isascii() and name.isalnum():
         return name
-    if name in NAMED_KEYS:
+    if name in _NAMED_KEYS:
         return name
     return None
 
@@ -163,29 +163,29 @@ def _native_modifiers_pressed() -> list[str]:
         for name in ("ctrl", "alt", "shift"):
             if keyboard.is_pressed(name):
                 mods.append(name)
-    return [m for m in MODIFIER_ORDER if m in mods]
+    return [m for m in _MODIFIER_ORDER if m in mods]
 
 
 class _WindowsHotkeyFilter(QAbstractNativeEventFilter):
-    def __init__(self, manager: "GlobalHotkeyManager"):
+    def __init__(self, manager: "_GlobalHotkeyManager"):
         super().__init__()
         self._manager = manager
 
     def nativeEventFilter(self, event_type, message):
         if event_type == b"windows_generic_MSG":
             msg = ctypes.wintypes.MSG.from_address(int(message))
-            if msg.message == WM_HOTKEY and msg.wParam == HOTKEY_ID:
+            if msg.message == _WM_HOTKEY and msg.wParam == _HOTKEY_ID:
                 self._manager._activate()
         return False, 0
 
 
-class GlobalHotkeyManager(QObject):
+class _GlobalHotkeyManager(QObject):
     """Registers the show/hide hotkey and reports whether it's actually live."""
 
     activated = pyqtSignal()
     status_changed = pyqtSignal(str, str)
 
-    DEBOUNCE_SECONDS = 0.15
+    _DEBOUNCE_SECONDS = 0.15
 
     def __init__(self):
         super().__init__()
@@ -228,16 +228,16 @@ class GlobalHotkeyManager(QObject):
 
     def _activate(self):
         now = time.time()
-        if now - self._last_activation < self.DEBOUNCE_SECONDS:
+        if now - self._last_activation < self._DEBOUNCE_SECONDS:
             return
         self._last_activation = now
         self.activated.emit()
 
     def _register_windows(self):
-        mods, key = parse_hotkey(self._combo)
+        mods, key = _parse_hotkey(self._combo)
         vk = _virtual_key_code(key)
         if not mods or vk is None:
-            self._set_status(STATUS_ERROR, tr(
+            self._set_status(_STATUS_ERROR, tr(
                 "Invalid key combination",
                 "Недопустимая комбинация клавиш")
             )
@@ -250,24 +250,24 @@ class GlobalHotkeyManager(QObject):
             self._native_filter = _WindowsHotkeyFilter(self)
             QApplication.instance().installNativeEventFilter(self._native_filter)
 
-        mod_flags = MOD_NOREPEAT
+        mod_flags = _MOD_NOREPEAT
         for name in mods:
-            mod_flags |= MODIFIER_FLAGS[name]
+            mod_flags |= _MODIFIER_FLAGS[name]
 
         hwnd = int(self._message_window.winId())
-        ok = user_library.RegisterHotKey(hwnd, HOTKEY_ID, mod_flags, vk)
+        ok = user_library.RegisterHotKey(hwnd, _HOTKEY_ID, mod_flags, vk)
 
         if ok:
             self._set_status(STATUS_ACTIVE)
         else:
             error_code = ctypes.get_last_error()
-            if error_code == ERROR_HOTKEY_ALREADY_REGISTERED:
-                self._set_status(STATUS_CONFLICT, tr(
+            if error_code == _ERROR_HOTKEY_ALREADY_REGISTERED:
+                self._set_status(_STATUS_CONFLICT, tr(
                     "Combination is already claimed by Windows or another app",
                     "Комбинация уже занята Windows или другим приложением")
                 )
             else:
-                self._set_status(STATUS_ERROR, tr(
+                self._set_status(_STATUS_ERROR, tr(
                     f"Windows error code: {error_code}",
                     f"Код ошибки Windows: {error_code}")
                 )
@@ -275,12 +275,12 @@ class GlobalHotkeyManager(QObject):
     def _unregister_windows(self):
         if self._message_window is not None:
             hwnd = int(self._message_window.winId())
-            user_library.UnregisterHotKey(hwnd, HOTKEY_ID)
+            user_library.UnregisterHotKey(hwnd, _HOTKEY_ID)
 
     def _register_fallback(self):
-        mods, key = parse_hotkey(self._combo)
+        mods, key = _parse_hotkey(self._combo)
         if not mods or not key:
-            self._set_status(STATUS_ERROR, tr(
+            self._set_status(_STATUS_ERROR, tr(
                 "Invalid key combination",
                 "Недопустимая комбинация клавиш")
             )
@@ -292,7 +292,7 @@ class GlobalHotkeyManager(QObject):
             self._fallback_hooked = True
             self._set_status(STATUS_ACTIVE)
         except Exception as error:
-            self._set_status(STATUS_ERROR, str(error))
+            self._set_status(_STATUS_ERROR, str(error))
 
     def _unregister_fallback(self):
         if self._fallback_hooked:
@@ -362,7 +362,7 @@ class HotkeyCapture(QObject):
             return
 
         self.stop()
-        self.captured.emit(format_hotkey(mods, resolved))
+        self.captured.emit(_format_hotkey(mods, resolved))
 
 
-hotkey_manager = GlobalHotkeyManager()
+hotkey_manager = _GlobalHotkeyManager()

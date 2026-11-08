@@ -19,11 +19,11 @@ class ChatUser:
     role: str = 'participant'
     moderator: bool = False
     status: str = 'available'
-    last_seen: datetime = None
+    _last_seen: datetime = None
 
     def __post_init__(self):
-        if self.last_seen is None:
-            self.last_seen = datetime.now()
+        if self._last_seen is None:
+            self._last_seen = datetime.now()
 
 class UserList:
     """Manage chat users"""
@@ -53,7 +53,7 @@ class UserList:
             user.role = role
             user.moderator = moderator
             user.status = 'available'
-            user.last_seen = datetime.now()
+            user._last_seen = datetime.now()
         else:
             user = ChatUser(
                 user_id=user_id or '',
@@ -88,7 +88,7 @@ class UserList:
         """Get online users"""
         return [u for u in self.users.values() if u.status == 'available']
 
-    def format_list(self, online_only: bool = False) -> str:
+    def _format_list(self, online_only: bool = False) -> str:
         """Format user list"""
         users = self.get_online() if online_only else self.get_all()
 

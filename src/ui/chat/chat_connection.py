@@ -25,8 +25,8 @@ class ChatConnectionMixin:
             self.presence_log_widget.clear()
 
         # History is being reloaded from scratch - hold competitions back until it settles again
-        self._chat_ready = False
-        self._history_settle_timer.stop()
+        self.chat_ready = False
+        self.history_settle_timer.stop()
 
         # Clear userlist completely (will rebuild from fresh roster)
         if hasattr(self.user_list_widget, 'clear_all'):
@@ -38,18 +38,18 @@ class ChatConnectionMixin:
 
         if self.game_rooms:
             for gid in list(self.game_rooms.keys()):
-                self._close_game_room_tab(gid)
+                self.close_game_room_tab(gid)
         if self.custom_rooms:
             for name in list(self.custom_rooms.keys()):
-                self._close_custom_room_tab(name)
+                self.close_custom_room_tab(name)
 
     def _is_connected(self):
         """Check if XMPP client is connected"""
         return self.xmpp_client and hasattr(self.xmpp_client, 'sid') and self.xmpp_client.sid
 
     def connect_xmpp(self):
-        self._connect_generation += 1
-        my_generation = self._connect_generation
+        self.connect_generation += 1
+        my_generation = self.connect_generation
 
         def _worker():
             self.is_connecting = True
@@ -58,7 +58,7 @@ class ChatConnectionMixin:
             client = XMPPClient(str(self.config_path))
 
             def is_current():
-                return self._connect_generation == my_generation
+                return self.connect_generation == my_generation
 
             try:
                 # Clear old state before reconnecting
@@ -78,7 +78,7 @@ class ChatConnectionMixin:
                     return
 
                 client.set_message_callback(self.message_callback)
-                client.set_presence_callback(self.presence_callback)
+                client.set_presence_callback(self._presence_callback)
 
                 self.initial_roster_loading = True
                 rooms = client.account_manager.get_rooms()
@@ -140,14 +140,14 @@ class ChatConnectionMixin:
     def message_callback(self, msg):
         self.signal_emitter.message_received.emit(msg)
 
-    def presence_callback(self, pres):
+    def _presence_callback(self, pres):
         self.signal_emitter.presence_received.emit(pres)
 
-    def _update_connection_title(self):
+    def update_connection_title(self):
         text = {
             'connecting': tr("Connecting", "Подключение"),
             'online': tr("Online", "В сети"),
-        }.get(self._connection_status, tr("Offline", "Не в сети"))
+        }.get(self.connection_status, tr("Offline", "Не в сети"))
         base = f"{tr('Chat', 'Чат')} - {self.my_username}" if self.my_username else tr('Chat', 'Чат')
 
         # Preserve private mode in title
@@ -158,8 +158,8 @@ class ChatConnectionMixin:
 
     def set_connection_status(self, status: str):
         status = (status or '').lower()
-        self._connection_status = status
-        self._update_connection_title()
+        self.connection_status = status
+        self.update_connection_title()
 
         # Reset on success
         if status == 'online':
@@ -245,7 +245,7 @@ class ChatConnectionMixin:
                 pass
 
         # abort() leaves the old long-poll read blocked up to 70s: bump the generation so the new attempt isn't held up
-        self._connect_generation += 1
+        self.connect_generation += 1
         self.is_connecting = False
 
         if self.races_listener:

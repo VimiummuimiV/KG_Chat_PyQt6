@@ -40,8 +40,8 @@ class _Grab:
     offset: QPoint  # grab point inside the pet's pixmap
     start: QPoint
     last: QPoint
-    last_ms: int
-    moved: bool = False
+    _last_ms: int
+    _moved: bool = False
 
 
 class Pet:
@@ -51,7 +51,7 @@ class Pet:
         self.kind = kind
         self.pixel_size = pixel_size
         self.stepped = True
-        self.lift = 0.0  # height above the line
+        self._lift = 0.0  # height above the line
         self._flying = False
         self._grab: _Grab | None = None
         self._velocity = [0.0, 0.0]  # right, up
@@ -68,7 +68,7 @@ class Pet:
 
     def position(self, area_height: int) -> QPoint:
         """Return where the pixmap's top left corner is drawn."""
-        return QPoint(round(self.x), round(area_height - self.lift - self.pixmap.height()))
+        return QPoint(round(self.x), round(area_height - self._lift - self.pixmap.height()))
 
     def rect(self, area_height: int) -> QRect:
         """Return the area covered by the visible pixels of the pet."""
@@ -94,26 +94,26 @@ class Pet:
     def drag_to(self, point: QPoint, area_height: int, timestamp_ms: int) -> None:
         """Carry the held pet to point, tracking the speed of the hand."""
         grab = self._grab
-        if not grab.moved and (point - grab.start).manhattanLength() < _DRAG_THRESHOLD:
+        if not grab._moved and (point - grab.start).manhattanLength() < _DRAG_THRESHOLD:
             return
-        grab.moved = True
+        grab._moved = True
         self.x = point.x() - grab.offset.x()
         top = point.y() - grab.offset.y()
-        self.lift = max(0.0, min(area_height - self.pixmap.height() - top, self._maximum_lift(area_height)))
-        seconds = max(timestamp_ms - grab.last_ms, 1) / 1000
+        self._lift = max(0.0, min(area_height - self.pixmap.height() - top, self._maximum_lift(area_height)))
+        seconds = max(timestamp_ms - grab._last_ms, 1) / 1000
         newest = ((point.x() - grab.last.x()) / seconds, (grab.last.y() - point.y()) / seconds)
         self._velocity = [
             (1 - _VELOCITY_BLEND) * old + _VELOCITY_BLEND * new for old, new in zip(self._velocity, newest)
         ]
-        grab.last, grab.last_ms = point, timestamp_ms
+        grab.last, grab._last_ms = point, timestamp_ms
 
     def release(self, timestamp_ms: int) -> None:
         """Let go: a click scares the pet, a drag throws it."""
         grab, self._grab = self._grab, None
-        if not grab.moved:
+        if not grab._moved:
             self._scare()
             return
-        if timestamp_ms - grab.last_ms > _STALE_VELOCITY_MS:
+        if timestamp_ms - grab._last_ms > _STALE_VELOCITY_MS:
             self._velocity = [0.0, 0.0]
         self._velocity = [max(-_MAXIMUM_THROW_SPEED, min(speed, _MAXIMUM_THROW_SPEED)) for speed in self._velocity]
         self._flying = True
@@ -167,13 +167,13 @@ class Pet:
     def _fly(self, step_ms: int, area_height: int) -> None:
         seconds = step_ms / 1000
         self._velocity[1] -= _GRAVITY * seconds
-        self.lift += self._velocity[1] * seconds
+        self._lift += self._velocity[1] * seconds
         self.x += self._velocity[0] * seconds
         ceiling = self._maximum_lift(area_height)
-        if self.lift > ceiling:
-            self.lift, self._velocity[1] = ceiling, 0.0
-        elif self.lift <= 0:
-            self.lift, self._flying = 0.0, False
+        if self._lift > ceiling:
+            self._lift, self._velocity[1] = ceiling, 0.0
+        elif self._lift <= 0:
+            self._lift, self._flying = 0.0, False
             self._scare()
 
     def _keep_inside(self, line_width: int) -> None:

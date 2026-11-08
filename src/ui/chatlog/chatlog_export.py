@@ -12,19 +12,19 @@ class ChatlogExportMixin:
     """ChatlogWidget: copying and saving the shown messages."""
 
     @staticmethod
-    def _count_messages(messages) -> int:
+    def count_messages(messages) -> int:
         return sum(1 for m in messages if not m.is_separator)
 
-    def _message_count(self) -> int:
-        return self._count_messages(self.all_messages)
+    def message_count(self) -> int:
+        return self.count_messages(self.all_messages)
 
     def _messages_for_export(self):
         """Messages currently backing Copy/Save: filtered results if a search or
         filter is active, otherwise the full parsed log."""
-        if not self._has_active_search_or_filter():
+        if not self.has_active_search_or_filter():
             return self.all_messages
-        search_users, search_message, is_prefix_mode = self._parse_search_text()
-        return self._filter_messages(self.all_messages, search_users, search_message, is_prefix_mode)
+        search_users, search_message, is_prefix_mode = self.parse_current_search_text()
+        return self.filter_messages(self.all_messages, search_users, search_message, is_prefix_mode)
 
     def _format_messages_export(self, messages):
         text_lines = []
@@ -45,10 +45,10 @@ class ChatlogExportMixin:
             text_lines.pop()
         return '\n'.join(text_lines), message_count
 
-    def _update_copy_save_tooltips(self):
+    def update_copy_save_tooltips(self):
         kind = (
             tr("filtered results", "отфильтрованные результаты")
-            if self._has_active_search_or_filter()
+            if self.has_active_search_or_filter()
             else tr("results", "результаты")
         )
         self.parser_widget.copy_button.setToolTip(tr(

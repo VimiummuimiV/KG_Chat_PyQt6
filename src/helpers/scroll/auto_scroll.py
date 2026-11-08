@@ -7,7 +7,7 @@ from PyQt6.QtGui import QColor, QPainter, QPen
 from PyQt6.QtWidgets import QWidget
 
 
-class ScrollIndicator(QWidget):
+class _ScrollIndicator(QWidget):
     """Visual indicator shown during auto-scrolling"""
 
     def __init__(self, parent=None):
@@ -15,7 +15,7 @@ class ScrollIndicator(QWidget):
         self.setWindowFlags(Qt.WindowType.ToolTip | Qt.WindowType.FramelessWindowHint)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setFixedSize(60, 80)
-        self.scroll_direction = 0 # -1 = up, 0 = none, 1 = down
+        self._scroll_direction = 0 # -1 = up, 0 = none, 1 = down
 
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -32,9 +32,9 @@ class ScrollIndicator(QWidget):
 
         # Draw arrows using helper function
         self._draw_arrow(painter, center_x, center_y, direction='up',
-                        is_active=(self.scroll_direction == -1))
+                        is_active=(self._scroll_direction == -1))
         self._draw_arrow(painter, center_x, center_y, direction='down',
-                        is_active=(self.scroll_direction == 1))
+                        is_active=(self._scroll_direction == 1))
 
     def _draw_arrow(self, painter, center_x, center_y, direction, is_active):
         """Helper function to draw an arrow
@@ -65,9 +65,9 @@ class ScrollIndicator(QWidget):
 
         painter.drawPolygon(arrow)
 
-    def set_direction(self, direction):
+    def _set_direction(self, direction):
         """Set scroll direction: -1 (up), 0 (none), 1 (down)"""
-        self.scroll_direction = direction
+        self._scroll_direction = direction
         self.update()
 
 class AutoScroller(QObject):
@@ -94,23 +94,23 @@ class AutoScroller(QObject):
         """
         super().__init__(parent=widget) # Initialize QObject with widget as parent
         self.widget = widget
-        self.scroll_speed = scroll_speed
-        self.max_scroll_speed = max_scroll_speed
-        self.dead_zone = dead_zone
+        self._scroll_speed = scroll_speed
+        self._max_scroll_speed = max_scroll_speed
+        self._dead_zone = dead_zone
 
-        self.is_scrolling = False
-        self.start_pos = QPoint()
-        self.current_pos = QPoint()
-        self.center_y = 0 # Center Y position for scrolling reference
-        self.start_scroll_value = 0
+        self._is_scrolling = False
+        self._start_pos = QPoint()
+        self._current_pos = QPoint()
+        self._center_y = 0 # Center Y position for scrolling reference
+        self._start_scroll_value = 0
 
         # Scroll indicator
-        self.indicator = None
+        self._indicator = None
 
         # Timer for smooth scrolling
-        self.scroll_timer = QTimer(self) # Parent timer to this QObject
-        self.scroll_timer.timeout.connect(self._perform_scroll)
-        self.scroll_timer.setInterval(16) # ~60 FPS
+        self._scroll_timer = QTimer(self) # Parent timer to this QObject
+        self._scroll_timer.timeout.connect(self._perform_scroll)
+        self._scroll_timer.setInterval(16) # ~60 FPS
 
         # Install event filter on viewport (for QListView) or widget itself
         if hasattr(self.widget, 'viewport'):
@@ -119,7 +119,7 @@ class AutoScroller(QObject):
             self.widget.installEventFilter(self)
 
         # Store original cursor
-        self.original_cursor = None
+        self._original_cursor = None
 
     def eventFilter(self, obj, event):
         """Filter mouse events to handle middle-click scrolling"""
@@ -143,17 +143,17 @@ class AutoScroller(QObject):
                 return True
 
         elif event.type() == QEvent.Type.MouseMove:
-            if self.is_scrolling:
+            if self._is_scrolling:
                 # Convert to global position
                 if obj == viewport:
                     global_pos = viewport.mapToGlobal(event.pos())
                 else:
                     global_pos = event.globalPosition().toPoint()
-                self.current_pos = global_pos
+                self._current_pos = global_pos
                 return True
 
         elif event.type() == QEvent.Type.MouseButtonRelease:
-            if event.button() == Qt.MouseButton.MiddleButton and self.is_scrolling:
+            if event.button() == Qt.MouseButton.MiddleButton and self._is_scrolling:
                 self._stop_scrolling()
                 return True
 
@@ -172,63 +172,63 @@ class AutoScroller(QObject):
         if not scrollbar:
             return
 
-        self.is_scrolling = True
+        self._is_scrolling = True
 
         # Use cursor position as the center reference point
-        self.center_y = pos.y()
+        self._center_y = pos.y()
 
         # Store initial mouse position for reference
-        self.start_pos = pos
-        self.current_pos = pos
-        self.start_scroll_value = scrollbar.value()
+        self._start_pos = pos
+        self._current_pos = pos
+        self._start_scroll_value = scrollbar.value()
 
         # Create and show indicator at cursor position
         self._create_indicator(pos)
 
         # Change cursor
-        self.original_cursor = self.widget.cursor()
+        self._original_cursor = self.widget.cursor()
         self.widget.setCursor(Qt.CursorShape.SizeVerCursor)
 
         # Start timer
-        self.scroll_timer.start()
+        self._scroll_timer.start()
 
     def _stop_scrolling(self):
         """Stop auto-scrolling"""
-        self.is_scrolling = False
+        self._is_scrolling = False
 
         # Stop timer
-        self.scroll_timer.stop()
+        self._scroll_timer.stop()
 
         # Remove indicator
-        if self.indicator:
-            self.indicator.hide()
-            self.indicator.deleteLater()
-            self.indicator = None
+        if self._indicator:
+            self._indicator.hide()
+            self._indicator.deleteLater()
+            self._indicator = None
 
         # Restore cursor
-        if self.original_cursor:
-            self.widget.setCursor(self.original_cursor)
+        if self._original_cursor:
+            self.widget.setCursor(self._original_cursor)
         else:
             self.widget.unsetCursor()
 
     def _create_indicator(self, pos):
         """Create the scroll indicator widget"""
-        if self.indicator:
-            self.indicator.deleteLater()
+        if self._indicator:
+            self._indicator.deleteLater()
 
-        self.indicator = ScrollIndicator()
+        self._indicator = _ScrollIndicator()
 
         # Position indicator at click point
         indicator_pos = QPoint(
-            pos.x() - self.indicator.width() // 2,
-            pos.y() - self.indicator.height() // 2
+            pos.x() - self._indicator.width() // 2,
+            pos.y() - self._indicator.height() // 2
         )
-        self.indicator.move(indicator_pos)
-        self.indicator.show()
+        self._indicator.move(indicator_pos)
+        self._indicator.show()
 
     def _perform_scroll(self):
         """Perform the actual scrolling based on mouse position relative to center"""
-        if not self.is_scrolling:
+        if not self._is_scrolling:
             return
 
         scrollbar = self._get_scrollbar()
@@ -236,19 +236,19 @@ class AutoScroller(QObject):
             return
 
         # Calculate delta from cursor click position
-        delta_y = self.current_pos.y() - self.center_y
+        delta_y = self._current_pos.y() - self._center_y
 
         # Check if within dead zone
-        if abs(delta_y) <= self.dead_zone:
-            if self.indicator:
-                self.indicator.set_direction(0)
+        if abs(delta_y) <= self._dead_zone:
+            if self._indicator:
+                self._indicator._set_direction(0)
             return
 
-        val = delta_y / self.dead_zone
+        val = delta_y / self._dead_zone
 
         if abs(val) <= 1:
-            if self.indicator:
-                self.indicator.set_direction(0)
+            if self._indicator:
+                self._indicator._set_direction(0)
             return
 
         if val > 0:
@@ -256,18 +256,18 @@ class AutoScroller(QObject):
         else:
             accel = val * math.sqrt(-val) + 1
 
-        scroll_amount = accel * self.scroll_speed
+        scroll_amount = accel * self._scroll_speed
 
         # Clamp to max speed
-        scroll_amount = max(-self.max_scroll_speed,
-                            min(self.max_scroll_speed, scroll_amount))
+        scroll_amount = max(-self._max_scroll_speed,
+                            min(self._max_scroll_speed, scroll_amount))
 
         # Update indicator direction
-        if self.indicator:
+        if self._indicator:
             if delta_y < 0:
-                self.indicator.set_direction(-1) # Up
+                self._indicator._set_direction(-1) # Up
             else:
-                self.indicator.set_direction(1) # Down
+                self._indicator._set_direction(1) # Down
 
         # Apply scroll
         new_value = scrollbar.value() + int(scroll_amount)

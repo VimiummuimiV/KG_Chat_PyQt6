@@ -14,8 +14,8 @@ from ui.messages.message_model import MessageData
 from ui.settings.settings_options import DEFAULTS
 
 
-LIMIT_EXCEEDED_SUFFIX_EN = "Rendering disabled. Use Copy/Save buttons."
-LIMIT_EXCEEDED_SUFFIX_RU = "Отрисовка отключена. Используйте кнопки Копировать/Сохранить."
+_LIMIT_EXCEEDED_SUFFIX_EN = "Rendering disabled. Use Copy/Save buttons."
+_LIMIT_EXCEEDED_SUFFIX_RU = "Отрисовка отключена. Используйте кнопки Копировать/Сохранить."
 
 
 class ChatlogParserControlsMixin:
@@ -50,9 +50,9 @@ class ChatlogParserControlsMixin:
         # The "Loaded N messages" status belongs to the chatlog list, not the parser config screen
         self.info_label.setVisible(not self.parser_visible)
 
-    def _set_parsing_mode(self, value: bool):
+    def set_parsing_mode(self, value: bool):
         self.is_parsing = value
-        self._update_confirm_search_button()
+        self.update_confirm_search_button()
 
     def _live_search_max_messages(self) -> int:
         value = self.config.get("ui", "chatlog", "live_search_max_messages")
@@ -63,13 +63,13 @@ class ChatlogParserControlsMixin:
             min(DEFAULTS["chatlog"]["live_search_max_messages_max"], int(value)),
         )
 
-    def _requires_confirmed_search(self) -> bool:
-        return self._message_count() > self._live_search_max_messages()
+    def requires_confirmed_search(self) -> bool:
+        return self.message_count() > self._live_search_max_messages()
 
-    def _update_confirm_search_button(self):
-        self.confirm_search_btn.setVisible(self._requires_confirmed_search())
+    def update_confirm_search_button(self):
+        self.confirm_search_btn.setVisible(self.requires_confirmed_search())
 
-    def _max_messages_limit(self) -> int:
+    def max_messages_limit(self) -> int:
         value = self.config.get("ui", "chatlog", "max_messages")
         if value is None:
             return DEFAULTS["chatlog"]["max_messages"]
@@ -80,23 +80,23 @@ class ChatlogParserControlsMixin:
 
     def apply_max_messages_limit(self):
         """Apply current config limit to the model; re-render if already loaded."""
-        limit = self._max_messages_limit()
+        limit = self.max_messages_limit()
         self.model.max_messages = limit
         if self.is_parsing or not self.all_messages:
             return
-        count = self._message_count()
+        count = self.message_count()
         if count > limit:
             self.model.clear()
             self.info_label.setText(
                 tr(
-                    f"⚠️ {count:,} messages (limit: {limit:,}) - {LIMIT_EXCEEDED_SUFFIX_EN}",
-                    f"⚠️ {count:,} сообщений (лимит: {limit:,}) - {LIMIT_EXCEEDED_SUFFIX_RU}"
+                    f"⚠️ {count:,} messages (limit: {limit:,}) - {_LIMIT_EXCEEDED_SUFFIX_EN}",
+                    f"⚠️ {count:,} сообщений (лимит: {limit:,}) - {_LIMIT_EXCEEDED_SUFFIX_RU}"
                   )
             )
         else:
-            self._apply_filter()
+            self.apply_filter()
 
-    def _set_parser_youtube_off(self, off: bool):
+    def set_parser_youtube_off(self, off: bool):
         """Parser bulk views never expand YouTube links (config is ignored)."""
         renderer = getattr(self.delegate, "message_renderer", None)
         if renderer is not None:
@@ -104,11 +104,11 @@ class ChatlogParserControlsMixin:
 
     def on_parse_started(self, config: ParseConfig):
         """Start parsing with given config"""
-        self._set_parsing_mode(True)
+        self.set_parsing_mode(True)
         self.exceeded_max_messages = False
         self.date_label.setText(tr("Parser", "Парсер"))
         if config.mode != 'syncdatabase':
-            self._set_parser_youtube_off(True)
+            self.set_parser_youtube_off(True)
 
         # Only clear UI for non-sync modes
         if config.mode != 'syncdatabase':
@@ -116,7 +116,7 @@ class ChatlogParserControlsMixin:
             self.all_messages = []
             self.temp_parsed_messages = []
             self.last_parsed_date = None
-            self._update_confirm_search_button()
+            self.update_confirm_search_button()
         else:
             self.info_label.setText(tr("Syncing database...", "Синхронизация базы..."))
 
@@ -161,11 +161,11 @@ class ChatlogParserControlsMixin:
                 self.temp_parsed_messages = []
                 self.model.set_messages(self.all_messages)
                 self.list_view.setUpdatesEnabled(True)
-                self._update_confirm_search_button()
+                self.update_confirm_search_button()
                 non_separator_messages = [m for m in self.all_messages if not m.is_separator]
                 self.messages_loaded.emit(non_separator_messages)
                 self.parser_widget.show_copy_save_buttons()
-                self._update_copy_save_tooltips()
+                self.update_copy_save_tooltips()
                 QTimer.singleShot(100, lambda: scroll(self.list_view, mode="top", delay=50))
                 message_count = len(non_separator_messages)
                 self.info_label.setText(tr(
@@ -174,7 +174,7 @@ class ChatlogParserControlsMixin:
                 )
             else:
                 self.info_label.setText(tr("Parsing cancelled", "Парсинг отменён"))
-                self._set_parsing_mode(False)
+                self.set_parsing_mode(False)
 
         if self.parent_window:
             self.parent_window.stop_parse_status()
@@ -207,8 +207,8 @@ class ChatlogParserControlsMixin:
         if message_count > self.model.max_messages and not self.exceeded_max_messages:
             self.exceeded_max_messages = True
             self.info_label.setText(tr(
-                f"⚠️ Exceeded {self.model.max_messages:,} message limit - {LIMIT_EXCEEDED_SUFFIX_EN}",
-                f"⚠️ Превышен лимит {self.model.max_messages:,} сообщений - {LIMIT_EXCEEDED_SUFFIX_RU}")
+                f"⚠️ Exceeded {self.model.max_messages:,} message limit - {_LIMIT_EXCEEDED_SUFFIX_EN}",
+                f"⚠️ Превышен лимит {self.model.max_messages:,} сообщений - {_LIMIT_EXCEEDED_SUFFIX_RU}")
             )
         elif not self.exceeded_max_messages:
             self.info_label.setText(tr(
@@ -236,13 +236,13 @@ class ChatlogParserControlsMixin:
             message_count = sum(1 for m in self.temp_parsed_messages if not m.is_separator)
             self.all_messages = self.temp_parsed_messages
             self.temp_parsed_messages = []
-            self._update_confirm_search_button()
+            self.update_confirm_search_button()
 
             # Skip rendering if exceeded limit
             if self.exceeded_max_messages:
                 self.info_label.setText(tr(
-                    f"⚠️ {message_count:,} messages found (limit: {self.model.max_messages:,}) - {LIMIT_EXCEEDED_SUFFIX_EN}",
-                    f"⚠️ Найдено {message_count:,} сообщений (лимит: {self.model.max_messages:,}) - {LIMIT_EXCEEDED_SUFFIX_RU}")
+                    f"⚠️ {message_count:,} messages found (limit: {self.model.max_messages:,}) - {_LIMIT_EXCEEDED_SUFFIX_EN}",
+                    f"⚠️ Найдено {message_count:,} сообщений (лимит: {self.model.max_messages:,}) - {_LIMIT_EXCEEDED_SUFFIX_RU}")
                 )
                 self.exceeded_max_messages = False
             else:
@@ -255,7 +255,7 @@ class ChatlogParserControlsMixin:
                 QTimer.singleShot(100, lambda: scroll(self.list_view, mode="top", delay=50))
 
             self.parser_widget.show_copy_save_buttons()
-            self._update_copy_save_tooltips()
+            self.update_copy_save_tooltips()
         else:
             self.info_label.setText(tr("No messages found", "Сообщения не найдены"))
 
@@ -304,6 +304,6 @@ class ChatlogParserControlsMixin:
         if self.parent_window:
             self.parent_window.stop_parse_status()
 
-    def _handle_error(self, error_msg: str):
+    def handle_error(self, error_msg: str):
         self.info_label.setText(error_msg)
         self.day_loaded.emit()

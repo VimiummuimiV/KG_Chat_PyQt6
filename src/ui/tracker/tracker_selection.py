@@ -8,15 +8,15 @@ from ui.tracker.tracker_items import TrackedUserItem, TrackerUserChip
 class TrackerSelectionMixin:
     """UserTrackerWidget: tracked user list editing and persistence."""
 
-    def _make_chip(self, login: str, count: int, user_id: str = None) -> "TrackerUserChip":
+    def make_chip(self, login: str, count: int, user_id: str = None) -> "TrackerUserChip":
         chip = TrackerUserChip(self.config, self.icons_path, login, count, user_id)
         chip.set_filtered(login in self.filtered_logins)
-        chip.clicked.connect(self._handle_filter_click)
-        chip.delete_requested.connect(self._handle_chip_delete_requested)
+        chip.clicked.connect(self.handle_filter_click)
+        chip.delete_requested.connect(self.handle_chip_delete_requested)
         self.chip_widgets[login] = chip
         return chip
 
-    def _load_selected(self):
+    def load_selected(self):
         for item in list(self.user_items):
             self.users_grid.removeWidget(item)
             item.cleanup()
@@ -40,7 +40,7 @@ class TrackerSelectionMixin:
         if recalculate:
             self.recalculate_layout()
 
-    def _add_new_item(self):
+    def add_new_item(self):
         for item in self.user_items:
             if item.is_empty():
                 item.update_input_style(highlight_empty=True)

@@ -6,7 +6,6 @@ from PyQt6.QtWidgets import QApplication
 from components.button import set_theme, update_all_icons
 from components.tag_button import update_all_tag_buttons
 from helpers.fonts.fonts import set_application_font
-from helpers.system.memory import release_unused_memory
 
 
 class ChatLifecycleMixin:
@@ -17,7 +16,7 @@ class ChatLifecycleMixin:
         super().showEvent(event)
 
         # Prevent programmatic geometry changes during show from being saved
-        self._showing_window = True
+        self.showing_window = True
 
         # Reset unread count when window becomes visible
         if self.app_controller:
@@ -55,13 +54,13 @@ class ChatLifecycleMixin:
 
         # Trigger an initial resize handler so UI elements (userlist, button panel)
         # reflect the current width immediately on first show
-        QTimer.singleShot(50, lambda: self._apply_resize(self.width()))
+        QTimer.singleShot(50, lambda: self.apply_resize(self.width()))
 
         # Clear the showing flag after a short delay so subsequent user-initiated resize/move
         # events will be persisted normally
-        QTimer.singleShot(200, lambda: setattr(self, '_showing_window', False))
+        QTimer.singleShot(200, lambda: setattr(self, 'showing_window', False))
 
-    def _show_and_focus_window(self, game_id=None):
+    def show_and_focus_window(self, game_id=None):
         """Show/focus the chat window; switch to the originating room tab if any."""
         was_hidden = not self.isVisible()
         if was_hidden:
@@ -138,7 +137,7 @@ class ChatLifecycleMixin:
                 self.chatlog_widget.force_recalculate()
 
             # Re-theme open game rooms and custom rooms
-            for room in self._all_room_widgets():
+            for room in self.all_room_widgets():
                 room.update_theme()
 
             QApplication.processEvents()
@@ -168,13 +167,13 @@ class ChatLifecycleMixin:
         if hasattr(self, 'window_size_manager'):
             self.window_size_manager.cleanup()
 
-        self._reset_competition_live_state()
+        self.reset_competition_live_state()
 
         if self.my_username:
             self.mentions_digest.mark_session_end(self.my_username)
-            if self._mentions_digest_active and self.chatlog_widget:
+            if self.mentions_digest_active and self.chatlog_widget:
                 self.chatlog_widget.on_parse_cancelled()
-                self._end_mentions_digest()
+                self.end_mentions_digest()
 
         # Proceed with full cleanup when actually closing
         if self.messages_widget:
@@ -189,7 +188,7 @@ class ChatLifecycleMixin:
         if self.chatlog_split_widget:
             self.chatlog_split_widget.cleanup()
         for gid in list(self.game_rooms.keys()):
-            self._close_game_room_tab(gid)
+            self.close_game_room_tab(gid)
         if self.chatlog_widget:
             self.chatlog_widget.cleanup()
 
@@ -207,6 +206,3 @@ class ChatLifecycleMixin:
             self.voice_input.shutdown()
         event.accept()
 
-    def release_memory_soon(self):
-        """gc + return freed pages after deleteLater has run (same delay as image viewer)."""
-        QTimer.singleShot(500, release_unused_memory)

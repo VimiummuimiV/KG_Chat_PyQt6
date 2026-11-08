@@ -33,7 +33,7 @@ class ChatNotificationsMixin:
             hours = 24
         return max(1, min(168, hours))
 
-    def _badge_font_size(self) -> int:
+    def badge_font_size(self) -> int:
         raw = self.config.get("ui", "chat", "badge_font_size")
         try:
             size = int(raw) if raw is not None else 9
@@ -41,12 +41,12 @@ class ChatNotificationsMixin:
             size = 9
         return max(8, min(18, size))
 
-    def _touch_presence_anchor(self):
+    def touch_presence_anchor(self):
         """While connected the user sees everything live, so the anchor follows 'now' (survives crashes/kills)"""
-        if self._connection_status == 'online' and self.my_username:
+        if self.connection_status == 'online' and self.my_username:
             self.mentions_digest.mark_session_end(self.my_username)
 
-    def _start_mentions_digest_check(self):
+    def start_mentions_digest_check(self):
         """Background Personal Mentions parse since last_session_end (same path as manual parser).
         Frequency: off | start | daily (24h) | custom hours — per account timestamp."""
 
@@ -56,12 +56,12 @@ class ChatNotificationsMixin:
         username = self.my_username
         if not username:
             return
-        if self._mentions_digest_checked:
+        if self.mentions_digest_checked:
             return
-        self._mentions_digest_checked = True
+        self.mentions_digest_checked = True
 
         last = self.mentions_digest.get_last_session_end(username)
-        self._presence_anchor_timer.start(60_000)  # started only after the anchor was read above
+        self.presence_anchor_timer.start(60_000)  # started only after the anchor was read above
         if last is None:
             self.mentions_digest.mark_session_end(username)
             return
@@ -72,7 +72,7 @@ class ChatNotificationsMixin:
             if elapsed < interval_h * 3600:
                 return
 
-        self._ensure_chatlog_widget()
+        self.ensure_chatlog_widget()
         cw = self.chatlog_widget
         if not cw or cw.parser_widget.is_parsing:
             return
@@ -85,25 +85,25 @@ class ChatNotificationsMixin:
             to_date=datetime.now(CHATLOG_TIMEZONE).strftime("%Y-%m-%d"),
             mention_keywords=[username],
         )
-        self._mentions_digest_active = True
+        self.mentions_digest_active = True
         cw.on_parse_started(config)
         self.start_parse_status()
         if self.parse_current_label:
             self.parse_current_label.setText(tr("Checking mentions…", "Проверка упоминаний…"))
 
-    def _end_mentions_digest(self):
+    def end_mentions_digest(self):
         """Reset digest-active state. Shared by stop/error/finish/close paths
         so they don't each repeat the flag reset."""
-        self._mentions_digest_active = False
+        self.mentions_digest_active = False
 
     @staticmethod
-    def _room_source_label(room) -> str:
+    def room_source_label(room) -> str:
         """Source kind for notification accent color: 'game', 'competition' or 'room'."""
         if getattr(room, 'room_name', None):
             return "room"
         return "competition" if room.room_label == "Competition" else "game"
 
-    def _notify_incoming_message(self, msg, display_body, is_ban, is_system, is_initial, room_jid=None, add_message_fn=None, source_label=None, game_id=None):
+    def notify_incoming_message(self, msg, display_body, is_ban, is_system, is_initial, room_jid=None, add_message_fn=None, source_label=None, game_id=None):
         """TTS, effect sounds, and popup — shared by general and game-room messages.
 
         room_jid/add_message_fn: route a popup reply back to the originating game room.
@@ -131,13 +131,13 @@ class ChatNotificationsMixin:
                 self.voice_engine.set_enabled(False)
 
         if is_ban:
-            self._play_ban_sound()
+            self.play_ban_sound()
 
         play_mention_sound_always = self.config.get("sound", "play_mention_sound_always") or False
         # Mention sound for @mentions and private messages; same focus rule
-        is_important = self._message_mentions_me(msg) or getattr(msg, "is_private", False)
+        is_important = self.message_mentions_me(msg) or getattr(msg, "is_private", False)
         if is_important and (not self.isActiveWindow() or play_mention_sound_always):
-            self._play_mention_sound()
+            self.play_mention_sound()
 
         # Only show notifications when the window is not active
         if not self.isActiveWindow():
@@ -174,9 +174,9 @@ class ChatNotificationsMixin:
             else:
                 self._show_notification(msg, display_body, is_ban, is_system, room_jid=room_jid, add_message_fn=add_message_fn, source_label=source_label, game_id=game_id)
 
-    def _open_mentions_from_notification(self):
+    def open_mentions_from_notification(self):
         """Click handler for the tray mentions-digest popup: show window, then open results."""
-        self._show_and_focus_window()
+        self.show_and_focus_window()
         self.show_parser_view()
 
     def _show_notification(self, msg, display_body, is_ban, is_system, room_jid=None, add_message_fn=None, source_label=None, game_id=None):
@@ -196,15 +196,15 @@ class ChatNotificationsMixin:
                 emoticon_manager=self.emoticon_manager,
                 local_message_callback=add_message_fn or self.add_local_message,
                 account=self.account,
-                window_show_callback=lambda g=game_id: self._show_and_focus_window(g),
+                window_show_callback=lambda g=game_id: self.show_and_focus_window(g),
                 is_private=getattr(msg, 'is_private', False),
                 recipient_jid=msg.from_jid if getattr(msg, 'is_private', False) else None,
                 room_jid=room_jid,
                 source_label=source_label,
                 is_ban=is_ban,
                 is_system=is_system,
-                is_mention=self._message_mentions_me(msg),
-                profile_callback=self._on_username_shift_click,
+                is_mention=self.message_mentions_me(msg),
+                profile_callback=self.on_username_shift_click,
                 self_ban_placeholder_callback=self.self_ban_placeholder,
             )
         except Exception as e:

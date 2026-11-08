@@ -25,7 +25,7 @@ def _link(url: str) -> str:
 class VideoPlayer(QWidget):
     """Video player that launches mpvnet for playback"""
 
-    VIDEO_PATTERNS = [
+    _VIDEO_PATTERNS = [
         # Direct video files
         re.compile(
             r'https?://[^\s<>"]+\.(?:mp4|webm|ogg|mov|avi|mkv|flv|wmv|m4v)(?:\?[^\s<>"]*)?',
@@ -86,13 +86,13 @@ class VideoPlayer(QWidget):
         self.hide()  # never painted - stays hidden so it can't eat viewport clicks
         self.config = config
         self.current_url = None
-        self.mpv_path = self._find_mpv()
-        self.ytdlp_path = self._find_ytdlp()
-        self.mpv_process = None  # Track the mpv process
+        self._mpv_path = self._find_mpv()
+        self._ytdlp_path = self._find_ytdlp()
+        self._mpv_process = None  # Track the mpv process
 
         # Loading spinner
-        self.loading_spinner = LoadingSpinner(None, 60)
-        self.loading_spinner.hide()
+        self._loading_spinner = LoadingSpinner(None, 60)
+        self._loading_spinner.hide()
         self.is_loading = False
 
     def _find_mpv(self) -> str:
@@ -159,7 +159,7 @@ class VideoPlayer(QWidget):
     @staticmethod
     def is_video_url(url: str) -> bool:
         """Check if URL is a video URL"""
-        return any(p.search(url or '') for p in VideoPlayer.VIDEO_PATTERNS)
+        return any(p.search(url or '') for p in VideoPlayer._VIDEO_PATTERNS)
 
     def _show_error_dialog(self, title: str, text: str, informative_text: str, icon=QMessageBox.Icon.Warning):
         """Helper function to show error dialogs"""
@@ -237,30 +237,30 @@ class VideoPlayer(QWidget):
 
     def _close_previous_mpv(self):
         """Close previous mpv instance if running"""
-        if not self.mpv_process or self.mpv_process.poll() is not None:
+        if not self._mpv_process or self._mpv_process.poll() is not None:
             return
 
         try:
             if platform.system() == 'Windows':
-                subprocess.run(['taskkill', '/F', '/T', '/PID', str(self.mpv_process.pid)],
+                subprocess.run(['taskkill', '/F', '/T', '/PID', str(self._mpv_process.pid)],
                               capture_output=True, timeout=2)
             else:
-                self.mpv_process.terminate()
-                self.mpv_process.wait(timeout=1.0)
+                self._mpv_process.terminate()
+                self._mpv_process.wait(timeout=1.0)
         except (subprocess.TimeoutExpired, Exception):
             try:
-                self.mpv_process.kill()
+                self._mpv_process.kill()
             except Exception:
                 pass
         finally:
-            self.mpv_process = None
+            self._mpv_process = None
 
     def show_video(self, url: str, cursor_pos: QPoint = None, force_log: bool = False):
         """Launch mpv player with the video URL."""
         self.current_url = url
 
         # Check if mpv is available
-        if not self.mpv_path or not shutil.which(self.mpv_path):
+        if not self._mpv_path or not shutil.which(self._mpv_path):
             self._show_mpv_error()
             return
 
@@ -272,17 +272,17 @@ class VideoPlayer(QWidget):
         # Position and show spinner
         if cursor_pos:
             spinner_pos = LoadingSpinner.calculate_position(
-                cursor_pos, self.loading_spinner.width(), self.loading_spinner.screen().availableGeometry()
+                cursor_pos, self._loading_spinner.width(), self._loading_spinner.screen().availableGeometry()
             )
-            self.loading_spinner.move(spinner_pos)
+            self._loading_spinner.move(spinner_pos)
         else:
-            screen_geo = self.loading_spinner.screen().availableGeometry()
-            self.loading_spinner.move(
-                (screen_geo.width() - self.loading_spinner.width()) // 2,
-                (screen_geo.height() - self.loading_spinner.height()) // 2
+            screen_geo = self._loading_spinner.screen().availableGeometry()
+            self._loading_spinner.move(
+                (screen_geo.width() - self._loading_spinner.width()) // 2,
+                (screen_geo.height() - self._loading_spinner.height()) // 2
             )
 
-        self.loading_spinner.start()
+        self._loading_spinner.start()
 
         # Launch mpv in a separate process
         try:
@@ -298,7 +298,7 @@ class VideoPlayer(QWidget):
             if platform.system() == 'Windows':
                 kwargs['creationflags'] = subprocess.CREATE_NO_WINDOW
 
-            self.mpv_process = subprocess.Popen(mpv_cmd, **kwargs)
+            self._mpv_process = subprocess.Popen(mpv_cmd, **kwargs)
 
             # Stop spinner after brief delay (mpv is launching)
             QTimer.singleShot(1000, self._stop_loading)
@@ -306,7 +306,7 @@ class VideoPlayer(QWidget):
         except Exception as e:
             print(f"Failed to launch mpv: {e}")
             self._stop_loading()
-            self.mpv_process = None
+            self._mpv_process = None
 
             self._show_error_dialog(
                 tr("Video Player Error", "Ошибка видеоплеера"),
@@ -353,7 +353,7 @@ class VideoPlayer(QWidget):
 
     def _build_mpv_command(self, url: str, log_path: Path | None = None) -> list:
         """Build mpv command with appropriate options"""
-        cmd = [self.mpv_path]
+        cmd = [self._mpv_path]
         cfg = self.config
 
         cmd.append('--force-window=yes')
@@ -388,8 +388,8 @@ class VideoPlayer(QWidget):
             if extra:
                 cmd.extend(extra.split())
 
-        if self.ytdlp_path:
-            cmd.append(f'--script-opts=ytdl_hook-ytdl_path={self.ytdlp_path}')
+        if self._ytdlp_path:
+            cmd.append(f'--script-opts=ytdl_hook-ytdl_path={self._ytdlp_path}')
 
         cmd.append(url)
         return cmd
@@ -398,12 +398,12 @@ class VideoPlayer(QWidget):
     def _stop_loading(self):
         """Stop the loading spinner"""
         self.is_loading = False
-        self.loading_spinner.stop()
+        self._loading_spinner.stop()
 
     def cleanup(self):
         """Cleanup resources"""
         self.is_loading = False
-        self.loading_spinner.stop()
-        if self.loading_spinner:
-            self.loading_spinner.deleteLater()
+        self._loading_spinner.stop()
+        if self._loading_spinner:
+            self._loading_spinner.deleteLater()
         self._close_previous_mpv()

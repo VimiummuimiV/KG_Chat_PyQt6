@@ -4,7 +4,7 @@ from PyQt6.QtCore import pyqtSignal, QObject
 
 
 class _Translator(QObject):
-    language_changed = pyqtSignal(str)
+    _language_changed = pyqtSignal(str)
 
     def __init__(self):
         super().__init__()
@@ -15,7 +15,7 @@ class _Translator(QObject):
         if code == self._lang:
             return
         self._lang = code
-        self.language_changed.emit(code)
+        self._language_changed.emit(code)
 
     @property
     def language(self) -> str:
@@ -52,7 +52,7 @@ def tr(en: str, ru: str) -> str:
 
 
 def on_language_changed(slot):
-    _tr.language_changed.connect(slot)
+    _tr._language_changed.connect(slot)
 
 
 class TranslatableMixin:

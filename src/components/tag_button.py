@@ -33,19 +33,19 @@ _DROP_LINE_WIDTH = 6
 _DROP_LINE_RADIUS = 3
 
 
-class TagButton(QWidget):
+class _TagButton(QWidget):
     """Pill-shaped tag with a label and a small remove (x) icon, themed for dark/light."""
 
     clicked = pyqtSignal(str)
-    double_clicked = pyqtSignal(str)
+    _double_clicked = pyqtSignal(str)
     removed = pyqtSignal(str)
 
     def __init__(self, text: str, icons_path: Path, close_icon: str = "close.svg"):
         super().__init__()
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
-        self.text_value = text
+        self._text_value = text
         self.icons_path = icons_path
-        self.close_icon = close_icon
+        self._close_icon = close_icon
         self._drag_start_pos = None
 
         layout = QHBoxLayout()
@@ -57,7 +57,7 @@ class TagButton(QWidget):
         self.label.mousePressEvent = self._on_label_press
         self.label.mouseMoveEvent = self._on_label_move
         self.label.mouseReleaseEvent = self._on_label_release
-        self.label.mouseDoubleClickEvent = lambda e: self.double_clicked.emit(self.text_value)
+        self.label.mouseDoubleClickEvent = lambda e: self._double_clicked.emit(self._text_value)
         layout.addWidget(self.label)
 
         self.close_btn = QPushButton()
@@ -65,7 +65,7 @@ class TagButton(QWidget):
         self.close_btn.setFixedSize(_CLOSE_BTN_SIZE, _CLOSE_BTN_SIZE)
         self.close_btn.setIconSize(QSize(_CLOSE_ICON_SIZE, _CLOSE_ICON_SIZE))
         self.close_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.close_btn.clicked.connect(lambda: self.removed.emit(self.text_value))
+        self.close_btn.clicked.connect(lambda: self.removed.emit(self._text_value))
         layout.addWidget(self.close_btn)
 
         self.setLayout(layout)
@@ -84,14 +84,14 @@ class TagButton(QWidget):
 
     def _on_label_release(self, e):
         if e.button() == Qt.MouseButton.LeftButton and self._drag_start_pos is not None:
-            self.clicked.emit(self.text_value)
+            self.clicked.emit(self._text_value)
         self._drag_start_pos = None
 
     def _start_drag(self):
         """Reorder drag: carries this tag's text so the container can reposition it."""
         self._drag_start_pos = None
         mime = QMimeData()
-        mime.setText(self.text_value)
+        mime.setText(self._text_value)
 
         drag = QDrag(self.label)
         drag.setMimeData(mime)
@@ -114,7 +114,7 @@ class TagButton(QWidget):
             f"QPushButton:hover {{ background-color: {close_hover_bg}; }}"
         )
         self.close_btn.setIcon(icon_helpers.render_svg_icon(
-            self.icons_path / self.close_icon, _CLOSE_ICON_SIZE,
+            self.icons_path / self._close_icon, _CLOSE_ICON_SIZE,
             color=_CLOSE_ICON_COLOR, stroke_width=_CLOSE_ICON_STROKE_WIDTH
         ))
 
@@ -127,7 +127,7 @@ def update_all_tag_buttons():
         tag._update_style()
 
 
-class FlowLayout(QLayout):
+class _FlowLayout(QLayout):
     """Horizontal layout that wraps to a new line when it runs out of width."""
 
     def __init__(self, parent=None, spacing: int = 6):
@@ -152,13 +152,13 @@ class FlowLayout(QLayout):
         self._arrange(rect, apply=True)
 
     def sizeHint(self):
-        return QSize(self.geometry().width(), self.height_for_width(self.geometry().width()))
+        return QSize(self.geometry().width(), self._height_for_width(self.geometry().width()))
 
-    def height_for_width(self, width):
+    def _height_for_width(self, width):
         """Required height to lay out all items within the given width"""
         return self._arrange(QRect(0, 0, width, 0), apply=False)
 
-    def reorder(self, widgets):
+    def _reorder(self, widgets):
         """Reorder existing items to match the given widget order (no add/remove/recreate)."""
         by_widget = {item.widget(): item for item in self._items}
         self._items = [by_widget[w] for w in widgets if w in by_widget]
@@ -197,7 +197,7 @@ class SavedValuesBar(QWidget):
         self.values = self.config.get(*config_path) or []
         self._tags = {}
 
-        self._layout = FlowLayout(self)
+        self._layout = _FlowLayout(self)
         self._drop_indicator = QWidget(self)
         self._drop_indicator.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self._drop_indicator.hide()
@@ -208,7 +208,7 @@ class SavedValuesBar(QWidget):
     def resizeEvent(self, event):
         super().resizeEvent(event)
         if self.values:
-            self.setFixedHeight(self._layout.height_for_width(event.size().width()))
+            self.setFixedHeight(self._layout._height_for_width(event.size().width()))
 
     def add_values(self, values: list):
         """Add any values not already saved, and persist"""
@@ -291,14 +291,14 @@ class SavedValuesBar(QWidget):
 
         self.values = new_values
         self._save()
-        self._layout.reorder([self._tags[v] for v in self.values])
+        self._layout._reorder([self._tags[v] for v in self.values])
         event.acceptProposedAction()
 
     def _add_tag(self, value: str):
         """Create a chip for one value and add it to the layout, without touching existing chips"""
-        tag = TagButton(value, self.icons_path)
+        tag = _TagButton(value, self.icons_path)
         tag.clicked.connect(self.value_selected.emit)
-        tag.double_clicked.connect(self.value_double_clicked.emit)
+        tag._double_clicked.connect(self.value_double_clicked.emit)
         tag.removed.connect(self._remove_value)
         self._tags[value] = tag
         self._layout.addWidget(tag)
@@ -323,4 +323,4 @@ class SavedValuesBar(QWidget):
 
     def _apply_content_height(self):
         """Measure and apply height after Qt has settled the layout (deferred - see _update_size)"""
-        self.setFixedHeight(self._layout.height_for_width(self.width() or self.sizeHint().width()))
+        self.setFixedHeight(self._layout._height_for_width(self.width() or self.sizeHint().width()))

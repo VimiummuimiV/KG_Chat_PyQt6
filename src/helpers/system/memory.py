@@ -5,6 +5,11 @@ import gc
 import sys
 from ctypes import wintypes
 
+from PyQt6.QtCore import QTimer
+
+
+_RELEASE_DELAY_MS = 500  # lets deleteLater() of the released widgets run first
+
 
 def release_unused_memory():
     """Collect garbage and hand freed memory back: trim the working set on Windows, the malloc heap on Linux."""
@@ -20,3 +25,8 @@ def release_unused_memory():
             ctypes.CDLL("libc.so.6").malloc_trim(0)
         except (OSError, AttributeError):
             pass  # not glibc
+
+
+def release_memory_soon() -> None:
+    """Release unused memory once the pending deleteLater() calls have run."""
+    QTimer.singleShot(_RELEASE_DELAY_MS, release_unused_memory)

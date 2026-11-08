@@ -284,7 +284,7 @@ class ChatlogDB:
                 'db_size_mb': round(db_size_mb, 2)
             }
 
-    def vacuum(self):
+    def _vacuum(self):
         """Optimize database (reclaim space)"""
         with self._get_connection() as conn:
             conn.execute("VACUUM")

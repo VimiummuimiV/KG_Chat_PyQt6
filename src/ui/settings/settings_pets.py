@@ -63,9 +63,9 @@ class _PetTile(QLabel):
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setToolTip(tooltip)
-        self.set_count(0)
+        self._set_count(0)
 
-    def set_count(self, count: int) -> None:
+    def _set_count(self, count: int) -> None:
         self._count = count
         self.setPixmap(self._icons[count > 0])
         self.update()
@@ -106,12 +106,12 @@ class _PetTile(QLabel):
 class SettingsPetsMixin:
     """SettingsWidget: pets master switch, per-kind pet counts and per-species pixel sizes."""
 
-    def _build_pets_section(self):
-        section = self._create_section(tr("🐾 Pets", "🐾 Питомцы"))
-        self.pets_checkbox = self._add_checkbox(
+    def build_pets_section(self):
+        section = self.create_section(tr("🐾 Pets", "🐾 Питомцы"))
+        self.pets_checkbox = self.add_checkbox(
             section, tr("Pets walk above the input line", "Питомцы гуляют над строкой ввода"), self._on_pets_toggled
         )
-        self.pets_stepped_checkbox = self._add_checkbox(
+        self.pets_stepped_checkbox = self.add_checkbox(
             section, tr("Move in steps like real paws", "Двигаться шагами, как на настоящих лапах"), self._on_pets_stepped_toggled
         )
         hint = tr(
@@ -144,28 +144,28 @@ class SettingsPetsMixin:
             row += index // _TILE_COLUMNS + 1
         section.addWidget(tiles_widget)
         size_layout = QVBoxLayout()
-        size_layout.setSpacing(self._spacing())
+        size_layout.setSpacing(self.element_spacing())
         section.addLayout(size_layout)
-        self._pet_size_spins = {}
+        self.pet_size_spins = {}
         for species in self._pet_species_kinds:
-            spin = self._add_slider_spin_row(
+            spin = self.add_slider_spin_row(
                 size_layout, species.title(), 1, MAXIMUM_SIZE_MULTIPLIER,
                 lambda value, species=species: self._on_pet_size_changed(species, value), default=DEFAULT_SIZE_MULTIPLIER,
             )
             spin.setPrefix("×")
-            self._pet_size_spins[species] = spin
-        labels = [spin.parentWidget().findChild(QLabel) for spin in self._pet_size_spins.values()]
+            self.pet_size_spins[species] = spin
+        labels = [spin.parentWidget().findChild(QLabel) for spin in self.pet_size_spins.values()]
         label_width = max(label.sizeHint().width() for label in labels)
         for label in labels:
             label.setFixedWidth(label_width)
 
-    def _refresh_pets(self):
+    def refresh_pets(self):
         self.pets_checkbox.setChecked(pets_enabled(self.config))
         self.pets_stepped_checkbox.setChecked(pets_stepped(self.config))
         counts = pet_counts(self.config)
         for key, tile in self._pet_tiles.items():
-            tile.set_count(counts.get(key, 0))
-        for species, spin in self._pet_size_spins.items():
+            tile._set_count(counts.get(key, 0))
+        for species, spin in self.pet_size_spins.items():
             spin.parentWidget().setVisible(any(kind.key in counts for kind in self._pet_species_kinds[species]))
             multiplier = pet_size_multiplier(self.config, species)
             spin.setValue(multiplier)
@@ -201,5 +201,5 @@ class SettingsPetsMixin:
         else:
             counts.pop(key, None)
         self.config.set("ui", "pets", "counts", value=counts)
-        self._refresh_pets()
+        self.refresh_pets()
         self.pets_changed.emit()

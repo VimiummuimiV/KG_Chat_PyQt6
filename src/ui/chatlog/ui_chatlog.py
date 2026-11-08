@@ -54,7 +54,7 @@ class ChatlogWidget(
     messages_loaded = pyqtSignal(list)
     day_loaded = pyqtSignal()  # a day finished loading, with or without messages
     filter_changed = pyqtSignal(set)
-    _error_occurred = pyqtSignal(str)
+    error_occurred = pyqtSignal(str)
 
     def __init__(
         self,
@@ -86,11 +86,11 @@ class ChatlogWidget(
         self.split_chatlog_widget = None  # Side pane showing full chatlog for a clicked date
         self.suppress_bottom_scroll = False  # Set before a load triggered by cross-date message search
 
-        self.model = MessageListModel(max_messages=self._max_messages_limit())
+        self.model = MessageListModel(max_messages=self.max_messages_limit())
         self.delegate = MessageDelegate(config, self.emoticon_manager)
         self.delegate.set_marker_gutter(True)
-        self.delegate.anchor_frame_enabled = self._anchor_frame_active
-        self.delegate.day_navigation = DayNavigation(self._navigate, self._day_state, self.day_loaded)
+        self.delegate.anchor_frame_enabled = self.anchor_frame_active
+        self.delegate.day_navigation = DayNavigation(self.navigate, self.day_state, self.day_loaded)
 
         # Set username for mention highlighting if account is available
         if account and account.get('chat_username'):
@@ -105,22 +105,22 @@ class ChatlogWidget(
         self.load_timer = QTimer()
         self.load_timer.setSingleShot(True)
         self.load_timer.timeout.connect(self.load_current_date)
-        self._load_generation = 0
+        self.load_generation = 0
 
-        self.day_hold = HoldRepeater(self._navigate, self)
+        self.day_hold = HoldRepeater(self.navigate, self)
 
         self._setup_ui()
-        self.model.modelReset.connect(self._update_image_button)
-        self._update_image_button()
+        self.model.modelReset.connect(self.update_image_button)
+        self.update_image_button()
         on_language_changed(self._retranslate)
 
         # Initialize auto-scroller after UI is set up
         self.auto_scroller = AutoScroller(self.list_view)
 
         # Connect message click handler
-        self.delegate.message_clicked.connect(self._on_message_clicked)
-        self.delegate.separator_clicked.connect(self._on_date_separator_clicked)
-        self.delegate.chatlog_link_clicked.connect(self._on_chatlog_link_clicked)
+        self.delegate.message_clicked.connect(self.on_message_clicked)
+        self.delegate.separator_clicked.connect(self.on_date_separator_clicked)
+        self.delegate.chatlog_link_clicked.connect(self.on_chatlog_link_clicked)
 
         # Timestamp clicks stay in MessageDelegate.editorEvent, so handle_timestamp=False
         self.interactions = MessageInteractions(self.list_view, self.delegate, handle_timestamp=False)
@@ -149,29 +149,29 @@ class ChatlogWidget(
         self.setLayout(layout)
 
         # Top bar container for responsive layout
-        self.top_bar_container = QWidget()
-        self.top_bar_layout = QVBoxLayout()
-        self.top_bar_layout.setContentsMargins(0, 0, 0, 0)
-        self.top_bar_layout.setSpacing(spacing)
-        self.top_bar_container.setLayout(self.top_bar_layout)
-        layout.addWidget(self.top_bar_container)
+        self._top_bar_container = QWidget()
+        self._top_bar_layout = QVBoxLayout()
+        self._top_bar_layout.setContentsMargins(0, 0, 0, 0)
+        self._top_bar_layout.setSpacing(spacing)
+        self._top_bar_container.setLayout(self._top_bar_layout)
+        layout.addWidget(self._top_bar_container)
 
         # Main horizontal bar (for wide screens)
-        self.main_bar = QHBoxLayout()
-        self.main_bar.setSpacing(spacing)
-        self.main_bar.setAlignment(Qt.AlignmentFlag.AlignTop)
-        self.top_bar_layout.addLayout(self.main_bar)
+        self._main_bar = QHBoxLayout()
+        self._main_bar.setSpacing(spacing)
+        self._main_bar.setAlignment(Qt.AlignmentFlag.AlignTop)
+        self._top_bar_layout.addLayout(self._main_bar)
 
         # Left side: Info block (date + status)
-        self.info_block = QVBoxLayout()
-        self.info_block.setSpacing(spacing)
-        self.info_block.setAlignment(Qt.AlignmentFlag.AlignTop)
+        self._info_block = QVBoxLayout()
+        self._info_block.setSpacing(spacing)
+        self._info_block.setAlignment(Qt.AlignmentFlag.AlignTop)
 
         # Date label
         self.date_label = QLabel()
         self.date_label.setFont(get_font(FontType.HEADER))
         self.date_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
-        self.info_block.addWidget(self.date_label)
+        self._info_block.addWidget(self.date_label)
 
         # Info label
         self.info_label = FlashLabel(tr("Loading...", "Загрузка..."), is_dark_fn=lambda: self.delegate.is_dark_theme, config=self.config, duration_kind="copy")
@@ -181,60 +181,60 @@ class ChatlogWidget(
         self.info_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         self.info_label.setCursor(Qt.CursorShape.PointingHandCursor)
         self.info_label.setToolTip(tr("Copy to clipboard", "Скопировать в буфер обмена"))
-        self.info_label.mousePressEvent = self._on_info_label_clicked
-        self.info_block.addWidget(self.info_label)
+        self.info_label.mousePressEvent = self.on_info_label_clicked
+        self._info_block.addWidget(self.info_label)
 
-        self.main_bar.addLayout(self.info_block, stretch=1)
+        self._main_bar.addLayout(self._info_block, stretch=1)
 
         # Right side: Navigation buttons (horizontally scrollable, MMB drag supported)
-        self.nav_buttons_container = ScrollableButtonContainer(
+        self._nav_buttons_container = ScrollableButtonContainer(
             Qt.Orientation.Horizontal, config=self.config
         )
-        self.nav_buttons_container.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Preferred)
+        self._nav_buttons_container.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Preferred)
 
         self.back_btn = create_icon_button(self.icons_path, "go-back.svg", "",
                                           size_type="large", config=self.config)
         self.tr_set(self.back_btn.setToolTip, "Back to messages", "Назад к сообщениям")
         self.back_btn.clicked.connect(self.back_requested.emit)
-        self.nav_buttons_container.add_widget(self.back_btn)
+        self._nav_buttons_container.add_widget(self.back_btn)
 
         self.prev_btn = create_icon_button(self.icons_path, "arrow-left.svg", "",
                                           size_type="large", config=self.config)
         self.tr_set(self.prev_btn.setToolTip, "Previous day (H)", "Предыдущий день (H)")
         self.prev_btn.pressed.connect(lambda: self.navigate_hold(-1))
         self.prev_btn.released.connect(lambda: self.navigate_hold())
-        self.nav_buttons_container.add_widget(self.prev_btn)
+        self._nav_buttons_container.add_widget(self.prev_btn)
 
         self.next_btn = create_icon_button(self.icons_path, "arrow-right.svg", "",
                                           size_type="large", config=self.config)
         self.tr_set(self.next_btn.setToolTip, "Next day (L)", "Следующий день (L)")
         self.next_btn.pressed.connect(lambda: self.navigate_hold(1))
         self.next_btn.released.connect(lambda: self.navigate_hold())
-        self.nav_buttons_container.add_widget(self.next_btn)
+        self._nav_buttons_container.add_widget(self.next_btn)
 
         self.calendar_btn = create_icon_button(self.icons_path, "calendar.svg", "",
                                               size_type="large", config=self.config)
         self.tr_set(self.calendar_btn.setToolTip, "Select date (D)", "Выбрать дату (D)")
         self.calendar_btn.clicked.connect(self.show_calendar)
-        self.nav_buttons_container.add_widget(self.calendar_btn)
+        self._nav_buttons_container.add_widget(self.calendar_btn)
 
-        self.search_toggle_btn = create_icon_button(self.icons_path, "search.svg", "",
+        self._search_toggle_btn = create_icon_button(self.icons_path, "search.svg", "",
                                                    size_type="large", config=self.config)
-        self.tr_set(self.search_toggle_btn.setToolTip, "Toggle search (S / Ctrl+F)", "Поиск (S / Ctrl+F)")
-        self.search_toggle_btn.clicked.connect(self.toggle_search)
-        self.nav_buttons_container.add_widget(self.search_toggle_btn)
+        self.tr_set(self._search_toggle_btn.setToolTip, "Toggle search (S / Ctrl+F)", "Поиск (S / Ctrl+F)")
+        self._search_toggle_btn.clicked.connect(self.toggle_search)
+        self._nav_buttons_container.add_widget(self._search_toggle_btn)
 
         self.mention_filter_btn = create_icon_button(self.icons_path, "at-line.svg", "",
                                                     size_type="large", config=self.config)
         self.tr_set(self.mention_filter_btn.setToolTip, "Filter mentions (M)", "Фильтр упоминаний (M)")
         self.mention_filter_btn.clicked.connect(self.toggle_mention_filter)
-        self.nav_buttons_container.add_widget(self.mention_filter_btn)
+        self._nav_buttons_container.add_widget(self.mention_filter_btn)
 
         self.image_button = create_icon_button(self.icons_path, "gallery-line.svg", "",
                                                size_type="large", config=self.config)
         self.tr_set(self.image_button.setToolTip, "View images", "Просмотр изображений")
         self.image_button.clicked.connect(lambda: self.delegate.open_first_image())
-        self.nav_buttons_container.add_widget(self.image_button)
+        self._nav_buttons_container.add_widget(self.image_button)
 
         self.parse_btn = create_icon_button(self.icons_path, "play.svg", "",
                                            size_type="large", config=self.config)
@@ -242,17 +242,17 @@ class ChatlogWidget(
                      "Parse all chatlogs (P | Ctrl+P from anywhere)",
                      "Парсить все чатлоги (P | Ctrl+P откуда угодно)")
         self.parse_btn.clicked.connect(self.toggle_parser)
-        self.nav_buttons_container.add_widget(self.parse_btn)
+        self._nav_buttons_container.add_widget(self.parse_btn)
 
-        self.main_bar.addWidget(self.nav_buttons_container)
+        self._main_bar.addWidget(self._nav_buttons_container)
 
-        self.compact_layout = False
+        self._compact_layout = False
 
         # Search bar (MessageSearchBar; confirm button is chatlog-specific)
         self.confirm_search_btn = create_icon_button(self.icons_path, "search.svg", "",
                                                      size_type="large", config=self.config)
         self.tr_set(self.confirm_search_btn.setToolTip, "Search (Enter)", "Поиск (Enter)")
-        self.confirm_search_btn.clicked.connect(self._on_search_enter)
+        self.confirm_search_btn.clicked.connect(self.on_search_enter)
         self.confirm_search_btn.setVisible(False)
 
         self.search = MessageSearchBar(
@@ -265,8 +265,8 @@ class ChatlogWidget(
             f"Search: 'text' or 'U:Bob' or 'U:Bob,Alice' or 'M:hello' or 'D:{DATE_PLACEHOLDER}' (Enter)",
             f"Поиск: 'текст' или 'U:Вася' или 'U:Петя,Маша' или 'M:привет' или 'D:{DATE_PLACEHOLDER}' (Enter)"
         )
-        self.search.text_changed.connect(self._on_search_changed)
-        self.search.return_pressed.connect(self._on_search_enter)
+        self.search.text_changed.connect(self.on_search_changed)
+        self.search.return_pressed.connect(self.on_search_enter)
         layout.addWidget(self.search)
 
         # Stacked widget: List view OR Parser config
@@ -297,7 +297,7 @@ class ChatlogWidget(
         self.stacked.addWidget(self.list_view)
 
         # Add scroll buttons panel for quick navigation (date_jump: MessageData carries is_separator)
-        self.scroll_buttons = ScrollButtonsPanel(self.list_view, parent=self, date_jump=True)
+        self._scroll_buttons = ScrollButtonsPanel(self.list_view, parent=self, date_jump=True)
 
         # Parser config page
         self.parser_widget = ChatlogsParserConfigWidget(self.config, self.icons_path, self.account)
@@ -314,34 +314,34 @@ class ChatlogWidget(
         self.stacked.setCurrentWidget(self.list_view)
 
         self.update_date_display()
-        self._error_occurred.connect(self._handle_error)
+        self.error_occurred.connect(self.handle_error)
 
     def set_compact_layout(self, compact: bool):
         """Handle responsive layout for < 1000px width"""
-        if compact == self.compact_layout:
+        if compact == self._compact_layout:
             return
 
         if compact:
             # Remove items from main_bar (widget at index 1, layout at index 0)
-            self.main_bar.takeAt(1)  # nav_buttons_container widget item
-            self.main_bar.takeAt(0)  # info_block item
+            self._main_bar.takeAt(1)  # nav_buttons_container widget item
+            self._main_bar.takeAt(0)  # info_block item
             # Remove main_bar from top_bar_layout
-            self.top_bar_layout.takeAt(0)
+            self._top_bar_layout.takeAt(0)
             # Add nav_buttons_container (widget) and info_block (layout) to top_bar_layout
-            self.top_bar_layout.addWidget(self.nav_buttons_container)
-            self.top_bar_layout.addLayout(self.info_block)
-            self.compact_layout = True
+            self._top_bar_layout.addWidget(self._nav_buttons_container)
+            self._top_bar_layout.addLayout(self._info_block)
+            self._compact_layout = True
         else:
             # Remove items from top_bar_layout
-            self.top_bar_layout.takeAt(1)  # info_block item
-            self.top_bar_layout.takeAt(0)  # nav_buttons_container widget item
+            self._top_bar_layout.takeAt(1)  # info_block item
+            self._top_bar_layout.takeAt(0)  # nav_buttons_container widget item
             # Add main_bar back
-            self.top_bar_layout.addLayout(self.main_bar)
+            self._top_bar_layout.addLayout(self._main_bar)
             # Add sub-items to main_bar
-            self.main_bar.addLayout(self.info_block, stretch=1)
-            self.main_bar.addWidget(self.nav_buttons_container)
+            self._main_bar.addLayout(self._info_block, stretch=1)
+            self._main_bar.addWidget(self._nav_buttons_container)
 
-            self.compact_layout = False
+            self._compact_layout = False
 
     def set_compact_mode(self, compact: bool):
         self.delegate.set_compact_mode(compact)
@@ -367,8 +367,8 @@ class ChatlogWidget(
     def cleanup(self):
         if self.delegate:
             self.delegate.cleanup()
-        if hasattr(self, 'scroll_buttons'):
-            self.scroll_buttons.cleanup()
+        if hasattr(self, '_scroll_buttons'):
+            self._scroll_buttons.cleanup()
         if hasattr(self, 'auto_scroller'):
             self.auto_scroller.cleanup()
         if hasattr(self.parser, 'db'):

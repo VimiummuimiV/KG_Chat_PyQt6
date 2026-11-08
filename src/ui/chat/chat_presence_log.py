@@ -9,7 +9,7 @@ from ui.settings.settings_options import DEFAULTS
 class ChatPresenceLogMixin:
     """ChatWindow: presence log panel, its splitter and tracker events."""
 
-    def _presence_log_enabled(self) -> bool:
+    def presence_log_enabled(self) -> bool:
         val = self.config.get("user_tracker", "presence_log")
         return True if val is None else bool(val)
 
@@ -33,7 +33,7 @@ class ChatPresenceLogMixin:
             return None
         return total, max(40, total * self._presence_split_percent() // 100)
 
-    def _apply_presence_split_sizes(self):
+    def apply_presence_split_sizes(self):
         """Fit presence pane to content height, capped by configured max percent."""
         if not self.presence_log_widget:
             return
@@ -73,7 +73,7 @@ class ChatPresenceLogMixin:
         if top > sizes[0]:
             self.presence_pane_splitter.setSizes([top, max(40, total - top)])
 
-    def _on_presence_split_moved(self, pos: int, _index: int):
+    def on_presence_split_moved(self, pos: int, _index: int):
         # Debounce: splitterMoved fires on every drag pixel; only persist after idle.
         if not self.presence_log_widget:
             return
@@ -106,20 +106,20 @@ class ChatPresenceLogMixin:
             if update_reset is not None:
                 update_reset(percent)
 
-    def _ensure_presence_log_widget(self):
+    def ensure_presence_log_widget(self):
         """Create the presence log pane above the messages view, reusing MessagesWidget for consistent badge rendering."""
         if self.presence_log_widget is not None:
             return
         self.presence_log_widget = MessagesWidget(
             self.config, self.emoticon_manager, my_username=self.my_username, minimal=True
         )
-        self._wire_username_signals(self.presence_log_widget, right_click_widget=self.presence_log_widget)
+        self.wire_username_signals(self.presence_log_widget, right_click_widget=self.presence_log_widget)
         # Torn down automatically once emptied — by hotkey (X), by clearing a single
         # entry down to none, or by disabling tracking — same as never having opened it.
         self.presence_log_widget.model.rowsRemoved.connect(self._on_presence_log_rows_changed)
         self.presence_log_widget.model.modelReset.connect(self._on_presence_log_rows_changed)
         self.presence_pane_splitter.insertWidget(0, self.presence_log_widget)
-        self._apply_presence_split_sizes()
+        self.apply_presence_split_sizes()
 
     def teardown_presence_log_widget(self):
         if self.presence_log_widget is None:
@@ -134,21 +134,21 @@ class ChatPresenceLogMixin:
         if self.presence_log_widget and self.presence_log_widget.model.rowCount() == 0:
             self.teardown_presence_log_widget()
 
-    def _on_tracker_enabled_changed(self, enabled: bool):
+    def on_tracker_enabled_changed(self, enabled: bool):
         """Hide the presence pane when 'Track users' is disabled; restore it on the next event."""
         if not enabled:
             self.teardown_presence_log_widget()
 
-    def _on_presence_notification_click(self, login: str, event_ts=None):
+    def on_presence_notification_click(self, login: str, event_ts=None):
 
         action = self.config.get("user_tracker", "click_action") or "history"
         if action == "chat":
-            self._show_and_focus_window()
+            self.show_and_focus_window()
             return
         self._open_tracker_history_event(login, event_ts)
 
     def _open_tracker_history_event(self, login: str, event_ts=None):
-        self._show_and_focus_window()
+        self.show_and_focus_window()
         self.show_user_tracker_view()
         w = getattr(self, 'user_tracker_widget', None)
         if w is not None:

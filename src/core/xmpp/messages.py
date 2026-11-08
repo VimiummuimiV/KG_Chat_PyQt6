@@ -20,13 +20,13 @@ class Message:
     timestamp: Optional[datetime] = None
     initial: bool = False
 
-    def get_avatar_url(self) -> Optional[str]:
+    def _get_avatar_url(self) -> Optional[str]:
         if self.avatar:
             return f"https://klavogonki.ru{self.avatar}"
         return None
 
 @dataclass
-class Presence:
+class _Presence:
     """Parsed presence"""
     from_jid: str
     presence_type: str
@@ -39,7 +39,7 @@ class Presence:
     role: str = 'participant'
     moderator: bool = False
 
-    def get_avatar_url(self) -> Optional[str]:
+    def _get_avatar_url(self) -> Optional[str]:
         if self.avatar:
             return f"https://klavogonki.ru{self.avatar}"
         return None
@@ -48,7 +48,7 @@ class MessageParser:
     """Parse XMPP messages and presence"""
 
     @staticmethod
-    def parse(xml_text: str) -> Tuple[List[Message], List[Presence]]:
+    def parse(xml_text: str) -> Tuple[List[Message], List[_Presence]]:
         """Parse XML response"""
         try:
             root = ET.fromstring(xml_text)
@@ -130,7 +130,7 @@ class MessageParser:
         return messages
 
     @staticmethod
-    def _parse_presence(root: ET.Element) -> List[Presence]:
+    def _parse_presence(root: ET.Element) -> List[_Presence]:
         """Parse presence"""
         presence_list = []
         ns = '{klavogonki:userdata}'  # FIX: Define namespace for child elements
@@ -186,7 +186,7 @@ class MessageParser:
                 if jid_login:
                     login = jid_login
 
-            presence_list.append(Presence(
+            presence_list.append(_Presence(
                 from_jid=from_jid,
                 presence_type=ptype,
                 login=login,

@@ -17,10 +17,10 @@ from helpers.translate import on_language_changed, tr, TranslatableMixin
 class TrackedUserItem(TranslatableMixin, QWidget):
     remove_requested = pyqtSignal(object)
 
-    USERNAME_BASE_WIDTH = 220
-    USER_ID_BASE_WIDTH = 125
-    ARROW_WIDTH = 26
-    BUTTON_WIDTH = 48
+    _USERNAME_BASE_WIDTH = 220
+    _USER_ID_BASE_WIDTH = 125
+    _ARROW_WIDTH = 26
+    _BUTTON_WIDTH = 48
 
     def __init__(self, config, icons_path: Path, username="", user_id=""):
         super().__init__()
@@ -45,7 +45,7 @@ class TrackedUserItem(TranslatableMixin, QWidget):
         self.username_input.setText(username)
         self.username_input.setFont(get_font(FontType.TEXT))
         self.username_input.setFixedHeight(input_height)
-        self._username_width = get_scaled_width(self.USERNAME_BASE_WIDTH)
+        self._username_width = get_scaled_width(self._USERNAME_BASE_WIDTH)
         self.username_input.setFixedWidth(self._username_width)
         self.username_input.editingFinished.connect(self._validate)
         layout.addWidget(self.username_input)
@@ -66,30 +66,30 @@ class TrackedUserItem(TranslatableMixin, QWidget):
             arrow_label.setFixedSize(26, 26)
         layout.addWidget(arrow_label)
 
-        self.user_id_input = QLineEdit()
-        self.tr_set(self.user_id_input.setPlaceholderText, "ID", "ID")
-        self.user_id_input.setText(user_id)
-        self.user_id_input.setFont(get_font(FontType.TEXT))
-        self.user_id_input.setFixedHeight(input_height)
-        self._user_id_width = get_scaled_width(self.USER_ID_BASE_WIDTH)
-        self.user_id_input.setFixedWidth(self._user_id_width)
-        self.user_id_input.setReadOnly(True)
-        layout.addWidget(self.user_id_input)
+        self._user_id_input = QLineEdit()
+        self.tr_set(self._user_id_input.setPlaceholderText, "ID", "ID")
+        self._user_id_input.setText(user_id)
+        self._user_id_input.setFont(get_font(FontType.TEXT))
+        self._user_id_input.setFixedHeight(input_height)
+        self._user_id_width = get_scaled_width(self._USER_ID_BASE_WIDTH)
+        self._user_id_input.setFixedWidth(self._user_id_width)
+        self._user_id_input.setReadOnly(True)
+        layout.addWidget(self._user_id_input)
 
-        self.freeze_button = create_icon_button(
+        self._freeze_button = create_icon_button(
             icons_path, "snowflake.svg", tr("Freeze tracking", "Заморозить отслеживание"),
             size_type="large", config=config
         )
-        self.freeze_button.clicked.connect(self._toggle_freeze)
-        layout.addWidget(self.freeze_button)
+        self._freeze_button.clicked.connect(self._toggle_freeze)
+        layout.addWidget(self._freeze_button)
 
-        self.remove_button = create_icon_button(
+        self._remove_button = create_icon_button(
             icons_path, "trash.svg", "",
             size_type="large", config=config
         )
-        self.tr_set(self.remove_button.setToolTip, "Remove", "Удалить")
-        self.remove_button.clicked.connect(lambda: self.remove_requested.emit(self))
-        layout.addWidget(self.remove_button)
+        self.tr_set(self._remove_button.setToolTip, "Remove", "Удалить")
+        self._remove_button.clicked.connect(lambda: self.remove_requested.emit(self))
+        layout.addWidget(self._remove_button)
 
         self._spacing = spacing
         self._update_total_width()
@@ -101,18 +101,18 @@ class TrackedUserItem(TranslatableMixin, QWidget):
 
     def _update_total_width(self):
         total_width = (
-            self._username_width + self.ARROW_WIDTH + self._user_id_width
-            + self.BUTTON_WIDTH * 2 + self._spacing * 4
+            self._username_width + self._ARROW_WIDTH + self._user_id_width
+            + self._BUTTON_WIDTH * 2 + self._spacing * 4
         )
         self.setFixedWidth(total_width)
 
     def update_font_scale(self):
-        self._username_width = get_scaled_width(self.USERNAME_BASE_WIDTH)
-        self._user_id_width = get_scaled_width(self.USER_ID_BASE_WIDTH)
+        self._username_width = get_scaled_width(self._USERNAME_BASE_WIDTH)
+        self._user_id_width = get_scaled_width(self._USER_ID_BASE_WIDTH)
         self.username_input.setFont(get_font(FontType.TEXT))
-        self.user_id_input.setFont(get_font(FontType.TEXT))
+        self._user_id_input.setFont(get_font(FontType.TEXT))
         self.username_input.setFixedWidth(self._username_width)
-        self.user_id_input.setFixedWidth(self._user_id_width)
+        self._user_id_input.setFixedWidth(self._user_id_width)
         self._update_total_width()
 
     def _validate(self):
@@ -120,7 +120,7 @@ class TrackedUserItem(TranslatableMixin, QWidget):
         if not username:
             self.username_valid = True
             self.user_id = ""
-            self.user_id_input.clear()
+            self._user_id_input.clear()
             self.update_input_style()
             if self.parent_widget:
                 self.parent_widget.save_selected()
@@ -130,10 +130,10 @@ class TrackedUserItem(TranslatableMixin, QWidget):
         self.username_valid = user_id is not None
         if self.username_valid:
             self.user_id = user_id
-            self.user_id_input.setText(self.user_id)
+            self._user_id_input.setText(self.user_id)
         else:
             self.user_id = ""
-            self.user_id_input.clear()
+            self._user_id_input.clear()
 
         self.update_input_style()
         if self.parent_widget:
@@ -156,9 +156,9 @@ class TrackedUserItem(TranslatableMixin, QWidget):
     def set_frozen(self, frozen: bool):
         self.frozen = bool(frozen)
         set_visual_active(self.username_input, not self.frozen)
-        set_visual_active(self.user_id_input, not self.frozen)
-        set_visual_active(self.freeze_button, not self.frozen)
-        self.freeze_button.setToolTip(
+        set_visual_active(self._user_id_input, not self.frozen)
+        set_visual_active(self._freeze_button, not self.frozen)
+        self._freeze_button.setToolTip(
             tr("Unfreeze tracking", "Разморозить отслеживание") if self.frozen
             else tr("Freeze tracking", "Заморозить отслеживание")
         )
@@ -191,10 +191,10 @@ class TrackerUserChip(UserCountRow):
             margins=(2, 0, 2, 0), filter_radius=6,
         )
         self.login = login
-        self.delete_button = create_icon_button(
+        self._delete_button = create_icon_button(
             icons_path, "trash.svg", tr("Remove history for this user", "Удалить историю этого пользователя"),
             size_type="small", config=config
         )
-        self.delete_button.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-        self.delete_button.clicked.connect(lambda: self.delete_requested.emit(self.login))
-        self.layout().addWidget(self.delete_button)
+        self._delete_button.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        self._delete_button.clicked.connect(lambda: self.delete_requested.emit(self.login))
+        self.layout().addWidget(self._delete_button)

@@ -27,9 +27,9 @@ class PronunciationDialog(TranslatableMixin, QDialog):
         )
         layout.addWidget(self._lbl)
 
-        self.input = QLineEdit()
-        self.tr_set(self.input.setPlaceholderText, "Pronunciation", "Произношение")
-        layout.addWidget(self.input)
+        self._input = QLineEdit()
+        self.tr_set(self._input.setPlaceholderText, "Pronunciation", "Произношение")
+        layout.addWidget(self._input)
 
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
@@ -49,7 +49,7 @@ class PronunciationDialog(TranslatableMixin, QDialog):
         )
 
     def get_pronunciation(self) -> str:
-        return self.input.text().strip()
+        return self._input.text().strip()
 
     @staticmethod
     def get_pronunciation_for_user(parent=None, username: str = ""):

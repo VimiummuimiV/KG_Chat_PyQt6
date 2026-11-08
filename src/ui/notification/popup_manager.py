@@ -15,7 +15,7 @@ from ui.notification.popup_notification import PopupNotification
 from ui.notification.presence_popup import PresenceMiniPopup
 
 
-class PopupManager:
+class _PopupManager:
 
     def __init__(self):
         self.popups: List[PopupNotification] = []
@@ -24,7 +24,7 @@ class PopupManager:
         self.config = None
         self.notification_mode = "stack"
         self.muted = False
-        self.scroll_offset = 0
+        self._scroll_offset = 0
         self.emoticon_selector = None  # Single shared instance, created on first use
 
     def set_notification_mode(self, mode: str):
@@ -36,7 +36,7 @@ class PopupManager:
         """Shift the notification stack in scroll mode; clamped in _position_and_cleanup"""
         if self.notification_mode != "scroll" or not self.popups:
             return
-        self.scroll_offset = max(0, self.scroll_offset - delta)
+        self._scroll_offset = max(0, self._scroll_offset - delta)
         self.position_and_cleanup()
 
     def set_muted(self, muted: bool):
@@ -120,7 +120,7 @@ class PopupManager:
             if popup in lst:
                 lst.remove(popup)
         if not self.popups:
-            self.scroll_offset = 0
+            self._scroll_offset = 0
         self.position_and_cleanup()
 
     def close_all(self):
@@ -129,7 +129,7 @@ class PopupManager:
             popup.close_immediately()
         self.popups.clear()
         self.focused_popups.clear()
-        self.scroll_offset = 0
+        self._scroll_offset = 0
 
     def close_by_tag(self, tag: str):
         """Close notifications with the given tag"""
@@ -211,9 +211,9 @@ class PopupManager:
         # In scroll mode, clamp offset instead of dropping popups
         if self.notification_mode == "scroll":
             max_offset = max(0, total_height - available_height)
-            self.scroll_offset = min(self.scroll_offset, max_offset)
+            self._scroll_offset = min(self._scroll_offset, max_offset)
 
-        start_y = screen.y() + margin_top - (self.scroll_offset if self.notification_mode == "scroll" else 0)
+        start_y = screen.y() + margin_top - (self._scroll_offset if self.notification_mode == "scroll" else 0)
         self._stack_popups(self.popups, lambda p: self._popup_x(screen, position, p.width()), start_y)
 
         if self.notification_mode == "stack":
@@ -242,7 +242,7 @@ class PopupManager:
 
 
 # Global manager
-popup_manager = PopupManager()
+popup_manager = _PopupManager()
 
 
 def show_notification(**kwargs):

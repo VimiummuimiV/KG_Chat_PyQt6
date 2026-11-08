@@ -32,7 +32,7 @@ class ChatlogLoadingMixin:
     def _can_navigate(self, days: int) -> bool:
         return self.parser.MIN_DATE <= self.current_date + timedelta(days=days) <= datetime.now().date()
 
-    def _day_state(self) -> Optional[DayState]:
+    def day_state(self) -> Optional[DayState]:
         """Current day for the image viewer; None while parser results are shown."""
         if self.is_parsing:
             return None
@@ -69,14 +69,14 @@ class ChatlogLoadingMixin:
 
     def _scroll_to_time(self, time_str: str):
         """Scroll to and highlight the message matching time_str (HH:MM:SS) in the currently loaded date"""
-        target_row = self._find_message_row(
+        target_row = self.find_message_row(
             self.all_messages,
             lambda msg: msg.get_time_str() == time_str
         )
         if target_row is not None:
-            self._scroll_and_highlight(target_row, scroll_delay=50, highlight_delay=200)
+            self.scroll_and_highlight(target_row, scroll_delay=50, highlight_delay=200)
 
-    def _scroll_to_bottom(self):
+    def scroll_to_bottom(self):
         """Scroll to bottom after a load, unless suppressed by a cross-date message search.
         Only auto-scrolls for today's log (where "latest" = bottom); for past dates the
         user reads top-to-bottom and scrolls down manually as needed."""
@@ -89,16 +89,16 @@ class ChatlogLoadingMixin:
 
     def load_current_date(self):
         """Load single date chatlog - this is NORMAL viewing"""
-        self._set_parsing_mode(False)
-        self._set_parser_youtube_off(False)
+        self.set_parsing_mode(False)
+        self.set_parser_youtube_off(False)
         self.model.clear()
         self.all_messages = []
-        self._update_confirm_search_button()
+        self.update_confirm_search_button()
         self.info_label.setText(tr("Loading...", "Загрузка..."))
 
         date_str = self.current_date.strftime("%Y-%m-%d")
-        self._load_generation += 1
-        generation = self._load_generation
+        self.load_generation += 1
+        generation = self.load_generation
 
         def _load():
             error = None
@@ -116,12 +116,12 @@ class ChatlogLoadingMixin:
             except Exception as e:
                 error = f"Error: {e}"
 
-            if generation != self._load_generation:
+            if generation != self.load_generation:
                 return  # another day was requested meanwhile
             if error:
-                self._error_occurred.emit(error)
+                self.error_occurred.emit(error)
                 return
-            self._pending_data = (messages, size_text, was_truncated, from_cache)
+            self.pending_data = (messages, size_text, was_truncated, from_cache)
             QTimer.singleShot(0, self._display_messages)
 
         threading.Thread(target=_load, daemon=True).start()
@@ -129,7 +129,7 @@ class ChatlogLoadingMixin:
     def _display_messages(self):
         """Display messages with ban filtering (except during parse mode)"""
         try:
-            messages, size_text, was_truncated, from_cache = getattr(self, '_pending_data', ([], '', False, False))
+            messages, size_text, was_truncated, from_cache = getattr(self, 'pending_data', ([], '', False, False))
 
             cache_marker = " 📁" if from_cache else ""
             filtered_ban_count = 0
@@ -186,8 +186,8 @@ class ChatlogLoadingMixin:
                     pass
 
             self.all_messages = message_data
-            self._update_confirm_search_button()
-            self._apply_filter()
+            self.update_confirm_search_button()
+            self.apply_filter()
 
             self.list_view.setUpdatesEnabled(True)
 
@@ -218,7 +218,7 @@ class ChatlogLoadingMixin:
         finally:
             self.day_loaded.emit()
 
-    def _navigate(self, days):
+    def navigate(self, days):
         """Navigate by days offset (-1 for previous, +1 for next)"""
         if self._can_navigate(days):
             self.current_date += timedelta(days=days)

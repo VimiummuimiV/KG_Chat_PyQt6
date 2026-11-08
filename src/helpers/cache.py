@@ -13,7 +13,7 @@ from helpers.data import get_data_dir
 from helpers.load import fetch_avatar_bytes, load_avatar_from_disk
 
 
-class CacheManager:
+class _CacheManager:
     """Thread-safe singleton cache manager for avatars and user data.
 
     Persistent store: data/users.json  —  keyed by user_id (permanent).
@@ -181,7 +181,7 @@ class CacheManager:
 
         self._avatar_executor.submit(_work)
 
-    def clear_avatars(self) -> None:
+    def _clear_avatars(self) -> None:
         with self._cache_lock: self._avatar_stamps.clear()
 
     def remove_avatar(self, user_id: str) -> None:
@@ -192,14 +192,14 @@ class CacheManager:
     # ── Misc ──────────────────────────────────────────────────────────────────
 
     def clear_all(self) -> None:
-        self.clear_avatars()
+        self._clear_avatars()
 
     def shutdown(self) -> None:
         if hasattr(self, '_avatar_executor'):
             self._avatar_executor.shutdown(wait=False)
 
 
-_cache_manager = CacheManager()
+_cache_manager = _CacheManager()
 
-def get_cache() -> CacheManager:
+def get_cache() -> _CacheManager:
     return _cache_manager

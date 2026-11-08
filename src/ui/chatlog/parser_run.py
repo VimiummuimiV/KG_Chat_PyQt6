@@ -23,28 +23,28 @@ class ParserRunMixin:
             # Start parsing
             self._start_parsing()
 
-    def _on_copy_clicked(self):
+    def on_copy_clicked(self):
         """Copy results to clipboard"""
         pass
 
-    def _on_save_clicked(self):
+    def on_save_clicked(self):
         """Save results to file"""
         pass
 
     def _start_parsing(self):
         """Validate any typed usernames (mode-permitting) before actually starting the parse"""
         mode = self.mode_combo.currentData() or self.mode_combo.currentText()
-        usernames = [] if mode == "Sync Database" else self._get_usernames()
+        usernames = [] if mode == "Sync Database" else self.get_usernames()
         if not usernames:
             self._on_parse_usernames_validated([], [])
             return
         self.parse_button.setEnabled(False)
-        self._validate_usernames(usernames, self._on_parse_usernames_validated)
+        self.validate_usernames(usernames, self._on_parse_usernames_validated)
 
     def _on_parse_usernames_validated(self, valid: list, invalid: list):
         """Start parse; confirm if some names are unknown to the API (still present in logs)."""
         self.parse_button.setEnabled(True)
-        if invalid and not self._confirm_unknown_usernames(
+        if invalid and not self.confirm_unknown_usernames(
             invalid, "Continue parsing anyway? Old names may still appear in chatlogs."
         ):
             return
@@ -97,7 +97,7 @@ class ParserRunMixin:
         self.copy_button.setVisible(True)
         self.save_button.setVisible(True)
         if not self.is_sync_mode:
-            self.saved_usernames_bar.add_values(self._get_usernames())
+            self.saved_usernames_bar.add_values(self.get_usernames())
 
     def update_progress(self, start_date: str, current_date: str, percent: int):
         """Update progress display"""
@@ -278,18 +278,18 @@ class ParserRunMixin:
                     return None
 
         # Get usernames and search terms (skip for sync mode)
-        usernames = [] if mode == "Sync Database" else self._get_usernames()
+        usernames = [] if mode == "Sync Database" else self.get_usernames()
         search_terms = [] if mode == "Sync Database" else self._get_search_terms()
         mention_keywords = []
 
         # Override for Personal Mentions mode
         if mode == "Personal Mentions":
             # Personal Mentions: usernames filter whose messages are searched, mention_keywords is what to look for
-            usernames = self._get_usernames()
+            usernames = self.get_usernames()
 
             # Build mention keywords from current username + search field
             mention_keywords = []
-            current_username = self._get_current_username()
+            current_username = self.get_current_username()
             if current_username:
                 mention_keywords.append(current_username)
 
@@ -316,7 +316,7 @@ class ParserRunMixin:
 
         return config
 
-    def _get_usernames(self) -> List[str]:
+    def get_usernames(self) -> List[str]:
         """Get usernames from field"""
         text = self.username_input.text().strip()
         if not text:

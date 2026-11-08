@@ -80,7 +80,7 @@ def toggle_filter_value(current: Set[str], value: str, ctrl_pressed: bool, alway
     return set() if current == {value} else {value}
 
 
-def set_badge_active(badge: QLabel, active: bool, dim: float = 0.4):
+def _set_badge_active(badge: QLabel, active: bool, dim: float = 0.4):
     """Dim inactive filter pills; full opacity when active."""
     if active:
         badge.setGraphicsEffect(None)
@@ -90,7 +90,7 @@ def set_badge_active(badge: QLabel, active: bool, dim: float = 0.4):
         badge.setGraphicsEffect(effect)
 
 
-class TypeFilterBadge(QLabel):
+class _TypeFilterBadge(QLabel):
     """Colored JOIN/LEFT/GAME pill toggle."""
     clicked = pyqtSignal(str, bool)  # event_type, ctrl_pressed
 
@@ -104,11 +104,11 @@ class TypeFilterBadge(QLabel):
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setStyleSheet(_pill_css(bg, fg, border))
-        set_badge_active(self, False)
+        _set_badge_active(self, False)
 
     def set_active(self, active: bool):
         self._active = bool(active)
-        set_badge_active(self, self._active)
+        _set_badge_active(self, self._active)
 
     def is_active(self) -> bool:
         return self._active
@@ -144,14 +144,14 @@ class TypeFilterBar(QWidget):
         layout.setSpacing(4)
         self.badges = {}
         for et in EVENT_TYPES:
-            badge = TypeFilterBadge(et, is_dark=is_dark)
+            badge = _TypeFilterBadge(et, is_dark=is_dark)
             badge.clicked.connect(self._on_click)
             self.badges[et] = badge
             layout.addWidget(badge)
         layout.addStretch()
         self._sync()
 
-    def active_types(self) -> Set[str]:
+    def _active_types(self) -> Set[str]:
         return set(self._active)
 
     def set_active_types(self, types: Iterable[str]):
@@ -172,7 +172,7 @@ class TypeFilterBar(QWidget):
             self._active, event_type, ctrl_pressed, always_multi=not self.empty_means_all
         )
         self._sync()
-        self.changed.emit(self.active_types())
+        self.changed.emit(self._active_types())
 
 
 def make_game_id_label(event_type: str, game_id) -> Optional[QLabel]:

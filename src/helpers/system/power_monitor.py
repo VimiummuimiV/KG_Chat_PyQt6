@@ -12,11 +12,11 @@ import time
 from PyQt6.QtCore import pyqtSignal, QObject, QTimer
 
 
-HEARTBEAT_INTERVAL_MS = 2000
-SUSPEND_GAP_THRESHOLD_SECONDS = 8.0
+_HEARTBEAT_INTERVAL_MS = 2000
+_SUSPEND_GAP_THRESHOLD_SECONDS = 8.0
 
 
-class PowerMonitor(QObject):
+class _PowerMonitor(QObject):
     """Emits `resumed` shortly after the system wakes from sleep/hibernation."""
 
     resumed = pyqtSignal()
@@ -24,7 +24,7 @@ class PowerMonitor(QObject):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._timer = QTimer(self)
-        self._timer.setInterval(HEARTBEAT_INTERVAL_MS)
+        self._timer.setInterval(_HEARTBEAT_INTERVAL_MS)
         self._timer.timeout.connect(self._on_heartbeat)
         self._last_tick = None
 
@@ -39,9 +39,9 @@ class PowerMonitor(QObject):
         now = time.monotonic()
         gap = now - self._last_tick
         self._last_tick = now
-        if gap > SUSPEND_GAP_THRESHOLD_SECONDS:
+        if gap > _SUSPEND_GAP_THRESHOLD_SECONDS:
             print(f"⚡ System wake detected (idle gap: {gap:.1f}s)")
             self.resumed.emit()
 
 
-power_monitor = PowerMonitor()
+power_monitor = _PowerMonitor()

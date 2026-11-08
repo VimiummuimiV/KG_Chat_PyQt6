@@ -42,7 +42,7 @@ def parse_search_text(text: str):
     return user_filter, message_filter, True
 
 
-def message_matches_search(msg_data, search_text: str) -> bool:
+def _message_matches_search(msg_data, search_text: str) -> bool:
     """Match a message against plain text or U:/M: prefix query."""
     if not search_text:
         return True
@@ -62,7 +62,7 @@ def message_matches_search(msg_data, search_text: str) -> bool:
     return search_lower in username or search_lower in body
 
 
-def highlight_from_search(search_text: str) -> str:
+def _highlight_from_search(search_text: str) -> str:
     """Text to highlight in the delegate for the current query."""
     users, message_filter, is_prefix = parse_search_text(search_text)
     if is_prefix:
@@ -117,13 +117,13 @@ class MessageSearchBar(QWidget):
         for widget in extra_widgets or ():
             layout.addWidget(widget)
 
-        self.clear_btn = create_icon_button(
+        self._clear_btn = create_icon_button(
             icons_path, "trash.svg", "",
             size_type="large", config=config,
         )
-        self.clear_btn.setToolTip(tr("Clear search", "Очистить поиск"))
-        self.clear_btn.clicked.connect(self.clear)
-        layout.addWidget(self.clear_btn)
+        self._clear_btn.setToolTip(tr("Clear search", "Очистить поиск"))
+        self._clear_btn.clicked.connect(self.clear)
+        layout.addWidget(self._clear_btn)
 
         self.setVisible(self.visible_state)
 
@@ -160,11 +160,11 @@ class MessageSearchBar(QWidget):
             self.field.blockSignals(False)
         self.text_changed.emit("")
 
-    def matches(self, msg_data) -> bool:
-        return message_matches_search(msg_data, self.search_text)
+    def _matches(self, msg_data) -> bool:
+        return _message_matches_search(msg_data, self.search_text)
 
     def highlight_text(self) -> str:
-        return highlight_from_search(self.search_text)
+        return _highlight_from_search(self.search_text)
 
     def register_message(self, msg_data, max_messages: int) -> bool:
         """Sync backup with a new message; returns whether it should appear in the list now."""
@@ -173,7 +173,7 @@ class MessageSearchBar(QWidget):
         self._backup.append(msg_data)
         if len(self._backup) > max_messages:
             self._backup = self._backup[-max_messages:]
-        return self.matches(msg_data)
+        return self._matches(msg_data)
 
     def filter_backup(self, predicate):
         """Remove backup entries for which predicate(msg) is True."""
@@ -192,5 +192,5 @@ class MessageSearchBar(QWidget):
             return
         if self._backup is None:
             self._backup = list(self._get_messages())
-        filtered = [m for m in self._backup if self.matches(m)]
+        filtered = [m for m in self._backup if self._matches(m)]
         self._set_messages(filtered)

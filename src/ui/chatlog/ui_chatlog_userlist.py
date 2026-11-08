@@ -29,7 +29,7 @@ from helpers.scroll.auto_scroll import AutoScroller
 from helpers.translate import on_language_changed, TranslatableMixin
 
 
-class ChatlogUserWidget(TrackedMarkMixin, UserCountRow):
+class _ChatlogUserWidget(TrackedMarkMixin, UserCountRow):
     """Single user widget for chatlog - adds context menu (profile/private/track/etc) on top of the base row"""
 
     profile_requested = pyqtSignal(str, str, str)  # jid, username, user_id
@@ -115,7 +115,7 @@ class ChatlogUserlistWidget(TranslatableMixin, QWidget):
         self.user_tracker = user_tracker
         self.my_username = my_username
         self.pronunciation_manager = None
-        self.show_banned = False  # Track if we should show banned users
+        self._show_banned = False  # Track if we should show banned users
         self.user_widgets = {}  # username -> widget
         self.filtered_usernames = set()
 
@@ -131,20 +131,20 @@ class ChatlogUserlistWidget(TranslatableMixin, QWidget):
         button_layout = QHBoxLayout()
         button_layout.setSpacing(config.get("ui", "buttons", "spacing") or 8)
         button_layout.setContentsMargins(0, 0, 0, 0)
-        self.clear_filter_btn = create_icon_button(
+        self._clear_filter_btn = create_icon_button(
             icons_path,
             "filter.svg",
             "",
             size_type="large",
             config=config
         )
-        self.tr_set(self.clear_filter_btn.setToolTip,
+        self.tr_set(self._clear_filter_btn.setToolTip,
                         "Clear filter and show all users",
                         "Сбросить фильтр и показать всех пользователей"
                     )
-        self.clear_filter_btn.clicked.connect(self.clear_filter)
-        self.clear_filter_btn.setVisible(False)
-        button_layout.addWidget(self.clear_filter_btn)
+        self._clear_filter_btn.clicked.connect(self.clear_filter)
+        self._clear_filter_btn.setVisible(False)
+        button_layout.addWidget(self._clear_filter_btn)
         button_layout.addStretch()
         layout.addLayout(button_layout)
 
@@ -157,18 +157,18 @@ class ChatlogUserlistWidget(TranslatableMixin, QWidget):
         self.auto_scroller = AutoScroller(scroll)
 
         container = QWidget()
-        self.user_layout = QVBoxLayout()
-        self.user_layout.setContentsMargins(5, 5, 5, 5)
-        self.user_layout.setSpacing(2)
-        container.setLayout(self.user_layout)
+        self._user_layout = QVBoxLayout()
+        self._user_layout.setContentsMargins(5, 5, 5, 5)
+        self._user_layout.setSpacing(2)
+        container.setLayout(self._user_layout)
         scroll.setWidget(container)
 
-        self.user_layout.addStretch()
+        self._user_layout.addStretch()
         on_language_changed(self.retranslate_all)
 
     def set_show_banned(self, show: bool):
         """Control whether banned users are shown (for parse mode)"""
-        self.show_banned = show
+        self._show_banned = show
 
     def _handle_user_click(self, username: str, ctrl_pressed: bool):
         """Handle user click with Ctrl modifier support"""
@@ -191,7 +191,7 @@ class ChatlogUserlistWidget(TranslatableMixin, QWidget):
             widget.set_filtered(uname in self.filtered_usernames)
 
         # Show/hide clear button
-        self.clear_filter_btn.setVisible(bool(self.filtered_usernames))
+        self._clear_filter_btn.setVisible(bool(self.filtered_usernames))
 
         # Emit filter
         self.filter_requested.emit(self.filtered_usernames.copy())
@@ -201,7 +201,7 @@ class ChatlogUserlistWidget(TranslatableMixin, QWidget):
         self.filtered_usernames = set()
         for widget in self.user_widgets.values():
             widget.set_filtered(False)
-        self.clear_filter_btn.setVisible(False)
+        self._clear_filter_btn.setVisible(False)
         self.filter_requested.emit(set())
 
     def update_filter_state(self, filtered_usernames: set):
@@ -209,7 +209,7 @@ class ChatlogUserlistWidget(TranslatableMixin, QWidget):
         self.filtered_usernames = filtered_usernames.copy()
         for uname, widget in self.user_widgets.items():
             widget.set_filtered(uname in filtered_usernames)
-        self.clear_filter_btn.setVisible(bool(filtered_usernames))
+        self._clear_filter_btn.setVisible(bool(filtered_usernames))
 
     def load_from_messages(self, messages):
         """Load users from chatlog messages with ban filtering"""
@@ -222,7 +222,7 @@ class ChatlogUserlistWidget(TranslatableMixin, QWidget):
         counts = Counter(msg.username for msg in messages)
 
         # FILTER BANNED USERS - completely hide them unless in parse mode
-        if self.ban_manager and not self.show_banned:
+        if self.ban_manager and not self._show_banned:
             # Remove banned users from counts
             filtered_counts = {}
             for username, count in counts.items():
@@ -237,8 +237,8 @@ class ChatlogUserlistWidget(TranslatableMixin, QWidget):
             empty_label.setStyleSheet("color: #888888;")
             empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             self.tr_set(empty_label.setText, "No users to display", "Нет пользователей для отображения")
-            self.user_layout.addWidget(empty_label)
-            self.user_layout.addStretch()
+            self._user_layout.addWidget(empty_label)
+            self._user_layout.addStretch()
             return
 
         sorted_users = sorted(counts.items(), key=lambda x: (-x[1], x[0].lower()))
@@ -247,7 +247,7 @@ class ChatlogUserlistWidget(TranslatableMixin, QWidget):
         for username, count in sorted_users:
             try:
                 user_id = self.cache.get_user_id(username)
-                widget = ChatlogUserWidget(
+                widget = _ChatlogUserWidget(
                     username, count, self.config, self.icons_path,
                     my_username=self.my_username, user_id=user_id,
                     user_tracker=self.user_tracker, pronunciation_manager=self.pronunciation_manager,
@@ -261,12 +261,12 @@ class ChatlogUserlistWidget(TranslatableMixin, QWidget):
                 widget.pronunciation_requested.connect(self.pronunciation_requested.emit)
                 widget.set_filtered(username in self.filtered_usernames)
                 self.user_widgets[username] = widget
-                self.user_layout.insertWidget(self.user_layout.count() - 1, widget)
+                self._user_layout.insertWidget(self._user_layout.count() - 1, widget)
             except Exception as e:
                 print(f"Error creating chatlog user widget: {e}")
 
         # Update clear button visibility
-        self.clear_filter_btn.setVisible(bool(self.filtered_usernames))
+        self._clear_filter_btn.setVisible(bool(self.filtered_usernames))
 
     def refresh_tracked_star(self, user_id: str = None, login: str = None):
         """Update tracked star on existing widgets. No args = all (settings toggle)."""
@@ -303,7 +303,7 @@ class ChatlogUserlistWidget(TranslatableMixin, QWidget):
         """Clear cache - called when going back to messages"""
         pass
 
-    def reset_filter(self):
+    def _reset_filter(self):
         """Reset filter state (called when navigating dates)"""
         # Keep the filter active across date changes
         pass
@@ -311,8 +311,8 @@ class ChatlogUserlistWidget(TranslatableMixin, QWidget):
     def _clear_widgets(self):
         """Clear user widgets"""
         self.user_widgets.clear()
-        while self.user_layout.count() > 1:
-            item = self.user_layout.takeAt(0)
+        while self._user_layout.count() > 1:
+            item = self._user_layout.takeAt(0)
             if item.widget():
                 item.widget().deleteLater()
         QApplication.processEvents()

@@ -29,7 +29,7 @@ class ChatlogsParserEngine:
 
     def __init__(self, max_workers: Optional[int] = None):
         self.parser = ChatlogsParser()
-        self.stop_requested = False
+        self._stop_requested = False
 
         # Calculate optimal workers if not provided
         if max_workers is None:
@@ -43,11 +43,11 @@ class ChatlogsParserEngine:
 
     def stop(self):
         """Request stop of parsing"""
-        self.stop_requested = True
+        self._stop_requested = True
 
-    def reset_stop(self):
+    def _reset_stop(self):
         """Reset stop flag"""
-        self.stop_requested = False
+        self._stop_requested = False
 
     def _fetch_date(self, date_str: str) -> tuple:
         """Fetch and cache a single date (network operation)"""
@@ -71,7 +71,7 @@ class ChatlogsParserEngine:
         - Use direct DB query if all dates are cached
         - Use multithreading only for network fetches of missing dates
         """
-        self.reset_stop()
+        self._reset_stop()
 
         # Get date range
         from_date = datetime.strptime(config.from_date, '%Y-%m-%d').date()
@@ -95,7 +95,7 @@ class ChatlogsParserEngine:
                 progress_callback
             )
 
-            if self.stop_requested:
+            if self._stop_requested:
                 # Return partial results from DB, plus today's log fetched live
                 messages = self.parser.db.get_messages(
                     config.from_date,
@@ -132,7 +132,7 @@ class ChatlogsParserEngine:
 
             # Send callbacks in chronological order
             for date in sorted(messages_by_date.keys()):
-                if self.stop_requested:
+                if self._stop_requested:
                     break
                 message_callback(messages_by_date[date], date)
 
@@ -163,7 +163,7 @@ class ChatlogsParserEngine:
 
             # Process completed futures
             for future in as_completed(future_to_date):
-                if self.stop_requested:
+                if self._stop_requested:
                     for f in future_to_date:
                         f.cancel()
                     break
@@ -229,6 +229,6 @@ class ChatlogsParserEngine:
             if msg.date != config.from_date or msg.timestamp > config.from_time
         ]
 
-    def count_messages_per_user(self, messages: List[ChatMessage]) -> dict:
+    def _count_messages_per_user(self, messages: List[ChatMessage]) -> dict:
         """Count messages per username"""
         return Counter(msg.username for msg in messages)

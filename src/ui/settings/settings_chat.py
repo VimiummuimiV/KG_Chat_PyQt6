@@ -37,57 +37,57 @@ _HUE_GRADIENT_STOPS = [hsl_to_hex(hue, 100, _GRADIENT_LIGHTNESS) for hue in rang
 class SettingsChatMixin:
     """SettingsWidget: chat, chatlog, mentions digest and flash highlight options."""
 
-    def _build_chat_section(self):
-        section = self._create_section(tr("🗯️ Chat", "🗯️ Чат"))
-        self.language_combo = self._add_combo_row(
-            section, tr("Language", "Язык"), [], self._on_language_changed
+    def build_chat_section(self):
+        section = self.create_section(tr("🗯️ Chat", "🗯️ Чат"))
+        self.language_combo = self.add_combo_row(
+            section, tr("Language", "Язык"), [], self.on_language_changed
         )
         self.language_combo.setFixedWidth(240)
         fill_tooltip_combo(
             self.language_combo, LANGUAGE_OPTIONS,
             self.config.get("ui", "language"), "en"
         )
-        self.clear_private_checkbox = self._add_checkbox(
+        self.clear_private_checkbox = self.add_checkbox(
             section, tr("Clear private messages on exit", "Очищать приватные сообщения при выходе"),
-            self._on_clear_private_toggled
+            self.on_clear_private_toggled
         )
-        self.youtube_checkbox = self._add_checkbox(
+        self.youtube_checkbox = self.add_checkbox(
             section, tr("YouTube link previews", "Превью ссылок YouTube"),
-            self._on_youtube_toggled
+            self.on_youtube_toggled
         )
-        self.voice_input_checkbox = self._add_checkbox(
+        self.voice_input_checkbox = self.add_checkbox(
             section, tr("Voice input button", "Кнопка голосового ввода"),
-            self._on_voice_input_toggled
+            self.on_voice_input_toggled
         )
-        self.settings_accordion_checkbox = self._add_checkbox(
+        self.settings_accordion_checkbox = self.add_checkbox(
             section, tr("Accordion settings sections (opening one collapses others)",
                         "Аккордеон секций настроек (открытие одной сворачивает остальные)"),
-            self._on_settings_accordion_toggled
+            self.on_settings_accordion_toggled
         )
-        self.browser_combo = self._add_combo_row(
+        self.browser_combo = self.add_combo_row(
             section, tr("Open links in", "Открывать ссылки в"), [], self._on_browser_changed
         )
         self.browser_combo.setFixedWidth(240)
-        self.badge_size_spin = self._add_slider_spin_row(
+        self.badge_size_spin = self.add_slider_spin_row(
             section, tr("Badge font size", "Размер шрифта бейджа"), 8, 18,
             self._on_badge_size_changed, default=DEFAULTS["chat"]["badge_font_size"],
         )
-        self.mentions_digest_mode_combo = self._add_combo_row(
+        self.mentions_digest_mode_combo = self.add_combo_row(
             section, tr("Personal mentions check", "Проверка личных упоминаний"), [],
             self._on_mentions_digest_mode_changed
         )
         self.mentions_digest_mode_combo.setFixedWidth(240)
-        self.mentions_digest_interval_spin = self._add_slider_spin_row(
+        self.mentions_digest_interval_spin = self.add_slider_spin_row(
             section, tr("Custom interval (hours)", "Свой интервал (часы)"), 1, 168,
             self._on_mentions_digest_interval_changed,
             default=DEFAULTS["chat"]["mentions_digest_interval_hours"],
         )
-        self._add_hotkey_row(section, tr("Toggle chat window", "Показать/скрыть окно чата"))
+        self.add_hotkey_row(section, tr("Toggle chat window", "Показать/скрыть окно чата"))
 
-        limits_header, limits_content, limits_layout = self._add_subsection(
+        limits_header, limits_content, limits_layout = self.add_subsection(
             section, tr("📏 Message Limits", "📏 Лимиты сообщений")
         )
-        self.chatlog_max_messages_spin = self._add_slider_spin_row(
+        self.chatlog_max_messages_spin = self.add_slider_spin_row(
             limits_layout, tr("Chatlog messages display limit", "Лимит отображения сообщений чатлога"),
             DEFAULTS["chatlog"]["max_messages_min"], DEFAULTS["chatlog"]["max_messages_max"],
             self._on_chatlog_max_messages_changed,
@@ -97,7 +97,7 @@ class SettingsChatMixin:
         self.chatlog_max_messages_spin.linked_slider.setSingleStep(1000)
         self.chatlog_max_messages_spin.linked_slider.setPageStep(5000)
 
-        self.chatlog_live_search_spin = self._add_slider_spin_row(
+        self.chatlog_live_search_spin = self.add_slider_spin_row(
             limits_layout, tr("Chatlog live search up to (messages)", "Живой поиск чатлога до (сообщений)"),
             DEFAULTS["chatlog"]["live_search_max_messages_min"],
             DEFAULTS["chatlog"]["live_search_max_messages_max"],
@@ -108,7 +108,7 @@ class SettingsChatMixin:
         self.chatlog_live_search_spin.linked_slider.setSingleStep(500)
         self.chatlog_live_search_spin.linked_slider.setPageStep(2000)
 
-        self.chat_max_messages_spin = self._add_slider_spin_row(
+        self.chat_max_messages_spin = self.add_slider_spin_row(
             limits_layout, tr("Chat messages display limit", "Лимит отображения сообщений чата"),
             DEFAULTS["chat"]["max_messages_min"], DEFAULTS["chat"]["max_messages_max"],
             self._on_chat_max_messages_changed,
@@ -117,31 +117,31 @@ class SettingsChatMixin:
         self.chat_max_messages_spin.setSingleStep(100)
         self.chat_max_messages_spin.linked_slider.setSingleStep(100)
         self.chat_max_messages_spin.linked_slider.setPageStep(500)
-        self._add_collapse_toggle(limits_header, limits_content, ("ui", "settings", "widgets", "chat_limits"))
+        self.add_collapse_toggle(limits_header, limits_content, ("ui", "settings", "widgets", "chat_limits"))
 
-        input_header, input_content, input_layout = self._add_subsection(
+        input_header, input_content, input_layout = self.add_subsection(
             section, tr("⌨️ Input Field", "⌨️ Строка ввода")
         )
-        self.input_hue_spin = self._add_slider_spin_row(
+        self.input_hue_spin = self.add_slider_spin_row(
             input_layout, tr("Hue", "Оттенок"), 0, INPUT_HUE_MAX,
             self._on_input_hue_changed, default=INPUT_HUE_DEFAULT,
         )
-        self.input_saturation_spin = self._add_slider_spin_row(
+        self.input_saturation_spin = self.add_slider_spin_row(
             input_layout, tr("Saturation", "Насыщенность"), 0, INPUT_SATURATION_MAX,
             self._on_input_saturation_changed, default=INPUT_SATURATION_DEFAULT,
         )
-        self.input_opacity_spin = self._add_slider_spin_row(
+        self.input_opacity_spin = self.add_slider_spin_row(
             input_layout, tr("Opacity when focused", "Прозрачность в фокусе"), 0, INPUT_OPACITY_MAX,
             self._on_input_opacity_changed, default=INPUT_OPACITY_DEFAULT,
         )
-        self.input_idle_opacity_spin = self._add_slider_spin_row(
+        self.input_idle_opacity_spin = self.add_slider_spin_row(
             input_layout, tr("Opacity when unfocused", "Прозрачность без фокуса"), 0, INPUT_OPACITY_MAX,
             self._on_input_idle_opacity_changed, default=INPUT_IDLE_OPACITY_DEFAULT,
         )
         for spin in (self.input_opacity_spin, self.input_idle_opacity_spin):
             spin.valueChanged.connect(self._clamp_input_idle_opacity)
             spin.linked_slider.valueChanged.connect(self._clamp_input_idle_opacity)
-        self.input_preview = {}
+        self._input_preview = {}
         preview_row = QHBoxLayout()
         for state, placeholder in (("idle", tr("Unfocused", "Без фокуса")), ("focus", tr("Focused", "В фокусе"))):
             preview = QLineEdit()
@@ -150,62 +150,62 @@ class SettingsChatMixin:
             preview.setPlaceholderText(placeholder)
             self.register_tr(preview.setPlaceholderText, placeholder)
             preview_row.addWidget(preview, stretch=1)
-            self.input_preview[state] = preview
+            self._input_preview[state] = preview
         input_layout.addLayout(preview_row)
 
         self.input_hue_spin.linked_slider.setStyleSheet(gradient_slider_stylesheet(_HUE_GRADIENT_STOPS))
         self.input_hue_spin.linked_slider.valueChanged.connect(self._update_input_saturation_gradient)
         self._update_input_saturation_gradient()
-        self._apply_input_preview()
-        self._add_collapse_toggle(input_header, input_content, ("ui", "settings", "widgets", "chat_input"))
+        self.apply_input_preview()
+        self.add_collapse_toggle(input_header, input_content, ("ui", "settings", "widgets", "chat_input"))
 
-        xmpp_header, xmpp_content, xmpp_layout = self._add_subsection(section, "🔌 XMPP")
-        self.resource_combo = self._add_combo_row(
-            xmpp_layout, tr("XMPP resource", "XMPP ресурс"), [], self._on_resource_changed
+        xmpp_header, xmpp_content, xmpp_layout = self.add_subsection(section, "🔌 XMPP")
+        self.resource_combo = self.add_combo_row(
+            xmpp_layout, tr("XMPP resource", "XMPP ресурс"), [], self.on_resource_changed
         )
         self.resource_combo.setFixedWidth(240)
-        self.own_message_mode_combo = self._add_combo_row(
-            xmpp_layout, tr("Own messages", "Свои сообщения"), [], self._on_own_message_mode_changed
+        self.own_message_mode_combo = self.add_combo_row(
+            xmpp_layout, tr("Own messages", "Свои сообщения"), [], self.on_own_message_mode_changed
         )
         self.own_message_mode_combo.setFixedWidth(240)
-        self._add_collapse_toggle(xmpp_header, xmpp_content, ("ui", "settings", "widgets", "chat_xmpp"))
+        self.add_collapse_toggle(xmpp_header, xmpp_content, ("ui", "settings", "widgets", "chat_xmpp"))
 
-        chatlog_header, chatlog_content, chatlog_layout = self._add_subsection(
+        chatlog_header, chatlog_content, chatlog_layout = self.add_subsection(
             section, tr("📜 Chatlog", "📜 Чатлог")
         )
-        self.chatlog_filtered_click_combo = self._add_combo_row(
+        self.chatlog_filtered_click_combo = self.add_combo_row(
             chatlog_layout, tr("Click on filtered message", "Клик по отфильтрованному сообщению"), [],
             self._on_chatlog_filtered_click_changed
         )
         self.chatlog_filtered_click_combo.setFixedWidth(240)
-        self._add_collapse_toggle(chatlog_header, chatlog_content, ("ui", "settings", "widgets", "chat_chatlog"))
+        self.add_collapse_toggle(chatlog_header, chatlog_content, ("ui", "settings", "widgets", "chat_chatlog"))
 
-        parser_header, parser_content, parser_layout = self._add_subsection(
+        parser_header, parser_content, parser_layout = self.add_subsection(
             section, tr("🔍 Chatlog Parser", "🔍 Парсер чатлога")
         )
-        self.parser_validate_usernames_checkbox = self._add_checkbox(
+        self.parser_validate_usernames_checkbox = self.add_checkbox(
             parser_layout,
             tr("Validate usernames in chatlog parser (API check)",
                "Проверять имена в парсере чатлога (через API)"),
             self._on_parser_validate_usernames_toggled,
         )
-        self._add_collapse_toggle(parser_header, parser_content, ("ui", "settings", "widgets", "chat_parser"))
+        self.add_collapse_toggle(parser_header, parser_content, ("ui", "settings", "widgets", "chat_parser"))
 
-        flash_header, flash_content, flash_layout = self._add_subsection(
+        flash_header, flash_content, flash_layout = self.add_subsection(
             section, tr("🪄 Highlight Animation", "🪄 Анимация подсветки")
         )
-        self.flash_easing_combo = self._add_combo_row(
+        self.flash_easing_combo = self.add_combo_row(
             flash_layout, tr("Timing function", "Функция плавности"), [], self._on_flash_easing_changed
         )
         self.flash_easing_combo.setFixedWidth(240)
         dmin = DEFAULTS["chat"]["flash_duration_ms_min"]
         dmax = DEFAULTS["chat"]["flash_duration_ms_max"]
-        self.flash_row_duration_spin = self._add_slider_spin_row(
+        self.flash_row_duration_spin = self.add_slider_spin_row(
             flash_layout, tr("Row highlight (ms)", "Подсветка строки (мс)"),
             dmin, dmax, lambda v: self._on_flash_duration_changed("row", v),
             default=DEFAULTS["chat"]["flash_row_duration_ms"],
         )
-        self.flash_copy_duration_spin = self._add_slider_spin_row(
+        self.flash_copy_duration_spin = self.add_slider_spin_row(
             flash_layout, tr("Copy (ms)", "Копирование (мс)"),
             dmin, dmax, lambda v: self._on_flash_duration_changed("copy", v),
             default=DEFAULTS["chat"]["flash_copy_duration_ms"],
@@ -214,7 +214,7 @@ class SettingsChatMixin:
             spin.setSingleStep(50)
             spin.linked_slider.setSingleStep(50)
 
-        self.flash_preview = {}
+        self._flash_preview = {}
         preview_widget = QWidget()
         preview_widget.setObjectName("flashPreview")
         preview_layout = QHBoxLayout(preview_widget)
@@ -235,13 +235,13 @@ class SettingsChatMixin:
             label.setMargin(0)
             label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
             preview_layout.addWidget(label, stretch=1)
-            self.flash_preview[kind] = label
+            self._flash_preview[kind] = label
 
-        self._apply_flash_preview_theme()
+        self.apply_flash_preview_theme()
         flash_layout.addWidget(preview_widget)
-        self._add_collapse_toggle(flash_header, flash_content, ("ui", "settings", "widgets", "chat_flash"))
+        self.add_collapse_toggle(flash_header, flash_content, ("ui", "settings", "widgets", "chat_flash"))
 
-    def _refresh_chat(self):
+    def refresh_chat(self):
         max_messages = self.config.get("ui", "chatlog", "max_messages")
         max_messages = DEFAULTS["chatlog"]["max_messages"] if max_messages is None else int(max_messages)
         max_messages = max(
@@ -314,7 +314,7 @@ class SettingsChatMixin:
         input_idle_opacity = min(input_idle_opacity, input_opacity)
         self.input_idle_opacity_spin.setValue(input_idle_opacity)
         self.input_idle_opacity_spin.linked_slider.setValue(input_idle_opacity)
-        self._apply_input_preview()
+        self.apply_input_preview()
 
         fill_mentions_digest_mode_combo(
             self.mentions_digest_mode_combo,
@@ -350,7 +350,7 @@ class SettingsChatMixin:
         self.config.set("ui", "chatlog", "live_search_max_messages", value=int(value))
 
     def _on_chatlog_filtered_click_changed(self, _text: str = ""):
-        self._sync_combo_tooltip(self.chatlog_filtered_click_combo)
+        self.sync_combo_tooltip(self.chatlog_filtered_click_combo)
         value = self.chatlog_filtered_click_combo.currentData() or DEFAULTS["chatlog"]["filtered_click_action"]
         self.config.set("ui", "chatlog", "filtered_click_action", value=value)
 
@@ -365,11 +365,11 @@ class SettingsChatMixin:
         if key is not None:
             self.config.set("browser", value=key)
 
-    def _apply_flash_preview_theme(self):
-        if not hasattr(self, "flash_preview"):
+    def apply_flash_preview_theme(self):
+        if not hasattr(self, "_flash_preview"):
             return
         preview_style = preview_box_stylesheet("QLabel", self.config.get("ui", "theme") or "dark")
-        for preview in self.flash_preview.values():
+        for preview in self._flash_preview.values():
             preview.setStyleSheet(preview_style)
 
     def _load_flash_duration_spins(self):
@@ -404,17 +404,17 @@ class SettingsChatMixin:
             hsl_to_hex(hue, INPUT_SATURATION_MAX, _GRADIENT_LIGHTNESS),
         ]))
 
-    def _apply_input_preview(self):
+    def apply_input_preview(self):
         """Show the unfocused and focused look of the regular input with the current settings."""
-        if not hasattr(self, "input_preview"):
+        if not hasattr(self, "_input_preview"):
             return
         colors = get_input_colors(self.config, (self.config.get("ui", "theme") or "dark") == "dark")
         focused_colors = {**colors, "input_bg_idle": colors["input_bg"], "input_border_idle": colors["input_border"]}
-        self.input_preview["idle"].setStyleSheet(get_input_stylesheet(colors))
-        self.input_preview["focus"].setStyleSheet(get_input_stylesheet(focused_colors))
+        self._input_preview["idle"].setStyleSheet(get_input_stylesheet(colors))
+        self._input_preview["focus"].setStyleSheet(get_input_stylesheet(focused_colors))
 
     def _on_input_style_changed(self):
-        self._apply_input_preview()
+        self.apply_input_preview()
         self.input_style_changed.emit()
 
     def _on_input_hue_changed(self, value: int):
@@ -462,9 +462,9 @@ class SettingsChatMixin:
         value = self.flash_easing_combo.currentData()
         if value is not None:
             self.config.set("ui", "chat", "flash_easing", value=value)
-        for kind, preview in self.flash_preview.items():
+        for kind, preview in self._flash_preview.items():
             preview.flash(kind)
 
     def _on_flash_duration_changed(self, kind: str, value: int):
         self.config.set("ui", "chat", DURATION_KEYS[kind], value=int(value))
-        self.flash_preview[kind].flash(kind)
+        self._flash_preview[kind].flash(kind)

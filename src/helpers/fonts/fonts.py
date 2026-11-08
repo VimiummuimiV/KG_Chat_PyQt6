@@ -17,7 +17,7 @@ class FontType(Enum):
     HEADER = "header"   # Titles, section headers
 
 
-class FontManager:
+class _FontManager:
     """Centralized font manager with unified API"""
 
     _instance = None
@@ -31,7 +31,7 @@ class FontManager:
         if hasattr(self, '_initialized'):
             return
 
-        self.fonts_dir = get_resource_dir("fonts")
+        self._fonts_dir = get_resource_dir("fonts")
         self.config = None
         self.loaded = False
         self.font_scaler = None
@@ -75,7 +75,7 @@ class FontManager:
         """Load all ttf from a font folder. Returns registered family names."""
         if dir_name in self._loaded_dirs:
             return []
-        family_dir = self.fonts_dir / dir_name
+        family_dir = self._fonts_dir / dir_name
         if not family_dir.exists():
             return []
 
@@ -93,11 +93,11 @@ class FontManager:
         if self._available_families:
             return list(self._available_families)
 
-        if not self.fonts_dir.exists():
+        if not self._fonts_dir.exists():
             return []
 
         found: set[str] = set()
-        for d in sorted(self.fonts_dir.iterdir()):
+        for d in sorted(self._fonts_dir.iterdir()):
             if not d.is_dir() or d.name.startswith('.') or self._is_emoji_dir(d.name):
                 continue
             for name in self._load_dir(d.name):
@@ -118,8 +118,8 @@ class FontManager:
         prefer_system = sys.platform.startswith("linux") and any("emoji" in name.lower() for name in system_names)
 
         # Bundled under fonts/ (folder name has Emoji/Color — e.g. Noto_Color_Emoji)
-        if self.fonts_dir.exists() and not prefer_system:
-            for d in sorted(self.fonts_dir.iterdir()):
+        if self._fonts_dir.exists() and not prefer_system:
+            for d in sorted(self._fonts_dir.iterdir()):
                 if not d.is_dir() or d.name.startswith('.') or not self._is_emoji_dir(d.name):
                     continue
                 for name in self._load_dir(d.name):
@@ -150,8 +150,8 @@ class FontManager:
 
         self.load_config()
 
-        if not self.fonts_dir.exists():
-            print(f"⚠️ Fonts directory not found: {self.fonts_dir}")
+        if not self._fonts_dir.exists():
+            print(f"⚠️ Fonts directory not found: {self._fonts_dir}")
             self.loaded = True
             return False
 
@@ -234,7 +234,7 @@ class FontManager:
 
 
 # Global instance
-_font_manager = FontManager()
+_font_manager = _FontManager()
 
 
 # Public API

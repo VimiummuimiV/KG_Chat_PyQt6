@@ -19,7 +19,7 @@ class ChatlogNotFoundError(Exception):
 
 
 class ChatlogsParser:
-    BASE_URL = "https://klavogonki.ru/chatlogs"
+    _BASE_URL = "https://klavogonki.ru/chatlogs"
     MIN_DATE = datetime(2012, 2, 12).date()
     MAX_FILE_SIZE_MB = 10  # Maximum file size in MB
 
@@ -57,7 +57,7 @@ class ChatlogsParser:
             return "", was_truncated, True
 
         # Fetch from network
-        url = f"{self.BASE_URL}/{date}.html"
+        url = f"{self._BASE_URL}/{date}.html"
         try:
             response = self.session.get(url, timeout=10, stream=True)
 

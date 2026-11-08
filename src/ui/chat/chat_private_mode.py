@@ -12,7 +12,7 @@ class ChatPrivateModeMixin:
 
     def enter_private_mode(self, jid: str, username: str, user_id: str):
         """Enter private chat mode with a user"""
-        self._ensure_general_tab_visible()
+        self.ensure_general_tab_visible()
         self.private_mode = True
         # Prefer explicit private recipient JID (user_id#username@domain/web) for private messages
         private_recipient_jid = jid
@@ -56,14 +56,14 @@ class ChatPrivateModeMixin:
         QTimer.singleShot(0, self.input_field.setFocus)
 
         # Update window title
-        self.set_connection_status(self._connection_status)
+        self.set_connection_status(self.connection_status)
 
         print(f"🔒 Entered private mode with {username}")
 
     def exit_private_mode(self):
         """Exit private chat mode"""
         if self.config.get("ui", "clear_private_messages_on_exit"):
-            self._clear_private_messages()
+            self.clear_private_messages()
 
         self.private_mode = False
         self.private_chat_jid = None
@@ -79,12 +79,12 @@ class ChatPrivateModeMixin:
         self.update_input_style()
 
         # Restore window title
-        self.set_connection_status(self._connection_status)
+        self.set_connection_status(self.connection_status)
 
         print("🔓 Exited private mode")
-        self._restore_room_tab()
+        self.restore_room_tab()
 
-    def _clear_private_messages(self):
+    def clear_private_messages(self):
         """Clear all private messages from the messages widget"""
         self.messages_widget.clear_private_messages()
 

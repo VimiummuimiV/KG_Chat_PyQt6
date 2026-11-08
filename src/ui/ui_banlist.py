@@ -26,7 +26,7 @@ from helpers.users.ban_manager import BanManager
 from ui.dialogs.duration_dialog import DurationDialog
 
 
-def format_time_remaining(seconds: int) -> str:
+def _format_time_remaining(seconds: int) -> str:
     """Format remaining seconds into full format display
 
     Shows all relevant units based on magnitude:
@@ -58,7 +58,7 @@ def format_time_remaining(seconds: int) -> str:
         return f"{s}s"
 
 
-class BanItemWidget(TranslatableMixin, QWidget):
+class _BanItemWidget(TranslatableMixin, QWidget):
     """Single ban item (shared by both permanent and temporary sections)"""
     remove_requested = pyqtSignal(object)
     expired = pyqtSignal(object)  # Signal when temporary ban expires
@@ -109,40 +109,40 @@ class BanItemWidget(TranslatableMixin, QWidget):
         layout.addWidget(arrow_label)
 
         # User ID (read-only)
-        self.user_id_input = QLineEdit()
-        self.tr_set(self.user_id_input.setPlaceholderText, "ID", "ID")
-        self.user_id_input.setText(user_id)
-        self.user_id_input.setFont(get_font(FontType.TEXT))
-        self.user_id_input.setFixedHeight(input_height)
-        self.user_id_input.setFixedWidth(125)
-        self.user_id_input.setReadOnly(True)
-        self.user_id_input.setStyleSheet("QLineEdit { background-color: rgba(128, 128, 128, 0.1); }")
-        layout.addWidget(self.user_id_input)
+        self._user_id_input = QLineEdit()
+        self.tr_set(self._user_id_input.setPlaceholderText, "ID", "ID")
+        self._user_id_input.setText(user_id)
+        self._user_id_input.setFont(get_font(FontType.TEXT))
+        self._user_id_input.setFixedHeight(input_height)
+        self._user_id_input.setFixedWidth(125)
+        self._user_id_input.setReadOnly(True)
+        self._user_id_input.setStyleSheet("QLineEdit { background-color: rgba(128, 128, 128, 0.1); }")
+        layout.addWidget(self._user_id_input)
 
         # Duration button (only for temporary section) - clickable to change duration
         if self.is_temporary:
-            self.duration_button = QPushButton()
-            self.duration_button.setFont(get_font(FontType.TEXT))
-            self.duration_button.setFixedHeight(input_height)
-            self.duration_button.setMinimumWidth(110)  # Minimum width
-            self.duration_button.setCursor(Qt.CursorShape.PointingHandCursor)
-            self.duration_button.clicked.connect(self._change_duration)
+            self._duration_button = QPushButton()
+            self._duration_button.setFont(get_font(FontType.TEXT))
+            self._duration_button.setFixedHeight(input_height)
+            self._duration_button.setMinimumWidth(110)  # Minimum width
+            self._duration_button.setCursor(Qt.CursorShape.PointingHandCursor)
+            self._duration_button.clicked.connect(self._change_duration)
             self._update_duration_text()  # This will set initial width
-            layout.addWidget(self.duration_button)
+            layout.addWidget(self._duration_button)
 
             # Timer for countdown
-            self.update_timer = QTimer()
-            self.update_timer.timeout.connect(self._update_duration_text)
-            self.update_timer.start(1000)
+            self._update_timer = QTimer()
+            self._update_timer.timeout.connect(self._update_duration_text)
+            self._update_timer.start(1000)
 
         # Remove button
-        self.remove_button = create_icon_button(
+        self._remove_button = create_icon_button(
             icons_path, "trash.svg", "", 
             size_type="large", config=config
         )
-        self.tr_set(self.remove_button.setToolTip, "Remove", "Удалить")
-        self.remove_button.clicked.connect(lambda: self.remove_requested.emit(self))
-        layout.addWidget(self.remove_button)
+        self.tr_set(self._remove_button.setToolTip, "Remove", "Удалить")
+        self._remove_button.clicked.connect(lambda: self.remove_requested.emit(self))
+        layout.addWidget(self._remove_button)
 
         # Set fixed width - will be updated by _update_duration_text for temp items
         spacing = config.get("ui", "spacing", "widget_elements") or 6
@@ -166,7 +166,7 @@ class BanItemWidget(TranslatableMixin, QWidget):
         if not username:
             self.username_valid = True
             self.user_id = ""
-            self.user_id_input.clear()
+            self._user_id_input.clear()
             self.update_input_style()
             if self.parent_widget:
                 self.parent_widget._save_bans()
@@ -176,10 +176,10 @@ class BanItemWidget(TranslatableMixin, QWidget):
         self.username_valid = (user_id is not None)
         if self.username_valid:
             self.user_id = user_id
-            self.user_id_input.setText(self.user_id)
+            self._user_id_input.setText(self.user_id)
         else:
             self.user_id = ""
-            self.user_id_input.clear()
+            self._user_id_input.clear()
 
         self.update_input_style()
 
@@ -188,14 +188,14 @@ class BanItemWidget(TranslatableMixin, QWidget):
 
     def _update_widths(self):
         """Update button and item widths based on duration text"""
-        if not self.is_temporary or not hasattr(self, 'duration_button'):
+        if not self.is_temporary or not hasattr(self, '_duration_button'):
             return
 
         # Calculate button width based on text
-        metrics = QFontMetrics(self.duration_button.font())
-        text_width = metrics.horizontalAdvance(self.duration_button.text())
+        metrics = QFontMetrics(self._duration_button.font())
+        text_width = metrics.horizontalAdvance(self._duration_button.text())
         button_width = max(110, text_width + 40)
-        self.duration_button.setFixedWidth(button_width)
+        self._duration_button.setFixedWidth(button_width)
 
         # Update item total width
         spacing = self.config.get("ui", "spacing", "widget_elements") or 6
@@ -219,17 +219,17 @@ class BanItemWidget(TranslatableMixin, QWidget):
 
     def _update_duration_text(self):
         """Update duration button for temporary bans"""
-        if not self.is_temporary or not hasattr(self, 'duration_button'):
+        if not self.is_temporary or not hasattr(self, '_duration_button'):
             return
 
         if self.expires_at:
             remaining = max(0, self.expires_at - int(time.time()))
             if remaining == 0:
                 # Expired - emit signal to remove
-                self.update_timer.stop()
+                self._update_timer.stop()
                 self.expired.emit(self)
             else:
-                self.duration_button.setText(format_time_remaining(remaining))
+                self._duration_button.setText(_format_time_remaining(remaining))
                 self._update_widths()
 
     def _change_duration(self):
@@ -264,8 +264,8 @@ class BanItemWidget(TranslatableMixin, QWidget):
 
     def cleanup(self):
         """Cleanup timers"""
-        if hasattr(self, 'update_timer'):
-            self.update_timer.stop()
+        if hasattr(self, '_update_timer'):
+            self._update_timer.stop()
 
 
 class BanListWidget(TranslatableMixin, QWidget):
@@ -279,8 +279,8 @@ class BanListWidget(TranslatableMixin, QWidget):
         self.config = config
         self.icons_path = icons_path
         self.ban_manager = ban_manager
-        self.perm_items = []  # Permanent ban items
-        self.temp_items = []  # Temporary ban items
+        self._perm_items = []  # Permanent ban items
+        self._temp_items = []  # Temporary ban items
 
         self._setup_ui()
         self.load_bans()
@@ -332,24 +332,24 @@ class BanListWidget(TranslatableMixin, QWidget):
         header_layout.setSpacing(self.config.get("ui", "spacing", "widget_elements") or 6)
         main_layout.addLayout(header_layout)
 
-        self.back_button = create_icon_button(
+        self._back_button = create_icon_button(
             self.icons_path, "go-back.svg", "", config=self.config
         )
-        self.tr_set(self.back_button.setToolTip, "Back to Messages", "Назад к сообщениям")
-        self.back_button.clicked.connect(self.back_requested.emit)
-        header_layout.addWidget(self.back_button)
+        self.tr_set(self._back_button.setToolTip, "Back to Messages", "Назад к сообщениям")
+        self._back_button.clicked.connect(self.back_requested.emit)
+        header_layout.addWidget(self._back_button)
 
         title_label = QLabel()
         title_label.setFont(get_font(FontType.HEADER))
         self.tr_set(title_label.setText, "Ban List", "Список забаненных")
         header_layout.addWidget(title_label, stretch=1)
 
-        self.clear_all_button = create_icon_button(
+        self._clear_all_button = create_icon_button(
             self.icons_path, "trash.svg", "", config=self.config
         )
-        self.tr_set(self.clear_all_button.setToolTip, "Clear All", "Очистить всё")
-        self.clear_all_button.clicked.connect(self._clear_all)
-        header_layout.addWidget(self.clear_all_button)
+        self.tr_set(self._clear_all_button.setToolTip, "Clear All", "Очистить всё")
+        self._clear_all_button.clicked.connect(self._clear_all)
+        header_layout.addWidget(self._clear_all_button)
 
         # Scroll area
         self.scroll = QScrollArea()
@@ -358,44 +358,44 @@ class BanListWidget(TranslatableMixin, QWidget):
         main_layout.addWidget(self.scroll, stretch=1)
 
         # Container with sections
-        self.items_container = QWidget()
+        self._items_container = QWidget()
         sections_layout = QVBoxLayout()
         sections_layout.setContentsMargins(0, 0, 0, 0)
         sections_layout.setSpacing(self.config.get("ui", "spacing", "list_items") or 6)
         sections_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
-        self.items_container.setLayout(sections_layout)
+        self._items_container.setLayout(sections_layout)
 
         # Create permanent section
-        perm_section, self.perm_layout, _ = self._create_section(
+        perm_section, self._perm_layout, _ = self._create_section(
             "Permanent", "Постоянные", "Add to Permanent", "Добавить в постоянные", is_temporary=False
         )
         sections_layout.addWidget(perm_section)
 
         # Create temporary section
-        temp_section, self.temp_layout, _ = self._create_section(
+        temp_section, self._temp_layout, _ = self._create_section(
             "Temporary", "Временные", "Add to Temporary", "Добавить во временные", is_temporary=True
         )
         sections_layout.addWidget(temp_section)
 
-        self.scroll.setWidget(self.items_container)
+        self.scroll.setWidget(self._items_container)
         on_language_changed(self.retranslate_all)
 
     def load_bans(self):
         """Load existing bans into appropriate sections"""
         # Only clear if items already exist
-        if self.perm_items:
-            for item in list(self.perm_items):
-                self.perm_layout.removeWidget(item)
+        if self._perm_items:
+            for item in list(self._perm_items):
+                self._perm_layout.removeWidget(item)
                 item.cleanup()
                 item.deleteLater()
-            self.perm_items.clear()
+            self._perm_items.clear()
 
-        if self.temp_items:
-            for item in list(self.temp_items):
-                self.temp_layout.removeWidget(item)
+        if self._temp_items:
+            for item in list(self._temp_items):
+                self._temp_layout.removeWidget(item)
                 item.cleanup()
                 item.deleteLater()
-            self.temp_items.clear()
+            self._temp_items.clear()
 
         # Load bans from manager
         all_bans = self.ban_manager.get_all_bans()
@@ -414,7 +414,7 @@ class BanListWidget(TranslatableMixin, QWidget):
 
     def _add_item(self, username="", user_id="", expires_at=None, is_temporary=False):
         """Add ban item to appropriate section"""
-        item = BanItemWidget(
+        item = _BanItemWidget(
             self.config, 
             self.icons_path, 
             username, 
@@ -427,16 +427,16 @@ class BanListWidget(TranslatableMixin, QWidget):
 
         if is_temporary:
             item.expired.connect(self._on_expired)
-            self.temp_items.append(item)
+            self._temp_items.append(item)
         else:
-            self.perm_items.append(item)
+            self._perm_items.append(item)
 
         self.recalculate_layout()
 
     def _add_new_item(self, is_temporary: bool):
         """Add new empty item to specified section"""
         # Check for empty items in the target section
-        items_to_check = self.temp_items if is_temporary else self.perm_items
+        items_to_check = self._temp_items if is_temporary else self._perm_items
         for item in items_to_check:
             if item.is_empty():
                 item.update_input_style(highlight_empty=True)
@@ -453,23 +453,23 @@ class BanListWidget(TranslatableMixin, QWidget):
         else:
             self._add_item("", "", None, is_temporary=False)
 
-    def _remove_item(self, item: BanItemWidget):
+    def _remove_item(self, item: _BanItemWidget):
         """Remove item from appropriate section"""
-        if item in self.perm_items:
-            self.perm_items.remove(item)
-            self.perm_layout.removeWidget(item)
-        elif item in self.temp_items:
-            self.temp_items.remove(item)
-            self.temp_layout.removeWidget(item)
+        if item in self._perm_items:
+            self._perm_items.remove(item)
+            self._perm_layout.removeWidget(item)
+        elif item in self._temp_items:
+            self._temp_items.remove(item)
+            self._temp_layout.removeWidget(item)
 
         item.cleanup()
         item.deleteLater()
         self._save_bans()
         self.recalculate_layout()
 
-    def _on_expired(self, item: BanItemWidget):
+    def _on_expired(self, item: _BanItemWidget):
         """Handle expired temporary ban - remove it completely"""
-        if item in self.temp_items:
+        if item in self._temp_items:
             print(f"⏱️ Temporary ban expired for {item.username_input.text()}")
             self._remove_item(item)
 
@@ -478,13 +478,13 @@ class BanListWidget(TranslatableMixin, QWidget):
         self.ban_manager.clear_all()
 
         # Save permanent bans
-        for item in self.perm_items:
+        for item in self._perm_items:
             username, user_id, _ = item.get_values()
             if username and user_id and item.is_valid():
                 self.ban_manager.add_user(user_id, username, duration=None)
 
         # Save temporary bans
-        for item in self.temp_items:
+        for item in self._temp_items:
             username, user_id, expires_at = item.get_values()
             if username and user_id and item.is_valid() and expires_at:
                 duration = max(0, expires_at - int(time.time()))
@@ -493,7 +493,7 @@ class BanListWidget(TranslatableMixin, QWidget):
 
     def _clear_all(self):
         """Clear all bans from both sections"""
-        if not any(not item.is_empty() for item in self.perm_items + self.temp_items):
+        if not any(not item.is_empty() for item in self._perm_items + self._temp_items):
             QMessageBox.information(
                 self,
                 tr("Empty", "Пусто"),
@@ -509,18 +509,18 @@ class BanListWidget(TranslatableMixin, QWidget):
 
         if reply == QMessageBox.StandardButton.Yes:
             # Clear permanent items
-            for item in list(self.perm_items):
-                self.perm_layout.removeWidget(item)
+            for item in list(self._perm_items):
+                self._perm_layout.removeWidget(item)
                 item.cleanup()
                 item.deleteLater()
-            self.perm_items.clear()
+            self._perm_items.clear()
 
             # Clear temporary items
-            for item in list(self.temp_items):
-                self.temp_layout.removeWidget(item)
+            for item in list(self._temp_items):
+                self._temp_layout.removeWidget(item)
                 item.cleanup()
                 item.deleteLater()
-            self.temp_items.clear()
+            self._temp_items.clear()
 
             self.ban_manager.clear_all()
             # Don't create empty item - users can click [+] to add
@@ -557,8 +557,8 @@ class BanListWidget(TranslatableMixin, QWidget):
                 grid_layout.addWidget(item, row, col)
 
         # Layout both sections independently
-        _layout_section(self.perm_layout, self.perm_items)
-        _layout_section(self.temp_layout, self.temp_items)
+        _layout_section(self._perm_layout, self._perm_items)
+        _layout_section(self._temp_layout, self._temp_items)
 
     def resizeEvent(self, event):
         """Handle resize"""
@@ -567,5 +567,5 @@ class BanListWidget(TranslatableMixin, QWidget):
 
     def cleanup(self):
         """Cleanup all items"""
-        for item in self.perm_items + self.temp_items:
+        for item in self._perm_items + self._temp_items:
             item.cleanup()

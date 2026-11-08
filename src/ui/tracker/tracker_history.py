@@ -10,13 +10,13 @@ from helpers.translate import tr
 class TrackerHistoryMixin:
     """UserTrackerWidget: history list updates and info label."""
 
-    def _update_history_empty_state(self):
+    def update_history_empty_state(self):
         self.history_stack.setCurrentIndex(1 if self.history_proxy.rowCount() == 0 else 0)
 
     def _scroll_history_to_bottom(self):
         scroll(self.history_list_view, mode="bottom", delay=10)
 
-    def _update_info_label(self):
+    def update_info_label(self):
         total = sum(
             1 for e in self.history_model.get_events() if not e.get('is_separator')
         )
@@ -30,7 +30,7 @@ class TrackerHistoryMixin:
             )
             if event and not event.get('is_separator'):
                 shown += 1
-        desc = self._filter_description()
+        desc = self.filter_description()
         if desc:
             self.info_label.setText(tr(
                 f"Showing {shown}/{total} events ({desc})",
@@ -39,37 +39,37 @@ class TrackerHistoryMixin:
         else:
             self.info_label.setText(tr(f"{total} events", f"{total} событий"))
 
-    def _rebuild_events(self):
+    def rebuild_events(self):
         events = self.user_tracker.get_events()
         self.history_model.set_events(events)
         self.history_delegate.clear_click_rects()
-        self._apply_event_filter()
+        self.apply_event_filter()
         if events:
             QTimer.singleShot(0, self._scroll_history_to_bottom)
-        self._rebuild_filter_chips()
-        self._update_info_label()
+        self.rebuild_filter_chips()
+        self.update_info_label()
 
-    def _remove_login_from_view(self, login: str):
+    def remove_login_from_view(self, login: str):
         self.history_model.remove_login(login)
         self.history_delegate.clear_click_rects()
-        self._update_history_empty_state()
+        self.update_history_empty_state()
 
         chip = self.chip_widgets.pop(login, None)
         if chip is not None:
             self.filter_chips_layout.removeWidget(chip)
             chip.deleteLater()
-        self._update_filter_panel_visibility()
-        self._update_info_label()
+        self.update_filter_panel_visibility()
+        self.update_info_label()
 
     def append_event(self, event: dict):
         sb = self.history_list_view.verticalScrollBar()
         at_bottom = (sb.maximum() - sb.value()) <= 100
         self.history_model.append_event(event)
-        self._update_history_empty_state()
+        self.update_history_empty_state()
         if at_bottom:
             QTimer.singleShot(0, lambda: scroll(self.history_list_view, mode="bottom", delay=50))
         self._bump_chip_count(event)
-        self._update_info_label()
+        self.update_info_label()
 
     def _bump_chip_count(self, event: dict):
         login = event.get('login')
@@ -79,11 +79,11 @@ class TrackerHistoryMixin:
         if chip is not None:
             chip.count_label.setText(str(int(chip.count_label.text()) + 1))
             return
-        chip = self._make_chip(login, 1, event.get('user_id') or None)
+        chip = self.make_chip(login, 1, event.get('user_id') or None)
         self.filter_chips_layout.insertWidget(0, chip)
-        self._update_filter_panel_visibility()
+        self.update_filter_panel_visibility()
 
-    def _clear_history(self):
+    def clear_history(self):
         if not self.user_tracker.get_events():
             return
         reply = QMessageBox.question(
@@ -93,12 +93,12 @@ class TrackerHistoryMixin:
         )
         if reply == QMessageBox.StandardButton.Yes:
             self.user_tracker.clear_events()
-            self._rebuild_events()
+            self.rebuild_events()
 
     def reveal_event(self, login: str, event_ts: float = None):
         self.tabs.setCurrentIndex(1)
-        if self._has_active_filters():
-            self._clear_filter()
+        if self.has_active_filters():
+            self.clear_filter()
 
         source_row = self.history_model.find_row(login, event_ts)
         if source_row is None:

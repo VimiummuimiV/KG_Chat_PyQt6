@@ -213,7 +213,7 @@ def get_parser_message_colors(config, is_dark_theme: bool) -> dict:
 
 
 # level (1-9) → rank base color
-RANK_LEVEL_COLORS = {
+_RANK_LEVEL_COLORS = {
     1: "#A6A6A6",  # Новичок
     2: "#5EB3B1",  # Любитель
     3: "#32BE58",  # Таксист
@@ -264,5 +264,5 @@ def get_rank_chip_colors(level, is_dark: bool) -> tuple:
         level = int(level)
     except (TypeError, ValueError):
         level = None
-    base = RANK_LEVEL_COLORS.get(level, "#888888")
+    base = _RANK_LEVEL_COLORS.get(level, "#888888")
     return tinted_chip_colors(base, is_dark)

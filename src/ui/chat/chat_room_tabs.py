@@ -15,6 +15,7 @@ from PyQt6.QtWidgets import (
 )
 
 from core.xmpp.jid_utils import custom_room_name_from_jid, game_id_from_jid, is_from_game_room
+from helpers.system.memory import release_memory_soon
 from helpers.translate import tr
 from ui.chat.ui_room import RoomWidget
 from ui.dialogs.join_room_dialog import JoinRoomDialog
@@ -23,36 +24,36 @@ from ui.dialogs.join_room_dialog import JoinRoomDialog
 class ChatRoomTabsMixin:
     """ChatWindow: room tabs, game rooms and custom rooms."""
 
-    def _all_room_widgets(self):
+    def all_room_widgets(self):
         """Every open RoomWidget — game/competition rooms and custom rooms."""
         return list(self.game_rooms.values()) + list(self.custom_rooms.values())
 
-    def _current_room(self):
+    def current_room(self):
         """RoomWidget of the currently selected tab, or None if General."""
         if not self.room_tabs or self.room_tabs.currentIndex() <= 0:
             return None
         w = self.room_tabs.currentWidget()
         return w if isinstance(w, RoomWidget) else None
 
-    def _ensure_general_tab_visible(self):
+    def ensure_general_tab_visible(self):
         """Switch to General so stacked views/input are visible; remember the room tab."""
         if self.room_tabs is not None and self.room_tabs.currentIndex() != 0:
             w = self.room_tabs.currentWidget()
             if isinstance(w, RoomWidget):
-                self._restore_room_gid = w.game_id
+                self.restore_room_gid = w.game_id
             self.room_tabs.setCurrentIndex(0)
 
-    def _restore_room_tab(self):
+    def restore_room_tab(self):
         """Re-select the game-room tab we left when opening a General stacked view."""
-        gid = self._restore_room_gid
-        self._restore_room_gid = None
+        gid = self.restore_room_gid
+        self.restore_room_gid = None
         if gid is None or not self.room_tabs:
             return
         w = self.game_rooms.get(gid)
         if w is not None:
             self.room_tabs.setCurrentWidget(w)
 
-    def _open_game_room_by_id(self, game_id, room_label: str = "Game"):
+    def open_game_room_by_id(self, game_id, room_label: str = "Game"):
         class _Fake:
             pass
         fake = _Fake()
@@ -74,10 +75,10 @@ class ChatRoomTabsMixin:
             font_scaler=font_scaler, parent=self,
         )
         widget.send_requested.connect(lambda text, w=widget: self._send_room_message(text, w))
-        self._wire_userlist_signals(widget)
-        widget.open_game_requested.connect(self._open_game_room_by_id)
-        widget.emoticon_requested.connect(lambda w=widget: self._on_room_emoticon_requested(w))
-        self._wire_username_signals(widget, right_click_widget=widget.messages_widget)
+        self.wire_userlist_signals(widget)
+        widget.open_game_requested.connect(self.open_game_room_by_id)
+        widget.emoticon_requested.connect(lambda w=widget: self.on_room_emoticon_requested(w))
+        self.wire_username_signals(widget, right_click_widget=widget.messages_widget)
         widget.set_compact_mode(self.width() <= 1000)  # match current window width immediately
         QTimer.singleShot(0, self.update_input_style)  # picks up active ban styling once registered
         return widget
@@ -97,7 +98,7 @@ class ChatRoomTabsMixin:
             return
 
         if self.chatlog_split_widget:
-            self._close_chatlog_split_view()
+            self.close_chatlog_split_view()
 
         # Already open → just switch to it
         if gid in self.game_rooms:
@@ -112,7 +113,7 @@ class ChatRoomTabsMixin:
         self.room_tabs.setCurrentWidget(widget)
         self._join_room(widget.room_jid, game_id=gid)
 
-    def _on_join_room_requested(self):
+    def on_join_room_requested(self):
         dialog = JoinRoomDialog(self.config, self.icons_path, parent=self)
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
@@ -132,15 +133,15 @@ class ChatRoomTabsMixin:
             return
         if dialog.should_remember():
             dialog.remember_name(room_name)
-        self.open_custom_room_tab(room_name)
+        self._open_custom_room_tab(room_name)
 
-    def open_custom_room_tab(self, room_name: str):
+    def _open_custom_room_tab(self, room_name: str):
         room_name = (room_name or "").strip().lower()
         if not room_name:
             return
 
         if self.chatlog_split_widget:
-            self._close_chatlog_split_view()
+            self.close_chatlog_split_view()
 
         if room_name in self.custom_rooms:
             self.room_tabs.setCurrentWidget(self.custom_rooms[room_name])
@@ -159,7 +160,7 @@ class ChatRoomTabsMixin:
         if clipboard:
             clipboard.setText(room_name)
 
-    def _close_custom_room_tab(self, room_name: str):
+    def close_custom_room_tab(self, room_name: str):
         self._close_room_tab(self.custom_rooms, room_name, f"c:{room_name}")
 
     @staticmethod
@@ -180,7 +181,7 @@ class ChatRoomTabsMixin:
                 dst_layout.addLayout(item.layout())
             dst_layout.setStretch(dst_layout.count() - 1, stretch)
 
-    def _wire_userlist_signals(self, userlist):
+    def wire_userlist_signals(self, userlist):
         """Connect the profile/private-chat/paste actions shared by every
         userlist panel — the main userlist, the chatlog userlist, and each
         game room's own (which just re-emits its internal userlist's
@@ -188,13 +189,13 @@ class ChatRoomTabsMixin:
         main userlist and game-room widgets have it."""
         userlist.profile_requested.connect(self.show_profile_view)
         userlist.private_chat_requested.connect(self.enter_private_mode)
-        userlist.paste_requested.connect(self._paste_username_to_input)
-        userlist.track_requested.connect(self._on_track_user_requested)
-        userlist.ban_requested.connect(self._on_ban_requested)
-        userlist.pronunciation_requested.connect(self._set_username_pronunciation)
+        userlist.paste_requested.connect(self.paste_username_to_input)
+        userlist.track_requested.connect(self.on_track_user_requested)
+        userlist.ban_requested.connect(self.on_ban_requested)
+        userlist.pronunciation_requested.connect(self.set_username_pronunciation)
         userlist.pronunciation_manager = self.pronunciation_manager
 
-    def _wire_username_signals(self, source, right_click_widget=None):
+    def wire_username_signals(self, source, right_click_widget=None):
         """Connect username left/ctrl/shift/right click signals to their
         shared handlers. Used for the general messages view, chatlog
         widgets, and each game-room tab, which all wire the same four
@@ -203,11 +204,11 @@ class ChatRoomTabsMixin:
         right_click_widget: widget passed to _on_username_right_click so
         context-menu actions (ban, remove messages) apply to the right
         message list. None lets it default to self.messages_widget."""
-        source.username_left_clicked.connect(self._on_username_left_click)
-        source.username_ctrl_clicked.connect(self._on_username_ctrl_click)
-        source.username_shift_clicked.connect(self._on_username_shift_click)
+        source.username_left_clicked.connect(self.on_username_left_click)
+        source.username_ctrl_clicked.connect(self.on_username_ctrl_click)
+        source.username_shift_clicked.connect(self.on_username_shift_click)
         source.username_right_clicked.connect(
-            lambda msg, pos, w=right_click_widget: self._on_username_right_click(msg, pos, w)
+            lambda msg, pos, w=right_click_widget: self.on_username_right_click(msg, pos, w)
         )
 
     def _ensure_room_tabs(self):
@@ -260,7 +261,7 @@ class ChatRoomTabsMixin:
         self.room_tabs.deleteLater()
         self.room_tabs = None
         self.general_body = None
-        self._unread_rooms.clear()
+        self.unread_rooms.clear()
         self.setUpdatesEnabled(True)
         self.messages_widget.force_recalculate()
 
@@ -288,18 +289,18 @@ class ChatRoomTabsMixin:
             base = self.custom_rooms[gid[2:]].tab_title()
         else:
             base = self.game_rooms[gid].tab_title()
-        count = self._unread_rooms.get(gid, 0)
+        count = self.unread_rooms.get(gid, 0)
         prefix = f"({count}) " if count else ""
         self.room_tabs.setTabText(idx, prefix + base)
 
-    def _bump_tab_unread(self, gid):
+    def bump_tab_unread(self, gid):
         """Increment the unread counter for a room (gid=None for General)."""
-        self._unread_rooms[gid] = self._unread_rooms.get(gid, 0) + 1
+        self.unread_rooms[gid] = self.unread_rooms.get(gid, 0) + 1
         self._refresh_tab_title(gid)
 
     def _clear_tab_unread(self, gid):
         """Clear the unread counter for a room (gid=None for General)."""
-        if self._unread_rooms.pop(gid, 0):
+        if self.unread_rooms.pop(gid, 0):
             self._refresh_tab_title(gid)
 
     def _on_room_tab_close_requested(self, index: int):
@@ -309,9 +310,9 @@ class ChatRoomTabsMixin:
         if not isinstance(widget, RoomWidget):
             return
         if widget.room_name:
-            self._close_custom_room_tab(widget.room_name)
+            self.close_custom_room_tab(widget.room_name)
         else:
-            self._close_game_room_tab(widget.game_id)
+            self.close_game_room_tab(widget.game_id)
 
     def _on_room_tab_context_menu(self, pos):
         if not self.room_tabs:
@@ -345,17 +346,17 @@ class ChatRoomTabsMixin:
         for gid in list(self.game_rooms.keys()):
             widget = self.game_rooms.get(gid)
             if widget is not None and widget is not keep_widget:
-                self._close_game_room_tab(gid)
+                self.close_game_room_tab(gid)
         for name in list(self.custom_rooms.keys()):
             widget = self.custom_rooms.get(name)
             if widget is not None and widget is not keep_widget:
-                self._close_custom_room_tab(name)
+                self.close_custom_room_tab(name)
 
     def _close_all_room_tabs(self):
         for gid in list(self.game_rooms.keys()):
-            self._close_game_room_tab(gid)
+            self.close_game_room_tab(gid)
         for name in list(self.custom_rooms.keys()):
-            self._close_custom_room_tab(name)
+            self.close_custom_room_tab(name)
 
     def _on_room_tab_changed(self, index: int):
         # Optional: focus the input of the newly selected pane
@@ -403,7 +404,7 @@ class ChatRoomTabsMixin:
         widget = rooms.pop(key, None)
         if not widget:
             return
-        self._unread_rooms.pop(unread_key, None)
+        self.unread_rooms.pop(unread_key, None)
         self._leave_room(widget.room_jid)
         idx = self.room_tabs.indexOf(widget) if self.room_tabs else -1
         if idx >= 0:
@@ -411,23 +412,23 @@ class ChatRoomTabsMixin:
         widget.cleanup()
         widget.setParent(None)
         widget.deleteLater()
-        self.release_memory_soon()
+        release_memory_soon()
 
         # Last room closed → collapse back to plain General view,
         # so a lone permanent tab doesn't waste vertical space.
         if not self.game_rooms and not self.custom_rooms:
             self._collapse_room_tabs()
 
-    def _close_game_room_tab(self, game_id):
+    def close_game_room_tab(self, game_id):
         self._close_room_tab(self.game_rooms, game_id, game_id)
 
     def _send_room_message(self, text: str, widget=None):
-        room = widget or self._current_room()
+        room = widget or self.current_room()
         if not room or not self.xmpp_client or not room.room_jid:
             return
-        self._dispatch_chat_message(text, 'groupchat', room.room_jid, room.add_message)
+        self.dispatch_chat_message(text, 'groupchat', room.room_jid, room.add_message)
 
-    def _room_for_jid(self, from_jid: str):
+    def room_for_jid(self, from_jid: str):
         """Resolve an incoming stanza's from_jid to its open room widget.
         Returns (widget, unread_key, game_id) or (None, None, None) if the
         jid isn't a currently-open game or custom room."""

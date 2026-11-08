@@ -5,22 +5,22 @@ from typing import Tuple
 from PyQt6.QtWidgets import QApplication
 
 
-NOTIFICATION_DEFAULT_WIDTH = 550
+_NOTIFICATION_DEFAULT_WIDTH = 550
 
 
-FADE_DURATION_MS_DEFAULT = 300
+_FADE_DURATION_MS_DEFAULT = 300
 
 
 NOTIFICATION_DURATION_MS_DEFAULT = 5000
 
 
-REPLY_FOCUS_WIDTH_EXPAND_DEFAULT = 200
+_REPLY_FOCUS_WIDTH_EXPAND_DEFAULT = 200
 
 
-NOTIFICATION_MARGIN_X_DEFAULT = 20
+_NOTIFICATION_MARGIN_X_DEFAULT = 20
 
 
-NOTIFICATION_MARGIN_TOP_DEFAULT = 20
+_NOTIFICATION_MARGIN_TOP_DEFAULT = 20
 
 
 def _resolve_focus_expand_width(config=None) -> int:
@@ -33,7 +33,7 @@ def _resolve_focus_expand_width(config=None) -> int:
                 return max(0, min(600, int(value)))
             except (TypeError, ValueError):
                 pass
-    return REPLY_FOCUS_WIDTH_EXPAND_DEFAULT
+    return _REPLY_FOCUS_WIDTH_EXPAND_DEFAULT
 
 
 def resolve_fade_ms(config=None) -> int:
@@ -44,7 +44,7 @@ def resolve_fade_ms(config=None) -> int:
                 return max(50, min(2000, int(value)))
             except (TypeError, ValueError):
                 pass
-    return FADE_DURATION_MS_DEFAULT
+    return _FADE_DURATION_MS_DEFAULT
 
 
 def resolve_duration_ms(config=None) -> int:
@@ -68,7 +68,7 @@ def resolve_margin_x(config=None) -> int:
                 return max(0, min(500, int(value)))
             except (TypeError, ValueError):
                 pass
-    return NOTIFICATION_MARGIN_X_DEFAULT
+    return _NOTIFICATION_MARGIN_X_DEFAULT
 
 
 def resolve_margin_top(config=None) -> int:
@@ -80,7 +80,7 @@ def resolve_margin_top(config=None) -> int:
                 return max(0, min(500, int(value)))
             except (TypeError, ValueError):
                 pass
-    return NOTIFICATION_MARGIN_TOP_DEFAULT
+    return _NOTIFICATION_MARGIN_TOP_DEFAULT
 
 
 def resolve_notification_width(config=None) -> int:
@@ -89,7 +89,7 @@ def resolve_notification_width(config=None) -> int:
     try:
         value = int(value)
     except (TypeError, ValueError):
-        value = NOTIFICATION_DEFAULT_WIDTH
+        value = _NOTIFICATION_DEFAULT_WIDTH
     screen_width = QApplication.primaryScreen().availableGeometry().width()
     return min(int(screen_width * 0.50), max(100, value))
 

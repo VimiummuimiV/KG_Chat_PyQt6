@@ -176,5 +176,5 @@ class MessageListModel(QAbstractListModel):
         self.endRemoveRows()
         return True
 
-    def get_all_messages(self) -> List[MessageData]:
+    def _get_all_messages(self) -> List[MessageData]:
         return self.stored_messages.copy()

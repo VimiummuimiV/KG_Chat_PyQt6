@@ -76,7 +76,7 @@ class ChatParseStatusMixin:
         self._parse_results_badge.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
         apply_counter_style(
             self._parse_results_badge, "join",
-            font_size=self._badge_font_size(),
+            font_size=self.badge_font_size(),
             is_dark=self.theme_manager.is_dark(),
         )
         self._parse_results_badge.hide()
@@ -97,8 +97,8 @@ class ChatParseStatusMixin:
     def _on_parse_status_stop(self):
         if self.chatlog_widget:
             self.chatlog_widget.on_parse_cancelled()
-        elif self._mentions_digest_active:
-            self._end_mentions_digest()
+        elif self.mentions_digest_active:
+            self.end_mentions_digest()
             self.stop_parse_status()
 
     def stop_parse_status(self):
@@ -131,14 +131,14 @@ class ChatParseStatusMixin:
             if close_btn:
                 close_btn.setVisible(True)
             # Update label
-            if self._mentions_digest_active:
+            if self.mentions_digest_active:
                 count = 0
                 if self.chatlog_widget:
                     count = sum(
                         1 for m in (self.chatlog_widget.all_messages or [])
                         if not getattr(m, "is_separator", False)
                     )
-                self._end_mentions_digest()
+                self.end_mentions_digest()
                 if not count:
                     # Silent background check found nothing — auto-close instead
                     # of leaving the bar up waiting for a manual Close click.
@@ -155,14 +155,14 @@ class ChatParseStatusMixin:
                         account=self.account,
                         is_mention=True,
                         is_parser=True,
-                        window_show_callback=self._open_mentions_from_notification,
+                        window_show_callback=self.open_mentions_from_notification,
                     )
-                    self._play_mention_sound()
+                    self.play_mention_sound()
             else:
                 self.parse_current_label.setText(tr("Parsing finished", "Парсинг завершён"))
 
     def on_parse_error(self, error_msg: str):
-        self._end_mentions_digest()
+        self.end_mentions_digest()
         self.stop_parse_status()
         show_notification(
             title=tr("Parse Error", "Ошибка парсинга"),

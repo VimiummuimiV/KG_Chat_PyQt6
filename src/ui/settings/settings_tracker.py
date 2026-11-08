@@ -16,32 +16,32 @@ from ui.settings.settings_widgets import NoWheelComboBox
 class SettingsTrackerMixin:
     """SettingsWidget: user tracker options and retention."""
 
-    def _build_user_tracker_section(self):
-        section = self._create_section(tr("🗿 User Tracker", "🗿 Трекер пользователей"))
-        self.tracker_enabled_checkbox = self._add_checkbox(
+    def build_user_tracker_section(self):
+        section = self.create_section(tr("🗿 User Tracker", "🗿 Трекер пользователей"))
+        self.tracker_enabled_checkbox = self.add_checkbox(
             section, tr("Track users", "Отслеживать пользователей"),
             self._on_tracker_enabled_toggled
         )
-        self.tracker_notifications_checkbox = self._add_checkbox(
+        self.tracker_notifications_checkbox = self.add_checkbox(
             section, tr("Show events in notifications", "Показывать события в уведомлениях"),
             self._on_tracker_notifications_toggled
         )
-        self.tracker_presence_log_checkbox = self._add_checkbox(
+        self.tracker_presence_log_checkbox = self.add_checkbox(
             section, tr("Show events in chat", "Показывать события в чате"),
             self._on_tracker_presence_log_toggled
         )
-        self.tracker_presence_log_split_spin = self._add_slider_spin_row(
+        self.tracker_presence_log_split_spin = self.add_slider_spin_row(
             section, tr("Presence pane height (%)", "Высота панели событий (%)"),
             DEFAULTS["user_tracker"]["presence_log_split_percent_min"],
             DEFAULTS["user_tracker"]["presence_log_split_percent_max"],
             self._on_tracker_presence_log_split_changed,
             default=DEFAULTS["user_tracker"]["presence_log_split_percent"],
         )
-        self.tracker_badge_checkbox = self._add_checkbox(
+        self.tracker_badge_checkbox = self.add_checkbox(
             section, tr("Show count badge on tracker button", "Показывать счётчик на кнопке трекера"),
             self._on_tracker_badge_toggled
         )
-        self.tracker_userlist_star_checkbox = self._add_checkbox(
+        self.tracker_userlist_star_checkbox = self.add_checkbox(
             section, tr("Show star badge on tracked users in userlist", "Показывать звезду у отслеживаемых в списке пользователей"),
             self._on_tracker_userlist_star_toggled
         )
@@ -59,14 +59,14 @@ class SettingsTrackerMixin:
         events_row.addWidget(self.tracker_events_bar, stretch=1)
         section.addLayout(events_row)
         self._build_tracker_retention_row(section)
-        self.tracker_default_tab_combo = self._add_combo_row(
+        self.tracker_default_tab_combo = self.add_combo_row(
             section, tr("Default tab on open", "Вкладка по умолчанию"), [], self._on_tracker_default_tab_changed
         )
-        self.tracker_click_combo = self._add_combo_row(
+        self.tracker_click_combo = self.add_combo_row(
             section, tr("On notification click", "При клике по уведомлению"), [], self._on_tracker_click_action_changed
         )
 
-    def _refresh_tracker(self):
+    def refresh_tracker(self):
         self.tracker_enabled_checkbox.setChecked(
             bool(self.config.get("user_tracker", "enabled")
                  if self.config.get("user_tracker", "enabled") is not None else True)
@@ -140,7 +140,7 @@ class SettingsTrackerMixin:
         self.config.set("user_tracker", "track_events", value=active)
 
     def _build_tracker_retention_row(self, section_layout):
-        self.tracker_retention_spin = self._add_slider_spin_row(
+        self._tracker_retention_spin = self.add_slider_spin_row(
             section_layout, tr("History retention", "Хранить историю"), 1, 168,
             self._on_tracker_retention_value_changed,
             on_reset=self._on_tracker_retention_reset,
@@ -164,22 +164,22 @@ class SettingsTrackerMixin:
     def _set_tracker_retention_range(self, unit: str):
         maximum = 30 if unit == "days" else 168
         self._set_retention_widgets_blocked(True)
-        self.tracker_retention_spin.linked_slider.setRange(1, maximum)
-        self.tracker_retention_spin.setRange(1, maximum)
+        self._tracker_retention_spin.linked_slider.setRange(1, maximum)
+        self._tracker_retention_spin.setRange(1, maximum)
         self._set_retention_widgets_blocked(False)
 
     def _set_tracker_retention_display(self, value: int):
         self._set_retention_widgets_blocked(True)
-        self.tracker_retention_spin.linked_slider.setValue(value)
-        self.tracker_retention_spin.setValue(value)
+        self._tracker_retention_spin.linked_slider.setValue(value)
+        self._tracker_retention_spin.setValue(value)
         self._set_retention_widgets_blocked(False)
-        btn = getattr(self.tracker_retention_spin, "_reset_button", None)
+        btn = getattr(self._tracker_retention_spin, "_reset_button", None)
         if btn is not None:
             btn.setEnabled(self._tracker_retention_unit() != "hours" or value != 24)
 
     def _set_retention_widgets_blocked(self, blocked: bool):
-        self.tracker_retention_spin.linked_slider.blockSignals(blocked)
-        self.tracker_retention_spin.blockSignals(blocked)
+        self._tracker_retention_spin.linked_slider.blockSignals(blocked)
+        self._tracker_retention_spin.blockSignals(blocked)
 
     def _read_retention_hours(self) -> int:
         hours = self.config.get("user_tracker", "retention_hours")
@@ -234,11 +234,11 @@ class SettingsTrackerMixin:
         self._on_tracker_retention_value_changed(24)
 
     def _on_tracker_default_tab_changed(self, _text: str = ""):
-        self._sync_combo_tooltip(self.tracker_default_tab_combo)
+        self.sync_combo_tooltip(self.tracker_default_tab_combo)
         value = self.tracker_default_tab_combo.currentData() or "tracked"
         self.config.set("user_tracker", "default_tab", value=value)
 
     def _on_tracker_click_action_changed(self, _text: str = ""):
-        self._sync_combo_tooltip(self.tracker_click_combo)
+        self.sync_combo_tooltip(self.tracker_click_combo)
         value = self.tracker_click_combo.currentData() or "history"
         self.config.set("user_tracker", "click_action", value=value)

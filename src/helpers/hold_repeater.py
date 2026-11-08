@@ -3,8 +3,8 @@
 from PyQt6.QtCore import QObject, QTimer
 
 
-HOLD_DELAY_MS = 400  # pause before the repeating starts
-HOLD_INTERVAL_MS = 100
+_HOLD_DELAY_MS = 400  # pause before the repeating starts
+_HOLD_INTERVAL_MS = 100
 
 
 class HoldRepeater(QObject):
@@ -16,9 +16,9 @@ class HoldRepeater(QObject):
         self._arguments = ()
         self._delay_timer = QTimer(self)
         self._delay_timer.setSingleShot(True)
-        self._delay_timer.setInterval(HOLD_DELAY_MS)
+        self._delay_timer.setInterval(_HOLD_DELAY_MS)
         self._repeat_timer = QTimer(self)
-        self._repeat_timer.setInterval(HOLD_INTERVAL_MS)
+        self._repeat_timer.setInterval(_HOLD_INTERVAL_MS)
         self._delay_timer.timeout.connect(self._repeat_timer.start)
         self._repeat_timer.timeout.connect(self._repeat)
 

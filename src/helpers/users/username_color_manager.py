@@ -10,12 +10,12 @@ from core.state.accounts import AccountManager
 from helpers.translate import tr
 
 
-def get_effective_background(account: Dict) -> str:
+def _get_effective_background(account: Dict) -> str:
     """Get the effective background color (custom if set, else server)."""
     return account.get('custom_background') or account.get('background') or '#808080'
 
 
-def set_color(account_manager: AccountManager, chat_username: str, color: Optional[str] = None,
+def _set_color(account_manager: AccountManager, chat_username: str, color: Optional[str] = None,
               mode: str = 'custom') -> Tuple[bool, str]:
     account = account_manager.get_account_by_chat_username(chat_username)
     if not account:
@@ -59,7 +59,7 @@ def _refresh_cache(account_manager: AccountManager, account: Dict, cache) -> Non
     if updated_account:
         account.update(updated_account)
     if cache:
-        effective_bg = get_effective_background(account)
+        effective_bg = _get_effective_background(account)
         cache.update_user(account['user_id'], account['chat_username'], effective_bg)
 
 
@@ -72,7 +72,7 @@ def change_username_color(parent, account_manager: AccountManager, account: Dict
         )
         return False
 
-    current_color = get_effective_background(account)
+    current_color = _get_effective_background(account)
     color = QColorDialog.getColor(
         QColor(current_color), parent, tr("Choose Username Color", "Выберите цвет имени")
     )
@@ -81,7 +81,7 @@ def change_username_color(parent, account_manager: AccountManager, account: Dict
         return False
 
     hex_color = color.name()
-    success, message = set_color(account_manager, account['chat_username'], hex_color, 'custom')
+    success, message = _set_color(account_manager, account['chat_username'], hex_color, 'custom')
 
     if success:
         _refresh_cache(account_manager, account, cache)
@@ -109,7 +109,7 @@ def reset_username_color(parent, account_manager: AccountManager, account: Dict,
         )
         return True
 
-    success, message = set_color(account_manager, account['chat_username'], None, 'reset')
+    success, message = _set_color(account_manager, account['chat_username'], None, 'reset')
 
     if success:
         _refresh_cache(account_manager, account, cache)

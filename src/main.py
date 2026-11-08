@@ -10,8 +10,8 @@ from PyQt6.QtWidgets import QApplication, QMenu, QMessageBox, QSystemTrayIcon
 QApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
 
 # Add src directory to path
-src_path = Path(__file__).parent
-sys.path.insert(0, str(src_path if src_path.name == 'src' else src_path / 'src'))
+_src_path = Path(__file__).parent
+sys.path.insert(0, str(_src_path if _src_path.name == 'src' else _src_path / 'src'))
 
 from components.button import render_svg_icon
 from components.tray_badge import TrayIconWithBadge
@@ -40,13 +40,13 @@ from ui.notification.popup_manager import popup_manager
 
 
 class Application(QObject):
-    toggle_signal = pyqtSignal()
+    _toggle_signal = pyqtSignal()
 
     def __init__(self):
         super().__init__()
         self.app = QApplication(sys.argv)
-        self.toggle_signal.connect(self.toggle_chat_visibility)
-        self.is_initial_launch = True
+        self._toggle_signal.connect(self._toggle_chat_visibility)
+        self._is_initial_launch = True
 
         # Set Windows taskbar icon (must be done before any windows are created)
         if sys.platform == 'win32':
@@ -58,8 +58,8 @@ class Application(QObject):
                 print(f"⚠️ Failed to set Windows App ID: {e}")
 
         # Single instance lock
-        self.lock_file = QLockFile(QDir.tempPath() + "/xmpp_chat.lock")
-        if not self.lock_file.tryLock(100):
+        self._lock_file = QLockFile(QDir.tempPath() + "/xmpp_chat.lock")
+        if not self._lock_file.tryLock(100):
             QMessageBox.warning(
                 None,
                 tr("Already Running", "Уже запущено"),
@@ -94,8 +94,8 @@ class Application(QObject):
         self.app.setWindowIcon(app_icon)
 
         # Initialize tray badge manager
-        self.tray_badge = TrayIconWithBadge(self.icons_path)
-        self.unread_count = 0
+        self._tray_badge = TrayIconWithBadge(self.icons_path)
+        self._unread_count = 0
 
         # Initialize pronunciation manager
         self.pronunciation_manager = PronunciationManager(self.data_path)
@@ -104,49 +104,49 @@ class Application(QObject):
         # Initialize user tracker
         self.user_tracker = UserTracker(self.data_path, self.config)
 
-        self.account_window = None
+        self._account_window = None
         self.chat_window = None
-        self.tray_icon = None
+        self._tray_icon = None
 
-        self.color_menu = None
-        self.reset_color_action = None
+        self._color_menu = None
+        self._reset_color_action = None
 
-        self.sound_menu = None
-        self.voice_sound_action = None
-        self.effects_sound_action = None
-        self.pronunciation_action = None
+        self._sound_menu = None
+        self._voice_sound_action = None
+        self._effects_sound_action = None
+        self._pronunciation_action = None
 
-        self.notification_enabled_action = None
+        self._notification_enabled_action = None
 
-        self.ban_list_action = None
+        self._ban_list_action = None
 
         power_monitor.resumed.connect(self._on_system_resumed)
         power_monitor.start()
 
-        self.setup_system_tray()
+        self._setup_system_tray()
 
-    def setup_system_tray(self):
+    def _setup_system_tray(self):
         """Setup system tray icon and menu"""
         if not QSystemTrayIcon.isSystemTrayAvailable():
             print("⚠️ System tray not available")
             return
 
-        self.tray_icon = QSystemTrayIcon(self._get_icon(self.unread_count), self.app)
-        self.tray_icon.activated.connect(lambda r: self.toggle_chat_visibility(ignore_active=True) if r == QSystemTrayIcon.ActivationReason.Trigger else None)
+        self._tray_icon = QSystemTrayIcon(self._get_icon(self._unread_count), self.app)
+        self._tray_icon.activated.connect(lambda r: self._toggle_chat_visibility(ignore_active=True) if r == QSystemTrayIcon.ActivationReason.Trigger else None)
 
         icon = lambda name: render_svg_icon(self.icons_path / name, 16)
 
         menu = QMenu()
         menu.setFont(get_font(FontType.UI))
 
-        self.show_action = QAction(icon("door-open.svg"), "", self.app)
-        self.show_action.triggered.connect(self._show_from_tray)
-        menu.addAction(self.show_action)
+        self._show_action = QAction(icon("door-open.svg"), "", self.app)
+        self._show_action.triggered.connect(self._show_from_tray)
+        menu.addAction(self._show_action)
         menu.addSeparator()
 
-        self.switch_action = QAction(icon("user-switch.svg"), "", self.app)
-        self.switch_action.triggered.connect(self.show_account_switcher)
-        menu.addAction(self.switch_action)
+        self._switch_action = QAction(icon("user-switch.svg"), "", self.app)
+        self._switch_action.triggered.connect(self.show_account_switcher)
+        menu.addAction(self._switch_action)
         menu.addSeparator()
 
         self._setup_color_menu(menu, icon)
@@ -156,86 +156,86 @@ class Application(QObject):
         self._setup_notification_menu(menu, icon)
         menu.addSeparator()
 
-        self.ban_list_action = QAction(icon("user-blocked.svg"), "", self.app)
-        self.ban_list_action.triggered.connect(self.handle_ban_list)
-        menu.addAction(self.ban_list_action)
+        self._ban_list_action = QAction(icon("user-blocked.svg"), "", self.app)
+        self._ban_list_action.triggered.connect(self._handle_ban_list)
+        menu.addAction(self._ban_list_action)
 
         menu.addSeparator()
-        self.exit_action = QAction(icon("door-closed.svg"), "", self.app)
-        self.exit_action.triggered.connect(self.exit_application)
-        menu.addAction(self.exit_action)
+        self._exit_action = QAction(icon("door-closed.svg"), "", self.app)
+        self._exit_action.triggered.connect(self.exit_application)
+        menu.addAction(self._exit_action)
 
-        self.tray_icon.setContextMenu(menu)
-        self.tray_icon.show()
+        self._tray_icon.setContextMenu(menu)
+        self._tray_icon.show()
         self._retranslate_tray()
         on_language_changed(self._retranslate_tray)
 
     def _setup_color_menu(self, parent_menu: QMenu, icon):
-        self.color_menu = parent_menu.addMenu("")
-        self.color_menu.setIcon(icon("palette.svg"))
-        self.change_color_action = QAction(icon("palette.svg"), "", self.app)
-        self.change_color_action.triggered.connect(self.handle_change_username_color)
-        self.color_menu.addAction(self.change_color_action)
-        self.reset_color_action = QAction(icon("go-back.svg"), "", self.app)
-        self.reset_color_action.triggered.connect(self.handle_reset_username_color)
-        self.color_menu.addAction(self.reset_color_action)
-        self.color_menu.aboutToShow.connect(self.update_color_menu)
+        self._color_menu = parent_menu.addMenu("")
+        self._color_menu.setIcon(icon("palette.svg"))
+        self._change_color_action = QAction(icon("palette.svg"), "", self.app)
+        self._change_color_action.triggered.connect(self._handle_change_username_color)
+        self._color_menu.addAction(self._change_color_action)
+        self._reset_color_action = QAction(icon("go-back.svg"), "", self.app)
+        self._reset_color_action.triggered.connect(self._handle_reset_username_color)
+        self._color_menu.addAction(self._reset_color_action)
+        self._color_menu.aboutToShow.connect(self._update_color_menu)
 
     def _setup_sound_menu(self, parent_menu: QMenu, icon):
-        self.sound_menu = parent_menu.addMenu("")
-        self.sound_menu.setIcon(icon("volume-up.svg"))
-        self.sound_menu.addSeparator()
-        self.voice_sound_action = QAction("", self.app, checkable=True)
-        self.voice_sound_action.triggered.connect(
-            lambda: self._on_sound_toggled("tts_enabled", self.voice_sound_action)
+        self._sound_menu = parent_menu.addMenu("")
+        self._sound_menu.setIcon(icon("volume-up.svg"))
+        self._sound_menu.addSeparator()
+        self._voice_sound_action = QAction("", self.app, checkable=True)
+        self._voice_sound_action.triggered.connect(
+            lambda: self._on_sound_toggled("tts_enabled", self._voice_sound_action)
         )
-        self.sound_menu.addAction(self.voice_sound_action)
-        self.effects_sound_action = QAction("", self.app, checkable=True)
-        self.effects_sound_action.triggered.connect(
-            lambda: self._on_sound_toggled("effects_enabled", self.effects_sound_action)
+        self._sound_menu.addAction(self._voice_sound_action)
+        self._effects_sound_action = QAction("", self.app, checkable=True)
+        self._effects_sound_action.triggered.connect(
+            lambda: self._on_sound_toggled("effects_enabled", self._effects_sound_action)
         )
-        self.sound_menu.addAction(self.effects_sound_action)
-        self.sound_menu.addSeparator()
-        self.pronunciation_action = QAction(icon("user-voice.svg"), "", self.app)
-        self.pronunciation_action.triggered.connect(self.handle_pronunciation_manager)
-        self.sound_menu.addAction(self.pronunciation_action)
-        self.sound_menu.aboutToShow.connect(self.update_sound_menu)
+        self._sound_menu.addAction(self._effects_sound_action)
+        self._sound_menu.addSeparator()
+        self._pronunciation_action = QAction(icon("user-voice.svg"), "", self.app)
+        self._pronunciation_action.triggered.connect(self._handle_pronunciation_manager)
+        self._sound_menu.addAction(self._pronunciation_action)
+        self._sound_menu.aboutToShow.connect(self.update_sound_menu)
         self.update_sound_menu()
 
     def _setup_notification_menu(self, parent_menu: QMenu, icon):
-        self.notification_enabled_action = QAction("", self.app, checkable=True)
+        self._notification_enabled_action = QAction("", self.app, checkable=True)
         muted = self.config.get("notification", "muted") or False
-        self.notification_enabled_action.setChecked(not muted)
-        self.notification_enabled_action.triggered.connect(self._on_notification_enabled_toggled)
-        parent_menu.addAction(self.notification_enabled_action)
+        self._notification_enabled_action.setChecked(not muted)
+        self._notification_enabled_action.triggered.connect(self._on_notification_enabled_toggled)
+        parent_menu.addAction(self._notification_enabled_action)
 
     def _retranslate_tray(self, _code=None):
-        if not self.tray_icon:
+        if not self._tray_icon:
             return
-        self.tray_icon.setToolTip(tr("KG Chat", "КГ Чат"))
-        self.show_action.setText(tr("Show Chat", "Показать чат"))
-        self.switch_action.setText(tr("Switch Account", "Сменить аккаунт"))
-        self.color_menu.setTitle(tr("Color", "Цвет"))
-        self.change_color_action.setText(tr("Change Username Color", "Изменить цвет имени"))
-        self.reset_color_action.setText(tr("Reset to Original", "Сбросить на исходный"))
-        self.sound_menu.setTitle(tr("Sound", "Звук"))
-        self.voice_sound_action.setText(tr("Voice Sound", "Голосовой звук"))
-        self.effects_sound_action.setText(tr("Sound Effects", "Звуковые эффекты"))
-        self.pronunciation_action.setText(tr("Username Pronunciation", "Произношение имён"))
-        self.notification_enabled_action.setText(tr("Notifications", "Уведомления"))
-        self.ban_list_action.setText(tr("Ban List", "Список забаненных"))
-        self.exit_action.setText(tr("Exit", "Выход"))
+        self._tray_icon.setToolTip(tr("KG Chat", "КГ Чат"))
+        self._show_action.setText(tr("Show Chat", "Показать чат"))
+        self._switch_action.setText(tr("Switch Account", "Сменить аккаунт"))
+        self._color_menu.setTitle(tr("Color", "Цвет"))
+        self._change_color_action.setText(tr("Change Username Color", "Изменить цвет имени"))
+        self._reset_color_action.setText(tr("Reset to Original", "Сбросить на исходный"))
+        self._sound_menu.setTitle(tr("Sound", "Звук"))
+        self._voice_sound_action.setText(tr("Voice Sound", "Голосовой звук"))
+        self._effects_sound_action.setText(tr("Sound Effects", "Звуковые эффекты"))
+        self._pronunciation_action.setText(tr("Username Pronunciation", "Произношение имён"))
+        self._notification_enabled_action.setText(tr("Notifications", "Уведомления"))
+        self._ban_list_action.setText(tr("Ban List", "Список забаненных"))
+        self._exit_action.setText(tr("Exit", "Выход"))
 
-    def update_color_menu(self):
+    def _update_color_menu(self):
         """Update the color menu to show/hide Reset option based on custom_background"""
         if not self.chat_window or not self.chat_window.account:
             # No account connected - hide reset option
-            self.reset_color_action.setVisible(False)
+            self._reset_color_action.setVisible(False)
             return
 
         # Show reset only if custom_background exists
         has_custom_bg = bool(self.chat_window.account.get('custom_background'))
-        self.reset_color_action.setVisible(has_custom_bg)
+        self._reset_color_action.setVisible(has_custom_bg)
 
     def update_sound_menu(self):
         """Update sound menu to reflect current config state"""
@@ -243,22 +243,22 @@ class Application(QObject):
         voice_enabled = self.config.get("sound", "tts_enabled")
         if voice_enabled is None:
             voice_enabled = False
-        self.voice_sound_action.setChecked(voice_enabled)
+        self._voice_sound_action.setChecked(voice_enabled)
 
         # Update effects sound state
         effects_enabled = self.config.get("sound", "effects_enabled")
         if effects_enabled is None:
             effects_enabled = True
-        self.effects_sound_action.setChecked(effects_enabled)
+        self._effects_sound_action.setChecked(effects_enabled)
 
     def update_notification_menu(self):
         """Sync tray Notifications checkbox with config muted state."""
-        if not self.notification_enabled_action:
+        if not self._notification_enabled_action:
             return
         muted = self.config.get("notification", "muted") or False
-        self.notification_enabled_action.blockSignals(True)
-        self.notification_enabled_action.setChecked(not muted)
-        self.notification_enabled_action.blockSignals(False)
+        self._notification_enabled_action.blockSignals(True)
+        self._notification_enabled_action.setChecked(not muted)
+        self._notification_enabled_action.blockSignals(False)
 
     def _on_sound_toggled(self, config_key: str, action: QAction):
         """Handle sound toggle from tray menu"""
@@ -297,19 +297,19 @@ class Application(QObject):
 
     def _get_icon(self, count: int = 0):
         """Get chat icon with optional message count badge"""
-        return self.tray_badge.create_icon(count)
+        return self._tray_badge.create_icon(count)
 
     def increment_unread(self):
         """Increment unread message count and update tray icon"""
-        self.unread_count += 1
-        if self.tray_icon:
-            self.tray_icon.setIcon(self._get_icon(self.unread_count))
+        self._unread_count += 1
+        if self._tray_icon:
+            self._tray_icon.setIcon(self._get_icon(self._unread_count))
 
     def reset_unread(self):
         """Reset unread message count and update tray icon"""
-        self.unread_count = 0
-        if self.tray_icon:
-            self.tray_icon.setIcon(self._get_icon(0))
+        self._unread_count = 0
+        if self._tray_icon:
+            self._tray_icon.setIcon(self._get_icon(0))
 
     def _force_window_to_foreground(self, window):
         """Force window to foreground with platform-specific handling"""
@@ -349,16 +349,16 @@ class Application(QObject):
             QTimer.singleShot(50, lambda: window.setWindowOpacity(1))
         self._force_window_to_foreground(window)
 
-    def show_window(self):
+    def _show_window(self):
         """Show and raise the active window (chat preferred, else account)."""
-        window = self.chat_window or self.account_window
+        window = self.chat_window or self._account_window
         self._reveal_window(window)
         if window is self.chat_window:
             self.reset_unread()
 
     def _show_from_tray(self):
         """Tray menu → Show Chat."""
-        self.show_window()
+        self._show_window()
 
     def show_account_switcher(self):
         """Show account switcher window"""
@@ -377,7 +377,7 @@ class Application(QObject):
             self.chat_window = None
 
         # Show account window
-        self.show_account_window()
+        self._show_account_window()
 
     def _on_system_resumed(self):
         """OS woke from sleep/hibernation - force the chat connection to restore now"""
@@ -409,12 +409,12 @@ class Application(QObject):
                 pass
         if self.chat_window:
             self.chat_window.close()
-        if self.tray_icon:
-            self.tray_icon.hide()
+        if self._tray_icon:
+            self._tray_icon.hide()
 
         # Release lock file
-        if hasattr(self, 'lock_file'):
-            self.lock_file.unlock()
+        if hasattr(self, '_lock_file'):
+            self._lock_file.unlock()
 
         power_monitor.stop()
         self.app.quit()
@@ -422,7 +422,7 @@ class Application(QObject):
     def run(self):
         """Run the application - check auto-login or show account window"""
         # Setup global hotkey after Qt is fully initialized
-        self.setup_global_hotkey()
+        self._setup_global_hotkey()
 
         # Check if auto-login is enabled
         auto_login = self.config.get("startup", "auto_login")
@@ -433,33 +433,33 @@ class Application(QObject):
 
             if active_account:
                 print(f"🔑 Auto-login enabled, connecting to {active_account['chat_username']}")
-                self.show_chat_window(active_account)
+                self._show_chat_window(active_account)
             else:
                 # No active account, show account window
                 print("⚠️ Auto-login enabled but no active account found")
-                self.show_account_window()
+                self._show_account_window()
         else:
             # Normal flow - show account window
-            self.show_account_window()
+            self._show_account_window()
 
         return self.app.exec()
 
-    def show_account_window(self):
+    def _show_account_window(self):
         """Show account selection window"""
-        self.account_window = AccountWindow(config=self.config)
-        self.account_window.account_connected.connect(self.on_account_connected)
-        self.account_window.setWindowOpacity(0)
-        self.account_window.show()
-        QTimer.singleShot(50, lambda: self.account_window.setWindowOpacity(1))
+        self._account_window = AccountWindow(config=self.config)
+        self._account_window.account_connected.connect(self._on_account_connected)
+        self._account_window.setWindowOpacity(0)
+        self._account_window.show()
+        QTimer.singleShot(50, lambda: self._account_window.setWindowOpacity(1))
 
-    def on_account_connected(self, account):
+    def _on_account_connected(self, account):
         """Close account window and open chat"""
-        if self.account_window:
-            self.account_window.close()
-            self.account_window = None
-        self.show_chat_window(account)
+        if self._account_window:
+            self._account_window.close()
+            self._account_window = None
+        self._show_chat_window(account)
 
-    def show_chat_window(self, account):
+    def _show_chat_window(self, account):
         """Open chat window with tray support"""
         self.chat_window = ChatWindow(
             account=account, 
@@ -488,15 +488,15 @@ class Application(QObject):
 
         # === Respect "Start minimized" ONLY on initial launch ===
         # On account switch we ALWAYS show the window
-        if self.is_initial_launch and self.config.get("startup", "start_minimized"):
+        if self._is_initial_launch and self.config.get("startup", "start_minimized"):
             print("🪟 Starting minimized to tray")
-            self.is_initial_launch = False
+            self._is_initial_launch = False
         else:
             # Normal behavior - show the window
             self.chat_window.setWindowOpacity(0)
             self.chat_window.show()
             QTimer.singleShot(50, lambda: self.chat_window.setWindowOpacity(1))
-            self.is_initial_launch = False
+            self._is_initial_launch = False
 
     def refresh_own_username_color(self, operation_func):
         """Execute operation and refresh own username color in UI if successful."""
@@ -560,15 +560,15 @@ class Application(QObject):
         if own_messages_updated:
             self.chat_window.messages_widget.force_recalculate()
 
-    def handle_change_username_color(self):
+    def _handle_change_username_color(self):
         """Handle Change Username Color from tray menu."""
         self.refresh_own_username_color(change_username_color)
 
-    def handle_reset_username_color(self):
+    def _handle_reset_username_color(self):
         """Handle Reset to Original from tray menu."""
         self.refresh_own_username_color(reset_username_color)
 
-    def check_chat_ready(self, feature):
+    def _check_chat_ready(self, feature):
         if not self.chat_window or not self.chat_window.account:
             QMessageBox.information(
                 None,
@@ -579,24 +579,24 @@ class Application(QObject):
             return False
         return True
 
-    def focus_chat_window(self):
+    def _focus_chat_window(self):
         """Show and focus the chat window."""
         self._reveal_window(self.chat_window)
 
-    def handle_pronunciation_manager(self):
+    def _handle_pronunciation_manager(self):
         """Handle Username Pronunciation from tray menu"""
-        if not self.check_chat_ready(tr("username pronunciations", "произношением имён")):
+        if not self._check_chat_ready(tr("username pronunciations", "произношением имён")):
             return
-        self.focus_chat_window()
+        self._focus_chat_window()
         self.chat_window.show_pronunciation_view()
 
-    def handle_ban_list(self):
-        if not self.check_chat_ready(tr("the ban list", "списком забаненных")):
+    def _handle_ban_list(self):
+        if not self._check_chat_ready(tr("the ban list", "списком забаненных")):
             return
-        self.focus_chat_window()
+        self._focus_chat_window()
         self.chat_window.show_ban_list_view()
 
-    def setup_global_hotkey(self):
+    def _setup_global_hotkey(self):
         """Register the show/hide hotkey using the combo saved in settings (or the default)."""
         hotkey.hotkey_manager.activated.connect(self._on_hotkey_activated)
         combo = self.config.get("hotkey", "combo") or hotkey.DEFAULT_HOTKEY
@@ -604,12 +604,12 @@ class Application(QObject):
 
     def _on_hotkey_activated(self):
         """Handle the global show/hide hotkey, called on the Qt thread."""
-        QMetaObject.invokeMethod(self, "toggle_chat_visibility", Qt.ConnectionType.QueuedConnection)
+        QMetaObject.invokeMethod(self, "_toggle_chat_visibility", Qt.ConnectionType.QueuedConnection)
 
     @pyqtSlot()
-    def toggle_chat_visibility(self, ignore_active=False):
+    def _toggle_chat_visibility(self, ignore_active=False):
         """Toggle visibility of the active window"""
-        window = self.chat_window or self.account_window
+        window = self.chat_window or self._account_window
         if not window:
             return
 

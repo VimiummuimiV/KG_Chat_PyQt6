@@ -10,7 +10,7 @@ from ui.dialogs.window_presets_dialog import WindowPresetsDialog
 class ChatGeometryMixin:
     """ChatWindow: window geometry, resizing and user list visibility."""
 
-    def _calculate_default_geometry(self):
+    def calculate_default_geometry(self):
         """Calculate default window size and position"""
         geo = QApplication.primaryScreen().availableGeometry()
         width = geo.width() if geo.width() < 1000 else int(geo.width() * 0.7)
@@ -19,7 +19,7 @@ class ChatGeometryMixin:
         y = geo.y()
         return width, height, x, y
 
-    def _apply_resize(self, width: int):
+    def apply_resize(self, width: int):
         """handle_chat_resize only knows about the main chat's userlist/messages
         (it predates game-room tabs), so sync the same compact-width behaviour
         to any open game rooms here instead of teaching resize.py about tabs."""
@@ -31,7 +31,7 @@ class ChatGeometryMixin:
     def _sync_room_compact_state(self, width: int):
         """Apply the compact-mode / userlist auto-hide threshold to every open
         game-room / custom-room tab, same 1000px breakpoint as the main chat."""
-        all_rooms = self._all_room_widgets()
+        all_rooms = self.all_room_widgets()
         if not all_rooms:
             return
         is_compact = width <= 1000
@@ -44,7 +44,7 @@ class ChatGeometryMixin:
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
-        self._apply_resize(self.width())
+        self.apply_resize(self.width())
 
         self._update_geometry_on_manual_change()
 
@@ -84,15 +84,15 @@ class ChatGeometryMixin:
             return  # Already at default
 
         # Set flag to prevent resize/move events from saving during reset
-        self._resetting_geometry = True
+        self.resetting_geometry = True
 
         # Apply default geometry
-        width, height, x, y = self._calculate_default_geometry()
+        width, height, x, y = self.calculate_default_geometry()
         self.resize(width, height)
         self.move(x, y)
 
         # Clear flag after events have fired
-        QTimer.singleShot(100, lambda: setattr(self, '_resetting_geometry', False))
+        QTimer.singleShot(100, lambda: setattr(self, 'resetting_geometry', False))
 
         # Update button state immediately
         self.update_reset_size_button_state()
@@ -110,10 +110,10 @@ class ChatGeometryMixin:
 
     def _update_geometry_on_manual_change(self):
         """Update saved geometry when the user has manually changed window size/position."""
-        if getattr(self, '_showing_window', False) or getattr(self, '_resetting_geometry', False):
+        if getattr(self, 'showing_window', False) or getattr(self, 'resetting_geometry', False):
             return
         cur = (self.width(), self.height(), self.x(), self.y())
-        if self.window_size_manager.has_saved_size() or cur != self._calculate_default_geometry():
+        if self.window_size_manager.has_saved_size() or cur != self.calculate_default_geometry():
             self.window_size_manager.update_geometry(*cur)
 
     def complete_resize_recalculation(self):
@@ -122,15 +122,15 @@ class ChatGeometryMixin:
         if current == self.messages_splitter:
             mw = self.active_messages_widget()
             mw.force_recalculate()
-            self._scroll_to_bottom(mw.list_view)
+            self.scroll_to_bottom(mw.list_view)
             if self.chatlog_split_widget:
                 self.chatlog_split_widget.force_recalculate()
             if self.presence_log_widget:
                 self.presence_log_widget.force_recalculate()
-                self._apply_presence_split_sizes()
+                self.apply_presence_split_sizes()
         elif current == self.chatlog_widget and self.chatlog_widget:
             self.chatlog_widget.force_recalculate()
-            self._scroll_to_bottom(self.chatlog_widget.list_view)
+            self.scroll_to_bottom(self.chatlog_widget.list_view)
             nested = self.chatlog_widget.split_chatlog_widget
             if nested:
                 nested.force_recalculate()
@@ -168,7 +168,7 @@ class ChatGeometryMixin:
             self.button_panel.set_button_state(self.button_panel.toggle_userlist_button, visible)
 
         # Force resize handler to sync everything
-        QTimer.singleShot(10, lambda: self._apply_resize(width))
+        QTimer.singleShot(10, lambda: self.apply_resize(width))
 
         # Force recalculation after visibility change
         QTimer.singleShot(20, lambda: recalculate_layout(self))

@@ -133,14 +133,12 @@ class RoomWidget(TranslatableMixin, QWidget):
         ul_layout.addWidget(self.user_list_widget, stretch=1)
 
         if self.font_scaler is not None:
-            self.font_scale_slider = FontScaleSlider(self.font_scaler)
-            self.font_scale_slider.setFixedHeight(self.input_field.minimumHeight())
-            ul_layout.addWidget(self.font_scale_slider)
-            self.font_scaler.font_size_committed.connect(
-                lambda: self.userlist_panel.setFixedWidth(get_userlist_width())
-            )
+            self._font_scale_slider = FontScaleSlider(self.font_scaler)
+            self._font_scale_slider.setFixedHeight(self.input_field.minimumHeight())
+            ul_layout.addWidget(self._font_scale_slider)
+            self.font_scaler.font_size_committed.connect(self._update_userlist_width)
         else:
-            self.font_scale_slider = None
+            self._font_scale_slider = None
 
         self.userlist_panel.setLayout(ul_layout)
         self.userlist_panel.setFixedWidth(get_userlist_width())
@@ -150,12 +148,15 @@ class RoomWidget(TranslatableMixin, QWidget):
         # After the layout tree is attached so input_row is under this widget for mapTo
         self.pet_overlay = PetOverlay(self, self.input_row, self.config)
 
+    def _update_userlist_width(self) -> None:
+        self.userlist_panel.setFixedWidth(get_userlist_width())
+
     def tab_title(self) -> str:
         if self.room_name:
             return self.room_label
         return f"{self.room_label} #{self.game_id}" if self.game_id else self.room_label
 
-    def set_game_id(self, game_id):
+    def _set_game_id(self, game_id):
         self.game_id = game_id
         self.room_jid = XMPPClient.game_room_jid(game_id)
         self.messages_widget.clear()
@@ -192,6 +193,8 @@ class RoomWidget(TranslatableMixin, QWidget):
         return visible
 
     def cleanup(self):
+        if self.font_scaler is not None:
+            self.font_scaler.font_size_committed.disconnect(self._update_userlist_width)
         if getattr(self, "pet_overlay", None):
             self.pet_overlay.shutdown()
             self.pet_overlay.deleteLater()

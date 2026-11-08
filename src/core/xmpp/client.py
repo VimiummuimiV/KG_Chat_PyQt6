@@ -23,16 +23,16 @@ class XMPPClient:
             config_path = str(get_config_path())
 
         self.account_manager = AccountManager(str(config_path))
-        self.connected_account = None
-        self.rid = int(random.random() * 1e10)
+        self._connected_account = None
+        self._rid = int(random.random() * 1e10)
         self.sid = None
         self.jid = None
 
         self.message_callback: Optional[Callable] = None
-        self.presence_callback: Optional[Callable] = None
+        self._presence_callback: Optional[Callable] = None
 
         self.user_list = UserList()
-        self.initial_roster_received = False
+        self._initial_roster_received = False
 
         server = self.account_manager.get_server_config()
         self.url = server.get('url')
@@ -43,7 +43,7 @@ class XMPPClient:
             raise RuntimeError("❌ Invalid config")
 
         conn = self.account_manager.get_connection_config()
-        self.conn_params = {
+        self._conn_params = {
             'xml:lang': conn.get('lang', 'en'),
             'wait': conn.get('wait', '60'),
             'hold': conn.get('hold', '1'),
@@ -69,18 +69,18 @@ class XMPPClient:
 
     def set_presence_callback(self, callback: Callable):
         """Set presence callback"""
-        self.presence_callback = callback
+        self._presence_callback = callback
 
     def _get_effective_background(self) -> Optional[str]:
         """Get effective background: custom if exists, otherwise server background"""
-        if self.connected_account is None:
+        if self._connected_account is None:
             return None
-        return self.connected_account.get('custom_background') or self.connected_account.get('background')
+        return self._connected_account.get('custom_background') or self._connected_account.get('background')
 
-    def build_body(self, children=None, **attrs):
+    def _build_body(self, children=None, **attrs):
         """Build BOSH body"""
         body = ET.Element('body', {
-            'rid': str(self.rid),
+            'rid': str(self._rid),
             'xmlns': 'http://jabber.org/protocol/httpbind',
             **{k: v for k, v in attrs.items() if v is not None}
         })
@@ -93,7 +93,7 @@ class XMPPClient:
                 body.append(child)
         return ET.tostring(body, encoding='utf-8').decode('utf-8')
 
-    def send_request(self, payload, verbose: bool = True, timeout: int = 10):
+    def _send_request(self, payload, verbose: bool = True, timeout: int = 10):
         """Send request with configurable timeout"""
         if verbose:
             print(f"\n📤 {payload[:100]}...")
@@ -105,7 +105,7 @@ class XMPPClient:
             print(f"📥 {response.text[:100]}...")
         return response.text
 
-    def parse_xml(self, xml_text):
+    def _parse_xml(self, xml_text):
         """Parse XML"""
         try:
             return ET.fromstring(xml_text)
@@ -124,7 +124,7 @@ class XMPPClient:
             print("❌ No account")
             return False
 
-        self.connected_account = account
+        self._connected_account = account
         self.account_manager.config = self.account_manager.load_config()
         server = self.account_manager.get_server_config()
         self.resource = server.get('resource') or self.resource or 'web'
@@ -137,8 +137,8 @@ class XMPPClient:
 
         try:
             # Initialize session
-            payload = self.build_body(to=self.domain, **self.conn_params)
-            root = self.parse_xml(self.send_request(payload, verbose=False, timeout=10))
+            payload = self._build_body(to=self.domain, **self._conn_params)
+            root = self._parse_xml(self._send_request(payload, verbose=False, timeout=10))
             if root is not None:
                 self.sid = root.get('sid')
                 print(f"✅ Connected - SID: {self.sid}")
@@ -147,7 +147,7 @@ class XMPPClient:
                 return False
 
             # Auth
-            self.rid += 1
+            self._rid += 1
             authcid = f'{user_id}#{chat_username}'
             auth_str = f'\0{authcid}\0{chat_password}'
             auth_encoded = base64.b64encode(auth_str.encode('utf-8')).decode('ascii')
@@ -158,24 +158,24 @@ class XMPPClient:
             })
             auth_elem.text = auth_encoded
 
-            self.send_request(self.build_body(children=[auth_elem]), verbose=False, timeout=10)
+            self._send_request(self._build_body(children=[auth_elem]), verbose=False, timeout=10)
 
             # Restart stream
-            self.rid += 1
-            payload = self.build_body(**{
+            self._rid += 1
+            payload = self._build_body(**{
                 'xmpp:restart': 'true',
                 'to': self.domain,
                 'xml:lang': 'en'
             })
-            self.send_request(payload, verbose=False, timeout=10)
+            self._send_request(payload, verbose=False, timeout=10)
 
             # Bind resource
-            self.rid += 1
+            self._rid += 1
             iq = ET.Element('iq', {'type': 'set', 'id': 'bind_1', 'xmlns': 'jabber:client'})
             bind = ET.SubElement(iq, 'bind', {'xmlns': 'urn:ietf:params:xml:ns:xmpp-bind'})
             ET.SubElement(bind, 'resource').text = self.resource
 
-            root = self.parse_xml(self.send_request(self.build_body(children=[iq]), verbose=False, timeout=10))
+            root = self._parse_xml(self._send_request(self._build_body(children=[iq]), verbose=False, timeout=10))
             if root is not None:
                 jid_el = root.find('.//{urn:ietf:params:xml:ns:xmpp-bind}jid')
                 if jid_el is not None:
@@ -186,10 +186,10 @@ class XMPPClient:
                 return False
 
             # Session
-            self.rid += 1
+            self._rid += 1
             iq = ET.Element('iq', {'type': 'set', 'id': 'session_1', 'xmlns': 'jabber:client'})
             ET.SubElement(iq, 'session', {'xmlns': 'urn:ietf:params:xml:ns:xmpp-session'})
-            self.send_request(self.build_body(children=[iq]), verbose=False, timeout=10)
+            self._send_request(self._build_body(children=[iq]), verbose=False, timeout=10)
 
             return True
 
@@ -222,14 +222,14 @@ class XMPPClient:
             print(f"ℹ️ Already joined: {room_jid}")
             return
 
-        if self.connected_account is None:
+        if self._connected_account is None:
             print("❌ No connected account")
             return
 
         if nickname is None:
-            nickname = f"{self.connected_account['user_id']}#{self.connected_account['chat_username']}"
+            nickname = f"{self._connected_account['user_id']}#{self._connected_account['chat_username']}"
 
-        self.rid += 1
+        self._rid += 1
         presence = ET.Element('presence', {
             'xmlns': 'jabber:client',
             'to': f'{room_jid}/{nickname}'
@@ -239,11 +239,11 @@ class XMPPClient:
         # Add user data with avatar and background
         x_data = ET.SubElement(presence, 'x', {'xmlns': 'klavogonki:userdata'})
         user = ET.SubElement(x_data, 'user')
-        ET.SubElement(user, 'login').text = self.connected_account['chat_username']
+        ET.SubElement(user, 'login').text = self._connected_account['chat_username']
 
         # Add avatar if available
-        if self.connected_account.get('avatar'):
-            ET.SubElement(user, 'avatar').text = self.connected_account['avatar']
+        if self._connected_account.get('avatar'):
+            ET.SubElement(user, 'avatar').text = self._connected_account['avatar']
 
         # Use effective background (custom if exists, otherwise server)
         bg = self._get_effective_background()
@@ -255,11 +255,11 @@ class XMPPClient:
             ET.SubElement(x_data, 'game_id').text = str(game_id)
 
         try:
-            response = self.send_request(self.build_body(children=[presence]), verbose=False, timeout=15)
+            response = self._send_request(self._build_body(children=[presence]), verbose=False, timeout=15)
 
-            self.initial_roster_received = False
+            self._initial_roster_received = False
             self._process_response(response, is_initial_roster=True)
-            self.initial_roster_received = True
+            self._initial_roster_received = True
             self._joined_rooms.add(room_jid)
             print(f"✅ Joined room: {room_jid}")
 
@@ -274,18 +274,18 @@ class XMPPClient:
             self._joined_rooms = set()
         if room_jid not in self._joined_rooms:
             return
-        if self.connected_account is None or not self.sid:
+        if self._connected_account is None or not self.sid:
             return
         if nickname is None:
-            nickname = f"{self.connected_account['user_id']}#{self.connected_account['chat_username']}"
-        self.rid += 1
+            nickname = f"{self._connected_account['user_id']}#{self._connected_account['chat_username']}"
+        self._rid += 1
         presence = ET.Element('presence', {
             'xmlns': 'jabber:client',
             'to': f'{room_jid}/{nickname}',
             'type': 'unavailable'
         })
         try:
-            self.send_request(self.build_body(children=[presence]), verbose=False, timeout=5)
+            self._send_request(self._build_body(children=[presence]), verbose=False, timeout=5)
             self._joined_rooms.discard(room_jid)
             print(f"👋 Left room: {room_jid}")
         except Exception as e:
@@ -308,7 +308,7 @@ class XMPPClient:
         if not self.sid or not self.jid:
             return False
 
-        if self.connected_account is None:
+        if self._connected_account is None:
             return False
 
         # Determine recipient
@@ -323,7 +323,7 @@ class XMPPClient:
         if not to_jid:
             return False
 
-        self.rid += 1
+        self._rid += 1
 
         # Create message element
         message = ET.Element('message', {
@@ -337,11 +337,11 @@ class XMPPClient:
         # Add userdata
         x_data = ET.SubElement(message, 'x', {'xmlns': 'klavogonki:userdata'})
         user = ET.SubElement(x_data, 'user')
-        ET.SubElement(user, 'login').text = self.connected_account['chat_username']
+        ET.SubElement(user, 'login').text = self._connected_account['chat_username']
 
         # Add avatar if available
-        if self.connected_account.get('avatar'):
-            ET.SubElement(user, 'avatar').text = self.connected_account['avatar']
+        if self._connected_account.get('avatar'):
+            ET.SubElement(user, 'avatar').text = self._connected_account['avatar']
 
         # Use effective background (custom if exists, otherwise server)
         bg = self._get_effective_background()
@@ -349,8 +349,8 @@ class XMPPClient:
             ET.SubElement(user, 'background').text = bg
 
         try:
-            payload = self.build_body(children=[message])
-            response = self.send_request(payload, verbose=False, timeout=5)
+            payload = self._build_body(children=[message])
+            response = self._send_request(payload, verbose=False, timeout=5)
             if response:
                 self._process_response(response)
             return True
@@ -364,7 +364,7 @@ class XMPPClient:
 
         # Override own background in received messages and presence
         effective_bg = self._get_effective_background()
-        own_username = self.connected_account.get('chat_username') if self.connected_account else None
+        own_username = self._connected_account.get('chat_username') if self._connected_account else None
 
         if own_username and effective_bg:
             for collection in (messages, presence_updates):
@@ -409,7 +409,7 @@ class XMPPClient:
                     moderator=getattr(pres, 'moderator', False)
                 )
 
-                if not is_initial_roster and self.initial_roster_received:
+                if not is_initial_roster and self._initial_roster_received:
                     login = pres.login if pres.login else pres.from_jid.split('/')[-1]
 
                     if is_new_user:
@@ -421,19 +421,19 @@ class XMPPClient:
                     elif old_game_id and new_game_id and old_game_id != new_game_id:
                         print(f"🚀 {login} → game #{new_game_id}")
 
-                if self.presence_callback:
-                    self.presence_callback(pres)
+                if self._presence_callback:
+                    self._presence_callback(pres)
 
             elif pres.presence_type == 'unavailable':
                 existing_user = self.user_list.get(pres.from_jid)
                 self.user_list.remove(pres.from_jid)
 
-                if self.initial_roster_received and existing_user and not is_initial_roster:
+                if self._initial_roster_received and existing_user and not is_initial_roster:
                     login = pres.login if pres.login else pres.from_jid.split('/')[-1]
                     print(f"➖ {login} left")
 
-                if self.presence_callback:
-                    self.presence_callback(pres)
+                if self._presence_callback:
+                    self._presence_callback(pres)
 
     def listen(self):
         """Listen for messages"""
@@ -441,10 +441,10 @@ class XMPPClient:
 
         try:
             while True:
-                self.rid += 1
-                response = self.send_request(self.build_body(), verbose=False, timeout=70)
+                self._rid += 1
+                response = self._send_request(self._build_body(), verbose=False, timeout=70)
 
-                root = self.parse_xml(response)
+                root = self._parse_xml(response)
                 if root is not None:
                     if root.get('type') == 'terminate':
                         print("\n⚠️ Terminated")
@@ -471,13 +471,13 @@ class XMPPClient:
         """Disconnect"""
         if self.sid:
             try:
-                self.rid += 1
-                self.send_request(self.build_body(type='terminate'), verbose=False, timeout=5)
+                self._rid += 1
+                self._send_request(self._build_body(type='terminate'), verbose=False, timeout=5)
             except Exception:
                 pass
             finally:
                 self.sid = None
                 self.jid = None
-                self.connected_account = None
+                self._connected_account = None
                 if hasattr(self, 'session'):
                     self.session.close()

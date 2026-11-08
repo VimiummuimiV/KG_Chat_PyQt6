@@ -17,35 +17,35 @@ _LUNGE_RATIO = 0.6  # share of a frame during which a step moves the pet; the re
 
 
 @dataclass(frozen=True)
-class PetAnimation:
+class _PetAnimation:
     """Frames of one pet state facing right and mirrored, with timing and visible area."""
 
     frames_right: tuple[QPixmap, ...]
-    frames_left: tuple[QPixmap, ...]
-    frame_ends_ms: tuple[int, ...]
+    _frames_left: tuple[QPixmap, ...]
+    _frame_ends_ms: tuple[int, ...]
     body: QRect  # union of the visible pixels over all frames, facing right
 
     @property
     def cycle_ms(self) -> int:
-        return self.frame_ends_ms[-1]
+        return self._frame_ends_ms[-1]
 
     def pixmap(self, elapsed_ms: int, facing_right: bool) -> QPixmap:
         """Return the frame shown after elapsed_ms of the looping animation."""
         index, _ = self._frame_at(elapsed_ms % self.cycle_ms)
-        return (self.frames_right if facing_right else self.frames_left)[index]
+        return (self.frames_right if facing_right else self._frames_left)[index]
 
     def stepped_ms(self, elapsed_ms: int) -> float:
         """Return elapsed_ms with each frame's time pulled to its start: motion measured by it advances in steps."""
         cycles, moment = divmod(elapsed_ms, self.cycle_ms)
         index, start = self._frame_at(moment)
-        delay = self.frame_ends_ms[index] - start
+        delay = self._frame_ends_ms[index] - start
         progress = min((moment - start) / delay / _LUNGE_RATIO, 1.0)
         return cycles * self.cycle_ms + start + delay * progress * progress * (3 - 2 * progress)
 
     def _frame_at(self, moment_ms: int) -> tuple[int, int]:
         """Return the index and start time of the frame shown at moment_ms of one cycle."""
-        index = next(index for index, end in enumerate(self.frame_ends_ms) if moment_ms < end)
-        return index, self.frame_ends_ms[index - 1] if index else 0
+        index = next(index for index, end in enumerate(self._frame_ends_ms) if moment_ms < end)
+        return index, self._frame_ends_ms[index - 1] if index else 0
 
     def visible_span(self, facing_right: bool) -> tuple[int, int]:
         """Return the horizontal [left, right) range of the visible pixels inside the frame."""
@@ -98,7 +98,7 @@ def _redraw_at_pixel_size(image: QImage, grid: PixelGrid, offsets: tuple[int, in
 
 
 @lru_cache(maxsize=None)
-def load_animation(kind: PetKind, state: str, pixel_size: int) -> PetAnimation:
+def load_animation(kind: PetKind, state: str, pixel_size: int) -> _PetAnimation:
     """Load one state of a pet; every art pixel becomes pixel_size screen pixels, never a fraction."""
     reader = QImageReader(str(kind.sprite_path(state)))
     grid = kind.pixel_grid
@@ -119,4 +119,4 @@ def load_animation(kind: PetKind, state: str, pixel_size: int) -> PetAnimation:
         elapsed_ms += delay_ms
         frame_ends_ms.append(elapsed_ms)
         body = body.united(QRegion(QBitmap.fromImage(image.createAlphaMask())).boundingRect())
-    return PetAnimation(tuple(frames_right), tuple(frames_left), tuple(frame_ends_ms), body)
+    return _PetAnimation(tuple(frames_right), tuple(frames_left), tuple(frame_ends_ms), body)

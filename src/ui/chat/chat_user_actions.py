@@ -31,7 +31,7 @@ from ui.dialogs.pronunciation_dialog import PronunciationDialog
 class ChatUserActionsMixin:
     """ChatWindow: username clicks, context menu, ban, track and pronunciation actions."""
 
-    def _on_username_left_click(self, username: str, is_double_click: bool):
+    def on_username_left_click(self, username: str, is_double_click: bool):
         """Handle username left-click - insert into input field"""
         if not hasattr(self, 'input_field') or not self.input_field:
             return
@@ -55,7 +55,7 @@ class ChatUserActionsMixin:
 
         self.input_field.setFocus()
 
-    def _paste_username_to_input(self, username: str):
+    def paste_username_to_input(self, username: str):
         """Paste username into the active input field (game room or general)."""
         field = self.active_input_field() if hasattr(self, 'active_input_field') else self.input_field
         if not field:
@@ -89,18 +89,18 @@ class ChatUserActionsMixin:
             uid = get_exact_user_id_by_name(username)
             if uid:
                 self.cache.update_user(str(uid), username)
-                self._dispatch.emit(lambda: callback('', username, str(uid)))
+                self.dispatch.emit(lambda: callback('', username, str(uid)))
         threading.Thread(target=_fetch, daemon=True).start()
 
-    def _on_username_ctrl_click(self, username: str):
+    def on_username_ctrl_click(self, username: str):
         """Ctrl+LMB on message username → enter private chat"""
         self._resolve_user_then(username, lambda jid, login, uid: self.enter_private_mode(jid, login, uid))
 
-    def _on_username_shift_click(self, username: str):
+    def on_username_shift_click(self, username: str):
         """Shift+LMB on message username → open profile"""
         self._resolve_user_then(username, lambda jid, login, uid: self.show_profile_view(jid, login, uid))
 
-    def _on_username_right_click(self, msg, global_pos, source_widget=None):
+    def on_username_right_click(self, msg, global_pos, source_widget=None):
         """Show context menu when username is right-clicked in messages or chatlog."""
         source_widget = source_widget or self.messages_widget
         try:
@@ -145,7 +145,7 @@ class ChatUserActionsMixin:
                 user_id = self.cache.get_user_id(username) if username else None
                 QApplication.clipboard().setText(str(user_id or ""))
             elif action in (MSG_TRACK, MSG_UNTRACK):
-                self._on_track_user_requested(str(uid or ""), username or "", action == MSG_TRACK)
+                self.on_track_user_requested(str(uid or ""), username or "", action == MSG_TRACK)
             elif action == BAN_PERMANENT:
                 self._ban_user_from_msg(msg, permanent=True, widget=source_widget)
             elif action == BAN_TEMPORARY:
@@ -154,23 +154,23 @@ class ChatUserActionsMixin:
                     self._ban_user_from_msg(msg, permanent=False, duration=seconds, widget=source_widget)
             elif action == SET_PRONUNCIATION:
                 if username:
-                    self._set_username_pronunciation(username)
+                    self.set_username_pronunciation(username)
             elif action == REMOVE_PRESENCE:
                 row = getattr(msg, 'presence_row', None)
                 if row is not None and hasattr(source_widget, 'model'):
                     source_widget.model.remove_message_at(row)
             elif action == REMOVE_MESSAGE:
-                self._remove_message(msg, single=True, widget=source_widget)
+                self.remove_message(msg, single=True, widget=source_widget)
             elif action == REMOVE_UP:
-                self._remove_message(msg, direction="up", widget=source_widget)
+                self.remove_message(msg, direction="up", widget=source_widget)
             elif action == REMOVE_DOWN:
-                self._remove_message(msg, direction="down", widget=source_widget)
+                self.remove_message(msg, direction="down", widget=source_widget)
             elif action == REMOVE_ALL:
-                self._remove_message(msg, single=False, widget=source_widget)
+                self.remove_message(msg, single=False, widget=source_widget)
         except Exception as e:
             print(f"Context menu error: {e}")
 
-    def _on_track_user_requested(self, user_id: str, login: str, track: bool):
+    def on_track_user_requested(self, user_id: str, login: str, track: bool):
         if not self.user_tracker:
             return
         if track:
@@ -192,12 +192,12 @@ class ChatUserActionsMixin:
         w = getattr(self, 'user_tracker_widget', None)
         if w is not None:
             w.refresh()
-        self._refresh_tracked_star(user_id=user_id or None, login=login or None)
+        self.refresh_tracked_star(user_id=user_id or None, login=login or None)
 
-    def _refresh_tracked_star(self, user_id: str = None, login: str = None):
+    def refresh_tracked_star(self, user_id: str = None, login: str = None):
         """Update tracked star on general, room and chatlog userlists."""
         userlists = [self.user_list_widget, self.chatlog_userlist_widget]
-        userlists.extend(room.user_list_widget for room in self._all_room_widgets())
+        userlists.extend(room.user_list_widget for room in self.all_room_widgets())
         for widget in userlists:
             if widget is not None:
                 widget.refresh_tracked_star(user_id=user_id, login=login)
@@ -217,7 +217,7 @@ class ChatUserActionsMixin:
 
         self._ban_user(jid=jid, username=username, user_id=user_id, permanent=permanent, duration=duration, widget=widget)
 
-    def _on_ban_requested(self, jid, username, user_id, permanent, duration):
+    def on_ban_requested(self, jid, username, user_id, permanent, duration):
         """Handle ban from userlist context menu."""
         if not permanent and duration is None:
             seconds, ok = DurationDialog.get_duration(self, default_seconds=3600)
@@ -273,7 +273,7 @@ class ChatUserActionsMixin:
             except Exception:
                 pass
 
-    def _set_username_pronunciation(self, username: str):
+    def set_username_pronunciation(self, username: str):
         """Open pronunciation dialog for a username and save the result.
         Empty input + OK removes the mapping."""
         if not username or not self.pronunciation_manager:

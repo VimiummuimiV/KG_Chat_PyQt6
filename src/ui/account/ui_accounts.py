@@ -82,7 +82,7 @@ class AccountWindow(TranslatableMixin, QWidget):
 
         # Initialize UI
         self.initializeUI()
-        self.load_accounts()
+        self._load_accounts()
 
         # Set initial window height for Connect page
         self._adjust_window_height()
@@ -141,31 +141,31 @@ class AccountWindow(TranslatableMixin, QWidget):
 
         # Avatar
         avatar_tooltip = tr("Account", "Аккаунт")
-        self.account_avatar = create_icon_button(
+        self._account_avatar = create_icon_button(
             self.icons_path, "user.svg", tooltip=avatar_tooltip
         )
-        self.register_tr(self.account_avatar.setToolTip, avatar_tooltip)
-        self.account_avatar.setStyleSheet("QPushButton { background: transparent; border: none; }")
-        self.account_avatar.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        account_row.addWidget(self.account_avatar)
+        self.register_tr(self._account_avatar.setToolTip, avatar_tooltip)
+        self._account_avatar.setStyleSheet("QPushButton { background: transparent; border: none; }")
+        self._account_avatar.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        account_row.addWidget(self._account_avatar)
 
         # Account dropdown
-        self.account_dropdown = QComboBox()
-        self.account_dropdown.setFont(get_font(FontType.UI))
-        self._set_input_height(self.account_dropdown)
-        self.account_dropdown.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self.account_dropdown.currentIndexChanged.connect(self.update_avatar)
+        self._account_dropdown = QComboBox()
+        self._account_dropdown.setFont(get_font(FontType.UI))
+        self._set_input_height(self._account_dropdown)
+        self._account_dropdown.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self._account_dropdown.currentIndexChanged.connect(self._update_avatar)
 
         # Offset dropdown popup to not cover the border
-        original_show_popup = self.account_dropdown.showPopup
+        original_show_popup = self._account_dropdown.showPopup
         def offset_popup():
             original_show_popup()
-            popup = self.account_dropdown.view().window()
+            popup = self._account_dropdown.view().window()
             if popup:
                 pos = popup.pos()
                 popup.move(pos.x(), pos.y() + 3)
-        self.account_dropdown.showPopup = offset_popup
-        account_row.addWidget(self.account_dropdown, stretch=1)
+        self._account_dropdown.showPopup = offset_popup
+        account_row.addWidget(self._account_dropdown, stretch=1)
         main_layout.addLayout(account_row)
 
         # Actions row
@@ -174,48 +174,48 @@ class AccountWindow(TranslatableMixin, QWidget):
 
         # Connect button
         connect_button_tooltip = tr("Connect to chat (Enter / E)", "Подключиться к чату (Enter / E)")
-        self.connect_button = create_icon_button(
+        self._connect_button = create_icon_button(
             self.icons_path, "login.svg", tooltip=connect_button_tooltip
         )
-        self.connect_button.clicked.connect(self.on_connect)
-        self.connect_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        actions_row.addWidget(self.connect_button)
-        self.register_tr(self.connect_button.setToolTip, connect_button_tooltip)
+        self._connect_button.clicked.connect(self._on_connect)
+        self._connect_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        actions_row.addWidget(self._connect_button)
+        self.register_tr(self._connect_button.setToolTip, connect_button_tooltip)
 
         # Color picker button
         color_button_tooltip = tr(
             "Username color (C: pick | Ctrl+C/Click: reset)",
             "Цвет ника (C: выбрать | Ctrl+C/клик: сбросить)",
         )
-        self.color_button = create_icon_button(
+        self._color_button = create_icon_button(
             self.icons_path, "palette.svg",
             tooltip=color_button_tooltip
         )
-        self.color_button.installEventFilter(self)
-        self.color_button.clicked.connect(self.on_color_picker)
-        self.color_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        actions_row.addWidget(self.color_button)
-        self.register_tr(self.color_button.setToolTip, color_button_tooltip)
+        self._color_button.installEventFilter(self)
+        self._color_button.clicked.connect(self._on_color_picker)
+        self._color_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        actions_row.addWidget(self._color_button)
+        self.register_tr(self._color_button.setToolTip, color_button_tooltip)
 
         # Remove button
         remove_button_tooltip = tr("Remove account (D)", "Удалить аккаунт (D)")
-        self.remove_button = create_icon_button(
+        self._remove_button = create_icon_button(
             self.icons_path, "trash.svg", tooltip=remove_button_tooltip
         )
-        self.remove_button.clicked.connect(self.on_remove_account)
-        self.remove_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        actions_row.addWidget(self.remove_button)
-        self.register_tr(self.remove_button.setToolTip, remove_button_tooltip)
+        self._remove_button.clicked.connect(self._on_remove_account)
+        self._remove_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        actions_row.addWidget(self._remove_button)
+        self.register_tr(self._remove_button.setToolTip, remove_button_tooltip)
 
         # Web login button
         web_login_tooltip = tr("Add account via browser login (W)", "Добавить аккаунт через вход в браузере (W)")
-        self.web_login_button = create_icon_button(
+        self._web_login_button = create_icon_button(
             self.icons_path, "globe.svg", tooltip=web_login_tooltip
         )
-        self.web_login_button.clicked.connect(self.on_web_login)
-        self.web_login_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        actions_row.addWidget(self.web_login_button)
-        self.register_tr(self.web_login_button.setToolTip, web_login_tooltip)
+        self._web_login_button.clicked.connect(self._on_web_login)
+        self._web_login_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        actions_row.addWidget(self._web_login_button)
+        self.register_tr(self._web_login_button.setToolTip, web_login_tooltip)
 
         main_layout.addLayout(actions_row)
 
@@ -224,7 +224,7 @@ class AccountWindow(TranslatableMixin, QWidget):
         self.auto_login_checkbox = QCheckBox(auto_login_text)
         self.auto_login_checkbox.setFont(get_font(FontType.UI))
         self.auto_login_checkbox.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self.auto_login_checkbox.stateChanged.connect(self.on_auto_login_changed)
+        self.auto_login_checkbox.stateChanged.connect(self._on_auto_login_changed)
         self.register_tr(self.auto_login_checkbox.setText, auto_login_text)
 
         # Load current auto-login state
@@ -239,7 +239,7 @@ class AccountWindow(TranslatableMixin, QWidget):
         self.start_minimized_checkbox = QCheckBox(start_minimized_text)
         self.start_minimized_checkbox.setFont(get_font(FontType.UI))
         self.start_minimized_checkbox.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self.start_minimized_checkbox.stateChanged.connect(self.on_start_minimized_changed)
+        self.start_minimized_checkbox.stateChanged.connect(self._on_start_minimized_changed)
         self.register_tr(self.start_minimized_checkbox.setText, start_minimized_text)
 
         # Load current start minimized state
@@ -253,7 +253,7 @@ class AccountWindow(TranslatableMixin, QWidget):
         self.start_with_system_checkbox = QCheckBox(start_with_system_text)
         self.start_with_system_checkbox.setFont(get_font(FontType.UI))
         self.start_with_system_checkbox.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self.start_with_system_checkbox.stateChanged.connect(self.on_start_with_system_changed)
+        self.start_with_system_checkbox.stateChanged.connect(self._on_start_with_system_changed)
         self.register_tr(self.start_with_system_checkbox.setText, start_with_system_text)
 
         # Load current start with system state
@@ -298,10 +298,10 @@ class AccountWindow(TranslatableMixin, QWidget):
         if (isinstance(ev, QKeyEvent)
                 and ev.type() == QEvent.Type.KeyPress
                 and ev.key() == Qt.Key.Key_Tab):
-            count = self.account_dropdown.count()
+            count = self._account_dropdown.count()
             if count > 1:
-                next_index = (self.account_dropdown.currentIndex() + 1) % count
-                self.account_dropdown.setCurrentIndex(next_index)
+                next_index = (self._account_dropdown.currentIndex() + 1) % count
+                self._account_dropdown.setCurrentIndex(next_index)
             return True
         return super().event(ev)
 
@@ -324,16 +324,16 @@ class AccountWindow(TranslatableMixin, QWidget):
             return super().keyPressEvent(event)
 
         if vk == 'connect':
-            self.on_connect()
+            self._on_connect()
         elif vk == 'color':
             if ctrl:
-                self.on_reset_color()
+                self._on_reset_color()
             else:
-                self.on_color_picker()
+                self._on_color_picker()
         elif vk == 'remove':
-            self.on_remove_account()
+            self._on_remove_account()
         elif vk == 'web_login':
-            self.on_web_login()
+            self._on_web_login()
         elif vk == 'toggle_1':
             self.auto_login_checkbox.setChecked(not self.auto_login_checkbox.isChecked())
         elif vk == 'toggle_2':
@@ -377,18 +377,18 @@ class AccountWindow(TranslatableMixin, QWidget):
         self.move(frame.topLeft())
 
     def eventFilter(self, obj, event):
-        if (hasattr(self, 'color_button')
-                and obj == self.color_button
+        if (hasattr(self, '_color_button')
+                and obj == self._color_button
                 and event.type() == QEvent.Type.MouseButtonPress):
             if event.button() == Qt.MouseButton.LeftButton:
                 modifiers = QApplication.keyboardModifiers()
                 if modifiers & Qt.KeyboardModifier.ControlModifier:
-                    self.on_reset_color()
+                    self._on_reset_color()
                     return True
         return super().eventFilter(obj, event)
 
-    def on_color_picker(self):
-        account = self.account_dropdown.currentData()
+    def _on_color_picker(self):
+        account = self._account_dropdown.currentData()
         if not account:
             QMessageBox.warning(self,
                 tr("No Account", "Нет аккаунта"),
@@ -397,10 +397,10 @@ class AccountWindow(TranslatableMixin, QWidget):
             return
         success = change_username_color(self, self.account_manager, account, self.cache)
         if success:
-            self.load_accounts()
+            self._load_accounts()
 
-    def on_reset_color(self):
-        account = self.account_dropdown.currentData()
+    def _on_reset_color(self):
+        account = self._account_dropdown.currentData()
         if not account:
             QMessageBox.warning(self,
                 tr("No Account", "Нет аккаунта"),
@@ -409,7 +409,7 @@ class AccountWindow(TranslatableMixin, QWidget):
             return
         success = reset_username_color(self, self.account_manager, account, self.cache)
         if success:
-            self.load_accounts()
+            self._load_accounts()
 
 
     def on_resource_changed(self, _index: int = 0):
@@ -426,17 +426,17 @@ class AccountWindow(TranslatableMixin, QWidget):
         self.config.set("server", "resource", value=value)
         print(f"📡 XMPP resource changed: {previous} → {value}")
 
-    def on_auto_login_changed(self, state):
+    def _on_auto_login_changed(self, state):
         auto_login = (state == Qt.CheckState.Checked.value)
         self.config.set("startup", "auto_login", value=auto_login)
         print(f"🔑 Auto-login {'enabled' if auto_login else 'disabled'}")
 
-    def on_start_minimized_changed(self, state):
+    def _on_start_minimized_changed(self, state):
         start_minimized = (state == Qt.CheckState.Checked.value)
         self.config.set("startup", "start_minimized", value=start_minimized)
         print(f"🪟 Start minimized {'enabled' if start_minimized else 'disabled'}")
 
-    def on_start_with_system_changed(self, state):
+    def _on_start_with_system_changed(self, state):
         start_with_system = (state == Qt.CheckState.Checked.value)
         if start_with_system:
             success = self.startup_manager.enable()
@@ -461,34 +461,34 @@ class AccountWindow(TranslatableMixin, QWidget):
                 )
                 self.start_with_system_checkbox.setChecked(True)
 
-    def load_accounts(self):
-        self.account_dropdown.clear()
+    def _load_accounts(self):
+        self._account_dropdown.clear()
         accounts = self.account_manager.list_accounts()
 
         if not accounts:
-            self.account_dropdown.addItem(tr("No accounts available", "Нет доступных аккаунтов"))
-            self.connect_button.setEnabled(False)
-            self.remove_button.setEnabled(False)
-            self.color_button.setEnabled(False)
+            self._account_dropdown.addItem(tr("No accounts available", "Нет доступных аккаунтов"))
+            self._connect_button.setEnabled(False)
+            self._remove_button.setEnabled(False)
+            self._color_button.setEnabled(False)
             return
 
-        self.connect_button.setEnabled(True)
-        self.remove_button.setEnabled(True)
-        self.color_button.setEnabled(True)
+        self._connect_button.setEnabled(True)
+        self._remove_button.setEnabled(True)
+        self._color_button.setEnabled(True)
 
         # Find active account index
         active_index = 0
         for i, account in enumerate(accounts):
             display_text = account['chat_username']
-            self.account_dropdown.addItem(display_text, account)
+            self._account_dropdown.addItem(display_text, account)
             if account.get('active'):
                 active_index = i
 
         # Set active account as current
-        self.account_dropdown.setCurrentIndex(active_index)
+        self._account_dropdown.setCurrentIndex(active_index)
 
-    def update_avatar(self):
-        account = self.account_dropdown.currentData()
+    def _update_avatar(self):
+        account = self._account_dropdown.currentData()
         if account and account.get('chat_username'):
             self.account_manager.switch_account(account['chat_username'])
 
@@ -499,19 +499,19 @@ class AccountWindow(TranslatableMixin, QWidget):
             request_avatar(self, user_id, lambda pixmap: self._set_avatar(user_id, pixmap))
 
     def _show_default_avatar(self):
-        set_button_icon(self.account_avatar, "user.svg")
-        self.account_avatar.setIconSize(QSize(self.account_avatar.icon_size, self.account_avatar.icon_size))
-        self.account_avatar.setStyleSheet("QPushButton { background: transparent; border: none; }")
+        set_button_icon(self._account_avatar, "user.svg")
+        self._account_avatar.setIconSize(QSize(self._account_avatar.icon_size, self._account_avatar.icon_size))
+        self._account_avatar.setStyleSheet("QPushButton { background: transparent; border: none; }")
 
     def _set_avatar(self, user_id: str, pixmap: QPixmap):
         """Show the loaded avatar unless another account was selected meanwhile."""
         if user_id != self._loading_user_id or pixmap.isNull():
             return
-        self.account_avatar.setIcon(QIcon(make_rounded_avatar(pixmap, _AVATAR_SIZE)))
-        self.account_avatar.setIconSize(QSize(_AVATAR_SIZE, _AVATAR_SIZE))
-        self.account_avatar.setStyleSheet("QPushButton { background: transparent; border: none; padding: 0; }")
+        self._account_avatar.setIcon(QIcon(make_rounded_avatar(pixmap, _AVATAR_SIZE)))
+        self._account_avatar.setIconSize(QSize(_AVATAR_SIZE, _AVATAR_SIZE))
+        self._account_avatar.setStyleSheet("QPushButton { background: transparent; border: none; padding: 0; }")
 
-    def on_web_login(self):
+    def _on_web_login(self):
         """Open browser login dialog to add an account."""
         dlg = LoginWebView(self)
         dlg.login_success.connect(self._on_web_login_success)
@@ -527,15 +527,15 @@ class AccountWindow(TranslatableMixin, QWidget):
         added = _add_account_from_auth_data(self.account_manager, user_data)
         existing = self.account_manager.get_account_by_chat_username(user_data['login'])
         if added or existing:
-            self.load_accounts()
+            self._load_accounts()
         else:
             QMessageBox.critical(self,
                 tr("Error", "Ошибка"),
                 tr("Failed to save account.", "Не удалось сохранить аккаунт.")
             )
 
-    def on_connect(self):
-        if self.account_dropdown.count() == 0:
+    def _on_connect(self):
+        if self._account_dropdown.count() == 0:
             QMessageBox.warning(self,
                 tr("No Account", "Нет аккаунта"),
                 tr("Please create an account first.", "Сначала создайте аккаунт.")
@@ -543,13 +543,13 @@ class AccountWindow(TranslatableMixin, QWidget):
             return
 
         # Get selected account
-        account = self.account_dropdown.currentData()
+        account = self._account_dropdown.currentData()
         if account:
             # Emit signal with account data
             self.account_connected.emit(account)
 
-    def on_remove_account(self):
-        if self.account_dropdown.count() == 0:
+    def _on_remove_account(self):
+        if self._account_dropdown.count() == 0:
             QMessageBox.warning(self,
                 tr("No Account", "Нет аккаунта"),
                 tr("No account to remove.", "Нет аккаунта для удаления.")
@@ -557,7 +557,7 @@ class AccountWindow(TranslatableMixin, QWidget):
             return
 
         # Confirm removal
-        account = self.account_dropdown.currentData()
+        account = self._account_dropdown.currentData()
         reply = QMessageBox.question(
             self,
             tr("Confirm Removal", "Подтверждение удаления"),
@@ -575,7 +575,7 @@ class AccountWindow(TranslatableMixin, QWidget):
                     tr("Success", "Готово"),
                     tr("Account removed successfully.", "Аккаунт успешно удалён.")
                 )
-                self.load_accounts()
+                self._load_accounts()
             else:
                 QMessageBox.critical(self,
                     tr("Error", "Ошибка"),
@@ -584,7 +584,7 @@ class AccountWindow(TranslatableMixin, QWidget):
 
     def _retranslate(self, _code=None):
         self.retranslate_all()
-        self.load_accounts()
+        self._load_accounts()
 
 
 if __name__ == "__main__":

@@ -59,7 +59,7 @@ class AutoHidePopupMixin:
         self.hide_timer.start(self.duration)
 
     def animate_in(self):
-        self.fade_in = fade_opacity(self, 0.0, 1.0)
+        self._fade_in = fade_opacity(self, 0.0, 1.0)
 
     def animate_out(self, force: bool = False):
         if self.reply_field_visible or (self.is_hovered and not force):
@@ -79,7 +79,7 @@ class AutoHidePopupMixin:
         self.is_hovered = False
         resume_all_hide_timers(self.manager)
 
-    def _cleanup_widgets(self):
+    def cleanup_widgets(self):
         """Override for widgets owning extra resources (e.g. emoticon selector)."""
         pass
 
@@ -93,11 +93,11 @@ class AutoHidePopupMixin:
         fade = getattr(self, "fade_out", None)
         if fade is not None and fade.state() == QPropertyAnimation.State.Running:
             fade.stop()
-        self._cleanup_widgets()
+        self.cleanup_widgets()
         self.close()
 
     def on_close(self):
-        self._cleanup_widgets()
+        self.cleanup_widgets()
         self.manager.remove_popup(self)
         self.close()
         self.deleteLater()

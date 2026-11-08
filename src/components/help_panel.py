@@ -17,7 +17,7 @@ from helpers.config import get_config_path
 from helpers.translate import on_language_changed, tr
 
 
-CHAT_GENERAL_KB = [
+_CHAT_GENERAL_KB = [
     ("F",           "Focus input field", "Фокус на поле ввода"),
     ("Tab",         "Switch Messages / Chatlog", "Переключить Сообщения / Чатлог"),
     ("U",           "Toggle user list", "Список пользователей"),
@@ -34,7 +34,7 @@ CHAT_GENERAL_KB = [
     ("Esc",         "Clear input focus / Close search", "Снять фокус с ввода / Закрыть поиск"),
 ]
 
-CHAT_CTRL_KB = [
+_CHAT_CTRL_KB = [
     ("Ctrl+Space",     "Hold to dictate, release to stop", "Удерживать — диктовка, отпустить — остановить"),
     ("Ctrl+;",         "Toggle emoticon selector", "Селектор эмотиконов"),
     ("Ctrl+F",         "Toggle search bar", "Строка поиска"),
@@ -49,7 +49,7 @@ CHAT_CTRL_KB = [
     ("Ctrl+Scroll",    "Font size up / down", "Размер шрифта + / −"),
 ]
 
-CHAT_SCROLL_KB = [
+_CHAT_SCROLL_KB = [
     ("J / ↓",       "Scroll down", "Прокрутка вниз"),
     ("K / ↑",       "Scroll up", "Прокрутка вверх"),
     ("G G",         "Scroll to top", "В начало"),
@@ -58,14 +58,14 @@ CHAT_SCROLL_KB = [
     ("Shift+Space", "Page up", "Страница вверх"),
 ]
 
-USERLIST_MOUSE = [
+_USERLIST_MOUSE = [
     ("Left click",   "Левый клик",   "View user profile", "Профиль пользователя"),
     ("Ctrl+Click",   "Ctrl+клик",    "Start private chat", "Приватный чат"),
     ("Middle click", "Средний клик", "Open game chat (if in a race)", "Чат заезда (если в гонке)"),
     ("Right click",  "Правый клик",  "Context menu", "Контекстное меню"),
 ]
 
-MSG_USERNAME_MOUSE = [
+_MSG_USERNAME_MOUSE = [
     ("Left click",   "Левый клик",   "Add username to input", "Добавить ник во ввод"),
     ("Double click", "Двойной клик", "Replace input / clear if solo", "Заменить ввод / очистить если один"),
     ("Ctrl+Click",   "Ctrl+клик",    "Start private chat", "Приватный чат"),
@@ -73,39 +73,39 @@ MSG_USERNAME_MOUSE = [
     ("Right click",  "Правый клик",  "Context menu", "Контекстное меню"),
 ]
 
-MSG_TIMESTAMP_MOUSE = [
+_MSG_TIMESTAMP_MOUSE = [
     ("Left click",    "Левый клик",    "Open chatlog for that day", "Чатлог за этот день"),
     ("Left click 🏆", "Левый клик 🏆", "Open competition room chat", "Чат соревновательной комнаты"),
     ("Right click",   "Правый клик",   "Open chatlog for that day in split view", "Чатлог за день в разделённом виде"),
 ]
 
-MSG_BODY_MOUSE = [
+_MSG_BODY_MOUSE = [
     ("Right click", "Правый клик", "Open selectable text (reply / copy / paste)", "Выделяемый текст (ответ / копировать / вставить)"),
 ]
 
-MSG_COMPETITION_CHIP_MOUSE = [
+_MSG_COMPETITION_CHIP_MOUSE = [
     ("Left click", "Левый клик", "View profile", "Открыть профиль"),
 ]
 
-MSG_URL_MOUSE = [
+_MSG_URL_MOUSE = [
     ("Right click on URL", "Правый клик по ссылке", "Copy link", "Копировать ссылку"),
 ]
 
-NOTIFICATION_MOUSE = [
+_NOTIFICATION_MOUSE = [
     ("Middle click", "Средний клик", "Quick reply from message notification popup", "Быстрый ответ из попапа уведомления о сообщении"),
 ]
 
-VOICE_MIC_MOUSE = [
+_VOICE_MIC_MOUSE = [
     ("Hold mic",        "Удержать микрофон", "Dictate",           "Диктовка"),
     ("Click mic",       "Клик по микрофону", "Keep listening",    "Непрерывный ввод"),
     ("Right click mic", "ПКМ по микрофону",  "Choose microphone", "Выбор микрофона"),
 ]
 
-CHATLOG_TIMESTAMP_MOUSE = [
+_CHATLOG_TIMESTAMP_MOUSE = [
     ("Left click", "Левый клик", "Copy chatlog link for that message", "Ссылка на чатлог для сообщения"),
 ]
 
-CHATLOG_KB = [
+_CHATLOG_KB = [
     ("H / ←",           "Previous day (hold to fast-seek)", "Предыдущий день (удерживать для быстрой перемотки)"),
     ("L / →",           "Next day (hold to fast-seek)", "Следующий день (удерживать для быстрой перемотки)"),
     ("D",               "Open calendar date picker", "Календарь выбора даты"),
@@ -115,18 +115,18 @@ CHATLOG_KB = [
     ("Esc",             "Close search", "Закрыть поиск"),
 ]
 
-CHATLOG_USERLIST_MOUSE = [
+_CHATLOG_USERLIST_MOUSE = [
     ("Left click",  "Левый клик",  "Filter messages by user (click again to clear)", "Фильтр сообщений по пользователю (ещё раз — сброс)"),
     ("Ctrl+Click",  "Ctrl+клик",   "Add / remove user from filter", "Добавить / убрать пользователя из фильтра"),
     ("Right click", "Правый клик", "Context menu", "Контекстное меню"),
 ]
 
-CHATLOG_MOUSE = [
+_CHATLOG_MOUSE = [
     ("Back button",    "Кнопка «Назад»",  "Navigate to previous day", "К предыдущему дню"),
     ("Forward button", "Кнопка «Вперёд»", "Navigate to next day", "К следующему дню"),
 ]
 
-EMOTICON_KB = [
+_EMOTICON_KB = [
     ("H / ←",           "Move cursor left", "Курсор влево"),
     ("L / →",           "Move cursor right", "Курсор вправо"),
     ("J / ↓",           "Move cursor down", "Курсор вниз"),
@@ -138,11 +138,11 @@ EMOTICON_KB = [
     ("Esc",             "Close selector", "Закрыть селектор"),
 ]
 
-EMOTICON_MOUSE = [
+_EMOTICON_MOUSE = [
     ("Scroll on group tabs", "Прокрутка по вкладкам групп", "Navigate groups prev / next", "Группы назад / вперёд"),
 ]
 
-CHATLOG_PARSER_ACTIVE_KB = [
+_CHATLOG_PARSER_ACTIVE_KB = [
     ("P",               "Toggle chatlog parser", "Парсер чатлогов"),
     ("S",               "Start parsing", "Начать парсинг"),
     ("C",               "Cancel parsing", "Отменить парсинг"),
@@ -151,13 +151,13 @@ CHATLOG_PARSER_ACTIVE_KB = [
     ("Ctrl+F",          "Toggle search bar", "Строка поиска"),
 ]
 
-PARSER_TAG_MOUSE = [
+_PARSER_TAG_MOUSE = [
     ("Left click",   "Левый клик",     "Add username to field", "Добавить ник в поле"),
     ("Double click", "Двойной клик",   "Replace field / clear if solo", "Заменить поле / очистить если один"),
     ("Drag",         "Перетаскивание", "Reorder saved usernames", "Изменить порядок сохранённых имён"),
 ]
 
-ACCOUNTS_CONNECT_KB = [
+_ACCOUNTS_CONNECT_KB = [
     ("Enter / E",   "Connect to chat", "Подключиться к чату"),
     ("Tab",         "Cycle account selection", "Переключение аккаунта"),
     ("C",           "Change username color", "Цвет ника"),
@@ -169,12 +169,12 @@ ACCOUNTS_CONNECT_KB = [
     ("3",           "Toggle Start with system", "Запуск с системой"),
 ]
 
-ACCOUNTS_CONNECT_MOUSE = [
+_ACCOUNTS_CONNECT_MOUSE = [
     ("Left click", "Левый клик", "Change username color", "Цвет ника"),
     ("Ctrl+Click", "Ctrl+клик",  "Reset username color", "Сбросить цвет ника"),
 ]
 
-IMAGE_KB = [
+_IMAGE_KB = [
     ("H / ←",           "Previous image", "Предыдущее изображение"),
     ("L / →",           "Next image", "Следующее изображение"),
     ("Shift + H / ←",   "Previous day (hold to fast-seek)", "Предыдущий день (удерживать для быстрой перемотки)"),
@@ -186,7 +186,7 @@ IMAGE_KB = [
     ("Esc / Space / Q", "Close image viewer", "Закрыть просмотр изображения"),
 ]
 
-IMAGE_MOUSE = [
+_IMAGE_MOUSE = [
     ("Click source badge", "Клик по плашке автора",       "Close viewer and scroll to the message with the image", "Закрыть просмотр и перейти к сообщению с изображением"),
     ("Click reply / go-to buttons", "Клик по кнопкам ответа / перехода", "Close viewer; reply to the message or scroll to it", "Закрыть просмотр; ответить на сообщение или перейти к нему"),
     ("Click thumbnail",    "Клик по миниатюре",           "Go to that image", "Перейти к этому изображению"),
@@ -199,67 +199,67 @@ IMAGE_MOUSE = [
 ]
 
 
-CONTEXTS = {
+_CONTEXTS = {
     "chat": {
         "title": ("Chat — Controls", "Чат — управление"),
         "sections": [
-            (("General", "Общее"),                                        CHAT_GENERAL_KB, None),
-            (("Ctrl Shortcuts", "Ctrl-сочетания"),                        CHAT_CTRL_KB,    None),
-            (("Scrolling", "Прокрутка"),                                  CHAT_SCROLL_KB,  None),
-            (("User List Clicks", "Клики по списку пользователей"),       None, USERLIST_MOUSE),
-            (("Message Timestamp Clicks", "Клики по времени сообщения"),  None, MSG_TIMESTAMP_MOUSE),
-            (("Message Username Clicks", "Клики по нику в сообщении"),    None, MSG_USERNAME_MOUSE),
-            (("Competition Player Names", "Имена игроков соревнования"),  None, MSG_COMPETITION_CHIP_MOUSE),
-            (("Message Body Clicks", "Клики по телу сообщения"),          None, MSG_BODY_MOUSE),
-            (("URL Interactions", "Взаимодействие с URL"),                None, MSG_URL_MOUSE),
-            (("Notification Popup", "Всплывающее уведомление"),           None, NOTIFICATION_MOUSE),
-            (("Voice Input", "Голосовой ввод"),                           None, VOICE_MIC_MOUSE),
+            (("General", "Общее"),                                        _CHAT_GENERAL_KB, None),
+            (("Ctrl Shortcuts", "Ctrl-сочетания"),                        _CHAT_CTRL_KB,    None),
+            (("Scrolling", "Прокрутка"),                                  _CHAT_SCROLL_KB,  None),
+            (("User List Clicks", "Клики по списку пользователей"),       None, _USERLIST_MOUSE),
+            (("Message Timestamp Clicks", "Клики по времени сообщения"),  None, _MSG_TIMESTAMP_MOUSE),
+            (("Message Username Clicks", "Клики по нику в сообщении"),    None, _MSG_USERNAME_MOUSE),
+            (("Competition Player Names", "Имена игроков соревнования"),  None, _MSG_COMPETITION_CHIP_MOUSE),
+            (("Message Body Clicks", "Клики по телу сообщения"),          None, _MSG_BODY_MOUSE),
+            (("URL Interactions", "Взаимодействие с URL"),                None, _MSG_URL_MOUSE),
+            (("Notification Popup", "Всплывающее уведомление"),           None, _NOTIFICATION_MOUSE),
+            (("Voice Input", "Голосовой ввод"),                           None, _VOICE_MIC_MOUSE),
         ],
     },
     "chatlog": {
         "title": ("Chatlog — Controls", "Чатлог — управление"),
         "sections": [
-            (("Navigation", "Навигация"),                                CHATLOG_KB,      CHATLOG_MOUSE),
-            (("Scrolling", "Прокрутка"),                                 CHAT_SCROLL_KB,  None),
-            (("User List", "Список пользователей"),                      None, CHATLOG_USERLIST_MOUSE),
-            (("Message Username Clicks", "Клики по нику в сообщении"),   None, MSG_USERNAME_MOUSE),
-            (("Message Timestamp Clicks", "Клики по времени сообщения"), None, CHATLOG_TIMESTAMP_MOUSE),
-            (("Message Body Clicks", "Клики по телу сообщения"),         None, MSG_BODY_MOUSE),
-            (("URL Interactions", "Взаимодействие с URL"),               None, MSG_URL_MOUSE),
+            (("Navigation", "Навигация"),                                _CHATLOG_KB,      _CHATLOG_MOUSE),
+            (("Scrolling", "Прокрутка"),                                 _CHAT_SCROLL_KB,  None),
+            (("User List", "Список пользователей"),                      None, _CHATLOG_USERLIST_MOUSE),
+            (("Message Username Clicks", "Клики по нику в сообщении"),   None, _MSG_USERNAME_MOUSE),
+            (("Message Timestamp Clicks", "Клики по времени сообщения"), None, _CHATLOG_TIMESTAMP_MOUSE),
+            (("Message Body Clicks", "Клики по телу сообщения"),         None, _MSG_BODY_MOUSE),
+            (("URL Interactions", "Взаимодействие с URL"),               None, _MSG_URL_MOUSE),
         ],
     },
     "parser": {
         "title": ("Chatlog Parser — Keyboard Shortcuts", "Парсер чатлогов — горячие клавиши"),
         "sections": [
-            (("Parser Controls", "Управление парсером"),   CHATLOG_PARSER_ACTIVE_KB, None),
-            (("Saved Username Tags", "Сохранённые имена"), None, PARSER_TAG_MOUSE),
+            (("Parser Controls", "Управление парсером"),   _CHATLOG_PARSER_ACTIVE_KB, None),
+            (("Saved Username Tags", "Сохранённые имена"), None, _PARSER_TAG_MOUSE),
         ],
     },
     "accounts_connect": {
         "title": ("Accounts — Connect Page", "Аккаунты — страница подключения"),
         "sections": [
-            (("Keyboard Shortcuts", "Горячие клавиши"),        ACCOUNTS_CONNECT_KB, None),
-            (("Color Button Clicks", "Клики по кнопке цвета"), None, ACCOUNTS_CONNECT_MOUSE),
+            (("Keyboard Shortcuts", "Горячие клавиши"),        _ACCOUNTS_CONNECT_KB, None),
+            (("Color Button Clicks", "Клики по кнопке цвета"), None, _ACCOUNTS_CONNECT_MOUSE),
         ],
     },
     "emoticon": {
         "title": ("Emoticon Selector — Controls", "Селектор эмотиконов — управление"),
         "sections": [
-            (("Keyboard", "Клавиатура"), EMOTICON_KB, None),
-            (("Mouse", "Мышь"),          None, EMOTICON_MOUSE),
+            (("Keyboard", "Клавиатура"), _EMOTICON_KB, None),
+            (("Mouse", "Мышь"),          None, _EMOTICON_MOUSE),
         ],
     },
     "image": {
         "title": ("Image Viewer — Controls", "Просмотр изображений — управление"),
         "sections": [
-            (("Keyboard Shortcuts", "Горячие клавиши"), IMAGE_KB, None),
-            (("Mouse Controls", "Управление мышью"),    None, IMAGE_MOUSE),
+            (("Keyboard Shortcuts", "Горячие клавиши"), _IMAGE_KB, None),
+            (("Mouse Controls", "Управление мышью"),    None, _IMAGE_MOUSE),
         ],
     },
 }
 
 
-THEMES = {
+_THEMES = {
     "dark": {
         "bg": "#1e1e1e",
         "title_color": "#6bb6d6",
@@ -387,12 +387,12 @@ class HelpPanel(QWidget):
             QWidget().setLayout(old_layout)
 
         # ── Theme colors ──────────────────────────────────────────────────
-        colors = THEMES.get(theme, THEMES["dark"])
+        colors = _THEMES.get(theme, _THEMES["dark"])
 
         self.setStyleSheet(f"QWidget {{ background-color: {colors['bg']}; }}")
 
         # ── Context definition ────────────────────────────────────────────
-        ctx = CONTEXTS.get(context_key, CONTEXTS["chat"])
+        ctx = _CONTEXTS.get(context_key, _CONTEXTS["chat"])
 
         # ── Outer layout: title (pinned) + scroll area + footer (pinned) ──
         outer = QVBoxLayout(self)

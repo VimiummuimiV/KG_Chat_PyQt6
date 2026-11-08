@@ -1,6 +1,6 @@
 """Star mark appended to the username of a tracked user."""
 
-TRACKED_MARK = " ⭐"
+_TRACKED_MARK = " ⭐"
 
 
 class TrackedMarkMixin:
@@ -12,4 +12,4 @@ class TrackedMarkMixin:
             return
         self.is_tracked = tracked
         text = self.username_label.text()
-        self.username_label.setText(text + TRACKED_MARK if tracked else text.replace(TRACKED_MARK, ""))
+        self.username_label.setText(text + _TRACKED_MARK if tracked else text.replace(_TRACKED_MARK, ""))

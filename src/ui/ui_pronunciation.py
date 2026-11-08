@@ -22,7 +22,7 @@ from helpers.fonts.fonts import FontType, get_font
 from helpers.translate import on_language_changed, tr, TranslatableMixin
 
 
-class PronunciationItemWidget(TranslatableMixin, QWidget):
+class _PronunciationItemWidget(TranslatableMixin, QWidget):
     """Single pronunciation mapping item"""
     remove_requested = pyqtSignal(object)  # Emits self
 
@@ -42,18 +42,18 @@ class PronunciationItemWidget(TranslatableMixin, QWidget):
         self.setLayout(layout)
 
         # Original username input
-        self.original_input = QLineEdit()
-        self.tr_set(self.original_input.setPlaceholderText, "Username", "Имя пользователя")
-        self.original_input.setText(original)
-        self.original_input.setFont(get_font(FontType.TEXT))
+        self._original_input = QLineEdit()
+        self.tr_set(self._original_input.setPlaceholderText, "Username", "Имя пользователя")
+        self._original_input.setText(original)
+        self._original_input.setFont(get_font(FontType.TEXT))
         input_height = self.config.get("ui", "input_height") or 48
-        self.original_input.setFixedHeight(input_height)
-        self.original_input.setFixedWidth(250)
+        self._original_input.setFixedHeight(input_height)
+        self._original_input.setFixedWidth(250)
 
         # Connect to validation on focus out
-        self.original_input.editingFinished.connect(self._validate_username)
+        self._original_input.editingFinished.connect(self._validate_username)
 
-        layout.addWidget(self.original_input)
+        layout.addWidget(self._original_input)
 
         # Arrow icon label (SVG as QLabel)
         arrow_label = QLabel()
@@ -88,25 +88,25 @@ class PronunciationItemWidget(TranslatableMixin, QWidget):
         layout.addWidget(arrow_label)
 
         # Pronunciation input
-        self.pronunciation_input = QLineEdit()
-        self.tr_set(self.pronunciation_input.setPlaceholderText, "Pronunciation", "Произношение")
-        self.pronunciation_input.setText(pronunciation)
-        self.pronunciation_input.setFont(get_font(FontType.TEXT))
-        self.pronunciation_input.setFixedHeight(input_height)
-        self.pronunciation_input.setFixedWidth(250)
-        layout.addWidget(self.pronunciation_input)
+        self._pronunciation_input = QLineEdit()
+        self.tr_set(self._pronunciation_input.setPlaceholderText, "Pronunciation", "Произношение")
+        self._pronunciation_input.setText(pronunciation)
+        self._pronunciation_input.setFont(get_font(FontType.TEXT))
+        self._pronunciation_input.setFixedHeight(input_height)
+        self._pronunciation_input.setFixedWidth(250)
+        layout.addWidget(self._pronunciation_input)
 
         # Set tab order: Username -> Pronunciation
-        self.setTabOrder(self.original_input, self.pronunciation_input)
+        self.setTabOrder(self._original_input, self._pronunciation_input)
 
         # Remove button
-        self.remove_button = create_icon_button(
+        self._remove_button = create_icon_button(
             self.icons_path, "trash.svg", "", 
             size_type="large", config=self.config
         )
-        self.tr_set(self.remove_button.setToolTip, "Remove", "Удалить")
-        self.remove_button.clicked.connect(lambda: self.remove_requested.emit(self))
-        layout.addWidget(self.remove_button)
+        self.tr_set(self._remove_button.setToolTip, "Remove", "Удалить")
+        self._remove_button.clicked.connect(lambda: self.remove_requested.emit(self))
+        layout.addWidget(self._remove_button)
 
         # Set fixed width for the whole item
         # 250 + 30 + 250 + 48 + spacing*3
@@ -116,7 +116,7 @@ class PronunciationItemWidget(TranslatableMixin, QWidget):
 
     def _validate_username(self):
         """Validate username exists using API"""
-        username = self.original_input.text().strip()
+        username = self._original_input.text().strip()
 
         # If empty, reset to valid state
         if not username:
@@ -137,20 +137,20 @@ class PronunciationItemWidget(TranslatableMixin, QWidget):
         """Update input styling based on validation state"""
         if not self.username_valid:
             # Invalid username - show red border
-            self.original_input.setStyleSheet("""
+            self._original_input.setStyleSheet("""
                 QLineEdit {
                     border: 2px solid #ff4444;
                 }
             """)
-            self.original_input.setToolTip(tr("User not found", "Пользователь не найден"))
+            self._original_input.setToolTip(tr("User not found", "Пользователь не найден"))
         else:
             # Valid or empty - remove custom styling
-            self.original_input.setStyleSheet("")
-            self.original_input.setToolTip("")
+            self._original_input.setStyleSheet("")
+            self._original_input.setToolTip("")
 
     def get_values(self):
         """Get original and pronunciation values"""
-        return self.original_input.text().strip(), self.pronunciation_input.text().strip()
+        return self._original_input.text().strip(), self._pronunciation_input.text().strip()
 
     def is_empty(self):
         """Check if both inputs are empty"""
@@ -173,7 +173,7 @@ class PronunciationWidget(TranslatableMixin, QWidget):
         self.icons_path = icons_path
         self.pronunciation_manager = pronunciation_manager
         self.items = []
-        self.current_columns = 1
+        self._current_columns = 1
 
         self._setup_ui()
         self._load_mappings()
@@ -194,12 +194,12 @@ class PronunciationWidget(TranslatableMixin, QWidget):
         main_layout.addLayout(header_layout)
 
         # Back button
-        self.back_button = create_icon_button(
+        self._back_button = create_icon_button(
             self.icons_path, "go-back.svg", "", config=self.config
         )
-        self.tr_set(self.back_button.setToolTip, "Back to Messages", "Назад к сообщениям")
-        self.back_button.clicked.connect(self.back_requested.emit)
-        header_layout.addWidget(self.back_button)
+        self.tr_set(self._back_button.setToolTip, "Back to Messages", "Назад к сообщениям")
+        self._back_button.clicked.connect(self.back_requested.emit)
+        header_layout.addWidget(self._back_button)
 
         # Title
         title_label = QLabel()
@@ -208,20 +208,20 @@ class PronunciationWidget(TranslatableMixin, QWidget):
         header_layout.addWidget(title_label, stretch=1)
 
         # Clear All button
-        self.clear_all_button = create_icon_button(
+        self._clear_all_button = create_icon_button(
             self.icons_path, "trash.svg", "", config=self.config
         )
-        self.tr_set(self.clear_all_button.setToolTip, "Clear All", "Очистить всё")
-        self.clear_all_button.clicked.connect(self._clear_all)
-        header_layout.addWidget(self.clear_all_button)
+        self.tr_set(self._clear_all_button.setToolTip, "Clear All", "Очистить всё")
+        self._clear_all_button.clicked.connect(self._clear_all)
+        header_layout.addWidget(self._clear_all_button)
 
         # Add button
-        self.add_button = create_icon_button(
+        self._add_button = create_icon_button(
             self.icons_path, "add.svg", "", config=self.config
         )
-        self.tr_set(self.add_button.setToolTip, "Add Mapping", "Добавить соответствие")
-        self.add_button.clicked.connect(self._add_new_item)
-        header_layout.addWidget(self.add_button)
+        self.tr_set(self._add_button.setToolTip, "Add Mapping", "Добавить соответствие")
+        self._add_button.clicked.connect(self._add_new_item)
+        header_layout.addWidget(self._add_button)
 
         # Scroll area for items
         self.scroll = QScrollArea()
@@ -230,24 +230,24 @@ class PronunciationWidget(TranslatableMixin, QWidget):
         main_layout.addWidget(self.scroll, stretch=1)
 
         # Container for items with limited width
-        self.items_container = QWidget()
+        self._items_container = QWidget()
         # Don't set fixed width - let it be flexible but items will wrap
 
         items_margin = self.config.get("ui", "margins", "widget") or 5
         items_spacing = self.config.get("ui", "spacing", "list_items") or 2
 
         # Use grid layout for adaptive columns
-        self.items_layout = QGridLayout()
-        self.items_layout.setContentsMargins(items_margin, items_margin, items_margin, items_margin)
-        self.items_layout.setSpacing(items_spacing)
+        self._items_layout = QGridLayout()
+        self._items_layout.setContentsMargins(items_margin, items_margin, items_margin, items_margin)
+        self._items_layout.setSpacing(items_spacing)
         # Add vertical spacing between rows
-        self.items_layout.setVerticalSpacing(items_spacing * 2)
+        self._items_layout.setVerticalSpacing(items_spacing * 2)
         # Increase horizontal spacing significantly
-        self.items_layout.setHorizontalSpacing(items_spacing * 4)
-        self.items_layout.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
-        self.items_container.setLayout(self.items_layout)
+        self._items_layout.setHorizontalSpacing(items_spacing * 4)
+        self._items_layout.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
+        self._items_container.setLayout(self._items_layout)
 
-        self.scroll.setWidget(self.items_container)
+        self.scroll.setWidget(self._items_container)
         on_language_changed(self.retranslate_all)
 
     def _load_mappings(self):
@@ -265,12 +265,12 @@ class PronunciationWidget(TranslatableMixin, QWidget):
 
     def _add_item(self, original: str = "", pronunciation: str = ""):
         """Add a pronunciation item to the list"""
-        item = PronunciationItemWidget(self.config, self.icons_path, original, pronunciation)
+        item = _PronunciationItemWidget(self.config, self.icons_path, original, pronunciation)
         item.remove_requested.connect(self._remove_item)
 
         # Connect inputs to auto-save
-        item.original_input.textChanged.connect(self._save_mappings)
-        item.pronunciation_input.textChanged.connect(self._save_mappings)
+        item._original_input.textChanged.connect(self._save_mappings)
+        item._pronunciation_input.textChanged.connect(self._save_mappings)
 
         self.items.append(item)
         self.recalculate_layout()
@@ -278,7 +278,7 @@ class PronunciationWidget(TranslatableMixin, QWidget):
     def refresh(self):
         """Reload mappings after adding, editing, or removing one from the context menu."""
         for item in self.items:
-            self.items_layout.removeWidget(item)
+            self._items_layout.removeWidget(item)
             item.deleteLater()
         self.items.clear()
         self._load_mappings()
@@ -287,11 +287,11 @@ class PronunciationWidget(TranslatableMixin, QWidget):
         """Add a new empty pronunciation item"""
         self._add_item("", "")
 
-    def _remove_item(self, item: PronunciationItemWidget):
+    def _remove_item(self, item: _PronunciationItemWidget):
         """Remove a pronunciation item"""
         if item in self.items:
             self.items.remove(item)
-            self.items_layout.removeWidget(item)
+            self._items_layout.removeWidget(item)
             item.deleteLater()
             self._save_mappings()
             self.recalculate_layout()
@@ -328,7 +328,7 @@ class PronunciationWidget(TranslatableMixin, QWidget):
         if reply == QMessageBox.StandardButton.Yes:
             # Remove all items
             for item in list(self.items):
-                self.items_layout.removeWidget(item)
+                self._items_layout.removeWidget(item)
                 item.deleteLater()
             self.items.clear()
 
@@ -350,29 +350,29 @@ class PronunciationWidget(TranslatableMixin, QWidget):
         if self.items:
             item_width = self.items[0].width()
             # Get horizontal spacing
-            h_spacing = self.items_layout.horizontalSpacing()
+            h_spacing = self._items_layout.horizontalSpacing()
             if h_spacing == -1:  # Use default if not set
-                h_spacing = self.items_layout.spacing()
+                h_spacing = self._items_layout.spacing()
 
             # Calculate how many columns can fit
             # Need to account for spacing between items
-            available_for_items = available_width - (self.items_layout.contentsMargins().left() + 
-                                                     self.items_layout.contentsMargins().right())
+            available_for_items = available_width - (self._items_layout.contentsMargins().left() + 
+                                                     self._items_layout.contentsMargins().right())
             columns = max(1, (available_for_items + h_spacing) // (item_width + h_spacing))
 
             # Clear layout
-            for i in reversed(range(self.items_layout.count())):
-                widget = self.items_layout.itemAt(i).widget()
+            for i in reversed(range(self._items_layout.count())):
+                widget = self._items_layout.itemAt(i).widget()
                 if widget:
-                    self.items_layout.removeWidget(widget)
+                    self._items_layout.removeWidget(widget)
 
             # Re-add items in grid
             for idx, item in enumerate(self.items):
                 row = idx // columns
                 col = idx % columns
-                self.items_layout.addWidget(item, row, col)
+                self._items_layout.addWidget(item, row, col)
 
-            self.current_columns = columns
+            self._current_columns = columns
 
     def resizeEvent(self, event):
         """Handle resize to recalculate grid layout"""

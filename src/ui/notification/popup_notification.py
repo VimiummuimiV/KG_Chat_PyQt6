@@ -49,7 +49,7 @@ class PopupNotification(AutoHidePopupMixin, QWidget):
         self.hide_timer = None
         self.cursor_check_timer = None
         self.reply_field_visible = False
-        self.message_widget = None
+        self._message_widget = None
         self.icons_path = get_resource_dir("icons")
         self.base_width = width
         self._width_anim = None
@@ -120,16 +120,16 @@ class PopupNotification(AutoHidePopupMixin, QWidget):
 
         # Timestamp
         ts_str = (data.timestamp or datetime.now()).strftime("%H:%M:%S")
-        self.timestamp_label = QLabel(ts_str)
+        self._timestamp_label = QLabel(ts_str)
         if accent:
             ts_color = accent
         else:
             ts_color = self.message_renderer.get_timestamp_color(
                 data.is_ban, data.is_private, data.is_system, data.is_competition, data.is_parser
             )
-        self.timestamp_label.setStyleSheet(f"color: {ts_color};")
-        self.timestamp_label.setFont(get_font(FontType.TEXT))
-        self.timestamp_label.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self._timestamp_label.setStyleSheet(f"color: {ts_color};")
+        self._timestamp_label.setFont(get_font(FontType.TEXT))
+        self._timestamp_label.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
 
         # Avatar label - shown before timestamp for non-system messages
         AVATAR_SIZE = 36
@@ -163,7 +163,7 @@ class PopupNotification(AutoHidePopupMixin, QWidget):
             top_row.addWidget(self.avatar_label, stretch=0)
             top_row.addSpacing(self.spacing)
 
-        top_row.addWidget(self.timestamp_label, stretch=0)
+        top_row.addWidget(self._timestamp_label, stretch=0)
         if not data.is_system:
             top_row.addSpacing(self.spacing)
             top_row.addWidget(self.username_label, stretch=0)
@@ -179,32 +179,32 @@ class PopupNotification(AutoHidePopupMixin, QWidget):
         # Position toggle button
         current_position = data.config.get("ui", "notification_position") if data.config else "right"
         position_icons = {"left": "align-left.svg", "center": "align-center.svg", "right": "align-right.svg"}
-        self.position_button = icon_btn(
+        self._position_button = icon_btn(
             self.icons_path, position_icons.get(current_position or "right", "align-right.svg"),
             tr("Change Position", "Сменить расположение"), data.config
         )
-        self.position_button.clicked.connect(self._on_toggle_position)
-        buttons_layout.addWidget(self.position_button)
+        self._position_button.clicked.connect(self._on_toggle_position)
+        buttons_layout.addWidget(self._position_button)
 
         # Answer button - hide for ban, system, competition, parser messages
         if not data.is_ban and not data.is_system and not data.is_parser and not data.is_competition:
-            self.answer_button = icon_btn(self.icons_path, "reply.svg", tr("Reply", "Ответить"), data.config)
-            self.answer_button.clicked.connect(self._on_answer)
-            buttons_layout.addWidget(self.answer_button)
+            self._answer_button = icon_btn(self.icons_path, "reply.svg", tr("Reply", "Ответить"), data.config)
+            self._answer_button.clicked.connect(self._on_answer)
+            buttons_layout.addWidget(self._answer_button)
         else:
-            self.answer_button = None
+            self._answer_button = None
 
         if data.is_competition and data.open_room_callback and data.competition_game_id is not None:
-            self.open_room_button = icon_btn(self.icons_path, "chat.svg", tr("Open competition room", "Открыть комнату соревнования"), data.config)
-            self.open_room_button.clicked.connect(self._on_open_room)
-            buttons_layout.addWidget(self.open_room_button)
+            self._open_room_button = icon_btn(self.icons_path, "chat.svg", tr("Open competition room", "Открыть комнату соревнования"), data.config)
+            self._open_room_button.clicked.connect(self._on_open_room)
+            buttons_layout.addWidget(self._open_room_button)
         else:
-            self.open_room_button = None
+            self._open_room_button = None
 
         # Mute button
-        self.mute_button = icon_btn(self.icons_path, "shut-down.svg", tr("Mute Notifications", "Отключить уведомления"), data.config)
-        self.mute_button.clicked.connect(self._on_mute)
-        buttons_layout.addWidget(self.mute_button)
+        self._mute_button = icon_btn(self.icons_path, "shut-down.svg", tr("Mute Notifications", "Отключить уведомления"), data.config)
+        self._mute_button.clicked.connect(self._on_mute)
+        buttons_layout.addWidget(self._mute_button)
 
         # Close button
         self.close_button = icon_btn(self.icons_path, "close.svg", tr("Close", "Закрыть"), data.config)
@@ -233,7 +233,7 @@ class PopupNotification(AutoHidePopupMixin, QWidget):
         msg_layout = QVBoxLayout(msg_container)
         msg_layout.setContentsMargins(spacing, spacing, spacing, spacing)
         msg_layout.setSpacing(0)
-        self.message_widget = MessageBodyWidget(
+        self._message_widget = MessageBodyWidget(
             self.message_renderer,
             data.message,
             data.is_private,
@@ -243,8 +243,8 @@ class PopupNotification(AutoHidePopupMixin, QWidget):
             data.is_parser,
             data.players,
         )
-        self.message_widget.content_resized.connect(self._on_content_resized)
-        msg_layout.addWidget(self.message_widget)
+        self._message_widget.content_resized.connect(self._on_content_resized)
+        msg_layout.addWidget(self._message_widget)
         main_layout.addWidget(msg_container, stretch=1)
 
         # BOTTOM ROW: Reply field - hide for ban and system messages
@@ -253,19 +253,19 @@ class PopupNotification(AutoHidePopupMixin, QWidget):
         self.emoticon_button = None
 
         if not data.is_ban and not data.is_system and not data.is_parser:
-            self.reply_container = InputRow(self.icons_path, data.config, with_emoticons=bool(data.emoticon_manager))
-            self.reply_container.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-            self.reply_container.submitted.connect(self._on_send_reply)
-            self.reply_container.emoticon_requested.connect(self._toggle_emoticon_selector)
-            self.reply_field = self.reply_container.input_field
-            self.reply_field.installEventFilter(self)
-            self.send_button = self.reply_container.send_button
-            self.emoticon_button = self.reply_container.emoticon_button
-            self.reply_container.setVisible(False)
-            main_layout.addWidget(self.reply_container, stretch=0)
+            self._reply_container = InputRow(self.icons_path, data.config, with_emoticons=bool(data.emoticon_manager))
+            self._reply_container.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+            self._reply_container.submitted.connect(self._on_send_reply)
+            self._reply_container.emoticon_requested.connect(self._toggle_emoticon_selector)
+            self._reply_field = self._reply_container.input_field
+            self._reply_field.installEventFilter(self)
+            self.send_button = self._reply_container.send_button
+            self.emoticon_button = self._reply_container.emoticon_button
+            self._reply_container.setVisible(False)
+            main_layout.addWidget(self._reply_container, stretch=0)
         else:
-            self.reply_container = None
-            self.reply_field = None
+            self._reply_container = None
+            self._reply_field = None
             self.send_button = None
 
         # Set fixed width and adjust size
@@ -280,8 +280,8 @@ class PopupNotification(AutoHidePopupMixin, QWidget):
 
     def update_message(self, text: str, players: Optional[list] = None):
         """Update the body text (and player chips) in place, no new popup created."""
-        if self.message_widget:
-            self.message_widget.update_content(text, players)
+        if self._message_widget:
+            self._message_widget.update_content(text, players)
 
     def _on_content_resized(self):
         """Body grew/shrank (e.g. player roster changed) - resize and reflow the stack."""
@@ -292,11 +292,11 @@ class PopupNotification(AutoHidePopupMixin, QWidget):
         """Handle clicks: buttons, links, or show window"""
         if event.button() == Qt.MouseButton.LeftButton:
             # Check if click is on a button
-            clicked_widgets = [self.close_button, self.mute_button, self.position_button]
-            if self.answer_button:
-                clicked_widgets.append(self.answer_button)
-            if self.open_room_button:
-                clicked_widgets.append(self.open_room_button)
+            clicked_widgets = [self.close_button, self._mute_button, self._position_button]
+            if self._answer_button:
+                clicked_widgets.append(self._answer_button)
+            if self._open_room_button:
+                clicked_widgets.append(self._open_room_button)
             if self.send_button:
                 clicked_widgets.append(self.send_button)
             if self.emoticon_button:
@@ -313,10 +313,10 @@ class PopupNotification(AutoHidePopupMixin, QWidget):
                 return
 
             # Chip / link clicks in message body
-            if self.message_widget:
-                widget_pos = self.message_widget.mapFrom(self, event.pos())
-                if self.message_widget.rect().contains(widget_pos):
-                    chip_name = self.message_widget.get_chip_at_pos(widget_pos)
+            if self._message_widget:
+                widget_pos = self._message_widget.mapFrom(self, event.pos())
+                if self._message_widget.rect().contains(widget_pos):
+                    chip_name = self._message_widget.get_chip_at_pos(widget_pos)
                     if chip_name and self.data.profile_callback:
                         if self.data.window_show_callback:
                             try:
@@ -325,7 +325,7 @@ class PopupNotification(AutoHidePopupMixin, QWidget):
                                 pass
                         safe_call(self.data.profile_callback, chip_name, err_msg="Profile from notification chip")
                         return
-                    link_data = self.message_widget.get_link_at_pos(widget_pos)
+                    link_data = self._message_widget.get_link_at_pos(widget_pos)
                     if link_data:
                         url, is_media = link_data
                         global_pos = self.mapToGlobal(event.pos())
@@ -342,18 +342,18 @@ class PopupNotification(AutoHidePopupMixin, QWidget):
 
             self.manager.close_all()
         elif event.button() == Qt.MouseButton.RightButton:
-            if self.message_widget:
-                widget_pos = self.message_widget.mapFrom(self, event.pos())
-                if self.message_widget.rect().contains(widget_pos):
-                    link_data = self.message_widget.get_link_at_pos(widget_pos)
+            if self._message_widget:
+                widget_pos = self._message_widget.mapFrom(self, event.pos())
+                if self._message_widget.rect().contains(widget_pos):
+                    link_data = self._message_widget.get_link_at_pos(widget_pos)
                     if link_data:
                         self.message_renderer.handle_link_rmb(link_data[0])
                         return
             super().mousePressEvent(event)
         elif event.button() == Qt.MouseButton.MiddleButton:
-            if self.answer_button and self.message_widget:
-                widget_pos = self.message_widget.mapFrom(self, event.pos())
-                if self.message_widget.rect().contains(widget_pos):
+            if self._answer_button and self._message_widget:
+                widget_pos = self._message_widget.mapFrom(self, event.pos())
+                if self._message_widget.rect().contains(widget_pos):
                     self._on_answer()
                     return
             super().mousePressEvent(event)
@@ -366,11 +366,11 @@ class PopupNotification(AutoHidePopupMixin, QWidget):
         if sel and sel.parent() is self:
             release_selector(sel)
 
-    def _cleanup_widgets(self):
+    def cleanup_widgets(self):
         """Cleanup widgets on close - release borrowed selector without destroying it"""
         self._release_emoticon_selector()
-        if self.message_widget:
-            self.message_widget.cleanup()
+        if self._message_widget:
+            self._message_widget.cleanup()
 
     def _on_open_room(self):
         gid = self.data.competition_game_id
@@ -386,7 +386,7 @@ class PopupNotification(AutoHidePopupMixin, QWidget):
     def eventFilter(self, obj, event):
         """Widen the popup while the reply field is focused (centered mode only),
         and shrink it back to base_width on focus loss."""
-        if obj is self.reply_field:
+        if obj is self._reply_field:
             if event.type() == QEvent.Type.FocusIn:
                 self.animate_width(self._focused_width())
             elif event.type() == QEvent.Type.FocusOut:
@@ -424,22 +424,22 @@ class PopupNotification(AutoHidePopupMixin, QWidget):
             self.data.title if self.data.is_private else None,
             ban_callback() if ban_callback else None,
         )
-        self.reply_field.setStyleSheet(sheet)
-        self.reply_field.setPlaceholderText(placeholder)
+        self._reply_field.setStyleSheet(sheet)
+        self._reply_field.setPlaceholderText(placeholder)
 
     def _on_answer(self):
         """Toggle reply field visibility. In 'center' reply_style, the popup
         also detaches from its stack and joins the centered focus group."""
-        if not self.reply_container or not self.reply_field:
+        if not self._reply_container or not self._reply_field:
             return
 
         # Toggle behavior
         if self.reply_field_visible:
             # Hide reply field
             self.reply_field_visible = False
-            self.reply_field.clearFocus()
-            self.reply_container.setVisible(False)
-            self.reply_field.clear()
+            self._reply_field.clearFocus()
+            self._reply_container.setVisible(False)
+            self._reply_field.clear()
             if self in self.manager.focused_popups:
                 self.manager.focused_popups.remove(self)
                 self.manager.popups.append(self)
@@ -450,16 +450,16 @@ class PopupNotification(AutoHidePopupMixin, QWidget):
         else:
             # Show reply field
             self.reply_field_visible = True
-            self.reply_container.setVisible(True)
+            self._reply_container.setVisible(True)
             self._apply_reply_style()
             if self._reply_style() == "center" and self in self.manager.popups:
                 self.manager.popups.remove(self)
                 self.manager.focused_popups.append(self)
 
             # Pre-fill with sender's username
-            self.reply_field.setText(f"{self.data.title}, ")
-            self.reply_field.setFocus()
-            self.reply_field.setCursorPosition(len(self.reply_field.text()))
+            self._reply_field.setText(f"{self.data.title}, ")
+            self._reply_field.setFocus()
+            self._reply_field.setCursorPosition(len(self._reply_field.text()))
 
             # Stop hide timers
             if self.hide_timer and self.hide_timer.isActive():
@@ -493,8 +493,8 @@ class PopupNotification(AutoHidePopupMixin, QWidget):
         self.data.config.set("ui", "notification_position", value=new_pos)
         # Update icon on all popup position buttons for consistency
         for popup in self.manager.popups:
-            if hasattr(popup, 'position_button'):
-                set_button_icon(popup.position_button, icons[new_pos])
+            if hasattr(popup, '_position_button'):
+                set_button_icon(popup._position_button, icons[new_pos])
         self.manager.position_and_cleanup()
 
     def _toggle_emoticon_selector(self):
@@ -514,8 +514,8 @@ class PopupNotification(AutoHidePopupMixin, QWidget):
 
     def _on_emoticon_selected(self, emoticon_name: str):
         """Insert emoticon into reply field"""
-        if self.reply_container:
-            self.reply_container.insert_emoticon(emoticon_name)
+        if self._reply_container:
+            self._reply_container.insert_emoticon(emoticon_name)
 
     def _on_send_reply(self, text: str):
         """Send reply message"""

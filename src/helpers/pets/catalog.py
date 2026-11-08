@@ -44,12 +44,12 @@ class PetKind:
         return f"{self.species} · {self.color}".replace("_", " ").title()
 
     @property
-    def folder(self) -> Path:
+    def _folder(self) -> Path:
         return get_resource_dir("pets") / self.species
 
     @property
     def icon_path(self) -> Path:
-        candidates = (self.folder / pattern.format(color=self.color) for pattern in _ICON_NAME_PATTERNS)
+        candidates = (self._folder / pattern.format(color=self.color) for pattern in _ICON_NAME_PATTERNS)
         return next(path for path in candidates if path.exists())
 
     @property
@@ -58,7 +58,7 @@ class PetKind:
         return grids.get(self.key) or grids[self.species]
 
     def sprite_path(self, state: str) -> Path:
-        return self.folder / f"{self.color}_{state}{_SPRITE_SUFFIX}"
+        return self._folder / f"{self.color}_{state}{_SPRITE_SUFFIX}"
 
 
 @lru_cache(maxsize=None)

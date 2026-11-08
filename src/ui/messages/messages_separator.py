@@ -8,7 +8,7 @@ from PyQt6.QtGui import QColor, QFontMetrics, QPainter, QPen
 from ui.messages.message_model import MessageData
 
 
-SEPARATOR_HEIGHT = 40
+_SEPARATOR_HEIGHT = 40
 
 # Color palette constants
 _COLORS_DARK = {
@@ -114,7 +114,7 @@ class NewMessagesSeparator:
 
     @staticmethod
     def get_height() -> int:
-        return SEPARATOR_HEIGHT
+        return _SEPARATOR_HEIGHT
 
     @staticmethod
     def remove_from_model(model):
@@ -148,4 +148,4 @@ class DateSeparator:
 
     @staticmethod
     def get_height() -> int:
-        return SEPARATOR_HEIGHT
+        return _SEPARATOR_HEIGHT

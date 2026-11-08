@@ -24,11 +24,11 @@ from helpers.voice.voice_input import list_input_devices
 
 
 # How long a press may last and still count as a click (latch toggle).
-CLICK_MAX_MS = 280
+_CLICK_MAX_MS = 280
 
 # VU zone thresholds (0..1 of painted height, from the bottom).
-ZONE_GREEN = 0.55
-ZONE_YELLOW = 0.80
+_ZONE_GREEN = 0.55
+_ZONE_YELLOW = 0.80
 
 
 class MicButton(QPushButton):
@@ -83,7 +83,7 @@ class MicButton(QPushButton):
 
         self.icon_path = self._icons_path
         register_icon_button(self)
-        self.refresh_icon()
+        self._refresh_icon()
         self._refresh_tooltip()
         on_language_changed(self._refresh_tooltip)
 
@@ -95,7 +95,7 @@ class MicButton(QPushButton):
         self._listening = listening
         if not listening:
             self._level = 0.0
-        self.refresh_icon()
+        self._refresh_icon()
         self._refresh_tooltip()
         self.update()
 
@@ -118,7 +118,7 @@ class MicButton(QPushButton):
         self._status_hint = hint or ""
         self._refresh_tooltip()
 
-    def refresh_icon(self):
+    def _refresh_icon(self):
         """Called from update_all_icons() on theme change."""
         name = "mic-on.svg" if self._listening else "mic-off.svg"
         if not (self._icons_path / name).exists():
@@ -149,7 +149,7 @@ class MicButton(QPushButton):
         if self._ignore_release:
             event.accept()
             return
-        if elapsed <= CLICK_MAX_MS:
+        if elapsed <= _CLICK_MAX_MS:
             # Click: toggle latch. If we just auto-started PTT, keep it
             # running and mark latched; if it was already latched, stop.
             new_state = not self._latched
@@ -208,17 +208,17 @@ class MicButton(QPushButton):
         p.setClipPath(clip)
 
         if self._listening:
-            self._fill_band(p, rect, 0.0, ZONE_GREEN, QColor(46, 160, 67, 50))
-            self._fill_band(p, rect, ZONE_GREEN, ZONE_YELLOW, QColor(212, 168, 28, 50))
-            self._fill_band(p, rect, ZONE_YELLOW, 1.0, QColor(196, 62, 62, 50))
+            self._fill_band(p, rect, 0.0, _ZONE_GREEN, QColor(46, 160, 67, 50))
+            self._fill_band(p, rect, _ZONE_GREEN, _ZONE_YELLOW, QColor(212, 168, 28, 50))
+            self._fill_band(p, rect, _ZONE_YELLOW, 1.0, QColor(196, 62, 62, 50))
 
             level = self._display_level
             if level > 0.001:
-                self._fill_band(p, rect, 0.0, min(level, ZONE_GREEN), QColor(46, 160, 67, 160))
-                if level > ZONE_GREEN:
-                    self._fill_band(p, rect, ZONE_GREEN, min(level, ZONE_YELLOW), QColor(212, 168, 28, 160))
-                if level > ZONE_YELLOW:
-                    self._fill_band(p, rect, ZONE_YELLOW, level, QColor(196, 62, 62, 160))
+                self._fill_band(p, rect, 0.0, min(level, _ZONE_GREEN), QColor(46, 160, 67, 160))
+                if level > _ZONE_GREEN:
+                    self._fill_band(p, rect, _ZONE_GREEN, min(level, _ZONE_YELLOW), QColor(212, 168, 28, 160))
+                if level > _ZONE_YELLOW:
+                    self._fill_band(p, rect, _ZONE_YELLOW, level, QColor(196, 62, 62, 160))
 
             if self._peak > 0.02:
                 peak_y = rect.bottom() - rect.height() * self._peak
@@ -259,9 +259,9 @@ class MicButton(QPushButton):
 
     def _color_for_level(self, level: float, filled: bool) -> QColor:
         alpha = 150 if filled else 38
-        if level < ZONE_GREEN:
+        if level < _ZONE_GREEN:
             return QColor(46, 160, 67, alpha)
-        if level < ZONE_YELLOW:
+        if level < _ZONE_YELLOW:
             return QColor(212, 168, 28, alpha)
         return QColor(196, 62, 62, alpha)
 

@@ -98,27 +98,27 @@ class SettingsWidget(
         self.font_scaler = font_scaler
         self.emoticon_manager = emoticon_manager
         self.startup_manager = StartupManager()
-        self._competitions_accent_color = None
-        self._hotkey_capture = None
+        self.competitions_accent_color = None
+        self.hotkey_capture = None
 
         self._setup_ui()
         self.refresh()
-        hotkey.hotkey_manager.status_changed.connect(self._on_hotkey_status_changed)
+        hotkey.hotkey_manager.status_changed.connect(self.on_hotkey_status_changed)
         on_language_changed(self._retranslate)
 
-    def _spacing(self) -> int:
+    def element_spacing(self) -> int:
         return self.config.get("ui", "spacing", "widget_elements") or 6
 
-    def _create_section(self, title: str) -> QVBoxLayout:
+    def create_section(self, title: str) -> QVBoxLayout:
         """Create a titled, collapsible section and append it to the scroll content."""
         section = QWidget()
         section_layout = QVBoxLayout()
         section_layout.setContentsMargins(4, 4, 4, 4)
-        section_layout.setSpacing(self._spacing())
+        section_layout.setSpacing(self.element_spacing())
         section.setLayout(section_layout)
 
         header_row = QHBoxLayout()
-        header_row.setSpacing(self._spacing())
+        header_row.setSpacing(self.element_spacing())
         label = QLabel(title)
         label.setProperty("fontRole", "header")
         label.setFont(get_font(FontType.HEADER))
@@ -130,7 +130,7 @@ class SettingsWidget(
         content = QWidget()
         content_layout = QVBoxLayout()
         content_layout.setContentsMargins(0, 0, 0, 0)
-        content_layout.setSpacing(self._spacing())
+        content_layout.setSpacing(self.element_spacing())
         content.setLayout(content_layout)
         section_layout.addWidget(content)
 
@@ -138,12 +138,12 @@ class SettingsWidget(
         # must stay stable regardless of the active UI language.
         slug_source = title.en if isinstance(title, TrStr) else title
         slug = re.sub(r"[^a-z0-9]+", "_", slug_source.lower()).strip("_")
-        self._add_collapse_toggle(header_row, content, ("ui", "settings", "sections", slug), section=True)
+        self.add_collapse_toggle(header_row, content, ("ui", "settings", "sections", slug), section=True)
 
         self._sections_layout.addWidget(section)
         return content_layout
 
-    def _add_collapse_toggle(self, header_layout: QHBoxLayout, content: QWidget, config_path: tuple,
+    def add_collapse_toggle(self, header_layout: QHBoxLayout, content: QWidget, config_path: tuple,
                                default_collapsed: bool = False, *, section: bool = False) -> QToolButton:
         stored = self.config.get(*config_path)
         collapsed = default_collapsed if stored is None else bool(stored)
@@ -181,12 +181,12 @@ class SettingsWidget(
     def _accordion_enabled(self) -> bool:
         return bool(self.config.get("ui", "settings", "accordion"))
 
-    def _add_subsection(self, section_layout: QVBoxLayout, title: str) -> tuple[QHBoxLayout, QWidget, QVBoxLayout]:
+    def add_subsection(self, section_layout: QVBoxLayout, title: str) -> tuple[QHBoxLayout, QWidget, QVBoxLayout]:
         """Create a titled sub-block (header row + content widget) inside a section
         and append it to section_layout. Caller adds rows to the returned content
         layout, then finishes with _add_collapse_toggle(header_row, content, config_path)."""
         header_row = QHBoxLayout()
-        header_row.setSpacing(self._spacing())
+        header_row.setSpacing(self.element_spacing())
         label = QLabel(title)
         label.setFont(get_font(FontType.UI))
         header_row.addWidget(label)
@@ -197,13 +197,13 @@ class SettingsWidget(
         content = QWidget()
         content_layout = QVBoxLayout()
         content_layout.setContentsMargins(0, 0, 0, 0)
-        content_layout.setSpacing(self._spacing())
+        content_layout.setSpacing(self.element_spacing())
         content.setLayout(content_layout)
         section_layout.addWidget(content)
 
         return header_row, content, content_layout
 
-    def _add_checkbox(self, section_layout: QVBoxLayout, text: str, on_toggled) -> QCheckBox:
+    def add_checkbox(self, section_layout: QVBoxLayout, text: str, on_toggled) -> QCheckBox:
         checkbox = QCheckBox(text)
         checkbox.setFont(get_font(FontType.UI))
         checkbox.setFocusPolicy(Qt.FocusPolicy.NoFocus)
@@ -212,8 +212,8 @@ class SettingsWidget(
         self.register_tr(checkbox.setText, text)
         return checkbox
 
-    def _add_combo_row(self, section_layout: QVBoxLayout, label_text: str, items: list, on_changed) -> QComboBox:
-        row_widget = SettingsRow(spacing=self._spacing())
+    def add_combo_row(self, section_layout: QVBoxLayout, label_text: str, items: list, on_changed) -> QComboBox:
+        row_widget = SettingsRow(spacing=self.element_spacing())
         row = row_widget.layout()
         label = QLabel(label_text)
         label.setFont(get_font(FontType.UI))
@@ -231,8 +231,8 @@ class SettingsWidget(
         section_layout.addWidget(row_widget)
         return combo
 
-    def _add_slider_spin_row(self, section_layout: QVBoxLayout, label_text: str, minimum: int, maximum: int, on_changed, on_reset=None, default=None) -> QSpinBox:
-        row_widget = SettingsRow(spacing=self._spacing())
+    def add_slider_spin_row(self, section_layout: QVBoxLayout, label_text: str, minimum: int, maximum: int, on_changed, on_reset=None, default=None) -> QSpinBox:
+        row_widget = SettingsRow(spacing=self.element_spacing())
         row = row_widget.layout()
 
         label = QLabel(label_text)
@@ -326,16 +326,16 @@ class SettingsWidget(
         self.setLayout(main_layout)
 
         header_layout = QHBoxLayout()
-        header_layout.setSpacing(self._spacing())
+        header_layout.setSpacing(self.element_spacing())
         main_layout.addLayout(header_layout)
 
         back_tooltip = tr("Back to Messages", "Назад к сообщениям")
-        self.back_button = create_icon_button(
+        self._back_button = create_icon_button(
             self.icons_path, "go-back.svg", back_tooltip, config=self.config
         )
-        self.back_button.clicked.connect(self.back_requested.emit)
-        header_layout.addWidget(self.back_button)
-        self.register_tr(self.back_button.setToolTip, back_tooltip)
+        self._back_button.clicked.connect(self.back_requested.emit)
+        header_layout.addWidget(self._back_button)
+        self.register_tr(self._back_button.setToolTip, back_tooltip)
 
         title_text = tr("Settings", "Настройки")
         title_label = QLabel(title_text)
@@ -358,16 +358,16 @@ class SettingsWidget(
         self._section_toggles = []
         self.scroll.setWidget(content)
 
-        self._build_startup_section()
-        self._build_chat_section()
-        self._build_player_section()
-        self._build_image_viewer_section()
-        self._build_pets_section()
-        self._build_fonts_section()
-        self._build_notifications_section()
-        self._build_competitions_section()
-        self._build_user_tracker_section()
-        self._build_sound_section()
+        self.build_startup_section()
+        self.build_chat_section()
+        self.build_player_section()
+        self.build_image_viewer_section()
+        self.build_pets_section()
+        self.build_fonts_section()
+        self.build_notifications_section()
+        self.build_competitions_section()
+        self.build_user_tracker_section()
+        self.build_sound_section()
 
         self._sections_layout.addStretch(1)
 
@@ -383,7 +383,7 @@ class SettingsWidget(
             self.player_ytdl_format_combo,
             self.image_viewer_thumbnails_checkbox, self.image_viewer_slideshow_spin,
             self.image_viewer_transition_combo, self.image_viewer_transition_spin,
-            self.pets_checkbox, self.pets_stepped_checkbox, *self._pet_size_spins.values(),
+            self.pets_checkbox, self.pets_stepped_checkbox, *self.pet_size_spins.values(),
             self.chatlog_max_messages_spin, self.chatlog_live_search_spin,
             self.chatlog_filtered_click_combo,
             self.parser_validate_usernames_checkbox,
@@ -420,19 +420,19 @@ class SettingsWidget(
         for widget in widgets:
             widget.blockSignals(True)
 
-        self._refresh_general()
-        self._refresh_player()
-        self._refresh_image_viewer()
-        self._refresh_pets()
-        self._refresh_chat()
-        self._refresh_hotkey_row()
-        self._refresh_fonts()
-        self._refresh_competitions_enabled()
-        self._refresh_notification_bypass()
-        self._refresh_tracker()
-        self._refresh_competitions()
-        self._refresh_notifications()
-        self._refresh_sound()
+        self.refresh_general()
+        self.refresh_player()
+        self.refresh_image_viewer()
+        self.refresh_pets()
+        self.refresh_chat()
+        self.refresh_hotkey_row()
+        self.refresh_fonts()
+        self.refresh_competitions_enabled()
+        self.refresh_notification_bypass()
+        self.refresh_tracker()
+        self.refresh_competitions()
+        self.refresh_notifications()
+        self.refresh_sound()
 
         for widget in widgets:
             widget.blockSignals(False)
@@ -479,9 +479,9 @@ class SettingsWidget(
     def _retranslate(self, _code=None):
         self.retranslate_all()
         self._refill_option_combos()
-        self._refresh_hotkey_row()
+        self.refresh_hotkey_row()
 
-    def _sync_combo_tooltip(self, combo):
+    def sync_combo_tooltip(self, combo):
         tip = combo.itemData(combo.currentIndex(), Qt.ItemDataRole.ToolTipRole)
         combo.setToolTip(tip or "")
 
@@ -490,18 +490,18 @@ class SettingsWidget(
         theme = self.config.get("ui", "theme") or "dark"
         if hasattr(self, "tracker_events_bar"):
             self.tracker_events_bar.update_theme(theme == "dark")
-        self._apply_font_preview_theme()
-        self._apply_flash_preview_theme()
-        self._apply_input_preview()
+        self.apply_font_preview_theme()
+        self.apply_flash_preview_theme()
+        self.apply_input_preview()
         if not hasattr(self, "competitions_log"):
             return
         lines = self.competitions_log.toPlainText().splitlines()
-        if lines and lines != [self._tracking_disabled_text()]:
+        if lines and lines != [self.tracking_disabled_text()]:
             self.set_competition_log_lines(lines)
         else:
-            self._apply_competitions_log_theme()
+            self.apply_competitions_log_theme()
 
-    def _set_spin_enabled(self, spin, enabled: bool):
+    def set_spin_enabled(self, spin, enabled: bool):
         spin.setEnabled(enabled)
         if hasattr(spin, "linked_slider"):
             spin.linked_slider.setEnabled(enabled)

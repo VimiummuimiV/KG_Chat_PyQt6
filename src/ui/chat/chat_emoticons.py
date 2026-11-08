@@ -10,9 +10,9 @@ class ChatEmoticonsMixin:
 
     def _reclaim_emoticon_selector(self):
         """Take back the selector from a popup that borrowed it, cleaning up that popup's layout."""
-        self.emoticon_selector.attach(self, self._on_emoticon_selected)
+        self.emoticon_selector.attach(self, self.on_emoticon_selected)
 
-    def _toggle_emoticon_selector(self):
+    def toggle_emoticon_selector(self):
         """Toggle emoticon selector - reclaim from notification if borrowed, then toggle."""
         if not hasattr(self, 'emoticon_selector'):
             return
@@ -29,20 +29,20 @@ class ChatEmoticonsMixin:
 
     def active_input_field(self):
         """Input that should receive typed/emoticon text."""
-        room = self._current_room()
+        room = self.current_room()
         if room is not None and getattr(room, 'input_field', None) is not None:
             if room.input_field.hasFocus() or not self.input_field.hasFocus():
                 return room.input_field
         return self.input_field
 
-    def _active_emoticon_button(self):
+    def active_emoticon_button(self):
         """Emoticon button of the active room (game tab or General)."""
-        room = self._current_room()
+        room = self.current_room()
         if room is not None and getattr(room, 'emoticon_button', None) is not None:
             return room.emoticon_button
         return self.emoticon_button
 
-    def _on_emoticon_selected(self, emoticon_name: str):
+    def on_emoticon_selected(self, emoticon_name: str):
         """Insert emoticon into the active input field."""
         field = self.active_input_field()
         cursor_pos = field.cursorPosition()
@@ -72,7 +72,7 @@ class ChatEmoticonsMixin:
         self.emoticon_selector.setFixedSize(w, h)
 
         # The General button sits in a hidden tab while a game room is active, so its geometry can be stale
-        btn = self._active_emoticon_button()
+        btn = self.active_emoticon_button()
         btn_top_right = self.mapFromGlobal(btn.mapToGlobal(btn.rect().topRight()))
         x = btn_top_right.x() - w
         y = max(16, btn_top_right.y() - h - 8)
@@ -81,8 +81,8 @@ class ChatEmoticonsMixin:
         self.emoticon_selector.move(x, y)
         self.emoticon_selector.raise_()
 
-    def _on_room_emoticon_requested(self, widget=None):
-        room = widget or self._current_room()
+    def on_room_emoticon_requested(self, widget=None):
+        room = widget or self.current_room()
         if room and room.input_field:
             room.input_field.setFocus()
-        self._toggle_emoticon_selector()
+        self.toggle_emoticon_selector()

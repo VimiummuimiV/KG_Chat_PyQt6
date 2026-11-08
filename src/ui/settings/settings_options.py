@@ -72,7 +72,7 @@ DEFAULTS = {
 
 
 # Option tuples are built by functions (not constants) so tr() follows the current language.
-def xmpp_resource_options():
+def _xmpp_resource_options():
     return (
         ("web", tr("Same resource as the website. Receives private messages from the site client.",
                    "Тот же ресурс, что у сайта. Получает приватные сообщения от веб-клиента.")),
@@ -81,7 +81,7 @@ def xmpp_resource_options():
     )
 
 
-def own_message_mode_options():
+def _own_message_mode_options():
     return (
         ("local", tr("Show own messages immediately. Server echoes are ignored.",
                      "Показывать свои сообщения сразу. Эхо сервера игнорируется.")),
@@ -90,7 +90,7 @@ def own_message_mode_options():
     )
 
 
-def notification_mode_options():
+def _notification_mode_options():
     return (
         ("stack", tr("Stack", "Стопка"),
          tr("Stack notifications vertically; oldest is dropped once they no longer fit.",
@@ -104,7 +104,7 @@ def notification_mode_options():
     )
 
 
-def notification_hide_on_options():
+def _notification_hide_on_options():
     return (
         ("manual", tr("Manual", "Вручную"),
          tr("Auto-hide off — closes only by clicking it or the close button.",
@@ -122,7 +122,7 @@ def notification_hide_on_options():
 
 
 # When notifications are muted: off | default (follow Hide notifications on) | duration (ignore activity).
-def notification_mute_bypass_options():
+def _notification_mute_bypass_options():
     return (
         ("off", tr("Off", "Выкл"),
          tr("Do not show when notifications are disabled.",
@@ -136,7 +136,7 @@ def notification_mute_bypass_options():
     )
 
 
-def alert_chat_action_options():
+def _alert_chat_action_options():
     return (
         ("scroll", tr("Scroll to message", "Прокрутить к сообщению"),
          tr("Scrolls the chat to the competition message.",
@@ -147,7 +147,7 @@ def alert_chat_action_options():
     )
 
 
-def chatlog_filtered_click_options():
+def _chatlog_filtered_click_options():
     return (
         ("reveal", tr("Reveal all messages", "Показать все сообщения"),
          tr("Clears the filter, shows all messages again and scrolls to the clicked one.",
@@ -158,7 +158,7 @@ def chatlog_filtered_click_options():
     )
 
 
-def tracker_click_options():
+def _tracker_click_options():
     return (
         ("history", tr("Open history", "Открыть историю"),
          tr("Open the User Tracker's History tab.",
@@ -169,7 +169,7 @@ def tracker_click_options():
     )
 
 
-def tracker_default_tab_options():
+def _tracker_default_tab_options():
     return (
         ("tracked", tr("Tracked", "Отслеживаемые"),
          tr("Open on the list of currently tracked users.",
@@ -180,7 +180,7 @@ def tracker_default_tab_options():
     )
 
 
-def mentions_digest_mode_options():
+def _mentions_digest_mode_options():
     return (
         ("off", tr("Off", "Выкл"),
          tr("Never check personal mentions automatically.",
@@ -197,7 +197,7 @@ def mentions_digest_mode_options():
     )
 
 
-def flash_easing_options():
+def _flash_easing_options():
     labels = {
         "linear": tr("Linear", "Линейно"),
         "ease_out": tr("Ease out", "С замедлением"),
@@ -216,7 +216,7 @@ def flash_easing_options():
     return tuple((key, labels[key], labels[key]) for key in TIMING_FUNCTIONS)
 
 
-def image_reply_mode_options():
+def _image_reply_mode_options():
     return [
         (REPLY_MODE_INLINE, tr("Field in the viewer", "Поле в просмотрщике"),
          tr("Write the reply in an input field over the viewer; the viewer stays open.",
@@ -227,7 +227,7 @@ def image_reply_mode_options():
     ]
 
 
-def image_transition_options():
+def _image_transition_options():
     labels = {
         "instant": (tr("Instant", "Мгновенно"),
                     tr("Switch images with no animation.", "Переключать изображения без анимации.")),
@@ -247,7 +247,7 @@ def image_transition_options():
     return tuple((key, *labels[key]) for key in TRANSITION_MODES)
 
 
-def notification_position_options():
+def _notification_position_options():
     return (
         ("right", tr("Right", "Справа"),
          tr("Show notifications along the right edge of the screen.",
@@ -261,7 +261,7 @@ def notification_position_options():
     )
 
 
-def centered_style_options(inline_tip, center_tip):
+def _centered_style_options(inline_tip, center_tip):
     """Shared (value, label, tip) pairs for 'inline' vs 'center' placement
     settings; callers supply context-specific tooltip text."""
     return (
@@ -270,8 +270,8 @@ def centered_style_options(inline_tip, center_tip):
     )
 
 
-def reply_style_options():
-    return centered_style_options(
+def _reply_style_options():
+    return _centered_style_options(
         tr("Reply field opens inside the notification, at its current position.",
            "Поле ответа открывается прямо в уведомлении, на его текущем месте."),
         tr("Notification detaches and centers on screen while you reply. "
@@ -281,8 +281,8 @@ def reply_style_options():
     )
 
 
-def competition_notification_style_options():
-    return centered_style_options(
+def _competition_notification_style_options():
+    return _centered_style_options(
         tr("Competition notification stays in the regular notification stack.",
            "Уведомление о соревновании остаётся в обычном стеке уведомлений."),
         tr("Competition notification detaches and centers on screen for more visibility. "
@@ -292,7 +292,7 @@ def competition_notification_style_options():
     )
 
 
-def player_hwdec_options():
+def _player_hwdec_options():
     return (
         ("auto", "auto", tr(
             "MPV picks the best available method. Low CPU, GPU does the work.",
@@ -312,7 +312,7 @@ def player_hwdec_options():
     )
 
 
-def player_ytdl_format_options():
+def _player_ytdl_format_options():
     # Official yt-dlp selectors (see FORMAT SELECTION in yt-dlp README).
     return (
         ("", tr("Default", "По умолчанию"),
@@ -391,72 +391,72 @@ def fill_tooltip_combo(combo, options, current=None, default=None):
 
 
 def fill_resource_combo(combo, current=None):
-    fill_tooltip_combo(combo, xmpp_resource_options(), current, "web")
+    fill_tooltip_combo(combo, _xmpp_resource_options(), current, "web")
 
 
 def fill_own_message_mode_combo(combo, current=None):
-    fill_tooltip_combo(combo, own_message_mode_options(), current, "local")
+    fill_tooltip_combo(combo, _own_message_mode_options(), current, "local")
 
 
 def fill_notification_mode_combo(combo, current=None):
-    fill_tooltip_combo(combo, notification_mode_options(), current, "stack")
+    fill_tooltip_combo(combo, _notification_mode_options(), current, "stack")
 
 
 def fill_notification_hide_on_combo(combo, current=None):
-    fill_tooltip_combo(combo, notification_hide_on_options(), current, "mouse_keyboard")
+    fill_tooltip_combo(combo, _notification_hide_on_options(), current, "mouse_keyboard")
 
 
 def fill_notification_mute_bypass_combo(combo, current=None):
-    fill_tooltip_combo(combo, notification_mute_bypass_options(), current, "off")
+    fill_tooltip_combo(combo, _notification_mute_bypass_options(), current, "off")
 
 
 def fill_alert_chat_action_combo(combo, current=None):
-    fill_tooltip_combo(combo, alert_chat_action_options(), current, "scroll")
+    fill_tooltip_combo(combo, _alert_chat_action_options(), current, "scroll")
 
 
 def fill_chatlog_filtered_click_combo(combo, current=None):
-    fill_tooltip_combo(combo, chatlog_filtered_click_options(), current, DEFAULTS["chatlog"]["filtered_click_action"])
+    fill_tooltip_combo(combo, _chatlog_filtered_click_options(), current, DEFAULTS["chatlog"]["filtered_click_action"])
 
 
 def fill_tracker_click_combo(combo, current=None):
-    fill_tooltip_combo(combo, tracker_click_options(), current, "history")
+    fill_tooltip_combo(combo, _tracker_click_options(), current, "history")
 
 
 def fill_tracker_default_tab_combo(combo, current=None):
-    fill_tooltip_combo(combo, tracker_default_tab_options(), current, "tracked")
+    fill_tooltip_combo(combo, _tracker_default_tab_options(), current, "tracked")
 
 
 def fill_mentions_digest_mode_combo(combo, current=None):
-    fill_tooltip_combo(combo, mentions_digest_mode_options(), current, "daily")
+    fill_tooltip_combo(combo, _mentions_digest_mode_options(), current, "daily")
 
 
 def fill_flash_easing_combo(combo, current=None):
-    fill_tooltip_combo(combo, flash_easing_options(), current, DEFAULTS["chat"]["flash_easing"])
+    fill_tooltip_combo(combo, _flash_easing_options(), current, DEFAULTS["chat"]["flash_easing"])
 
 
 def fill_image_reply_mode_combo(combo, current=None):
-    fill_tooltip_combo(combo, image_reply_mode_options(), current, DEFAULT_REPLY_MODE)
+    fill_tooltip_combo(combo, _image_reply_mode_options(), current, DEFAULT_REPLY_MODE)
 
 
 def fill_image_transition_combo(combo, current=None):
-    fill_tooltip_combo(combo, image_transition_options(), current, DEFAULT_TRANSITION_MODE)
+    fill_tooltip_combo(combo, _image_transition_options(), current, DEFAULT_TRANSITION_MODE)
 
 
 def fill_notification_position_combo(combo, current=None):
-    fill_tooltip_combo(combo, notification_position_options(), current, "right")
+    fill_tooltip_combo(combo, _notification_position_options(), current, "right")
 
 
 def fill_reply_style_combo(combo, current=None):
-    fill_tooltip_combo(combo, reply_style_options(), current, "inline")
+    fill_tooltip_combo(combo, _reply_style_options(), current, "inline")
 
 
 def fill_competition_notification_style_combo(combo, current=None):
-    fill_tooltip_combo(combo, competition_notification_style_options(), current, "inline")
+    fill_tooltip_combo(combo, _competition_notification_style_options(), current, "inline")
 
 
 def fill_player_hwdec_combo(combo, current=None):
-    fill_tooltip_combo(combo, player_hwdec_options(), current, "auto")
+    fill_tooltip_combo(combo, _player_hwdec_options(), current, "auto")
 
 
 def fill_player_ytdl_format_combo(combo, current=None):
-    fill_tooltip_combo(combo, player_ytdl_format_options(), current, "")
+    fill_tooltip_combo(combo, _player_ytdl_format_options(), current, "")

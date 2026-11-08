@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional, Set
 import requests
 
 
-def extract_hex_color(color_str: str) -> Optional[str]:
+def _extract_hex_color(color_str: str) -> Optional[str]:
     """Extract valid hex color (#RRGGBB) from string"""
     if not isinstance(color_str, str):
         return None
@@ -24,7 +24,7 @@ def format_registered_date(registered: Dict) -> Optional[str]:
     except Exception:
         return None
 
-def convert_to_timestamp(sec: int, usec: int) -> Optional[str]:
+def _convert_to_timestamp(sec: int, usec: int) -> Optional[str]:
     """Convert sec and usec to timestamp"""
     if sec is not None and usec is not None:
         return str(sec) + str(usec // 1000)
@@ -56,7 +56,7 @@ def format_username_history(history: List[Dict]) -> List[tuple]:
 
     return formatted
 
-def fetch_json(url: str, timeout: int = 5) -> Dict:
+def _fetch_json(url: str, timeout: int = 5) -> Dict:
     """Fetch JSON from URL with validation"""
     response = requests.get(url, timeout=timeout)
     if not response.ok:
@@ -67,7 +67,7 @@ def get_exact_user_id_by_name(username: str) -> Optional[int]:
     """Get exact user ID by username via search API"""
     try:
         search_api_url = f"https://klavogonki.ru/api/profile/search-users?query={username}"
-        search_results = fetch_json(search_api_url)
+        search_results = _fetch_json(search_api_url)
 
         if not search_results.get('all'):
             return None
@@ -95,11 +95,11 @@ def validate_username_and_get_id(username: str) -> Optional[str]:
     except Exception:
         return None
 
-def get_all_user_ids_by_name(username: str) -> List[int]:
+def _get_all_user_ids_by_name(username: str) -> List[int]:
     """Get all user IDs matching username via search API"""
     try:
         search_api_url = f"https://klavogonki.ru/api/profile/search-users?query={username}"
-        search_results = fetch_json(search_api_url)
+        search_results = _fetch_json(search_api_url)
 
         if not search_results.get('all'):
             return []
@@ -113,7 +113,7 @@ def get_user_summary_by_id(user_id: int) -> Optional[Dict]:
     """Get user summary data by ID"""
     try:
         profile_api_url = f"https://klavogonki.ru/api/profile/get-summary?id={user_id}"
-        summary = fetch_json(profile_api_url)
+        summary = _fetch_json(profile_api_url)
         return summary
     except Exception as e:
         print(f"Error getting user summary: {e}")
@@ -123,7 +123,7 @@ def get_user_index_data_by_id(user_id: int) -> Optional[Dict]:
     """Get user index data by ID"""
     try:
         index_api_url = f"https://klavogonki.ru/api/profile/get-index-data?userId={user_id}"
-        index_data = fetch_json(index_api_url)
+        index_data = _fetch_json(index_api_url)
         return index_data
     except Exception as e:
         print(f"Error getting user index data: {e}")
@@ -131,21 +131,21 @@ def get_user_index_data_by_id(user_id: int) -> Optional[Dict]:
 
 
 # Data types that require the index-data API
-INDEX_DATA_TYPES: Set[str] = {
+_INDEX_DATA_TYPES: Set[str] = {
     'bio', 'bioText', 'bioOldText', 'bioEditedDate', 'stats', 'registered',
     'achievesCount', 'totalRaces', 'bestSpeed', 'ratingLevel', 'friendsCount',
     'vocsCount', 'carsCount', 'achieves', 'allIndexData'
 }
 
 # Data types that require the summary API
-SUMMARY_DATA_TYPES: Set[str] = {
+_SUMMARY_DATA_TYPES: Set[str] = {
     'usernamesHistory', 'currentLogin', 'userId', 'level', 'status', 'title',
     'car', 'carColor', 'isOnline', 'avatar', 'avatarTimestamp', 'blocked', 
     'isFriend', 'publicPrefs', 'allUserData'
 }
 
 
-def get_data_by_name(username: str, data_type: str) -> Any:
+def _get_data_by_name(username: str, data_type: str) -> Any:
     """
     MAIN FUNCTION: Get specific data by username - automatically chooses correct API
 
@@ -161,12 +161,12 @@ def get_data_by_name(username: str, data_type: str) -> Any:
         if not user_id:
             raise Exception(f'User with username "{username}" not found')
 
-        return get_data_by_id(user_id, data_type)
+        return _get_data_by_id(user_id, data_type)
     except Exception as e:
         print(f"Error getting {data_type} for user {username}: {e}")
         return None
 
-def get_data_by_id(user_id: int, data_type: str) -> Any:
+def _get_data_by_id(user_id: int, data_type: str) -> Any:
     """
     MAIN FUNCTION: Get specific data by user ID - automatically chooses correct API
 
@@ -178,19 +178,19 @@ def get_data_by_id(user_id: int, data_type: str) -> Any:
         Requested data or None if not found
     """
     try:
-        if data_type in INDEX_DATA_TYPES:
+        if data_type in _INDEX_DATA_TYPES:
             index_data = get_user_index_data_by_id(user_id)
-            return extract_data(index_data, data_type, 'index')
-        elif data_type in SUMMARY_DATA_TYPES:
+            return _extract_data(index_data, data_type, 'index')
+        elif data_type in _SUMMARY_DATA_TYPES:
             summary = get_user_summary_by_id(user_id)
-            return extract_data(summary, data_type, 'summary')
+            return _extract_data(summary, data_type, 'summary')
         else:
             raise Exception(f'Unknown data type: {data_type}')
     except Exception as e:
         print(f"Error getting {data_type} for user ID {user_id}: {e}")
         return None
 
-def extract_data(data: Dict, data_type: str, api_type: str) -> Any:
+def _extract_data(data: Dict, data_type: str, api_type: str) -> Any:
     """
     Universal data extractor function - handles both API responses
 
@@ -226,14 +226,14 @@ def extract_data(data: Dict, data_type: str, api_type: str) -> Any:
             ),
             'car': lambda: user_data.get('car'),
             'carColor': lambda: (
-                extract_hex_color(user_data['car']['color']) 
+                _extract_hex_color(user_data['car']['color']) 
                 if user_data.get('car') and isinstance(user_data['car'], dict) and 'color' in user_data['car']
                 else None
             ),
             'isOnline': lambda: user_data.get('is_online', False),
             'avatar': lambda: user_data.get('avatar'),
             'avatarTimestamp': lambda: (
-                convert_to_timestamp(avatar['sec'], avatar['usec'])
+                _convert_to_timestamp(avatar['sec'], avatar['usec'])
                 if (avatar := user_data.get('avatar'))
                 else None
             ),
@@ -253,7 +253,7 @@ def extract_data(data: Dict, data_type: str, api_type: str) -> Any:
             'bioText': lambda: data.get('bio', {}).get('text') if isinstance(data.get('bio'), dict) else None,
             'bioOldText': lambda: data.get('bio', {}).get('old_text') if isinstance(data.get('bio'), dict) else None,
             'bioEditedDate': lambda: (
-                convert_to_timestamp(edited_date['sec'], edited_date['usec'])
+                _convert_to_timestamp(edited_date['sec'], edited_date['usec'])
                 if (edited_date := data.get('bio', {}).get('edited_date'))
                 else None
             ),
@@ -278,9 +278,9 @@ def extract_data(data: Dict, data_type: str, api_type: str) -> Any:
 # Convenience helper functions (used by parser)
 def get_usernames_history(username: str) -> List[str]:
     """Get username history for a user"""
-    history = get_data_by_name(username, 'usernamesHistory')
+    history = _get_data_by_name(username, 'usernamesHistory')
     return history if isinstance(history, list) else []
 
 def get_registration_date(username: str) -> Optional[str]:
     """Get user registration date (YYYY-MM-DD)"""
-    return get_data_by_name(username, 'registered')
+    return _get_data_by_name(username, 'registered')

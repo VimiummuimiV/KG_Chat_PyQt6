@@ -3,16 +3,16 @@ from PyQt6.QtWidgets import QApplication
 
 
 class ThemeManager:
-    DARK = "dark"
-    LIGHT = "light"
+    _DARK = "dark"
+    _LIGHT = "light"
 
     def __init__(self, config):
         self.config = config
-        self.current_theme = self.config.get("ui", "theme") or self.DARK
+        self._current_theme = self.config.get("ui", "theme") or self._DARK
 
     def apply_theme(self, theme=None):
         if theme is None:
-            theme = self.current_theme
+            theme = self._current_theme
 
         app = QApplication.instance()
         if app:
@@ -29,19 +29,19 @@ class ThemeManager:
             """
 
             app.setStyleSheet(stylesheet)
-            self.current_theme = theme
+            self._current_theme = theme
             self.config.set("ui", "theme", value=theme)
 
     def toggle_theme(self):
         """Toggle between dark and light theme"""
-        new_theme = self.LIGHT if self.current_theme == self.DARK else self.DARK
+        new_theme = self._LIGHT if self._current_theme == self._DARK else self._DARK
         self.apply_theme(new_theme)
         return new_theme
 
     def is_dark(self):
         """Check if current theme is dark"""
-        return self.current_theme == self.DARK
+        return self._current_theme == self._DARK
 
-    def get_current_theme(self):
+    def _get_current_theme(self):
         """Get current theme name"""
-        return self.current_theme
+        return self._current_theme

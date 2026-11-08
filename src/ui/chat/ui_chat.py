@@ -20,6 +20,7 @@ from helpers.cache import get_cache
 from helpers.config import Config, get_config_path
 from helpers.data import get_resource_dir
 from helpers.fonts.fonts import get_userlist_width, set_application_font
+from helpers.system.memory import release_memory_soon
 from helpers.text.emoticons import EmoticonManager
 from helpers.translate import on_language_changed, tr, TranslatableMixin
 from helpers.voice.voice_engine import get_voice_engine
@@ -54,7 +55,7 @@ from ui.chat.voice_input_attach import install_voice_input
 from ui.notification.popup_manager import popup_manager
 
 
-class SignalEmitter(QObject):
+class _SignalEmitter(QObject):
     message_received = pyqtSignal(object)
     presence_received = pyqtSignal(object)
     bulk_update_complete = pyqtSignal()
@@ -85,7 +86,7 @@ class ChatWindow(
     ChatViewsMixin,
     QWidget,
 ):
-    _dispatch = pyqtSignal(object)  # thread-safe main-thread callable dispatch
+    dispatch = pyqtSignal(object)  # thread-safe main-thread callable dispatch
 
     def __init__(
         self,
@@ -97,7 +98,7 @@ class ChatWindow(
         ):
         super().__init__()
         self.init_translatable()
-        self._dispatch.connect(lambda f: f())
+        self.dispatch.connect(lambda f: f())
         self.app_controller = app_controller
         self.pronunciation_manager = pronunciation_manager
         self.ban_manager = ban_manager
@@ -106,42 +107,42 @@ class ChatWindow(
         self.really_close = False
         self.account = account
         self.xmpp_client = None
-        self.signal_emitter = SignalEmitter()
+        self.signal_emitter = _SignalEmitter()
         self.cache = get_cache()
         self.mentions_digest = MentionsDigest()
         self.self_ban = SelfBan()
-        self._mentions_digest_active = False
-        self._mentions_digest_checked = False  # digest runs once per window, not on every reconnect
-        self._presence_anchor_timer = QTimer(self)
-        self._presence_anchor_timer.timeout.connect(self._touch_presence_anchor)
-        self._self_ban_until = None  # epoch seconds while our own chat ban is active
-        self._self_ban_total = 0
-        self._self_muted = False  # MUC role 'visitor' in the general room (no voice)
-        self._self_ban_timer = QTimer(self)
-        self._self_ban_timer.timeout.connect(self.update_input_style)
+        self.mentions_digest_active = False
+        self.mentions_digest_checked = False  # digest runs once per window, not on every reconnect
+        self.presence_anchor_timer = QTimer(self)
+        self.presence_anchor_timer.timeout.connect(self.touch_presence_anchor)
+        self.self_ban_until = None  # epoch seconds while our own chat ban is active
+        self.self_ban_total = 0
+        self.self_muted = False  # MUC role 'visitor' in the general room (no voice)
+        self.self_ban_timer = QTimer(self)
+        self.self_ban_timer.timeout.connect(self.update_input_style)
 
         self.races_listener = None
-        self._competition_notified = set()  # game_ids already announced this session
-        self._competition_log_lines = []
-        self._competition_log_status = {}  # game_id -> last logged status (dedupe)
-        self._races_status = "disconnected"
-        self._pending_competitions = []  # queued while chat history isn't ready yet
-        self._chat_ready = False  # True once initial history has settled once
-        self._history_settle_timer = QTimer(self)  # fires when history stream goes quiet
-        self._history_settle_timer.setSingleShot(True)
-        self._history_settle_timer.timeout.connect(self._on_history_settled)
-        self._history_settle_timer.timeout.connect(self.release_memory_soon)
+        self.competition_notified = set()  # game_ids already announced this session
+        self.competition_log_lines = []
+        self.competition_log_status = {}  # game_id -> last logged status (dedupe)
+        self.races_status = "disconnected"
+        self.pending_competitions = []  # queued while chat history isn't ready yet
+        self.chat_ready = False  # True once initial history has settled once
+        self.history_settle_timer = QTimer(self)  # fires when history stream goes quiet
+        self.history_settle_timer.setSingleShot(True)
+        self.history_settle_timer.timeout.connect(self.on_history_settled)
+        self.history_settle_timer.timeout.connect(release_memory_soon)
 
         # Live-updating competition messages: game_id -> {mult, url, begintime, players}
-        self._competition_live = {}
-        self._competition_alert_timers = {}  # game_id -> pending lead-time alert QTimer
-        self._competition_focus_gid = None  # keep this row centered while chips grow after alert
-        self._competition_countdown_timer = QTimer(self)
-        self._competition_countdown_timer.timeout.connect(self._tick_competition_countdowns)
-        self._competition_sound_repeat_timer = QTimer(self)
-        self._competition_sound_repeat_timer.timeout.connect(self._on_competition_sound_repeat_tick)
-        self._competition_sound_repeat_cursor_pos = None
-        self._balance_fetch_errors_shown = set()  # error codes already dialoged this session
+        self.competition_live = {}
+        self.competition_alert_timers = {}  # game_id -> pending lead-time alert QTimer
+        self.competition_focus_gid = None  # keep this row centered while chips grow after alert
+        self.competition_countdown_timer = QTimer(self)
+        self.competition_countdown_timer.timeout.connect(self.tick_competition_countdowns)
+        self.competition_sound_repeat_timer = QTimer(self)
+        self.competition_sound_repeat_timer.timeout.connect(self.on_competition_sound_repeat_tick)
+        self.competition_sound_repeat_cursor_pos = None
+        self.balance_fetch_errors_shown = set()  # error codes already dialoged this session
 
         self.initial_roster_loading = False
         self.auto_hide_messages_userlist = True
@@ -149,16 +150,16 @@ class ChatWindow(
         self.auto_hide_tracker_userlist = True
 
         # Track window show/reset state to avoid persisting programmatic geometry
-        self._showing_window = False
-        self._resetting_geometry = False
+        self.showing_window = False
+        self.resetting_geometry = False
 
         # Simple connection state tracking
         self.is_connecting = False # True when attempting to connect
         self.allow_reconnect = True # Disable when switching accounts
         self.reconnect_count = 0 # Incremented each time a reconnect attempt is made
         self.reconnect_timer = None # Timer for delayed reconnect attempts
-        self._connect_generation = 0 # Bumped per attempt so a stale worker can't clobber a newer one's state
-        self._connection_status = 'offline'  # normalized key, kept in sync by set_connection_status
+        self.connect_generation = 0 # Bumped per attempt so a stale worker can't clobber a newer one's state
+        self.connection_status = 'offline'  # normalized key, kept in sync by set_connection_status
 
         # Private messaging state
         self.private_mode = False
@@ -210,10 +211,10 @@ class ChatWindow(
         self.mention_sound_path = None
         self.ban_sound_path = None
         self.competition_sound_path = None
-        self._setup_sounds()
+        self.setup_sounds()
 
         self._init_ui()
-        self._restore_self_ban()
+        self.restore_self_ban()
 
         self.signal_emitter.message_received.connect(self.on_message)
         self.signal_emitter.presence_received.connect(self.on_presence)
@@ -247,7 +248,7 @@ class ChatWindow(
             window_x = saved_x if saved_x is not None else None
             window_y = saved_y if saved_y is not None else None
         else:
-            window_width, window_height, window_x, window_y = self._calculate_default_geometry()
+            window_width, window_height, window_x, window_y = self.calculate_default_geometry()
 
         # Apply window geometry
         self.resize(window_width, window_height)
@@ -296,7 +297,7 @@ class ChatWindow(
         # Vertical pane: presence log (created on demand) above the live messages view
         self.presence_pane_splitter = QSplitter(Qt.Orientation.Vertical)
         self.presence_pane_splitter.addWidget(self.messages_widget)
-        self.presence_pane_splitter.splitterMoved.connect(self._on_presence_split_moved)
+        self.presence_pane_splitter.splitterMoved.connect(self.on_presence_split_moved)
         self.presence_log_widget = None
 
         # Splitter so a chatlog can be shown alongside the live messages view
@@ -309,13 +310,13 @@ class ChatWindow(
         self.custom_rooms = {}  # room_name -> RoomWidget
         self.room_tabs = None  # QTabWidget; General is always tab 0 when present
         self.general_body = None
-        self._unread_rooms = {}  # game_id|None(General)|"c:name" -> unread message count
+        self.unread_rooms = {}  # game_id|None(General)|"c:name" -> unread message count
 
         self.stacked_widget.addWidget(self.messages_splitter)
         self.chatlog_widget = None
         self.chatlog_userlist_widget = None
         self.pre_profile_view = None  # 'messages' or 'chatlog' - where to return after profile/pronunciation/ban-list views
-        self._restore_room_gid = None  # game_id of room tab to reopen after profile/private...
+        self.restore_room_gid = None  # game_id of room tab to reopen after profile/private...
 
         # Input area
         self.input_container = QWidget()
@@ -329,15 +330,15 @@ class ChatWindow(
 
         self.input_row = InputRow(self.icons_path, self.config)
         self.input_row.submitted.connect(self.send_message)
-        self.input_row.emoticon_requested.connect(self._toggle_emoticon_selector)
+        self.input_row.emoticon_requested.connect(self.toggle_emoticon_selector)
         self.input_field = self.input_row.input_field
         self.send_button = self.input_row.send_button
         self.emoticon_button = self.input_row.emoticon_button
         input_main_layout.addWidget(self.input_row)
 
-        self.input_bottom_layout = QHBoxLayout()
-        self.input_bottom_layout.setSpacing(button_spacing)
-        input_main_layout.addLayout(self.input_bottom_layout)
+        self._input_bottom_layout = QHBoxLayout()
+        self._input_bottom_layout.setSpacing(button_spacing)
+        input_main_layout.addLayout(self._input_bottom_layout)
 
         self.messages_widget.set_input_field(self.input_field)
         install_voice_input(self)
@@ -350,8 +351,8 @@ class ChatWindow(
             self.config, self.input_field, self.ban_manager, self.user_tracker, my_username=self.my_username
         )
         # Connect signals for user list actions
-        self._wire_userlist_signals(self.user_list_widget)
-        self.user_list_widget.open_game_requested.connect(self._open_game_room_by_id)
+        self.wire_userlist_signals(self.user_list_widget)
+        self.user_list_widget.open_game_requested.connect(self.open_game_room_by_id)
 
         messages_userlist_visible = self.config.get("ui", "userlist", "messages")
         userlist_visible = messages_userlist_visible if messages_userlist_visible is not None else True
@@ -368,11 +369,11 @@ class ChatWindow(
         # so the slider is vertically centred against the input field row.
         font_scaler = getattr(self.app_controller, 'font_scaler', None)
         if font_scaler is not None:
-            self.font_scale_slider = FontScaleSlider(font_scaler)
-            self.font_scale_slider.setFixedHeight(self.input_field.minimumHeight())
-            userlist_panel.addWidget(self.font_scale_slider)
+            self._font_scale_slider = FontScaleSlider(font_scaler)
+            self._font_scale_slider.setFixedHeight(self.input_field.minimumHeight())
+            userlist_panel.addWidget(self._font_scale_slider)
         else:
-            self.font_scale_slider = None
+            self._font_scale_slider = None
 
         self.userlist_panel.setLayout(userlist_panel)
         self.userlist_panel.setFixedWidth(get_userlist_width())
@@ -388,7 +389,7 @@ class ChatWindow(
         self.button_panel = ButtonPanel(self.config, self.icons_path, self.theme_manager)
 
         self.button_panel.toggle_userlist_requested.connect(self.toggle_user_list)
-        self.button_panel.switch_account_requested.connect(self._on_switch_account)
+        self.button_panel.switch_account_requested.connect(self.on_switch_account)
         self.button_panel.show_banlist_requested.connect(self.toggle_ban_list_view)
         self.button_panel.show_tracker_requested.connect(self.toggle_user_tracker_view)
         self.button_panel.toggle_voice_requested.connect(self.on_toggle_voice_sound)
@@ -407,8 +408,8 @@ class ChatWindow(
         self.button_panel.show_settings_requested.connect(self.toggle_settings_view)
         self.button_panel.exit_requested.connect(self.on_exit_requested)
         self.button_panel.reconnect_requested.connect(self.manual_reconnect)
-        self.button_panel.join_room_requested.connect(self._on_join_room_requested)
-        self.button_panel.search_requested.connect(self._toggle_search_for_current_view)
+        self.button_panel.join_room_requested.connect(self.on_join_room_requested)
+        self.button_panel.search_requested.connect(self.toggle_search_for_current_view)
 
         content_wrapper.addWidget(self.button_panel, stretch=0)
 
@@ -444,7 +445,7 @@ class ChatWindow(
             self.emoticon_manager,
             self.icons_path
         )
-        self.emoticon_selector.attach(self, self._on_emoticon_selected)
+        self.emoticon_selector.attach(self, self.on_emoticon_selected)
 
         # Register shared instance with popup manager so notifications can borrow it
         popup_manager.emoticon_selector = self.emoticon_selector
@@ -473,16 +474,16 @@ class ChatWindow(
         self.messages_widget.competition_timestamp_left_clicked.connect(
             lambda msg: self.open_game_room_tab(msg, room_label="Competition")
         )
-        self.messages_widget.chip_clicked.connect(self._on_username_shift_click)
-        self._wire_username_signals(self.messages_widget)
+        self.messages_widget.chip_clicked.connect(self.on_username_shift_click)
+        self.wire_username_signals(self.messages_widget)
         self.messages_widget.chatlog_link_clicked.connect(self.show_chatlog_split_view)
-        self.messages_widget.competition_entered.connect(self._on_competition_entered)
+        self.messages_widget.competition_entered.connect(self.on_competition_entered)
 
         self.update_input_style()
 
     def _retranslate(self, _code=None):
         self.retranslate_all()
-        self._update_connection_title()
+        self.update_connection_title()
 
         # Force input style update – updates private chat placeholder
         self.update_input_style()

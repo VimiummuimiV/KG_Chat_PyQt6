@@ -11,7 +11,7 @@ from typing import List, Optional, Tuple
 
 
 # (display_name, key) — key is "system" or an executable path
-BrowserEntry = Tuple[str, str]
+_BrowserEntry = Tuple[str, str]
 
 
 def _which(name: str) -> Optional[str]:
@@ -22,8 +22,8 @@ def _exists(path: str) -> bool:
     return Path(path).is_file()
 
 
-def _windows_browsers() -> List[BrowserEntry]:
-    entries: List[BrowserEntry] = []
+def _windows_browsers() -> List[_BrowserEntry]:
+    entries: List[_BrowserEntry] = []
     try:
         import winreg  # Windows only
     except ImportError:
@@ -76,7 +76,7 @@ def _windows_browsers() -> List[BrowserEntry]:
     return entries
 
 
-def _macos_browsers() -> List[BrowserEntry]:
+def _macos_browsers() -> List[_BrowserEntry]:
     apps = [
         ("Safari", "/Applications/Safari.app/Contents/MacOS/Safari"),
         ("Google Chrome", "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"),
@@ -90,7 +90,7 @@ def _macos_browsers() -> List[BrowserEntry]:
     return [(name, path) for name, path in apps if _exists(path)]
 
 
-def _linux_browsers() -> List[BrowserEntry]:
+def _linux_browsers() -> List[_BrowserEntry]:
     candidates = [
         ("Google Chrome", ["google-chrome-stable", "google-chrome", "chrome"]),
         ("Chromium", ["chromium-browser", "chromium"]),
@@ -103,7 +103,7 @@ def _linux_browsers() -> List[BrowserEntry]:
         ("Konqueror", ["konqueror"]),
         ("Falkon", ["falkon"]),
     ]
-    entries: List[BrowserEntry] = []
+    entries: List[_BrowserEntry] = []
     seen: set[str] = set()
     for display, names in candidates:
         for name in names:
@@ -115,7 +115,7 @@ def _linux_browsers() -> List[BrowserEntry]:
     return entries
 
 
-def get_available_browsers() -> List[BrowserEntry]:
+def get_available_browsers() -> List[_BrowserEntry]:
     """Return [(display_name, key), ...] with System default first."""
     system = platform.system()
     if system == "Windows":
@@ -127,7 +127,7 @@ def get_available_browsers() -> List[BrowserEntry]:
 
     # Deduplicate by path, keep first occurrence
     seen: set[str] = set()
-    unique: List[BrowserEntry] = []
+    unique: List[_BrowserEntry] = []
     for name, key in found:
         if key not in seen:
             seen.add(key)
