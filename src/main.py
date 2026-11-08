@@ -90,7 +90,7 @@ class Application(QObject):
         self.icons_path = Path(__file__).parent / "icons"
 
         # Set global application icon EARLY - before any windows are created
-        # Uses chat.ico for taskbar/dock on all platforms
+        # Uses name.ico for taskbar/dock on all platforms
         app_icon = self._get_app_icon()
         self.app.setWindowIcon(app_icon)
 
@@ -292,8 +292,8 @@ class Application(QObject):
             popup_manager.set_muted(muted)
 
     def _get_app_icon(self):
-        """Get the main application icon - chat.ico for taskbar/dock"""
-        ico_path = self.icons_path / "chat.ico"
+        """Get the main application icon - name.ico for taskbar/dock"""
+        ico_path = self.icons_path / "crazy.ico"
         return QIcon(str(ico_path))
 
     def _get_icon(self, count: int = 0):
