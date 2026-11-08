@@ -3,6 +3,7 @@
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtWidgets import QMessageBox
 
+from helpers.deferred import call_later
 from helpers.scroll.scroll import scroll
 from helpers.translate import tr
 
@@ -67,7 +68,7 @@ class TrackerHistoryMixin:
         self.history_model.append_event(event)
         self.update_history_empty_state()
         if at_bottom:
-            QTimer.singleShot(0, lambda: scroll(self.history_list_view, mode="bottom", delay=50))
+            call_later(self, 0, lambda: scroll(self.history_list_view, mode="bottom", delay=50))
         self._bump_chip_count(event)
         self.update_info_label()
 
@@ -109,4 +110,4 @@ class TrackerHistoryMixin:
         row = proxy_index.row()
 
         scroll(self.history_list_view, mode="middle", target_row=row, delay=100)
-        QTimer.singleShot(250, lambda: self.history_delegate.highlight_row(row))
+        call_later(self, 250, lambda: self.history_delegate.highlight_row(row))

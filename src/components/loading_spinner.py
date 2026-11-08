@@ -67,14 +67,6 @@ class LoadingSpinner(QWidget):
         self.animation.start()
         self.show()
 
-    def _show_error(self):
-        """Replace the animation with a red cross: loading failed"""
-        self.animation.stop()
-        self._is_error = True
-        self.update()
-        self.show()
-        self.raise_()
-
     def stop(self):
         """Stop and hide the spinner"""
         self.animation.stop()

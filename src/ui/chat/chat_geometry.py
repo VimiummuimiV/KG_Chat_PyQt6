@@ -1,8 +1,8 @@
 """ChatWindow: window geometry, resizing and user list visibility."""
 
-from PyQt6.QtCore import QTimer
 from PyQt6.QtWidgets import QApplication
 
+from helpers.deferred import call_later
 from helpers.window.resize import handle_chat_resize, recalculate_layout
 from ui.dialogs.window_presets_dialog import WindowPresetsDialog
 
@@ -69,7 +69,7 @@ class ChatGeometryMixin:
                     if self.width() < 500 and not self.button_panel.geometry().contains(cursor_pos):
                         self.button_panel.setVisible(False)
 
-                QTimer.singleShot(300, hide_if_away)
+                call_later(self, 300, hide_if_away)
                 self.hover_reveal = False
         super().mouseMoveEvent(event)
 
@@ -92,7 +92,7 @@ class ChatGeometryMixin:
         self.move(x, y)
 
         # Clear flag after events have fired
-        QTimer.singleShot(100, lambda: setattr(self, 'resetting_geometry', False))
+        call_later(self, 100, lambda: setattr(self, 'resetting_geometry', False))
 
         # Update button state immediately
         self.update_reset_size_button_state()
@@ -168,7 +168,7 @@ class ChatGeometryMixin:
             self.button_panel.set_button_state(self.button_panel.toggle_userlist_button, visible)
 
         # Force resize handler to sync everything
-        QTimer.singleShot(10, lambda: self.apply_resize(width))
+        call_later(self, 10, lambda: self.apply_resize(width))
 
         # Force recalculation after visibility change
-        QTimer.singleShot(20, lambda: recalculate_layout(self))
+        call_later(self, 20, lambda: recalculate_layout(self))

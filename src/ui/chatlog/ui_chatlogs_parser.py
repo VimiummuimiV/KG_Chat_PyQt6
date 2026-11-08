@@ -69,14 +69,6 @@ class ChatlogsParserConfigWidget(ParserModesMixin, ParserRunMixin, ParserUsernam
         input_field.setFont(get_font(FontType.UI))
         return input_field
 
-    def _create_combo(self, items: list) -> QComboBox:
-        """Create a combo box with consistent height"""
-        combo = QComboBox()
-        combo.addItems(items)
-        combo.setFixedHeight(self.input_height)
-        combo.setFont(get_font(FontType.UI))
-        return combo
-
     def create_input_row(self, label_text: str, placeholder: str = "", object_name: str = "", as_widget: bool = False):
         """Create a complete input row with label and input field"""
         layout = QHBoxLayout()

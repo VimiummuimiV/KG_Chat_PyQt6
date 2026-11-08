@@ -2,11 +2,11 @@
 
 from datetime import datetime
 
-from PyQt6.QtCore import QTimer
 from PyQt6.QtWidgets import QMessageBox
 
 from components.button import set_button_icon
 from core.chatlogs.range_parser import ParseConfig
+from helpers.deferred import call_later
 from helpers.scroll.scroll import scroll
 from helpers.translate import tr
 from ui.chatlog.parser_worker import ParserWorker
@@ -166,7 +166,7 @@ class ChatlogParserControlsMixin:
                 self.messages_loaded.emit(non_separator_messages)
                 self.parser_widget.show_copy_save_buttons()
                 self.update_copy_save_tooltips()
-                QTimer.singleShot(100, lambda: scroll(self.list_view, mode="top", delay=50))
+                call_later(self, 100, lambda: scroll(self.list_view, mode="top", delay=50))
                 message_count = len(non_separator_messages)
                 self.info_label.setText(tr(
                     f"Found {message_count} messages (partial)",
@@ -252,7 +252,7 @@ class ChatlogParserControlsMixin:
 
                 non_separator_messages = [m for m in self.all_messages if not m.is_separator]
                 self.messages_loaded.emit(non_separator_messages)
-                QTimer.singleShot(100, lambda: scroll(self.list_view, mode="top", delay=50))
+                call_later(self, 100, lambda: scroll(self.list_view, mode="top", delay=50))
 
             self.parser_widget.show_copy_save_buttons()
             self.update_copy_save_tooltips()

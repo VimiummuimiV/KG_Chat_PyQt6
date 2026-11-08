@@ -18,6 +18,7 @@ from components.tray_badge import TrayIconWithBadge
 from core.state.accounts import AccountManager
 from helpers.config import Config, get_config_path
 from helpers.data import get_data_dir
+from helpers.deferred import call_later
 from helpers.fonts.font_scaler import FontScaler
 from helpers.fonts.fonts import (
     FontType,
@@ -346,7 +347,7 @@ class Application(QObject):
         if not window.isVisible():
             window.setWindowOpacity(0)
             window.show()
-            QTimer.singleShot(50, lambda: window.setWindowOpacity(1))
+            call_later(window, 50, lambda: window.setWindowOpacity(1))
         self._force_window_to_foreground(window)
 
     def _show_window(self):
@@ -450,7 +451,7 @@ class Application(QObject):
         self._account_window.account_connected.connect(self._on_account_connected)
         self._account_window.setWindowOpacity(0)
         self._account_window.show()
-        QTimer.singleShot(50, lambda: self._account_window.setWindowOpacity(1))
+        call_later(self._account_window, 50, lambda: self._account_window.setWindowOpacity(1))
 
     def _on_account_connected(self, account):
         """Close account window and open chat"""
@@ -495,7 +496,7 @@ class Application(QObject):
             # Normal behavior - show the window
             self.chat_window.setWindowOpacity(0)
             self.chat_window.show()
-            QTimer.singleShot(50, lambda: self.chat_window.setWindowOpacity(1))
+            call_later(self.chat_window, 50, lambda: self.chat_window.setWindowOpacity(1))
             self._is_initial_launch = False
 
     def refresh_own_username_color(self, operation_func):

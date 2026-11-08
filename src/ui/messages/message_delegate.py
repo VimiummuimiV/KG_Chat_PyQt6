@@ -32,6 +32,7 @@ from components.flash_highlight import (
 from components.image_viewer.gallery import DayNavigation, first_image, ImageGallery, InlineReply, is_image_url
 from helpers.cache import get_cache
 from helpers.data import get_resource_dir
+from helpers.deferred import call_later
 from helpers.fonts.fonts import FontType, get_font
 from helpers.scroll.scroll import scroll
 from helpers.text.emoticons import EmoticonManager
@@ -929,7 +930,7 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
     def reveal_row(self, row: int):
         """Scroll a row to the middle of the view and highlight it."""
         scroll(self.list_view, mode="middle", target_row=row, delay=_REVEAL_SCROLL_DELAY_MS)
-        QTimer.singleShot(_REVEAL_HIGHLIGHT_DELAY_MS, lambda: self.highlight_row(row))
+        call_later(self, _REVEAL_HIGHLIGHT_DELAY_MS, lambda: self.highlight_row(row))
 
     def _reveal_message(self, message):
         """Reveal a message of this view's model (no-op if it is no longer there)."""

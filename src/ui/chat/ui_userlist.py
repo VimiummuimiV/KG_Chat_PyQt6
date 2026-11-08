@@ -1,4 +1,3 @@
-from PyQt6 import sip
 from PyQt6.QtCore import pyqtSignal, Qt, QTimer
 from PyQt6.QtGui import QCursor, QFont
 from PyQt6.QtWidgets import (
@@ -30,6 +29,7 @@ from components.tracked_mark import TrackedMarkMixin
 from core.xmpp.userlist import ChatUser
 from helpers.cache import get_cache
 from helpers.data import get_resource_dir
+from helpers.deferred import call_later
 from helpers.fonts.fonts import FontType, get_font
 from helpers.scroll.auto_scroll import AutoScroller
 from helpers.translate import on_language_changed, tr, TranslatableMixin
@@ -102,11 +102,13 @@ class _UserWidget(TrackedMarkMixin, QWidget):
         if user.role == 'visitor':
             emoji_family = (config.get("font", "emoji_family") or "").lower()
             block_mark = " ⛔" if "segoe" in emoji_family else " 🚫"
-            QTimer.singleShot(700, lambda: not sip.isdeleted(self.username_label)
-                and self.user.role == 'visitor' and (
-                    self.username_label.setText(self.username_label.text() + block_mark) or
+
+            def mark_blocked():
+                if self.user.role == 'visitor':
+                    self.username_label.setText(self.username_label.text() + block_mark)
                     self._set_blocked_tooltip()
-                ))
+
+            call_later(self.username_label, 700, mark_blocked)
 
         self.username_label.setText(username_text)
         self.username_label.setStyleSheet(f"color: {text_color};")

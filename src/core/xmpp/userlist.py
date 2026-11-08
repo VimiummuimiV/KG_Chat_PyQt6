@@ -88,22 +88,6 @@ class UserList:
         """Get online users"""
         return [u for u in self.users.values() if u.status == 'available']
 
-    def _format_list(self, online_only: bool = False) -> str:
-        """Format user list"""
-        users = self.get_online() if online_only else self.get_all()
-
-        if not users:
-            return "👥 No users"
-
-        result = f"👥 Users ({len(users)}):\n" + "═" * 40 + "\n"
-        for user in sorted(users, key=lambda u: u.login.lower()):
-            emoji = "🟢" if user.status == 'available' else "⚫"
-            game = f"\n   └─ 🎮 Game #{user.game_id}" if user.game_id else ""
-            bg = f" [{user.background}]" if user.background else ""
-            result += f"{emoji} {user.login}{bg}{game}\n"
-        result += "═" * 40
-        return result
-
     def clear(self):
         """Clear all users"""
         self.users.clear()

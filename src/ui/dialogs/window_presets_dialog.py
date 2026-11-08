@@ -1,6 +1,6 @@
 """Dialog for managing window size and position presets"""
 
-from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
     QDialog,
     QHBoxLayout,
@@ -13,6 +13,7 @@ from PyQt6.QtWidgets import (
 )
 
 from helpers.config import Config
+from helpers.deferred import call_later
 from helpers.translate import on_language_changed, tr, TranslatableMixin
 
 
@@ -184,7 +185,7 @@ class WindowPresetsDialog(TranslatableMixin, QDialog):
             if x is not None and y is not None:
                 self.chat_window.move(x, y)
 
-            QTimer.singleShot(100, lambda: setattr(self.chat_window, 'resetting_geometry', False))
+            call_later(self.chat_window, 100, lambda: setattr(self.chat_window, 'resetting_geometry', False))
 
             self.chat_window.window_size_manager.update_geometry(width, height, x or 0, y or 0)
 

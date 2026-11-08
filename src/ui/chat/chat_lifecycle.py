@@ -5,6 +5,7 @@ from PyQt6.QtWidgets import QApplication
 
 from components.button import set_theme, update_all_icons
 from components.tag_button import update_all_tag_buttons
+from helpers.deferred import call_later
 from helpers.fonts.fonts import set_application_font
 
 
@@ -54,11 +55,11 @@ class ChatLifecycleMixin:
 
         # Trigger an initial resize handler so UI elements (userlist, button panel)
         # reflect the current width immediately on first show
-        QTimer.singleShot(50, lambda: self.apply_resize(self.width()))
+        call_later(self, 50, lambda: self.apply_resize(self.width()))
 
         # Clear the showing flag after a short delay so subsequent user-initiated resize/move
         # events will be persisted normally
-        QTimer.singleShot(200, lambda: setattr(self, 'showing_window', False))
+        call_later(self, 200, lambda: setattr(self, 'showing_window', False))
 
     def show_and_focus_window(self, game_id=None):
         """Show/focus the chat window; switch to the originating room tab if any."""
@@ -66,7 +67,7 @@ class ChatLifecycleMixin:
         if was_hidden:
             self.setWindowOpacity(0)
             self.show()
-            QTimer.singleShot(50, lambda: self.setWindowOpacity(1))
+            call_later(self, 50, lambda: self.setWindowOpacity(1))
         self.setWindowState(self.windowState() & ~Qt.WindowState.WindowMinimized | Qt.WindowState.WindowActive)
         self.activateWindow()
         self.raise_()

@@ -8,6 +8,7 @@ from PyQt6.QtGui import QCursor
 from core.web.races_listener import RacesListener
 from core.xmpp.messages import Message
 from helpers.browser import open_url as open_url_in_browser
+from helpers.deferred import call_later
 from helpers.system.input_activity import activity_detected
 from helpers.translate import tr
 from ui.notification.popup_manager import popup_manager, show_notification
@@ -270,10 +271,6 @@ class ChatCompetitionsMixin:
             return chips[:limit] + [{"name": "…", "level": None}]
         return chips
 
-    @staticmethod
-    def _player_names(players: list) -> list:
-        return [p.get("name") or p.get("login") or "?" for p in players]
-
     def _competition_chips_and_header(self, mult: str, url: str, begintime, players: list, cost=None, scores=None, bonuses=None):
         """Build player chips + formatted header from raw competition fields."""
         chips = self._player_chips(players)
@@ -325,7 +322,7 @@ class ChatCompetitionsMixin:
             self.tick_competition_countdowns()
             self.competition_countdown_timer.start()
 
-        QTimer.singleShot(ms_to_next_second, _aligned_start)
+        call_later(self, ms_to_next_second, _aligned_start)
 
     def refresh_competition_player_display(self):
         for gid in list(self.competition_live.keys()):

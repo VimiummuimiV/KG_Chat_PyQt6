@@ -24,10 +24,6 @@ class ChatlogSearchMixin:
     def search_visible(self) -> bool:
         return self.search.visible_state
 
-    @property
-    def _search_field(self):
-        return self.search.field
-
     def toggle_search(self):
         self.search.toggle()
 

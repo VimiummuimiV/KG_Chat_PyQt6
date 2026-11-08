@@ -49,35 +49,6 @@ class PresenceDB(SqliteStore):
                     ),
                 )
 
-    def _insert_many(self, events: List[dict]) -> None:
-        if not events:
-            return
-        rows = [
-            (
-                str(event.get("user_id") or ""),
-                event.get("login") or "",
-                event.get("type") or "",
-                float(event.get("timestamp") or 0),
-                str(event["game_id"]) if event.get("game_id") else None,
-            )
-            for event in events
-        ]
-        with self.write_lock:
-            with self.get_connection() as conn:
-                conn.execute("BEGIN IMMEDIATE")
-                try:
-                    conn.executemany(
-                        """
-                        INSERT INTO presence (user_id, login, type, timestamp, game_id)
-                        VALUES (?, ?, ?, ?, ?)
-                        """,
-                        rows,
-                    )
-                    conn.execute("COMMIT")
-                except Exception:
-                    conn.execute("ROLLBACK")
-                    raise
-
     def get_events(self, since_timestamp: float = 0.0) -> List[dict]:
         with self.get_connection() as conn:
             cursor = conn.execute(

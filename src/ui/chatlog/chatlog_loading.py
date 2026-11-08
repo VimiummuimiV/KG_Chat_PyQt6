@@ -9,6 +9,7 @@ from PyQt6.QtWidgets import QCalendarWidget
 
 from components.image_viewer.gallery import DayState
 from core.chatlogs.fetch import ChatlogNotFoundError
+from helpers.deferred import call_later
 from helpers.scroll.scroll import scroll
 from helpers.translate import tr
 from ui.messages.message_model import MessageData
@@ -85,7 +86,7 @@ class ChatlogLoadingMixin:
             return
         if self.current_date != datetime.now().date():
             return
-        QTimer.singleShot(0, lambda: scroll(self.list_view, mode="bottom", delay=100))
+        call_later(self, 0, lambda: scroll(self.list_view, mode="bottom", delay=100))
 
     def load_current_date(self):
         """Load single date chatlog - this is NORMAL viewing"""

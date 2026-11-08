@@ -421,10 +421,6 @@ class ButtonPanel(QWidget):
         """Remove a button from the panel"""
         self._scroll_container.remove_widget(button)
 
-    def _clear_buttons(self):
-        """Remove all buttons from the panel"""
-        self._scroll_container.clear_widgets()
-
     def eventFilter(self, obj, event):
         """Handle specialized button clicks (RMB, Ctrl+Click, Shift+Click)"""
         # Handle reset_size_button RMB click -> open presets dialog

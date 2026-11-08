@@ -1,9 +1,10 @@
 """ChatWindow: toolbar toggles and sound/notification/always-on-top state."""
 
-from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QApplication, QMessageBox
 
 from helpers.data import get_resource_dir
+from helpers.deferred import call_later
 from helpers.sounds import get_sound_path, is_sound_frozen
 from helpers.translate import tr
 from helpers.users.username_color_manager import change_username_color, reset_username_color
@@ -117,17 +118,6 @@ class ChatControlsMixin:
         self.button_panel.update_notification_button_icon()
         print(f"🔔 Notifications: {'Disabled' if muted else 'Enabled'}")
 
-    def _apply_notification_mode(self, mode: str):
-        """Set stack/replace mode (Settings only)."""
-        if mode not in ("stack", "replace"):
-            return
-        config = self.app_controller.config if self.app_controller else self.config
-        config.set("notification", "mode", value=mode)
-        if self.app_controller:
-            self.config.data = self.app_controller.config.data
-        popup_manager.set_notification_mode(mode)
-        self.button_panel.update_notification_button_icon()
-
     def update_notification_button_state(self):
         """Sync notification button visual to config state"""
         if getattr(self, "button_panel", None) and getattr(self.button_panel, "notification_button", None):
@@ -168,7 +158,7 @@ class ChatControlsMixin:
         if was_visible:
             self.setWindowOpacity(0)
             self.show()
-            QTimer.singleShot(50, lambda: self.setWindowOpacity(1))
+            call_later(self, 50, lambda: self.setWindowOpacity(1))
             self.activateWindow()
             self.raise_()
 

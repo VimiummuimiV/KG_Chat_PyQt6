@@ -41,7 +41,3 @@ class ThemeManager:
     def is_dark(self):
         """Check if current theme is dark"""
         return self._current_theme == self._DARK
-
-    def _get_current_theme(self):
-        """Get current theme name"""
-        return self._current_theme

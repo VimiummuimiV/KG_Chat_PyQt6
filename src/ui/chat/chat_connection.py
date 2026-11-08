@@ -67,7 +67,7 @@ class ChatConnectionMixin:
                 if not client.connect(self.account):
                     if is_current():
                         self.xmpp_client = client
-                        QTimer.singleShot(0, lambda: show_notification(
+                        self.dispatch.emit(lambda: show_notification(
                             title=tr("Connection Failed", "Ошибка подключения"),
                             message=tr("Could not connect to XMPP server", "Не удалось подключиться к серверу XMPP"),
                             config=self.config,
@@ -100,7 +100,7 @@ class ChatConnectionMixin:
                     return
 
                 self.xmpp_client = client
-                QTimer.singleShot(0, lambda: self.signal_emitter.bulk_update_complete.emit())
+                self.signal_emitter.bulk_update_complete.emit()
                 self.signal_emitter.connection_changed.emit('online')
 
                 listen_thread = threading.Thread(target=client.listen, daemon=True)
@@ -121,7 +121,7 @@ class ChatConnectionMixin:
 
                 if is_current():
                     self.xmpp_client = client
-                    QTimer.singleShot(0, lambda: show_notification(
+                    self.dispatch.emit(lambda: show_notification(
                         title=tr("Error", "Ошибка"),
                         message=tr(f"Connection error: {error_text}", f"Ошибка подключения: {error_text}"),
                         config=self.config,

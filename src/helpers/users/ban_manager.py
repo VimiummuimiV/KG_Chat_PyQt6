@@ -3,7 +3,7 @@
 import json
 import time
 from pathlib import Path
-from typing import Dict, Optional, Set
+from typing import Dict, Optional
 
 
 class BanManager:
@@ -48,14 +48,6 @@ class BanManager:
         self.save()
         return True
 
-    def _remove_user(self, user_id: str):
-        """Remove a ban"""
-        if str(user_id) in self._bans:
-            del self._bans[str(user_id)]
-            self.save()
-            return True
-        return False
-
     def _purge_expired(self):
         """Remove expired temporary bans"""
         now = int(time.time())
@@ -80,11 +72,6 @@ class BanManager:
         self._purge_expired()
         return any(data.get('username') == username for data in self._bans.values())
 
-    def _get_banned_user_ids(self) -> Set[str]:
-        """Get set of all currently banned user IDs"""
-        self._purge_expired()
-        return set(self._bans.keys())
-
     def get_all_bans(self):
         """Returns {user_id: {username, expires_at?, is_temporary}}"""
         self._purge_expired()
@@ -101,8 +88,3 @@ class BanManager:
         """Clear all bans"""
         self._bans.clear()
         self.save()
-
-    def _get_username(self, user_id: str) -> Optional[str]:
-        """Get username for a banned user ID"""
-        ban_data = self._bans.get(str(user_id))
-        return ban_data.get('username') if ban_data else None

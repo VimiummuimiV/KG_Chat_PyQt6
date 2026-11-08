@@ -65,14 +65,6 @@ class ScrollableButtonContainer(QWidget):
         widget.setParent(None)
         self._sync_content_size()
 
-    def clear_widgets(self):
-        keep = 1 if self._orientation == Qt.Orientation.Vertical else 0
-        while self._layout.count() > keep:
-            item = self._layout.takeAt(0)
-            if item.widget():
-                item.widget().setParent(None)
-        self._sync_content_size()
-
     def _scrollbar(self):
         if self._orientation == Qt.Orientation.Vertical:
             return self._scroll_area.verticalScrollBar()

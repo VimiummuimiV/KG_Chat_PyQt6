@@ -1,9 +1,10 @@
 """ChatlogWidget: message clicks and the nested split chatlog."""
 
-from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QApplication
 
 from components.button import set_button_icon
+from helpers.deferred import call_later
 from helpers.scroll.scroll import scroll
 from helpers.system.memory import release_memory_soon
 from helpers.translate import tr
@@ -23,7 +24,7 @@ class ChatlogSplitViewMixin:
     def scroll_and_highlight(self, target_row: int, scroll_delay: int = 50, highlight_delay: int = 200):
         """Scroll to target row and highlight it after a delay."""
         scroll(self.list_view, mode="middle", target_row=target_row, delay=scroll_delay)
-        QTimer.singleShot(highlight_delay, lambda: self.delegate.highlight_row(target_row, anchor=True))
+        call_later(self, highlight_delay, lambda: self.delegate.highlight_row(target_row, anchor=True))
 
     def anchor_frame_active(self) -> bool:
         """The anchor frame is held only while a filtered list and its full-log split are shown together"""
@@ -85,7 +86,7 @@ class ChatlogSplitViewMixin:
         self.filter_changed.emit(self.filtered_usernames)
 
         # Scroll + highlight after the list has rebuilt
-        QTimer.singleShot(100, lambda: self.scroll_and_highlight(
+        call_later(self, 100, lambda: self.scroll_and_highlight(
             target_row,
             scroll_delay=100,
             highlight_delay=250

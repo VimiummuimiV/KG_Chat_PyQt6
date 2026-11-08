@@ -9,6 +9,7 @@ from PyQt6.QtWidgets import QListView, QVBoxLayout, QWidget
 from components.search import MessageSearchBar
 from helpers.cache import get_cache
 from helpers.data import get_resource_dir
+from helpers.deferred import call_later
 from helpers.scroll.auto_scroll import AutoScroller
 from helpers.scroll.scroll import scroll
 from helpers.scroll.scroll_buttons import ScrollButtonsPanel
@@ -204,7 +205,7 @@ class MessagesWidget(TranslatableMixin, QWidget):
         row = self.model.add_message(msg_data)
 
         if at_bottom:
-            QTimer.singleShot(0, lambda: scroll(self.list_view, mode="bottom", delay=100))
+            call_later(self, 0, lambda: scroll(self.list_view, mode="bottom", delay=100))
         return row
 
     def record_presence_event(self, login: str, event_type: str):
@@ -215,7 +216,7 @@ class MessagesWidget(TranslatableMixin, QWidget):
             self.model.update_presence_entries(open_row, entries, presence_entries_to_text(entries))
             sb = self.list_view.verticalScrollBar()
             if (sb.maximum() - sb.value()) <= 100:
-                QTimer.singleShot(0, lambda: scroll(self.list_view, mode="bottom", delay=50))
+                call_later(self, 0, lambda: scroll(self.list_view, mode="bottom", delay=50))
             return
 
         entries = add_presence_entry([], login, event_type)

@@ -359,7 +359,7 @@ class ChatlogWidget(
         self.model.layoutChanged.emit()
         self.list_view.setUpdatesEnabled(True)
         self.list_view.viewport().update()
-        QTimer.singleShot(10, lambda: self.list_view.viewport().update())
+        QTimer.singleShot(10, self.list_view.viewport().update)  # a bound method is dropped with its widget
 
     def _retranslate(self, _code=None):
         self.retranslate_all()

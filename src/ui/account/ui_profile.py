@@ -25,6 +25,7 @@ from core.web.api_data import (
 )
 from helpers.browser import open_url as open_url_in_browser
 from helpers.cache import get_cache
+from helpers.deferred import call_later
 from helpers.fonts.fonts import FontType, get_font
 from helpers.load import make_rounded_pixmap
 from helpers.translate import on_language_changed, tr, TranslatableMixin
@@ -409,7 +410,7 @@ class ProfileWidget(TranslatableMixin, QWidget):
 
         # Load data
         request_avatar(self, str(user_id), lambda pixmap: self._set_avatar(str(user_id), pixmap))
-        QTimer.singleShot(0, lambda: self._fetch_and_display_data(user_id))
+        call_later(self, 0, lambda: self._fetch_and_display_data(user_id))
 
     def _set_avatar(self, user_id: str, pixmap: QPixmap):
         """Set avatar pixmap — only applied if this user is still active"""

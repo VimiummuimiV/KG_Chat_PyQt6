@@ -303,11 +303,6 @@ class ChatlogUserlistWidget(TranslatableMixin, QWidget):
         """Clear cache - called when going back to messages"""
         pass
 
-    def _reset_filter(self):
-        """Reset filter state (called when navigating dates)"""
-        # Keep the filter active across date changes
-        pass
-
     def _clear_widgets(self):
         """Clear user widgets"""
         self.user_widgets.clear()

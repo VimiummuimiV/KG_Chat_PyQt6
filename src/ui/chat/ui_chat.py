@@ -19,6 +19,7 @@ from core.state.self_ban import SelfBan
 from helpers.cache import get_cache
 from helpers.config import Config, get_config_path
 from helpers.data import get_resource_dir
+from helpers.deferred import call_later
 from helpers.fonts.fonts import get_userlist_width, set_application_font
 from helpers.system.memory import release_memory_soon
 from helpers.text.emoticons import EmoticonManager
@@ -183,7 +184,7 @@ class ChatWindow(
         track = self.config.get("competitions", "enabled")
         if track is None or track:
             # defer start until event loop is running
-            QTimer.singleShot(0, lambda: self.set_track_competitions(True))
+            call_later(self, 0, lambda: self.set_track_competitions(True))
 
         # Initialize emoticon manager
         emoticons_path = get_resource_dir("emoticons")

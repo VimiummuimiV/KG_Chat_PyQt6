@@ -2,10 +2,10 @@
 
 from datetime import datetime
 
-from PyQt6.QtCore import QTimer
 from PyQt6.QtGui import QCursor
 from PyQt6.QtWidgets import QApplication
 
+from helpers.deferred import call_later
 from helpers.scroll.scroll import scroll
 from helpers.system.memory import release_memory_soon
 from ui.chatlog.ui_chatlog import ChatlogWidget
@@ -180,7 +180,7 @@ class ChatViewsMixin:
 
             # Shrinking messages_widget's viewport here invalidates its "at bottom"
             # scroll position, breaking future auto-scroll in add_message() unless restored.
-            QTimer.singleShot(150, lambda: scroll(self.messages_widget.list_view, mode="bottom", delay=50))
+            call_later(self, 150, lambda: scroll(self.messages_widget.list_view, mode="bottom", delay=50))
             return
 
         self.chatlog_split_widget.load_date_and_scroll(date_str, time_str)
@@ -259,11 +259,11 @@ class ChatViewsMixin:
         """Scroll a list view to bottom after `delay` ms (lets layout settle first).
         Small shared helper — this exact QTimer+lambda+scroll pattern was repeated
         all over the file for messages/chatlog/competition scroll-to-bottom calls."""
-        QTimer.singleShot(delay, lambda: scroll(view, mode="bottom"))
+        call_later(view, delay, lambda: scroll(view, mode="bottom"))
 
     def scroll_to_row(self, view, row: int, delay: int = 0):
         """Scroll a list view to a specific row, centered."""
-        QTimer.singleShot(delay, lambda: scroll(view, mode="middle", target_row=row))
+        call_later(view, delay, lambda: scroll(view, mode="middle", target_row=row))
 
     def active_messages_widget(self):
         """MessagesWidget of the current tab (game room or General)."""

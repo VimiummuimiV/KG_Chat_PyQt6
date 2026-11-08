@@ -156,12 +156,6 @@ class RoomWidget(TranslatableMixin, QWidget):
             return self.room_label
         return f"{self.room_label} #{self.game_id}" if self.game_id else self.room_label
 
-    def _set_game_id(self, game_id):
-        self.game_id = game_id
-        self.room_jid = XMPPClient.game_room_jid(game_id)
-        self.messages_widget.clear()
-        self.user_list_widget.clear_all()
-
     def add_message(self, msg):
         self.messages_widget.add_message(msg)
 

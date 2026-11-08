@@ -218,20 +218,6 @@ _sound_lock = threading.Lock()
 _sound_obj = None
 
 
-def _cancel_current_sound():
-    """Stop the effect currently playing, if any."""
-    global _sound_obj
-    with _sound_lock:
-        sound = _sound_obj
-        _sound_obj = None
-    if sound is None:
-        return
-    try:
-        sound.stop()
-    except Exception:
-        pass
-
-
 def play_sound(sound_path: str, volume: float = 1.0, config=None, force: bool = False):
     """Play a short effect. Stops any previous effect first (no stacking).
 

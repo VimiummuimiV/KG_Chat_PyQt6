@@ -78,18 +78,3 @@ class WorkerCalculator:
         )
 
         return workers, info
-
-    @staticmethod
-    def _get_system_info() -> dict:
-        """Get system information"""
-        physical = WorkerCalculator._get_physical_cores()
-        logical = WorkerCalculator._get_logical_cores()
-        workers, info = WorkerCalculator.calculate_optimal_workers()
-
-        return {
-            'physical_cores': physical,
-            'logical_cores': logical,
-            'available_memory_gb': WorkerCalculator._get_available_memory_gb(),
-            'recommended_workers': workers,
-            'info': info
-        }

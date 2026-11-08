@@ -164,25 +164,6 @@ class AccountManager:
             print(f"❌ Error: {e}")
             return False
 
-    def _update_account_color(self, chat_username: str, background: str,
-                             avatar: Optional[str] = None) -> bool:
-        try:
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.cursor()
-
-                update_fields = {'background': background}
-                if avatar is not None:
-                    update_fields['avatar'] = avatar
-
-                set_clause = ', '.join(f"{k}=?" for k in update_fields)
-                params = list(update_fields.values()) + [chat_username]
-                cursor.execute(f'UPDATE accounts SET {set_clause} WHERE chat_username=?', params)
-
-                return cursor.rowcount > 0
-        except Exception as e:
-            print(f"❌ Error updating account: {e}")
-            return False
-
     def update_session_cookies(self, chat_username: str, session_cookies: str) -> bool:
         """Refresh stored website session cookies for an existing account"""
         try:

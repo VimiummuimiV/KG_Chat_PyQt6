@@ -253,8 +253,3 @@ class ChatlogDB(SqliteStore):
                 'unique_users': unique_users,
                 'db_size_mb': round(db_size_mb, 2)
             }
-
-    def _vacuum(self):
-        """Optimize database (reclaim space)"""
-        with self.get_connection() as conn:
-            conn.execute("VACUUM")

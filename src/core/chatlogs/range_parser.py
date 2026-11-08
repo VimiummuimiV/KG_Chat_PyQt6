@@ -1,7 +1,6 @@
 """Chatlog parser - SQLite database with multithreading for network fetches"""
 
 import threading
-from collections import Counter
 from concurrent.futures import as_completed, ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -228,7 +227,3 @@ class ChatlogsParserEngine:
             msg for msg in messages
             if msg.date != config.from_date or msg.timestamp > config.from_time
         ]
-
-    def _count_messages_per_user(self, messages: List[ChatMessage]) -> dict:
-        """Count messages per username"""
-        return Counter(msg.username for msg in messages)

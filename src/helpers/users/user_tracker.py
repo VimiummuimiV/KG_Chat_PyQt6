@@ -107,9 +107,6 @@ class UserTracker:
             hours = 24
         return max(1, min(720, hours))
 
-    def _set_retention_hours(self, hours: int):
-        self.config.set("user_tracker", "retention_hours", value=max(1, min(720, int(hours))))
-
     def is_tracked(self, user_id: str = None, login: str = None) -> bool:
         if not self.selected:
             return False

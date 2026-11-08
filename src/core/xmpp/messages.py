@@ -20,11 +20,6 @@ class Message:
     timestamp: Optional[datetime] = None
     initial: bool = False
 
-    def _get_avatar_url(self) -> Optional[str]:
-        if self.avatar:
-            return f"https://klavogonki.ru{self.avatar}"
-        return None
-
 @dataclass
 class _Presence:
     """Parsed presence"""
@@ -38,11 +33,6 @@ class _Presence:
     affiliation: str = 'none'
     role: str = 'participant'
     moderator: bool = False
-
-    def _get_avatar_url(self) -> Optional[str]:
-        if self.avatar:
-            return f"https://klavogonki.ru{self.avatar}"
-        return None
 
 class MessageParser:
     """Parse XMPP messages and presence"""
