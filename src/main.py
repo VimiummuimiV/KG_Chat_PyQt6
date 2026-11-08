@@ -3,7 +3,7 @@ import sys
 from pathlib import Path
 
 from PyQt6.QtCore import pyqtSignal, pyqtSlot, QDir, QLockFile, QMetaObject, QObject, Qt, QTimer
-from PyQt6.QtGui import QAction, QIcon
+from PyQt6.QtGui import QAction
 from PyQt6.QtWidgets import QApplication, QMenu, QMessageBox, QSystemTrayIcon
 
 
@@ -89,14 +89,12 @@ class Application(QObject):
         # Initialize icons path FIRST
         self.icons_path = Path(__file__).parent / "icons"
 
-        # Set global application icon EARLY - before any windows are created
-        # Uses name.ico for taskbar/dock on all platforms
-        app_icon = self._get_app_icon()
-        self.app.setWindowIcon(app_icon)
-
         # Initialize tray badge manager
         self._tray_badge = TrayIconWithBadge(self.icons_path)
         self._unread_count = 0
+
+        # Set the application icon before any windows are created, matching the tray SVG.
+        self.app.setWindowIcon(self._get_icon())
 
         # Initialize pronunciation manager
         self.pronunciation_manager = PronunciationManager(self.data_path)
@@ -291,11 +289,6 @@ class Application(QObject):
         else:
             popup_manager.set_muted(muted)
 
-    def _get_app_icon(self):
-        """Get the main application icon - name.ico for taskbar/dock"""
-        ico_path = self.icons_path / "crazy.ico"
-        return QIcon(str(ico_path))
-
     def _get_icon(self, count: int = 0):
         """Get chat icon with optional message count badge"""
         return self._tray_badge.create_icon(count)
@@ -469,6 +462,7 @@ class Application(QObject):
             ban_manager=self.ban_manager,
             user_tracker=self.user_tracker
         )
+        self.chat_window.setWindowIcon(self._get_icon())
         self.chat_window.set_tray_mode(True)
 
         # Connect font size changes to refresh UI
