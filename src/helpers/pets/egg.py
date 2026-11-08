@@ -1,4 +1,4 @@
-"""Egg laid by a pet: falls, tips over, rolls by its shape, breaks on a hard landing and vanishes after its life-time."""
+"""Egg laid by a pet: falls, tips over, rolls by its shape, breaks on a hard landing or when old, then evaporates."""
 
 import math
 import random
@@ -13,12 +13,15 @@ from helpers.pets.throwable import Throwable
 
 
 _INTACT_LIFETIME_MS = 90000
-_BROKEN_LIFETIME_MS = 8000  # counted from the landing; the break animation plays within it
+_BROKEN_LIFETIME_MS = 8000  # counted from the break; the break animation plays within it, then the puddle evaporates
 _BREAK_IMPACT_SPEED = 600  # device pixels per second; about a 75 pixel fall
 _MAXIMUM_ROLL_SPEED = 700  # device pixels per second
 _START_TILT = 0.05  # radians; a laid egg stands on its blunt end only until this tilt grows
 _WALL_BOUNCE = 0.4  # share of the spin kept after hitting the side of the area
+_RESTING_SPIN = 0.2  # radians per second; an old egg bursts only when it lies about this still
 _EGG_KIND = PetKind("egg", "white", frozenset())
+_ROLL, _BREAK, _EVAPORATE = "roll", "break", "evaporate"  # sprite states; the egg is intact only while rolling
+_BURST_RIGHT, _BURST_LEFT = "burst_right", "burst_left"  # an old egg cracking open, by the side its pointed end lies on
 
 
 class Egg(Throwable):
@@ -27,7 +30,7 @@ class Egg(Throwable):
     def __init__(self, center_x: float, lift: float, pixel_size: int):
         super().__init__()
         self._pixel_size = pixel_size
-        self.is_broken = False
+        self._state = _ROLL
         self._age_ms = 0
         self._angle = random.choice((-_START_TILT, _START_TILT)) % math.tau  # clockwise turn; zero is upright
         self._spin = 0.0  # radians per second, clockwise
@@ -37,23 +40,23 @@ class Egg(Throwable):
 
     @property
     def _animation(self):
-        return load_animation(_EGG_KIND, "break" if self.is_broken else "roll", self._pixel_size)
+        return load_animation(_EGG_KIND, self._state, self._pixel_size)
 
     @property
     def pixmap(self) -> QPixmap:
         animation = self._animation
-        if self.is_broken:
+        if self._state != _ROLL:
             return animation.pixmap_once(self._age_ms)
         return animation.frames_right[round(self._angle / math.tau * len(animation.frames_right)) % len(animation.frames_right)]
 
     @property
     def can_be_held(self) -> bool:
-        return not self.is_broken
+        return self._state == _ROLL
 
     @property
     def expired(self) -> bool:
-        """Whether the life-time is over and the egg should be removed."""
-        return self._age_ms >= (_BROKEN_LIFETIME_MS if self.is_broken else _INTACT_LIFETIME_MS)
+        """Whether the egg has evaporated and should be removed."""
+        return self._state == _EVAPORATE and self._age_ms >= self._animation.cycle_ms
 
     def maximum_lift(self, area_height: int) -> float:
         return area_height - self.pixmap.height()
@@ -74,10 +77,7 @@ class Egg(Throwable):
         if impact_speed <= _BREAK_IMPACT_SPEED:
             self._spin = spin_for_speed(self._angle, self._limited_speed(self.velocity[0]), self._pixel_size)
             return
-        center = self.x + self.pixmap.width() / 2
-        self.is_broken = True
-        self._age_ms = 0
-        self.x = center - self.pixmap.width() / 2
+        self._begin(_BREAK)
 
     def rect(self, area_height: int) -> QRect:
         """Return the area covered by the visible pixels of the egg."""
@@ -89,12 +89,27 @@ class Egg(Throwable):
         """Advance the egg by step_ms and keep it inside the area; a held egg does not age."""
         if self.is_flying:
             self.fly(step_ms, area_height)
-        elif not self.is_held and not self.is_broken:
+        elif not self.is_held and self._state == _ROLL:
             self._angle, self._spin, distance = advance(self._angle, self._spin, step_ms / 1000, self._pixel_size)
             self.x += distance
         if not self.is_held:
             self._age_ms += step_ms
+            self._advance_life()
         self._keep_inside(line_width)
+
+    def _begin(self, state: str) -> None:
+        """Switch to another sprite state around the same center."""
+        center = self.x + self.pixmap.width() / 2
+        self._state, self._age_ms = state, 0
+        self.x = center - self.pixmap.width() / 2
+
+    def _advance_life(self) -> None:
+        """Move to the next stage once the time of the current one is over."""
+        if self._state == _ROLL:
+            if self._age_ms >= _INTACT_LIFETIME_MS and not self.is_flying and abs(self._spin) < _RESTING_SPIN:
+                self._begin(_BURST_RIGHT if math.sin(self._angle) > 0 else _BURST_LEFT)
+        elif self._state != _EVAPORATE and self._age_ms >= _BROKEN_LIFETIME_MS:
+            self._begin(_EVAPORATE)
 
     @staticmethod
     def _limited_speed(speed: float) -> float:
