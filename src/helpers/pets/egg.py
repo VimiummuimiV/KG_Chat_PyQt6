@@ -17,7 +17,6 @@ _BROKEN_LIFETIME_MS = 8000  # counted from the landing; the break animation play
 _BREAK_IMPACT_SPEED = 600  # device pixels per second; about a 75 pixel fall
 _MAXIMUM_ROLL_SPEED = 700  # device pixels per second
 _START_TILT = 0.05  # radians; a laid egg stands on its blunt end only until this tilt grows
-_PUSH_BLEND = 0.35  # share of the gap to the cursor speed closed by each mouse move over the egg
 _WALL_BOUNCE = 0.4  # share of the spin kept after hitting the side of the area
 _EGG_KIND = PetKind("egg", "white", frozenset())
 
@@ -63,6 +62,14 @@ class Egg(Throwable):
         super().grab(point, area_height, timestamp_ms)
         self._spin = 0.0
 
+    def drag_to(self, point: QPoint, area_height: int, timestamp_ms: int) -> None:
+        """Carry the held egg; while it stays on the floor it rolls under the cursor instead of sliding."""
+        before = self.x
+        super().drag_to(point, area_height, timestamp_ms)
+        if self.lift <= self._pixel_size:
+            turn = spin_for_speed(self._angle, self.x - before, self._pixel_size)
+            self._angle = (self._angle + turn) % math.tau
+
     def land(self, impact_speed: float) -> None:
         if impact_speed <= _BREAK_IMPACT_SPEED:
             self._spin = spin_for_speed(self._angle, self._limited_speed(self.velocity[0]), self._pixel_size)
@@ -71,13 +78,6 @@ class Egg(Throwable):
         self.is_broken = True
         self._age_ms = 0
         self.x = center - self.pixmap.width() / 2
-
-    def push(self, speed: float) -> None:
-        """Sweep the egg with the cursor: its rolling speed moves toward the speed of the cursor."""
-        if self.is_flying or self.is_held or self.is_broken:
-            return
-        target = spin_for_speed(self._angle, self._limited_speed(speed), self._pixel_size)
-        self._spin += (target - self._spin) * _PUSH_BLEND
 
     def rect(self, area_height: int) -> QRect:
         """Return the area covered by the visible pixels of the egg."""

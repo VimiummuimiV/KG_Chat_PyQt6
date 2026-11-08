@@ -14,7 +14,6 @@ from helpers.pets.throwable import Throwable
 
 _TICK_MS = 33
 _MAXIMUM_STEP_MS = 100  # a stall (sleep, window drag) must not make pets jump across the line
-_HOVER_STALE_MS = 100  # a cursor still for this long has no speed to push with
 _ANCHOR_EVENTS = (QEvent.Type.Move, QEvent.Type.Resize, QEvent.Type.Show, QEvent.Type.Hide)
 
 
@@ -28,9 +27,7 @@ class PetOverlay(QWidget):
         self._pets: list[Pet] = []
         self._eggs: list[Egg] = []
         self._grabbed: Throwable | None = None
-        self._hover: tuple[QPoint, int] | None = None  # last cursor point over the area and its time
         self._painted = QRegion()
-        self.setMouseTracking(True)
         self._clock = QElapsedTimer()
         self._timer = QTimer(self)
         self._timer.setInterval(_TICK_MS)
@@ -110,31 +107,13 @@ class PetOverlay(QWidget):
             self._grabbed.grab(point, area_height, event.timestamp())
 
     def mouseMoveEvent(self, event):
-        point = self._device_point(event)
         if self._grabbed:
-            self._grabbed.drag_to(point, self._device_size()[1], event.timestamp())
-            return
-        self._push_eggs(point, event.timestamp())
-
-    def leaveEvent(self, event):
-        super().leaveEvent(event)
-        self._hover = None
+            self._grabbed.drag_to(self._device_point(event), self._device_size()[1], event.timestamp())
 
     def mouseReleaseEvent(self, event):
         if self._grabbed and event.button() == Qt.MouseButton.LeftButton:
             self._grabbed.release(event.timestamp())
             self._grabbed = None
-
-    def _push_eggs(self, point: QPoint, timestamp_ms: int) -> None:
-        """Roll the topmost egg under the cursor by the horizontal speed of the cursor."""
-        previous, self._hover = self._hover, (point, timestamp_ms)
-        if previous is None or timestamp_ms - previous[1] > _HOVER_STALE_MS:
-            return
-        speed = (point.x() - previous[0].x()) * 1000 / max(timestamp_ms - previous[1], 1)
-        area_height = self._device_size()[1]
-        egg = next((egg for egg in reversed(self._eggs) if egg.rect(area_height).contains(point)), None)
-        if egg:
-            egg.push(speed)
 
     def _bodies(self) -> list[Throwable]:
         """Everything drawn on the line; eggs come last so they lie over the pets and are picked first."""
