@@ -29,6 +29,7 @@ _COLS           = 7    # columns in the emoticon grid (must match number of grou
 _BTN_SIZE       = 60   # emoticon & tab button size (px)
 _BTN_SPACING    = 6    # gap between buttons (px)
 _BTN_BORDER     = 2    # button border width (px)
+_NAV_ICON_SIZE  = 32   # group icon size in the nav buttons (px)
 _MARGIN         = 6    # margin for nav area (px)
 _CONTENT_MARGIN = _MARGIN - 3  # margin for content area (px) — compensates for QScrollArea platform chrome
 _GRID_WIDTH     = _COLS * _BTN_SIZE + (_COLS - 1) * _BTN_SPACING
@@ -320,7 +321,7 @@ class EmoticonSelectorWidget(TranslatableMixin, QWidget):
         self._nav_container.installEventFilter(self)
 
         # Create nav buttons
-        self._create_nav_button("⭐", "recent", "Recent", "Недавние", nav_layout, active=True)
+        self._create_nav_button("emoticon_groups/star.svg", "recent", "Recent", "Недавние", nav_layout, active=True)
 
         group_tooltips = {
             'Army': ("Army", "Армия"),
@@ -330,16 +331,16 @@ class EmoticonSelectorWidget(TranslatableMixin, QWidget):
             'Halloween': ("Halloween", "Хэллоуин"),
             'Inlove': ("Inlove", "Влюблённые"),
         }
-        for group_name, (emoji, key) in {
-            'Army': ('🪖', 'army'),
-            'Boys': ('👦', 'boys'),
-            'Christmas': ('🎄', 'christmas'),
-            'Girls': ('👧', 'girls'),
-            'Halloween': ('🎃', 'halloween'),
-            'Inlove': ('❤️', 'inlove')
+        for group_name, (icon_name, key) in {
+            'Army': ('emoticon_groups/military-helmet.svg', 'army'),
+            'Boys': ('emoticon_groups/boy.svg', 'boys'),
+            'Christmas': ('emoticon_groups/christmas-tree.svg', 'christmas'),
+            'Girls': ('emoticon_groups/girl.svg', 'girls'),
+            'Halloween': ('emoticon_groups/jack-o-lantern.svg', 'halloween'),
+            'Inlove': ('emoticon_groups/red-heart.svg', 'inlove')
         }.items():
             tooltip_en, tooltip_ru = group_tooltips[group_name]
-            self._create_nav_button(emoji, key, tooltip_en, tooltip_ru, nav_layout)
+            self._create_nav_button(icon_name, key, tooltip_en, tooltip_ru, nav_layout)
 
         # Content area
         self._content_container = QWidget()
@@ -369,9 +370,11 @@ class EmoticonSelectorWidget(TranslatableMixin, QWidget):
         # Nav height: button size + margins
         self._nav_container.setFixedHeight(_NAV_HEIGHT)
 
-    def _create_nav_button(self, emoji: str, key: str, tooltip_en: str, tooltip_ru: str, layout: QHBoxLayout, active: bool = False):
+    def _create_nav_button(self, icon_name: str, key: str, tooltip_en: str, tooltip_ru: str, layout: QHBoxLayout, active: bool = False):
         """Create a navigation button"""
-        btn = QPushButton(emoji)
+        btn = QPushButton()
+        btn.setIcon(QIcon(str(self.icons_path / icon_name)))
+        btn.setIconSize(QSize(_NAV_ICON_SIZE, _NAV_ICON_SIZE))
         btn.setFixedSize(_BTN_SIZE, _BTN_SIZE)
         btn.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
         self.tr_set(btn.setToolTip, tooltip_en, tooltip_ru)
@@ -388,7 +391,6 @@ class EmoticonSelectorWidget(TranslatableMixin, QWidget):
                 background: {c['btn_active_bg'] if active else 'transparent'};
                 border: {_BTN_BORDER}px solid {c['btn_active_border'] if active else 'transparent'};
                 border-radius: {_RADIUS_BTN}px;
-                font-size: 22px;
             }}
             QPushButton:hover {{
                 background: {c['btn_active_bg'] if active else c['btn_hover_bg']};

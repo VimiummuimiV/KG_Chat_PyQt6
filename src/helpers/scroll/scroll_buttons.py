@@ -37,8 +37,8 @@ _BUTTONS = (
 
 
 _DATE_JUMP_ACTIONS = (
-    (-1, "line/calendar-arrow-up-line.svg",  "Previous day", "Предыдущий день"),
-    (1, "line/calendar-arrow-down-line.svg", "Next day",     "Следующий день"),
+    (-1, "fill/calendar-arrow-up-fill.svg",  "Previous day", "Предыдущий день"),
+    (1, "fill/calendar-arrow-down-fill.svg", "Next day",     "Следующий день"),
 )
 
 

@@ -179,8 +179,8 @@ class GalleryBar(QFrame):
         self._previous_button = create_icon_button(icons_path, "line/arrow-left-s-line.svg", config=config)
         self._slideshow_button = create_icon_button(icons_path, "fill/play-large-fill.svg", config=config)
         self._next_button = create_icon_button(icons_path, "line/arrow-right-s-line.svg", config=config)
-        self._previous_day_button = create_icon_button(icons_path, "line/calendar-arrow-left-line.svg", config=config)
-        self._next_day_button = create_icon_button(icons_path, "line/calendar-arrow-right-line.svg", config=config)
+        self._previous_day_button = create_icon_button(icons_path, "fill/calendar-arrow-left-fill.svg", config=config)
+        self._next_day_button = create_icon_button(icons_path, "fill/calendar-arrow-right-fill.svg", config=config)
         self._image_buttons = (self._previous_button, self._slideshow_button, self._next_button)
         side_buttons = (self._reply_button, self._source_button, self._previous_day_button, self._next_day_button)
         for button in (*self._image_buttons, *side_buttons):

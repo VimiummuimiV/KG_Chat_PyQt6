@@ -33,9 +33,10 @@ main.py                 application entry: tray, account window, global hotkey, 
 settings/config.json    default configuration (the user config overrides it)
 themes/theme.py         theme manager, light/dark switching, stylesheets
 bin/ emoticons/ fonts/ sounds/          bundled resources, not Python code
-icons/                  bundled icons: chat.ico in the root, SVGs only in line/ and fill/ (see Icons)
+icons/                  bundled icons: chat.ico in the root, SVGs only in the subfolders below (see Icons)
   line/                 outline icons, every file name ends with -line.svg
   fill/                 solid icons, every file name ends with -fill.svg
+  emoticon_groups/      full-colour Noto Color Emoji icons of the group buttons in ui/chat/ui_emoticon_selector.py
 core/                   no widgets: data, network, XMPP, parsing, persistence
   xmpp/                 client.py (BOSH), messages.py, userlist.py, jid_utils.py
   chatlogs/             fetch.py, database.py (SQLite), range_parser.py (workers), workers_calculator.py
@@ -86,7 +87,7 @@ ui/                     screens and windows of the app
 - A modal dialog → `ui/dialogs/`
 - Default setting values → `settings/config.json`; colors and theming → `themes/` and `helpers/colors/color_utils.py`
 - Persistent user data goes under `KG_Chat_Data` via `get_data_dir()`, never next to the sources.
-- A new SVG icon → `icons/line/` or `icons/fill/` by its style, named by the Icons rules
+- A new SVG icon → `icons/line/` or `icons/fill/` by its style, named by the Icons rules; a group button icon of the emoticon panel → `icons/emoticon_groups/`
 - Bundled resources (icons, sounds, fonts, emoticons) are located with `get_resource_dir("icons")` from `helpers/data.py`, never with `Path(__file__)` arithmetic, so moving a file cannot break the path.
 
 ## Imports
@@ -133,12 +134,13 @@ from helpers.translate import tr
 
 ## Icons
 
-- SVG icons live only in `icons/line/` (outline) or `icons/fill/` (solid). Never loose in `icons/`; only `chat.ico` stays in its root. A file name ends with `-line` or `-fill` and the suffix always matches the folder.
+- SVG icons live only in `icons/line/` (outline) or `icons/fill/` (solid), plus the one special folder `icons/emoticon_groups/` (below). Never loose in `icons/`; only `chat.ico` stays in its root. A file name ends with `-line` or `-fill` and the suffix always matches the folder.
 - The name is the original icon name from the library it came from (Remix Icons or Feather Icons, lowercase kebab-case), never a name by usage (`close-large-line`, not `close-button`; `delete-bin-fill`, not `trash`). Original names keep similar symbols apart: `close-large-line` (plain X) and `close-circle-line` (X in a circle), `delete-bin-fill` and `delete-bin-2-fill`.
 - Remix names already end with `-line` / `-fill` and are kept as is (`user-3-fill`, `arrow-left-s-line`). A name without a style suffix gets one: Remix `align-center` → `align-center-line`, `hashtag` → `hashtag-line`; every Feather icon is stroke-based, so it gets `-line` (`chevron-down-line`).
-- A modified or hand-made icon keeps the name of the icon it is based on and puts the change in front of the suffix: `calendar-arrow-left-line`, `delete-bin-2-up-fill`.
+- A modified or hand-made icon keeps the name of the icon it is based on and puts the change in front of the suffix: `calendar-arrow-left-fill`, `delete-bin-2-up-fill`. The style comes from how the icon is drawn (outline or solid), not from its base: a hand-made solid icon is `-fill` even when it resembles a `-line` icon.
 - When a shape looks the same in both styles (a plain X, a spinner), it is a line icon.
 - Code refers to an icon with its folder: `"line/close-large-line.svg"`, `"fill/user-3-fill.svg"` (`icons_path / name` stays unchanged). When an icon is renamed or moved, update every reference in the same change.
+- `icons/emoticon_groups/` holds the colour icons of the emoticon panel group buttons, taken from Noto Color Emoji. Names are the Noto / CLDR emoji names (`christmas-tree.svg`, `red-heart.svg`) with no `-line` / `-fill` suffix, because these icons are never recoloured: load them with `QIcon(path)`, not `render_svg_icon`. Qt SVG needs plain presentation attributes: no `style="..."`, no `<use>`, and `clipPath` only inside `<defs>`. A new group gets its icon from there, never an emoji character in a button text.
 - Digits in icon file names are allowed: they mirror the original library names. The no-digits rule above is for code identifiers.
 
 ## Good practices
@@ -156,7 +158,7 @@ from helpers.translate import tr
 - Public classes and functions get a one-line English docstring and type hints on new code.
 - Add a dependency only when the standard library or an existing helper cannot do the job.
 - Delete dead code and unused names instead of leaving them.
-- Verify before delivering: the files compile (`python -m py_compile`), pyflakes is clean, every module imports (offscreen Qt), every `.svg` name used in code exists in `icons/line/` or `icons/fill/`, and any new logic is exercised with a quick check.
+- Verify before delivering: the files compile (`python -m py_compile`), pyflakes is clean, every module imports (offscreen Qt), every `.svg` name used in code exists in its icon folder, and any new logic is exercised with a quick check.
 
 ## Delivery
 
