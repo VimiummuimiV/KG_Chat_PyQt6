@@ -17,7 +17,7 @@ _BROKEN_LIFETIME_MS = 8000  # counted from the break; the break animation plays 
 _BREAK_IMPACT_SPEED = 600  # device pixels per second; about a 75 pixel fall
 _MAXIMUM_ROLL_SPEED = 700  # device pixels per second
 _BITES_PER_EGG = 4  # a broken egg is eaten in this many bites, each taking an equal part of its width
-_CLAIM_MS = 300  # a pet keeps its claim on a broken egg only while it renews it
+_CLAIM_MS = 300  # the pet that started eating keeps the egg only while it renews the claim
 _START_TILT = 0.05  # radians; a laid egg stands on its blunt end only until this tilt grows
 _WALL_BOUNCE = 0.4  # share of the spin kept after hitting the side of the area
 _RESTING_SPIN = 0.2  # radians per second; an old egg bursts only when it lies about this still
@@ -95,9 +95,13 @@ class Egg(Throwable):
             return
         self._begin(_BREAK)
 
+    def is_free_for(self, pet: object) -> bool:
+        """Whether pet may eat the egg: nobody else has started on it."""
+        return self._claim_ms <= 0 or self._eater is pet
+
     def claim(self, pet: object) -> bool:
-        """Reserve the egg for pet, or renew its claim; False while another pet holds it."""
-        if self._claim_ms > 0 and self._eater is not pet:
+        """Start eating the egg or renew the claim; False when another pet got there first."""
+        if not self.is_free_for(pet):
             return False
         self._eater, self._claim_ms = pet, _CLAIM_MS
         return True

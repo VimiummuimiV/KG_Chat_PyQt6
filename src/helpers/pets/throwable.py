@@ -1,6 +1,8 @@
 """Shared physics of bodies on the pet line: held by the mouse, thrown, falling and landing."""
 
+import math
 from abc import ABC, abstractmethod
+from collections import deque
 from dataclasses import dataclass
 
 from PyQt6.QtCore import QPoint
@@ -8,10 +10,12 @@ from PyQt6.QtGui import QPixmap
 
 
 GRAVITY = 2400  # device pixels per second squared
-_MAXIMUM_THROW_SPEED = 1800  # device pixels per second
+_MAXIMUM_THROW_SPEED = 1500  # device pixels per second
 _DRAG_THRESHOLD = 4  # device pixels; a shorter press is a click
 _STALE_VELOCITY_MS = 80  # a body held still this long before release is dropped, not thrown
-_VELOCITY_BLEND = 0.5  # weight of the newest mouse movement in the throw speed
+_VELOCITY_WINDOW_MS = 100  # the hand speed is measured over this much of the latest movement
+_THROW_DEAD_SPEED = 600  # device pixels per second; a hand moving slower than this only drops the body
+_THROW_GAIN = 0.6  # share of the hand speed beyond the dead speed that the body leaves with
 
 
 @dataclass
@@ -20,8 +24,7 @@ class _Grab:
 
     offset: QPoint  # grab point inside the body's pixmap
     start: QPoint
-    last: QPoint
-    _last_ms: int
+    samples: deque  # (timestamp in ms, point) of the latest mouse positions
     _moved: bool = False
 
 
@@ -64,12 +67,12 @@ class Throwable(ABC):
 
     def grab(self, point: QPoint, area_height: int, timestamp_ms: int) -> None:
         """Pick the body up at point."""
-        self.hold = _Grab(point - self.position(area_height), point, point, timestamp_ms)
+        self.hold = _Grab(point - self.position(area_height), point, deque([(timestamp_ms, point)]))
         self.is_flying = False
         self.velocity = [0.0, 0.0]
 
     def drag_to(self, point: QPoint, area_height: int, timestamp_ms: int) -> None:
-        """Carry the held body to point, tracking the speed of the hand."""
+        """Carry the held body to point, remembering the latest hand positions."""
         grab = self.hold
         if not grab._moved and (point - grab.start).manhattanLength() < _DRAG_THRESHOLD:
             return
@@ -77,12 +80,9 @@ class Throwable(ABC):
         self.x = point.x() - grab.offset.x()
         top = point.y() - grab.offset.y()
         self.lift = max(0.0, min(area_height - self.pixmap.height() - top, self.maximum_lift(area_height)))
-        seconds = max(timestamp_ms - grab._last_ms, 1) / 1000
-        newest = ((point.x() - grab.last.x()) / seconds, (grab.last.y() - point.y()) / seconds)
-        self.velocity = [
-            (1 - _VELOCITY_BLEND) * old + _VELOCITY_BLEND * new for old, new in zip(self.velocity, newest)
-        ]
-        grab.last, grab._last_ms = point, timestamp_ms
+        grab.samples.append((timestamp_ms, point))
+        while len(grab.samples) > 1 and grab.samples[0][0] < timestamp_ms - _VELOCITY_WINDOW_MS:
+            grab.samples.popleft()
 
     def release(self, timestamp_ms: int) -> None:
         """Let go: a click only calls click(), a drag throws the body."""
@@ -91,10 +91,22 @@ class Throwable(ABC):
             self.is_flying = self.lift > 0
             self.click()
             return
-        if timestamp_ms - grab._last_ms > _STALE_VELOCITY_MS:
-            self.velocity = [0.0, 0.0]
-        self.velocity = [max(-_MAXIMUM_THROW_SPEED, min(speed, _MAXIMUM_THROW_SPEED)) for speed in self.velocity]
+        self.velocity = self._throw_velocity(grab, timestamp_ms)
         self.is_flying = True
+
+    @staticmethod
+    def _throw_velocity(grab: _Grab, timestamp_ms: int) -> list[float]:
+        """Turn the recent hand movement into a launch speed: slow movement drops the body, a real swing throws it."""
+        (oldest_ms, oldest), (newest_ms, newest) = grab.samples[0], grab.samples[-1]
+        if timestamp_ms - newest_ms > _STALE_VELOCITY_MS or newest_ms == oldest_ms:
+            return [0.0, 0.0]
+        seconds = (newest_ms - oldest_ms) / 1000
+        right, up = (newest.x() - oldest.x()) / seconds, (oldest.y() - newest.y()) / seconds
+        hand_speed = math.hypot(right, up)
+        launch_speed = min((hand_speed - _THROW_DEAD_SPEED) * _THROW_GAIN, _MAXIMUM_THROW_SPEED)
+        if launch_speed <= 0:
+            return [0.0, 0.0]
+        return [right * launch_speed / hand_speed, up * launch_speed / hand_speed]
 
     def fly(self, step_ms: int, area_height: int) -> None:
         """Move a thrown or falling body; touching the line ends the flight and calls land()."""

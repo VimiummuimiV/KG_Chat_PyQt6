@@ -97,16 +97,18 @@ class Pet(Throwable):
         return Egg(tail, _EGG_DROP_ART_PIXELS * self.pixel_size, self.pixel_size)
 
     def look_for_food(self, eggs: Iterable[Egg]) -> None:
-        """Start running to the nearest broken egg nobody else has claimed, if this pet eats eggs."""
-        if not self._eats_eggs or self._meal or self._is_scared or self.is_held or self.is_flying:
+        """Run to the nearest broken egg nobody has started eating; every pet that eats eggs joins the race."""
+        if not self._eats_eggs or self._is_scared or self.is_held or self.is_flying:
             return
-        edible = (egg for egg in eggs if egg.is_edible)
-        for egg in sorted(edible, key=lambda egg: self._approach(egg)[0]):
-            if egg.claim(self):
-                self._meal = _Meal(egg, self._approach(egg)[1])
-                self._facing_right = self._meal.from_left
-                self._start_state(_CHASE_STATE, 0)
-                return
+        if self._meal and self._meal.is_eating:
+            return
+        free = (egg for egg in eggs if egg.is_edible and egg.is_free_for(self))
+        nearest = min(free, key=lambda egg: self._approach(egg)[0], default=None)
+        if nearest is None or (self._meal and self._meal.egg is nearest):
+            return
+        self._meal = _Meal(nearest, self._approach(nearest)[1])
+        self._facing_right = self._meal.from_left
+        self._start_state(_CHASE_STATE, 0)
 
     def click(self) -> None:
         self._scare()
@@ -164,9 +166,9 @@ class Pet(Throwable):
             self._choose_state()
 
     def _follow_meal(self, step_ms: int) -> None:
-        """Run to the egg of the meal, then eat it bite by bite."""
+        """Run to the egg of the meal, then eat it; give up when another pet or the evaporation wins."""
         meal = self._meal
-        if not meal.egg.claim(self) or not (meal.is_eating or meal.egg.is_edible):
+        if not meal.is_eating and not (meal.egg.is_edible and meal.egg.is_free_for(self)):
             self._end_meal()
             return
         self._facing_right = meal.from_left
@@ -176,9 +178,12 @@ class Pet(Throwable):
             self._reach_egg(meal)
 
     def _reach_egg(self, meal: _Meal) -> None:
-        """Keep running until the nose touches the egg, then stop and start eating."""
+        """Keep running until the nose touches the egg; the pet that gets there first claims it and eats."""
         stop = self._nose_stop(meal.egg, meal.from_left)
         if (stop - self.x) * (1 if meal.from_left else -1) > 0:
+            return
+        if not meal.egg.claim(self):
+            self._end_meal()
             return
         self.x = stop
         meal.is_eating = True
@@ -187,6 +192,7 @@ class Pet(Throwable):
     def _eat(self, meal: _Meal, step_ms: int) -> None:
         """Take one bite at the start of every eating cycle and step forward to the new end of the egg."""
         egg = meal.egg
+        egg.claim(self)
         egg.keep_fresh(step_ms)
         cycle_ms = self._animation.cycle_ms
         bites_due = self._state_elapsed_ms // cycle_ms + 1
