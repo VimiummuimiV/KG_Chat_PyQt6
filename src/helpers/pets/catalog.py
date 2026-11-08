@@ -12,9 +12,10 @@ MAXIMUM_PET_COUNT = 10
 MAXIMUM_SIZE_MULTIPLIER = 10
 DEFAULT_SIZE_MULTIPLIER = 2
 _DEFAULT_PET_COUNTS = {"dog/akita": 1}
+EAT_STATE = "eat"
 _SPRITE_SUFFIX = "_8fps.gif"
 # Longest names first so "walk_fast" is not read as "walk".
-_STATE_NAMES = ("walk_fast", "with_ball", "walk", "run", "idle", "swipe", "lie", "stand", "eat")
+_STATE_NAMES = ("walk_fast", "with_ball", "walk", "run", "idle", "swipe", "lie", "stand", EAT_STATE)
 _ICON_NAME_PATTERNS = ("icon_{color}.png", "{color}_icon.png", "icon.png")
 _PIXEL_GRID_FILE = "pixel_grid.json"
 

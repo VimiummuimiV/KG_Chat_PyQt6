@@ -8,6 +8,7 @@ from PyQt6.QtWidgets import QWidget
 
 from helpers.pets.catalog import get_pet_kind, pet_counts, pet_pixel_size, pets_enabled, pets_stepped
 from helpers.pets.egg import Egg
+from helpers.pets.meadow import Meadow
 from helpers.pets.pet import Pet
 from helpers.pets.throwable import Throwable
 
@@ -26,6 +27,7 @@ class PetOverlay(QWidget):
         self._config = config
         self._pets: list[Pet] = []
         self._eggs: list[Egg] = []
+        self._meadow = Meadow()
         self._grabbed: Throwable | None = None
         self._painted = QRegion()
         self._clock = QElapsedTimer()
@@ -105,6 +107,8 @@ class PetOverlay(QWidget):
         self._grabbed = next((body for body in holdable if body.rect(area_height).contains(point)), None)
         if self._grabbed:
             self._grabbed.grab(point, area_height, event.timestamp())
+        else:
+            event.ignore()  # grass in the mask is not for the mouse; let the widget below take the click
 
     def mouseMoveEvent(self, event):
         if self._grabbed:
@@ -116,8 +120,8 @@ class PetOverlay(QWidget):
             self._grabbed = None
 
     def _bodies(self) -> list[Throwable]:
-        """Everything drawn on the line; eggs come last so they lie over the pets and are picked first."""
-        return [*self._pets, *self._eggs]
+        """Everything drawn on the line: grass first, eggs last so they lie over the pets and are picked first."""
+        return [*self._meadow.grass, *self._pets, *self._eggs]
 
     def _device_size(self) -> tuple[int, int]:
         ratio = self.devicePixelRatioF()
@@ -162,8 +166,10 @@ class PetOverlay(QWidget):
     def _tick(self) -> None:
         step_ms = min(self._clock.restart(), _MAXIMUM_STEP_MS)
         line_width, area_height = self._device_size()
+        self._meadow.update(step_ms, self._pets, self._eggs, line_width, area_height)
+        foods = [*self._eggs, *self._meadow.grass]
         for pet in self._pets:
-            pet.look_for_food(self._eggs)
+            pet.look_for_food(foods)
             pet.update(step_ms, line_width, area_height)
             egg = pet.take_egg()
             if egg:
