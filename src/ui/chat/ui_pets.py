@@ -169,7 +169,7 @@ class PetOverlay(QWidget):
         self._meadow.update(step_ms, self._pets, self._eggs, line_width, area_height)
         foods = [*self._eggs, *self._meadow.grass]
         for pet in self._pets:
-            pet.look_for_food(foods)
+            pet.look_for_food(foods, self._pets, step_ms)
             pet.update(step_ms, line_width, area_height)
             egg = pet.take_egg()
             if egg:

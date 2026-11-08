@@ -1,5 +1,6 @@
 """Pet behavior: random states, stepwise walking, eating, laying eggs when fed, and being picked up and thrown."""
 
+import math
 import random
 from dataclasses import dataclass
 from typing import Iterable
@@ -37,6 +38,9 @@ _BITE_LIMIT = 2 * _BITES_PER_EGG  # the most bites a pet keeps in stock
 _EGG_DROP_ART_PIXELS = 4  # height the egg leaves the pet from, in art pixels
 _NOSE_OVER_FOOD_ART_PIXELS = 1  # how far the nose of an eating pet reaches into the edge of the food
 _CHASE_STATE = "run"
+_WATCH_STATE = "idle"  # a pet that stays out of a race stands and looks at it
+_REACTION_MS = (150, 1500)  # how long a pet takes to notice food and set off
+_CATCH_UP_MARGIN_MS = 500  # a pet gives up when a rival gets to the food this much sooner than it could
 _PECK_STATE = "swipe"  # the eating state of pets without their own
 _NOSE_SETBACK = {_PECK_STATE: 6}  # art pixels by which the comb of a pecking hen is ahead of its beak, the part that touches the food
 _BITE_PHASE = {_PECK_STATE: 0.7}  # share of the eating cycle at which the beak touches the ground; 0 when not listed
@@ -66,6 +70,9 @@ class Pet(Throwable):
         self._eat_state = EAT_STATE if EAT_STATE in kind.states else _PECK_STATE
         self._fed_bites = _BITES_PER_EGG  # a hen starts fed for one egg
         self._meal: _Meal | None = None
+        self._noticed: Food | None = None  # the food the pet has seen and is about to react to
+        self._reaction_ms = 0
+        self._watching: Food | None = None  # the food whose race the pet watches instead of running
         self._is_scared = False
         walk = self._load("walk")
         self._walk_speed = walk.body.width() * _WALK_STRIDE_RATIO * 1000 / walk.cycle_ms
@@ -102,19 +109,42 @@ class Pet(Throwable):
         tail = self.x + (left if self._facing_right else right)
         return Egg(tail, _EGG_DROP_ART_PIXELS * self.pixel_size, self.pixel_size)
 
-    def look_for_food(self, foods: Iterable[Food]) -> None:
-        """Run to the nearest food of its kind nobody has started eating; every pet that eats it joins the race."""
-        if self._is_scared or self.is_held or self.is_flying:
+    def look_for_food(self, foods: Iterable[Food], rivals: Iterable["Pet"], step_ms: int) -> None:
+        """Notice food after a random moment and run for it, unless a rival clearly gets there first; then watch the race."""
+        if self._is_scared or self.is_held or self.is_flying or (self._meal and self._meal.is_eating):
             return
-        if self._meal and self._meal.is_eating:
+        rivals = [rival for rival in rivals if rival is not self]
+        if self._meal and self._is_outrun(self._meal.food, rivals):
+            self._watch(self._meal.food)
             return
-        free = (food for food in foods if food.is_food_for(self.kind) and food.is_edible and food.is_free_for(self))
+        free = [food for food in foods if food.is_food_for(self.kind) and food.is_edible and food.is_free_for(self)]
+        if self._watching:
+            has_other_food = any(food is not self._watching for food in free)
+            if self._watching.is_edible and not has_other_food and any(rival.is_going_to(self._watching) for rival in rivals):
+                self._face(self._watching)
+                return
+            self._watching = None
+            self._choose_state()
         nearest = min(free, key=lambda food: self._approach(food)[0], default=None)
         if nearest is None or (self._meal and self._meal.food is nearest):
+            self._noticed = None
+            return
+        if self._noticed is not nearest:
+            self._noticed, self._reaction_ms = nearest, random.randint(*_REACTION_MS)
+        self._reaction_ms -= step_ms
+        if self._reaction_ms > 0:
+            return
+        self._noticed = None
+        if self._is_outrun(nearest, rivals):
+            self._watch(nearest)
             return
         self._meal = _Meal(nearest, self._approach(nearest)[1])
         self._facing_right = self._meal.from_left
         self._start_state(_CHASE_STATE, 0)
+
+    def is_going_to(self, food: Food) -> bool:
+        """Whether the pet is running to the food or eating it."""
+        return self._meal is not None and self._meal.food is food
 
     def click(self) -> None:
         self._scare()
@@ -151,7 +181,7 @@ class Pet(Throwable):
 
     def _scare(self) -> None:
         """Run around in panic for a moment, forgetting any food."""
-        self._meal = None
+        self._meal = self._noticed = self._watching = None
         self._is_scared = True
         self._facing_right = random.choice((True, False))
         self._start_state("run", random.randint(*_SCARE_MS))
@@ -212,6 +242,30 @@ class Pet(Throwable):
             self.x = self._nose_stop(food, meal.from_left)
         if food.is_eaten and self._state_elapsed_ms >= meal.bites * cycle_ms:
             self._end_meal()
+
+    def _arrival_ms(self, food: Food) -> float:
+        """Return how long the pet needs to run to the nearer end of the food."""
+        run_speed = self._walk_speed * _GAIT_SPEED_FACTOR[_CHASE_STATE]
+        return self._approach(food)[0] / run_speed * 1000
+
+    def _is_outrun(self, food: Food, rivals: list["Pet"]) -> bool:
+        """Whether a rival running to the food gets there clearly sooner than this pet could."""
+        arrival_ms = self._arrival_ms(food)
+        return any(
+            rival.is_going_to(food) and rival._arrival_ms(food) + _CATCH_UP_MARGIN_MS < arrival_ms for rival in rivals
+        )
+
+    def _watch(self, food: Food) -> None:
+        """Stop running for the food and stand looking at it until it is gone or nobody runs for it."""
+        self._meal = None
+        self._watching = food
+        self._start_state(_WATCH_STATE, math.inf)
+        self._face(food)
+
+    def _face(self, food: Food) -> None:
+        left, right = food.remaining_span()
+        pet_left, pet_right = self._animation.visible_span(self._facing_right)
+        self._facing_right = (left + right) / 2 > self.x + (pet_left + pet_right) / 2
 
     def _end_meal(self) -> None:
         self._meal = None
