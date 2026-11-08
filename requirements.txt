@@ -11,3 +11,5 @@ websocket-client
 sounddevice
 numpy
 SpeechRecognition
+cairosvg
+pillow
