@@ -38,6 +38,7 @@ _EGG_DROP_ART_PIXELS = 4  # height the egg leaves the pet from, in art pixels
 _NOSE_OVER_FOOD_ART_PIXELS = 1  # how far the nose of an eating pet reaches into the edge of the food
 _CHASE_STATE = "run"
 _PECK_STATE = "swipe"  # the eating state of pets without their own
+_NOSE_SETBACK = {_PECK_STATE: 6}  # art pixels by which the comb of a pecking hen is ahead of its beak, the part that touches the food
 _BITE_PHASE = {_PECK_STATE: 0.7}  # share of the eating cycle at which the beak touches the ground; 0 when not listed
 
 
@@ -227,7 +228,7 @@ class Pet(Throwable):
         """Return the x at which an eating pet has its nose just inside the chosen end of the food."""
         left, right = self._load(self._eat_state).visible_span(from_left)
         edge = food.remaining_span()[0 if from_left else 1]
-        reach = _NOSE_OVER_FOOD_ART_PIXELS * self.pixel_size
+        reach = (_NOSE_OVER_FOOD_ART_PIXELS + _NOSE_SETBACK.get(self._eat_state, 0)) * self.pixel_size
         return edge + reach - right if from_left else edge - reach - left
 
     def _count_down_egg(self, step_ms: int) -> None:
