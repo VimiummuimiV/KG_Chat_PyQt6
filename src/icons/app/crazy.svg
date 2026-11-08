@@ -1,5 +1,25 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" stroke-linecap="round" stroke-linejoin="round">
   <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#64737A"/>
+      <stop offset="0.45" stop-color="#46545D"/>
+      <stop offset="1" stop-color="#26343C"/>
+    </linearGradient>
+    <linearGradient id="tileEdge" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#829198"/>
+      <stop offset="0.5" stop-color="#46545C"/>
+      <stop offset="1" stop-color="#1D292F"/>
+    </linearGradient>
+    <linearGradient id="tileLight" x1="0" y1="0" x2="0.8" y2="1">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.18"/>
+      <stop offset="0.45" stop-color="#FFFFFF" stop-opacity="0.025"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0.12"/>
+    </linearGradient>
+    <radialGradient id="tileGlow" cx="0.35" cy="0.12" r="0.9">
+      <stop offset="0" stop-color="#AAB9BF" stop-opacity="0.3"/>
+      <stop offset="1" stop-color="#AAB9BF" stop-opacity="0"/>
+    </radialGradient>
+
     <radialGradient id="face" cx="0.5" cy="0.5" r="0.5">
       <stop offset="0" stop-color="#FFEE22"/>
       <stop offset="0.5" stop-color="#FFE20A"/>
@@ -32,7 +52,10 @@
       <stop offset="0.6" stop-color="#FBF8F4"/>
       <stop offset="1" stop-color="#E9E2DB"/>
     </linearGradient>
-    <clipPath id="inside"><path d="M59.04,143.796c0,0 30.078,66.6 142.8,26.604c0,0 -25.319,55.999 -73.84,56.055c-36.344,0.042 -68.905,-26.003 -68.96,-82.659Z"/></clipPath>
+
+    <clipPath id="inside">
+      <path d="M59.04,143.796c0,0 30.078,66.6 142.8,26.604c0,0 -25.319,55.999 -73.84,56.055c-36.344,0.042 -68.905,-26.003 -68.96,-82.659Z"/>
+    </clipPath>
     <clipPath id="eyeRight">
       <path d="M153.397,104.319c12.362,-7.501 29.319,-2.187 37.842,11.86c8.523,14.047 5.407,31.541 -6.956,39.042c-12.362,7.501 -29.319,2.187 -37.842,-11.86c-8.523,-14.047 -5.407,-31.541 6.956,-39.042Z"/>
     </clipPath>
@@ -40,26 +63,46 @@
       <path d="M61.682,70.231c12.739,-12.324 37.558,-7.367 55.387,11.063c17.83,18.43 21.962,43.399 9.223,55.723c-12.739,12.324 -37.558,7.367 -55.387,-11.063c-17.83,-18.43 -21.962,-43.399 -9.223,-55.723Z"/>
     </clipPath>
   </defs>
-  <g fill="none" stroke="#3A1D0E" stroke-width="10">
-    <path d="M91.68,19.44c0,0 11.484,28.661 35.06,53.8c0,0 11.979,-35.021 42.1,-63.4"/>
-    <path d="M187.44,52.32c0,0 -37.201,-4.317 -60.7,20.92"/>
+
+  <!-- App tile -->
+  <rect x="3" y="3" width="250" height="250" rx="39" fill="#17232A"/>
+  <rect x="3" y="1" width="250" height="250" rx="39" fill="url(#tileEdge)"/>
+  <rect x="7" y="5" width="242" height="242" rx="35" fill="url(#tile)"/>
+  <rect x="7" y="5" width="242" height="242" rx="35" fill="url(#tileGlow)"/>
+  <rect x="7" y="5" width="242" height="242" rx="35" fill="url(#tileLight)"/>
+  <rect x="7.5" y="5.5" width="241" height="241" rx="34.5" fill="none" stroke="#FFFFFF" stroke-opacity="0.19" stroke-width="1.5"/>
+  <path d="M43 6 H213 Q248 6 248 41 V66 Q160 20 43 6Z" fill="#FFFFFF" opacity="0.035"/>
+
+  <!-- Character -->
+  <g transform="translate(7.68 7.68) scale(0.94)">
+    <g fill="none" stroke="#3A1D0E" stroke-width="10">
+      <path d="M91.68,19.44c0,0 11.484,28.661 35.06,53.8c0,0 11.979,-35.021 42.1,-63.4"/>
+      <path d="M187.44,52.32c0,0 -37.201,-4.317 -60.7,20.92"/>
+    </g>
+
+    <circle cx="126.74" cy="160.74" r="87.5" fill="url(#face)"/>
+    <circle cx="126.74" cy="160.74" r="87.5" fill="url(#faceshade)" stroke="#3A1D0E" stroke-width="6"/>
+
+    <!-- Right eye -->
+    <path d="M153.397,104.319c12.362,-7.501 29.319,-2.187 37.842,11.86c8.523,14.047 5.407,31.541 -6.956,39.042c-12.362,7.501 -29.319,2.187 -37.842,-11.86c-8.523,-14.047 -5.407,-31.541 6.956,-39.042Z" fill="url(#eye)" stroke="#3A1D0E" stroke-width="6"/>
+    <g clip-path="url(#eyeRight)">
+      <ellipse cx="152.4" cy="128" rx="15.04" ry="13.6" transform="rotate(69.2 152.4 128)" fill="url(#pupil)"/>
+    </g>
+
+    <!-- Left eye -->
+    <path d="M61.682,70.231c12.739,-12.324 37.558,-7.367 55.387,11.063c17.83,18.43 21.962,43.399 9.223,55.723c-12.739,12.324 -37.558,7.367 -55.387,-11.063c-17.83,-18.43 -21.962,-43.399 -9.223,-55.723Z" fill="url(#eye)" stroke="#3A1D0E" stroke-width="6"/>
+    <g clip-path="url(#eyeLeft)">
+      <ellipse cx="108.39" cy="120.01" rx="26.76" ry="16.03" transform="rotate(45.9 108.39 120.01)" fill="url(#pupil)"/>
+    </g>
+
+    <!-- Mouth -->
+    <path d="M59.04,143.796c0,0 30.078,66.6 142.8,26.604c0,0 -25.319,55.999 -73.84,56.055c-36.344,0.042 -68.905,-26.003 -68.96,-82.659Z" fill="url(#mouth)"/>
+
+    <g clip-path="url(#inside)">
+      <path d="M118.111,170.4l0,37.782c0,3.92 -3.178,7.098 -7.098,7.098l-5.963,0c-3.92,-0 -7.098,-3.178 -7.098,-7.098l0,-37.782l20.16,0Z" fill="url(#tooth)" stroke="#B3A497" stroke-width="2"/>
+      <path d="M158.103,175.883l-0,33.02c-0,3.92 -3.178,7.098 -7.098,7.098l-5.963,-0c-3.92,-0 -7.098,-3.178 -7.098,-7.098l-0,-33.02l20.16,0Z" fill="url(#tooth)" stroke="#B3A497" stroke-width="2"/>
+    </g>
+
+    <path d="M59.04,143.796c0,0 30.078,66.6 142.8,26.604c0,0 -25.319,55.999 -73.84,56.055c-36.344,0.042 -68.905,-26.003 -68.96,-82.659Z" fill="none" stroke="#3A1D0E" stroke-width="6"/>
   </g>
-  <circle cx="126.74" cy="160.74" r="87.5" fill="url(#face)"/>
-  <circle cx="126.74" cy="160.74" r="87.5" fill="url(#faceshade)" stroke="#3A1D0E" stroke-width="6"/>
-  <!-- right eye -->
-  <path d="M153.397,104.319c12.362,-7.501 29.319,-2.187 37.842,11.86c8.523,14.047 5.407,31.541 -6.956,39.042c-12.362,7.501 -29.319,2.187 -37.842,-11.86c-8.523,-14.047 -5.407,-31.541 6.956,-39.042Z" fill="url(#eye)" stroke="#3A1D0E" stroke-width="6"/>
-  <g clip-path="url(#eyeRight)">
-    <ellipse cx="152.4" cy="128" rx="15.04" ry="13.6" transform="rotate(69.2 152.4 128)" fill="url(#pupil)"/>
-  </g>
-  <!-- left eye -->
-  <path d="M61.682,70.231c12.739,-12.324 37.558,-7.367 55.387,11.063c17.83,18.43 21.962,43.399 9.223,55.723c-12.739,12.324 -37.558,7.367 -55.387,-11.063c-17.83,-18.43 -21.962,-43.399 -9.223,-55.723Z" fill="url(#eye)" stroke="#3A1D0E" stroke-width="6"/>
-  <g clip-path="url(#eyeLeft)">
-    <ellipse cx="108.39" cy="120.01" rx="26.76" ry="16.03" transform="rotate(45.9 108.39 120.01)" fill="url(#pupil)"/>
-  </g>
-  <path d="M59.04,143.796c0,0 30.078,66.6 142.8,26.604c0,0 -25.319,55.999 -73.84,56.055c-36.344,0.042 -68.905,-26.003 -68.96,-82.659Z" fill="url(#mouth)"/>
-  <g clip-path="url(#inside)">
-    <path d="M118.111,170.4l0,37.782c0,3.92 -3.178,7.098 -7.098,7.098l-5.963,0c-3.92,-0 -7.098,-3.178 -7.098,-7.098l0,-37.782l20.16,0Z" fill="url(#tooth)" stroke="#B3A497" stroke-width="2"/>
-    <path d="M158.103,175.883l-0,33.02c-0,3.92 -3.178,7.098 -7.098,7.098l-5.963,-0c-3.92,-0 -7.098,-3.178 -7.098,-7.098l-0,-33.02l20.16,0Z" fill="url(#tooth)" stroke="#B3A497" stroke-width="2"/>
-  </g>
-  <path d="M59.04,143.796c0,0 30.078,66.6 142.8,26.604c0,0 -25.319,55.999 -73.84,56.055c-36.344,0.042 -68.905,-26.003 -68.96,-82.659Z" fill="none" stroke="#3A1D0E" stroke-width="6"/>
 </svg>
