@@ -12,26 +12,30 @@ except ImportError:
     sys.exit(1)
 
 
-SIZE = 256
+SIZES = [16, 24, 32, 48, 64, 96, 128, 256, 512]
 
 
-def svg_to_ico(svg_path: Path) -> Path:
-    ico_path = svg_path.with_suffix(".ico")
+def svg_to_pngs(svg_path: Path) -> list[Path]:
+    output_dir = svg_path.parent / svg_path.stem
+    output_dir.mkdir(exist_ok=True)
 
-    png_data = resvg_py.svg_to_bytes(
-        svg_path=str(svg_path),
-        width=SIZE,
-        height=SIZE,
-    )
+    created_files = []
 
-    with Image.open(BytesIO(png_data)) as image:
-        image.convert("RGBA").save(
-            ico_path,
-            format="ICO",
-            sizes=[(SIZE, SIZE)],
+    for size in SIZES:
+        png_data = resvg_py.svg_to_bytes(
+            svg_path=str(svg_path),
+            width=size,
+            height=size,
         )
 
-    return ico_path
+        output_path = output_dir / f"{size}x{size}.png"
+
+        with Image.open(BytesIO(png_data)) as image:
+            image.convert("RGBA").save(output_path, format="PNG")
+
+        created_files.append(output_path)
+
+    return created_files
 
 
 def main():
@@ -44,7 +48,10 @@ def main():
 
     for svg in svg_files:
         try:
-            print(f"Created: {svg_to_ico(svg)}")
+            created_files = svg_to_pngs(svg)
+            print(f"Exported {svg.name}:")
+            for path in created_files:
+                print(f"  {path}")
         except Exception as error:
             print(f"Error: {svg.name}: {error}")
 
