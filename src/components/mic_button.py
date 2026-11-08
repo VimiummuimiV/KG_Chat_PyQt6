@@ -120,9 +120,9 @@ class MicButton(QPushButton):
 
     def _refresh_icon(self):
         """Called from update_all_icons() on theme change."""
-        name = "mic-on.svg" if self._listening else "mic-off.svg"
+        name = "fill/mic-fill.svg" if self._listening else "fill/mic-off-fill.svg"
         if not (self._icons_path / name).exists():
-            name = "mic-off.svg"
+            name = "fill/mic-off-fill.svg"
         set_button_icon(self, name)
 
     # ── events ──────────────────────────────────────────────────────────────

@@ -35,7 +35,7 @@ class InputRow(TranslatableMixin, QWidget):
         self.input_field.returnPressed.connect(self._submit)
         self._layout.addWidget(self.input_field, stretch=1)
 
-        self.send_button = create_icon_button(icons_path, "send.svg", "", size_type="large", config=config)
+        self.send_button = create_icon_button(icons_path, "fill/send-plane-2-fill.svg", "", size_type="large", config=config)
         self.tr_set(self.send_button.setToolTip, "Send message", "Отправить сообщение")
         self.send_button.clicked.connect(self._submit)
         self.send_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)  # clicking it must not take focus from the field
@@ -43,7 +43,7 @@ class InputRow(TranslatableMixin, QWidget):
 
         self.emoticon_button = None
         if with_emoticons:
-            self.emoticon_button = HoverIconButton(icons_path, "emotion-normal.svg", "emotion-happy.svg", "")
+            self.emoticon_button = HoverIconButton(icons_path, "fill/emotion-normal-fill.svg", "fill/emotion-happy-fill.svg", "")
             self.tr_set(self.emoticon_button.setToolTip, "Toggle Emoticon Selector", "Селектор эмотиконов")
             self.emoticon_button.clicked.connect(self.emoticon_requested)
             self.emoticon_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)

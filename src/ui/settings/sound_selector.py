@@ -57,7 +57,7 @@ class SoundSelectorWidget(TranslatableMixin, QWidget):
             self.register_tr(button.setToolTip, tooltip)
             return button
 
-        self._prev_button = _nav_button("arrow-left.svg", tr("Previous sound", "Предыдущий звук"), self._on_prev)
+        self._prev_button = _nav_button("line/arrow-left-s-line.svg", tr("Previous sound", "Предыдущий звук"), self._on_prev)
 
         self.combo = NoWheelComboBox()
         self.combo.setFont(get_font(FontType.UI))
@@ -65,14 +65,14 @@ class SoundSelectorWidget(TranslatableMixin, QWidget):
         self.combo.setMinimumWidth(180)
         layout.addWidget(self.combo, stretch=1)
 
-        self._next_button = _nav_button("arrow-right.svg", tr("Next sound", "Следующий звук"), self._on_next)
-        self._play_button = _nav_button("play.svg", tr("Play sound", "Воспроизвести звук"), self._on_play)
+        self._next_button = _nav_button("line/arrow-right-s-line.svg", tr("Next sound", "Следующий звук"), self._on_next)
+        self._play_button = _nav_button("fill/play-large-fill.svg", tr("Play sound", "Воспроизвести звук"), self._on_play)
         self._freeze_button = _nav_button(
-            "snowflake.svg", self._freeze_tooltip(), self._on_freeze
+            "line/snowflake-line.svg", self._freeze_tooltip(), self._on_freeze
         )
-        self._add_button = _nav_button("add.svg", tr("Add sound from file", "Добавить звук из файла"), self._on_add)
-        self._delete_button = _nav_button("trash.svg", tr("Delete sound", "Удалить звук"), self._on_delete)
-        self._rename_button = _nav_button("pencil.svg", tr("Rename sound", "Переименовать звук"), self._on_rename)
+        self._add_button = _nav_button("line/add-large-line.svg", tr("Add sound from file", "Добавить звук из файла"), self._on_add)
+        self._delete_button = _nav_button("fill/delete-bin-fill.svg", tr("Delete sound", "Удалить звук"), self._on_delete)
+        self._rename_button = _nav_button("fill/pencil-fill.svg", tr("Rename sound", "Переименовать звук"), self._on_rename)
 
         self.refresh()
         on_language_changed(self.retranslate_all)

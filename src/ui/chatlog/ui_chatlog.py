@@ -192,51 +192,51 @@ class ChatlogWidget(
         )
         self._nav_buttons_container.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Preferred)
 
-        self.back_btn = create_icon_button(self.icons_path, "go-back.svg", "",
+        self.back_btn = create_icon_button(self.icons_path, "line/arrow-go-back-line.svg", "",
                                           size_type="large", config=self.config)
         self.tr_set(self.back_btn.setToolTip, "Back to messages", "Назад к сообщениям")
         self.back_btn.clicked.connect(self.back_requested.emit)
         self._nav_buttons_container.add_widget(self.back_btn)
 
-        self.prev_btn = create_icon_button(self.icons_path, "arrow-left.svg", "",
+        self.prev_btn = create_icon_button(self.icons_path, "line/arrow-left-s-line.svg", "",
                                           size_type="large", config=self.config)
         self.tr_set(self.prev_btn.setToolTip, "Previous day (H)", "Предыдущий день (H)")
         self.prev_btn.pressed.connect(lambda: self.navigate_hold(-1))
         self.prev_btn.released.connect(lambda: self.navigate_hold())
         self._nav_buttons_container.add_widget(self.prev_btn)
 
-        self.next_btn = create_icon_button(self.icons_path, "arrow-right.svg", "",
+        self.next_btn = create_icon_button(self.icons_path, "line/arrow-right-s-line.svg", "",
                                           size_type="large", config=self.config)
         self.tr_set(self.next_btn.setToolTip, "Next day (L)", "Следующий день (L)")
         self.next_btn.pressed.connect(lambda: self.navigate_hold(1))
         self.next_btn.released.connect(lambda: self.navigate_hold())
         self._nav_buttons_container.add_widget(self.next_btn)
 
-        self.calendar_btn = create_icon_button(self.icons_path, "calendar.svg", "",
+        self.calendar_btn = create_icon_button(self.icons_path, "fill/calendar-fill.svg", "",
                                               size_type="large", config=self.config)
         self.tr_set(self.calendar_btn.setToolTip, "Select date (D)", "Выбрать дату (D)")
         self.calendar_btn.clicked.connect(self.show_calendar)
         self._nav_buttons_container.add_widget(self.calendar_btn)
 
-        self._search_toggle_btn = create_icon_button(self.icons_path, "search.svg", "",
+        self._search_toggle_btn = create_icon_button(self.icons_path, "line/search-line.svg", "",
                                                    size_type="large", config=self.config)
         self.tr_set(self._search_toggle_btn.setToolTip, "Toggle search (S / Ctrl+F)", "Поиск (S / Ctrl+F)")
         self._search_toggle_btn.clicked.connect(self.toggle_search)
         self._nav_buttons_container.add_widget(self._search_toggle_btn)
 
-        self.mention_filter_btn = create_icon_button(self.icons_path, "at-line.svg", "",
+        self.mention_filter_btn = create_icon_button(self.icons_path, "line/at-line.svg", "",
                                                     size_type="large", config=self.config)
         self.tr_set(self.mention_filter_btn.setToolTip, "Filter mentions (M)", "Фильтр упоминаний (M)")
         self.mention_filter_btn.clicked.connect(self.toggle_mention_filter)
         self._nav_buttons_container.add_widget(self.mention_filter_btn)
 
-        self.image_button = create_icon_button(self.icons_path, "gallery-line.svg", "",
+        self.image_button = create_icon_button(self.icons_path, "line/gallery-line.svg", "",
                                                size_type="large", config=self.config)
         self.tr_set(self.image_button.setToolTip, "View images", "Просмотр изображений")
         self.image_button.clicked.connect(lambda: self.delegate.open_first_image())
         self._nav_buttons_container.add_widget(self.image_button)
 
-        self.parse_btn = create_icon_button(self.icons_path, "play.svg", "",
+        self.parse_btn = create_icon_button(self.icons_path, "fill/play-large-fill.svg", "",
                                            size_type="large", config=self.config)
         self.tr_set(self.parse_btn.setToolTip,
                      "Parse all chatlogs (P | Ctrl+P from anywhere)",
@@ -249,7 +249,7 @@ class ChatlogWidget(
         self._compact_layout = False
 
         # Search bar (MessageSearchBar; confirm button is chatlog-specific)
-        self.confirm_search_btn = create_icon_button(self.icons_path, "search.svg", "",
+        self.confirm_search_btn = create_icon_button(self.icons_path, "line/search-line.svg", "",
                                                      size_type="large", config=self.config)
         self.tr_set(self.confirm_search_btn.setToolTip, "Search (Enter)", "Поиск (Enter)")
         self.confirm_search_btn.clicked.connect(self.on_search_enter)

@@ -16,14 +16,14 @@ class ParserUsernamesMixin:
 
     def _set_username_fetch_loading(self, is_loading: bool):
         """Change username fetch button icon to loader or back to normal"""
-        icon_name = "loader.svg" if is_loading else "user-received.svg"
+        icon_name = "line/loader-2-line.svg" if is_loading else "fill/user-received-2-fill.svg"
         tooltip = tr("Fetching...", "Загрузка...") if is_loading else tr("Fetch username history", "Загрузить историю имён")
         set_button_icon(self.fetch_history_button, icon_name)
         self.fetch_history_button.setToolTip(tooltip)
 
     def _set_search_fetch_loading(self, is_loading: bool):
         """Change search fetch button icon to loader or back to normal"""
-        icon_name = "loader.svg" if is_loading else "user-received.svg"
+        icon_name = "line/loader-2-line.svg" if is_loading else "fill/user-received-2-fill.svg"
         tooltip = tr("Fetching...", "Загрузка...") if is_loading else tr("Fetch username history", "Загрузить историю имён")
         set_button_icon(self.search_fetch_history_button, icon_name)
         self.search_fetch_history_button.setToolTip(tooltip)

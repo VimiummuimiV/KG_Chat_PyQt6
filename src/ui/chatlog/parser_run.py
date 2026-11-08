@@ -56,7 +56,7 @@ class ParserRunMixin:
 
             # Update UI for parsing state
             self.is_parsing = True
-            set_button_icon(self.parse_button, "stop.svg")
+            set_button_icon(self.parse_button, "fill/stop-large-fill.svg")
             self.parse_button.setToolTip(tr("Stop parsing (C)", "Остановить парсинг (C)"))
             self.progress_bar.setVisible(True)
             self.progress_bar.setValue(0)
@@ -86,7 +86,7 @@ class ParserRunMixin:
     def reset_ui(self):
         """Reset UI to non-parsing state"""
         self.is_parsing = False
-        set_button_icon(self.parse_button, "play.svg")
+        set_button_icon(self.parse_button, "fill/play-large-fill.svg")
         self.parse_button.setToolTip(tr("Start parsing (S)", "Начать парсинг (S)"))
         self.progress_bar.setVisible(False)
         self.progress_label.setVisible(False)

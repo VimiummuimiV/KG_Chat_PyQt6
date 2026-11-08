@@ -118,7 +118,7 @@ class MessageSearchBar(QWidget):
             layout.addWidget(widget)
 
         self._clear_btn = create_icon_button(
-            icons_path, "trash.svg", "",
+            icons_path, "fill/delete-bin-fill.svg", "",
             size_type="large", config=config,
         )
         self._clear_btn.setToolTip(tr("Clear search", "Очистить поиск"))

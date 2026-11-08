@@ -25,7 +25,7 @@ class TrayIconWithBadge:
 
     def _create_normal_icon(self) -> QIcon:
         """Create normal chat icon"""
-        icon_file = self.icons_path / "chat.svg"
+        icon_file = self.icons_path / "fill/chat-1-fill.svg"
 
         # Load base icon
         with open(icon_file, 'r') as f:

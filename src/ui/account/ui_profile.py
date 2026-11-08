@@ -303,14 +303,14 @@ class ProfileWidget(TranslatableMixin, QWidget):
         top_bar.setSpacing(8)
 
         self._back_button = create_icon_button(
-            self.icons_path, "go-back.svg", "", config=self.config
+            self.icons_path, "line/arrow-go-back-line.svg", "", config=self.config
         )
         self.tr_set(self._back_button.setToolTip, "Back to Messages", "Назад к сообщениям")
         self._back_button.clicked.connect(self.back_requested.emit)
         top_bar.addWidget(self._back_button)
 
         self._open_profile_button = create_icon_button(
-            self.icons_path, "user.svg", "", config=self.config
+            self.icons_path, "fill/user-3-fill.svg", "", config=self.config
         )
         self.tr_set(self._open_profile_button.setToolTip, "Open Profile in Browser", "Открыть профиль в браузере")
         self._open_profile_button.clicked.connect(self._open_profile_in_browser)

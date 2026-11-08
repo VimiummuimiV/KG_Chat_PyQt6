@@ -133,7 +133,7 @@ class ChatlogUserlistWidget(TranslatableMixin, QWidget):
         button_layout.setContentsMargins(0, 0, 0, 0)
         self._clear_filter_btn = create_icon_button(
             icons_path,
-            "filter.svg",
+            "fill/filter-2-fill.svg",
             "",
             size_type="large",
             config=config

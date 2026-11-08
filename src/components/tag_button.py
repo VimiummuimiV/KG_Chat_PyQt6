@@ -40,7 +40,7 @@ class _TagButton(QWidget):
     _double_clicked = pyqtSignal(str)
     removed = pyqtSignal(str)
 
-    def __init__(self, text: str, icons_path: Path, close_icon: str = "close.svg"):
+    def __init__(self, text: str, icons_path: Path, close_icon: str = "line/close-large-line.svg"):
         super().__init__()
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self._text_value = text

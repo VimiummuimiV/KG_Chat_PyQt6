@@ -142,7 +142,7 @@ class AccountWindow(TranslatableMixin, QWidget):
         # Avatar
         avatar_tooltip = tr("Account", "Аккаунт")
         self._account_avatar = create_icon_button(
-            self.icons_path, "user.svg", tooltip=avatar_tooltip
+            self.icons_path, "fill/user-3-fill.svg", tooltip=avatar_tooltip
         )
         self.register_tr(self._account_avatar.setToolTip, avatar_tooltip)
         self._account_avatar.setStyleSheet("QPushButton { background: transparent; border: none; }")
@@ -175,7 +175,7 @@ class AccountWindow(TranslatableMixin, QWidget):
         # Connect button
         connect_button_tooltip = tr("Connect to chat (Enter / E)", "Подключиться к чату (Enter / E)")
         self._connect_button = create_icon_button(
-            self.icons_path, "login.svg", tooltip=connect_button_tooltip
+            self.icons_path, "fill/login-box-fill.svg", tooltip=connect_button_tooltip
         )
         self._connect_button.clicked.connect(self._on_connect)
         self._connect_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
@@ -188,7 +188,7 @@ class AccountWindow(TranslatableMixin, QWidget):
             "Цвет ника (C: выбрать | Ctrl+C/клик: сбросить)",
         )
         self._color_button = create_icon_button(
-            self.icons_path, "palette.svg",
+            self.icons_path, "fill/palette-fill.svg",
             tooltip=color_button_tooltip
         )
         self._color_button.installEventFilter(self)
@@ -200,7 +200,7 @@ class AccountWindow(TranslatableMixin, QWidget):
         # Remove button
         remove_button_tooltip = tr("Remove account (D)", "Удалить аккаунт (D)")
         self._remove_button = create_icon_button(
-            self.icons_path, "trash.svg", tooltip=remove_button_tooltip
+            self.icons_path, "fill/delete-bin-fill.svg", tooltip=remove_button_tooltip
         )
         self._remove_button.clicked.connect(self._on_remove_account)
         self._remove_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
@@ -210,7 +210,7 @@ class AccountWindow(TranslatableMixin, QWidget):
         # Web login button
         web_login_tooltip = tr("Add account via browser login (W)", "Добавить аккаунт через вход в браузере (W)")
         self._web_login_button = create_icon_button(
-            self.icons_path, "globe.svg", tooltip=web_login_tooltip
+            self.icons_path, "fill/global-fill.svg", tooltip=web_login_tooltip
         )
         self._web_login_button.clicked.connect(self._on_web_login)
         self._web_login_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
@@ -499,7 +499,7 @@ class AccountWindow(TranslatableMixin, QWidget):
             request_avatar(self, user_id, lambda pixmap: self._set_avatar(user_id, pixmap))
 
     def _show_default_avatar(self):
-        set_button_icon(self._account_avatar, "user.svg")
+        set_button_icon(self._account_avatar, "fill/user-3-fill.svg")
         self._account_avatar.setIconSize(QSize(self._account_avatar.icon_size, self._account_avatar.icon_size))
         self._account_avatar.setStyleSheet("QPushButton { background: transparent; border: none; }")
 

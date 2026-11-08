@@ -27,7 +27,7 @@ class ChatlogParserControlsMixin:
             # Hide parser, show list
             self.parser_visible = False
             self.stacked.setCurrentWidget(self.list_view)
-            set_button_icon(self.parse_btn, "play.svg")
+            set_button_icon(self.parse_btn, "fill/play-large-fill.svg")
             self.parse_btn.setToolTip(
                 tr(
                     "Parse all chatlogs (P | Ctrl+P from anywhere)",
@@ -43,7 +43,7 @@ class ChatlogParserControlsMixin:
             # Show parser, hide list
             self.parser_visible = True
             self.stacked.setCurrentWidget(self.parser_widget)
-            set_button_icon(self.parse_btn, "list.svg")
+            set_button_icon(self.parse_btn, "fill/file-list-fill.svg")
             self.parse_btn.setToolTip(tr("Back to chat logs (P)", "Назад к чатлогам (P)"))
             self.date_label.setText(tr("Parser", "Парсер"))
 

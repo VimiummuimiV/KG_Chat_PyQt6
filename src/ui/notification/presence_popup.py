@@ -85,7 +85,7 @@ class PresenceMiniPopup(AutoHidePopupMixin, QWidget):
         name.setStyleSheet(f"color: {username_color}; background: transparent;")
         layout.addWidget(name, stretch=1)
 
-        self.close_button = icon_btn(self.icons_path, "close.svg", tr("Close", "Закрыть"), config)
+        self.close_button = icon_btn(self.icons_path, "line/close-large-line.svg", tr("Close", "Закрыть"), config)
         self.close_button.clicked.connect(self.manager.close_all)
         layout.addWidget(self.close_button)
 

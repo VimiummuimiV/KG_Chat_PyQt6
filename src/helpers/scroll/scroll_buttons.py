@@ -28,17 +28,17 @@ _REVEAL_PADDING   = 150
 # Top-to-bottom order, matching the on-screen stack: full-up, page-up, page-down, full-down
 # tooltips: (en, ru) resolved at button creation
 _BUTTONS = (
-    # icon_name,              tooltip_en,             tooltip_ru,              action
-    ("arrow-up-double.svg",   "Scroll to top",        "В начало",              "top"),
-    ("arrow-up.svg",          "Scroll up a page",     "Страница вверх",        "page_up"),
-    ("arrow-down.svg",        "Scroll down a page",   "Страница вниз",         "page_down"),
-    ("arrow-down-double.svg", "Scroll to bottom",     "В конец",               "bottom"),
+    # icon_name,                    tooltip_en,             tooltip_ru,           action
+    ("line/chevrons-up-line.svg",   "Scroll to top",        "В начало",           "top"),
+    ("line/chevron-up-line.svg",    "Scroll up a page",     "Страница вверх",     "page_up"),
+    ("line/chevron-down-line.svg",  "Scroll down a page",   "Страница вниз",      "page_down"),
+    ("line/chevrons-down-line.svg", "Scroll to bottom",     "В конец",             "bottom"),
 )
 
 
 _DATE_JUMP_ACTIONS = (
-    (-1, "calendar-arrow-up.svg",  "Previous day", "Предыдущий день"),
-    (1, "calendar-arrow-down.svg", "Next day",     "Следующий день"),
+    (-1, "line/calendar-arrow-up-line.svg",  "Previous day", "Предыдущий день"),
+    (1, "line/calendar-arrow-down-line.svg", "Next day",     "Следующий день"),
 )
 
 

@@ -51,7 +51,7 @@ class TrackedUserItem(TranslatableMixin, QWidget):
         layout.addWidget(self.username_input)
 
         arrow_label = QLabel()
-        arrow_svg = icons_path / "arrow-right.svg"
+        arrow_svg = icons_path / "line/arrow-right-s-line.svg"
         if arrow_svg.exists():
             with open(arrow_svg, 'r') as f:
                 svg_content = f.read().replace('fill="currentColor"', 'fill="#888888"')
@@ -77,14 +77,14 @@ class TrackedUserItem(TranslatableMixin, QWidget):
         layout.addWidget(self._user_id_input)
 
         self._freeze_button = create_icon_button(
-            icons_path, "snowflake.svg", tr("Freeze tracking", "Заморозить отслеживание"),
+            icons_path, "line/snowflake-line.svg", tr("Freeze tracking", "Заморозить отслеживание"),
             size_type="large", config=config
         )
         self._freeze_button.clicked.connect(self._toggle_freeze)
         layout.addWidget(self._freeze_button)
 
         self._remove_button = create_icon_button(
-            icons_path, "trash.svg", "",
+            icons_path, "fill/delete-bin-fill.svg", "",
             size_type="large", config=config
         )
         self.tr_set(self._remove_button.setToolTip, "Remove", "Удалить")
@@ -192,7 +192,7 @@ class TrackerUserChip(UserCountRow):
         )
         self.login = login
         self._delete_button = create_icon_button(
-            icons_path, "trash.svg", tr("Remove history for this user", "Удалить историю этого пользователя"),
+            icons_path, "fill/delete-bin-fill.svg", tr("Remove history for this user", "Удалить историю этого пользователя"),
             size_type="small", config=config
         )
         self._delete_button.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)

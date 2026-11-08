@@ -214,7 +214,7 @@ class ParserModesMixin:
 
         # Add calendar button
         calendar_btn = create_icon_button(
-            self.icons_path, "calendar.svg", "Select date",
+            self.icons_path, "fill/calendar-fill.svg", "Select date",
             size_type="large", config=self.config
         )
         calendar_btn.clicked.connect(lambda: self.show_date_picker(line_edit, calendar_btn))

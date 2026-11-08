@@ -41,7 +41,7 @@ class ChatPrivateModeMixin:
         # Create exit button if it doesn't exist
         if self.exit_private_button is None:
             self.exit_private_button = create_icon_button(
-                self.icons_path, "close.svg", "", config=self.config
+                self.icons_path, "line/close-large-line.svg", "", config=self.config
             )
             self.tr_set(self.exit_private_button.setToolTip, "Exit Private Chat", "Выйти из приватного чата")
             self.exit_private_button.clicked.connect(self.exit_private_mode)

@@ -23,7 +23,7 @@ class _AvatarLoadBridge(QObject):
     loaded = pyqtSignal(QPixmap)
 
 
-def _svg_avatar_pixmap(icons_path, size: int, color=None, icon_name: str = "user.svg"):
+def _svg_avatar_pixmap(icons_path, size: int, color=None, icon_name: str = "fill/user-3-fill.svg"):
     """Fallback icon pixmap rendered at the given size."""
     icon = render_svg_icon(icons_path / icon_name, size, color) if color is not None \
         else render_svg_icon(icons_path / icon_name, size)
@@ -44,7 +44,7 @@ def make_rounded_avatar(pixmap: QPixmap, size: int) -> QPixmap:
     return make_rounded_pixmap(pixmap, size, _AVATAR_RADIUS)
 
 
-def make_avatar_pixmap(icons_path, raw_pixmap, size: int = 36, svg_size: int = 24, color=None, icon_name: str = "user.svg"):
+def make_avatar_pixmap(icons_path, raw_pixmap, size: int = 36, svg_size: int = 24, color=None, icon_name: str = "fill/user-3-fill.svg"):
     """Rounded real avatar if one is available, else the SVG fallback icon."""
     if raw_pixmap is not None and not raw_pixmap.isNull():
         return make_rounded_avatar(raw_pixmap, size)
@@ -90,7 +90,7 @@ def _show_loaded_avatar(label: QLabel, user_id: str, pixmap: QPixmap, size: int)
 
 
 def apply_user_avatar(label: QLabel, user_id: Optional[str], size: int, svg_size: int, is_dark: bool,
-                      icons_path: Path, icon_name: str = "user.svg"):
+                      icons_path: Path, icon_name: str = "fill/user-3-fill.svg"):
     """Show the user's avatar (or the themed placeholder) in the label; fetch it in the background if missing."""
     cache = get_cache()
     cached_avatar = cache.get_avatar(user_id) if user_id else None

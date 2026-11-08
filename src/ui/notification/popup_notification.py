@@ -140,13 +140,13 @@ class PopupNotification(AutoHidePopupMixin, QWidget):
         avatar_pixmap = None
         if data.is_parser:
             color = self.message_renderer.parser_colors["text"]
-            avatar_pixmap = make_avatar_pixmap(self.icons_path, None, AVATAR_SIZE, SVG_AVATAR_SIZE, color, "at-line.svg")
+            avatar_pixmap = make_avatar_pixmap(self.icons_path, None, AVATAR_SIZE, SVG_AVATAR_SIZE, color, "line/at-line.svg")
         elif data.is_competition:
             color = self.message_renderer.competition_colors["text"]
-            avatar_pixmap = make_avatar_pixmap(self.icons_path, None, AVATAR_SIZE, SVG_AVATAR_SIZE, color, "trophy.svg")
+            avatar_pixmap = make_avatar_pixmap(self.icons_path, None, AVATAR_SIZE, SVG_AVATAR_SIZE, color, "fill/trophy-fill.svg")
         elif data.is_system:
             color = self.message_renderer.system_colors["text"]
-            avatar_pixmap = make_avatar_pixmap(self.icons_path, None, AVATAR_SIZE, SVG_AVATAR_SIZE, color, "information.svg")
+            avatar_pixmap = make_avatar_pixmap(self.icons_path, None, AVATAR_SIZE, SVG_AVATAR_SIZE, color, "line/information-line.svg")
         elif not data.is_system and data.cache:
             apply_user_avatar(
                 self.avatar_label, data.cache.get_user_id(data.title), AVATAR_SIZE, SVG_AVATAR_SIZE, is_dark,
@@ -178,9 +178,9 @@ class PopupNotification(AutoHidePopupMixin, QWidget):
 
         # Position toggle button
         current_position = data.config.get("ui", "notification_position") if data.config else "right"
-        position_icons = {"left": "align-left.svg", "center": "align-center.svg", "right": "align-right.svg"}
+        position_icons = {"left": "line/align-left-line.svg", "center": "line/align-center-line.svg", "right": "line/align-right-line.svg"}
         self._position_button = icon_btn(
-            self.icons_path, position_icons.get(current_position or "right", "align-right.svg"),
+            self.icons_path, position_icons.get(current_position or "right", "line/align-right-line.svg"),
             tr("Change Position", "Сменить расположение"), data.config
         )
         self._position_button.clicked.connect(self._on_toggle_position)
@@ -188,26 +188,26 @@ class PopupNotification(AutoHidePopupMixin, QWidget):
 
         # Answer button - hide for ban, system, competition, parser messages
         if not data.is_ban and not data.is_system and not data.is_parser and not data.is_competition:
-            self._answer_button = icon_btn(self.icons_path, "reply.svg", tr("Reply", "Ответить"), data.config)
+            self._answer_button = icon_btn(self.icons_path, "fill/reply-fill.svg", tr("Reply", "Ответить"), data.config)
             self._answer_button.clicked.connect(self._on_answer)
             buttons_layout.addWidget(self._answer_button)
         else:
             self._answer_button = None
 
         if data.is_competition and data.open_room_callback and data.competition_game_id is not None:
-            self._open_room_button = icon_btn(self.icons_path, "chat.svg", tr("Open competition room", "Открыть комнату соревнования"), data.config)
+            self._open_room_button = icon_btn(self.icons_path, "fill/chat-1-fill.svg", tr("Open competition room", "Открыть комнату соревнования"), data.config)
             self._open_room_button.clicked.connect(self._on_open_room)
             buttons_layout.addWidget(self._open_room_button)
         else:
             self._open_room_button = None
 
         # Mute button
-        self._mute_button = icon_btn(self.icons_path, "shut-down.svg", tr("Mute Notifications", "Отключить уведомления"), data.config)
+        self._mute_button = icon_btn(self.icons_path, "line/shut-down-line.svg", tr("Mute Notifications", "Отключить уведомления"), data.config)
         self._mute_button.clicked.connect(self._on_mute)
         buttons_layout.addWidget(self._mute_button)
 
         # Close button
-        self.close_button = icon_btn(self.icons_path, "close.svg", tr("Close", "Закрыть"), data.config)
+        self.close_button = icon_btn(self.icons_path, "line/close-large-line.svg", tr("Close", "Закрыть"), data.config)
         self.close_button.clicked.connect(self.manager.close_all)
         buttons_layout.addWidget(self.close_button)
 
@@ -487,7 +487,7 @@ class PopupNotification(AutoHidePopupMixin, QWidget):
     def _on_toggle_position(self):
         """Cycle notification position left → center → right and reposition in realtime"""
         cycle = {"left": "center", "center": "right", "right": "left"}
-        icons = {"left": "align-left.svg", "center": "align-center.svg", "right": "align-right.svg"}
+        icons = {"left": "line/align-left-line.svg", "center": "line/align-center-line.svg", "right": "line/align-right-line.svg"}
         current = self.data.config.get("ui", "notification_position") or "right"
         new_pos = cycle.get(current, "right")
         self.data.config.set("ui", "notification_position", value=new_pos)

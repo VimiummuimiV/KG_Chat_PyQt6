@@ -39,7 +39,7 @@ class SettingsHotkeyMixin:
 
         hotkey_reset_tooltip = tr("Reset to default", "Сбросить по умолчанию")
         self._hotkey_reset_button = create_icon_button(
-            self.icons_path, "reload.svg", hotkey_reset_tooltip, size_type="small", config=self.config
+            self.icons_path, "line/refresh-line.svg", hotkey_reset_tooltip, size_type="small", config=self.config
         )
         self._hotkey_reset_button.clicked.connect(self._on_hotkey_reset_clicked)
         row.addWidget(self._hotkey_reset_button)

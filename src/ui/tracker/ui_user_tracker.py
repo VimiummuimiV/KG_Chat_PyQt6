@@ -83,7 +83,7 @@ class UserTrackerWidget(
         main_layout.addLayout(header_layout)
 
         self._back_button = create_icon_button(
-            self.icons_path, "go-back.svg", "", config=self.config
+            self.icons_path, "line/arrow-go-back-line.svg", "", config=self.config
         )
         self.tr_set(self._back_button.setToolTip, "Back to Messages", "Назад к сообщениям")
         self._back_button.clicked.connect(self.back_requested.emit)
@@ -102,21 +102,21 @@ class UserTrackerWidget(
         header_layout.addWidget(self.info_label, stretch=1)
 
         self._add_user_button = create_icon_button(
-            self.icons_path, "add.svg", "", config=self.config
+            self.icons_path, "line/add-large-line.svg", "", config=self.config
         )
         self.tr_set(self._add_user_button.setToolTip, "Add user", "Добавить пользователя")
         self._add_user_button.clicked.connect(self.add_new_item)
         header_layout.addWidget(self._add_user_button)
 
         self.clear_filter_button = create_icon_button(
-            self.icons_path, "filter.svg", tr("Clear history filter", "Сбросить фильтр истории"), config=self.config
+            self.icons_path, "fill/filter-2-fill.svg", tr("Clear history filter", "Сбросить фильтр истории"), config=self.config
         )
         self.clear_filter_button.clicked.connect(self.clear_filter)
         self.clear_filter_button.setVisible(False)
         header_layout.addWidget(self.clear_filter_button)
 
         self._clear_history_button = create_icon_button(
-            self.icons_path, "trash.svg", "", config=self.config
+            self.icons_path, "fill/delete-bin-fill.svg", "", config=self.config
         )
         self.tr_set(self._clear_history_button.setToolTip, "Clear History", "Очистить историю")
         self._clear_history_button.clicked.connect(self.clear_history)

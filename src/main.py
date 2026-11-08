@@ -140,12 +140,12 @@ class Application(QObject):
         menu = QMenu()
         menu.setFont(get_font(FontType.UI))
 
-        self._show_action = QAction(icon("door-open.svg"), "", self.app)
+        self._show_action = QAction(icon("fill/door-open-fill.svg"), "", self.app)
         self._show_action.triggered.connect(self._show_from_tray)
         menu.addAction(self._show_action)
         menu.addSeparator()
 
-        self._switch_action = QAction(icon("user-switch.svg"), "", self.app)
+        self._switch_action = QAction(icon("fill/user-shared-2-fill.svg"), "", self.app)
         self._switch_action.triggered.connect(self.show_account_switcher)
         menu.addAction(self._switch_action)
         menu.addSeparator()
@@ -157,12 +157,12 @@ class Application(QObject):
         self._setup_notification_menu(menu, icon)
         menu.addSeparator()
 
-        self._ban_list_action = QAction(icon("user-blocked.svg"), "", self.app)
+        self._ban_list_action = QAction(icon("fill/user-forbid-fill.svg"), "", self.app)
         self._ban_list_action.triggered.connect(self._handle_ban_list)
         menu.addAction(self._ban_list_action)
 
         menu.addSeparator()
-        self._exit_action = QAction(icon("door-closed.svg"), "", self.app)
+        self._exit_action = QAction(icon("fill/door-closed-fill.svg"), "", self.app)
         self._exit_action.triggered.connect(self.exit_application)
         menu.addAction(self._exit_action)
 
@@ -173,18 +173,18 @@ class Application(QObject):
 
     def _setup_color_menu(self, parent_menu: QMenu, icon):
         self._color_menu = parent_menu.addMenu("")
-        self._color_menu.setIcon(icon("palette.svg"))
-        self._change_color_action = QAction(icon("palette.svg"), "", self.app)
+        self._color_menu.setIcon(icon("fill/palette-fill.svg"))
+        self._change_color_action = QAction(icon("fill/palette-fill.svg"), "", self.app)
         self._change_color_action.triggered.connect(self._handle_change_username_color)
         self._color_menu.addAction(self._change_color_action)
-        self._reset_color_action = QAction(icon("go-back.svg"), "", self.app)
+        self._reset_color_action = QAction(icon("line/arrow-go-back-line.svg"), "", self.app)
         self._reset_color_action.triggered.connect(self._handle_reset_username_color)
         self._color_menu.addAction(self._reset_color_action)
         self._color_menu.aboutToShow.connect(self._update_color_menu)
 
     def _setup_sound_menu(self, parent_menu: QMenu, icon):
         self._sound_menu = parent_menu.addMenu("")
-        self._sound_menu.setIcon(icon("volume-up.svg"))
+        self._sound_menu.setIcon(icon("fill/volume-up-fill.svg"))
         self._sound_menu.addSeparator()
         self._voice_sound_action = QAction("", self.app, checkable=True)
         self._voice_sound_action.triggered.connect(
@@ -197,7 +197,7 @@ class Application(QObject):
         )
         self._sound_menu.addAction(self._effects_sound_action)
         self._sound_menu.addSeparator()
-        self._pronunciation_action = QAction(icon("user-voice.svg"), "", self.app)
+        self._pronunciation_action = QAction(icon("fill/user-voice-fill.svg"), "", self.app)
         self._pronunciation_action.triggered.connect(self._handle_pronunciation_manager)
         self._sound_menu.addAction(self._pronunciation_action)
         self._sound_menu.aboutToShow.connect(self.update_sound_menu)

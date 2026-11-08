@@ -39,7 +39,7 @@ class SettingsCompetitionsMixin:
 
         copy_log_tooltip = tr("Copy log", "Скопировать лог")
         self._copy_log_button = create_icon_button(
-            self.icons_path, "copy.svg", copy_log_tooltip, size_type="small", config=self.config
+            self.icons_path, "fill/file-copy-fill.svg", copy_log_tooltip, size_type="small", config=self.config
         )
         self._copy_log_button.clicked.connect(self._on_copy_log_clicked)
         log_header.addWidget(self._copy_log_button)
@@ -47,7 +47,7 @@ class SettingsCompetitionsMixin:
 
         clear_log_tooltip = tr("Clear log", "Очистить лог")
         self._clear_log_button = create_icon_button(
-            self.icons_path, "trash.svg", clear_log_tooltip, size_type="small", config=self.config
+            self.icons_path, "fill/delete-bin-fill.svg", clear_log_tooltip, size_type="small", config=self.config
         )
         self._clear_log_button.clicked.connect(self._on_clear_log_clicked)
         log_header.addWidget(self._clear_log_button)

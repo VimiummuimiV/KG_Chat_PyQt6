@@ -57,7 +57,7 @@ class _PronunciationItemWidget(TranslatableMixin, QWidget):
 
         # Arrow icon label (SVG as QLabel)
         arrow_label = QLabel()
-        arrow_svg_path = self.icons_path / "arrow-right.svg"
+        arrow_svg_path = self.icons_path / "line/arrow-right-s-line.svg"
         if arrow_svg_path.exists():
             # Get icon size from config
             icon_size = 30  # Default large icon size
@@ -101,7 +101,7 @@ class _PronunciationItemWidget(TranslatableMixin, QWidget):
 
         # Remove button
         self._remove_button = create_icon_button(
-            self.icons_path, "trash.svg", "", 
+            self.icons_path, "fill/delete-bin-fill.svg", "", 
             size_type="large", config=self.config
         )
         self.tr_set(self._remove_button.setToolTip, "Remove", "Удалить")
@@ -195,7 +195,7 @@ class PronunciationWidget(TranslatableMixin, QWidget):
 
         # Back button
         self._back_button = create_icon_button(
-            self.icons_path, "go-back.svg", "", config=self.config
+            self.icons_path, "line/arrow-go-back-line.svg", "", config=self.config
         )
         self.tr_set(self._back_button.setToolTip, "Back to Messages", "Назад к сообщениям")
         self._back_button.clicked.connect(self.back_requested.emit)
@@ -209,7 +209,7 @@ class PronunciationWidget(TranslatableMixin, QWidget):
 
         # Clear All button
         self._clear_all_button = create_icon_button(
-            self.icons_path, "trash.svg", "", config=self.config
+            self.icons_path, "fill/delete-bin-fill.svg", "", config=self.config
         )
         self.tr_set(self._clear_all_button.setToolTip, "Clear All", "Очистить всё")
         self._clear_all_button.clicked.connect(self._clear_all)
@@ -217,7 +217,7 @@ class PronunciationWidget(TranslatableMixin, QWidget):
 
         # Add button
         self._add_button = create_icon_button(
-            self.icons_path, "add.svg", "", config=self.config
+            self.icons_path, "line/add-large-line.svg", "", config=self.config
         )
         self.tr_set(self._add_button.setToolTip, "Add Mapping", "Добавить соответствие")
         self._add_button.clicked.connect(self._add_new_item)

@@ -117,28 +117,28 @@ class JoinRoomDialog(TranslatableMixin, QDialog):
         actions_row.setSpacing(button_spacing)
 
         cancel_button = create_icon_button(
-            self.icons_path, "go-back.svg", "", config=self.config
+            self.icons_path, "line/arrow-go-back-line.svg", "", config=self.config
         )
         self.tr_set(cancel_button.setToolTip, "Cancel (Esc)", "Отмена (Esc)")
         cancel_button.clicked.connect(self.reject)
         actions_row.addWidget(cancel_button)
 
         gen_button = create_icon_button(
-            self.icons_path, "dice-3.svg", "", config=self.config
+            self.icons_path, "fill/dice-3-fill.svg", "", config=self.config
         )
         self.tr_set(gen_button.setToolTip, "Generate random name", "Сгенерировать случайное имя")
         gen_button.clicked.connect(self._generate_name)
         actions_row.addWidget(gen_button)
 
         self._delete_button = create_icon_button(
-            self.icons_path, "trash.svg", "", config=self.config
+            self.icons_path, "fill/delete-bin-fill.svg", "", config=self.config
         )
         self.tr_set(self._delete_button.setToolTip, "Remove from saved", "Удалить из сохранённых")
         self._delete_button.clicked.connect(self._delete_saved)
         actions_row.addWidget(self._delete_button)
 
         join_button = create_icon_button(
-            self.icons_path, "login.svg", "", config=self.config
+            self.icons_path, "fill/login-box-fill.svg", "", config=self.config
         )
         self.tr_set(join_button.setToolTip, "Join / Create (Enter)", "Войти / Создать (Enter)")
         join_button.clicked.connect(self.accept)

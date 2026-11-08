@@ -106,7 +106,7 @@ class ButtonPanel(QWidget):
         enabled = self.config.get("sound", "effects_enabled")
         if enabled is None:
             enabled = True
-        return "volume-up.svg" if enabled else "volume-mute.svg"
+        return "fill/volume-up-fill.svg" if enabled else "fill/volume-mute-fill.svg"
 
     def _get_effects_tooltip(self) -> str:
         """Get current effects tooltip based on state"""
@@ -122,7 +122,7 @@ class ButtonPanel(QWidget):
     def _get_pin_icon(self) -> str:
         """Get current pin icon based on always-on-top state"""
         enabled = self.config.get("ui", "always_on_top") or False
-        return "pin.svg" if enabled else "unpin.svg"
+        return "fill/pushpin-fill.svg" if enabled else "fill/unpin-fill.svg"
 
     def _get_pin_tooltip(self) -> str:
         enabled = self.config.get("ui", "always_on_top") or False
@@ -138,26 +138,26 @@ class ButtonPanel(QWidget):
     def _create_buttons(self):
         """Create all buttons for the panel"""
         self.toggle_userlist_button = self._create_button(
-            "user.svg",
+            "fill/user-3-fill.svg",
             tr("Toggle User List (U)", "Список пользователей (U)"),
             self.toggle_userlist_requested.emit
         )
         self.toggle_userlist_button._is_visually_active = True
 
         self._switch_account_button = self._create_button(
-            "user-switch.svg",
+            "fill/user-shared-2-fill.svg",
             tr("Switch Account (Ctrl+U)", "Сменить аккаунт (Ctrl+U)"),
             self.switch_account_requested.emit
         )
 
         self._ban_button = self._create_button(
-            "user-blocked.svg",
+            "fill/user-forbid-fill.svg",
             tr("Show Ban List (B)", "Список забаненных (B)"),
             lambda: self.show_banlist_requested.emit()
         )
 
         self._tracker_button = self._create_button(
-            "user-star.svg",
+            "fill/user-star-fill.svg",
             self._tracker_base_tooltip(),
             lambda: self.show_tracker_requested.emit()
         )
@@ -174,19 +174,19 @@ class ButtonPanel(QWidget):
         self._apply_tracker_enabled_state()
 
         self._join_room_button = self._create_button(
-            "chat-new.svg",
+            "fill/chat-new-fill.svg",
             tr("Join / Create Room (Ctrl+J)", "Войти / создать комнату (Ctrl+J)"),
             lambda: self.join_room_requested.emit()
         )
 
         self._search_button = self._create_button(
-            "search.svg",
+            "line/search-line.svg",
             tr("Toggle search (S / Ctrl+F)", "Поиск (S / Ctrl+F)"),
             lambda: self.search_requested.emit()
         )
 
         self.voice_button = self._create_button(
-            "user-voice.svg",
+            "fill/user-voice-fill.svg",
             tr("Toggle Voice Sound (V) (RMB for Username Pronunciation (P))",
                "Голосовой звук (V) (ПКМ — произношение имён (P))"),
             lambda: self.toggle_voice_requested.emit()
@@ -202,7 +202,7 @@ class ButtonPanel(QWidget):
 
         # Notification mute toggle (on/off); single icon, dimmed when disabled
         self.notification_button = self._create_button(
-            "notification.svg",
+            "fill/notification-fill.svg",
             self._get_notification_tooltip(),
             lambda: self.toggle_notification_requested.emit()
         )
@@ -210,7 +210,7 @@ class ButtonPanel(QWidget):
         self.set_button_state(self.notification_button, not muted)
 
         self._color_button = self._create_button(
-            "palette.svg",
+            "fill/palette-fill.svg",
             tr("Username color (C: pick | Ctrl+C/Click: reset)",
                "Цвет имени (C: выбрать | Ctrl+C/клик: сбросить)"),
             lambda: self.change_color_requested.emit()
@@ -219,7 +219,7 @@ class ButtonPanel(QWidget):
         self._color_button.installEventFilter(self)
 
         is_dark = self.theme_manager.is_dark()
-        theme_icon = "moon.svg" if is_dark else "sun.svg"
+        theme_icon = "fill/moon-fill.svg" if is_dark else "fill/sun-fill.svg"
         self._theme_button = self._create_button(
             theme_icon,
             self._theme_tooltip(is_dark),
@@ -227,7 +227,7 @@ class ButtonPanel(QWidget):
         )
 
         self.reset_size_button = self._create_button(
-            "aspect-ratio.svg",
+            "fill/aspect-ratio-fill.svg",
             tr("Reset Window Size and Position to Default (R) (RMB for Presets)",
                "Сбросить размер и позицию окна (R) (ПКМ — пресеты)"),
             lambda: self.reset_window_size_requested.emit()
@@ -243,25 +243,25 @@ class ButtonPanel(QWidget):
         )
 
         self._settings_button = self._create_button(
-            "settings.svg",
+            "fill/settings-3-fill.svg",
             tr("Settings (Ctrl+,)", "Настройки (Ctrl+,)"),
             lambda: self.show_settings_requested.emit()
         )
 
         self._data_folder_button = self._create_button(
-            "folder.svg",
+            "fill/folder-fill.svg",
             tr("Open Data Folder (KG_Chat_Data)", "Открыть папку данных (KG_Chat_Data)"),
             lambda: open_in_file_manager(),
         )
 
         self._exit_button = self._create_button(
-            "door-closed.svg",
+            "fill/door-closed-fill.svg",
             tr("Exit Application", "Выход"),
             lambda: self.exit_requested.emit()
         )
 
         self.reconnect_button = self._create_button(
-            "reload.svg",
+            "line/refresh-line.svg",
             tr("Reconnect to Chat", "Переподключиться к чату"),
             lambda: self.reconnect_requested.emit()
         )
@@ -388,11 +388,11 @@ class ButtonPanel(QWidget):
         if not self._theme_button:
             return
         is_dark = self.theme_manager.is_dark()
-        set_button_icon(self._theme_button, "moon.svg" if is_dark else "sun.svg")
+        set_button_icon(self._theme_button, "fill/moon-fill.svg" if is_dark else "fill/sun-fill.svg")
         self._theme_button.setToolTip(self._theme_tooltip(is_dark))
 
     def update_notification_button_icon(self):
-        """Dim notification button when muted; keep the same notification.svg icon."""
+        """Dim notification button when muted; keep the same notification-fill.svg icon."""
         if not self.notification_button:
             return
         muted = self.config.get("notification", "muted") or False

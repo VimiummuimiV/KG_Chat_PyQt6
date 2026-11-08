@@ -176,15 +176,15 @@ class _TextSelectorOverlay(QTextEdit):
         def icon(name): return render_svg_icon(icons_path / name, 16)
         menu = QMenu(self)
         if self._reply_callback is not None:
-            reply_act = menu.addAction(icon("reply.svg"), tr("Reply", "Ответить"))
+            reply_act = menu.addAction(icon("fill/reply-fill.svg"), tr("Reply", "Ответить"))
             reply_act.setShortcut(QKeySequence("R"))
             reply_act.triggered.connect(self._reply)
             menu.addSeparator()
-        copy_act = menu.addAction(icon("clipboard.svg"), tr("Copy", "Копировать"))
+        copy_act = menu.addAction(icon("fill/clipboard-fill.svg"), tr("Copy", "Копировать"))
         copy_act.setShortcut(QKeySequence("C"))
         copy_act.triggered.connect(self._copy_text)
         if self._paste_callback is not None:
-            paste_act = menu.addAction(icon("add-circle.svg"), tr("Paste", "Вставить"))
+            paste_act = menu.addAction(icon("fill/add-circle-fill.svg"), tr("Paste", "Вставить"))
             paste_act.setShortcut(QKeySequence("V"))
             paste_act.triggered.connect(self._paste_text)
         menu.exec(global_pos)

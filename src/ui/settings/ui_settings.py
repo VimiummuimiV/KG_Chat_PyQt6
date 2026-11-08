@@ -305,7 +305,7 @@ class SettingsWidget(
 
         if on_reset:
             reset_tooltip = tr("Reset to default", "Сбросить по умолчанию")
-            reset_button = create_icon_button(self.icons_path, "reload.svg", reset_tooltip, size_type="small", config=self.config)
+            reset_button = create_icon_button(self.icons_path, "line/refresh-line.svg", reset_tooltip, size_type="small", config=self.config)
             reset_button.clicked.connect(on_reset)
             row.addWidget(reset_button)
             update_reset_state(spin.value())
@@ -331,7 +331,7 @@ class SettingsWidget(
 
         back_tooltip = tr("Back to Messages", "Назад к сообщениям")
         self._back_button = create_icon_button(
-            self.icons_path, "go-back.svg", back_tooltip, config=self.config
+            self.icons_path, "line/arrow-go-back-line.svg", back_tooltip, config=self.config
         )
         self._back_button.clicked.connect(self.back_requested.emit)
         header_layout.addWidget(self._back_button)

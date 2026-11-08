@@ -45,44 +45,44 @@ def show_message_user_context_menu(
     menu = QMenu(parent)
     menu.setFont(get_font(FontType.UI))
 
-    profile_act = menu.addAction(icon("user.svg"), tr("Profile", "Профиль"))
+    profile_act = menu.addAction(icon("fill/user-3-fill.svg"), tr("Profile", "Профиль"))
     private_act = None
     if show_private:
-        private_act = menu.addAction(icon("private-chat.svg"), tr("Private chat", "Приватный чат"))
+        private_act = menu.addAction(icon("fill/chat-3-fill.svg"), tr("Private chat", "Приватный чат"))
     menu.addSeparator()
 
-    copy_username_act = menu.addAction(icon("clipboard.svg"), tr("Copy username", "Копировать имя"))
-    copy_id_act = menu.addAction(icon("hashtag.svg"), tr("Copy ID", "Копировать ID"))
+    copy_username_act = menu.addAction(icon("fill/clipboard-fill.svg"), tr("Copy username", "Копировать имя"))
+    copy_id_act = menu.addAction(icon("line/hashtag-line.svg"), tr("Copy ID", "Копировать ID"))
 
     track_act = None
     menu.addSeparator()
     if show_track:
         if is_tracked:
-            track_act = menu.addAction(icon("user-minus.svg"), tr("Untrack user", "Не Отслеживать"))
+            track_act = menu.addAction(icon("fill/user-minus-fill.svg"), tr("Untrack user", "Не Отслеживать"))
         else:
-            track_act = menu.addAction(icon("user-add.svg"), tr("Track user", "Отслеживать"))
+            track_act = menu.addAction(icon("fill/user-add-fill.svg"), tr("Track user", "Отслеживать"))
 
     if has_pronunciation:
-        pronunciation_act = menu.addAction(icon("user-voice.svg"), tr("Edit Pronunciation", "Изменить произношение"))
+        pronunciation_act = menu.addAction(icon("fill/user-voice-fill.svg"), tr("Edit Pronunciation", "Изменить произношение"))
     else:
-        pronunciation_act = menu.addAction(icon("user-voice.svg"), tr("Set Pronunciation", "Задать произношение"))
+        pronunciation_act = menu.addAction(icon("fill/user-voice-fill.svg"), tr("Set Pronunciation", "Задать произношение"))
 
     perm_act = temp_act = None
     if show_ban:
         menu.addSeparator()
-        perm_act = menu.addAction(icon("prohibited.svg"), tr("Ban permanently", "Вечный бан"))
-        temp_act = menu.addAction(icon("forbidden.svg"), tr("Ban temporarily", "Временный бан"))
+        perm_act = menu.addAction(icon("fill/prohibited-fill.svg"), tr("Ban permanently", "Вечный бан"))
+        temp_act = menu.addAction(icon("fill/forbid-fill.svg"), tr("Ban temporarily", "Временный бан"))
 
     remove_msg_act = remove_up_act = remove_down_act = remove_all_act = presence_remove_act = None
     if show_presence_remove:
         menu.addSeparator()
-        presence_remove_act = menu.addAction(icon("delete-back.svg"), tr("Remove this presence log", "Удалить эту запись присутствия"))
+        presence_remove_act = menu.addAction(icon("fill/delete-back-fill.svg"), tr("Remove this presence log", "Удалить эту запись присутствия"))
     elif show_message_removes:
         menu.addSeparator()
-        remove_msg_act = menu.addAction(icon("delete-back.svg"), tr("Remove this message", "Удалить это сообщение"))
-        remove_up_act = menu.addAction(icon("delete-bin-up.svg"), tr("Remove from here upward", "Удалить отсюда вверх"))
-        remove_down_act = menu.addAction(icon("delete-bin-down.svg"), tr("Remove from here downward", "Удалить отсюда вниз"))
-        remove_all_act = menu.addAction(icon("delete-bin.svg"), tr("Remove all messages", "Удалить все сообщения"))
+        remove_msg_act = menu.addAction(icon("fill/delete-back-fill.svg"), tr("Remove this message", "Удалить это сообщение"))
+        remove_up_act = menu.addAction(icon("fill/delete-bin-2-up-fill.svg"), tr("Remove from here upward", "Удалить отсюда вверх"))
+        remove_down_act = menu.addAction(icon("fill/delete-bin-2-down-fill.svg"), tr("Remove from here downward", "Удалить отсюда вниз"))
+        remove_all_act = menu.addAction(icon("fill/delete-bin-2-fill.svg"), tr("Remove all messages", "Удалить все сообщения"))
 
     chosen = menu.exec(global_pos)
     if chosen is None:

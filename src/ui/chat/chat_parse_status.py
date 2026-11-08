@@ -52,19 +52,19 @@ class ChatParseStatusMixin:
         parse_current_label = QLabel("")
         parse_status_layout.addWidget(parse_current_label)
 
-        stop_parse_btn = create_icon_button(self.icons_path, "stop.svg", "", config=self.config)
+        stop_parse_btn = create_icon_button(self.icons_path, "fill/stop-large-fill.svg", "", config=self.config)
         self.tr_set(stop_parse_btn.setToolTip, "Stop Parsing", "Остановить парсинг")
         stop_parse_btn.setObjectName("stop_parse_btn")
         stop_parse_btn.clicked.connect(self._on_parse_status_stop)
         parse_status_layout.addWidget(stop_parse_btn)
 
-        view_parser_btn = create_icon_button(self.icons_path, "list.svg", "", config=self.config)
+        view_parser_btn = create_icon_button(self.icons_path, "fill/file-list-fill.svg", "", config=self.config)
         self.tr_set(view_parser_btn.setToolTip, "View results", "Показать результаты")
         view_parser_btn.setObjectName("view_parser_btn")
         view_parser_btn.clicked.connect(self.show_parser_view)
         parse_status_layout.addWidget(view_parser_btn)
 
-        close_parse_btn = create_icon_button(self.icons_path, "close.svg", "", config=self.config)
+        close_parse_btn = create_icon_button(self.icons_path, "line/close-large-line.svg", "", config=self.config)
         self.tr_set(close_parse_btn.setToolTip, "Close", "Закрыть")
         close_parse_btn.setObjectName("close_parse_btn")
         close_parse_btn.clicked.connect(self.stop_parse_status)

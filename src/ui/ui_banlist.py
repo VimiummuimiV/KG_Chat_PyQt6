@@ -93,7 +93,7 @@ class _BanItemWidget(TranslatableMixin, QWidget):
 
         # Arrow icon
         arrow_label = QLabel()
-        arrow_svg = icons_path / "arrow-right.svg"
+        arrow_svg = icons_path / "line/arrow-right-s-line.svg"
         if arrow_svg.exists():
             with open(arrow_svg, 'r') as f:
                 svg_content = f.read().replace('fill="currentColor"', 'fill="#888888"')
@@ -137,7 +137,7 @@ class _BanItemWidget(TranslatableMixin, QWidget):
 
         # Remove button
         self._remove_button = create_icon_button(
-            icons_path, "trash.svg", "", 
+            icons_path, "fill/delete-bin-fill.svg", "", 
             size_type="large", config=config
         )
         self.tr_set(self._remove_button.setToolTip, "Remove", "Удалить")
@@ -300,7 +300,7 @@ class BanListWidget(TranslatableMixin, QWidget):
         self.tr_set(label.setText, title_en, title_ru)
         header.addWidget(label, stretch=1)
 
-        add_btn = create_icon_button(self.icons_path, "add.svg", "", config=self.config)
+        add_btn = create_icon_button(self.icons_path, "line/add-large-line.svg", "", config=self.config)
         self.tr_set(add_btn.setToolTip, tooltip_en, tooltip_ru)
         add_btn.clicked.connect(lambda: self._add_new_item(is_temporary))
         header.addWidget(add_btn)
@@ -333,7 +333,7 @@ class BanListWidget(TranslatableMixin, QWidget):
         main_layout.addLayout(header_layout)
 
         self._back_button = create_icon_button(
-            self.icons_path, "go-back.svg", "", config=self.config
+            self.icons_path, "line/arrow-go-back-line.svg", "", config=self.config
         )
         self.tr_set(self._back_button.setToolTip, "Back to Messages", "Назад к сообщениям")
         self._back_button.clicked.connect(self.back_requested.emit)
@@ -345,7 +345,7 @@ class BanListWidget(TranslatableMixin, QWidget):
         header_layout.addWidget(title_label, stretch=1)
 
         self._clear_all_button = create_icon_button(
-            self.icons_path, "trash.svg", "", config=self.config
+            self.icons_path, "fill/delete-bin-fill.svg", "", config=self.config
         )
         self.tr_set(self._clear_all_button.setToolTip, "Clear All", "Очистить всё")
         self._clear_all_button.clicked.connect(self._clear_all)

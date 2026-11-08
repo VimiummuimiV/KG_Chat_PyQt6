@@ -80,7 +80,7 @@ class ChatlogSplitViewMixin:
         # Only update icon if it was actually active
         if self.filter_mentions:
             self.filter_mentions = False
-            set_button_icon(self.mention_filter_btn, "at-line.svg")
+            set_button_icon(self.mention_filter_btn, "line/at-line.svg")
 
         self.apply_filter()
         self.filter_changed.emit(self.filtered_usernames)

@@ -32,7 +32,7 @@ class ChatlogSearchMixin:
         self.filter_mentions = not self.filter_mentions
 
         # Update icon based on state
-        set_button_icon(self.mention_filter_btn, "at-fill.svg" if self.filter_mentions else "at-line.svg")
+        set_button_icon(self.mention_filter_btn, "fill/at-fill.svg" if self.filter_mentions else "line/at-line.svg")
 
         # Reapply filter to show/hide messages
         self.apply_filter()

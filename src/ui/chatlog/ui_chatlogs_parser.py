@@ -177,7 +177,7 @@ class ChatlogsParserConfigWidget(ParserModesMixin, ParserRunMixin, ParserUsernam
 
         # Fetch history button
         self.fetch_history_button = create_icon_button(
-            self.icons_path, "user-received.svg", "",
+            self.icons_path, "fill/user-received-2-fill.svg", "",
             size_type="large", config=self.config
         )
         self.tr_set(self.fetch_history_button.setToolTip, "Fetch username history", "Загрузить историю имён")
@@ -187,7 +187,7 @@ class ChatlogsParserConfigWidget(ParserModesMixin, ParserRunMixin, ParserUsernam
 
         # Add current usernames to the saved chips (not just after a successful parse)
         self.add_username_button = create_icon_button(
-            self.icons_path, "add.svg", "",
+            self.icons_path, "line/add-large-line.svg", "",
             size_type="large", config=self.config
         )
         self.tr_set(self.add_username_button.setToolTip, "Add to saved usernames", "Добавить в сохранённые имена")
@@ -221,7 +221,7 @@ class ChatlogsParserConfigWidget(ParserModesMixin, ParserRunMixin, ParserUsernam
 
         # Fetch history button for search/mentions field
         self.search_fetch_history_button = create_icon_button(
-            self.icons_path, "user-received.svg", "",
+            self.icons_path, "fill/user-received-2-fill.svg", "",
             size_type="large", config=self.config
         )
         self.tr_set(self.search_fetch_history_button.setToolTip, "Fetch username history", "Загрузить историю имён")
@@ -255,7 +255,7 @@ class ChatlogsParserConfigWidget(ParserModesMixin, ParserRunMixin, ParserUsernam
         button_layout.setSpacing(self.config.get("ui", "buttons", "spacing") or 8)
 
         self.parse_button = create_icon_button(
-            self.icons_path, "play.svg", "",
+            self.icons_path, "fill/play-large-fill.svg", "",
             size_type="large", config=self.config
         )
         self.tr_set(self.parse_button.setToolTip, "Start parsing (S)", "Начать парсинг (S)")
@@ -264,7 +264,7 @@ class ChatlogsParserConfigWidget(ParserModesMixin, ParserRunMixin, ParserUsernam
 
         # Copy button (initially hidden)
         self.copy_button = create_icon_button(
-            self.icons_path, "clipboard.svg", "",
+            self.icons_path, "fill/clipboard-fill.svg", "",
             size_type="large", config=self.config
         )
         self.tr_set(self.copy_button.setToolTip, "Copy results to clipboard (Ctrl+C)", "Копировать результаты в буфер (Ctrl+C)")
@@ -274,7 +274,7 @@ class ChatlogsParserConfigWidget(ParserModesMixin, ParserRunMixin, ParserUsernam
 
         # Save button (initially hidden)
         self.save_button = create_icon_button(
-            self.icons_path, "save.svg", "",
+            self.icons_path, "fill/save-2-fill.svg", "",
             size_type="large", config=self.config
         )
         self.tr_set(self.save_button.setToolTip, "Save results to file (Ctrl+S)", "Сохранить результаты в файл (Ctrl+S)")

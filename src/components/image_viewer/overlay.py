@@ -24,7 +24,7 @@ _THUMBNAIL_GAP = 6
 _THUMBNAIL_RADIUS = 4
 _THUMBNAIL_BORDER_WIDTH = 2
 _THUMBNAIL_DIMMED_OPACITY = 0.55
-_UNAVAILABLE_ICON = "image-fill.svg"
+_UNAVAILABLE_ICON = "fill/image-fill.svg"
 _UNAVAILABLE_ICON_SIZE = 24
 _GROUP_SPACING = 16
 _POSITION_SEPARATOR = "  ·  "
@@ -174,13 +174,13 @@ class GalleryBar(QFrame):
         self.setObjectName("galleryBar")
         self._is_playing = False
 
-        self._reply_button = create_icon_button(icons_path, "reply.svg", config=config)
-        self._source_button = create_icon_button(icons_path, "crosshair.svg", config=config)
-        self._previous_button = create_icon_button(icons_path, "arrow-left.svg", config=config)
-        self._slideshow_button = create_icon_button(icons_path, "play.svg", config=config)
-        self._next_button = create_icon_button(icons_path, "arrow-right.svg", config=config)
-        self._previous_day_button = create_icon_button(icons_path, "calendar-arrow-left.svg", config=config)
-        self._next_day_button = create_icon_button(icons_path, "calendar-arrow-right.svg", config=config)
+        self._reply_button = create_icon_button(icons_path, "fill/reply-fill.svg", config=config)
+        self._source_button = create_icon_button(icons_path, "line/crosshair-2-line.svg", config=config)
+        self._previous_button = create_icon_button(icons_path, "line/arrow-left-s-line.svg", config=config)
+        self._slideshow_button = create_icon_button(icons_path, "fill/play-large-fill.svg", config=config)
+        self._next_button = create_icon_button(icons_path, "line/arrow-right-s-line.svg", config=config)
+        self._previous_day_button = create_icon_button(icons_path, "line/calendar-arrow-left-line.svg", config=config)
+        self._next_day_button = create_icon_button(icons_path, "line/calendar-arrow-right-line.svg", config=config)
         self._image_buttons = (self._previous_button, self._slideshow_button, self._next_button)
         side_buttons = (self._reply_button, self._source_button, self._previous_day_button, self._next_day_button)
         for button in (*self._image_buttons, *side_buttons):
@@ -255,7 +255,7 @@ class GalleryBar(QFrame):
 
     def set_slideshow_playing(self, is_playing: bool):
         self._is_playing = is_playing
-        set_button_icon(self._slideshow_button, "stop.svg" if is_playing else "play.svg")
+        set_button_icon(self._slideshow_button, "fill/stop-large-fill.svg" if is_playing else "fill/play-large-fill.svg")
         self._refresh_tooltips()
 
     def visible_indices(self) -> range:
@@ -292,7 +292,7 @@ class CloseButton(QFrame):
     def __init__(self, icons_path: Path, config=None, parent=None):
         super().__init__(parent)
         self.setObjectName("closeButton")
-        self._button = create_icon_button(icons_path, "close.svg", config=config)
+        self._button = create_icon_button(icons_path, "line/close-large-line.svg", config=config)
         self._button.setFocusPolicy(Qt.FocusPolicy.NoFocus)  # keys stay with the viewer
         self._button.clicked.connect(self.clicked)
 
@@ -316,8 +316,8 @@ class NoticeKind(NamedTuple):
     color: str
 
 
-NOTICE_ERROR = NoticeKind("close-circle-line.svg", "#e53935")
-NOTICE_WARNING = NoticeKind("error-warning-line.svg", "#fbc02d")
+NOTICE_ERROR = NoticeKind("line/close-circle-line.svg", "#e53935")
+NOTICE_WARNING = NoticeKind("line/error-warning-line.svg", "#fbc02d")
 
 
 class Notice(QFrame):
