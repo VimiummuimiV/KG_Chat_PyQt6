@@ -1,4 +1,4 @@
-"""YouTube link processor - memory cache only"""
+"""YouTube link processor: titles are cached in memory and in the YouTube title database."""
 
 import re
 import threading
@@ -7,9 +7,12 @@ from typing import Callable, Dict, Optional, Tuple
 import requests
 from PyQt6.QtCore import pyqtSignal, QObject
 
+from core.state.youtube_title_db import YouTubeTitleDB
+
 
 _OEMBED_URL = "https://www.youtube.com/oembed"
 _UNAVAILABLE_STATUS_CODES = (401, 403, 404)
+_UNAVAILABLE_METADATA = {'title': 'Video unavailable', 'channel': 'YouTube'}
 
 # Shared pattern - defined once at module level
 YOUTUBE_URL_PATTERN = re.compile(
@@ -66,7 +69,7 @@ def _format_youtube_display(video_type: str, channel: str, title: str, use_emoji
 
 
 class _YouTubeProcessor:
-    """YouTube link processor with memory cache"""
+    """YouTube link processor: memory cache in front of the title database"""
 
     # Use the shared module-level pattern
     _PATTERN = YOUTUBE_URL_PATTERN
@@ -74,6 +77,7 @@ class _YouTubeProcessor:
     def __init__(self, session: Optional[requests.Session] = None):
         self.session = session or requests.Session()
         self._cache: Dict[str, Dict] = {}
+        self._database = YouTubeTitleDB()
         self._lock = threading.Lock()
         self._active_fetches: set = set()
 
@@ -83,8 +87,9 @@ class _YouTubeProcessor:
 
     def _fetch_metadata(self, video_id: str, url: str = None) -> Dict[str, str]:
         """Fetch metadata from YouTube oEmbed API"""
-        if video_id in self._cache:
-            return self._cache[video_id]
+        cached = self._get_cached_metadata(video_id)
+        if cached:
+            return cached
 
         watch_url = f"https://www.youtube.com/watch?v={video_id}"
 
@@ -98,6 +103,7 @@ class _YouTubeProcessor:
                 'channel': data.get('author_name', 'Channel not found')
             }
 
+            self._database.save(video_id, result['title'], result['channel'])
             with self._lock:
                 self._cache[video_id] = result
 
@@ -108,10 +114,12 @@ class _YouTubeProcessor:
 
         except Exception as e:
             is_unavailable = isinstance(e, requests.HTTPError) and e.response.status_code in _UNAVAILABLE_STATUS_CODES
-            if not is_unavailable:  # deleted, private and non-embeddable videos are expected
+            if is_unavailable:  # deleted, private and non-embeddable videos are expected and stay unavailable
+                self._database.save(video_id, **_UNAVAILABLE_METADATA, is_unavailable=True)
+            else:
                 print(f"Error fetching YouTube metadata for {video_id}: {e}")
-            # Cache the error to prevent retry loops
-            error_result = {'title': 'Video unavailable', 'channel': 'YouTube'}
+            # Cache the error to prevent retry loops (network errors only for this session)
+            error_result = dict(_UNAVAILABLE_METADATA)
             with self._lock:
                 self._cache[video_id] = error_result
 
@@ -121,8 +129,14 @@ class _YouTubeProcessor:
             return error_result
 
     def _get_cached_metadata(self, video_id: str) -> Optional[Dict[str, str]]:
-        """Get metadata from cache only"""
-        return self._cache.get(video_id)
+        """Get metadata from the memory cache, then the database; never touches the network"""
+        cached = self._cache.get(video_id)
+        if cached is None:
+            cached = self._database.get(video_id)
+            if cached:
+                with self._lock:
+                    self._cache[video_id] = cached
+        return cached
 
     def fetch_async(self, url: str, callback: Callable = None) -> bool:
         """
@@ -153,7 +167,7 @@ class _YouTubeProcessor:
         return True
 
     def clear_cache(self):
-        """Clear memory cache"""
+        """Clear the memory cache; stored titles stay in the database"""
         with self._lock:
             self._cache.clear()
 

@@ -1,13 +1,11 @@
 """SQLite database manager for chatlogs"""
 
-import sqlite3
-import threading
-from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import List, Optional, Set, Tuple
 
+from core.state.sqlite_store import SqliteStore
 from helpers.data import get_data_dir
 
 
@@ -22,45 +20,17 @@ class ChatMessage:
         return f"{self.date} {self.timestamp} {self.username}: {self.message}"
 
 
-class ChatlogDB:
+class ChatlogDB(SqliteStore):
     """Thread-safe SQLite database manager for chatlogs"""
 
+    cache_size_kibibytes = 64000
+
     def __init__(self, db_path: Optional[Path] = None):
-        if db_path is None:
-            db_path = get_data_dir("chatlogs") / "chatlogs.db"
+        super().__init__(db_path or get_data_dir("chatlogs") / "chatlogs.db")
 
-        self.db_path = db_path
-        self._local = threading.local()
-        self._write_lock = threading.Lock()
-        self._initialize_db()
-
-    @contextmanager
-    def _get_connection(self):
-        """Get thread-local database connection"""
-        if not hasattr(self._local, 'conn'):
-            self._local.conn = sqlite3.connect(
-                str(self.db_path),
-                check_same_thread=False,
-                timeout=30.0,  # 30 second timeout for locks
-                isolation_level=None  # Autocommit mode
-            )
-            self._local.conn.execute("PRAGMA journal_mode=WAL")
-            self._local.conn.execute("PRAGMA synchronous=NORMAL")
-            self._local.conn.execute("PRAGMA cache_size=-64000")  # 64MB cache
-            self._local.conn.execute("PRAGMA busy_timeout=30000")  # 30 second busy timeout
-
-        try:
-            yield self._local.conn
-        except Exception:
-            try:
-                self._local.conn.rollback()
-            except Exception:
-                pass
-            raise
-
-    def _initialize_db(self):
+    def initialize_db(self):
         """Create tables and indexes if they don't exist"""
-        with self._get_connection() as conn:
+        with self.get_connection() as conn:
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS chatlogs (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -103,7 +73,7 @@ class ChatlogDB:
 
         Returns: (is_cached, was_truncated, is_404)
         """
-        with self._get_connection() as conn:
+        with self.get_connection() as conn:
             cursor = conn.execute(
                 "SELECT status, was_truncated FROM date_status WHERE date = ?",
                 (date,)
@@ -125,8 +95,8 @@ class ChatlogDB:
         if datetime.strptime(date, '%Y-%m-%d').date() >= datetime.now().date():
             return
 
-        with self._write_lock:
-            with self._get_connection() as conn:
+        with self.write_lock:
+            with self.get_connection() as conn:
                 conn.execute("""
                     INSERT OR REPLACE INTO date_status (date, status, was_truncated)
                     VALUES (?, 'not_found', 0)
@@ -138,8 +108,8 @@ class ChatlogDB:
         if datetime.strptime(date, '%Y-%m-%d').date() >= datetime.now().date():
             return
 
-        with self._write_lock:  # Serialize all writes
-            with self._get_connection() as conn:
+        with self.write_lock:  # Serialize all writes
+            with self.get_connection() as conn:
                 # Use transaction for atomic operation
                 conn.execute("BEGIN IMMEDIATE")
 
@@ -219,7 +189,7 @@ class ChatlogDB:
 
         query += " ORDER BY date, timestamp"
 
-        with self._get_connection() as conn:
+        with self.get_connection() as conn:
             cursor = conn.execute(query, params)
             return [
                 ChatMessage(timestamp=row[1], username=row[2], message=row[3], date=row[0])
@@ -228,7 +198,7 @@ class ChatlogDB:
 
     def get_cached_dates(self, from_date: str, to_date: str) -> Set[str]:
         """Get set of dates that are cached in the given range"""
-        with self._get_connection() as conn:
+        with self.get_connection() as conn:
             cursor = conn.execute("""
                 SELECT date FROM date_status 
                 WHERE date >= ? AND date <= ? AND status = 'cached'
@@ -248,7 +218,7 @@ class ChatlogDB:
             current += timedelta(days=1)
 
         # Get cached dates (including 404s)
-        with self._get_connection() as conn:
+        with self.get_connection() as conn:
             cursor = conn.execute("""
                 SELECT date FROM date_status 
                 WHERE date >= ? AND date <= ?
@@ -260,7 +230,7 @@ class ChatlogDB:
 
     def get_database_stats(self) -> dict:
         """Get database statistics"""
-        with self._get_connection() as conn:
+        with self.get_connection() as conn:
             cursor = conn.execute("SELECT COUNT(*) FROM chatlogs")
             total_messages = cursor.fetchone()[0]
 
@@ -286,11 +256,5 @@ class ChatlogDB:
 
     def _vacuum(self):
         """Optimize database (reclaim space)"""
-        with self._get_connection() as conn:
+        with self.get_connection() as conn:
             conn.execute("VACUUM")
-
-    def close(self):
-        """Close database connection"""
-        if hasattr(self._local, 'conn'):
-            self._local.conn.close()
-            delattr(self._local, 'conn')
