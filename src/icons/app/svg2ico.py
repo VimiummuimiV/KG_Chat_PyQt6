@@ -12,14 +12,19 @@ except ImportError:
     sys.exit(1)
 
 
-SIZES = [16, 24, 32, 48, 64, 96, 128, 256, 512]
+SIZES = [16, 24, 32, 48, 64, 96, 128, 256]
 
 
-def svg_to_pngs(svg_path: Path) -> list[Path]:
+def export_svg(svg_path: Path) -> tuple[list[Path], list[Path]]:
     output_dir = svg_path.parent / svg_path.stem
-    output_dir.mkdir(exist_ok=True)
+    png_dir = output_dir / "png"
+    ico_dir = output_dir / "ico"
 
-    created_files = []
+    png_dir.mkdir(parents=True, exist_ok=True)
+    ico_dir.mkdir(parents=True, exist_ok=True)
+
+    png_files = []
+    ico_files = []
 
     for size in SIZES:
         png_data = resvg_py.svg_to_bytes(
@@ -28,14 +33,22 @@ def svg_to_pngs(svg_path: Path) -> list[Path]:
             height=size,
         )
 
-        output_path = output_dir / f"{size}x{size}.png"
+        with Image.open(BytesIO(png_data)) as rendered:
+            image = rendered.convert("RGBA")
 
-        with Image.open(BytesIO(png_data)) as image:
-            image.convert("RGBA").save(output_path, format="PNG")
+            png_path = png_dir / f"{size}x{size}.png"
+            image.save(png_path, format="PNG")
+            png_files.append(png_path)
 
-        created_files.append(output_path)
+            ico_path = ico_dir / f"{size}x{size}.ico"
+            image.save(
+                ico_path,
+                format="ICO",
+                sizes=[(size, size)],
+            )
+            ico_files.append(ico_path)
 
-    return created_files
+    return png_files, ico_files
 
 
 def main():
@@ -48,10 +61,12 @@ def main():
 
     for svg in svg_files:
         try:
-            created_files = svg_to_pngs(svg)
-            print(f"Exported {svg.name}:")
-            for path in created_files:
-                print(f"  {path}")
+            png_files, ico_files = export_svg(svg)
+
+            print(f"Exported: {svg.name}")
+            print(f"  PNG: {len(png_files)} files")
+            print(f"  ICO: {len(ico_files)} files")
+            print(f"  Output: {svg.parent / svg.stem}")
         except Exception as error:
             print(f"Error: {svg.name}: {error}")
 
