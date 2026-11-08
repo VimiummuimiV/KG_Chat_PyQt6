@@ -6,7 +6,7 @@ from typing import List, Optional, Tuple
 import requests
 from lxml import etree
 
-from core.chatlogs.database import ChatlogDB, ChatMessage
+from core.chatlogs.chatlog_db import ChatlogDB, ChatMessage
 from helpers.translate import tr
 
 

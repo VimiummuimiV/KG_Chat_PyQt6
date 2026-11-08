@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Callable, List, Optional
 
-from core.chatlogs.database import ChatMessage
+from core.chatlogs.chatlog_db import ChatMessage
 from core.chatlogs.fetch import ChatlogNotFoundError, ChatlogsParser
 from core.chatlogs.workers_calculator import WorkerCalculator
 

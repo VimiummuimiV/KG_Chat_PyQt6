@@ -3,6 +3,7 @@
 from pathlib import Path
 from typing import Callable, Optional
 
+from PyQt6 import sip
 from PyQt6.QtCore import pyqtSignal, QObject, QSize, Qt
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import QLabel
@@ -64,7 +65,7 @@ def _fetch_avatar(owner: QObject, user_id: str, on_loaded: Callable[[QPixmap], N
 
     def deliver(pixmap: QPixmap):
         nonlocal is_delivered
-        if is_delivered:  # a repeated callback may already be queued behind the deleted bridge
+        if is_delivered or sip.isdeleted(bridge):  # a queued repeat or a delivery to an owner that is already gone
             return
         is_delivered = True
         bridge.deleteLater()
