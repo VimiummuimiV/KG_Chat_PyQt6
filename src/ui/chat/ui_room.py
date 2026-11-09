@@ -82,18 +82,18 @@ class RoomWidget(TranslatableMixin, QWidget):
         self.user_list_widget.pronunciation_manager = value
 
     def _init_ui(self):
-        root = QVBoxLayout()
-        root.setContentsMargins(0, 0, 0, 0)
-        root.setSpacing(self.config.get("ui", "spacing", "widget_elements") or 6)
-        self.setLayout(root)
+        main_layout = QVBoxLayout()
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(self.config.get("ui", "spacing", "widget_elements") or 6)
+        self.setLayout(main_layout)
 
-        body = QHBoxLayout()
-        body.setContentsMargins(0, 0, 0, 0)
-        body.setSpacing(self.config.get("ui", "spacing", "widget_content") or 6)
+        content_layout = QHBoxLayout()
+        content_layout.setContentsMargins(0, 0, 0, 0)
+        content_layout.setSpacing(self.config.get("ui", "spacing", "widget_content") or 6)
 
-        left = QVBoxLayout()
-        left.setContentsMargins(0, 0, 0, 0)
-        left.setSpacing(self.config.get("ui", "spacing", "widget_elements") or 6)
+        left_layout = QVBoxLayout()
+        left_layout.setContentsMargins(0, 0, 0, 0)
+        left_layout.setSpacing(self.config.get("ui", "spacing", "widget_elements") or 6)
 
         self.messages_widget = MessagesWidget(
             self.config, self.emoticon_manager, my_username=self.my_username
@@ -102,10 +102,10 @@ class RoomWidget(TranslatableMixin, QWidget):
         self.messages_widget.username_right_clicked.connect(self.username_right_clicked.emit)
         self.messages_widget.username_ctrl_clicked.connect(self.username_ctrl_clicked.emit)
         self.messages_widget.username_shift_clicked.connect(self.username_shift_clicked.emit)
-        left.addWidget(self.messages_widget, stretch=1)
+        left_layout.addWidget(self.messages_widget, stretch=1)
 
         pet_strip = QWidget()  # keeps the pets' line free of messages; empty and hidden while there are no pets
-        left.addWidget(pet_strip)
+        left_layout.addWidget(pet_strip)
 
         self.input_row = InputRow(self.icons_path, self.config)
         self.input_row.submitted.connect(self.send_requested)
@@ -113,14 +113,14 @@ class RoomWidget(TranslatableMixin, QWidget):
         self.input_field = self.input_row.input_field
         self.send_button = self.input_row.send_button
         self.emoticon_button = self.input_row.emoticon_button
-        left.addWidget(self.input_row)
-        body.addLayout(left, stretch=3)
+        left_layout.addWidget(self.input_row)
+        content_layout.addLayout(left_layout, stretch=3)
 
         # Right column: userlist + font slider (same layout as general chat)
         self.userlist_panel = QWidget()
-        ul_layout = QVBoxLayout()
-        ul_layout.setContentsMargins(0, 0, 0, 0)
-        ul_layout.setSpacing(4)
+        userlist_layout = QVBoxLayout()
+        userlist_layout.setContentsMargins(0, 0, 0, 0)
+        userlist_layout.setSpacing(4)
 
         self.user_list_widget = UserListWidget(
             self.config, input_field=self.input_field, ban_manager=self.ban_manager,
@@ -133,21 +133,21 @@ class RoomWidget(TranslatableMixin, QWidget):
         self.user_list_widget.track_requested.connect(self.track_requested.emit)
         self.user_list_widget.ban_requested.connect(self.ban_requested.emit)
         self.user_list_widget.pronunciation_requested.connect(self.pronunciation_requested.emit)
-        ul_layout.addWidget(self.user_list_widget, stretch=1)
+        userlist_layout.addWidget(self.user_list_widget, stretch=1)
 
         if self.font_scaler is not None:
             self._font_scale_slider = FontScaleSlider(self.font_scaler)
             self._font_scale_slider.setFixedHeight(self.input_field.minimumHeight())
-            ul_layout.addWidget(self._font_scale_slider)
+            userlist_layout.addWidget(self._font_scale_slider)
             self.font_scaler.font_size_committed.connect(self._update_userlist_width)
         else:
             self._font_scale_slider = None
 
-        self.userlist_panel.setLayout(ul_layout)
+        self.userlist_panel.setLayout(userlist_layout)
         self.userlist_panel.setFixedWidth(get_userlist_width())
-        body.addWidget(self.userlist_panel)
+        content_layout.addWidget(self.userlist_panel)
 
-        root.addLayout(body, stretch=1)
+        main_layout.addLayout(content_layout, stretch=1)
         # After the layout tree is attached so input_row is under this widget for mapTo
         self.pet_overlay = PetOverlay(self, pet_strip, self.config)
 

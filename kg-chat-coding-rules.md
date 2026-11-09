@@ -125,6 +125,8 @@ from helpers.translate import tr
 - Full, readable words. No abbreviations a reader would have to guess, no single letters (loop indices excepted), no cryptic shortenings.
 - No digits in names of variables, constants, functions, classes, methods or arguments (`is_not_found`, not `is_404`; `auth_encoded`, not `auth_b64`). Describe the difference in words instead.
 - Keep names simple, but specific enough that they cannot collide with other names in scope or in the module, and never shadow builtins (`type`, `id`, `list`, `input`).
+- The same kind of block has the same name in every file. Before naming a layout, panel, splitter or container, look at how the sibling files name it (`ui_chat.py` ↔ `ui_room.py`, a shell ↔ its mixins) and reuse that name; when two files call one block differently, rename them all in the same change. Layouts are named by role: `main_layout` (top layout of the widget), `content_layout` (the columns), `left_layout`, `userlist_layout`, `header_layout`, `button_layout`; the widget that holds a layout is `<role>_panel` (`userlist_layout` is set on `self.userlist_panel`). No generic or shortened names such as `root`, `body`, `left`, `ul_layout`, `gen_layout`.
+- A layout, the widget that owns it and an attribute never share one name: a local variable must not carry the name of an attribute of the same object (a layout `userlist_panel` next to the widget `self.userlist_panel`). A new or renamed name is checked against every name already in its function, class and module before it is used.
 - A leading underscore marks file-private names; a bare name marks names used from other files. This applies to every kind of name — variables, constants, functions, classes, methods, attributes:
   - used only inside this one file → `_name`, `_CONSTANT`, `_helper()`, `_PrivateClass`
   - read, called, connected or imported from another file (including a sibling mixin of the same shell class, e.g. `ui_chat.py` ↔ `chat_*.py`) → `name`, `CONSTANT`, `helper()`, `PublicClass` — no leading underscore
@@ -158,7 +160,7 @@ from helpers.translate import tr
 - Public classes and functions get a one-line English docstring and type hints on new code.
 - Add a dependency only when the standard library or an existing helper cannot do the job.
 - Delete dead code and unused names instead of leaving them.
-- Verify before delivering: the files compile (`python -m py_compile`), pyflakes is clean, every module imports (offscreen Qt), every `.svg` name used in code exists in its icon folder, and any new logic is exercised with a quick check.
+- Verify before delivering: the files compile (`python -m py_compile`), pyflakes is clean, every module imports (offscreen Qt), every `.svg` name used in code exists in its icon folder, no new or renamed name collides with or shadows another, and any new logic is exercised with a quick check.
 
 ## Delivery
 

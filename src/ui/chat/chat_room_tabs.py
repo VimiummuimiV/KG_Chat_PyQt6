@@ -217,14 +217,14 @@ class ChatRoomTabsMixin:
             return
 
         self.general_body = QWidget()
-        gen_layout = QHBoxLayout()
-        gen_layout.setContentsMargins(0, 0, 0, 0)
-        gen_layout.setSpacing(self.config.get("ui", "spacing", "widget_content") or 6)
-        self.general_body.setLayout(gen_layout)
+        general_layout = QHBoxLayout()
+        general_layout.setContentsMargins(0, 0, 0, 0)
+        general_layout.setSpacing(self.config.get("ui", "spacing", "widget_content") or 6)
+        self.general_body.setLayout(general_layout)
 
         # Freeze repaints during the rewrap to avoid a flash of the half-populated layout
         self.setUpdatesEnabled(False)
-        self._transfer_layout_items(self.content_layout, gen_layout)
+        self._transfer_layout_items(self.content_layout, general_layout)
 
         self.room_tabs = QTabWidget()
         self.room_tabs.setDocumentMode(True)
@@ -254,8 +254,8 @@ class ChatRoomTabsMixin:
             return
 
         self.setUpdatesEnabled(False)
-        gen_layout = self.general_body.layout()
-        self._transfer_layout_items(gen_layout, self.content_layout)
+        general_layout = self.general_body.layout()
+        self._transfer_layout_items(general_layout, self.content_layout)
 
         self.content_layout.removeWidget(self.room_tabs)
         self.room_tabs.deleteLater()

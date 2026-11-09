@@ -364,10 +364,10 @@ class ChatWindow(
 
         # Right column: wrap in QWidget so hiding it collapses the space
         self.userlist_panel = QWidget()
-        userlist_panel = QVBoxLayout()
-        userlist_panel.setContentsMargins(0, 0, 0, 0)
-        userlist_panel.setSpacing(4)
-        userlist_panel.addWidget(self.user_list_widget, stretch=1)
+        userlist_layout = QVBoxLayout()
+        userlist_layout.setContentsMargins(0, 0, 0, 0)
+        userlist_layout.setSpacing(4)
+        userlist_layout.addWidget(self.user_list_widget, stretch=1)
 
         # Font scale slider under userlist — fixed height matches input_container
         # so the slider is vertically centred against the input field row.
@@ -375,11 +375,11 @@ class ChatWindow(
         if font_scaler is not None:
             self._font_scale_slider = FontScaleSlider(font_scaler)
             self._font_scale_slider.setFixedHeight(self.input_field.minimumHeight())
-            userlist_panel.addWidget(self._font_scale_slider)
+            userlist_layout.addWidget(self._font_scale_slider)
         else:
             self._font_scale_slider = None
 
-        self.userlist_panel.setLayout(userlist_panel)
+        self.userlist_panel.setLayout(userlist_layout)
         self.userlist_panel.setFixedWidth(get_userlist_width())
         self.userlist_panel.setVisible(userlist_visible)
         if font_scaler is not None:
