@@ -274,6 +274,15 @@ class ScrollButtonsPanel(QObject):
         step = sb.pageStep() or max(1, self.list_view.viewport().height() - 20)
         sb.setValue(sb.value() + direction * step)
 
+    def _fit_reveal_padding(self):
+        """Shrink the vertical reveal padding in a short view so the centered buttons are not cropped."""
+        margins = self._layout.contentsMargins()
+        buttons_height = self._layout.sizeHint().height() - margins.top() - margins.bottom()
+        padding = max(0, min(_REVEAL_PADDING, (self.list_view.height() - buttons_height) // 2))
+        if padding != margins.top():
+            self._layout.setContentsMargins(_REVEAL_PADDING, padding, 0, padding)
+            self.container.adjustSize()
+
     def _update_position(self):
         """Right-align the container, centered vertically in the viewport.
         Clamped to list_view bounds so the reveal padding never covers a sibling pane."""
@@ -281,6 +290,7 @@ class ScrollButtonsPanel(QObject):
             return
         try:
             padding = 10
+            self._fit_reveal_padding()
             viewport = self.list_view.viewport()
             container_size = self.container.sizeHint()
             viewport_pos = viewport.mapTo(self.list_view, viewport.rect().topLeft())
