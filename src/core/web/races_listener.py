@@ -35,21 +35,21 @@ def _info_and_params(data: dict) -> tuple[dict | None, dict]:
     return info, info.get("params") or {}
 
 
-def _game_url(gid) -> str:
-    return f"https://klavogonki.ru/g/?gmid={gid}"
+def _game_url(game_id) -> str:
+    return f"https://klavogonki.ru/g/?gmid={game_id}"
 
 
 def _multiplier(data: dict) -> str:
     if not isinstance(data, dict):
         return "?"
     if "regular_competition" in data:
-        val = data["regular_competition"]
+        value = data["regular_competition"]
     else:
         _, params = _info_and_params(data)
-        val = params.get("regular_competition")
-    if val is None:
+        value = params.get("regular_competition")
+    if value is None:
         return "?"
-    return "x1" if val == 0 else f"x{val}"
+    return "x1" if value == 0 else f"x{value}"
 
 
 def _is_rating(data) -> bool:
@@ -125,11 +125,11 @@ def _game_fields(data: dict) -> dict | None:
     info, params = _info_and_params(data)
     if info is None:
         return None
-    gid = info.get("id") or data.get("id")
-    if not gid:
+    game_id = info.get("id") or data.get("id")
+    if not game_id:
         return None
     fields = {
-        "game_id": gid,
+        "game_id": game_id,
         "status": info.get("status") or "?",
         "multiplier": _multiplier(data),
         "competition_id": params.get("competition"),
@@ -140,7 +140,7 @@ def _game_fields(data: dict) -> dict | None:
         "gametype": params.get("gametype"),
         "begintime": _to_epoch(info.get("begintime")),
         "endtime": _to_epoch(info.get("endtime")),
-        "url": _game_url(gid),
+        "url": _game_url(game_id),
     }
     # Seed roster from full payload when present (initList / gameCreated).
     # Without this, connecting mid-wait only sees players who join *after* subscribe.
@@ -166,8 +166,8 @@ class RacesListener(QObject):
 
     def set_min_multiplier(self, value: str):
         self.min_multiplier = value or "x1+"
-        for gid, game in self._games.items():
-            self._maybe_emit(gid, game)
+        for game_id, game in self._games.items():
+            self._maybe_emit(game_id, game)
 
     def passes_filter(self, mult: str) -> bool:
         need = _MULT_ORDER.get(self.min_multiplier.rstrip("+"), 1)
@@ -288,40 +288,40 @@ class RacesListener(QObject):
                 if _is_rating(g):
                     fields = _game_fields(g)
                     if fields:
-                        gid = fields.pop("game_id")
-                        self._merge_and_emit(gid, fields)
+                        game_id = fields.pop("game_id")
+                        self._merge_and_emit(game_id, fields)
 
         elif event == "gamelist/gameCreated" and isinstance(data, dict):
             if _is_rating(data):
                 fields = _game_fields(data)
                 if fields:
-                    gid = fields.pop("game_id")
-                    self._merge_and_emit(gid, fields)
+                    game_id = fields.pop("game_id")
+                    self._merge_and_emit(game_id, fields)
 
         elif event == "gamelist/gameUpdated" and isinstance(data, dict):
-            gid = data.get("g") or data.get("id")
+            game_id = data.get("g") or data.get("id")
             diff = data.get("diff")
-            if gid is None or gid not in self._games or not isinstance(diff, dict):
+            if game_id is None or game_id not in self._games or not isinstance(diff, dict):
                 return
             fields = {k: diff[k] for k in ("status", "begintime", "endtime") if k in diff}
             for key in ("begintime", "endtime"):
                 if key in fields:
                     fields[key] = _to_epoch(fields[key])
             if fields:
-                self._merge_and_emit(gid, fields)
+                self._merge_and_emit(game_id, fields)
 
         elif event == "gamelist/playerUpdated" and isinstance(data, dict):
-            gid = data.get("g")
+            game_id = data.get("g")
             slot = data.get("p")
             diff = data.get("diff")
-            if gid in self._games and slot is not None and isinstance(diff, dict):
-                self._apply_player_diff(gid, slot, diff)
+            if game_id in self._games and slot is not None and isinstance(diff, dict):
+                self._apply_player_diff(game_id, slot, diff)
 
-    def _merge_and_emit(self, gid, fields: dict):
-        game = self._games.get(gid)
+    def _merge_and_emit(self, game_id, fields: dict):
+        game = self._games.get(game_id)
         if game is None:
             game = {"players": {}}
-            self._games[gid] = game
+            self._games[game_id] = game
             self._trim_games()
         seed = fields.pop("_players_seed", None)
         for key, value in fields.items():
@@ -333,10 +333,10 @@ class RacesListener(QObject):
             current = game.get("players") or {}
             if not current or len(seed) >= len(current):
                 game["players"] = seed
-                self._emit_players_if_visible(gid, game)
-        self._maybe_emit(gid, game)
+                self._emit_players_if_visible(game_id, game)
+        self._maybe_emit(game_id, game)
 
-    def _maybe_emit(self, gid, game: dict):
+    def _maybe_emit(self, game_id, game: dict):
         status = game.get("status")
         mult = game.get("multiplier") or "?"
         if status not in _TRACKED_STATUSES or not self.passes_filter(mult):
@@ -345,10 +345,10 @@ class RacesListener(QObject):
         if game.get("_emitted_status") == status:
             return
         game["_emitted_status"] = status
-        self.competition_found.emit(self._public_info(gid, game))
+        self.competition_found.emit(self._public_info(game_id, game))
 
-    def _apply_player_diff(self, gid, slot, diff: dict):
-        game = self._games[gid]
+    def _apply_player_diff(self, game_id, slot, diff: dict):
+        game = self._games[game_id]
         players = game["players"]
         if diff.get("leave"):
             players.pop(slot, None)
@@ -366,19 +366,19 @@ class RacesListener(QObject):
                     entry["level"] = user["level"]
             players[slot] = entry
 
-        self._emit_players_if_visible(gid, game)
+        self._emit_players_if_visible(game_id, game)
 
-    def _emit_players_if_visible(self, gid, game: dict):
+    def _emit_players_if_visible(self, game_id, game: dict):
         if game.get("status") == "waiting" and self.passes_filter(game.get("multiplier") or "?"):
-            self.players_changed.emit(gid, self._ordered_players(game))
+            self.players_changed.emit(game_id, self._ordered_players(game))
 
     @staticmethod
     def _ordered_players(game: dict) -> list:
         return list(game["players"].values())
 
-    def _public_info(self, gid, game: dict) -> dict:
+    def _public_info(self, game_id, game: dict) -> dict:
         return {
-            "game_id": gid,
+            "game_id": game_id,
             "status": game.get("status") or "?",
             "multiplier": game.get("multiplier") or "?",
             "competition_id": game.get("competition_id"),
@@ -389,7 +389,7 @@ class RacesListener(QObject):
             "gametype": game.get("gametype"),
             "begintime": game.get("begintime"),
             "endtime": game.get("endtime"),
-            "url": game.get("url") or _game_url(gid),
+            "url": game.get("url") or _game_url(game_id),
             "players": self._ordered_players(game),
         }
 

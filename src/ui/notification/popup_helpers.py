@@ -10,14 +10,14 @@ from ui.notification.notification_settings import resolve_fade_ms
 def fade_opacity(widget, start: float, end: float, on_finished=None, duration_ms=None):
     """Shared windowOpacity animation for notification popups."""
     if duration_ms is None:
-        cfg = getattr(widget, "config", None)
-        if cfg is None:
+        config = getattr(widget, "config", None)
+        if config is None:
             data = getattr(widget, "data", None)
-            cfg = getattr(data, "config", None) if data is not None else None
-        if cfg is None:
+            config = getattr(data, "config", None) if data is not None else None
+        if config is None:
             manager = getattr(widget, "manager", None)
-            cfg = getattr(manager, "config", None) if manager is not None else None
-        duration_ms = resolve_fade_ms(cfg)
+            config = getattr(manager, "config", None) if manager is not None else None
+        duration_ms = resolve_fade_ms(config)
     anim = QPropertyAnimation(widget, b"windowOpacity")
     anim.setDuration(int(duration_ms))
     anim.setStartValue(start)

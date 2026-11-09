@@ -104,7 +104,7 @@ class FlashFade(QObject):
         self.opacity = 0.0
         self.config = config
         self._on_tick = on_tick
-        self.duration_kind = duration_kind
+        self._duration_kind = duration_kind
         self._elapsed_ms = 0
         self._duration_ms = _DEFAULT_FLASH_DURATION_MS
         self._easing = QEasingCurve(TIMING_FUNCTIONS[_DEFAULT_FLASH_EASING])
@@ -115,7 +115,7 @@ class FlashFade(QObject):
     def start(self):
         self.opacity = 1.0
         self._elapsed_ms = 0
-        self._duration_ms = max(1, flash_duration_ms(self.config, self.duration_kind))
+        self._duration_ms = max(1, flash_duration_ms(self.config, self._duration_kind))
         self._easing = QEasingCurve(flash_easing(self.config))
         if not self.timer.isActive():
             self.timer.start()
@@ -142,12 +142,12 @@ class _FlashHighlight(FlashFade):
         super().__init__(widget.update, parent=widget, config=config, interval_ms=interval_ms,
                          duration_kind=duration_kind)
         self.widget = widget
-        self.is_dark_fn = is_dark_fn
+        self._is_dark_fn = is_dark_fn
         self._color_fn = color_fn  # optional: () -> hex color; default highlight_color
         self.alpha = alpha
 
     def _paint_overlay(self, painter: QPainter, rect):
-        color = self._color_fn() if self._color_fn else highlight_color(bool(self.is_dark_fn()))
+        color = self._color_fn() if self._color_fn else highlight_color(bool(self._is_dark_fn()))
         self.paint(painter, rect, color, alpha=self.alpha)
 
 
@@ -165,7 +165,7 @@ class FlashLabel(QLabel):
 
     def flash(self, kind: str | None = None):
         if kind is not None and kind in DURATION_KEYS:
-            self._flash_highlight.duration_kind = kind
+            self._flash_highlight._duration_kind = kind
         self._flash_highlight.start()
 
     def mousePressEvent(self, event: QMouseEvent):

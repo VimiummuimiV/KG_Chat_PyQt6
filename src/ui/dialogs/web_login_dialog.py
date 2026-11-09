@@ -239,10 +239,10 @@ class LoginWebView(QDialog):
         stack.setContentsMargins(0, 0, 0, 0)
         stack.addWidget(self._view)
 
-        self._wait_bg = QWidget()
-        self._wait_bg.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
-        self._wait_bg.setStyleSheet("background:#000;")
-        stack.addWidget(self._wait_bg)
+        self._wait_background = QWidget()
+        self._wait_background.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self._wait_background.setStyleSheet("background:#000;")
+        stack.addWidget(self._wait_background)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -266,9 +266,9 @@ class LoginWebView(QDialog):
         self._spinner.move(c.x() - size // 2, c.y() - size // 2)
 
     def _show_wait(self, visible: bool):
-        self._wait_bg.setVisible(visible)
+        self._wait_background.setVisible(visible)
         if visible:
-            self._wait_bg.raise_()
+            self._wait_background.raise_()
             self._center_spinner()
             self._spinner.start()
         else:
@@ -282,12 +282,12 @@ class LoginWebView(QDialog):
 
     def moveEvent(self, event):
         super().moveEvent(event)
-        if self._spinner and self._wait_bg.isVisible():
+        if self._spinner and self._wait_background.isVisible():
             self._center_spinner()
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
-        if self._spinner and self._wait_bg.isVisible():
+        if self._spinner and self._wait_background.isVisible():
             self._center_spinner()
 
     def done(self, result):

@@ -59,8 +59,8 @@ def _refresh_cache(account_manager: AccountManager, account: Dict, cache) -> Non
     if updated_account:
         account.update(updated_account)
     if cache:
-        effective_bg = _get_effective_background(account)
-        cache.update_user(account['user_id'], account['chat_username'], effective_bg)
+        effective_background = _get_effective_background(account)
+        cache.update_user(account['user_id'], account['chat_username'], effective_background)
 
 
 def change_username_color(parent, account_manager: AccountManager, account: Dict, cache) -> bool:

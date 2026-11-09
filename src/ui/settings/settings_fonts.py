@@ -76,8 +76,8 @@ class SettingsFontsMixin:
             combo.clear()
             combo.addItems(families)
             current = self.config.get("font", kind, "family") or "Roboto"
-            idx = combo.findText(current)
-            combo.setCurrentIndex(idx if idx >= 0 else 0)
+            index = combo.findText(current)
+            combo.setCurrentIndex(index if index >= 0 else 0)
             combo.blockSignals(False)
 
         emoji_families = get_available_emoji_families() or ["Noto Color Emoji"]
@@ -85,8 +85,8 @@ class SettingsFontsMixin:
         self._emoji_font_combo.clear()
         self._emoji_font_combo.addItems(emoji_families)
         current_emoji = self.config.get("font", "emoji_family") or "Noto Color Emoji"
-        idx = self._emoji_font_combo.findText(current_emoji)
-        self._emoji_font_combo.setCurrentIndex(idx if idx >= 0 else 0)
+        index = self._emoji_font_combo.findText(current_emoji)
+        self._emoji_font_combo.setCurrentIndex(index if index >= 0 else 0)
         self._emoji_font_combo.blockSignals(False)
 
         ui_size = int(self.config.get("font", "ui", "size") or 12)
@@ -95,14 +95,14 @@ class SettingsFontsMixin:
             if self.font_scaler
             else int(self.config.get("font", "text", "size") or 15)
         )
-        for spin, val in (
+        for spin, value in (
             (self._ui_font_size_spin, ui_size),
             (self._text_font_size_spin, text_size),
         ):
             spin.blockSignals(True)
-            spin.setValue(val)
+            spin.setValue(value)
             spin.linked_slider.blockSignals(True)
-            spin.linked_slider.setValue(val)
+            spin.linked_slider.setValue(value)
             spin.linked_slider.blockSignals(False)
             spin.blockSignals(False)
 

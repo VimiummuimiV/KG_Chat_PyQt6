@@ -21,7 +21,7 @@ from helpers.translate import tr
 from helpers.voice.voice_input import resolve_device, VoiceInputEngine
 
 
-def _cfg_get(config, *keys, default=None):
+def _config_get(config, *keys, default=None):
     value = config.get(*keys) if config else None
     return default if value is None else value
 
@@ -33,20 +33,20 @@ def install_voice_input(window) -> MicButton:
 
     icon_size = 30
     button_size = 48
-    btn_cfg = _cfg_get(config, "ui", "buttons") or {}
-    if isinstance(btn_cfg, dict):
-        icon_size = btn_cfg.get("icon_size", icon_size)
-        button_size = btn_cfg.get("button_size", button_size)
+    button_config = _config_get(config, "ui", "buttons") or {}
+    if isinstance(button_config, dict):
+        icon_size = button_config.get("icon_size", icon_size)
+        button_size = button_config.get("button_size", button_size)
 
-    saved_name = _cfg_get(config, "voice_input", "device_name", default=None)
-    saved_index = _cfg_get(config, "voice_input", "device_id", default=None)
+    saved_name = _config_get(config, "voice_input", "device_name", default=None)
+    saved_index = _config_get(config, "voice_input", "device_id", default=None)
 
     engine = VoiceInputEngine(parent=window)
     engine.set_device_index(resolve_device(saved_name, saved_index))
 
     mic = MicButton(icons_path, icon_size=icon_size, button_size=button_size, parent=window)
     mic.set_device(saved_name, saved_index)
-    mic.setVisible(bool(_cfg_get(config, "voice_input", "enabled", default=True)))
+    mic.setVisible(bool(_config_get(config, "voice_input", "enabled", default=True)))
 
     window.input_row.append_button(mic)  # [input] [send] [emoji] [mic]
 

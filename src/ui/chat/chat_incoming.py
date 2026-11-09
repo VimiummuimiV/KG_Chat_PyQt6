@@ -194,7 +194,7 @@ class ChatIncomingMixin:
                                 avatar_pix = self.cache.get_avatar(str(pres.user_id))
                             except Exception:
                                 avatar_pix = None
-                        event_ts = event.get('ts')
+                        event_timestamp = event.get('ts')
                         login = pres.login
                         popup_manager.show_presence(
                             login,
@@ -202,8 +202,8 @@ class ChatIncomingMixin:
                             avatar_pixmap=avatar_pix,
                             config=self.config,
                             cache=getattr(self, 'cache', None),
-                            on_click=lambda l=login, ts=event_ts: self.on_presence_notification_click(l, ts),
-                            event_ts=event_ts,
+                            on_click=lambda l=login, ts=event_timestamp: self.on_presence_notification_click(l, ts),
+                            event_ts=event_timestamp,
                             game_id=event.get('game_id'),
                         )
 

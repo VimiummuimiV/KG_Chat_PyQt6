@@ -28,7 +28,7 @@ class MessageInteractions(QObject):
         self.list_view = list_view
         self.delegate = delegate
         # ChatlogWidget handles timestamp clicks itself, so it passes handle_timestamp=False
-        self.handle_timestamp = handle_timestamp
+        self._handle_timestamp = handle_timestamp
         self.list_view.viewport().installEventFilter(self)
 
     def eventFilter(self, obj, event):
@@ -96,7 +96,7 @@ class MessageInteractions(QObject):
                 return True
 
         # Check timestamp click
-        if self.handle_timestamp and rects['timestamp'].contains(pos):
+        if self._handle_timestamp and rects['timestamp'].contains(pos):
             date_str = msg.timestamp.strftime("%Y-%m-%d")
             is_competition = (
                 getattr(msg, 'is_competition', False)

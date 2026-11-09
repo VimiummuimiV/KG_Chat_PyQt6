@@ -200,9 +200,9 @@ class UserTracker:
         if not key:
             return None
 
-        new_gid = str(game_id) if game_id else None
-        old_gid = self._last_game.get(key)
-        old_gid = str(old_gid) if old_gid else None
+        new_game_id = str(game_id) if game_id else None
+        old_game_id = self._last_game.get(key)
+        old_game_id = str(old_game_id) if old_game_id else None
         last = self._last_state.get(key)
         event = None
 
@@ -217,22 +217,22 @@ class UserTracker:
             event = self._append(user_id, login, "left")
         else:
             if last != "join":
-                if new_gid:
+                if new_game_id:
                     write_type = "game"
                 else:
                     write_type = "join"
                 self._last_state[key] = "join"
-                self._last_game[key] = new_gid
+                self._last_game[key] = new_game_id
                 if write_type not in tracked:
                     return None
-                event = self._append(user_id, login, write_type, game_id=new_gid if new_gid else None)
-            elif new_gid and new_gid != old_gid:
-                self._last_game[key] = new_gid
+                event = self._append(user_id, login, write_type, game_id=new_game_id if new_game_id else None)
+            elif new_game_id and new_game_id != old_game_id:
+                self._last_game[key] = new_game_id
                 if "game" not in tracked:
                     return None
-                event = self._append(user_id, login, "game", game_id=new_gid)
+                event = self._append(user_id, login, "game", game_id=new_game_id)
             else:
-                if new_gid is None and old_gid:
+                if new_game_id is None and old_game_id:
                     self._last_game[key] = None
                 return None
 

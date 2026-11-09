@@ -37,8 +37,8 @@ class ChatConnectionMixin:
             self.exit_private_mode()
 
         if self.game_rooms:
-            for gid in list(self.game_rooms.keys()):
-                self.close_game_room_tab(gid)
+            for game_id in list(self.game_rooms.keys()):
+                self.close_game_room_tab(game_id)
         if self.custom_rooms:
             for name in list(self.custom_rooms.keys()):
                 self.close_custom_room_tab(name)

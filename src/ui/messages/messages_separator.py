@@ -42,7 +42,7 @@ def _render_separator(
     text: str,
     font,
     line_color: QColor,
-    bg_color: QColor,
+    background_color: QColor,
     text_color: QColor,
     line_width: int = 2,
     line_end_offset: int = 20,
@@ -63,9 +63,9 @@ def _render_separator(
 
     # Calculate text dimensions
     painter.setFont(font)
-    fm = QFontMetrics(font)
-    text_width = fm.horizontalAdvance(text) + text_h_padding
-    text_height = fm.height() + text_v_padding
+    font_metrics = QFontMetrics(font)
+    text_width = font_metrics.horizontalAdvance(text) + text_h_padding
+    text_height = font_metrics.height() + text_v_padding
 
     # Position text box
     if text_position == "right":
@@ -76,7 +76,7 @@ def _render_separator(
 
     # Draw background box
     painter.setPen(Qt.PenStyle.NoPen)
-    painter.setBrush(bg_color)
+    painter.setBrush(background_color)
     painter.drawRoundedRect(text_x, text_y, text_width, text_height, box_radius, box_radius)
 
     # Draw text
@@ -99,14 +99,14 @@ class NewMessagesSeparator:
 
     @staticmethod
     def render(painter: QPainter, rect: QRect, font, is_dark_theme: bool):
-        line_color, bg_color, text_color = _get_separator_colors(is_dark_theme, is_emphasis=True)
+        line_color, background_color, text_color = _get_separator_colors(is_dark_theme, is_emphasis=True)
         _render_separator(
             painter,
             rect,
             "🔥",
             font,
             line_color,
-            bg_color,
+            background_color,
             text_color,
             line_end_offset=80,
             text_position="right"
@@ -135,14 +135,14 @@ class DateSeparator:
 
     @staticmethod
     def render(painter: QPainter, rect: QRect, date_str: str, font, is_dark_theme: bool):
-        line_color, bg_color, text_color = _get_separator_colors(is_dark_theme, is_emphasis=False)
+        line_color, background_color, text_color = _get_separator_colors(is_dark_theme, is_emphasis=False)
         _render_separator(
             painter,
             rect,
             date_str,
             font,
             line_color,
-            bg_color,
+            background_color,
             text_color
         )
 

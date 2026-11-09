@@ -17,18 +17,18 @@ def rgb_to_hex(rgb: tuple) -> str:
 def rgb_to_hsl(rgb: tuple) -> tuple:
     """RGB (0-255) → HSL (h 0-360, s 0-1, l 0-1)."""
     r, g, b = [x / 255.0 for x in rgb]
-    max_val, min_val = max(r, g, b), min(r, g, b)
-    diff = max_val - min_val
-    l = (max_val + min_val) / 2.0
+    max_value, min_value = max(r, g, b), min(r, g, b)
+    diff = max_value - min_value
+    l = (max_value + min_value) / 2.0
 
     if diff == 0:
         return (0, 0, l)
 
-    s = diff / (2.0 - max_val - min_val) if l > 0.5 else diff / (max_val + min_val)
+    s = diff / (2.0 - max_value - min_value) if l > 0.5 else diff / (max_value + min_value)
 
-    if max_val == r:
+    if max_value == r:
         h = ((g - b) / diff + (6 if g < b else 0)) / 6.0
-    elif max_val == g:
+    elif max_value == g:
         h = ((b - r) / diff + 2) / 6.0
     else:
         h = ((r - g) / diff + 4) / 6.0

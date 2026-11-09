@@ -10,8 +10,8 @@ class ChatPresenceLogMixin:
     """ChatWindow: presence log panel, its splitter and tracker events."""
 
     def presence_log_enabled(self) -> bool:
-        val = self.config.get("user_tracker", "presence_log")
-        return True if val is None else bool(val)
+        value = self.config.get("user_tracker", "presence_log")
+        return True if value is None else bool(value)
 
     def set_presence_log_enabled(self, enabled: bool):
         if not enabled:

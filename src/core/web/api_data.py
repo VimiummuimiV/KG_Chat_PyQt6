@@ -95,7 +95,7 @@ def validate_username_and_get_id(username: str) -> Optional[str]:
     except Exception:
         return None
 
-def get_all_user_ids_by_name(username: str) -> List[int]:
+def _get_all_user_ids_by_name(username: str) -> List[int]:
     """Get all user IDs matching username via search API"""
     try:
         search_api_url = f"https://klavogonki.ru/api/profile/search-users?query={username}"

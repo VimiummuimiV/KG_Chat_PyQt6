@@ -137,7 +137,7 @@ class ChatWindow(
         # Live-updating competition messages: game_id -> {mult, url, begintime, players}
         self.competition_live = {}
         self.competition_alert_timers = {}  # game_id -> pending lead-time alert QTimer
-        self.competition_focus_gid = None  # keep this row centered while chips grow after alert
+        self.competition_focus_game_id = None  # keep this row centered while chips grow after alert
         self.competition_countdown_timer = QTimer(self)
         self.competition_countdown_timer.timeout.connect(self.tick_competition_countdowns)
         self.competition_sound_repeat_timer = QTimer(self)
@@ -317,7 +317,7 @@ class ChatWindow(
         self.chatlog_widget = None
         self.chatlog_userlist_widget = None
         self.pre_profile_view = None  # 'messages' or 'chatlog' - where to return after profile/pronunciation/ban-list views
-        self.restore_room_gid = None  # game_id of room tab to reopen after profile/private...
+        self.restore_room_game_id = None  # game_id of room tab to reopen after profile/private...
 
         pet_strip = QWidget()  # keeps the pets' line free of messages; empty and hidden while there are no pets
         left_layout.addWidget(pet_strip)

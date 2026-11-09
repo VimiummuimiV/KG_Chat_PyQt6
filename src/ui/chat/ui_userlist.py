@@ -259,7 +259,7 @@ class UserListWidget(TranslatableMixin, QWidget):
         self.user_widgets = {}
         self._user_game_state = {}
         self.cache = get_cache()
-        self.bg_hex = "#1E1E1E" if config.get("ui", "theme") == "dark" else "#FFFFFF"
+        self.background_hex = "#1E1E1E" if config.get("ui", "theme") == "dark" else "#FFFFFF"
         self.is_dark_theme = config.get("ui", "theme") == "dark"
 
         self.icons_path = get_resource_dir("icons")
@@ -282,10 +282,10 @@ class UserListWidget(TranslatableMixin, QWidget):
         self.auto_scroller = AutoScroller(scroll)
 
         container = QWidget()
-        self.main_layout = QVBoxLayout()
-        self.main_layout.setContentsMargins(5, 5, 5, 5)
-        self.main_layout.setSpacing(widget_spacing)
-        container.setLayout(self.main_layout)
+        self._main_layout = QVBoxLayout()
+        self._main_layout.setContentsMargins(5, 5, 5, 5)
+        self._main_layout.setSpacing(widget_spacing)
+        container.setLayout(self._main_layout)
         scroll.setWidget(container)
 
         section_label = get_font(FontType.TEXT, weight=QFont.Weight.Bold)
@@ -295,31 +295,31 @@ class UserListWidget(TranslatableMixin, QWidget):
         self.chat_label.setFont(section_label)
         self.chat_label.setStyleSheet("color: #888;")
         self.chat_label.setVisible(False)
-        self.main_layout.addWidget(self.chat_label)
+        self._main_layout.addWidget(self.chat_label)
         self.register_tr(self.chat_label.setText, tr("Chat", "Чат"))
 
         self._chat_container = QVBoxLayout()
         self._chat_container.setSpacing(list_spacing)
-        self.main_layout.addLayout(self._chat_container)
+        self._main_layout.addLayout(self._chat_container)
 
         self._section_spacer = QWidget()
         self._section_spacer.setFixedHeight(section_gap)
         self._section_spacer.setVisible(False)
-        self.main_layout.addWidget(self._section_spacer)
+        self._main_layout.addWidget(self._section_spacer)
 
         # Game section
         self.game_label = QLabel(tr("Game", "Игра"))
         self.game_label.setFont(section_label)
         self.game_label.setStyleSheet("color: #888;")
         self.game_label.setVisible(False)
-        self.main_layout.addWidget(self.game_label)
+        self._main_layout.addWidget(self.game_label)
         self.register_tr(self.game_label.setText, tr("Game", "Игра"))
 
         self._game_container = QVBoxLayout()
         self._game_container.setSpacing(list_spacing)
-        self.main_layout.addLayout(self._game_container)
+        self._main_layout.addLayout(self._game_container)
 
-        self.main_layout.addStretch()
+        self._main_layout.addStretch()
 
         on_language_changed(self._retranslate)
 
@@ -605,7 +605,7 @@ class UserListWidget(TranslatableMixin, QWidget):
     def update_theme(self):
         """Update theme colors"""
         theme = self.config.get("ui", "theme")
-        self.bg_hex = "#1E1E1E" if theme == "dark" else "#FFFFFF"
+        self.background_hex = "#1E1E1E" if theme == "dark" else "#FFFFFF"
         self.is_dark_theme = theme == "dark"
 
         self.setUpdatesEnabled(False)

@@ -80,7 +80,7 @@ class ChatlogSplitViewMixin:
         # Only update icon if it was actually active
         if self.filter_mentions:
             self.filter_mentions = False
-            set_button_icon(self.mention_filter_btn, "line/at-line.svg")
+            set_button_icon(self.mention_filter_button, "line/at-line.svg")
 
         self.apply_filter()
         self.filter_changed.emit(self.filtered_usernames)
@@ -104,7 +104,7 @@ class ChatlogSplitViewMixin:
                 ban_manager=self.ban_manager
             )
             self.split_chatlog_widget.delegate.anchor_frame_enabled = self.anchor_frame_active
-            self.split_chatlog_widget.back_btn.setToolTip(tr("Close split view", "Закрыть разделённый вид"))
+            self.split_chatlog_widget.back_button.setToolTip(tr("Close split view", "Закрыть разделённый вид"))
             self.split_chatlog_widget.back_requested.connect(self.close_split_view)
             self.content_splitter.addWidget(self.split_chatlog_widget)
             self.content_splitter.setSizes([self.height() // 2, self.height() // 2])

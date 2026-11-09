@@ -188,8 +188,8 @@ class ChatLifecycleMixin:
             self.presence_log_widget.cleanup()
         if self.chatlog_split_widget:
             self.chatlog_split_widget.cleanup()
-        for gid in list(self.game_rooms.keys()):
-            self.close_game_room_tab(gid)
+        for game_id in list(self.game_rooms.keys()):
+            self.close_game_room_tab(game_id)
         if self.chatlog_widget:
             self.chatlog_widget.cleanup()
 

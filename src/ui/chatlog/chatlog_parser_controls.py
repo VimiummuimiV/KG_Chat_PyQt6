@@ -67,7 +67,7 @@ class ChatlogParserControlsMixin:
         return self.message_count() > self._live_search_max_messages()
 
     def update_confirm_search_button(self):
-        self.confirm_search_btn.setVisible(self.requires_confirmed_search())
+        self.confirm_search_button.setVisible(self.requires_confirmed_search())
 
     def max_messages_limit(self) -> int:
         value = self.config.get("ui", "chatlog", "max_messages")

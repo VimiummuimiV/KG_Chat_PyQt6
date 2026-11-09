@@ -96,10 +96,10 @@ class ChatHotkeysMixin:
                     gp = event.globalPosition().toPoint() if hasattr(event, 'globalPosition') else event.globalPos()
                     w = QApplication.widgetAt(gp)
                     # Walk up parents to see if click landed inside selector or on the button
-                    btn = self.active_emoticon_button()
+                    button = self.active_emoticon_button()
                     inside = False
                     while w:
-                        if w == self.emoticon_selector or w == btn:
+                        if w == self.emoticon_selector or w == button:
                             inside = True
                             break
                         w = w.parentWidget()
@@ -351,30 +351,30 @@ class ChatHotkeysMixin:
                 cw.navigate_hold(-1 if vk == 'nav_backward' else 1)
         # Vim-style scroll — J down, K up, works in chat and chatlog
         elif vk in ('scroll_down', 'scroll_up'):
-            sb = _active_scrollbar()
-            if sb:
-                step = sb.singleStep() * 5
-                sb.setValue(sb.value() + (step if vk == 'scroll_down' else -step))
+            scroll_bar = _active_scrollbar()
+            if scroll_bar:
+                step = scroll_bar.singleStep() * 5
+                scroll_bar.setValue(scroll_bar.value() + (step if vk == 'scroll_down' else -step))
         # Vim-style G = bottom, gg = top
         elif vk == 'scroll_gg':
-            sb = _active_scrollbar()
-            if sb:
+            scroll_bar = _active_scrollbar()
+            if scroll_bar:
                 if shift:
-                    sb.setValue(sb.maximum())
+                    scroll_bar.setValue(scroll_bar.maximum())
                 else:
                     if not hasattr(self, '_gg_timer'):
                         self._gg_timer = QTimer(self)
                         self._gg_timer.setSingleShot(True)
                     if self._gg_timer.isActive():
                         self._gg_timer.stop()
-                        sb.setValue(sb.minimum())
+                        scroll_bar.setValue(scroll_bar.minimum())
                     else:
                         self._gg_timer.start(300)
         # Space — scroll down one page
         elif vk == 'page_down':
-            sb = _active_scrollbar()
-            if sb:
-                sb.setValue(sb.value() + (-sb.pageStep() if shift else sb.pageStep()))
+            scroll_bar = _active_scrollbar()
+            if scroll_bar:
+                scroll_bar.setValue(scroll_bar.value() + (-scroll_bar.pageStep() if shift else scroll_bar.pageStep()))
         # Always on top toggle (T)
         elif vk == 'top':
             self.on_toggle_always_on_top()

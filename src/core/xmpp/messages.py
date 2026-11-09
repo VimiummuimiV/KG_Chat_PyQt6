@@ -60,11 +60,11 @@ class MessageParser:
             from_jid = msg.get('from', '')
             msg_type = msg.get('type', 'chat')
 
-            body_elem = msg.find('{jabber:client}body')
-            if body_elem is None or not body_elem.text:
+            body_element = msg.find('{jabber:client}body')
+            if body_element is None or not body_element.text:
                 continue
 
-            body = body_elem.text
+            body = body_element.text
             login = None
             avatar = None
             background = None
@@ -72,17 +72,17 @@ class MessageParser:
             # Try to get user data from klavogonki:userdata
             userdata = msg.find('.//' + ns + 'user')
             if userdata is not None:
-                login_elem = userdata.find(ns + 'login')  # FIX: Use namespace
-                if login_elem is not None and login_elem.text:
-                    login = login_elem.text
+                login_element = userdata.find(ns + 'login')  # FIX: Use namespace
+                if login_element is not None and login_element.text:
+                    login = login_element.text
 
-                avatar_elem = userdata.find(ns + 'avatar')  # FIX: Use namespace
-                if avatar_elem is not None and avatar_elem.text:
-                    avatar = avatar_elem.text
+                avatar_element = userdata.find(ns + 'avatar')  # FIX: Use namespace
+                if avatar_element is not None and avatar_element.text:
+                    avatar = avatar_element.text
 
-                bg_elem = userdata.find(ns + 'background')  # FIX: Use namespace
-                if bg_elem is not None and bg_elem.text:
-                    background = bg_elem.text
+                background_element = userdata.find(ns + 'background')  # FIX: Use namespace
+                if background_element is not None and background_element.text:
+                    background = background_element.text
 
             # If login still not found, extract from JID using helper
             if not login and from_jid:
@@ -92,9 +92,9 @@ class MessageParser:
 
             # Parse timestamp with timezone conversion
             timestamp = None
-            delay_elem = msg.find('.//{urn:xmpp:delay}delay')
-            if delay_elem is not None:
-                stamp = delay_elem.get('stamp')
+            delay_element = msg.find('.//{urn:xmpp:delay}delay')
+            if delay_element is not None:
+                stamp = delay_element.get('stamp')
                 if stamp:
                     try:
                         # Parse UTC timestamp and convert to local timezone
@@ -138,26 +138,26 @@ class MessageParser:
 
             userdata = pres.find('.//' + ns + 'user')
             if userdata is not None:
-                login_elem = userdata.find(ns + 'login')
-                if login_elem is not None:
-                    login = login_elem.text
+                login_element = userdata.find(ns + 'login')
+                if login_element is not None:
+                    login = login_element.text
 
-                avatar_elem = userdata.find(ns + 'avatar')
-                if avatar_elem is not None:
-                    avatar = avatar_elem.text
+                avatar_element = userdata.find(ns + 'avatar')
+                if avatar_element is not None:
+                    avatar = avatar_element.text
 
-                bg_elem = userdata.find(ns + 'background')
-                if bg_elem is not None:
-                    background = bg_elem.text
+                background_element = userdata.find(ns + 'background')
+                if background_element is not None:
+                    background = background_element.text
 
                 # Parse moderator tag
-                moderator_elem = userdata.find(ns + 'moderator')
-                if moderator_elem is not None:
-                    moderator = moderator_elem.text == '1'
+                moderator_element = userdata.find(ns + 'moderator')
+                if moderator_element is not None:
+                    moderator = moderator_element.text == '1'
 
-            game_elem = pres.find('.//' + ns + 'game_id')
-            if game_elem is not None:
-                game_id = game_elem.text
+            game_element = pres.find('.//' + ns + 'game_id')
+            if game_element is not None:
+                game_id = game_element.text
 
             affiliation = 'none'
             role = 'participant'

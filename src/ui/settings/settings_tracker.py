@@ -173,9 +173,9 @@ class SettingsTrackerMixin:
         self._tracker_retention_spin.linked_slider.setValue(value)
         self._tracker_retention_spin.setValue(value)
         self._set_retention_widgets_blocked(False)
-        btn = getattr(self._tracker_retention_spin, "_reset_button", None)
-        if btn is not None:
-            btn.setEnabled(self._tracker_retention_unit() != "hours" or value != 24)
+        button = getattr(self._tracker_retention_spin, "_reset_button", None)
+        if button is not None:
+            button.setEnabled(self._tracker_retention_unit() != "hours" or value != 24)
 
     def _set_retention_widgets_blocked(self, blocked: bool):
         self._tracker_retention_spin.linked_slider.blockSignals(blocked)

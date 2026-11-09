@@ -40,16 +40,16 @@ class ChatRoomTabsMixin:
         if self.room_tabs is not None and self.room_tabs.currentIndex() != 0:
             w = self.room_tabs.currentWidget()
             if isinstance(w, RoomWidget):
-                self.restore_room_gid = w.game_id
+                self.restore_room_game_id = w.game_id
             self.room_tabs.setCurrentIndex(0)
 
     def restore_room_tab(self):
         """Re-select the game-room tab we left when opening a General stacked view."""
-        gid = self.restore_room_gid
-        self.restore_room_gid = None
-        if gid is None or not self.room_tabs:
+        game_id = self.restore_room_game_id
+        self.restore_room_game_id = None
+        if game_id is None or not self.room_tabs:
             return
-        w = self.game_rooms.get(gid)
+        w = self.game_rooms.get(game_id)
         if w is not None:
             self.room_tabs.setCurrentWidget(w)
 
@@ -89,11 +89,11 @@ class ChatRoomTabsMixin:
         room_label: "Game" (default, opened via a live game_id) or
         "Competition" (opened via RMB on a competition announcement timestamp).
         """
-        gid = getattr(msg, 'competition_game_id', None)
-        if not gid:
+        game_id = getattr(msg, 'competition_game_id', None)
+        if not game_id:
             return
         try:
-            gid = int(gid)
+            game_id = int(game_id)
         except (TypeError, ValueError):
             return
 
@@ -101,17 +101,17 @@ class ChatRoomTabsMixin:
             self.close_chatlog_split_view()
 
         # Already open → just switch to it
-        if gid in self.game_rooms:
-            self.room_tabs.setCurrentWidget(self.game_rooms[gid])
+        if game_id in self.game_rooms:
+            self.room_tabs.setCurrentWidget(self.game_rooms[game_id])
             return
 
         self._ensure_room_tabs()
 
-        widget = self._create_room_widget(game_id=gid, room_label=room_label)
-        self.game_rooms[gid] = widget
+        widget = self._create_room_widget(game_id=game_id, room_label=room_label)
+        self.game_rooms[game_id] = widget
         self.room_tabs.addTab(widget, widget.tab_title())
         self.room_tabs.setCurrentWidget(widget)
-        self._join_room(widget.room_jid, game_id=gid)
+        self._join_room(widget.room_jid, game_id=game_id)
 
     def on_join_room_requested(self):
         dialog = JoinRoomDialog(self.config, self.icons_path, parent=self)
@@ -265,43 +265,43 @@ class ChatRoomTabsMixin:
         self.setUpdatesEnabled(True)
         self.messages_widget.force_recalculate()
 
-    def _room_tab_index(self, gid):
+    def _room_tab_index(self, game_id):
         """QTabWidget index for a room, or 0 for General (gid=None). -1 if not open.
         gid can be int (game), None (General), or 'c:name' (custom room)."""
         if not self.room_tabs:
             return -1
-        if gid is None:
+        if game_id is None:
             return 0
-        if isinstance(gid, str) and gid.startswith("c:"):
-            widget = self.custom_rooms.get(gid[2:])
+        if isinstance(game_id, str) and game_id.startswith("c:"):
+            widget = self.custom_rooms.get(game_id[2:])
         else:
-            widget = self.game_rooms.get(gid)
+            widget = self.game_rooms.get(game_id)
         return self.room_tabs.indexOf(widget) if widget else -1
 
-    def _refresh_tab_title(self, gid):
+    def _refresh_tab_title(self, game_id):
         """Repaint the "(N) " unread prefix on a room tab, or General (gid=None)."""
-        idx = self._room_tab_index(gid)
-        if idx < 0:
+        index = self._room_tab_index(game_id)
+        if index < 0:
             return
-        if gid is None:
+        if game_id is None:
             base = "General"
-        elif isinstance(gid, str) and gid.startswith("c:"):
-            base = self.custom_rooms[gid[2:]].tab_title()
+        elif isinstance(game_id, str) and game_id.startswith("c:"):
+            base = self.custom_rooms[game_id[2:]].tab_title()
         else:
-            base = self.game_rooms[gid].tab_title()
-        count = self.unread_rooms.get(gid, 0)
+            base = self.game_rooms[game_id].tab_title()
+        count = self.unread_rooms.get(game_id, 0)
         prefix = f"({count}) " if count else ""
-        self.room_tabs.setTabText(idx, prefix + base)
+        self.room_tabs.setTabText(index, prefix + base)
 
-    def bump_tab_unread(self, gid):
+    def bump_tab_unread(self, game_id):
         """Increment the unread counter for a room (gid=None for General)."""
-        self.unread_rooms[gid] = self.unread_rooms.get(gid, 0) + 1
-        self._refresh_tab_title(gid)
+        self.unread_rooms[game_id] = self.unread_rooms.get(game_id, 0) + 1
+        self._refresh_tab_title(game_id)
 
-    def _clear_tab_unread(self, gid):
+    def _clear_tab_unread(self, game_id):
         """Clear the unread counter for a room (gid=None for General)."""
-        if self.unread_rooms.pop(gid, 0):
-            self._refresh_tab_title(gid)
+        if self.unread_rooms.pop(game_id, 0):
+            self._refresh_tab_title(game_id)
 
     def _on_room_tab_close_requested(self, index: int):
         if index <= 0:
@@ -343,18 +343,18 @@ class ChatRoomTabsMixin:
         if not self.room_tabs:
             return
         keep_widget = self.room_tabs.widget(keep_index)
-        for gid in list(self.game_rooms.keys()):
-            widget = self.game_rooms.get(gid)
+        for game_id in list(self.game_rooms.keys()):
+            widget = self.game_rooms.get(game_id)
             if widget is not None and widget is not keep_widget:
-                self.close_game_room_tab(gid)
+                self.close_game_room_tab(game_id)
         for name in list(self.custom_rooms.keys()):
             widget = self.custom_rooms.get(name)
             if widget is not None and widget is not keep_widget:
                 self.close_custom_room_tab(name)
 
     def _close_all_room_tabs(self):
-        for gid in list(self.game_rooms.keys()):
-            self.close_game_room_tab(gid)
+        for game_id in list(self.game_rooms.keys()):
+            self.close_game_room_tab(game_id)
         for name in list(self.custom_rooms.keys()):
             self.close_custom_room_tab(name)
 
@@ -406,9 +406,9 @@ class ChatRoomTabsMixin:
             return
         self.unread_rooms.pop(unread_key, None)
         self._leave_room(widget.room_jid)
-        idx = self.room_tabs.indexOf(widget) if self.room_tabs else -1
-        if idx >= 0:
-            self.room_tabs.removeTab(idx)
+        index = self.room_tabs.indexOf(widget) if self.room_tabs else -1
+        if index >= 0:
+            self.room_tabs.removeTab(index)
         widget.cleanup()
         widget.setParent(None)
         widget.deleteLater()
@@ -433,10 +433,10 @@ class ChatRoomTabsMixin:
         Returns (widget, unread_key, game_id) or (None, None, None) if the
         jid isn't a currently-open game or custom room."""
         if self.game_rooms and is_from_game_room(from_jid):
-            gid = game_id_from_jid(from_jid)
-            room = self.game_rooms.get(gid) if gid is not None else None
+            game_id = game_id_from_jid(from_jid)
+            room = self.game_rooms.get(game_id) if game_id is not None else None
             if room is not None:
-                return room, gid, gid
+                return room, game_id, game_id
         if self.custom_rooms:
             cname = custom_room_name_from_jid(from_jid)
             room = self.custom_rooms.get(cname) if cname else None

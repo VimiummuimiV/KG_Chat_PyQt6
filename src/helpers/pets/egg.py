@@ -66,7 +66,7 @@ class Egg(Food):
         """Whether the egg has evaporated or been eaten and should be removed."""
         return self.is_eaten or (self._state == _EVAPORATE and self._age_ms >= self._animation.cycle_ms)
 
-    def maximum_lift(self, area_height: int) -> float:
+    def _maximum_lift(self, area_height: int) -> float:
         return area_height - self.pixmap.height()
 
     def grab(self, point: QPoint, area_height: int, timestamp_ms: int) -> None:

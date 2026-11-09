@@ -19,13 +19,13 @@ class PronunciationDialog(TranslatableMixin, QDialog):
         layout.setContentsMargins(12, 12, 12, 12)
         layout.setSpacing(12)
 
-        self._lbl = QLabel()
+        self._label = QLabel()
         self.tr_set(
-            self._lbl.setText,
+            self._label.setText,
             f"Pronunciation for: {self.username}",
             f"Произношение для: {self.username}",
         )
-        layout.addWidget(self._lbl)
+        layout.addWidget(self._label)
 
         self._input = QLineEdit()
         self.tr_set(self._input.setPlaceholderText, "Pronunciation", "Произношение")
@@ -43,7 +43,7 @@ class PronunciationDialog(TranslatableMixin, QDialog):
     def _retranslate(self, _code=None):
         self.retranslate_all()
         self.tr_set(
-            self._lbl.setText,
+            self._label.setText,
             f"Pronunciation for: {self.username}",
             f"Произношение для: {self.username}",
         )
@@ -55,6 +55,6 @@ class PronunciationDialog(TranslatableMixin, QDialog):
     def get_pronunciation_for_user(parent=None, username: str = ""):
         """Show dialog and return (pronunciation, accepted).
         Empty pronunciation + accepted means remove mapping."""
-        dlg = PronunciationDialog(parent, username)
-        ok = dlg.exec() == QDialog.DialogCode.Accepted
-        return (dlg.get_pronunciation() if ok else "", ok)
+        dialog = PronunciationDialog(parent, username)
+        ok = dialog.exec() == QDialog.DialogCode.Accepted
+        return (dialog.get_pronunciation() if ok else "", ok)

@@ -164,8 +164,8 @@ class MessageListModel(QAbstractListModel):
         msg.presence_entries = entries
         msg.body = body
         msg.timestamp = datetime.now()
-        idx = self.index(row, 0)
-        self.dataChanged.emit(idx, idx, [Qt.ItemDataRole.DisplayRole])
+        index = self.index(row, 0)
+        self.dataChanged.emit(index, index, [Qt.ItemDataRole.DisplayRole])
         return True
 
     def remove_message_at(self, row: int) -> bool:

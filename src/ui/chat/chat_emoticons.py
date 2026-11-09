@@ -72,10 +72,10 @@ class ChatEmoticonsMixin:
         self.emoticon_selector.setFixedSize(w, h)
 
         # The General button sits in a hidden tab while a game room is active, so its geometry can be stale
-        btn = self.active_emoticon_button()
-        btn_top_right = self.mapFromGlobal(btn.mapToGlobal(btn.rect().topRight()))
-        x = btn_top_right.x() - w
-        y = max(16, btn_top_right.y() - h - 8)
+        button = self.active_emoticon_button()
+        button_top_right = self.mapFromGlobal(button.mapToGlobal(button.rect().topRight()))
+        x = button_top_right.x() - w
+        y = max(16, button_top_right.y() - h - 8)
         x = max(8, min(x, self.width() - w - 8))
 
         self.emoticon_selector.move(x, y)

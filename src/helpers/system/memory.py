@@ -11,7 +11,7 @@ from PyQt6.QtCore import QTimer
 _RELEASE_DELAY_MS = 500  # lets deleteLater() of the released widgets run first
 
 
-def release_unused_memory():
+def _release_unused_memory():
     """Collect garbage and hand freed memory back: trim the working set on Windows, the malloc heap on Linux."""
     gc.collect()
     if sys.platform == "win32":
@@ -29,4 +29,4 @@ def release_unused_memory():
 
 def release_memory_soon() -> None:
     """Release unused memory once the pending deleteLater() calls have run."""
-    QTimer.singleShot(_RELEASE_DELAY_MS, release_unused_memory)
+    QTimer.singleShot(_RELEASE_DELAY_MS, _release_unused_memory)

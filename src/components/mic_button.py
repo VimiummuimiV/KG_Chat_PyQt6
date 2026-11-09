@@ -285,23 +285,23 @@ class MicButton(QPushButton):
         menu = QMenu(self)
         devices = list_input_devices()
 
-        default_act = menu.addAction(tr("Default device", "Устройство по умолчанию"))
-        default_act.setCheckable(True)
-        default_act.setChecked(self._device_name is None)
-        default_act.triggered.connect(lambda: self.device_chosen.emit(None))
+        default_action = menu.addAction(tr("Default device", "Устройство по умолчанию"))
+        default_action.setCheckable(True)
+        default_action.setChecked(self._device_name is None)
+        default_action.triggered.connect(lambda: self.device_chosen.emit(None))
 
         if devices:
             menu.addSeparator()
             group = QActionGroup(menu)
             group.setExclusive(True)
             for dev in devices:
-                act = menu.addAction(dev.label())
-                act.setCheckable(True)
-                act.setActionGroup(group)
+                action = menu.addAction(dev.label())
+                action.setCheckable(True)
+                action.setActionGroup(group)
                 if self._device_name and dev.name == self._device_name:
-                    act.setChecked(True)
-                    default_act.setChecked(False)
-                act.triggered.connect(lambda _=False, d=dev: self.device_chosen.emit(d))
+                    action.setChecked(True)
+                    default_action.setChecked(False)
+                action.triggered.connect(lambda _=False, d=dev: self.device_chosen.emit(d))
         else:
             menu.addSeparator()
             dummy = menu.addAction(

@@ -265,9 +265,9 @@ class UserTrackerWidget(
             if widget:
                 self.users_grid.removeWidget(widget)
 
-        for idx, item in enumerate(self.user_items):
-            row = idx // columns
-            col = idx % columns
+        for index, item in enumerate(self.user_items):
+            row = index // columns
+            col = index % columns
             self.users_grid.addWidget(item, row, col)
 
     def resizeEvent(self, event):

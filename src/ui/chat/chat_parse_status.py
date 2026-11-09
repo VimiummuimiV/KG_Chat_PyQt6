@@ -14,22 +14,22 @@ class ChatParseStatusMixin:
 
     def _set_parse_results_badge(self, n: int):
         badge = getattr(self, "_parse_results_badge", None)
-        btn = None
+        button = None
         if self.parse_status_widget:
-            btn = self.parse_status_widget.findChild(QPushButton, "view_parser_btn")
-        if not badge or not btn:
+            button = self.parse_status_widget.findChild(QPushButton, "view_parser_btn")
+        if not badge or not button:
             return
         n = max(0, int(n))
         if n <= 0:
             badge.hide()
-            btn.setToolTip(tr("View results", "Показать результаты"))
+            button.setToolTip(tr("View results", "Показать результаты"))
             return
         badge.setText("99+" if n > 99 else str(n))
         badge.adjustSize()
-        badge.move(1, btn.height() - badge.height() - 1)
+        badge.move(1, button.height() - badge.height() - 1)
         badge.show()
         badge.raise_()
-        btn.setToolTip(tr(f"View results — {n} new", f"Показать результаты — {n} новых"))
+        button.setToolTip(tr(f"View results — {n} new", f"Показать результаты — {n} новых"))
 
     def show_parser_view(self):
         """Open chatlog list with current parse results and hide the status bar."""
@@ -124,12 +124,12 @@ class ChatParseStatusMixin:
         """Keep parse status visible but update to finished state"""
         if self.parse_status_widget:
             # Hide stop button; show Close only after finish
-            stop_btn = self.parse_status_widget.findChild(QPushButton, "stop_parse_btn")
-            if stop_btn:
-                stop_btn.setVisible(False)
-            close_btn = self.parse_status_widget.findChild(QPushButton, "close_parse_btn")
-            if close_btn:
-                close_btn.setVisible(True)
+            stop_button = self.parse_status_widget.findChild(QPushButton, "stop_parse_btn")
+            if stop_button:
+                stop_button.setVisible(False)
+            close_button = self.parse_status_widget.findChild(QPushButton, "close_parse_btn")
+            if close_button:
+                close_button.setVisible(True)
             # Update label
             if self.mentions_digest_active:
                 count = 0

@@ -106,7 +106,7 @@ class _TypeFilterBadge(QLabel):
         self.setStyleSheet(_pill_css(bg, fg, border))
         _set_badge_active(self, False)
 
-    def set_active(self, active: bool):
+    def _set_active(self, active: bool):
         self._active = bool(active)
         _set_badge_active(self, self._active)
 
@@ -165,7 +165,7 @@ class TypeFilterBar(QWidget):
 
     def _sync(self):
         for et, badge in self.badges.items():
-            badge.set_active(et in self._active)
+            badge._set_active(et in self._active)
 
     def _on_click(self, event_type: str, ctrl_pressed: bool):
         self._active = toggle_filter_value(

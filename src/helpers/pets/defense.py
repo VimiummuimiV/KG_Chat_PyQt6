@@ -47,7 +47,7 @@ class DefenseBehavior:
         else:
             self._scare(away_from=raider.center_x, duration_ms=_FLIGHT_MS)
 
-    def bolt(self, away_from: float) -> None:
+    def _bolt(self, away_from: float) -> None:
         """Run away from the x as a guard has caught up with the pet: a predator leaves the line, the rest panic."""
         if self.is_predator:
             self.flee(away_from)
@@ -85,6 +85,6 @@ class DefenseBehavior:
             self._face_toward(quarry.center_x)
             if not self.touches(quarry):
                 return
-            quarry.bolt(self.center_x)
+            quarry._bolt(self.center_x)
         self._chasing = None
         self._choose_state()

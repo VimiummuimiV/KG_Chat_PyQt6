@@ -244,17 +244,17 @@ class AutoScroller(QObject):
                 self._indicator._set_direction(0)
             return
 
-        val = delta_y / self._dead_zone
+        value = delta_y / self._dead_zone
 
-        if abs(val) <= 1:
+        if abs(value) <= 1:
             if self._indicator:
                 self._indicator._set_direction(0)
             return
 
-        if val > 0:
-            accel = val * math.sqrt(val) - 1
+        if value > 0:
+            accel = value * math.sqrt(value) - 1
         else:
-            accel = val * math.sqrt(-val) + 1
+            accel = value * math.sqrt(-value) + 1
 
         scroll_amount = accel * self._scroll_speed
 

@@ -339,8 +339,8 @@ class SettingsChatMixin:
         for display_name, key in browsers:
             self.browser_combo.addItem(display_name, key)
         current_browser = self.config.get("browser") or "system"
-        idx = self.browser_combo.findData(current_browser)
-        self.browser_combo.setCurrentIndex(idx if idx >= 0 else 0)
+        index = self.browser_combo.findData(current_browser)
+        self.browser_combo.setCurrentIndex(index if index >= 0 else 0)
         self.browser_combo.blockSignals(False)
 
     def _on_chatlog_max_messages_changed(self, value: int):

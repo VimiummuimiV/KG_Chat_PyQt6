@@ -21,14 +21,14 @@ class SettingsSoundMixin:
         )
 
         self.sound_selectors = {}
-        self.sound_dir = get_resource_dir("sounds")
+        self._sound_dir = get_resource_dir("sounds")
         sound_types = [
             ("mention", tr("Mention sound", "Звук упоминания")),
             ("ban", tr("Ban sound", "Звук бана")),
             ("competition", tr("Competition sound", "Звук соревнования")),
         ]
         for kind, label in sound_types:
-            selector = SoundSelectorWidget(self.config, self.sound_dir, kind, label)
+            selector = SoundSelectorWidget(self.config, self._sound_dir, kind, label)
             selector.combo.currentIndexChanged.connect(self._on_sound_selection_changed)
             self.sound_selectors[kind] = selector
             section.addWidget(selector)

@@ -63,8 +63,8 @@ class TrackerHistoryMixin:
         self.update_info_label()
 
     def append_event(self, event: dict):
-        sb = self.history_list_view.verticalScrollBar()
-        at_bottom = (sb.maximum() - sb.value()) <= 100
+        scroll_bar = self.history_list_view.verticalScrollBar()
+        at_bottom = (scroll_bar.maximum() - scroll_bar.value()) <= 100
         self.history_model.append_event(event)
         self.update_history_empty_state()
         if at_bottom:

@@ -39,7 +39,7 @@ class PresenceMiniPopup(AutoHidePopupMixin, QWidget):
         self.initial_cursor_pos = QCursor.pos()
         self.data = None
         self.on_click = on_click
-        self.event_ts = event_ts
+        self._event_timestamp = event_ts
         self.login = login
         self.event_type = event_type
         self.duration = duration_ms

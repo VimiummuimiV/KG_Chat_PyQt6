@@ -199,8 +199,8 @@ class MessagesWidget(TranslatableMixin, QWidget):
         if not self.search.register_message(msg_data, self.model.max_messages):
             return -1
 
-        sb = self.list_view.verticalScrollBar()
-        at_bottom = (sb.maximum() - sb.value()) <= 100
+        scroll_bar = self.list_view.verticalScrollBar()
+        at_bottom = (scroll_bar.maximum() - scroll_bar.value()) <= 100
 
         row = self.model.add_message(msg_data)
 
@@ -214,8 +214,8 @@ class MessagesWidget(TranslatableMixin, QWidget):
             current = self.model.get_message_at(open_row)
             entries = add_presence_entry(list(current.presence_entries or []), login, event_type)
             self.model.update_presence_entries(open_row, entries, presence_entries_to_text(entries))
-            sb = self.list_view.verticalScrollBar()
-            if (sb.maximum() - sb.value()) <= 100:
+            scroll_bar = self.list_view.verticalScrollBar()
+            if (scroll_bar.maximum() - scroll_bar.value()) <= 100:
                 call_later(self, 0, lambda: scroll(self.list_view, mode="bottom", delay=50))
             return
 
@@ -272,7 +272,7 @@ class MessagesWidget(TranslatableMixin, QWidget):
     def update_theme(self):
         theme = self.config.get("ui", "theme")
         self.delegate.is_dark_theme = (theme == "dark")
-        self.delegate.bg_hex = "#1E1E1E" if theme == "dark" else "#FFFFFF"
+        self.delegate.background_hex = "#1E1E1E" if theme == "dark" else "#FFFFFF"
 
     def force_recalculate(self):
         """Aggressive force recalculation of all item sizes"""

@@ -27,8 +27,8 @@ class ChatlogLoadingMixin:
 
     def update_date_display(self):
         self.date_label.setText(self.current_date.strftime("%Y-%m-%d (%A)"))
-        self.next_btn.setEnabled(self._can_navigate(1))
-        self.prev_btn.setEnabled(self._can_navigate(-1))
+        self.next_button.setEnabled(self._can_navigate(1))
+        self.prev_button.setEnabled(self._can_navigate(-1))
 
     def _can_navigate(self, days: int) -> bool:
         return self.parser.MIN_DATE <= self.current_date + timedelta(days=days) <= datetime.now().date()
@@ -248,8 +248,8 @@ class ChatlogLoadingMixin:
             calendar.close()
 
         calendar.clicked.connect(on_date_selected)
-        btn_pos = self.calendar_btn.mapToGlobal(self.calendar_btn.rect().bottomRight())
-        x = btn_pos.x() - calendar.sizeHint().width()
-        y = btn_pos.y() + (self.config.get("ui", "spacing", "widget_elements") or 6)
+        button_pos = self.calendar_button.mapToGlobal(self.calendar_button.rect().bottomRight())
+        x = button_pos.x() - calendar.sizeHint().width()
+        y = button_pos.y() + (self.config.get("ui", "spacing", "widget_elements") or 6)
         calendar.move(x, y)
         calendar.show()

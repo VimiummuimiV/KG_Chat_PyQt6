@@ -61,11 +61,11 @@ class _PronunciationItemWidget(TranslatableMixin, QWidget):
         if arrow_svg_path.exists():
             # Get icon size from config
             icon_size = 30  # Default large icon size
-            btn_cfg = config.get("ui", "buttons")
-            if btn_cfg and isinstance(btn_cfg, dict):
-                large_btn = btn_cfg.get("large_button", {})
-                if isinstance(large_btn, dict):
-                    icon_size = large_btn.get("icon_size", 30)
+            button_config = config.get("ui", "buttons")
+            if button_config and isinstance(button_config, dict):
+                large_button = button_config.get("large_button", {})
+                if isinstance(large_button, dict):
+                    icon_size = large_button.get("icon_size", 30)
 
             # Render SVG to pixmap with gray color
             with open(arrow_svg_path, 'r') as f:
@@ -367,9 +367,9 @@ class PronunciationWidget(TranslatableMixin, QWidget):
                     self._items_layout.removeWidget(widget)
 
             # Re-add items in grid
-            for idx, item in enumerate(self.items):
-                row = idx // columns
-                col = idx % columns
+            for index, item in enumerate(self.items):
+                row = index // columns
+                col = index % columns
                 self._items_layout.addWidget(item, row, col)
 
             self._current_columns = columns

@@ -96,7 +96,7 @@ class ChatlogsParserConfigWidget(ParserModesMixin, ParserRunMixin, ParserUsernam
         if parts:
             input_field.setText(' '.join(parts))
 
-    def show_date_picker(self, input_field, calendar_btn):
+    def show_date_picker(self, input_field, calendar_button):
         """Show calendar picker"""
         calendar = QCalendarWidget()
         calendar.setWindowFlags(Qt.WindowType.Popup)
@@ -117,9 +117,9 @@ class ChatlogsParserConfigWidget(ParserModesMixin, ParserRunMixin, ParserUsernam
         ))
 
         # Position calendar relative to button
-        btn_pos = calendar_btn.mapToGlobal(calendar_btn.rect().bottomRight())
-        x = btn_pos.x() - calendar.sizeHint().width()
-        y = btn_pos.y() + (self.config.get("ui", "spacing", "widget_elements") or 6)
+        button_pos = calendar_button.mapToGlobal(calendar_button.rect().bottomRight())
+        x = button_pos.x() - calendar.sizeHint().width()
+        y = button_pos.y() + (self.config.get("ui", "spacing", "widget_elements") or 6)
         calendar.move(x, y)
         calendar.show()
 

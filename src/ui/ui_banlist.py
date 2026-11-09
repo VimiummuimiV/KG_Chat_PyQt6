@@ -300,10 +300,10 @@ class BanListWidget(TranslatableMixin, QWidget):
         self.tr_set(label.setText, title_en, title_ru)
         header.addWidget(label, stretch=1)
 
-        add_btn = create_icon_button(self.icons_path, "line/add-large-line.svg", "", config=self.config)
-        self.tr_set(add_btn.setToolTip, tooltip_en, tooltip_ru)
-        add_btn.clicked.connect(lambda: self._add_new_item(is_temporary))
-        header.addWidget(add_btn)
+        add_button = create_icon_button(self.icons_path, "line/add-large-line.svg", "", config=self.config)
+        self.tr_set(add_button.setToolTip, tooltip_en, tooltip_ru)
+        add_button.clicked.connect(lambda: self._add_new_item(is_temporary))
+        header.addWidget(add_button)
         section_layout.addLayout(header)
 
         # Grid layout for items
@@ -315,7 +315,7 @@ class BanListWidget(TranslatableMixin, QWidget):
         grid.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
         section_layout.addLayout(grid)
 
-        return section, grid, add_btn
+        return section, grid, add_button
 
     def _setup_ui(self):
         """Setup UI with separate sections"""

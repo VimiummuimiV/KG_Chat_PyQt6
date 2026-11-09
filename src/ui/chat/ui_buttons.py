@@ -81,9 +81,9 @@ class ButtonPanel(QWidget):
 
         # Set fixed width based on button size + margins from config
         button_size = 48
-        btn_cfg = self.config.get("ui", "buttons") or {}
-        if isinstance(btn_cfg, dict):
-            button_size = btn_cfg.get("button_size", button_size)
+        button_config = self.config.get("ui", "buttons") or {}
+        if isinstance(button_config, dict):
+            button_size = button_config.get("button_size", button_size)
 
         panel_margin = self.config.get("ui", "margins", "widget") or 5
         self.setFixedWidth(button_size + panel_margin * 2)

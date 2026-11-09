@@ -23,30 +23,30 @@ class ChatCompetitionsMixin:
         """Open the latest live competition race URL (already stored on announce)."""
         if not self.competition_live:
             return
-        gid = self.competition_focus_gid
-        if gid not in self.competition_live:
-            gid = max(self.competition_live.keys())
-        url = (self.competition_live.get(gid) or {}).get("url")
+        game_id = self.competition_focus_game_id
+        if game_id not in self.competition_live:
+            game_id = max(self.competition_live.keys())
+        url = (self.competition_live.get(game_id) or {}).get("url")
         if not url:
             return
         try:
             open_url_in_browser(url, self.config.get("browser"))
         except Exception as e:
             print(f"Failed to open competition: {e}")
-        self.on_competition_entered(gid)
+        self.on_competition_entered(game_id)
 
-    def _forget_live_competition(self, gid: int):
+    def _forget_live_competition(self, game_id: int):
         """Drop bookkeeping for a competition no longer in play (started racing, or its
         message/notification was manually dismissed) so a reconnect can't restore it."""
-        self.competition_live.pop(gid, None)
-        if self.competition_focus_gid == gid:
-            self.competition_focus_gid = None
-        timer = self.competition_alert_timers.pop(gid, None)
+        self.competition_live.pop(game_id, None)
+        if self.competition_focus_game_id == game_id:
+            self.competition_focus_game_id = None
+        timer = self.competition_alert_timers.pop(game_id, None)
         if timer:
             timer.stop()
         self.competition_sound_repeat_timer.stop()
 
-    def on_competition_entered(self, gid: int):
+    def on_competition_entered(self, game_id: int):
         """competitions.remove_message_on_enter: instantly drop the chat message and close
         the matching notification for a competition just entered (link click or hotkey E).
         Also forgets it as live so a brief reconnect doesn't restore the dismissed message."""
@@ -54,9 +54,9 @@ class ChatCompetitionsMixin:
             return
         mw = getattr(self, "messages_widget", None)
         if mw and hasattr(mw, "clear_competition_messages"):
-            mw.clear_competition_messages(gid)
-        popup_manager.close_by_tag(f"competition:{gid}")
-        self._forget_live_competition(gid)
+            mw.clear_competition_messages(game_id)
+        popup_manager.close_by_tag(f"competition:{game_id}")
+        self._forget_live_competition(game_id)
 
     def set_track_competitions(self, enabled: bool):
         if enabled:
@@ -107,23 +107,23 @@ class ChatCompetitionsMixin:
         if not self.races_listener:
             return
         to_remove = [
-            gid for gid, live in self.competition_live.items()
+            game_id for game_id, live in self.competition_live.items()
             if not self.races_listener.passes_filter(live.get("mult") or "?")
         ]
         if not to_remove:
             return
         mw = getattr(self, "messages_widget", None)
-        for gid in to_remove:
+        for game_id in to_remove:
             if mw and hasattr(mw, "clear_competition_messages"):
-                mw.clear_competition_messages(gid)
-            self.competition_live.pop(gid, None)
-            self.competition_notified.discard(gid)
-            if self.competition_focus_gid == gid:
-                self.competition_focus_gid = None
-            timer = self.competition_alert_timers.pop(gid, None)
+                mw.clear_competition_messages(game_id)
+            self.competition_live.pop(game_id, None)
+            self.competition_notified.discard(game_id)
+            if self.competition_focus_game_id == game_id:
+                self.competition_focus_game_id = None
+            timer = self.competition_alert_timers.pop(game_id, None)
             if timer:
                 timer.stop()
-            popup_manager.close_by_tag(f"competition:{gid}")
+            popup_manager.close_by_tag(f"competition:{game_id}")
         if mw:
             self.scroll_to_bottom(mw.list_view)
 
@@ -131,7 +131,7 @@ class ChatCompetitionsMixin:
         self.competition_countdown_timer.stop()
         self.competition_sound_repeat_timer.stop()
         self.competition_live.clear()
-        self.competition_focus_gid = None
+        self.competition_focus_game_id = None
         for timer in self.competition_alert_timers.values():
             timer.stop()
         self.competition_alert_timers.clear()
@@ -162,15 +162,15 @@ class ChatCompetitionsMixin:
         mw = getattr(self, "messages_widget", None)
         if not mw or not hasattr(mw, "model"):
             return
-        for gid in list(self.competition_live.keys()):
-            if mw.model.find_competition_message_row(gid) is None:
-                self._move_competition_message_to_end(gid)
+        for game_id in list(self.competition_live.keys()):
+            if mw.model.find_competition_message_row(game_id) is None:
+                self._move_competition_message_to_end(game_id)
 
     @staticmethod
     def _competition_fields(info: dict) -> tuple:
-        gid = info.get("game_id")
-        tag = f"competition:{gid}" if gid else None
-        return gid, info.get("multiplier") or "?", info.get("url") or "", tag
+        game_id = info.get("game_id")
+        tag = f"competition:{game_id}" if game_id else None
+        return game_id, info.get("multiplier") or "?", info.get("url") or "", tag
 
     def on_history_settled(self):
         self.chat_ready = True
@@ -179,31 +179,31 @@ class ChatCompetitionsMixin:
         self.start_mentions_digest_check()
 
     def _on_competition_found(self, info: dict):
-        gid, mult, url, tag = self._competition_fields(info)
+        game_id, mult, url, tag = self._competition_fields(info)
         status = info.get("status") or "?"
 
-        if self.competition_log_status.get(gid) != status:
-            self.competition_log_status[gid] = status
-            self.append_competition_log(f"{mult} #{gid} {status}")
+        if self.competition_log_status.get(game_id) != status:
+            self.competition_log_status[game_id] = status
+            self.append_competition_log(f"{mult} #{game_id} {status}")
 
         if status == "racing":
             if tag:
                 popup_manager.close_by_tag(tag)
             mw = getattr(self, "messages_widget", None)
             if mw and hasattr(mw, "clear_competition_messages"):
-                mw.clear_competition_messages(gid)
+                mw.clear_competition_messages(game_id)
                 # Scroll to bottom to show current chat after competition message is removed
                 self.scroll_to_bottom(mw.list_view)
-            self._forget_live_competition(gid)
+            self._forget_live_competition(game_id)
             return
 
         # chat + notification only for waiting (once)
         if status != "waiting":
             return
 
-        if gid in self.competition_notified:
+        if game_id in self.competition_notified:
             return
-        self.competition_notified.add(gid)
+        self.competition_notified.add(game_id)
         if len(self.competition_notified) > 200:
             self.competition_notified = set(list(self.competition_notified)[-100:])
 
@@ -280,29 +280,29 @@ class ChatCompetitionsMixin:
         )
         return chips, header
 
-    def _make_competition_message(self, gid: int, header: str, chips: list) -> "Message":
+    def _make_competition_message(self, game_id: int, header: str, chips: list) -> "Message":
         """Build a local system chat message for a competition announcement/update."""
         msg = Message(
             from_jid="", body=header, msg_type="groupchat",
             login="Система", timestamp=datetime.now(),
         )
         msg.is_competition = True
-        msg.competition_game_id = gid
+        msg.competition_game_id = game_id
         msg.competition_players = chips
         return msg
 
     def _announce_competition(self, info: dict):
-        gid, mult, url, tag = self._competition_fields(info)
+        game_id, mult, url, tag = self._competition_fields(info)
         begintime = info.get("begintime")
         cost = info.get("competition_cost")
         players = info.get("players") or []
-        self.competition_live[gid] = {
+        self.competition_live[game_id] = {
             "mult": mult, "url": url, "begintime": begintime,
             "players": players, "cost": cost,
         }
         chips, header = self._competition_chips_and_header(mult, url, begintime, players, cost=cost)
         try:
-            msg = self._make_competition_message(gid, header, chips)
+            msg = self._make_competition_message(game_id, header, chips)
             self.add_local_message(msg)
         except Exception as e:
             print(f"[races] local message error: {e}")
@@ -310,8 +310,8 @@ class ChatCompetitionsMixin:
         if not self.competition_countdown_timer.isActive():
             self._start_competition_countdown_timer()
 
-        self._schedule_competition_alert(gid, mult, url, tag, begintime)
-        self.fetch_own_balance(gid)
+        self._schedule_competition_alert(game_id, mult, url, tag, begintime)
+        self.fetch_own_balance(game_id)
 
     def _start_competition_countdown_timer(self):
         """Align ticks to wall-clock second boundaries so the countdown doesn't lag behind real time."""
@@ -325,44 +325,44 @@ class ChatCompetitionsMixin:
         call_later(self, ms_to_next_second, _aligned_start)
 
     def refresh_competition_player_display(self):
-        for gid in list(self.competition_live.keys()):
-            self.refresh_competition_message(gid)
+        for game_id in list(self.competition_live.keys()):
+            self.refresh_competition_message(game_id)
 
     def on_show_balance_toggled_ui(self):
-        for gid, live in self.competition_live.items():
+        for game_id, live in self.competition_live.items():
             need_scores = self.config.get("competitions", "show_scores") is not False and "scores" not in live
             need_bonuses = self.config.get("competitions", "show_bonuses") is not False and "bonuses" not in live
             if need_scores or need_bonuses:
-                self.fetch_own_balance(gid)
+                self.fetch_own_balance(game_id)
         self.refresh_competition_player_display()
 
-    def _on_competition_players_changed(self, gid: int, players: list):
-        live = self.competition_live.get(gid)
+    def _on_competition_players_changed(self, game_id: int, players: list):
+        live = self.competition_live.get(game_id)
         if live is None:
             return
         live["players"] = players
-        self.refresh_competition_message(gid)
+        self.refresh_competition_message(game_id)
 
     def tick_competition_countdowns(self):
         if not self.competition_live:
             self.competition_countdown_timer.stop()
             return
-        for gid in list(self.competition_live.keys()):
-            self.refresh_competition_message(gid)
+        for game_id in list(self.competition_live.keys()):
+            self.refresh_competition_message(game_id)
 
-    def _scroll_to_competition_message(self, gid: int):
+    def _scroll_to_competition_message(self, game_id: int):
         """Scroll to competition message and keep it centered while chips grow (alert action)."""
-        self.competition_focus_gid = gid
+        self.competition_focus_game_id = game_id
         mw = getattr(self, "messages_widget", None)
         if not mw or not hasattr(mw, "list_view") or not hasattr(mw, "model"):
             return
-        row = mw.model.find_competition_message_row(gid)
+        row = mw.model.find_competition_message_row(game_id)
         if row is not None:
             self.scroll_to_row(mw.list_view, row, delay=50)
 
-    def _move_competition_message_to_end(self, gid: int):
+    def _move_competition_message_to_end(self, game_id: int):
         """Remove the competition message and re-append it at the bottom (alert action)."""
-        live = self.competition_live.get(gid)
+        live = self.competition_live.get(game_id)
         mw = getattr(self, "messages_widget", None)
         if live is None or not mw:
             return
@@ -372,19 +372,19 @@ class ChatCompetitionsMixin:
             cost=live.get("cost"), scores=live.get("scores"), bonuses=live.get("bonuses")
         )
         try:
-            row = mw.model.find_competition_message_row(gid)
+            row = mw.model.find_competition_message_row(game_id)
             if row is not None and row == mw.model.rowCount() - 1:
-                mw.update_competition_message(gid, header, chips)
+                mw.update_competition_message(game_id, header, chips)
                 return
-            mw.clear_competition_messages(gid)
-            msg = self._make_competition_message(gid, header, chips)
+            mw.clear_competition_messages(game_id)
+            msg = self._make_competition_message(game_id, header, chips)
             self.add_local_message(msg)
             self.scroll_to_bottom(mw.list_view)
         except Exception as e:
             print(f"[races] move competition message error: {e}")
 
-    def refresh_competition_message(self, gid: int):
-        live = self.competition_live.get(gid)
+    def refresh_competition_message(self, game_id: int):
+        live = self.competition_live.get(game_id)
         mw = getattr(self, "messages_widget", None)
         if live is None or not mw:
             return
@@ -393,28 +393,28 @@ class ChatCompetitionsMixin:
             live["mult"], live["url"], live.get("begintime"), players,
             cost=live.get("cost"), scores=live.get("scores"), bonuses=live.get("bonuses")
         )
-        sb = mw.list_view.verticalScrollBar()
-        at_bottom = (sb.maximum() - sb.value()) <= 100
-        mw.update_competition_message(gid, header, chips)
-        if self.competition_focus_gid == gid:
-            row = mw.model.find_competition_message_row(gid)
+        scroll_bar = mw.list_view.verticalScrollBar()
+        at_bottom = (scroll_bar.maximum() - scroll_bar.value()) <= 100
+        mw.update_competition_message(game_id, header, chips)
+        if self.competition_focus_game_id == game_id:
+            row = mw.model.find_competition_message_row(game_id)
             if row is not None:
                 self.scroll_to_row(mw.list_view, row)
         elif at_bottom:
             self.scroll_to_bottom(mw.list_view, delay=0)
 
-        popup = popup_manager.find_by_tag(f"competition:{gid}")
+        popup = popup_manager.find_by_tag(f"competition:{game_id}")
         if popup:
             popup.update_message(header, chips)
 
-    def _schedule_competition_alert(self, gid: int, mult: str, url: str, tag: str, begintime):
+    def _schedule_competition_alert(self, game_id: int, mult: str, url: str, tag: str, begintime):
         """Fire the popup/sound alert immediately, or delayed to `alert_lead_seconds` before start."""
         lead = int(self.config.get("competitions", "alert_lead_seconds") or 0)
         delay = max(0, int(begintime - datetime.now().timestamp()) - lead) if begintime and lead else 0
 
         def fire():
-            self.competition_alert_timers.pop(gid, None)
-            self._fire_competition_alert(gid, mult, url, tag)
+            self.competition_alert_timers.pop(game_id, None)
+            self._fire_competition_alert(game_id, mult, url, tag)
 
         if delay <= 0:
             fire()
@@ -423,7 +423,7 @@ class ChatCompetitionsMixin:
         timer.setSingleShot(True)
         timer.timeout.connect(fire)
         timer.start(delay * 1000)
-        self.competition_alert_timers[gid] = timer
+        self.competition_alert_timers[game_id] = timer
 
     def _within_notify_window(self) -> bool:
         if not self.config.get("competitions", "notify_window_enabled"):
@@ -435,10 +435,10 @@ class ChatCompetitionsMixin:
         hour = datetime.now().hour
         return start <= hour < end if start < end else hour >= start or hour < end
 
-    def _fire_competition_alert(self, gid: int, mult: str, url: str, tag: str):
+    def _fire_competition_alert(self, game_id: int, mult: str, url: str, tag: str):
         if not self._within_notify_window():
             return
-        live = self.competition_live.get(gid, {})
+        live = self.competition_live.get(game_id, {})
         players = live.get("players") or []
         chips, header = self._competition_chips_and_header(
             mult, url, live.get("begintime"), players, cost=live.get("cost")
@@ -454,10 +454,10 @@ class ChatCompetitionsMixin:
         # Bring competition message into view (config: scroll | move)
         alert_action = self.config.get("competitions", "alert_chat_action") or "scroll"
         if alert_action == "move":
-            self.competition_focus_gid = None
-            self._move_competition_message_to_end(gid)
+            self.competition_focus_game_id = None
+            self._move_competition_message_to_end(game_id)
         else:
-            self._scroll_to_competition_message(gid)
+            self._scroll_to_competition_message(game_id)
 
         # Same rule as chat messages: notify only when window is not focused
         if not self.isActiveWindow():
@@ -473,7 +473,7 @@ class ChatCompetitionsMixin:
                     is_system=False,
                     is_competition=True,
                     window_show_callback=self.show_and_focus_window,
-                    competition_game_id=gid,
+                    competition_game_id=game_id,
                     open_room_callback=lambda g: self.open_game_room_by_id(g, room_label="Competition"),
                     profile_callback=self.on_username_shift_click,
                     competition_entered_callback=self.on_competition_entered,

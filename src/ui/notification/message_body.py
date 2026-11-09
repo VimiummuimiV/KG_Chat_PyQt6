@@ -27,8 +27,8 @@ class MessageBodyWidget(QWidget):
         self.is_competition = is_competition
         self.is_parser = is_parser
         self.players = players or []
-        self.link_rects: List[Tuple[QRect, str, bool]] = []
-        self.chip_rects: List[Tuple[QRect, str]] = []
+        self._link_rects: List[Tuple[QRect, str, bool]] = []
+        self._chip_rects: List[Tuple[QRect, str]] = []
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setMouseTracking(True)
         # Initial height estimate
@@ -67,7 +67,7 @@ class MessageBodyWidget(QWidget):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
         # Paint content and get link rectangles
-        self.link_rects = self.message_renderer.paint_content(
+        self._link_rects = self.message_renderer.paint_content(
             painter,
             0, 0,
             self.width(),
@@ -82,11 +82,11 @@ class MessageBodyWidget(QWidget):
 
         if self.players:
             content_height = self.message_renderer.calculate_content_height(self.text, self.width())
-            _, self.chip_rects = self.message_renderer.paint_chips(
+            _, self._chip_rects = self.message_renderer.paint_chips(
                 painter, 0, content_height + 6, self.width(), self.players, self.message_renderer.is_dark_theme
             )
         else:
-            self.chip_rects = []
+            self._chip_rects = []
 
         # Update height if needed
         calculated_height = self._calculate_height(self.width())
@@ -98,8 +98,8 @@ class MessageBodyWidget(QWidget):
         return QSize(width, self._calculate_height(width))
 
     def mouseMoveEvent(self, event):
-        is_over_link = MessageRenderer.is_over_link(self.link_rects, event.pos())
-        is_over_chip = any(r.contains(event.pos()) for r, name in self.chip_rects if name and name != "…")
+        is_over_link = MessageRenderer.is_over_link(self._link_rects, event.pos())
+        is_over_chip = any(r.contains(event.pos()) for r, name in self._chip_rects if name and name != "…")
         self.setCursor(QCursor(
             Qt.CursorShape.PointingHandCursor if (is_over_link or is_over_chip)
             else Qt.CursorShape.ArrowCursor
@@ -107,10 +107,10 @@ class MessageBodyWidget(QWidget):
         super().mouseMoveEvent(event)
 
     def get_link_at_pos(self, pos) -> Optional[Tuple[str, bool]]:
-        return MessageRenderer.get_link_at_pos(self.link_rects, pos)
+        return MessageRenderer.get_link_at_pos(self._link_rects, pos)
 
     def get_chip_at_pos(self, pos) -> Optional[str]:
-        for rect, name in self.chip_rects:
+        for rect, name in self._chip_rects:
             if rect.contains(pos) and name and name != "…":
                 return name
         return None

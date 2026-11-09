@@ -37,7 +37,7 @@ class ChatlogsParserEngine:
         else:
             print(f"🔧 Using {max_workers} workers")
 
-        self.max_workers = max_workers
+        self._max_workers = max_workers
         self._lock = threading.Lock()
 
     def stop(self):
@@ -153,7 +153,7 @@ class ChatlogsParserEngine:
         completed_count = 0
         fetched_messages: List[ChatMessage] = []
 
-        with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+        with ThreadPoolExecutor(max_workers=self._max_workers) as executor:
             # Submit all fetch tasks
             future_to_date = {
                 executor.submit(self._fetch_date, date_str): date_str

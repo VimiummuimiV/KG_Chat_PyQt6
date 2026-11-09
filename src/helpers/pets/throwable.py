@@ -52,7 +52,7 @@ class Throwable(ABC):
         return True
 
     @abstractmethod
-    def maximum_lift(self, area_height: int) -> float:
+    def _maximum_lift(self, area_height: int) -> float:
         """Return the highest lift that keeps the body inside the area."""
 
     def click(self) -> None:
@@ -79,7 +79,7 @@ class Throwable(ABC):
         grab._moved = True
         self.x = point.x() - grab.offset.x()
         top = point.y() - grab.offset.y()
-        self.lift = max(0.0, min(area_height - self.pixmap.height() - top, self.maximum_lift(area_height)))
+        self.lift = max(0.0, min(area_height - self.pixmap.height() - top, self._maximum_lift(area_height)))
         grab.samples.append((timestamp_ms, point))
         while len(grab.samples) > 1 and grab.samples[0][0] < timestamp_ms - _VELOCITY_WINDOW_MS:
             grab.samples.popleft()
@@ -114,7 +114,7 @@ class Throwable(ABC):
         self.velocity[1] -= GRAVITY * seconds
         self.lift += self.velocity[1] * seconds
         self.x += self.velocity[0] * seconds
-        ceiling = self.maximum_lift(area_height)
+        ceiling = self._maximum_lift(area_height)
         if self.lift > ceiling:
             self.lift, self.velocity[1] = ceiling, 0.0
         elif self.lift <= 0:

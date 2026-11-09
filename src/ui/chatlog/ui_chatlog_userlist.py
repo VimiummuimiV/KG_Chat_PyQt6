@@ -131,20 +131,20 @@ class ChatlogUserlistWidget(TranslatableMixin, QWidget):
         button_layout = QHBoxLayout()
         button_layout.setSpacing(config.get("ui", "buttons", "spacing") or 8)
         button_layout.setContentsMargins(0, 0, 0, 0)
-        self._clear_filter_btn = create_icon_button(
+        self._clear_filter_button = create_icon_button(
             icons_path,
             "fill/filter-2-fill.svg",
             "",
             size_type="large",
             config=config
         )
-        self.tr_set(self._clear_filter_btn.setToolTip,
+        self.tr_set(self._clear_filter_button.setToolTip,
                         "Clear filter and show all users",
                         "Сбросить фильтр и показать всех пользователей"
                     )
-        self._clear_filter_btn.clicked.connect(self.clear_filter)
-        self._clear_filter_btn.setVisible(False)
-        button_layout.addWidget(self._clear_filter_btn)
+        self._clear_filter_button.clicked.connect(self.clear_filter)
+        self._clear_filter_button.setVisible(False)
+        button_layout.addWidget(self._clear_filter_button)
         button_layout.addStretch()
         layout.addLayout(button_layout)
 
@@ -191,7 +191,7 @@ class ChatlogUserlistWidget(TranslatableMixin, QWidget):
             widget.set_filtered(uname in self.filtered_usernames)
 
         # Show/hide clear button
-        self._clear_filter_btn.setVisible(bool(self.filtered_usernames))
+        self._clear_filter_button.setVisible(bool(self.filtered_usernames))
 
         # Emit filter
         self.filter_requested.emit(self.filtered_usernames.copy())
@@ -201,15 +201,15 @@ class ChatlogUserlistWidget(TranslatableMixin, QWidget):
         self.filtered_usernames = set()
         for widget in self.user_widgets.values():
             widget.set_filtered(False)
-        self._clear_filter_btn.setVisible(False)
+        self._clear_filter_button.setVisible(False)
         self.filter_requested.emit(set())
 
     def update_filter_state(self, filtered_usernames: set):
         """Update filter state from external signal without emitting to avoid loops"""
         self.filtered_usernames = filtered_usernames.copy()
-        for uname, widget in self.user_widgets.items():
-            widget.set_filtered(uname in filtered_usernames)
-        self._clear_filter_btn.setVisible(bool(filtered_usernames))
+        for username, widget in self.user_widgets.items():
+            widget.set_filtered(username in filtered_usernames)
+        self._clear_filter_button.setVisible(bool(filtered_usernames))
 
     def load_from_messages(self, messages):
         """Load users from chatlog messages with ban filtering"""
@@ -266,7 +266,7 @@ class ChatlogUserlistWidget(TranslatableMixin, QWidget):
                 print(f"Error creating chatlog user widget: {e}")
 
         # Update clear button visibility
-        self._clear_filter_btn.setVisible(bool(self.filtered_usernames))
+        self._clear_filter_button.setVisible(bool(self.filtered_usernames))
 
     def refresh_tracked_star(self, user_id: str = None, login: str = None):
         """Update tracked star on existing widgets. No args = all (settings toggle)."""

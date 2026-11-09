@@ -42,7 +42,7 @@ class Grass(Food):
         """Whether the tuft has been eaten up and should be removed."""
         return self.is_eaten
 
-    def maximum_lift(self, area_height: int) -> float:
+    def _maximum_lift(self, area_height: int) -> float:
         return area_height - self.pixmap.height()
 
     def update(self, step_ms: int) -> None:

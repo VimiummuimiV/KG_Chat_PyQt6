@@ -79,10 +79,10 @@ def create_icon_button(
 
     # Safely read from config using .get()
     if config and hasattr(config, "get"):
-        btn_cfg = config.get("ui", "buttons") or {}
-        if isinstance(btn_cfg, dict):
-            icon_size = btn_cfg.get("icon_size", icon_size)
-            button_size = btn_cfg.get("button_size", button_size)
+        button_config = config.get("ui", "buttons") or {}
+        if isinstance(button_config, dict):
+            icon_size = button_config.get("icon_size", icon_size)
+            button_size = button_config.get("button_size", button_size)
 
     # Apply
     button.icon_path = icons_path

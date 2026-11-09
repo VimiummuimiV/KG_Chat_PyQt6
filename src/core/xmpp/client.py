@@ -152,13 +152,13 @@ class XMPPClient:
             auth_str = f'\0{authcid}\0{chat_password}'
             auth_encoded = base64.b64encode(auth_str.encode('utf-8')).decode('ascii')
 
-            auth_elem = ET.Element('auth', {
+            auth_element = ET.Element('auth', {
                 'xmlns': 'urn:ietf:params:xml:ns:xmpp-sasl',
                 'mechanism': 'PLAIN'
             })
-            auth_elem.text = auth_encoded
+            auth_element.text = auth_encoded
 
-            self._send_request(self._build_body(children=[auth_elem]), verbose=False, timeout=10)
+            self._send_request(self._build_body(children=[auth_element]), verbose=False, timeout=10)
 
             # Restart stream
             self._rid += 1
@@ -363,14 +363,14 @@ class XMPPClient:
         messages, presence_updates = MessageParser.parse(xml_text)
 
         # Override own background in received messages and presence
-        effective_bg = self._get_effective_background()
+        effective_background = self._get_effective_background()
         own_username = self._connected_account.get('chat_username') if self._connected_account else None
 
-        if own_username and effective_bg:
+        if own_username and effective_background:
             for collection in (messages, presence_updates):
                 for item in collection:
                     if item.login == own_username:
-                        item.background = effective_bg
+                        item.background = effective_background
 
         for msg in messages:
             try:

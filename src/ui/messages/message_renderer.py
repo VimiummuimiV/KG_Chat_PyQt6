@@ -48,7 +48,7 @@ class MessageRenderer(QObject):
         self.config = config
         self.emoticon_manager = emoticon_manager
         self.is_dark_theme = is_dark_theme
-        self.bg_hex = "#1E1E1E" if is_dark_theme else "#FFFFFF"
+        self.background_hex = "#1E1E1E" if is_dark_theme else "#FFFFFF"
 
         # Track own username for mention highlighting
         self.my_username = None
@@ -87,7 +87,7 @@ class MessageRenderer(QObject):
             self._init_viewers(parent_widget)
 
     @property
-    def youtube_enabled(self) -> bool:
+    def _youtube_enabled(self) -> bool:
         if self._youtube_override is not None:
             return self._youtube_override
         value = self.config.get("ui", "youtube", "enabled")
@@ -188,7 +188,7 @@ class MessageRenderer(QObject):
     def update_theme(self, is_dark_theme: bool):
         """Update theme and reload colors"""
         self.is_dark_theme = is_dark_theme
-        self.bg_hex = "#1E1E1E" if is_dark_theme else "#FFFFFF"
+        self.background_hex = "#1E1E1E" if is_dark_theme else "#FFFFFF"
         self._mention_color = get_mention_color(is_dark_theme)
         self._highlight_colors = get_search_highlight_colors(is_dark_theme)
         self._link_colors = link_colors(is_dark_theme)
@@ -222,7 +222,7 @@ class MessageRenderer(QObject):
         text = ' '.join(text.split())
         text = self._VALUE_TAG_PATTERN.sub(lambda m: m.group(2), text)
 
-        if self.youtube_enabled:
+        if self._youtube_enabled:
             url_pattern = re.compile(r'https?://[^\s<>"]+')
             def repl(m):
                 url = m.group(0)
@@ -239,26 +239,26 @@ class MessageRenderer(QObject):
 
         segments = self.emoticon_manager.parse_emoticons(text)
 
-        fm = QFontMetrics(self.body_font)
-        current_line_height = fm.height()
+        font_metrics = QFontMetrics(self.body_font)
+        current_line_height = font_metrics.height()
         total_height = 0
         current_width = 0
 
         for seg_type, content in segments:
             if seg_type == 'text':
-                lines = self._wrap_text(content, width - current_width, fm)
+                lines = self._wrap_text(content, width - current_width, font_metrics)
                 for i, line in enumerate(lines):
                     if i == 0 and current_width > 0:
-                        line_width = fm.horizontalAdvance(line)
+                        line_width = font_metrics.horizontalAdvance(line)
                         if current_width + line_width <= width:
                             current_width += line_width
                             continue
 
                     if current_width > 0:
                         total_height += current_line_height
-                        current_line_height = fm.height()
+                        current_line_height = font_metrics.height()
                         current_width = 0
-                    current_width = fm.horizontalAdvance(line)
+                    current_width = font_metrics.horizontalAdvance(line)
             else:
                 pixmap = self._get_emoticon_pixmap(content)
                 if pixmap:
@@ -274,7 +274,7 @@ class MessageRenderer(QObject):
         if current_width > 0:
             total_height += current_line_height
 
-        return max(total_height, fm.height())
+        return max(total_height, font_metrics.height())
 
     def paint_content(
         self,
@@ -319,10 +319,10 @@ class MessageRenderer(QObject):
         segments = self.emoticon_manager.parse_emoticons(processed_text)
 
         painter.setFont(self.body_font)
-        fm = QFontMetrics(self.body_font)
+        font_metrics = QFontMetrics(self.body_font)
 
         current_x, current_y = x, y
-        line_height = fm.height()
+        line_height = font_metrics.height()
 
         # Determine text color based on message type
         if is_parser:
@@ -339,13 +339,13 @@ class MessageRenderer(QObject):
             text_color = "#FFFFFF" if self.is_dark_theme else "#000000"
 
         highlight_pattern = re.compile(re.escape(highlight_text), re.IGNORECASE) if highlight_text else None
-        highlight_bg, highlight_fg = self._highlight_colors
+        highlight_background, highlight_foreground = self._highlight_colors
 
         def new_line():
             nonlocal current_x, current_y, line_height
             current_y += line_height
             current_x = x
-            line_height = fm.height()
+            line_height = font_metrics.height()
 
         def draw_plain_line(line: str, fm_local: QFontMetrics, color: str):
             nonlocal current_x
@@ -364,10 +364,10 @@ class MessageRenderer(QObject):
                 match_width = fm_local.horizontalAdvance(matched)
                 match_rect = QRect(current_x, current_y, match_width, fm_local.height())
                 painter.setPen(Qt.PenStyle.NoPen)
-                painter.setBrush(QColor(highlight_bg))
+                painter.setBrush(QColor(highlight_background))
                 painter.drawRoundedRect(match_rect, 4, 4)
                 painter.setBrush(Qt.BrushStyle.NoBrush)
-                painter.setPen(QColor(highlight_fg))
+                painter.setPen(QColor(highlight_foreground))
                 painter.drawText(current_x, current_y + fm_local.ascent(), matched)
                 current_x += match_width
                 pos = match.end()
@@ -438,19 +438,19 @@ class MessageRenderer(QObject):
                     new_line()
                     avail = width
 
-                chunk = self._fit(remaining, avail, fm) or remaining[0]
-                chunk_width = fm.horizontalAdvance(chunk)
+                chunk = self._fit(remaining, avail, font_metrics) or remaining[0]
+                chunk_width = font_metrics.horizontalAdvance(chunk)
 
                 if current_x > x and current_x + chunk_width > x + width:
                     new_line()
                     continue
 
-                painter.drawText(current_x, current_y + fm.ascent(), chunk)
-                link_rect = QRect(current_x, current_y, chunk_width, fm.height())
+                painter.drawText(current_x, current_y + font_metrics.ascent(), chunk)
+                link_rect = QRect(current_x, current_y, chunk_width, font_metrics.height())
                 if self.is_copied(url):
                     self.draw_copy_highlight(painter, link_rect, link_color)
                     painter.setPen(QColor(link_color))
-                    painter.drawText(current_x, current_y + fm.ascent(), chunk)
+                    painter.drawText(current_x, current_y + font_metrics.ascent(), chunk)
                 link_rects.append((link_rect, url, is_media))
                 current_x += chunk_width
                 remaining = remaining[len(chunk):]
@@ -468,8 +468,8 @@ class MessageRenderer(QObject):
                         url = urls[index]
                         draw_link(url, self._is_media_url(url))
                     else:
-                        val_kind, val_text = values[index]
-                        draw_text_chunk(val_text, self._competition_value_colors.get(val_kind, text_color))
+                        value_kind, value_text = values[index]
+                        draw_text_chunk(value_text, self._competition_value_colors.get(value_kind, text_color))
                     last_pos = match.end()
 
                 if last_pos < len(content):
@@ -499,12 +499,12 @@ class MessageRenderer(QObject):
         """Height needed for the wrapping row of user chips."""
         if not players or width <= 0:
             return 0
-        fm = QFontMetrics(self.body_font)
-        chip_height = fm.height() + 6
+        font_metrics = QFontMetrics(self.body_font)
+        chip_height = font_metrics.height() + 6
         row_width = 0
         rows = 1
         for player in players:
-            chip_width = fm.horizontalAdvance(self._chip_label(player)) + 16
+            chip_width = font_metrics.horizontalAdvance(self._chip_label(player)) + 16
             if row_width and row_width + self._CHIP_GAP + chip_width > width:
                 rows += 1
                 row_width = chip_width
@@ -518,9 +518,9 @@ class MessageRenderer(QObject):
             return 0, []
         border = 2
         inset = border // 2
-        fm = QFontMetrics(self.body_font)
+        font_metrics = QFontMetrics(self.body_font)
         painter.setFont(self.body_font)
-        chip_height = fm.height() + 6
+        chip_height = font_metrics.height() + 6
         current_x, current_y = x, y
         chip_rects = []
 
@@ -529,8 +529,8 @@ class MessageRenderer(QObject):
         for player in players:
             name = self._chip_label(player)
             level = player.get("level") if isinstance(player, dict) else None
-            bg_hex, fg_hex, border_hex = get_rank_chip_colors(level, is_dark)
-            chip_width = fm.horizontalAdvance(name) + 16
+            background_hex, foreground_hex, border_hex = get_rank_chip_colors(level, is_dark)
+            chip_width = font_metrics.horizontalAdvance(name) + 16
             if current_x > x and current_x + chip_width > x + width:
                 current_y += chip_height + self._CHIP_GAP
                 current_x = x
@@ -539,11 +539,11 @@ class MessageRenderer(QObject):
             pen = QPen(QColor(border_hex))
             pen.setWidth(border)
             painter.setPen(pen)
-            painter.setBrush(QColor(bg_hex))
+            painter.setBrush(QColor(background_hex))
             r = chip_rect.adjusted(inset, inset, -inset, -inset)
             painter.drawRoundedRect(r, max(0, chip_height // 2 - inset), max(0, chip_height // 2 - inset))
 
-            painter.setPen(QColor(fg_hex))
+            painter.setPen(QColor(foreground_hex))
             painter.drawText(chip_rect, Qt.AlignmentFlag.AlignCenter, name)
             chip_rects.append((chip_rect, name))
             current_x += chip_width + self._CHIP_GAP
@@ -562,44 +562,44 @@ class MessageRenderer(QObject):
         text = label if count == 1 else f"{label} {count}"
         return text, bg, fg, border
 
-    def _presence_line_height(self, fm: QFontMetrics = None) -> int:
-        fm = fm or QFontMetrics(self.body_font)
-        return fm.height() + 4
+    def _presence_line_height(self, font_metrics: QFontMetrics = None) -> int:
+        font_metrics = font_metrics or QFontMetrics(self.body_font)
+        return font_metrics.height() + 4
 
-    def _presence_entry_width(self, entry: dict, fm: QFontMetrics) -> int:
-        w = fm.horizontalAdvance(entry.get('login', '')) + self._PRESENCE_NAME_GAP
+    def _presence_entry_width(self, entry: dict, font_metrics: QFontMetrics) -> int:
+        w = font_metrics.horizontalAdvance(entry.get('login', '')) + self._PRESENCE_NAME_GAP
         last = entry.get('last')
-        dot = max(3, fm.height() // 4)
+        dot = max(3, font_metrics.height() // 4)
         for event_type in EVENT_TYPES:
             count = entry.get('counts', {}).get(event_type)
             if not count:
                 continue
             text, _, _, _ = self._presence_badge(event_type, count)
-            w += fm.horizontalAdvance(text) + self._PRESENCE_BADGE_PAD_X + self._PRESENCE_BADGE_GAP
+            w += font_metrics.horizontalAdvance(text) + self._PRESENCE_BADGE_PAD_X + self._PRESENCE_BADGE_GAP
             if event_type == last:
                 w += dot + 4
         return w
 
-    def _presence_line_count(self, entries: list, width: int, fm: QFontMetrics) -> int:
+    def _presence_line_count(self, entries: list, width: int, font_metrics: QFontMetrics) -> int:
         if width <= 0:
             return 1
-        lines, row_w = 1, 0
+        lines, row_width = 1, 0
         for entry in entries:
-            ew = self._presence_entry_width(entry, fm)
-            if row_w and row_w + self._PRESENCE_GROUP_GAP + ew > width:
+            ew = self._presence_entry_width(entry, font_metrics)
+            if row_width and row_width + self._PRESENCE_GROUP_GAP + ew > width:
                 lines += 1
-                row_w = ew
+                row_width = ew
             else:
-                row_w += (self._PRESENCE_GROUP_GAP if row_w else 0) + ew
+                row_width += (self._PRESENCE_GROUP_GAP if row_width else 0) + ew
         return lines
 
     def calculate_presence_entries_height(self, entries: list, width: int = 0) -> int:
         if not entries:
             return 0
-        fm = QFontMetrics(self.body_font)
-        line_h = self._presence_line_height(fm)
-        lines = self._presence_line_count(entries, width, fm)
-        return lines * line_h + (lines - 1) * self._PRESENCE_LINE_GAP
+        font_metrics = QFontMetrics(self.body_font)
+        line_height = self._presence_line_height(font_metrics)
+        lines = self._presence_line_count(entries, width, font_metrics)
+        return lines * line_height + (lines - 1) * self._PRESENCE_LINE_GAP
 
     def paint_presence_entries(self, painter: QPainter, x: int, y: int, width: int,
                                entries: list, get_username_color, line_height: int = 0):
@@ -607,38 +607,38 @@ class MessageRenderer(QObject):
         if not entries or width <= 0:
             return QRect(x, y, max(width, 0), 0), []
 
-        fm = QFontMetrics(self.body_font)
+        font_metrics = QFontMetrics(self.body_font)
         painter.setFont(self.body_font)
-        line_h = line_height if line_height > 0 else self._presence_line_height(fm)
-        badge_h = min(self._presence_line_height(fm), line_h)
+        line_h = line_height if line_height > 0 else self._presence_line_height(font_metrics)
+        badge_height = min(self._presence_line_height(font_metrics), line_h)
         cx, cy = x, y
         user_rects = []
 
         for entry in entries:
-            ew = self._presence_entry_width(entry, fm)
+            ew = self._presence_entry_width(entry, font_metrics)
             if cx > x and cx + ew > x + width:
                 cx = x
                 cy += line_h + self._PRESENCE_LINE_GAP
 
             login = entry.get('login', '')
-            name_w = fm.horizontalAdvance(login)
-            name_rect = QRect(cx, cy, name_w, line_h)
+            name_width = font_metrics.horizontalAdvance(login)
+            name_rect = QRect(cx, cy, name_width, line_h)
             painter.setPen(QColor(get_username_color(login)))
-            painter.drawText(cx, cy + (line_h - fm.height()) // 2 + fm.ascent(), login)
+            painter.drawText(cx, cy + (line_h - font_metrics.height()) // 2 + font_metrics.ascent(), login)
             user_rects.append((name_rect, login))
-            cx += name_w + self._PRESENCE_NAME_GAP
+            cx += name_width + self._PRESENCE_NAME_GAP
 
             last = entry.get('last')
-            dot = max(3, fm.height() // 4)
+            dot = max(3, font_metrics.height() // 4)
             for event_type in EVENT_TYPES:
                 count = entry.get('counts', {}).get(event_type)
                 if not count:
                     continue
                 text, bg, fg, border = self._presence_badge(event_type, count)
-                text_w = fm.horizontalAdvance(text)
+                text_width = font_metrics.horizontalAdvance(text)
                 is_last = event_type == last
-                bw = text_w + self._PRESENCE_BADGE_PAD_X + (dot + 4 if is_last else 0)
-                badge_rect = QRect(cx, cy + (line_h - badge_h) // 2, bw, badge_h)
+                bw = text_width + self._PRESENCE_BADGE_PAD_X + (dot + 4 if is_last else 0)
+                badge_rect = QRect(cx, cy + (line_h - badge_height) // 2, bw, badge_height)
 
                 border_width = 2
                 inset = border_width // 2
@@ -653,7 +653,7 @@ class MessageRenderer(QObject):
                 painter.setPen(QColor(fg))
                 painter.drawText(
                     QRect(badge_rect.x(), badge_rect.y(),
-                          text_w + self._PRESENCE_BADGE_PAD_X, badge_rect.height()),
+                          text_width + self._PRESENCE_BADGE_PAD_X, badge_rect.height()),
                     Qt.AlignmentFlag.AlignCenter,
                     text,
                 )
@@ -692,7 +692,7 @@ class MessageRenderer(QObject):
         if game_match:
             return f"🔗 {game_match.group(1)}"
 
-        if not self.youtube_enabled or not is_youtube_url(url):
+        if not self._youtube_enabled or not is_youtube_url(url):
             return url
 
         cached = get_cached_info(url, use_emojis=True)
@@ -705,7 +705,7 @@ class MessageRenderer(QObject):
 
         return url
 
-    def _wrap_text(self, text: str, width: int, fm: QFontMetrics) -> List[str]:
+    def _wrap_text(self, text: str, width: int, font_metrics: QFontMetrics) -> List[str]:
         """Wrap text to fit within width"""
         if not text or width <= 0:
             return [text] if text else []
@@ -718,19 +718,19 @@ class MessageRenderer(QObject):
 
             current_line, current_width = [], 0
             for word in para.split(' '):
-                word_width = fm.horizontalAdvance(word + ' ')
+                word_width = font_metrics.horizontalAdvance(word + ' ')
 
                 if current_width + word_width <= width:
                     current_line.append(word)
                     current_width += word_width
-                elif fm.horizontalAdvance(word) > width:
+                elif font_metrics.horizontalAdvance(word) > width:
                     if current_line:
                         lines.append(' '.join(current_line))
                         current_line, current_width = [], 0
 
                     # Split long word across lines
                     while word:
-                        chunk = self._fit(word, width, fm)
+                        chunk = self._fit(word, width, font_metrics)
                         lines.append(chunk)
                         word = word[len(chunk):]
                 else:
@@ -744,7 +744,7 @@ class MessageRenderer(QObject):
 
         return lines
 
-    def _fit(self, text: str, max_pixels: int, fm: QFontMetrics) -> str:
+    def _fit(self, text: str, max_pixels: int, font_metrics: QFontMetrics) -> str:
         """Binary search to fit maximum characters within pixel width"""
         if not text or max_pixels <= 0:
             return text[:1] if text else ''
@@ -752,7 +752,7 @@ class MessageRenderer(QObject):
         lo, hi, best = 1, len(text), 1
         while lo <= hi:
             mid = (lo + hi) // 2
-            if fm.horizontalAdvance(text[:mid]) <= max_pixels:
+            if font_metrics.horizontalAdvance(text[:mid]) <= max_pixels:
                 best = mid
                 lo = mid + 1
             else:

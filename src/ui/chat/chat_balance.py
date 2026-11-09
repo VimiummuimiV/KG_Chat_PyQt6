@@ -12,7 +12,7 @@ from ui.dialogs.web_login_dialog import LoginWebView
 class ChatBalanceMixin:
     """ChatWindow: own balance fetching and session re-authorization."""
 
-    def fetch_own_balance(self, gid: int):
+    def fetch_own_balance(self, game_id: int):
         """Headless one-shot fetch of scores/bonuses."""
         # If both display options are off, no need to fetch
         show_scores = self.config.get("competitions", "show_scores")
@@ -37,18 +37,18 @@ class ChatBalanceMixin:
                 return
             scores, bonuses, updated_cookies = data
             self.dispatch.emit(
-                lambda: self._on_own_balance_fetched(gid, scores, bonuses, updated_cookies)
+                lambda: self._on_own_balance_fetched(game_id, scores, bonuses, updated_cookies)
             )
 
         threading.Thread(target=_fetch, daemon=True).start()
 
-    def _on_own_balance_fetched(self, gid: int, scores: int, bonuses: int, updated_cookies=None):
-        live = self.competition_live.get(gid)
+    def _on_own_balance_fetched(self, game_id: int, scores: int, bonuses: int, updated_cookies=None):
+        live = self.competition_live.get(game_id)
         if live is None:
             return
         self.balance_fetch_errors_shown.clear()
         live.update(scores=scores, bonuses=bonuses)
-        self.refresh_competition_message(gid)
+        self.refresh_competition_message(game_id)
         if updated_cookies:
             self._persist_session_cookies(updated_cookies)
 
@@ -100,9 +100,9 @@ class ChatBalanceMixin:
     def _reauthorize_session(self):
         """Open browser login to refresh website session cookies for this account."""
 
-        dlg = LoginWebView(self)
-        dlg.login_success.connect(self._on_reauth_success)
-        dlg.exec()
+        dialog = LoginWebView(self)
+        dialog.login_success.connect(self._on_reauth_success)
+        dialog.exec()
 
     def _on_reauth_success(self, user_data: dict):
         login = user_data.get("login")
@@ -125,8 +125,8 @@ class ChatBalanceMixin:
             self.balance_fetch_errors_shown.discard(ERR_NO_COOKIES)
             self.balance_fetch_errors_shown.discard(ERR_AUTH)
             print("🔄 reauth: in-memory account.session_cookies updated")
-            for gid in list(self.competition_live):
-                self.fetch_own_balance(gid)
+            for game_id in list(self.competition_live):
+                self.fetch_own_balance(game_id)
 
     def _persist_session_cookies(self, cookies: list):
         """Write rotated session cookies back to storage (server-side renewal only)."""

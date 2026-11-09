@@ -16,7 +16,7 @@ class StartupManager:
 
     def __init__(self, app_name: str = "KG_Chat", app_path: str = None):
         self._app_name = app_name
-        self.app_path = app_path or sys.executable
+        self._app_path = app_path or sys.executable
         self.system = platform.system()
         self._script_dir = get_app_dir()
         self._main_script = self._script_dir / "main.py"

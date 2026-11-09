@@ -18,13 +18,13 @@ _TAG_COLORS_LIGHT = ("#eceef0", "#222222", "#d5d8db")
 _TAG_BORDER_RADIUS = 6 
 
 # Close (x) button
-_CLOSE_BTN_SIZE = 22
-_CLOSE_BTN_RADIUS = 4
+_CLOSE_BUTTON_SIZE = 22
+_CLOSE_BUTTON_RADIUS = 4
 _CLOSE_ICON_SIZE = 12 
 _CLOSE_ICON_COLOR = "#999999"
 _CLOSE_ICON_STROKE_WIDTH = 2 
-_CLOSE_HOVER_BG_DARK = "#4a4a4a"
-_CLOSE_HOVER_BG_LIGHT = "#d5d8db"
+_CLOSE_HOVER_BACKGROUND_DARK = "#4a4a4a"
+_CLOSE_HOVER_BACKGROUND_LIGHT = "#d5d8db"
 
 # Drag-to-reorder insertion line
 _DROP_LINE_COLOR_DARK = "#3399ff"
@@ -62,7 +62,7 @@ class _TagButton(QWidget):
 
         self.close_btn = QPushButton()
         self.close_btn.setFlat(True)
-        self.close_btn.setFixedSize(_CLOSE_BTN_SIZE, _CLOSE_BTN_SIZE)
+        self.close_btn.setFixedSize(_CLOSE_BUTTON_SIZE, _CLOSE_BUTTON_SIZE)
         self.close_btn.setIconSize(QSize(_CLOSE_ICON_SIZE, _CLOSE_ICON_SIZE))
         self.close_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.close_btn.clicked.connect(lambda: self.removed.emit(self._text_value))
@@ -103,15 +103,15 @@ class _TagButton(QWidget):
         """Re-apply colors for the current theme (read live from helpers.button)"""
         is_dark = icon_helpers.is_dark_theme
         bg, fg, border = _TAG_COLORS_DARK if is_dark else _TAG_COLORS_LIGHT
-        close_hover_bg = _CLOSE_HOVER_BG_DARK if is_dark else _CLOSE_HOVER_BG_LIGHT
+        close_hover_background = _CLOSE_HOVER_BACKGROUND_DARK if is_dark else _CLOSE_HOVER_BACKGROUND_LIGHT
 
         self.setStyleSheet(
             f"background-color: {bg}; border: 1px solid {border}; border-radius: {_TAG_BORDER_RADIUS}px;"
         )
         self.label.setStyleSheet(f"color: {fg}; background: transparent; border: none;")
         self.close_btn.setStyleSheet(
-            f"QPushButton {{ background: transparent; border: none; border-radius: {_CLOSE_BTN_RADIUS}px; }}"
-            f"QPushButton:hover {{ background-color: {close_hover_bg}; }}"
+            f"QPushButton {{ background: transparent; border: none; border-radius: {_CLOSE_BUTTON_RADIUS}px; }}"
+            f"QPushButton:hover {{ background-color: {close_hover_background}; }}"
         )
         self.close_btn.setIcon(icon_helpers.render_svg_icon(
             self.icons_path / self._close_icon, _CLOSE_ICON_SIZE,

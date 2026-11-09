@@ -81,7 +81,7 @@ class AccountWindow(TranslatableMixin, QWidget):
         self.input_height = self._get_config('input_height', 48)
 
         # Initialize UI
-        self.initializeUI()
+        self._initialize_ui()
         self._load_accounts()
 
         # Set initial window height for Connect page
@@ -111,7 +111,7 @@ class AccountWindow(TranslatableMixin, QWidget):
         """Set standard height for input widgets"""
         widget.setFixedHeight(self.input_height)
 
-    def initializeUI(self):
+    def _initialize_ui(self):
         window_title = tr("Account Manager", "Менеджер аккаунтов")
         self.setWindowTitle(window_title)
         self.register_tr(self.setWindowTitle, window_title)
@@ -513,9 +513,9 @@ class AccountWindow(TranslatableMixin, QWidget):
 
     def _on_web_login(self):
         """Open browser login dialog to add an account."""
-        dlg = LoginWebView(self)
-        dlg.login_success.connect(self._on_web_login_success)
-        dlg.exec()
+        dialog = LoginWebView(self)
+        dialog.login_success.connect(self._on_web_login_success)
+        dialog.exec()
 
     def _on_web_login_success(self, user_data: dict):
         if not user_data.get('id'):

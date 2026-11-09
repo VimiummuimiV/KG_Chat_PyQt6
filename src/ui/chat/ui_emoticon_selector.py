@@ -22,19 +22,19 @@ from helpers.translate import on_language_changed, TranslatableMixin
 
 
 _RADIUS_PANEL = 10   # outer widget corners
-_RADIUS_BTN   = 8    # tab buttons + emoticon buttons + keyboard highlight
+_RADIUS_BUTTON   = 8    # tab buttons + emoticon buttons + keyboard highlight
 
 # Grid / sizing constants — single source of truth
 _COLS           = 7    # columns in the emoticon grid (must match number of groups)
-_BTN_SIZE       = 60   # emoticon & tab button size (px)
-_BTN_SPACING    = 6    # gap between buttons (px)
-_BTN_BORDER     = 2    # button border width (px)
+_BUTTON_SIZE       = 60   # emoticon & tab button size (px)
+_BUTTON_SPACING    = 6    # gap between buttons (px)
+_BUTTON_BORDER     = 2    # button border width (px)
 _NAV_ICON_SIZE  = 32   # group icon size in the nav buttons (px)
 _MARGIN         = 6    # margin for nav area (px)
 _CONTENT_MARGIN = _MARGIN - 3  # margin for content area (px) — compensates for QScrollArea platform chrome
-_GRID_WIDTH     = _COLS * _BTN_SIZE + (_COLS - 1) * _BTN_SPACING
+_GRID_WIDTH     = _COLS * _BUTTON_SIZE + (_COLS - 1) * _BUTTON_SPACING
 PANEL_WIDTH    = _MARGIN + _GRID_WIDTH + _MARGIN
-_NAV_HEIGHT     = _MARGIN + _BTN_SIZE + _MARGIN
+_NAV_HEIGHT     = _MARGIN + _BUTTON_SIZE + _MARGIN
 
 def _theme_colors(is_dark: bool) -> dict:
     """Return a colour palette dict for the given theme."""
@@ -54,13 +54,13 @@ class _EmoticonButton(QPushButton):
 
     def __init__(self, emoticon_path: Path, emoticon_name: str, is_dark: bool):
         super().__init__()
-        self.emoticon_name = emoticon_name
+        self._emoticon_name = emoticon_name
         self._emoticon_path = emoticon_path
         self.is_dark = is_dark
         self.movie = None
         self._highlighted = False
 
-        self.setFixedSize(QSize(_BTN_SIZE, _BTN_SIZE))
+        self.setFixedSize(QSize(_BUTTON_SIZE, _BUTTON_SIZE))
         self.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
         self.setToolTip(f":{emoticon_name}:")
 
@@ -69,21 +69,21 @@ class _EmoticonButton(QPushButton):
 
     def _update_style(self):
         c = _theme_colors(self.is_dark)
-        base_bg      = c['btn_active_bg']     if self._highlighted else 'transparent'
-        base_border  = c['btn_active_border'] if self._highlighted else 'transparent'
-        hover_bg     = c['btn_active_bg']     if self._highlighted else c['btn_hover_bg']
+        base_background = c['btn_active_bg']  if self._highlighted else 'transparent'
+        base_border = c['btn_active_border']  if self._highlighted else 'transparent'
+        hover_background = c['btn_active_bg'] if self._highlighted else c['btn_hover_bg']
         hover_border = c['btn_active_border'] if self._highlighted else c['btn_hover_border']
         self.setStyleSheet(f"""
             QPushButton {{
-                background: {base_bg};
-                border: {_BTN_BORDER}px solid {base_border};
-                border-radius: {_RADIUS_BTN}px;
+                background: {base_background};
+                border: {_BUTTON_BORDER}px solid {base_border};
+                border-radius: {_RADIUS_BUTTON}px;
                 padding: 2px;
             }}
             QPushButton:hover {{
-                background: {hover_bg};
-                border: {_BTN_BORDER}px solid {hover_border};
-                border-radius: {_RADIUS_BTN}px;
+                background: {hover_background};
+                border: {_BUTTON_BORDER}px solid {hover_border};
+                border-radius: {_RADIUS_BUTTON}px;
                 padding: 2px;
             }}
         """)
@@ -138,7 +138,7 @@ class _EmoticonButton(QPushButton):
         """Handle click — Shift = insert without closing"""
         if event.button() == Qt.MouseButton.LeftButton:
             shift_pressed = event.modifiers() & Qt.KeyboardModifier.ShiftModifier
-            self._emoticon_clicked.emit(self.emoticon_name, bool(shift_pressed))
+            self._emoticon_clicked.emit(self._emoticon_name, bool(shift_pressed))
         super().mousePressEvent(event)
 
     def _resume_animation(self):
@@ -177,7 +177,7 @@ class _EmoticonGroup(QWidget):
 
     def __init__(self, group_name: str, emoticons: List[tuple], is_dark: bool):
         super().__init__()
-        self.group_name = group_name
+        self._group_name = group_name
         self.is_dark = is_dark
         self.buttons = []
 
@@ -204,7 +204,7 @@ class _EmoticonGroup(QWidget):
         scroll.setWidget(container)
 
         grid = QGridLayout()
-        grid.setSpacing(_BTN_SPACING)
+        grid.setSpacing(_BUTTON_SPACING)
         grid.setContentsMargins(0, 0, 0, 0)
         grid.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
         container_layout.addLayout(grid)
@@ -212,15 +212,15 @@ class _EmoticonGroup(QWidget):
 
         # Add emoticons (COLS per row)
         cols = _COLS
-        for idx, (name, path) in enumerate(emoticons):
+        for index, (name, path) in enumerate(emoticons):
             if not self._is_valid(path):
                 continue
 
-            row, col = idx // cols, idx % cols
-            btn = _EmoticonButton(path, name, self.is_dark)
-            btn._emoticon_clicked.connect(self._emoticon_clicked.emit)
-            self.buttons.append(btn)
-            grid.addWidget(btn, row, col, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
+            row, col = index // cols, index % cols
+            button = _EmoticonButton(path, name, self.is_dark)
+            button._emoticon_clicked.connect(self._emoticon_clicked.emit)
+            self.buttons.append(button)
+            grid.addWidget(button, row, col, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
 
     def _is_valid(self, path: Path) -> bool:
         """Quick validation"""
@@ -231,20 +231,20 @@ class _EmoticonGroup(QWidget):
 
     def resume_animations(self):
         """Resume all button animations"""
-        for btn in self.buttons:
-            btn._resume_animation()
+        for button in self.buttons:
+            button._resume_animation()
 
     def update_theme(self, manager: EmoticonManager, is_dark: bool):
         """Update group for new theme"""
         self.is_dark = is_dark
-        for btn in self.buttons:
-            new_path = manager.get_emoticon_path(btn.emoticon_name)
-            btn.update_theme(new_path, is_dark)
+        for button in self.buttons:
+            new_path = manager.get_emoticon_path(button._emoticon_name)
+            button.update_theme(new_path, is_dark)
 
     def cleanup(self):
         """Clean up all buttons"""
-        for btn in self.buttons:
-            btn.cleanup()
+        for button in self.buttons:
+            button.cleanup()
 
 class EmoticonSelectorWidget(TranslatableMixin, QWidget):
     """Widget for selecting emoticons with icon-based navigation"""
@@ -295,7 +295,7 @@ class EmoticonSelectorWidget(TranslatableMixin, QWidget):
         self.setStyleSheet(f"""
             EmoticonSelectorWidget {{
                 background: {c['panel_bg']};
-                border: {_BTN_BORDER}px solid {c['panel_border']};
+                border: {_BUTTON_BORDER}px solid {c['panel_border']};
                 border-radius: {_RADIUS_PANEL}px;
             }}
         """)
@@ -313,7 +313,7 @@ class EmoticonSelectorWidget(TranslatableMixin, QWidget):
         """)
         nav_layout = QHBoxLayout()
         nav_layout.setContentsMargins(_MARGIN, _MARGIN, _MARGIN, _MARGIN)
-        nav_layout.setSpacing(_BTN_SPACING)
+        nav_layout.setSpacing(_BUTTON_SPACING)
         self._nav_container.setLayout(nav_layout)
         layout.addWidget(self._nav_container)
 
@@ -372,29 +372,29 @@ class EmoticonSelectorWidget(TranslatableMixin, QWidget):
 
     def _create_nav_button(self, icon_name: str, key: str, tooltip_en: str, tooltip_ru: str, layout: QHBoxLayout, active: bool = False):
         """Create a navigation button"""
-        btn = QPushButton()
-        btn.setIcon(QIcon(str(self.icons_path / icon_name)))
-        btn.setIconSize(QSize(_NAV_ICON_SIZE, _NAV_ICON_SIZE))
-        btn.setFixedSize(_BTN_SIZE, _BTN_SIZE)
-        btn.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
-        self.tr_set(btn.setToolTip, tooltip_en, tooltip_ru)
+        button = QPushButton()
+        button.setIcon(QIcon(str(self.icons_path / icon_name)))
+        button.setIconSize(QSize(_NAV_ICON_SIZE, _NAV_ICON_SIZE))
+        button.setFixedSize(_BUTTON_SIZE, _BUTTON_SIZE)
+        button.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+        self.tr_set(button.setToolTip, tooltip_en, tooltip_ru)
 
-        self._update_nav_button_style(btn, active)
-        btn.clicked.connect(lambda: self._switch_to_group(key))
-        self._nav_buttons[key] = btn
-        layout.addWidget(btn)
+        self._update_nav_button_style(button, active)
+        button.clicked.connect(lambda: self._switch_to_group(key))
+        self._nav_buttons[key] = button
+        layout.addWidget(button)
 
-    def _update_nav_button_style(self, btn: QPushButton, active: bool):
+    def _update_nav_button_style(self, button: QPushButton, active: bool):
         c = _theme_colors(self.is_dark_theme)
-        btn.setStyleSheet(f"""
+        button.setStyleSheet(f"""
             QPushButton {{
                 background: {c['btn_active_bg'] if active else 'transparent'};
-                border: {_BTN_BORDER}px solid {c['btn_active_border'] if active else 'transparent'};
-                border-radius: {_RADIUS_BTN}px;
+                border: {_BUTTON_BORDER}px solid {c['btn_active_border'] if active else 'transparent'};
+                border-radius: {_RADIUS_BUTTON}px;
             }}
             QPushButton:hover {{
                 background: {c['btn_active_bg'] if active else c['btn_hover_bg']};
-                border: {_BTN_BORDER}px solid {c['btn_active_border'] if active else c['btn_hover_border']};
+                border: {_BUTTON_BORDER}px solid {c['btn_active_border'] if active else c['btn_hover_border']};
             }}
         """)
 
@@ -422,7 +422,7 @@ class EmoticonSelectorWidget(TranslatableMixin, QWidget):
         scroll.setWidget(self._recent_container)
 
         self._recent_grid = QGridLayout()
-        self._recent_grid.setSpacing(_BTN_SPACING)
+        self._recent_grid.setSpacing(_BUTTON_SPACING)
         self._recent_grid.setContentsMargins(0, 0, 0, 0)
         self._recent_grid.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
         self._recent_layout.addLayout(self._recent_grid)
@@ -442,8 +442,8 @@ class EmoticonSelectorWidget(TranslatableMixin, QWidget):
             self._set_position("recent", 0)
 
         # Clean up old buttons
-        for btn in self._recent_buttons:
-            btn.cleanup()
+        for button in self._recent_buttons:
+            button.cleanup()
         self._recent_buttons.clear()
 
         # Clear existing widgets
@@ -454,16 +454,16 @@ class EmoticonSelectorWidget(TranslatableMixin, QWidget):
 
         # Add recent (COLS per row)
         cols = _COLS
-        for idx, name in enumerate(self._recent_emoticons):
+        for index, name in enumerate(self._recent_emoticons):
             path = self.emoticon_manager.get_emoticon_path(name)
             if not path:
                 continue
 
-            row, col = idx // cols, idx % cols
-            btn = _EmoticonButton(path, name, self.is_dark_theme)
-            btn._emoticon_clicked.connect(self._on_emoticon_clicked)
-            self._recent_buttons.append(btn)
-            self._recent_grid.addWidget(btn, row, col, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
+            row, col = index // cols, index % cols
+            button = _EmoticonButton(path, name, self.is_dark_theme)
+            button._emoticon_clicked.connect(self._on_emoticon_clicked)
+            self._recent_buttons.append(button)
+            self._recent_grid.addWidget(button, row, col, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
 
         # Placeholder if empty
         if not self._recent_emoticons:
@@ -495,31 +495,31 @@ class EmoticonSelectorWidget(TranslatableMixin, QWidget):
 
 
     def _current_key(self):
-        idx = self._stacked_content.currentIndex()
-        return next((k for k, v in self._group_indices.items() if v == idx), None)
+        index = self._stacked_content.currentIndex()
+        return next((k for k, v in self._group_indices.items() if v == index), None)
 
     def _current_buttons(self):
-        idx = self._stacked_content.currentIndex()
-        if idx == self._group_indices.get('recent', -1):
+        index = self._stacked_content.currentIndex()
+        if index == self._group_indices.get('recent', -1):
             return self._recent_buttons
         for gw in self._group_widgets:
-            if self._stacked_content.indexOf(gw) == idx:
+            if self._stacked_content.indexOf(gw) == index:
                 return gw.buttons
         return []
 
-    def _highlight(self, btn, active):
-        if not btn:
+    def _highlight(self, button, active):
+        if not button:
             return
         try:
-            btn._highlighted = active
-            btn._update_style()
+            button._highlighted = active
+            button._update_style()
         except RuntimeError:
             pass  # C++ object already deleted — nothing to style
 
-    def _set_nav(self, btns, idx):
+    def _set_nav(self, btns, index):
         """Unhighlight current, highlight btns[idx], scroll into view, schedule save."""
         self._highlight(self._nav_btn, False)
-        self._nav_btn = btns[idx]
+        self._nav_btn = btns[index]
         self._highlight(self._nav_btn, True)
         p = self._nav_btn.parent()
         while p:
@@ -532,12 +532,12 @@ class EmoticonSelectorWidget(TranslatableMixin, QWidget):
     def _get_positions(self) -> dict:
         return self.config.get("ui", "emoticon_nav_positions") or {}
 
-    def _set_position(self, key: str, idx: int):
+    def _set_position(self, key: str, index: int):
         positions = self._get_positions()
-        positions[key] = idx
+        positions[key] = index
         self.config.set("ui", "emoticon_nav_positions", value=positions)
 
-    def _restore_idx(self, btns) -> int:
+    def _restore_index(self, btns) -> int:
         """Return saved position index for the current group (default 0)."""
         saved = self._get_positions().get(self._current_key(), 0)
         return min(saved, len(btns) - 1)
@@ -557,8 +557,8 @@ class EmoticonSelectorWidget(TranslatableMixin, QWidget):
         self._highlight(self._nav_btn, False)
         self._nav_btn = None
 
-        for k, btn in self._nav_buttons.items():
-            self._update_nav_button_style(btn, k == key)
+        for k, button in self._nav_buttons.items():
+            self._update_nav_button_style(button, k == key)
         if key in self._group_indices:
             self._stacked_content.setCurrentIndex(self._group_indices[key])
 
@@ -567,7 +567,7 @@ class EmoticonSelectorWidget(TranslatableMixin, QWidget):
         # Restore saved cursor position for the new group
         btns = self._current_buttons()
         if btns:
-            self._set_nav(btns, self._restore_idx(btns))
+            self._set_nav(btns, self._restore_index(btns))
 
     def navigate(self, dx: int, dy: int):
         """Move keyboard cursor. H/L: flat linear wrap. J/K: column-aware wrap."""
@@ -576,22 +576,22 @@ class EmoticonSelectorWidget(TranslatableMixin, QWidget):
             return
         total = len(btns)
         if self._nav_btn not in btns:
-            return self._set_nav(btns, self._restore_idx(btns))
+            return self._set_nav(btns, self._restore_index(btns))
         cur = btns.index(self._nav_btn)
         if dx:
-            new_idx = (cur + dx) % total
+            new_index = (cur + dx) % total
         else:
             row, col = divmod(cur, _COLS)
             rows = (total - 1) // _COLS + 1
-            new_idx = min(((row + dy) % rows) * _COLS + col, total - 1)
-        self._set_nav(btns, new_idx)
+            new_index = min(((row + dy) % rows) * _COLS + col, total - 1)
+        self._set_nav(btns, new_index)
 
     def insert_selected(self, shift=False):
         btns = self._current_buttons()
         if not btns:
             return
         target = self._nav_btn if self._nav_btn in btns else btns[0]
-        target._emoticon_clicked.emit(target.emoticon_name, shift)
+        target._emoticon_clicked.emit(target._emoticon_name, shift)
 
     def cycle_tab(self, forward: bool = True):
         keys = list(self._group_indices.keys())
@@ -603,13 +603,13 @@ class EmoticonSelectorWidget(TranslatableMixin, QWidget):
         """Handle mouse wheel events on navigation container"""
         if obj == self._nav_container and event.type() == QEvent.Type.Wheel:
             delta = event.angleDelta().y()
-            current_idx = self._stacked_content.currentIndex()
+            current_index = self._stacked_content.currentIndex()
             total = self._stacked_content.count()
 
-            new_idx = (current_idx - 1) % total if delta > 0 else (current_idx + 1) % total
+            new_index = (current_index - 1) % total if delta > 0 else (current_index + 1) % total
 
-            for key, idx in self._group_indices.items():
-                if idx == new_idx:
+            for key, index in self._group_indices.items():
+                if index == new_index:
                     self._switch_to_group(key)
                     break
 
@@ -651,7 +651,7 @@ class EmoticonSelectorWidget(TranslatableMixin, QWidget):
         self.setStyleSheet(f"""
             EmoticonSelectorWidget {{
                 background: {c['panel_bg']};
-                border: {_BTN_BORDER}px solid {c['panel_border']};
+                border: {_BUTTON_BORDER}px solid {c['panel_border']};
                 border-radius: {_RADIUS_PANEL}px;
             }}
         """)
@@ -677,15 +677,15 @@ class EmoticonSelectorWidget(TranslatableMixin, QWidget):
                 }}
             """)
 
-        current_idx = self._stacked_content.currentIndex()
-        for key, btn in self._nav_buttons.items():
-            self._update_nav_button_style(btn, self._group_indices.get(key) == current_idx)
+        current_index = self._stacked_content.currentIndex()
+        for key, button in self._nav_buttons.items():
+            self._update_nav_button_style(button, self._group_indices.get(key) == current_index)
 
         for group_widget in self._group_widgets:
             group_widget.update_theme(self.emoticon_manager, self.is_dark_theme)
 
-        for btn in self._recent_buttons:
-            btn.update_theme(self.emoticon_manager.get_emoticon_path(btn.emoticon_name), self.is_dark_theme)
+        for button in self._recent_buttons:
+            button.update_theme(self.emoticon_manager.get_emoticon_path(button._emoticon_name), self.is_dark_theme)
 
         if 'recent' in self._group_indices:
             self._switch_to_group('recent')
@@ -710,19 +710,19 @@ class EmoticonSelectorWidget(TranslatableMixin, QWidget):
         last = self.config.get("ui", "emoticon_last_group") or "recent"
         key  = last if last in self._group_indices else "recent"
         # Switch without triggering a config write for the group we're leaving
-        for k, btn in self._nav_buttons.items():
-            self._update_nav_button_style(btn, k == key)
+        for k, button in self._nav_buttons.items():
+            self._update_nav_button_style(button, k == key)
         if key in self._group_indices:
             self._stacked_content.setCurrentIndex(self._group_indices[key])
         self.resume_animations()
         btns = self._current_buttons()
         if btns:
-            self._set_nav(btns, self._restore_idx(btns))
+            self._set_nav(btns, self._restore_index(btns))
 
     def resume_animations(self):
         """Resume all emoticon animations in the selector"""
-        for btn in self._recent_buttons:
-            btn._resume_animation()
+        for button in self._recent_buttons:
+            button._resume_animation()
         for group_widget in self._group_widgets:
             group_widget.resume_animations()
 
@@ -756,8 +756,8 @@ class EmoticonSelectorWidget(TranslatableMixin, QWidget):
 
     def cleanup(self):
         """Clean up all emoticon buttons"""
-        for btn in self._recent_buttons:
-            btn.cleanup()
+        for button in self._recent_buttons:
+            button.cleanup()
         for widget in self._group_widgets:
             widget.cleanup()
 

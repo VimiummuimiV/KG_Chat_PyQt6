@@ -33,11 +33,11 @@ class SoundSelectorWidget(TranslatableMixin, QWidget):
         super().__init__()
         self.init_translatable()
         self.config = config
-        self.sound_root = sound_root
+        self._sound_root = sound_root
         self.kind = kind
         self.config_key = (kind or '').strip().lower()
-        self.system_dir = get_system_sound_dir(sound_root, kind)
-        self.user_dir = get_user_sound_dir(kind)
+        self._system_dir = get_system_sound_dir(sound_root, kind)
+        self._user_dir = get_user_sound_dir(kind)
         self.icons_path = get_resource_dir("icons")
 
         layout = QHBoxLayout()
@@ -103,12 +103,12 @@ class SoundSelectorWidget(TranslatableMixin, QWidget):
     def _is_user_owned(self, file_name: str | None) -> bool:
         if not file_name:
             return False
-        return (self.user_dir / file_name).is_file()
+        return (self._user_dir / file_name).is_file()
 
     def _resolve_path(self, file_name: str | None) -> Path | None:
         if not file_name:
             return None
-        return resolve_sound_file(file_name, self.system_dir, self.user_dir)
+        return resolve_sound_file(file_name, self._system_dir, self._user_dir)
 
     def _update_edit_buttons(self):
         """Delete/Rename only for user-owned files."""
@@ -170,7 +170,7 @@ class SoundSelectorWidget(TranslatableMixin, QWidget):
         return file_name[:-4] if file_name.lower().endswith(".mp3") else file_name
 
     def refresh(self, select_name: str | None = None):
-        files = get_merged_sound_files(self.system_dir, self.user_dir)
+        files = get_merged_sound_files(self._system_dir, self._user_dir)
         self.combo.blockSignals(True)
         self.combo.clear()
 
@@ -186,7 +186,7 @@ class SoundSelectorWidget(TranslatableMixin, QWidget):
         for file_name in files:
             self.combo.addItem(self._display_name(file_name), file_name)
 
-        preferred = select_name or get_sound_name(self.sound_root, self.kind, self.config)
+        preferred = select_name or get_sound_name(self._sound_root, self.kind, self.config)
         index = self.combo.findData(preferred) if preferred else -1
         self.combo.setCurrentIndex(index if index >= 0 else 0)
 
@@ -231,11 +231,11 @@ class SoundSelectorWidget(TranslatableMixin, QWidget):
         if not src.is_file():
             return
 
-        self.user_dir.mkdir(parents=True, exist_ok=True)
+        self._user_dir.mkdir(parents=True, exist_ok=True)
 
         stem = src.stem
         dest_name = f"{stem}.mp3"
-        dest = self.user_dir / dest_name
+        dest = self._user_dir / dest_name
 
         if dest.exists() and not self._confirm(
             tr("File exists", "Файл уже существует"),
@@ -263,7 +263,7 @@ class SoundSelectorWidget(TranslatableMixin, QWidget):
         if not file_name:
             return
 
-        path = self.user_dir / file_name
+        path = self._user_dir / file_name
         if not self._confirm(title, tr(f"Delete '{file_name}'?", f"Удалить «{file_name}»?")):
             return
 
@@ -284,7 +284,7 @@ class SoundSelectorWidget(TranslatableMixin, QWidget):
         if not file_name:
             return
 
-        current_path = self.user_dir / file_name
+        current_path = self._user_dir / file_name
         dialog = QInputDialog(self)
         dialog.setWindowTitle(title)
         dialog.setLabelText(tr("New file name:", "Новое имя файла:"))
@@ -306,7 +306,7 @@ class SoundSelectorWidget(TranslatableMixin, QWidget):
                                                  "Имя не может содержать разделители пути."))
             return
 
-        target_path = self.user_dir / clean_name
+        target_path = self._user_dir / clean_name
         if target_path.exists() and target_path.name.lower() != current_path.name.lower():
             QMessageBox.warning(self, title, tr("A sound with that name already exists.",
                                                  "Звук с таким именем уже существует."))

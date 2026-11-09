@@ -62,12 +62,12 @@ class HuntingBehavior:
         """Whether the pet is running to an edge to leave the line."""
         return self._raid is not None and self._raid.phase in (_CARRY, _LEAVE)
 
-    def seize(self) -> None:
+    def _seize(self) -> None:
         """Hide the pet: a predator has it."""
         self._meal = self._noticed = self._watching = None
         self._is_seized = True
 
-    def free_at(self, center_x: float) -> None:
+    def _free_at(self, center_x: float) -> None:
         """Bring the pet back where the predator dropped it and let it run for its life."""
         self._is_seized = False
         left, right = self._animation.visible_span(self._facing_right)
@@ -128,7 +128,7 @@ class HuntingBehavior:
             self._chase(raid, target)
 
     def _carry_off(self, prey: "Pet") -> None:
-        prey.seize()
+        prey._seize()
         self._prey = prey
         self._run_to_edge(_CARRY, f"{_CARRY_STATE}_{prey.kind.color}", self.center_x > self._line_width / 2)
 
@@ -166,7 +166,7 @@ class HuntingBehavior:
         if not self._raid:
             return
         if self._prey:
-            self._prey.free_at(self.center_x)
+            self._prey._free_at(self.center_x)
             self._prey = None
         self._raid = None
         self._speed_boost = 1.0

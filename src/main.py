@@ -70,7 +70,7 @@ class Application(QObject):
             sys.exit(0)
 
         # Initialize data path (user data lives under KG_Chat_Data/data)
-        self.data_path = get_data_dir("data")
+        self._data_path = get_data_dir("data")
 
         # Initialize account manager and config
         self.config_path = get_config_path()
@@ -97,11 +97,11 @@ class Application(QObject):
         self.app.setWindowIcon(self._get_icon())
 
         # Initialize pronunciation manager
-        self.pronunciation_manager = PronunciationManager(self.data_path)
+        self.pronunciation_manager = PronunciationManager(self._data_path)
         # Initialize ban manager
-        self.ban_manager = BanManager(self.data_path)
+        self.ban_manager = BanManager(self._data_path)
         # Initialize user tracker
-        self.user_tracker = UserTracker(self.data_path, self.config)
+        self.user_tracker = UserTracker(self._data_path, self.config)
 
         self._account_window = None
         self.chat_window = None
@@ -233,8 +233,8 @@ class Application(QObject):
             return
 
         # Show reset only if custom_background exists
-        has_custom_bg = bool(self.chat_window.account.get('custom_background'))
-        self._reset_color_action.setVisible(has_custom_bg)
+        has_custom_background = bool(self.chat_window.account.get('custom_background'))
+        self._reset_color_action.setVisible(has_custom_background)
 
     def update_sound_menu(self):
         """Update sound menu to reflect current config state"""
@@ -524,12 +524,12 @@ class Application(QObject):
         previous_avatar = self.chat_window.account.get('avatar')
         self.chat_window.account.update(updated_account)
 
-        effective_bg = updated_account.get('custom_background') or updated_account.get('background')
+        effective_background = updated_account.get('custom_background') or updated_account.get('background')
         own_login = updated_account['chat_username']
         own_id = updated_account['user_id']
 
         # Update own color in cache
-        self.chat_window.cache.update_user(own_id, own_login, effective_bg)
+        self.chat_window.cache.update_user(own_id, own_login, effective_background)
 
         # Clear avatar cache if changed
         if updated_account.get('avatar') != previous_avatar:
@@ -542,14 +542,14 @@ class Application(QObject):
             None
         )
         if own_user:
-            own_user.background = effective_bg
+            own_user.background = effective_background
             self.chat_window.user_list_widget.add_users(users=[own_user])
 
         # Update messages
         own_messages_updated = False
         for msg_data in self.chat_window.messages_widget.model.stored_messages:
             if msg_data.username == own_login:
-                msg_data.background_color = effective_bg
+                msg_data.background_color = effective_background
                 own_messages_updated = True
 
         if own_messages_updated:

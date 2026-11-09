@@ -131,9 +131,9 @@ class ScrollButtonsPanel(QObject):
         self.container.adjustSize()
 
         # Show/reveal only while scrollable, and disable up/down buttons at the respective end
-        sb = self.list_view.verticalScrollBar()
-        sb.rangeChanged.connect(self._update_buttons)
-        sb.valueChanged.connect(self._update_buttons)
+        scroll_bar = self.list_view.verticalScrollBar()
+        scroll_bar.rangeChanged.connect(self._update_buttons)
+        scroll_bar.valueChanged.connect(self._update_buttons)
         self._update_buttons()
 
         self._date_jump_model = None
@@ -168,10 +168,10 @@ class ScrollButtonsPanel(QObject):
     def _update_buttons(self, *_args):
         """Hide the container entirely when nothing is scrollable; disable up-buttons
         at the top and down-buttons at the bottom of the range."""
-        sb = self.list_view.verticalScrollBar()
-        scrollable = sb.maximum() > sb.minimum()
-        at_top = sb.value() <= sb.minimum()
-        at_bottom = sb.value() >= sb.maximum()
+        scroll_bar = self.list_view.verticalScrollBar()
+        scrollable = scroll_bar.maximum() > scroll_bar.minimum()
+        at_top = scroll_bar.value() <= scroll_bar.minimum()
+        at_bottom = scroll_bar.value() >= scroll_bar.maximum()
         self.container.setVisible(scrollable)
         for entry in self._entries:
             enabled = not (at_top if entry["action"] in ("top", "page_up") else at_bottom)
@@ -268,11 +268,11 @@ class ScrollButtonsPanel(QObject):
             return
 
         # QScrollArea (and similar): pixel page step via scrollbar
-        sb = self.list_view.verticalScrollBar()
-        if not sb:
+        scroll_bar = self.list_view.verticalScrollBar()
+        if not scroll_bar:
             return
-        step = sb.pageStep() or max(1, self.list_view.viewport().height() - 20)
-        sb.setValue(sb.value() + direction * step)
+        step = scroll_bar.pageStep() or max(1, self.list_view.viewport().height() - 20)
+        scroll_bar.setValue(scroll_bar.value() + direction * step)
 
     def _fit_reveal_padding(self):
         """Shrink the vertical reveal padding in a short view so the centered buttons are not cropped."""
@@ -315,9 +315,9 @@ class ScrollButtonsPanel(QObject):
             self._date_update_timer.stop()
         if self.list_view:
             try:
-                sb = self.list_view.verticalScrollBar()
-                sb.rangeChanged.disconnect(self._update_buttons)
-                sb.valueChanged.disconnect(self._update_buttons)
+                scroll_bar = self.list_view.verticalScrollBar()
+                scroll_bar.rangeChanged.disconnect(self._update_buttons)
+                scroll_bar.valueChanged.disconnect(self._update_buttons)
             except (RuntimeError, TypeError):
                 pass
         if self._date_jump_model:

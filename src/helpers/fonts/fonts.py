@@ -44,10 +44,10 @@ class _FontManager:
     def _invalidate_cache(self):
         self._font_cache.clear()
 
-    def set_config(self, config):
+    def _set_config(self, config):
         self.config = config
 
-    def set_font_scaler(self, font_scaler):
+    def _set_font_scaler(self, font_scaler):
         self.font_scaler = font_scaler
         font_scaler.font_size_changed.connect(self._invalidate_cache)
 
@@ -88,7 +88,7 @@ class _FontManager:
         self._loaded_dirs.add(dir_name)
         return names
 
-    def get_available_font_families(self) -> list[str]:
+    def _get_available_font_families(self) -> list[str]:
         """All unique Qt family names from fonts/ (weights included), excluding emoji."""
         if self._available_families:
             return list(self._available_families)
@@ -106,7 +106,7 @@ class _FontManager:
         self._available_families = sorted(found, key=lambda s: s.lower())
         return list(self._available_families)
 
-    def get_available_emoji_families(self) -> list[str]:
+    def _get_available_emoji_families(self) -> list[str]:
         """Emoji families: real Qt names from fonts/*Emoji* dirs + common system ones."""
         if self._available_emoji_families:
             return list(self._available_emoji_families)
@@ -144,7 +144,7 @@ class _FontManager:
         self._available_emoji_families = sorted(found, key=lambda s: s.lower())
         return list(self._available_emoji_families)
 
-    def load_fonts(self):
+    def _load_fonts(self):
         if self.loaded:
             return True
 
@@ -155,13 +155,13 @@ class _FontManager:
             self.loaded = True
             return False
 
-        families = self.get_available_font_families()
+        families = self._get_available_font_families()
         if families:
             print(f"✅ Loaded fonts: {len(families)} faces from {len(self._loaded_dirs)} families")
         else:
             print("⚠️ No text fonts found")
 
-        emoji_families = self.get_available_emoji_families()
+        emoji_families = self._get_available_emoji_families()
         if emoji_families:
             print(f"✅ Emoji fonts: {', '.join(emoji_families)}")
         else:
@@ -170,14 +170,14 @@ class _FontManager:
         self.loaded = True
         return True
 
-    def ensure_family_loaded(self, family_name: str) -> bool:
+    def _ensure_family_loaded(self, family_name: str) -> bool:
         if not self._available_families:
-            self.get_available_font_families()
+            self._get_available_font_families()
         return family_name in self._available_families or any(
             family_name in n for n in self._available_families
         )
 
-    def get_font(self, font_type: FontType = FontType.TEXT,
+    def _get_font(self, font_type: FontType = FontType.TEXT,
                  size: int = None,
                  weight: QFont.Weight = QFont.Weight.Normal,
                  italic: bool = False) -> QFont:
@@ -219,12 +219,12 @@ class _FontManager:
         self._font_cache[key] = font
         return font
 
-    def set_application_font(self, app: QApplication):
+    def _set_application_font(self, app: QApplication):
         if not self.loaded:
             self.load_config()
 
 
-        default_font = self.get_font(FontType.UI)
+        default_font = self._get_font(FontType.UI)
         app.setFont(default_font)
         QToolTip.setFont(default_font)
 
@@ -239,38 +239,38 @@ _font_manager = _FontManager()
 
 # Public API
 def load_fonts() -> bool:
-    return _font_manager.load_fonts()
+    return _font_manager._load_fonts()
 
 
 def get_font(font_type: FontType = FontType.TEXT,
              size: int = None,
              weight: QFont.Weight = QFont.Weight.Normal,
              italic: bool = False) -> QFont:
-    return _font_manager.get_font(font_type, size, weight, italic)
+    return _font_manager._get_font(font_type, size, weight, italic)
 
 
 def set_application_font(app: QApplication):
-    _font_manager.set_application_font(app)
+    _font_manager._set_application_font(app)
 
 
 def set_font_scaler(font_scaler):
-    _font_manager.set_font_scaler(font_scaler)
+    _font_manager._set_font_scaler(font_scaler)
 
 
 def set_config(config):
-    _font_manager.set_config(config)
+    _font_manager._set_config(config)
 
 
 def get_available_font_families() -> list[str]:
-    return _font_manager.get_available_font_families()
+    return _font_manager._get_available_font_families()
 
 
 def get_available_emoji_families() -> list[str]:
-    return _font_manager.get_available_emoji_families()
+    return _font_manager._get_available_emoji_families()
 
 
 def ensure_family_loaded(family_name: str) -> bool:
-    return _font_manager.ensure_family_loaded(family_name)
+    return _font_manager._ensure_family_loaded(family_name)
 
 
 def invalidate_font_cache():

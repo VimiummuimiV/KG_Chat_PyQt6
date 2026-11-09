@@ -130,8 +130,8 @@ class SettingsCompetitionsMixin:
 
     def refresh_competitions(self):
         min_m = self.config.get("competitions", "min_multiplier") or "x1+"
-        idx = self.min_multiplier_combo.findText(min_m)
-        self.min_multiplier_combo.setCurrentIndex(idx if idx >= 0 else 0)
+        index = self.min_multiplier_combo.findText(min_m)
+        self.min_multiplier_combo.setCurrentIndex(index if index >= 0 else 0)
 
         self._remove_on_enter_checkbox.setChecked(bool(self.config.get("competitions", "remove_message_on_enter")))
 
@@ -227,11 +227,11 @@ class SettingsCompetitionsMixin:
         c = self._competitions_log_colors()
         accent = self.competitions_accent_color or c["default"]
         is_dark = (self.config.get("ui", "theme") or "dark") == "dark"
-        container_bg = "#000000" if is_dark else "#FFFFFF"
+        container_background = "#000000" if is_dark else "#FFFFFF"
         mix_ratio = 0.10 if is_dark else 0.30
-        mixed_bg = blend_hex_colors(container_bg, accent, mix_ratio)
+        mixed_background = blend_hex_colors(container_background, accent, mix_ratio)
         self.competitions_log.setStyleSheet(
-            f"QTextEdit {{ background-color: {mixed_bg}; color: {c['fg']}; border: none; padding: 6px 8px; }}"
+            f"QTextEdit {{ background-color: {mixed_background}; color: {c['fg']}; border: none; padding: 6px 8px; }}"
         )
 
     def _colorize_log_line(self, line: str) -> str:

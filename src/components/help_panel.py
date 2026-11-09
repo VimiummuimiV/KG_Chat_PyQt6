@@ -337,10 +337,10 @@ class HelpPanel(QWidget):
         self.show()
         self.raise_()
         # Measure the real content height + chrome (title + footer + margins + spacing)
-        content_h = self._scroll_content.sizeHint().height()
-        chrome_h = self.height() - (self.findChild(QScrollArea).height())
-        desired_h = content_h + chrome_h + 48  # buffer for layout spacing + window frame
-        h = min(desired_h, geo.height())
+        content_height = self._scroll_content.sizeHint().height()
+        chrome_height = self.height() - (self.findChild(QScrollArea).height())
+        desired_height = content_height + chrome_height + 48  # buffer for layout spacing + window frame
+        h = min(desired_height, geo.height())
         self.resize(self.width(), h)
         self._center_on_screen()
         QApplication.instance().installEventFilter(self)
@@ -392,7 +392,7 @@ class HelpPanel(QWidget):
         self.setStyleSheet(f"QWidget {{ background-color: {colors['bg']}; }}")
 
         # ── Context definition ────────────────────────────────────────────
-        ctx = _CONTEXTS.get(context_key, _CONTEXTS["chat"])
+        context = _CONTEXTS.get(context_key, _CONTEXTS["chat"])
 
         # ── Outer layout: title (pinned) + scroll area + footer (pinned) ──
         outer = QVBoxLayout(self)
@@ -400,12 +400,12 @@ class HelpPanel(QWidget):
         outer.setSpacing(6)
 
         # Title — always visible, outside scroll
-        title_lbl = QLabel(tr(*ctx["title"]))
-        title_lbl.setStyleSheet(
+        title_label = QLabel(tr(*context["title"]))
+        title_label.setStyleSheet(
             f"color: {colors['title_color']}; font-size: 14px; font-weight: bold; padding-bottom: 6px;"
         )
-        title_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        outer.addWidget(title_lbl)
+        title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        outer.addWidget(title_label)
 
         # ── Scroll area wrapping all sections ─────────────────────────────
         scroll = QScrollArea()
@@ -420,16 +420,16 @@ class HelpPanel(QWidget):
         sections_layout.setContentsMargins(0, 0, 8, 0)
         sections_layout.setSpacing(6)
 
-        for section_title, kb_rows, mouse_rows in ctx["sections"]:
+        for section_title, kb_rows, mouse_rows in context["sections"]:
             if not kb_rows and not mouse_rows:
                 continue
 
-            sec_lbl = QLabel(tr(*section_title))
-            sec_lbl.setStyleSheet(
+            sec_label = QLabel(tr(*section_title))
+            sec_label.setStyleSheet(
                 f"color: {colors['section_color']}; font-size: 12px; font-weight: bold; "
                 f"padding: 6px 0 2px 0;"
             )
-            sections_layout.addWidget(sec_lbl)
+            sections_layout.addWidget(sec_label)
 
             sep = QFrame()
             sep.setFrameShape(QFrame.Shape.HLine)
@@ -463,13 +463,13 @@ class HelpPanel(QWidget):
             super().keyPressEvent(event)
 
 
-def _badge_row(key_text, desc_text, badge_bg, badge_text, min_width, desc_color):
+def _badge_row(key_text, desc_text, badge_background, badge_text, min_width, desc_color):
     row = QHBoxLayout()
     row.setSpacing(10)
 
     key = QLabel(key_text)
     key.setStyleSheet(
-        f"background-color: {badge_bg}; color: {badge_text}; "
+        f"background-color: {badge_background}; color: {badge_text}; "
         f"border-radius: 4px; padding: 3px 8px; font-weight: bold;"
     )
     key.setMinimumWidth(min_width)

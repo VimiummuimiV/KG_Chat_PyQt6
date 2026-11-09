@@ -50,9 +50,9 @@ def _windows_browsers() -> List[_BrowserEntry]:
                     break
                 i += 1
                 try:
-                    cmd_key = winreg.OpenKey(key, name + r"\shell\open\command")
-                    cmd, _ = winreg.QueryValueEx(cmd_key, None)
-                    winreg.CloseKey(cmd_key)
+                    command_key = winreg.OpenKey(key, name + r"\shell\open\command")
+                    cmd, _ = winreg.QueryValueEx(command_key, None)
+                    winreg.CloseKey(command_key)
                 except OSError:
                     continue
                 # Command is usually '"C:\...\chrome.exe" %1' or similar

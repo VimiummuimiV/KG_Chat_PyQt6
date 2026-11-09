@@ -42,12 +42,12 @@ class LoadingSpinner(QWidget):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
         center = self.spinner_size / 2
-        bg_radius, inner_radius = self.spinner_size * 0.42, self.spinner_size * 0.32
+        background_radius, inner_radius = self.spinner_size * 0.42, self.spinner_size * 0.32
         line_width = max(2, int(self.spinner_size * 0.06))
 
         painter.setPen(Qt.PenStyle.NoPen)
         painter.setBrush(QColor(5, 5, 5))
-        painter.drawEllipse(int(center - bg_radius), int(center - bg_radius), int(bg_radius * 2), int(bg_radius * 2))
+        painter.drawEllipse(int(center - background_radius), int(center - background_radius), int(background_radius * 2), int(background_radius * 2))
 
         if self._is_error:
             half = self.spinner_size * _ERROR_CROSS_RATIO

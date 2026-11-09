@@ -89,10 +89,10 @@ class SettingsHotkeyMixin:
         tooltip = detail or hotkey.get_status_tooltip(status)
         can_retry = status != hotkey.STATUS_ACTIVE
         is_dark = (self.config.get("ui", "theme") or "dark") == "dark"
-        tooltip_bg, tooltip_fg, tooltip_border = tinted_chip_colors(color, is_dark)
+        tooltip_background, tooltip_foreground, tooltip_border = tinted_chip_colors(color, is_dark)
         self._hotkey_status_dot.setStyleSheet(
             f"#hotkeyStatusDot {{ background-color: {color}; border-radius: 5px; }}"
-            f"QToolTip {{ background-color: {tooltip_bg}; color: {tooltip_fg}; border: 1px solid {tooltip_border}; }}"
+            f"QToolTip {{ background-color: {tooltip_background}; color: {tooltip_foreground}; border: 1px solid {tooltip_border}; }}"
         )
         self._hotkey_status_dot.setToolTip(tooltip + tr(" (click to retry)", " (нажмите для повтора)") if can_retry else tooltip)
         self._hotkey_status_dot.setCursor(

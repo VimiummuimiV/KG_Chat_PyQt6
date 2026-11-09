@@ -148,23 +148,23 @@ class SettingsWidget(
         stored = self.config.get(*config_path)
         collapsed = default_collapsed if stored is None else bool(stored)
 
-        btn = QToolButton()
-        btn.setCheckable(True)
-        btn.setAutoRaise(True)
-        btn.setArrowType(Qt.ArrowType.RightArrow if collapsed else Qt.ArrowType.DownArrow)
-        btn.setChecked(collapsed)
+        button = QToolButton()
+        button.setCheckable(True)
+        button.setAutoRaise(True)
+        button.setArrowType(Qt.ArrowType.RightArrow if collapsed else Qt.ArrowType.DownArrow)
+        button.setChecked(collapsed)
         content.setVisible(not collapsed)
 
-        btn._section_content = content
-        btn._section_config_path = config_path
+        button._section_content = content
+        button._section_config_path = config_path
 
         def _on_toggled(checked):
             content.setVisible(not checked)
-            btn.setArrowType(Qt.ArrowType.RightArrow if checked else Qt.ArrowType.DownArrow)
+            button.setArrowType(Qt.ArrowType.RightArrow if checked else Qt.ArrowType.DownArrow)
             self.config.set(*config_path, value=checked)
             if section and not checked and self._accordion_enabled():
                 for other in self._section_toggles:
-                    if other is not btn and not other.isChecked():
+                    if other is not button and not other.isChecked():
                         other.blockSignals(True)
                         other.setChecked(True)
                         other.setArrowType(Qt.ArrowType.RightArrow)
@@ -172,11 +172,11 @@ class SettingsWidget(
                         self.config.set(*other._section_config_path, value=True)
                         other.blockSignals(False)
 
-        btn.toggled.connect(_on_toggled)
-        header_layout.insertWidget(0, btn)
+        button.toggled.connect(_on_toggled)
+        header_layout.insertWidget(0, button)
         if section:
-            self._section_toggles.append(btn)
-        return btn
+            self._section_toggles.append(button)
+        return button
 
     def _accordion_enabled(self) -> bool:
         return bool(self.config.get("ui", "settings", "accordion"))

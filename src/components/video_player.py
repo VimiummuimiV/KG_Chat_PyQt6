@@ -85,7 +85,7 @@ class VideoPlayer(QWidget):
         super().__init__(parent)
         self.hide()  # never painted - stays hidden so it can't eat viewport clicks
         self.config = config
-        self.current_url = None
+        self._current_url = None
         self._mpv_path = self._find_mpv()
         self._ytdlp_path = self._find_ytdlp()
         self._mpv_process = None  # Track the mpv process
@@ -93,7 +93,7 @@ class VideoPlayer(QWidget):
         # Loading spinner
         self._loading_spinner = LoadingSpinner(None, 60)
         self._loading_spinner.hide()
-        self.is_loading = False
+        self._is_loading = False
 
     def _find_mpv(self) -> str:
         """Find mpvnet/mpv executable cross-platform"""
@@ -257,7 +257,7 @@ class VideoPlayer(QWidget):
 
     def show_video(self, url: str, cursor_pos: QPoint = None, force_log: bool = False):
         """Launch mpv player with the video URL."""
-        self.current_url = url
+        self._current_url = url
 
         # Check if mpv is available
         if not self._mpv_path or not shutil.which(self._mpv_path):
@@ -267,7 +267,7 @@ class VideoPlayer(QWidget):
         # Close previous mpv instance if running
         self._close_previous_mpv()
 
-        self.is_loading = True
+        self._is_loading = True
 
         # Position and show spinner
         if cursor_pos:
@@ -288,7 +288,7 @@ class VideoPlayer(QWidget):
         try:
             log_enabled = force_log or bool(self.config and self.config.get("player", "log"))
             log_path = self._debug_log_path(url) if log_enabled else None
-            mpv_cmd = self._build_mpv_command(url, log_path=log_path)
+            mpv_command = self._build_mpv_command(url, log_path=log_path)
 
             kwargs = {
                 'stdin': subprocess.DEVNULL,
@@ -298,7 +298,7 @@ class VideoPlayer(QWidget):
             if platform.system() == 'Windows':
                 kwargs['creationflags'] = subprocess.CREATE_NO_WINDOW
 
-            self._mpv_process = subprocess.Popen(mpv_cmd, **kwargs)
+            self._mpv_process = subprocess.Popen(mpv_command, **kwargs)
 
             # Stop spinner after brief delay (mpv is launching)
             QTimer.singleShot(1000, self._stop_loading)
@@ -354,7 +354,7 @@ class VideoPlayer(QWidget):
     def _build_mpv_command(self, url: str, log_path: Path | None = None) -> list:
         """Build mpv command with appropriate options"""
         cmd = [self._mpv_path]
-        cfg = self.config
+        config = self.config
 
         cmd.append('--force-window=yes')
         cmd.append('--no-terminal')
@@ -363,28 +363,28 @@ class VideoPlayer(QWidget):
             cmd.append('--msg-level=all=trace')
             cmd.append(f'--log-file={log_path}')
 
-        if cfg:
-            tls_disabled = cfg.get("player", "disable_tls_verify")
+        if config:
+            tls_disabled = config.get("player", "disable_tls_verify")
             if tls_disabled is None or tls_disabled:
                 cmd.append('--tls-verify=no')
-            hwdec = cfg.get("player", "hwdec") or "auto"
+            hwdec = config.get("player", "hwdec") or "auto"
             if hwdec and hwdec != "auto":
                 cmd.append(f'--hwdec={hwdec}')
-            volume = cfg.get("player", "volume")
+            volume = config.get("player", "volume")
             try:
                 volume = int(volume) if volume is not None else 100
             except (TypeError, ValueError):
                 volume = 100
             if volume != 100:
                 cmd.append(f'--volume={max(0, min(100, volume))}')
-            if cfg.get("player", "keep_open"):
+            if config.get("player", "keep_open"):
                 cmd.append('--keep-open=yes')
-            if cfg.get("player", "ontop"):
+            if config.get("player", "ontop"):
                 cmd.append('--ontop')
-            ytdl_format = (cfg.get("player", "ytdl_format") or "").strip()
+            ytdl_format = (config.get("player", "ytdl_format") or "").strip()
             if ytdl_format:
                 cmd.append(f'--ytdl-format={ytdl_format}')
-            extra = (cfg.get("player", "extra_args") or "").strip()
+            extra = (config.get("player", "extra_args") or "").strip()
             if extra:
                 cmd.extend(extra.split())
 
@@ -397,12 +397,12 @@ class VideoPlayer(QWidget):
 
     def _stop_loading(self):
         """Stop the loading spinner"""
-        self.is_loading = False
+        self._is_loading = False
         self._loading_spinner.stop()
 
     def cleanup(self):
         """Cleanup resources"""
-        self.is_loading = False
+        self._is_loading = False
         self._loading_spinner.stop()
         if self._loading_spinner:
             self._loading_spinner.deleteLater()

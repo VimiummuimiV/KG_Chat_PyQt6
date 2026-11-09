@@ -27,7 +27,7 @@ class _CacheManager:
 
     _instance = None
     _lock = threading.Lock()
-    _BG_HEX = {"dark": "#1E1E1E", "light": "#FFFFFF"}
+    _BACKGROUND_HEX = {"dark": "#1E1E1E", "light": "#FFFFFF"}
 
     def __new__(cls):
         if cls._instance is None:
@@ -87,8 +87,8 @@ class _CacheManager:
 
             if background and entry.get('background') != background:
                 entry['background'] = background
-                entry['light'] = optimize_color_contrast(background, self._BG_HEX['light'], 4.5)
-                entry['dark']  = optimize_color_contrast(background, self._BG_HEX['dark'],  4.5)
+                entry['light'] = optimize_color_contrast(background, self._BACKGROUND_HEX['light'], 4.5)
+                entry['dark']  = optimize_color_contrast(background, self._BACKGROUND_HEX['dark'],  4.5)
                 changed = True
 
             if not changed:

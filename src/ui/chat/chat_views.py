@@ -170,7 +170,7 @@ class ChatViewsMixin:
                 parent_window=self,
                 ban_manager=self.ban_manager
             )
-            self.tr_set(self.chatlog_split_widget.back_btn.setToolTip, "Close split view", "Закрыть разделённый вид")
+            self.tr_set(self.chatlog_split_widget.back_button.setToolTip, "Close split view", "Закрыть разделённый вид")
             self.chatlog_split_widget.back_requested.connect(self.close_chatlog_split_view)
             # Match the live messages view's row layout so the two panes line up
             self.configure_chatlog_widget(self.chatlog_split_widget)

@@ -43,9 +43,9 @@ class DurationDialog(TranslatableMixin, QDialog):
         layout.setContentsMargins(12, 12, 12, 12)
         layout.setSpacing(12)
 
-        self._lbl = QLabel()
-        self.tr_set(self._lbl.setText, "Select duration:", "Выберите длительность:")
-        layout.addWidget(self._lbl)
+        self._label = QLabel()
+        self.tr_set(self._label.setText, "Select duration:", "Выберите длительность:")
+        layout.addWidget(self._label)
 
         # Input row
         row = QHBoxLayout()
@@ -61,8 +61,8 @@ class DurationDialog(TranslatableMixin, QDialog):
             en, ru = self._UNIT_LABELS[key]
             self.combo.addItem(tr(en, ru), key)
         # select by data key
-        idx = self._UNIT_KEYS.index(self.unit) if self.unit in self._UNIT_KEYS else 0
-        self.combo.setCurrentIndex(idx)
+        index = self._UNIT_KEYS.index(self.unit) if self.unit in self._UNIT_KEYS else 0
+        self.combo.setCurrentIndex(index)
         row.addWidget(self.combo, stretch=1)
 
         layout.addLayout(row)
@@ -108,6 +108,6 @@ class DurationDialog(TranslatableMixin, QDialog):
     @staticmethod
     def get_duration(parent=None, default_seconds: int = 3600):
         """Show dialog and return (seconds, accepted)"""
-        dlg = DurationDialog(parent, default_seconds)
-        ok = dlg.exec() == QDialog.DialogCode.Accepted
-        return (dlg._get_seconds() if ok else default_seconds, ok)
+        dialog = DurationDialog(parent, default_seconds)
+        ok = dialog.exec() == QDialog.DialogCode.Accepted
+        return (dialog._get_seconds() if ok else default_seconds, ok)

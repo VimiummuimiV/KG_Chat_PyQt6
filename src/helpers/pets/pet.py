@@ -166,7 +166,7 @@ class Pet(HuntingBehavior, DefenseBehavior, Throwable):
         ]
         if self._watching:
             has_other_food = any(food is not self._watching for food in free)
-            if self._watching.is_edible and not has_other_food and any(rival.is_going_to(self._watching) for rival in rivals):
+            if self._watching.is_edible and not has_other_food and any(rival._is_going_to(self._watching) for rival in rivals):
                 self._face(self._watching)
                 return
             self._watching = None
@@ -196,7 +196,7 @@ class Pet(HuntingBehavior, DefenseBehavior, Throwable):
         self.defend(others, step_ms)
         self.hunt(others, step_ms)
 
-    def is_going_to(self, food: Food) -> bool:
+    def _is_going_to(self, food: Food) -> bool:
         """Whether the pet is running to the food or eating it."""
         return self._meal is not None and self._meal.food is food
 
@@ -210,7 +210,7 @@ class Pet(HuntingBehavior, DefenseBehavior, Throwable):
     def land(self, impact_speed: float) -> None:
         self._scare()
 
-    def maximum_lift(self, area_height: int) -> float:
+    def _maximum_lift(self, area_height: int) -> float:
         animation = self._current()[0]
         return area_height - animation.frames_right[0].height() + animation.body.y()
 
@@ -314,7 +314,7 @@ class Pet(HuntingBehavior, DefenseBehavior, Throwable):
         """Whether a rival running to the food gets there clearly sooner than this pet could."""
         arrival_ms = self._arrival_ms(food)
         return any(
-            rival.is_going_to(food) and rival._arrival_ms(food) + _CATCH_UP_MARGIN_MS < arrival_ms for rival in rivals
+            rival._is_going_to(food) and rival._arrival_ms(food) + _CATCH_UP_MARGIN_MS < arrival_ms for rival in rivals
         )
 
     def _watch(self, food: Food) -> None:

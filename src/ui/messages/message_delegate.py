@@ -176,17 +176,17 @@ class _TextSelectorOverlay(QTextEdit):
         def icon(name): return render_svg_icon(icons_path / name, 16)
         menu = QMenu(self)
         if self._reply_callback is not None:
-            reply_act = menu.addAction(icon("fill/reply-fill.svg"), tr("Reply", "Ответить"))
-            reply_act.setShortcut(QKeySequence("R"))
-            reply_act.triggered.connect(self._reply)
+            reply_action = menu.addAction(icon("fill/reply-fill.svg"), tr("Reply", "Ответить"))
+            reply_action.setShortcut(QKeySequence("R"))
+            reply_action.triggered.connect(self._reply)
             menu.addSeparator()
-        copy_act = menu.addAction(icon("fill/clipboard-fill.svg"), tr("Copy", "Копировать"))
-        copy_act.setShortcut(QKeySequence("C"))
-        copy_act.triggered.connect(self._copy_text)
+        copy_action = menu.addAction(icon("fill/clipboard-fill.svg"), tr("Copy", "Копировать"))
+        copy_action.setShortcut(QKeySequence("C"))
+        copy_action.triggered.connect(self._copy_text)
         if self._paste_callback is not None:
-            paste_act = menu.addAction(icon("fill/add-circle-fill.svg"), tr("Paste", "Вставить"))
-            paste_act.setShortcut(QKeySequence("V"))
-            paste_act.triggered.connect(self._paste_text)
+            paste_action = menu.addAction(icon("fill/add-circle-fill.svg"), tr("Paste", "Вставить"))
+            paste_action.setShortcut(QKeySequence("V"))
+            paste_action.triggered.connect(self._paste_text)
         menu.exec(global_pos)
 
     def eventFilter(self, obj, event):
@@ -239,7 +239,7 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
 
         theme = config.get("ui", "theme") or "dark"
         self.is_dark_theme = (theme == "dark")
-        self.bg_hex = "#1E1E1E" if self.is_dark_theme else "#FFFFFF"
+        self.background_hex = "#1E1E1E" if self.is_dark_theme else "#FFFFFF"
 
         self.body_font = get_font(FontType.TEXT)
         self.timestamp_font = get_font(FontType.TEXT)
@@ -363,7 +363,7 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
     def update_theme(self):
         theme = self.config.get("ui", "theme") or "dark"
         self.is_dark_theme = (theme == "dark")
-        self.bg_hex = "#1E1E1E" if theme == "dark" else "#FFFFFF"
+        self.background_hex = "#1E1E1E" if theme == "dark" else "#FFFFFF"
         if self.message_renderer:
             self.message_renderer.update_theme(self.is_dark_theme)
 
@@ -447,23 +447,23 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
     def _presence_log_height(self, msg, width: int) -> int:
         if not self.message_renderer:
             return 50
-        fm = QFontMetrics(self.body_font)
-        ts_fm = QFontMetrics(self.timestamp_font)
-        line_h = max(fm.height(), ts_fm.height())
+        font_metrics = QFontMetrics(self.body_font)
+        timestamp_font_metrics = QFontMetrics(self.timestamp_font)
+        line_height = max(font_metrics.height(), timestamp_font_metrics.height())
         entries = getattr(msg, 'presence_entries', None) or []
-        ts_w = ts_fm.horizontalAdvance(msg.get_time_str()) + self.spacing
-        content_w = max(width - 2 * self.padding - (0 if self.compact_mode else ts_w), 50)
-        content_h = self.message_renderer.calculate_presence_entries_height(entries, content_w)
+        timestamp_width = timestamp_font_metrics.horizontalAdvance(msg.get_time_str()) + self.spacing
+        content_width = max(width - 2 * self.padding - (0 if self.compact_mode else timestamp_width), 50)
+        content_height = self.message_renderer.calculate_presence_entries_height(entries, content_width)
         if self.compact_mode:
-            return min(self.padding + line_h + 2 + content_h + self.padding, 500)
-        return min(max(line_h, content_h) + 2 * self.padding, 500)
+            return min(self.padding + line_height + 2 + content_height + self.padding, 500)
+        return min(max(line_height, content_height) + 2 * self.padding, 500)
 
     def _calculate_compact_height(self, msg, width: int, row: Optional[int] = None) -> int:
         if not self.message_renderer:
             return 50
 
-        fm = QFontMetrics(self.body_font)
-        header_height = max(fm.height(), QFontMetrics(self.timestamp_font).height())
+        font_metrics = QFontMetrics(self.body_font)
+        header_height = max(font_metrics.height(), QFontMetrics(self.timestamp_font).height())
         display_body, _ = self._get_display_body(msg)
         content_height = self.message_renderer.calculate_content_height(display_body, width - 2 * self.padding, row)
         chips_height = self._chips_height(msg, width - 2 * self.padding)
@@ -473,19 +473,19 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
         if not self.message_renderer:
             return 50
 
-        fm = QFontMetrics(self.body_font)
-        fm_ts = QFontMetrics(self.timestamp_font)
+        font_metrics = QFontMetrics(self.body_font)
+        font_metrics_timestamp = QFontMetrics(self.timestamp_font)
 
         time_str = msg.get_time_str()
-        timestamp_width = fm_ts.horizontalAdvance(time_str) + self.spacing
-        username_width = fm.horizontalAdvance(msg.username) + self.spacing
+        timestamp_width = font_metrics_timestamp.horizontalAdvance(time_str) + self.spacing
+        username_width = font_metrics.horizontalAdvance(msg.username) + self.spacing
 
         content_width = max(width - timestamp_width - username_width - 2 * self.padding, 200)
 
         display_body, _ = self._get_display_body(msg)
         content_height = self.message_renderer.calculate_content_height(display_body, content_width, row)
         chips_height = self._chips_height(msg, width - 2 * self.padding)
-        label_height = max(fm.height(), fm_ts.height())
+        label_height = max(font_metrics.height(), font_metrics_timestamp.height())
         return min(max(label_height, content_height) + chips_height + 2 * self.padding, 500)
 
     def _chips_height(self, msg, width: int) -> int:
@@ -562,30 +562,30 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
 
         x, y = rect.x() + self.padding, rect.y() + self.padding
         width = rect.width() - 2 * self.padding
-        ts_fm = QFontMetrics(self.timestamp_font)
-        line_h = max(QFontMetrics(self.body_font).height(), ts_fm.height())
+        timestamp_font_metrics = QFontMetrics(self.timestamp_font)
+        line_height = max(QFontMetrics(self.body_font).height(), timestamp_font_metrics.height())
         time_str = msg.get_time_str()
-        ts_w = ts_fm.horizontalAdvance(time_str)
+        timestamp_width = timestamp_font_metrics.horizontalAdvance(time_str)
 
         painter.setFont(self.timestamp_font)
         painter.setPen(QColor(self.message_renderer.system_colors["text"]))
-        ts_rect = QRect(x, y, ts_w, line_h)
-        painter.drawText(ts_rect, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, time_str)
-        self.click_rects[row]['timestamp'] = ts_rect
+        timestamp_rect = QRect(x, y, timestamp_width, line_height)
+        painter.drawText(timestamp_rect, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, time_str)
+        self.click_rects[row]['timestamp'] = timestamp_rect
         self.click_rects[row]['username'] = QRect()
         self.click_rects[row]['links'] = []
 
         if compact:
-            cx, cy, cw = x, y + line_h + 2, width
+            cx, cy, cw = x, y + line_height + 2, width
         else:
-            cx = x + ts_w + self.spacing
+            cx = x + timestamp_width + self.spacing
             cy, cw = y, rect.width() - (cx - rect.x()) - self.padding
 
         _, user_rects = self.message_renderer.paint_presence_entries(
             painter, cx, cy, cw,
             getattr(msg, 'presence_entries', None) or [],
             lambda login: self._get_username_color(login, None),
-            line_height=line_h,
+            line_height=line_height,
         )
         self.click_rects[row]['presence_users'] = user_rects
 
@@ -598,8 +598,8 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
         width = rect.width() - 2 * self.padding
         time_str = msg.get_time_str()
 
-        body_fm = QFontMetrics(self.body_font)
-        ts_fm = QFontMetrics(self.timestamp_font)
+        body_font_metrics = QFontMetrics(self.body_font)
+        timestamp_font_metrics = QFontMetrics(self.timestamp_font)
 
         # Resolve display body and message type once - used for both timestamp color and content
         display_body, is_system = self._get_display_body(msg)
@@ -608,34 +608,34 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
 
         # Paint timestamp - color matches text color for special message types
         painter.setFont(self.timestamp_font)
-        ts_color = self.message_renderer.get_timestamp_color(
+        timestamp_color = self.message_renderer.get_timestamp_color(
             msg.is_ban, msg.is_private, is_system, is_competition, is_parser
         )
-        ts_width = ts_fm.horizontalAdvance(time_str)
-        ts_rect = QRect(x, y, ts_width, ts_fm.height())
+        timestamp_width = timestamp_font_metrics.horizontalAdvance(time_str)
+        timestamp_rect = QRect(x, y, timestamp_width, timestamp_font_metrics.height())
 
         if self.message_renderer.is_copied(self._chatlog_url(msg)):
-            self.message_renderer.draw_copy_highlight(painter, ts_rect, ts_color)
+            self.message_renderer.draw_copy_highlight(painter, timestamp_rect, timestamp_color)
 
-        painter.setPen(QColor(ts_color))
+        painter.setPen(QColor(timestamp_color))
         painter.drawText(
-            ts_rect,
+            timestamp_rect,
             Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
             time_str
         )
-        self.click_rects[row]['timestamp'] = ts_rect
+        self.click_rects[row]['timestamp'] = timestamp_rect
 
         # Determine content position based on mode and message type
         if not is_system:
             # Normal message - paint username
-            username_x = x + ts_width + self.spacing
+            username_x = x + timestamp_width + self.spacing
             color = self._get_username_color(msg.username, msg.background_color)
 
             painter.setFont(self.body_font)
             painter.setPen(QColor(color))
 
-            un_width = body_fm.horizontalAdvance(msg.username)
-            un_rect = QRect(username_x, y, un_width, body_fm.height())
+            un_width = body_font_metrics.horizontalAdvance(msg.username)
+            un_rect = QRect(username_x, y, un_width, body_font_metrics.height())
             painter.drawText(
                 un_rect,
                 Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
@@ -649,12 +649,12 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
             # System message - skip username, create empty click rect
             self.click_rects[row]['username'] = QRect()
             # Content position right after timestamp
-            content_x = x + ts_width + self.spacing
+            content_x = x + timestamp_width + self.spacing
 
         # Calculate content position and dimensions based on mode
         if compact:
             # Compact mode: content below header
-            content_y = y + max(body_fm.height(), ts_fm.height()) + 2
+            content_y = y + max(body_font_metrics.height(), timestamp_font_metrics.height()) + 2
             content_width = width
             link_rects = self.message_renderer.paint_content(
                 painter, x, content_y, content_width, display_body, row,
@@ -692,9 +692,9 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
             return
         try:
             model = self.list_view.model()
-            idx = model.index(row, 0)
+            index = model.index(row, 0)
             try:
-                model.dataChanged.emit(idx, idx, [Qt.ItemDataRole.DisplayRole])
+                model.dataChanged.emit(index, index, [Qt.ItemDataRole.DisplayRole])
             except Exception:
                 pass
             for attr in ('updateGeometries', 'doItemsLayout'):
@@ -775,9 +775,9 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
                         global_pos = self.list_view.viewport().mapToGlobal(pos)
                         gallery = self._image_gallery(model, msg, url) if is_media and not is_ctrl else None
                         self.message_renderer.handle_link_lmb(url, is_media, global_pos, is_ctrl, is_shift, gallery)
-                        gid = getattr(msg, 'competition_game_id', None)
-                        if getattr(msg, 'is_competition', False) and gid is not None:
-                            self.competition_entered.emit(gid)
+                        game_id = getattr(msg, 'competition_game_id', None)
+                        if getattr(msg, 'is_competition', False) and game_id is not None:
+                            self.competition_entered.emit(game_id)
                     elif button == Qt.MouseButton.RightButton:
                         self.message_renderer.handle_link_rmb(url)
                     return True

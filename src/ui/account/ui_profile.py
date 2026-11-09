@@ -249,10 +249,10 @@ class _UsernameHistoryWidget(TranslatableMixin, QWidget):
         """Adjust widget height to fit content, capped at max_height scaled to font size"""
         self._content_widget.adjustSize()
         text_size = get_font(FontType.TEXT).pointSize()
-        max_h = int(self._max_height * text_size / 17)
-        header_h = self._header_card.sizeHint().height()
-        content_h = self._content_widget.sizeHint().height()
-        self.setFixedHeight(min(header_h + content_h + 30, max_h))
+        max_height = int(self._max_height * text_size / 17)
+        header_height = self._header_card.sizeHint().height()
+        content_height = self._content_widget.sizeHint().height()
+        self.setFixedHeight(min(header_height + content_height + 30, max_height))
 
     def _scroll_wheel_event(self, event):
         bar = self.scroll.horizontalScrollBar() if event.modifiers() & Qt.KeyboardModifier.ShiftModifier else self.scroll.verticalScrollBar()
@@ -317,9 +317,9 @@ class ProfileWidget(TranslatableMixin, QWidget):
         self._open_profile_button.setEnabled(False)
         top_bar.addWidget(self._open_profile_button)
 
-        self.title_label = QLabel()
-        self.title_label.setFont(get_font(FontType.HEADER))
-        top_bar.addWidget(self.title_label, stretch=1)
+        self._title_label = QLabel()
+        self._title_label.setFont(get_font(FontType.HEADER))
+        top_bar.addWidget(self._title_label, stretch=1)
         layout.addLayout(top_bar)
 
         # Scrollable content
@@ -388,13 +388,13 @@ class ProfileWidget(TranslatableMixin, QWidget):
         if self.current_user_id == user_id:
             # Keep title in sync in case the login string changed
             self.current_username = username
-            self.title_label.setText(username)
+            self._title_label.setText(username)
             self._open_profile_button.setEnabled(True)
             return
 
         self.current_user_id = user_id
         self.current_username = username
-        self.title_label.setText(username)
+        self._title_label.setText(username)
         self._open_profile_button.setEnabled(True)
 
         # Reset to placeholder
@@ -501,8 +501,8 @@ class ProfileWidget(TranslatableMixin, QWidget):
     def _grid_width(self, cols: int) -> int:
         """Compute shared fixed width for cards grid and history widget based on font size"""
         text_size = get_font(FontType.TEXT).pointSize()
-        card_w = max(300, int(400 * text_size / 17))
-        return card_w * cols + 10 * (cols - 1)
+        card_width = max(300, int(400 * text_size / 17))
+        return card_width * cols + 10 * (cols - 1)
 
     def rebuild_card_layout(self, cols: int):
         """Rebuild card layout with specified number of columns"""
@@ -523,10 +523,10 @@ class ProfileWidget(TranslatableMixin, QWidget):
         self._cards_container.setFixedWidth(w)
         if self.history_widget:
             self.history_widget.setFixedWidth(self._grid_width(1))
-        for idx, (icon, label, value, value_color) in enumerate(self.cards_data):
+        for index, (icon, label, value, value_color) in enumerate(self.cards_data):
             card = _StatCard(icon, label, value, self.config, self.is_dark, value_color)
             self._card_widgets.append(card)
-            self._cards_layout.addWidget(card, idx // cols, idx % cols)
+            self._cards_layout.addWidget(card, index // cols, index % cols)
 
     def update_theme(self):
         """Update widget styling for theme changes"""

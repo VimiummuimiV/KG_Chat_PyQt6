@@ -119,15 +119,15 @@ class PopupNotification(AutoHidePopupMixin, QWidget):
             self.username_label.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
 
         # Timestamp
-        ts_str = (data.timestamp or datetime.now()).strftime("%H:%M:%S")
-        self._timestamp_label = QLabel(ts_str)
+        timestamp_str = (data.timestamp or datetime.now()).strftime("%H:%M:%S")
+        self._timestamp_label = QLabel(timestamp_str)
         if accent:
-            ts_color = accent
+            timestamp_color = accent
         else:
-            ts_color = self.message_renderer.get_timestamp_color(
+            timestamp_color = self.message_renderer.get_timestamp_color(
                 data.is_ban, data.is_private, data.is_system, data.is_competition, data.is_parser
             )
-        self._timestamp_label.setStyleSheet(f"color: {ts_color};")
+        self._timestamp_label.setStyleSheet(f"color: {timestamp_color};")
         self._timestamp_label.setFont(get_font(FontType.TEXT))
         self._timestamp_label.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
 
@@ -366,17 +366,17 @@ class PopupNotification(AutoHidePopupMixin, QWidget):
         if sel and sel.parent() is self:
             release_selector(sel)
 
-    def cleanup_widgets(self):
+    def _cleanup_widgets(self):
         """Cleanup widgets on close - release borrowed selector without destroying it"""
         self._release_emoticon_selector()
         if self._message_widget:
             self._message_widget.cleanup()
 
     def _on_open_room(self):
-        gid = self.data.competition_game_id
+        game_id = self.data.competition_game_id
         safe_call(self.data.window_show_callback, err_msg="Error showing window")
-        if gid is not None:
-            safe_call(self.data.open_room_callback, gid, err_msg="Error opening room")
+        if game_id is not None:
+            safe_call(self.data.open_room_callback, game_id, err_msg="Error opening room")
         self.manager.close_all()
 
     def _reply_style(self) -> str:
@@ -530,7 +530,7 @@ class PopupNotification(AutoHidePopupMixin, QWidget):
         if self.data.local_message_callback and self.data.account:
             try:
 
-                effective_bg = self.data.account.get('custom_background') or self.data.account.get('background')
+                effective_background = self.data.account.get('custom_background') or self.data.account.get('background')
 
                 own_msg = Message(
                     from_jid=self.data.xmpp_client.jid,
@@ -538,7 +538,7 @@ class PopupNotification(AutoHidePopupMixin, QWidget):
                     msg_type=msg_type,
                     login=self.data.account.get('chat_username'),
                     avatar=self.data.account.get('avatar'),
-                    background=effective_bg,
+                    background=effective_background,
                     timestamp=datetime.now(),
                     initial=False
                 )

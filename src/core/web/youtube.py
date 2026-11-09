@@ -81,7 +81,7 @@ class _YouTubeProcessor:
         self._lock = threading.Lock()
         self._active_fetches: set = set()
 
-    def is_youtube_url(self, url: str) -> bool:
+    def _is_youtube_url(self, url: str) -> bool:
         """Check if URL is YouTube"""
         return bool(self._PATTERN.search(url))
 
@@ -138,7 +138,7 @@ class _YouTubeProcessor:
                     self._cache[video_id] = cached
         return cached
 
-    def fetch_async(self, url: str, callback: Callable = None) -> bool:
+    def _fetch_async(self, url: str, callback: Callable = None) -> bool:
         """
         Fetch YouTube metadata in background (handles deduplication)
 
@@ -189,7 +189,7 @@ def _get_processor() -> _YouTubeProcessor:
 
 def is_youtube_url(url: str) -> bool:
     """Check if URL is YouTube"""
-    return _get_processor().is_youtube_url(url)
+    return _get_processor()._is_youtube_url(url)
 
 
 def get_cached_info(url: str, use_emojis: bool = True) -> Optional[Tuple[str, bool]]:
@@ -218,7 +218,7 @@ def fetch_async(url: str, callback: Callable = None) -> bool:
     Returns:
         True if fetch was started, False if already fetching
     """
-    return _get_processor().fetch_async(url, callback)
+    return _get_processor()._fetch_async(url, callback)
 
 
 def clear_cache():

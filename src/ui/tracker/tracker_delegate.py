@@ -41,7 +41,7 @@ class TrackerEventDelegate(RowFlashMixin, QStyledItemDelegate):
         self._time_font = get_font(FontType.TEXT)
         self._badge_font = get_font(FontType.TEXT)
         self._name_font = get_font(FontType.TEXT)
-        self._gid_font = get_font(FontType.TEXT)
+        self._game_id_font = get_font(FontType.TEXT)
 
     def set_list_view(self, list_view):
         self.list_view = list_view
@@ -73,9 +73,9 @@ class TrackerEventDelegate(RowFlashMixin, QStyledItemDelegate):
                 pass
 
     def _row_height(self) -> int:
-        name_h = QFontMetrics(self._name_font).height()
-        badge_h = QFontMetrics(self._badge_font).height() + 6
-        return max(name_h, badge_h) + 4
+        name_height = QFontMetrics(self._name_font).height()
+        badge_height = QFontMetrics(self._badge_font).height() + 6
+        return max(name_height, badge_height) + 4
 
     def sizeHint(self, option: QStyleOptionViewItem, index: QModelIndex) -> QSize:
         width = option.rect.width()
@@ -129,44 +129,44 @@ class TrackerEventDelegate(RowFlashMixin, QStyledItemDelegate):
             time_text = "—"
         painter.setFont(self._time_font)
         painter.setPen(QColor("#888888"))
-        ts_fm = QFontMetrics(self._time_font)
-        ts_width = ts_fm.horizontalAdvance(time_text)
+        timestamp_font_metrics = QFontMetrics(self._time_font)
+        timestamp_width = timestamp_font_metrics.horizontalAdvance(time_text)
         painter.drawText(
-            QRect(x, y, ts_width, h),
+            QRect(x, y, timestamp_width, h),
             Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
             time_text,
         )
-        x += ts_width + self.spacing
+        x += timestamp_width + self.spacing
 
         event_type = event.get('type', '') or ''
-        badge_text, badge_bg, badge_fg, badge_border = presence_badge_style(
+        badge_text, badge_background, badge_foreground, badge_border = presence_badge_style(
             event_type, self.is_dark_theme
         )
         painter.setFont(self._badge_font)
-        badge_fm = QFontMetrics(self._badge_font)
-        badge_width = badge_fm.horizontalAdvance(badge_text) + 12
-        badge_height = badge_fm.height() + 6
+        badge_font_metrics = QFontMetrics(self._badge_font)
+        badge_width = badge_font_metrics.horizontalAdvance(badge_text) + 12
+        badge_height = badge_font_metrics.height() + 6
         badge_rect = QRect(x, y + (h - badge_height) // 2, badge_width, badge_height)
         border_width = 2
         inset = border_width // 2
         pen = QPen(QColor(badge_border))
         pen.setWidth(border_width)
         painter.setPen(pen)
-        painter.setBrush(QColor(badge_bg))
+        painter.setBrush(QColor(badge_background))
         painter.drawRoundedRect(
             badge_rect.adjusted(inset, inset, -inset, -inset), 4, 4
         )
-        painter.setPen(QColor(badge_fg))
+        painter.setPen(QColor(badge_foreground))
         painter.drawText(badge_rect, Qt.AlignmentFlag.AlignCenter, badge_text)
         self.click_rects[row]['badge'] = badge_rect
         x += badge_width + self.spacing
 
         login = event.get('login', '') or ''
         painter.setFont(self._name_font)
-        name_fm = QFontMetrics(self._name_font)
+        name_font_metrics = QFontMetrics(self._name_font)
         name_color = get_cache().get_username_color(login, self.is_dark_theme)
         painter.setPen(QColor(name_color))
-        name_width = name_fm.horizontalAdvance(login)
+        name_width = name_font_metrics.horizontalAdvance(login)
         name_rect = QRect(x, y, name_width, h)
         painter.drawText(
             name_rect,
@@ -178,14 +178,14 @@ class TrackerEventDelegate(RowFlashMixin, QStyledItemDelegate):
 
         game_id = event.get('game_id')
         if game_id and event_type == 'game':
-            gid_text = f"#{game_id}"
-            painter.setFont(self._gid_font)
+            game_id_text = f"#{game_id}"
+            painter.setFont(self._game_id_font)
             painter.setPen(QColor("#888888"))
-            gid_width = QFontMetrics(self._gid_font).horizontalAdvance(gid_text)
+            game_id_width = QFontMetrics(self._game_id_font).horizontalAdvance(game_id_text)
             painter.drawText(
-                QRect(x, y, gid_width, h),
+                QRect(x, y, game_id_width, h),
                 Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
-                gid_text,
+                game_id_text,
             )
 
         painter.restore()

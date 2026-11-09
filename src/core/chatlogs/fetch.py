@@ -108,18 +108,18 @@ class ChatlogsParser:
         tree = etree.fromstring(html.encode('utf-8'), parser)
         messages = []
 
-        for ts_elem in tree.xpath('//a[@class="ts"]'):
-            timestamp = ts_elem.get('name')
+        for timestamp_element in tree.xpath('//a[@class="ts"]'):
+            timestamp = timestamp_element.get('name')
             if not timestamp:
                 continue
 
-            font_elems = ts_elem.xpath('following-sibling::font[(@class="mn" or @class="mne")][1]')
+            font_elems = timestamp_element.xpath('following-sibling::font[(@class="mn" or @class="mne")][1]')
             if not font_elems:
                 continue
 
-            font_elem = font_elems[0]
-            cls = font_elem.get('class')
-            text = (font_elem.text or '').strip()
+            font_element = font_elems[0]
+            cls = font_element.get('class')
+            text = (font_element.text or '').strip()
 
             if cls == 'mn':
                 username = text.strip('<> ')
@@ -127,10 +127,10 @@ class ChatlogsParser:
                     continue
 
                 parts = []
-                if font_elem.tail:
-                    parts.append(font_elem.tail)
+                if font_element.tail:
+                    parts.append(font_element.tail)
 
-                for sibling in font_elem.itersiblings():
+                for sibling in font_element.itersiblings():
                     if sibling.tag == 'a' and sibling.get('class') == 'ts':
                         break
 

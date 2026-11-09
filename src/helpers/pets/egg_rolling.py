@@ -9,9 +9,9 @@ from helpers.pets.throwable import GRAVITY
 
 
 # The outline in art pixels: (WIDTH sin t - BLUNTNESS WIDTH / 2 sin 2t, -LENGTH cos t); the pointed end is at the top.
-EGG_HALF_LENGTH = 4.0
-EGG_HALF_WIDTH = 2.75
-EGG_BLUNTNESS = 0.15
+_EGG_HALF_LENGTH = 4.0
+_EGG_HALF_WIDTH = 2.75
+_EGG_BLUNTNESS = 0.15
 _CURVE_SAMPLES = 2048
 _TABLE_SIZE = 1440
 _SUBSTEP_SECONDS = 0.008
@@ -32,9 +32,9 @@ def _curve(angle: float) -> tuple[tuple[float, float], tuple[float, float], tupl
     """Return the outline point and its first and second derivatives at the curve parameter."""
     sine, cosine = math.sin(angle), math.cos(angle)
     double_sine, double_cosine = math.sin(2 * angle), math.cos(2 * angle)
-    point = (EGG_HALF_WIDTH * (sine - EGG_BLUNTNESS / 2 * double_sine), -EGG_HALF_LENGTH * cosine)
-    tangent = (EGG_HALF_WIDTH * (cosine - EGG_BLUNTNESS * double_cosine), EGG_HALF_LENGTH * sine)
-    curvature = (EGG_HALF_WIDTH * (-sine + 2 * EGG_BLUNTNESS * double_sine), EGG_HALF_LENGTH * cosine)
+    point = (_EGG_HALF_WIDTH * (sine - _EGG_BLUNTNESS / 2 * double_sine), -_EGG_HALF_LENGTH * cosine)
+    tangent = (_EGG_HALF_WIDTH * (cosine - _EGG_BLUNTNESS * double_cosine), _EGG_HALF_LENGTH * sine)
+    curvature = (_EGG_HALF_WIDTH * (-sine + 2 * _EGG_BLUNTNESS * double_sine), _EGG_HALF_LENGTH * cosine)
     return point, tangent, curvature
 
 
