@@ -7,14 +7,16 @@ from PyQt6.QtGui import QPainter, QRegion
 from PyQt6.QtWidgets import QWidget
 
 from helpers.pets.animation import sprite_height
-from helpers.pets.catalog import get_pet_kind, pet_counts, pet_pixel_size, pets_enabled, pets_stepped
+from helpers.pets.catalog import get_pet_kind, pet_counts, pet_pixel_size, pets_enabled, pets_stepped, predator_visit_ms
 from helpers.pets.egg import Egg
 from helpers.pets.meadow import Meadow
 from helpers.pets.pet import Pet
+from helpers.pets.relations import preys_on
 from helpers.pets.throwable import Throwable
 
 
 _TICK_MS = 33
+_RESPAWN_SHARE = 0.5  # a carried-off pet is replaced after this share of the time between the visits of a predator
 _MAXIMUM_STEP_MS = 100  # a stall (sleep, window drag) must not make pets jump across the line
 _ANCHOR_EVENTS = (QEvent.Type.Move, QEvent.Type.Resize, QEvent.Type.Show, QEvent.Type.Hide)
 
@@ -29,6 +31,8 @@ class PetOverlay(QWidget):
         self._pets: list[Pet] = []
         self._eggs: list[Egg] = []
         self._meadow = Meadow()
+        self._respawns: list[list] = []  # [kind, pixel size, ms left, edge it was carried off by] of every lost pet
+        self._respawn_ms = 0
         self._grabbed: Throwable | None = None
         self._painted = QRegion()
         self._clock = QElapsedTimer()
@@ -59,7 +63,8 @@ class PetOverlay(QWidget):
         counts = pet_counts(self._config) if pets_enabled(self._config) else {}
         spare: dict[tuple[str, int], list[Pet]] = {}
         for pet in self._pets:
-            spare.setdefault((pet.kind.key, pet.pixel_size), []).append(pet)
+            if pet.is_visible:
+                spare.setdefault((pet.kind.key, pet.pixel_size), []).append(pet)
         line_width = round(self._anchor.width() * self.devicePixelRatioF())
         self._pets = []
         for key, count in counts.items():
@@ -69,9 +74,12 @@ class PetOverlay(QWidget):
             pixel_size = pet_pixel_size(self._config, kind)
             reusable = spare.get((key, pixel_size), [])
             self._pets.extend(reusable.pop() if reusable else Pet(kind, pixel_size, line_width) for _ in range(count))
-        stepped = pets_stepped(self._config)
+        visit_ms = predator_visit_ms(self._config)
+        self._respawn_ms = round(sum(visit_ms) / 2 * _RESPAWN_SHARE)
         for pet in self._pets:
-            pet.stepped = stepped
+            pet.stepped = pets_stepped(self._config)
+            pet.away_ms = visit_ms
+        self._respawns.clear()
         tallest = max((sprite_height(pet.kind, pet.pixel_size) for pet in self._pets), default=0)
         self._anchor.setFixedHeight(math.ceil(tallest / self.devicePixelRatioF()))
         self._anchor.setVisible(bool(self._pets))
@@ -125,7 +133,8 @@ class PetOverlay(QWidget):
 
     def _bodies(self) -> list[Throwable]:
         """Everything drawn on the line: grass first, eggs last so they lie over the pets and are picked first."""
-        return [*self._meadow.grass, *self._pets, *self._eggs]
+        visible_pets = (pet for pet in self._pets if pet.is_visible)
+        return [*self._meadow.grass, *visible_pets, *self._eggs]
 
     def _device_size(self) -> tuple[int, int]:
         ratio = self.devicePixelRatioF()
@@ -168,17 +177,43 @@ class PetOverlay(QWidget):
         self.update(self._painted.united(region))
         self._painted = region
 
+    def _safer_edge_is_right(self, kind, exit_right: bool, line_width: int) -> bool:
+        """Whether a newcomer should come in at the right edge: the one farthest from the predators in sight, else the one no raider left by."""
+        predators = [pet.center_x for pet in self._pets if pet.is_visible and preys_on(pet.kind, kind)]
+        if not predators:
+            return not exit_right
+        return min(line_width - x for x in predators) > min(predators)
+
+    def _replace_carried_off(self, step_ms: int, line_width: int) -> None:
+        """Drop the pets carried off the line and let new ones arrive at an edge after a while."""
+        for pet in self._pets:
+            if pet.is_gone:
+                self._respawns.append([pet.kind, pet.pixel_size, self._respawn_ms, pet.exit_right])
+        self._pets = [pet for pet in self._pets if not pet.is_gone]
+        for respawn in self._respawns:
+            respawn[2] -= step_ms
+        for kind, pixel_size, _, exit_right in [respawn for respawn in self._respawns if respawn[2] <= 0]:
+            newcomer = Pet(kind, pixel_size, line_width)
+            newcomer.stepped = pets_stepped(self._config)
+            newcomer.enter(line_width, self._safer_edge_is_right(kind, exit_right, line_width))
+            self._pets.append(newcomer)
+        self._respawns = [respawn for respawn in self._respawns if respawn[2] > 0]
+
     def _tick(self) -> None:
         step_ms = min(self._clock.restart(), _MAXIMUM_STEP_MS)
         line_width, area_height = self._device_size()
-        self._meadow.update(step_ms, self._pets, self._eggs, line_width, area_height)
+        visible = [pet for pet in self._pets if pet.is_visible]
+        self._meadow.update(step_ms, visible, self._eggs, line_width, area_height)
         foods = [*self._eggs, *self._meadow.grass]
         for pet in self._pets:
-            pet.look_for_food(foods, self._pets, step_ms)
+            if pet.is_visible:
+                pet.look_for_food(foods, visible, step_ms)
+                pet.interact(visible, step_ms)
             pet.update(step_ms, line_width, area_height)
             egg = pet.take_egg()
             if egg:
                 self._eggs.append(egg)
+        self._replace_carried_off(step_ms, line_width)
         for egg in self._eggs:
             egg.update(step_ms, line_width, area_height)
         self._eggs = [egg for egg in self._eggs if not egg.expired]

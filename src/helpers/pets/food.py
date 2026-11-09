@@ -62,6 +62,11 @@ class Food(Throwable):
         """Take one bite off the left or the right end."""
         self._bites[0 if from_left else 1] += 1
 
+    @property
+    def center_x(self) -> float:
+        """Return the x of the middle of the uneaten food."""
+        return sum(self.remaining_span()) / 2
+
     def remaining_span(self) -> tuple[int, int]:
         """Return the horizontal [left, right) range of the uneaten food on the line."""
         eaten_left, eaten_right = self._eaten_widths()

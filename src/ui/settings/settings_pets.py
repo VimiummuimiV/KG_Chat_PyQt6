@@ -13,11 +13,14 @@ from helpers.pets.catalog import (
     MAXIMUM_PET_COUNT,
     DEFAULT_SIZE_MULTIPLIER,
     MAXIMUM_SIZE_MULTIPLIER,
+    PREDATOR_VISIT_SECONDS,
     pet_counts,
     pet_size_multiplier,
     pets_enabled,
     pets_stepped,
+    predator_visit_seconds,
 )
+from helpers.pets.relations import PREDATOR_SPECIES
 from helpers.translate import tr
 
 
@@ -158,6 +161,11 @@ class SettingsPetsMixin:
         label_width = max(label.sizeHint().width() for label in labels)
         for label in labels:
             label.setFixedWidth(label_width)
+        default, minimum, maximum = PREDATOR_VISIT_SECONDS
+        self.pet_visit_spin = self.add_slider_spin_row(
+            section, tr("A predator comes every, seconds", "Хищник приходит раз в, сек"), minimum, maximum,
+            self._on_predator_visit_changed, default=default,
+        )
 
     def refresh_pets(self):
         self.pets_checkbox.setChecked(pets_enabled(self.config))
@@ -170,6 +178,10 @@ class SettingsPetsMixin:
             multiplier = pet_size_multiplier(self.config, species)
             spin.setValue(multiplier)
             spin.linked_slider.setValue(multiplier)
+        self.pet_visit_spin.parentWidget().setVisible(any(kind.species in PREDATOR_SPECIES and kind.key in counts for kind in list_pet_kinds()))
+        seconds = predator_visit_seconds(self.config)
+        self.pet_visit_spin.setValue(seconds)
+        self.pet_visit_spin.linked_slider.setValue(seconds)
 
     def _on_pets_toggled(self, checked: bool):
         self.config.set("ui", "pets", "enabled", value=checked)
@@ -177,6 +189,10 @@ class SettingsPetsMixin:
 
     def _on_pets_stepped_toggled(self, checked: bool):
         self.config.set("ui", "pets", "stepped", value=checked)
+        self.pets_changed.emit()
+
+    def _on_predator_visit_changed(self, value: int):
+        self.config.set("ui", "pets", "predator_visit", value=int(value))
         self.pets_changed.emit()
 
     def _on_pet_size_changed(self, species: str, value: int):

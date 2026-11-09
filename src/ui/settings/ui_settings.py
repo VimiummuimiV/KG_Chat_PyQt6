@@ -383,7 +383,7 @@ class SettingsWidget(
             self.player_ytdl_format_combo,
             self.image_viewer_thumbnails_checkbox, self.image_viewer_slideshow_spin,
             self.image_viewer_transition_combo, self.image_viewer_transition_spin,
-            self.pets_checkbox, self.pets_stepped_checkbox, *self.pet_size_spins.values(),
+            self.pets_checkbox, self.pets_stepped_checkbox, *self.pet_size_spins.values(), self.pet_visit_spin,
             self.chatlog_max_messages_spin, self.chatlog_live_search_spin,
             self.chatlog_filtered_click_combo,
             self.parser_validate_usernames_checkbox,

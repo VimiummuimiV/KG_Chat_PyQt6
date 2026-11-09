@@ -11,8 +11,12 @@ from helpers.data import get_resource_dir
 MAXIMUM_PET_COUNT = 10
 MAXIMUM_SIZE_MULTIPLIER = 10
 DEFAULT_SIZE_MULTIPLIER = 2
-_DEFAULT_PET_COUNTS = {"dog/akita": 1}
+PREDATOR_VISIT_SECONDS = (45, 5, 1800)  # default, minimum and maximum of the seconds between the visits of a predator
+_VISIT_SPREAD = 0.3  # a visit every n seconds means every n -30% to n +30% seconds
+_MILLISECONDS = 1000
 EAT_STATE = "eat"
+RUN_STATE = "run"
+WALK_STATE = "walk"
 _SPRITE_SUFFIX = "_8fps.gif"
 # Longest names first so "walk_fast" is not read as "walk".
 _STATE_NAMES = ("walk_fast", "with_ball", "walk", "run", "idle", "swipe", "lie", "stand", EAT_STATE)
@@ -104,14 +108,27 @@ def pets_enabled(config) -> bool:
 
 def pet_counts(config) -> dict[str, int]:
     """Return how many pets of each kind the user wants, keyed by "species/color"."""
-    counts = config.get("ui", "pets", "counts")
-    return dict(_DEFAULT_PET_COUNTS if counts is None else counts)
+    return dict(config.get("ui", "pets", "counts") or {})
 
 
 def pets_stepped(config) -> bool:
     """Return True when pets move in steps tied to their animation instead of at a constant pace."""
     stepped = config.get("ui", "pets", "stepped")
     return True if stepped is None else bool(stepped)
+
+
+def predator_visit_seconds(config) -> int:
+    """Return the seconds a predator stays away between its visits, kept inside the limits of the settings page."""
+    default, minimum, maximum = PREDATOR_VISIT_SECONDS
+    seconds = config.get("ui", "pets", "predator_visit")
+    is_number = isinstance(seconds, (int, float)) and not isinstance(seconds, bool)
+    return max(minimum, min(maximum, round(seconds))) if is_number else default
+
+
+def predator_visit_ms(config) -> tuple[int, int]:
+    """Return the shortest and the longest time a predator stays away between its visits."""
+    seconds = predator_visit_seconds(config) * _MILLISECONDS
+    return round(seconds * (1 - _VISIT_SPREAD)), round(seconds * (1 + _VISIT_SPREAD))
 
 
 def pet_size_multiplier(config, species: str) -> int:
