@@ -40,7 +40,7 @@ def show_userlist_context_menu(
     def icon(name: str):
         return render_svg_icon(icons_path / name, 16)
 
-    menu = QMenu(parent)
+    menu = QMenu(parent.window())  # not a child of the row: its filter highlight stylesheet would cascade into the menu
     menu.setFont(get_font(FontType.UI))
 
     profile_act = menu.addAction(icon("fill/user-3-fill.svg"), tr("Profile", "Профиль"))
