@@ -102,6 +102,13 @@ def _redraw_at_pixel_size(image: QImage, grid: PixelGrid, offsets: tuple[int, in
     )
 
 
+def sprite_height(kind: PetKind, pixel_size: int) -> int:
+    """Return the screen height of the tallest sprite of a kind, read from the GIF headers without decoding frames."""
+    tallest = max(QImageReader(str(kind.sprite_path(state))).size().height() for state in kind.states)
+    # one row more than the art has at most: the grid may start inside the first cell
+    return (math.ceil(tallest / kind.pixel_grid.scale[1]) + 1) * pixel_size
+
+
 @lru_cache(maxsize=None)
 def load_animation(kind: PetKind, state: str, pixel_size: int) -> _PetAnimation:
     """Load one state of a pet; every art pixel becomes pixel_size screen pixels, never a fraction."""

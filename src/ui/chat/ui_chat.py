@@ -319,6 +319,9 @@ class ChatWindow(
         self.pre_profile_view = None  # 'messages' or 'chatlog' - where to return after profile/pronunciation/ban-list views
         self.restore_room_gid = None  # game_id of room tab to reopen after profile/private...
 
+        pet_strip = QWidget()  # keeps the pets' line free of messages; empty and hidden while there are no pets
+        left_layout.addWidget(pet_strip)
+
         # Input area
         self.input_container = QWidget()
         input_main_layout = QVBoxLayout()
@@ -437,7 +440,7 @@ class ChatWindow(
             # Default to visible
             self.button_panel.set_button_state(self.button_panel.toggle_userlist_button, True)
 
-        self.pet_overlay = PetOverlay(self, self.input_container, self.config)
+        self.pet_overlay = PetOverlay(self, pet_strip, self.config)
 
         # Emoticon selector widget (overlay - positioned absolutely)
         # Create AFTER userlist so positioning works correctly

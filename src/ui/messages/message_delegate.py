@@ -50,7 +50,7 @@ _REVEAL_HIGHLIGHT_DELAY_MS = 250
 
 
 class _MarkerGutter:
-    """Side space reserved in chatlog rows so row markers never overlap the text"""
+    """Side space of a chatlog row that carries a continuity rail, so the rail never overlaps the text"""
     LEFT = 12
     _RIGHT = 6
 
@@ -99,8 +99,8 @@ class _AnchorMarker:
     _FILL_ALPHA = 0.06
 
     @classmethod
-    def paint(cls, painter: QPainter, rect: QRect, color_hex: str):
-        frame = QRectF(rect).adjusted(_MarkerGutter.LEFT - cls._GAP + 0.5, 0.5, -1.5, -0.5)
+    def paint(cls, painter: QPainter, rect: QRect, color_hex: str, gutter_left: int):
+        frame = QRectF(rect).adjusted(max(gutter_left - cls._GAP, 0) + 0.5, 0.5, -1.5, -0.5)
         border = QColor(color_hex)
         border.setAlphaF(cls._BORDER_ALPHA)
         fill = QColor(color_hex)
@@ -247,8 +247,6 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
         self.compact_mode = False
         self.padding = config.get("ui", "message", "padding") or 2
         self.spacing = config.get("ui", "message", "element_spacing") or 4
-        self._gutter_left = 0
-        self._gutter_right = 0
         self._show_continuity = False
         self._anchor_message = None
         self.anchor_frame_enabled = lambda: True
@@ -373,12 +371,14 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
         if self.compact_mode != compact:
             self.compact_mode = compact
 
-    def set_marker_gutter(self, enabled: bool):
-        self._gutter_left = _MarkerGutter.LEFT if enabled else 0
-        self._gutter_right = _MarkerGutter._RIGHT if enabled else 0
-
     def set_continuity_rails(self, enabled: bool):
         self._show_continuity = enabled
+
+    def _row_gutter(self, msg) -> tuple[int, int]:
+        """Return the (left, right) side space of a row: only a row with a continuity rail reserves it."""
+        if self._show_continuity and (msg.joins_previous or msg.joins_next):
+            return _MarkerGutter.LEFT, _MarkerGutter._RIGHT
+        return 0, 0
 
     def set_anchor(self, msg):
         self._anchor_message = msg
@@ -436,7 +436,8 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
         if width <= 0:
             width = 800
         row = index.row()
-        content_width = width - self._gutter_left - self._gutter_right
+        gutter_left, gutter_right = self._row_gutter(msg)
+        content_width = width - gutter_left - gutter_right
         if getattr(msg, 'is_presence_log', False):
             height = self._presence_log_height(msg, content_width)
         else:
@@ -536,10 +537,11 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
         if row_flash is not None and row_flash.opacity > 0:
             paint_flash(painter, option.rect, highlight_color(self.is_dark_theme), row_flash.opacity)
 
+        gutter_left, gutter_right = self._row_gutter(msg)
         if msg is self._anchor_message:
-            _AnchorMarker.paint(painter, option.rect, highlight_color(self.is_dark_theme))
+            _AnchorMarker.paint(painter, option.rect, highlight_color(self.is_dark_theme), gutter_left)
 
-        content_rect = option.rect.adjusted(self._gutter_left, 0, -self._gutter_right, 0)
+        content_rect = option.rect.adjusted(gutter_left, 0, -gutter_right, 0)
         if getattr(msg, 'is_presence_log', False):
             self._paint_presence_log(painter, content_rect, msg, row, self.compact_mode)
         else:

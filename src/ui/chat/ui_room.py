@@ -104,6 +104,9 @@ class RoomWidget(TranslatableMixin, QWidget):
         self.messages_widget.username_shift_clicked.connect(self.username_shift_clicked.emit)
         left.addWidget(self.messages_widget, stretch=1)
 
+        pet_strip = QWidget()  # keeps the pets' line free of messages; empty and hidden while there are no pets
+        left.addWidget(pet_strip)
+
         self.input_row = InputRow(self.icons_path, self.config)
         self.input_row.submitted.connect(self.send_requested)
         self.input_row.emoticon_requested.connect(self.emoticon_requested)
@@ -146,7 +149,7 @@ class RoomWidget(TranslatableMixin, QWidget):
 
         root.addLayout(body, stretch=1)
         # After the layout tree is attached so input_row is under this widget for mapTo
-        self.pet_overlay = PetOverlay(self, self.input_row, self.config)
+        self.pet_overlay = PetOverlay(self, pet_strip, self.config)
 
     def _update_userlist_width(self) -> None:
         self.userlist_panel.setFixedWidth(get_userlist_width())

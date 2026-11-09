@@ -6,6 +6,7 @@ from PyQt6.QtCore import QElapsedTimer, QEvent, QPoint, QRect, QTimer, Qt
 from PyQt6.QtGui import QPainter, QRegion
 from PyQt6.QtWidgets import QWidget
 
+from helpers.pets.animation import sprite_height
 from helpers.pets.catalog import get_pet_kind, pet_counts, pet_pixel_size, pets_enabled, pets_stepped
 from helpers.pets.egg import Egg
 from helpers.pets.meadow import Meadow
@@ -19,7 +20,7 @@ _ANCHOR_EVENTS = (QEvent.Type.Move, QEvent.Type.Resize, QEvent.Type.Show, QEvent
 
 
 class PetOverlay(QWidget):
-    """Area over everything above anchor; the mask leaves only the pets themselves to the mouse."""
+    """Area over everything down to the bottom of anchor, the strip kept free for the pets; the mask leaves only the pets themselves to the mouse."""
 
     def __init__(self, parent: QWidget, anchor: QWidget, config):
         super().__init__(parent)
@@ -71,6 +72,9 @@ class PetOverlay(QWidget):
         stepped = pets_stepped(self._config)
         for pet in self._pets:
             pet.stepped = stepped
+        tallest = max((sprite_height(pet.kind, pet.pixel_size) for pet in self._pets), default=0)
+        self._anchor.setFixedHeight(math.ceil(tallest / self.devicePixelRatioF()))
+        self._anchor.setVisible(bool(self._pets))
         if not self._pets:
             self._eggs.clear()
         self._grabbed = None
@@ -145,10 +149,11 @@ class PetOverlay(QWidget):
         if parent is None:
             return
         top_left = self._anchor.mapTo(parent, QPoint(0, 0))
-        if not self._pets or not self._anchor.isVisible() or top_left.y() <= 0:
+        line_y = top_left.y() + self._anchor.height()
+        if not self._pets or not self._anchor.isVisible() or line_y <= 0:
             self.hide()
             return
-        self.setGeometry(top_left.x(), 0, self._anchor.width(), top_left.y())
+        self.setGeometry(top_left.x(), 0, self._anchor.width(), line_y)
         self.show()
         self.raise_()  # panes re-adopted by the window (room tabs opened or closed) land above the pets
         self._refresh_region()

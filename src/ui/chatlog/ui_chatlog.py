@@ -88,7 +88,6 @@ class ChatlogWidget(
 
         self.model = MessageListModel(max_messages=self.max_messages_limit())
         self.delegate = MessageDelegate(config, self.emoticon_manager)
-        self.delegate.set_marker_gutter(True)
         self.delegate.anchor_frame_enabled = self.anchor_frame_active
         self.delegate.day_navigation = DayNavigation(self.navigate, self.day_state, self.day_loaded)
 
