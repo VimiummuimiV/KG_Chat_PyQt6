@@ -114,7 +114,7 @@ class SettingsPetsMixin:
         hint_label.setStyleSheet("color: palette(placeholder-text);")
         guide_tooltip = tr("How the pets behave", "Как ведут себя питомцы")
         guide_button = create_icon_button(self.icons_path, "line/information-line.svg", guide_tooltip, size_type="small", config=self.config)
-        guide_button.clicked.connect(lambda: PetsGuideDialog(self).exec())
+        guide_button.clicked.connect(lambda: PetsGuideDialog(self.config, self).exec())
         hint_layout = QHBoxLayout()
         hint_layout.addWidget(hint_label, 1)
         hint_layout.addWidget(guide_button)
