@@ -30,7 +30,7 @@ _CHAINS = (
 
 # row kinds: "eats" and "fears" get the green and the red label, "does" the accent one
 _PET_CARDS = (
-    ("chicken", ("Chicken", "Курица"), ("herbivore, prey of foxes, lays eggs", "травоядная, добыча лис, несёт яйца"), (
+    ("chicken", ("Chicken", "Курица"), ("herbivore, prey of foxes, lays eggs", "травоядная, добыча лисы, несёт яйца"), (
         ("eats", ("Eats", "Ест"), ("grass", "траву")),
         ("fears", ("Afraid of", "Боится"), ("a hunting fox", "охотящейся лисы")),
         ("does", ("Does", "Делает"), ("pecks a clump of grass, which is enough for an egg, and lays eggs while walking; "
