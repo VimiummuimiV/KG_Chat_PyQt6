@@ -607,9 +607,9 @@ class ImageHoverView(QWidget):
             self._zoom_hold.release()  # a button disabled under the cursor never reports its release
 
     def _update_edge_zones(self):
-        """Reveal an edge zone while the cursor is in its hot area; keep both hidden with nothing to turn to."""
+        """Reveal an edge zone while the cursor is in its hot area; keep both hidden while dragging or with nothing to turn to."""
         position = self.mapFromGlobal(QCursor.pos())
-        can_navigate = self._gallery is not None and len(self._gallery.images) > 1
+        can_navigate = self._gallery is not None and len(self._gallery.images) > 1 and self._drag_mode is None
         for zone in self._edge_zones:
             zone.set_active(can_navigate and zone.is_hot(position))
 
@@ -627,6 +627,7 @@ class ImageHoverView(QWidget):
             self._drag_mode = _DRAG_SCALE if is_ctrl else _DRAG_PAN
             self._last_mouse_pos = event.position()
             self.setCursor(QCursor(Qt.CursorShape.ClosedHandCursor))
+            self._update_edge_zones()
             event.accept()
         elif event.button() == Qt.MouseButton.RightButton:
             self._hide_preview()
@@ -658,6 +659,7 @@ class ImageHoverView(QWidget):
     def _end_drag(self):
         self._drag_mode = self._last_mouse_pos = None
         self.setCursor(QCursor(Qt.CursorShape.ArrowCursor))
+        self._update_edge_zones()
 
     def keyPressEvent(self, event):
         """Handle keyboard shortcuts - layout independent"""
