@@ -3,7 +3,7 @@
 from pathlib import Path
 
 from PyQt6.QtCore import pyqtSignal, QPoint, QPropertyAnimation, QRect, QSize, Qt
-from PyQt6.QtWidgets import QFrame, QGraphicsOpacityEffect, QHBoxLayout, QLabel, QVBoxLayout
+from PyQt6.QtWidgets import QFrame, QGraphicsOpacityEffect, QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
 from components.button import create_icon_button, render_svg_icon
 from components.image_viewer.overlay import PANEL_MARGIN, PANEL_SPACING, PANEL_STYLES, panel_stylesheet
@@ -11,7 +11,7 @@ from helpers.translate import tr
 
 
 _EDGE_ZONE_WIDTH = 72
-_EDGE_ZONE_MARGIN = 16
+_EDGE_ZONE_MARGIN = 16  # gap between the visible strip and the screen edge; it still counts as the strip
 _EDGE_ZONE_HOT_RATIO = 0.2  # share of the viewport width, counted from each edge
 _EDGE_ZONE_ICON_SIZE = 36
 _EDGE_ZONE_FADE_MS = 150
@@ -83,15 +83,17 @@ class ZoomButtons(QFrame):
         self._zoom_in_button.setToolTip(tr("Zoom in (wheel up)", "Увеличить (колесо вверх)"))
 
 
-class EdgeZone(QFrame):
-    """Tall strip at a screen edge: fades in when the cursor comes near it, a click turns the image."""
+class EdgeZone(QWidget):
+    """Tall strip near a screen edge: fades in when the cursor comes near it, a click turns the image.
+
+    The widget reaches to the screen edge; only its inner part is drawn, so the gap still clicks.
+    """
 
     clicked = pyqtSignal()
     cursor_left = pyqtSignal()
 
     def __init__(self, icons_path: Path, is_left_edge: bool, parent=None):
         super().__init__(parent)
-        self.setObjectName("edgeZone")
         self._icon_path = icons_path / _EDGE_ZONE_ICONS[is_left_edge]
         self._is_left_edge = is_left_edge
         self._is_active = False
@@ -99,9 +101,14 @@ class EdgeZone(QFrame):
         self._icon_label = QLabel()
         self.setCursor(Qt.CursorShape.PointingHandCursor)
 
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(self._icon_label, 0, Qt.AlignmentFlag.AlignCenter)
+        self._strip = QFrame()
+        self._strip.setObjectName("edgeZone")
+        strip_layout = QVBoxLayout(self._strip)
+        strip_layout.setContentsMargins(0, 0, 0, 0)
+        strip_layout.addWidget(self._icon_label, 0, Qt.AlignmentFlag.AlignCenter)
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(_EDGE_ZONE_MARGIN if is_left_edge else 0, 0, 0 if is_left_edge else _EDGE_ZONE_MARGIN, 0)
+        layout.addWidget(self._strip)
 
         self._opacity = QGraphicsOpacityEffect(self)
         self._opacity.setOpacity(0.0)
@@ -113,15 +120,15 @@ class EdgeZone(QFrame):
 
     def apply_theme(self, is_dark: bool):
         """Restyle the strip and recolor its arrow for the theme."""
-        self.setStyleSheet(panel_stylesheet("edgeZone", is_dark))
+        self._strip.setStyleSheet(panel_stylesheet("edgeZone", is_dark))
         icon = render_svg_icon(self._icon_path, _EDGE_ZONE_ICON_SIZE, PANEL_STYLES[is_dark]["text"])
         self._icon_label.setPixmap(icon.pixmap(_EDGE_ZONE_ICON_SIZE, _EDGE_ZONE_ICON_SIZE))
 
     def place(self, viewport: QSize, vertical_margin: int):
-        """Put the strip at its edge of the viewport; the hot area reaches from the screen edge inwards."""
+        """Put the strip flush against its edge of the viewport; the hot area reaches from the edge inwards."""
         height = viewport.height() - 2 * vertical_margin
-        left = _EDGE_ZONE_MARGIN if self._is_left_edge else viewport.width() - _EDGE_ZONE_MARGIN - _EDGE_ZONE_WIDTH
-        self.setGeometry(left, vertical_margin, _EDGE_ZONE_WIDTH, height)
+        width = _EDGE_ZONE_MARGIN + _EDGE_ZONE_WIDTH
+        self.setGeometry(0 if self._is_left_edge else viewport.width() - width, vertical_margin, width, height)
         hot_width = int(viewport.width() * _EDGE_ZONE_HOT_RATIO)
         hot_left = 0 if self._is_left_edge else viewport.width() - hot_width
         self._hot_rect = QRect(hot_left, vertical_margin, hot_width, height)
