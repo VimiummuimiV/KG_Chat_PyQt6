@@ -2,9 +2,9 @@
 
 from datetime import date
 from pathlib import Path
-from typing import NamedTuple, Optional
+from typing import Callable, NamedTuple, Optional
 
-from PyQt6.QtCore import pyqtSignal, QBuffer, QEvent, QIODevice, QRect, QRectF, QSize, Qt
+from PyQt6.QtCore import pyqtSignal, QBuffer, QEvent, QIODevice, QRect, QRectF, QSize, Qt, QTimer
 from PyQt6.QtGui import QColor, QImageReader, QPainter, QPainterPath, QPen, QPixmap
 from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
@@ -24,6 +24,8 @@ _THUMBNAIL_GAP = 6
 _THUMBNAIL_RADIUS = 4
 _THUMBNAIL_BORDER_WIDTH = 2
 _THUMBNAIL_DIMMED_OPACITY = 0.55
+_PROGRESS_INTERVAL_MS = 60
+_PROGRESS_FILL_ALPHA = 45
 _UNAVAILABLE_ICON = "fill/image-fill.svg"
 _UNAVAILABLE_ICON_SIZE = 24
 _GROUP_SPACING = 16
@@ -37,7 +39,7 @@ _BADGE_SVG_AVATAR_SIZE = 20
 _BADGE_MARGIN = 6
 _BADGE_SPACING = 8
 PANEL_STYLES = {
-    True: {"background": "rgba(30, 30, 30, 215)", "text": "#dddddd", "muted": "#999999", "placeholder": "#3a3a3a"},
+    True: {"background": "rgba(62, 62, 62, 235)", "text": "#dddddd", "muted": "#999999", "placeholder": "#2a2a2a"},
     False: {"background": "rgba(245, 245, 245, 225)", "text": "#333333", "muted": "#777777", "placeholder": "#cfcfcf"},
 }
 
@@ -82,10 +84,15 @@ class _ThumbnailStrip(QWidget):
 
     clicked = pyqtSignal(int)
 
-    def __init__(self, icons_path: Path, parent=None):
+    def __init__(self, icons_path: Path, progress_source: Callable[[int], Optional[float]], parent=None):
         super().__init__(parent)
         self.indices = range(0)
         self._icons_path = icons_path
+        self._progress_source = progress_source  # download progress (0..1) of a gallery index, None when idle
+        self._progress: dict[int, float] = {}
+        self._progress_timer = QTimer(self)
+        self._progress_timer.setInterval(_PROGRESS_INTERVAL_MS)
+        self._progress_timer.timeout.connect(self._poll_progress)
         self._current = 0
         self._is_dark = True
         self._thumbnails: dict[int, Optional[QPixmap]] = {}  # None = image unavailable
@@ -97,6 +104,7 @@ class _ThumbnailStrip(QWidget):
         self._current = current
         width = len(indices) * (_THUMBNAIL_SIZE.width() + _THUMBNAIL_GAP) - _THUMBNAIL_GAP
         self.setFixedSize(max(width, 0), _THUMBNAIL_SIZE.height())
+        self._sync_progress_timer()
         self.update()
 
     def set_theme(self, is_dark: bool):
@@ -108,6 +116,7 @@ class _ThumbnailStrip(QWidget):
     def set_thumbnail(self, index: int, pixmap: Optional[QPixmap]):
         """Store the thumbnail of an image; None marks it as unavailable."""
         self._thumbnails[index] = pixmap
+        self._sync_progress_timer()
         self.update()
 
     def has_thumbnail(self, index: int) -> bool:
@@ -116,6 +125,27 @@ class _ThumbnailStrip(QWidget):
     def clear(self):
         self._thumbnails.clear()
         self.indices = range(0)
+        self._sync_progress_timer()
+
+    def _sync_progress_timer(self):
+        """Poll the download progress only while some visible thumbnail is still missing."""
+        if any(index not in self._thumbnails for index in self.indices):
+            if not self._progress_timer.isActive():
+                self._progress_timer.start()
+        else:
+            self._progress_timer.stop()
+            self._progress.clear()
+
+    def _poll_progress(self):
+        progress = {}
+        for index in self.indices:
+            value = None if index in self._thumbnails else self._progress_source(index)
+            if value is not None:
+                progress[index] = value
+        for index in progress.keys() | self._progress.keys():
+            if progress.get(index) != self._progress.get(index):
+                self.update(self._slot_rect(index - self.indices.start))  # repaint only the changed cells
+        self._progress = progress
 
     def _slot_rect(self, slot: int) -> QRect:
         return QRect(slot * (_THUMBNAIL_SIZE.width() + _THUMBNAIL_GAP), 0, _THUMBNAIL_SIZE.width(), _THUMBNAIL_SIZE.height())
@@ -125,6 +155,8 @@ class _ThumbnailStrip(QWidget):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         placeholder = QColor(PANEL_STYLES[self._is_dark]["placeholder"])
         accent = QColor(get_user_svg_color(True, self._is_dark))  # theme accent
+        progress_color = QColor(PANEL_STYLES[self._is_dark]["text"])
+        progress_color.setAlpha(_PROGRESS_FILL_ALPHA)
         for slot, index in enumerate(self.indices):
             rect = self._slot_rect(slot)
             is_current = index == self._current
@@ -142,6 +174,10 @@ class _ThumbnailStrip(QWidget):
                     icon_rect = QRect(0, 0, _UNAVAILABLE_ICON_SIZE, _UNAVAILABLE_ICON_SIZE)
                     icon_rect.moveCenter(rect.center())
                     painter.drawPixmap(icon_rect, self._unavailable_icon)
+                elif index in self._progress:
+                    loaded_rect = QRect(rect)
+                    loaded_rect.setWidth(int(rect.width() * self._progress[index]))
+                    painter.fillRect(loaded_rect, progress_color)
             painter.restore()
             if is_current:
                 painter.setPen(QPen(accent, _THUMBNAIL_BORDER_WIDTH))
@@ -158,7 +194,7 @@ class _ThumbnailStrip(QWidget):
 
 
 class GalleryBar(QFrame):
-    """Translucent panel with message actions, navigation buttons, day buttons and thumbnail strip."""
+    """Translucent panel with message actions, navigation buttons, day buttons, save button and thumbnail strip."""
 
     previous_requested = pyqtSignal()
     next_requested = pyqtSignal()
@@ -168,8 +204,11 @@ class GalleryBar(QFrame):
     day_released = pyqtSignal()
     reply_requested = pyqtSignal()
     source_requested = pyqtSignal()
+    save_requested = pyqtSignal()
 
-    def __init__(self, icons_path: Path, config=None, parent=None):
+    def __init__(
+        self, icons_path: Path, progress_source: Callable[[int], Optional[float]], config=None, parent=None
+    ):
         super().__init__(parent)
         self.setObjectName("galleryBar")
         self._is_playing = False
@@ -181,9 +220,10 @@ class GalleryBar(QFrame):
         self._next_button = create_icon_button(icons_path, "line/arrow-right-s-line.svg", config=config)
         self._previous_day_button = create_icon_button(icons_path, "fill/calendar-arrow-left-fill.svg", config=config)
         self._next_day_button = create_icon_button(icons_path, "fill/calendar-arrow-right-fill.svg", config=config)
+        self._save_button = create_icon_button(icons_path, "fill/save-2-fill.svg", config=config)
         self._image_buttons = (self._previous_button, self._slideshow_button, self._next_button)
         side_buttons = (self._reply_button, self._source_button, self._previous_day_button, self._next_day_button)
-        for button in (*self._image_buttons, *side_buttons):
+        for button in (*self._image_buttons, *side_buttons, self._save_button):
             button.setFocusPolicy(Qt.FocusPolicy.NoFocus)  # keys stay with the viewer
         for button in side_buttons:
             policy = button.sizePolicy()
@@ -191,6 +231,7 @@ class GalleryBar(QFrame):
             button.setSizePolicy(policy)
         self._reply_button.clicked.connect(self.reply_requested)
         self._source_button.clicked.connect(self.source_requested)
+        self._save_button.clicked.connect(self.save_requested)
         for button, step in ((self._previous_day_button, -1), (self._next_day_button, 1)):
             button.pressed.connect(lambda step=step: self.day_pressed.emit(step))
             button.released.connect(self.day_released)
@@ -198,11 +239,12 @@ class GalleryBar(QFrame):
         self._slideshow_button.clicked.connect(self.slideshow_toggled)
         self._next_button.clicked.connect(self.next_requested)
 
-        self._strip = _ThumbnailStrip(icons_path, self)
+        self._strip = _ThumbnailStrip(icons_path, progress_source, self)
         self._strip.clicked.connect(self.thumbnail_clicked)
 
         controls = QHBoxLayout()
         controls.setSpacing(PANEL_SPACING)
+        controls.addSpacing(self._save_button.sizeHint().width())  # mirrors the save button so the navigation stays centered
         controls.addWidget(self._reply_button)
         controls.addWidget(self._source_button)
         controls.addSpacing(_GROUP_SPACING)
@@ -211,6 +253,7 @@ class GalleryBar(QFrame):
         controls.addSpacing(_GROUP_SPACING)
         controls.addWidget(self._previous_day_button)
         controls.addWidget(self._next_day_button)
+        controls.addWidget(self._save_button)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(PANEL_MARGIN, PANEL_MARGIN, PANEL_MARGIN, PANEL_MARGIN)
@@ -229,6 +272,10 @@ class GalleryBar(QFrame):
         """Show the buttons that act on the message of the current image."""
         self._source_button.setVisible(can_go_to_source)
         self._reply_button.setVisible(can_reply)
+
+    def set_save_enabled(self, is_enabled: bool):
+        """The image can be saved only once it is shown."""
+        self._save_button.setEnabled(is_enabled)
 
     def set_position(self, index: int, count: int, show_thumbnails: bool, day_state: Optional[DayState]):
         """Update the navigation buttons, thumbnail window and day buttons for the image at index of count."""
@@ -274,6 +321,7 @@ class GalleryBar(QFrame):
     def _refresh_tooltips(self):
         self._reply_button.setToolTip(tr("Reply to the message (R)", "Ответить на сообщение (R)"))
         self._source_button.setToolTip(tr("Go to the message (G)", "Перейти к сообщению (G)"))
+        self._save_button.setToolTip(tr("Save image to a file (S)", "Сохранить изображение в файл (S)"))
         self._previous_button.setToolTip(tr("Previous image (H / ←)", "Предыдущее изображение (H / ←)"))
         self._next_button.setToolTip(tr("Next image (L / →)", "Следующее изображение (L / →)"))
         self._previous_day_button.setToolTip(tr("Previous day (Shift+H / Shift+←)", "Предыдущий день (Shift+H / Shift+←)"))

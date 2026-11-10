@@ -9,8 +9,10 @@ from PyQt6.QtCore import pyqtBoundSignal
 
 
 URL_PATTERN = re.compile(r'https?://[^\s<>"]+')
+IMAGE_SUFFIXES = ("jpg", "jpeg", "png", "gif", "webp", "bmp", "svg")
+_SUFFIX_ALTERNATIVES = "|".join(IMAGE_SUFFIXES)
 _IMAGE_PATTERNS = [
-    re.compile(r'https?://[^\s<>"]+\.(?:jpg|jpeg|png|gif|webp|bmp|svg)(?:\?[^\s<>"]*)?', re.IGNORECASE),
+    re.compile(rf'https?://[^\s<>"]+\.(?:{_SUFFIX_ALTERNATIVES})(?:\?[^\s<>"]*)?', re.IGNORECASE),
     re.compile(r'https?://.*\.(?:giphy|tenor|gfycat)\.com/[^\s<>"]+', re.IGNORECASE),
 ]
 

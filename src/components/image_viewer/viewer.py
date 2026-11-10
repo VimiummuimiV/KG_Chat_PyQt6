@@ -7,7 +7,7 @@ from PyQt6.QtGui import QColor, QCursor, QPainter
 from PyQt6.QtWidgets import QApplication, QWidget
 
 from components.help_panel import HelpPanel
-from components.image_viewer.controls import CloseButton, EdgeZone, ZoomButtons, ZoomSlider
+from components.image_viewer.controls import CloseButton, EdgeZone, Minimap, ZoomButtons, ZoomSlider
 from components.image_viewer.gallery import (
     DayState,
     extract_image_url,
@@ -37,6 +37,7 @@ from components.image_viewer.overlay import (
     ReplyPanel,
     SourceBadge,
 )
+from components.image_viewer.saving import save_image
 from components.loading_spinner import LoadingSpinner
 from core.web.image_loader import ImageLoader
 from helpers.data import get_resource_dir
@@ -62,7 +63,7 @@ _EMOTICON_MIN_HEIGHT = 250
 _EMOTICON_MAX_HEIGHT = 650
 _NEIGHBOR_PRIORITY = 1
 _THUMBNAIL_PRIORITY = 0
-_HIT_TEST_FILL = QColor(0, 0, 0, 1)  # on Windows a fully transparent pixel of a translucent window lets the mouse through
+_BACKDROP_FILL = QColor(0, 0, 0, 160)  # dims everything behind the viewer; being non-transparent it also keeps the mouse on Windows
 _NAVIGATION_KEYS = {
     Qt.Key.Key_H: -1,
     Qt.Key.Key_Left: -1,
@@ -119,7 +120,7 @@ class ImageHoverView(QWidget):
         self._slideshow_timer.timeout.connect(lambda: self._navigate(1))
 
         icons_path = get_resource_dir("icons")
-        self._gallery_bar = GalleryBar(icons_path, config, self)
+        self._gallery_bar = GalleryBar(icons_path, self._thumbnail_progress, config, self)
         self._gallery_bar.previous_requested.connect(lambda: self._navigate(-1))
         self._gallery_bar.next_requested.connect(lambda: self._navigate(1))
         self._gallery_bar.slideshow_toggled.connect(self._toggle_slideshow)
@@ -129,6 +130,7 @@ class ImageHoverView(QWidget):
         self._gallery_bar.day_released.connect(self._day_hold.release)
         self._gallery_bar.reply_requested.connect(self._on_reply_requested)
         self._gallery_bar.source_requested.connect(self._on_source_clicked)
+        self._gallery_bar.save_requested.connect(self._on_save_requested)
         self._gallery_bar.hide()
         self._notice = Notice(icons_path, self)
         self._notice.hide()
@@ -161,6 +163,9 @@ class ImageHoverView(QWidget):
         for zone, step in zip(self._edge_zones, (-1, 1)):
             zone.clicked.connect(lambda step=step: self._navigate(step))
             zone.cursor_left.connect(self._update_edge_zones)
+        self._minimap = Minimap(self)
+        self._minimap.position_requested.connect(self._on_minimap_position)
+        self._minimap.hide()
 
         self._drag_mode: Optional[str] = None
         self._last_mouse_pos: Optional[QPointF] = None
@@ -175,7 +180,7 @@ class ImageHoverView(QWidget):
     def paintEvent(self, event):
         """Paint the current image, and the outgoing one while a transition runs"""
         painter = QPainter(self)
-        painter.fillRect(self.rect(), _HIT_TEST_FILL)
+        painter.fillRect(self.rect(), _BACKDROP_FILL)
         if not self._layer:
             return
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
@@ -222,6 +227,7 @@ class ImageHoverView(QWidget):
         self._close_button.apply_theme(is_dark)
         self._zoom_buttons.apply_theme(is_dark)
         self._zoom_slider.apply_theme(is_dark)
+        self._minimap.apply_theme(is_dark)
         for zone in self._edge_zones:
             zone.apply_theme(is_dark)
         if self._gallery:
@@ -300,6 +306,9 @@ class ImageHoverView(QWidget):
             if data is not None or self._loader.has_failed(url):
                 self._store_thumbnail(url, data)
 
+    def _thumbnail_progress(self, index: int) -> Optional[float]:
+        return self._loader.loading_progress(self._gallery.images[index].url)
+
     def _store_thumbnail(self, url: str, data: Optional[bytes]):
         """Give every thumbnail slot of the url its picture; None or undecodable data marks it unavailable."""
         indices = [
@@ -372,7 +381,7 @@ class ImageHoverView(QWidget):
         else:
             self._outgoing = previous
             self._transition.start(mode, self._direction, transition_duration_ms(self._config))
-        self._update_zoom_controls()
+        self._update_layer_controls()
         self._restart_slideshow_timer()
 
     def _release_layers(self):
@@ -381,7 +390,7 @@ class ImageHoverView(QWidget):
             self._layer.release()
             self._layer = None
             self.update()
-        self._update_zoom_controls()
+        self._update_layer_controls()
 
     def _release_outgoing(self):
         self._transition.stop()
@@ -400,7 +409,7 @@ class ImageHoverView(QWidget):
         has_source = has_message and self._gallery.on_source is not None
         can_reply = has_message and self._gallery.on_reply is not None
         day_state = self._day_state()
-        self._gallery_bar.setVisible(count > 1 or day_state is not None or has_source or can_reply)
+        self._gallery_bar.setVisible(count > 0 or day_state is not None)
         self._gallery_bar.set_message_actions(has_source, can_reply)
         self._gallery_bar.set_position(self._index, count, count > 0 and show_thumbnails(self._config), day_state)
         self._gallery_bar.move(
@@ -498,6 +507,14 @@ class ImageHoverView(QWidget):
     def _on_source_clicked(self):
         """Close the viewer and let the owning view scroll to the message of the current image."""
         self._leave_to_message(lambda gallery: gallery.on_source)
+
+    def _on_save_requested(self):
+        """Save the shown image to a file."""
+        image = self._current_image
+        data = self._loader.request(image.url) if image and self._layer else None
+        if data is not None:
+            save_image(self, image.url, data)
+            self._show_widget()  # the dialog took the focus away
 
     def _on_reply_requested(self):
         """Reply to the message of the current image: in a field here, or in the chat after closing the viewer."""
@@ -603,7 +620,7 @@ class ImageHoverView(QWidget):
         point_before = (pivot - self._layer.offset) / self._layer.scale
         self._layer.scale = new_scale
         self._layer.offset = pivot - point_before * new_scale
-        self._update_zoom_controls()
+        self._update_layer_controls()
         self.update()
 
     def _viewport_center(self) -> QPointF:
@@ -627,17 +644,32 @@ class ImageHoverView(QWidget):
             self._layer.set_actual_size(self.size(), self._reserved_bottom())
         else:
             self._layer.fit(self.size(), self._reserved_bottom())
-        self._update_zoom_controls()
+        self._update_layer_controls()
         self.update()
 
     def _toggle_actual_size(self):
         if self._layer:
             self._reset_zoom(not self._layer.is_actual_size)
 
-    def _update_zoom_controls(self):
+    def _on_minimap_position(self, fraction: QPointF):
+        """Move the view so that the clicked point of the minimap is in its center."""
+        if self._layer:
+            self._layer.center_on_fraction(fraction, self._viewport_center())
+            self._update_minimap()
+            self.update()
+
+    def _update_minimap(self):
+        self._minimap.update_view(self._layer, self.size())
+        self._minimap.move(
+            self.width() - self._minimap.width() - _OVERLAY_MARGIN, self.height() - self._minimap.height() - _OVERLAY_MARGIN
+        )
+
+    def _update_layer_controls(self):
         layer = self._layer
         self._zoom_buttons.set_layer(layer)
         self._zoom_slider.set_layer(layer)
+        self._gallery_bar.set_save_enabled(layer is not None)
+        self._update_minimap()
         if layer is None or not MIN_SCALE < layer.scale < MAX_SCALE:
             self._zoom_hold.release()  # a button disabled under the cursor never reports its release
 
@@ -669,6 +701,17 @@ class ImageHoverView(QWidget):
             self._hide_preview()
             event.accept()
 
+    def mouseDoubleClickEvent(self, event):
+        """Toggle between fit and 100%; 100% is zoomed in around the clicked point."""
+        if event.button() != Qt.MouseButton.LeftButton or not self._layer:
+            super().mouseDoubleClickEvent(event)
+            return
+        if self._layer.is_actual_size:
+            self._reset_zoom(is_actual_size=False)
+        else:
+            self._apply_zoom(1.0, event.position())
+        event.accept()
+
     def mouseMoveEvent(self, event):
         """Handle mouse move for dragging or scaling"""
         self._update_edge_zones()
@@ -679,6 +722,7 @@ class ImageHoverView(QWidget):
 
         if self._drag_mode == _DRAG_PAN:
             self._layer.offset += delta
+            self._update_minimap()
             self.update()
         else:
             self._zoom_to(self._layer.scale * (1.0 - delta.y() * _SCALE_DRAG_SENSITIVITY))
@@ -731,6 +775,10 @@ class ImageHoverView(QWidget):
             event.accept()
         elif Qt.Key.Key_G in (key, native_key):
             self._on_source_clicked()
+            event.accept()
+        elif Qt.Key.Key_S in (key, native_key):
+            if not event.isAutoRepeat():
+                self._on_save_requested()
             event.accept()
         else:
             super().keyPressEvent(event)

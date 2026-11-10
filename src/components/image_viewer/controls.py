@@ -1,10 +1,12 @@
-"""Controls over the image: close button, zoom buttons and zoom slider (top right) and the navigation strips at the screen edges."""
+"""Controls over the image: close button, zoom buttons and zoom slider (top right),
+   minimap (bottom right) and the navigation strips at the screen edges."""
 
 import math
 from pathlib import Path
 from typing import Optional
 
-from PyQt6.QtCore import pyqtSignal, QPoint, QPropertyAnimation, QRect, QSize, Qt
+from PyQt6.QtCore import pyqtSignal, QPoint, QPointF, QPropertyAnimation, QRect, QRectF, QSize, Qt
+from PyQt6.QtGui import QColor, QPainter, QPen, QPixmap
 from PyQt6.QtWidgets import QFrame, QGraphicsOpacityEffect, QHBoxLayout, QLabel, QSlider, QVBoxLayout, QWidget
 
 from components.button import create_icon_button, render_svg_icon, set_button_icon
@@ -25,7 +27,12 @@ _FIT_ICON = "line/fullscreen-line.svg"
 _ZOOM_SLIDER_WIDTH = 140
 _ZOOM_SLIDER_STEPS = 200  # positions across MIN_SCALE..MAX_SCALE, spaced logarithmically
 _PERCENT = 100
-_WIDEST_ZOOM_TEXT = f"{round(MAX_SCALE * _PERCENT)}%"
+_MINIMAP_MAX_SIZE = QSize(180, 120)
+_MINIMAP_PADDING = 6
+_MINIMAP_VISIBLE_AREA_LIMIT = 0.5  # shown while the viewport covers less of the image than this
+_MINIMAP_VIEW_FILL_ALPHA = 40
+_MINIMAP_VIEW_BORDER_WIDTH = 1.5
+_WIDEST_ZOOM_TEXT = str(round(MAX_SCALE * _PERCENT))
 
 
 class CloseButton(QFrame):
@@ -120,7 +127,7 @@ def _scale_from_position(position: int) -> float:
 
 
 class ZoomSlider(QFrame):
-    """Translucent panel with a slider over the whole zoom range and the current zoom in percent."""
+    """Translucent panel with a slider over the whole zoom range and the current zoom in percent (without the sign)."""
 
     scale_requested = pyqtSignal(float)
 
@@ -156,7 +163,7 @@ class ZoomSlider(QFrame):
         if layer is None:
             self._value_label.clear()
             return
-        self._value_label.setText(f"{round(layer.scale * _PERCENT)}%")
+        self._value_label.setText(str(round(layer.scale * _PERCENT)))
         if self._slider.isSliderDown():  # the drag itself is the source of the value
             return
         self._slider.blockSignals(True)
@@ -165,7 +172,75 @@ class ZoomSlider(QFrame):
 
     def refresh_tooltip(self):
         """Re-translate the tooltip for the current interface language."""
-        self.setToolTip(tr("Zoom", "Масштаб"))
+        self.setToolTip(tr("Zoom (%)", "Масштаб (%)"))
+
+
+class Minimap(QFrame):
+    """Corner overview of a zoomed-in image: shows which part is in view; a click or drag moves the view."""
+
+    position_requested = pyqtSignal(QPointF)  # a point of the image as fractions (0..1) of its size
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setObjectName("minimap")
+        self.setCursor(Qt.CursorShape.CrossCursor)
+        self._is_dark = True
+        self._layer: Optional[ImageLayer] = None
+        self._preview = QPixmap()
+        self._view = QRectF()  # the part in view, as fractions of the image
+
+    def apply_theme(self, is_dark: bool):
+        """Restyle the panel for the theme."""
+        self._is_dark = is_dark
+        self.setStyleSheet(panel_stylesheet("minimap", is_dark))
+
+    def update_view(self, layer: Optional[ImageLayer], viewport: QSize):
+        """Show the overview only while the viewport covers a small part of the layer's image."""
+        if layer is not self._layer:
+            self._layer = layer
+            self._preview = QPixmap()
+        view = layer.visible_fraction(viewport) if layer else QRectF()
+        is_zoomed_in = layer is not None and view.width() * view.height() < _MINIMAP_VISIBLE_AREA_LIMIT
+        self.setVisible(is_zoomed_in)
+        if not is_zoomed_in:
+            return
+        if self._preview.isNull():
+            self._preview = layer.preview(_MINIMAP_MAX_SIZE)
+            self.setFixedSize(self._preview.size() + QSize(2 * _MINIMAP_PADDING, 2 * _MINIMAP_PADDING))
+        self._view = view
+        self.update()
+
+    def paintEvent(self, event):
+        super().paintEvent(event)
+        painter = QPainter(self)
+        painter.drawPixmap(_MINIMAP_PADDING, _MINIMAP_PADDING, self._preview)
+        if self._view.isEmpty():
+            return
+        width, height = self._preview.width(), self._preview.height()
+        view_rect = QRectF(
+            _MINIMAP_PADDING + self._view.x() * width, _MINIMAP_PADDING + self._view.y() * height,
+            self._view.width() * width, self._view.height() * height,
+        )
+        color = QColor(PANEL_STYLES[self._is_dark]["text"])
+        painter.setPen(QPen(color, _MINIMAP_VIEW_BORDER_WIDTH))
+        color.setAlpha(_MINIMAP_VIEW_FILL_ALPHA)
+        painter.setBrush(color)
+        painter.drawRect(view_rect)
+
+    def _request_position(self, position: QPointF):
+        fraction_x = (position.x() - _MINIMAP_PADDING) / self._preview.width()
+        fraction_y = (position.y() - _MINIMAP_PADDING) / self._preview.height()
+        self.position_requested.emit(QPointF(max(0.0, min(1.0, fraction_x)), max(0.0, min(1.0, fraction_y))))
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            self._request_position(event.position())
+        event.accept()
+
+    def mouseMoveEvent(self, event):
+        if event.buttons() & Qt.MouseButton.LeftButton:
+            self._request_position(event.position())
+        event.accept()
 
 
 class EdgeZone(QWidget):

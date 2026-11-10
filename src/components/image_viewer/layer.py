@@ -2,7 +2,19 @@
 
 from typing import Callable, NamedTuple, Optional
 
-from PyQt6.QtCore import pyqtSignal, QBuffer, QEasingCurve, QIODevice, QObject, QPointF, QSize, QVariantAnimation
+from PyQt6.QtCore import (
+    pyqtSignal,
+    QBuffer,
+    QEasingCurve,
+    QIODevice,
+    QObject,
+    QPointF,
+    QRectF,
+    QSize,
+    QSizeF,
+    Qt,
+    QVariantAnimation,
+)
 from PyQt6.QtGui import QMovie, QPainter, QPixmap
 from PyQt6.QtWidgets import QApplication
 
@@ -175,6 +187,32 @@ class ImageLayer:
         available_height = viewport.height() - reserved_bottom
         self.scale = 1.0
         self._center(viewport, frame, available_height)
+
+    def visible_fraction(self, viewport: QSize) -> QRectF:
+        """The part of the image inside the viewport as fractions (0..1) of the image; empty when none is."""
+        frame = self._frame()
+        image_rect = QRectF(self.offset, QSizeF(frame.width() * self.scale, frame.height() * self.scale))
+        visible = QRectF(0, 0, viewport.width(), viewport.height()).intersected(image_rect)
+        if visible.isEmpty():
+            return QRectF()
+        return QRectF(
+            (visible.left() - image_rect.left()) / image_rect.width(),
+            (visible.top() - image_rect.top()) / image_rect.height(),
+            visible.width() / image_rect.width(),
+            visible.height() / image_rect.height(),
+        )
+
+    def center_on_fraction(self, fraction: QPointF, center: QPointF):
+        """Pan so that the point of the image given as fractions of its size sits at center."""
+        frame = self._frame()
+        point = QPointF(fraction.x() * frame.width(), fraction.y() * frame.height())
+        self.offset = center - point * self.scale
+
+    def preview(self, max_size: QSize) -> QPixmap:
+        """The current frame scaled down to fit max_size."""
+        return self._frame().scaled(
+            max_size, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation
+        )
 
     def paint(self, painter: QPainter, viewport: QSize, pose: _Pose = _IDENTITY_POSE):
         frame = self._frame()
