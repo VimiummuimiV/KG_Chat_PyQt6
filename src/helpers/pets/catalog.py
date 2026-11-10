@@ -17,10 +17,16 @@ _MILLISECONDS = 1000
 EAT_STATE = "eat"
 RUN_STATE = "run"
 WALK_STATE = "walk"
+BARK_STATE = "bark"
+LIE_STATE = "lie"
+PETS_CATEGORY = "pets"  # folders of the animals that roam the line
+FOOD_CATEGORY = "food"  # folders of what they eat: not pets
+_RESOURCE_FOLDER = "ecosystem"
+_ANIMATIONS_FOLDER = "animations"
+_ICONS_FOLDER = "icons"
 _SPRITE_SUFFIX = "_8fps.gif"
 # Longest names first so "walk_fast" is not read as "walk".
-_STATE_NAMES = ("walk_fast", "with_ball", "walk", "run", "idle", "swipe", "lie", "stand", EAT_STATE)
-_ICON_NAME_PATTERNS = ("icon_{color}.png", "{color}_icon.png", "icon.png")
+_STATE_NAMES = ("walk_fast", "with_ball", "walk", "run", "idle", "swipe", "lie", "stand", "bark", EAT_STATE)
 _PIXEL_GRID_FILE = "pixel_grid.json"
 
 
@@ -39,6 +45,7 @@ class PetKind:
     species: str
     color: str
     states: frozenset[str]
+    category: str = PETS_CATEGORY
 
     @property
     def key(self) -> str:
@@ -50,12 +57,11 @@ class PetKind:
 
     @property
     def _folder(self) -> Path:
-        return get_resource_dir("pets") / self.species
+        return _category_folder(self.category) / self.species
 
     @property
     def icon_path(self) -> Path:
-        candidates = (self._folder / pattern.format(color=self.color) for pattern in _ICON_NAME_PATTERNS)
-        return next(path for path in candidates if path.exists())
+        return self._folder / _ICONS_FOLDER / f"icon_{self.color}.png"
 
     @property
     def pixel_grid(self) -> PixelGrid:
@@ -63,12 +69,16 @@ class PetKind:
         return grids.get(self.key) or grids[self.species]
 
     def sprite_path(self, state: str) -> Path:
-        return self._folder / f"{self.color}_{state}{_SPRITE_SUFFIX}"
+        return self._folder / _ANIMATIONS_FOLDER / f"{self.color}_{state}{_SPRITE_SUFFIX}"
+
+
+def _category_folder(category: str) -> Path:
+    return get_resource_dir(_RESOURCE_FOLDER) / category
 
 
 @lru_cache(maxsize=None)
 def _load_pixel_grids() -> dict[str, PixelGrid]:
-    path = get_resource_dir("pets") / _PIXEL_GRID_FILE
+    path = get_resource_dir(_RESOURCE_FOLDER) / _PIXEL_GRID_FILE
     with open(path, "r", encoding="utf-8") as file:
         raw = json.load(file)
     grids = {}
@@ -83,11 +93,11 @@ def _load_pixel_grids() -> dict[str, PixelGrid]:
 def list_pet_kinds() -> tuple[PetKind, ...]:
     """Return every bundled pet species/color pair, sorted by key."""
     kinds = []
-    for folder in sorted(get_resource_dir("pets").iterdir()):
+    for folder in sorted(_category_folder(PETS_CATEGORY).iterdir()):
         if not folder.is_dir():
             continue
         states_by_color: dict[str, set[str]] = {}
-        for sprite in folder.glob(f"*{_SPRITE_SUFFIX}"):
+        for sprite in (folder / _ANIMATIONS_FOLDER).glob(f"*{_SPRITE_SUFFIX}"):
             stem = sprite.name[: -len(_SPRITE_SUFFIX)]
             state = next((name for name in _STATE_NAMES if stem.endswith(f"_{name}")), None)
             if state:

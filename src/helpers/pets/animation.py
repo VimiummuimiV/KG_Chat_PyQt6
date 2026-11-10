@@ -13,6 +13,7 @@ from helpers.pets.catalog import PetKind, PixelGrid
 _MINIMUM_FRAME_MS = 10
 _GRID_TOLERANCE = 0.05  # cells; absorbs float error when the canvas holds a whole number of cells
 _OFFSET_LINE_STEP = 3  # only every third line is compared when looking for the grid start
+_CACHE_LIMIT = 256  # decoded animations kept; the least recently used ones of removed kinds and sizes fall out
 _LUNGE_RATIO = 0.6  # share of a frame during which a step moves the pet; the rest of the frame it stays planted
 
 
@@ -109,7 +110,7 @@ def sprite_height(kind: PetKind, pixel_size: int) -> int:
     return (math.ceil(tallest / kind.pixel_grid.scale[1]) + 1) * pixel_size
 
 
-@lru_cache(maxsize=None)
+@lru_cache(maxsize=_CACHE_LIMIT)
 def load_animation(kind: PetKind, state: str, pixel_size: int) -> _PetAnimation:
     """Load one state of a pet; every art pixel becomes pixel_size screen pixels, never a fraction."""
     reader = QImageReader(str(kind.sprite_path(state)))

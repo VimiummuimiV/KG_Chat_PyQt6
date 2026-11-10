@@ -8,7 +8,7 @@ from typing import Iterable
 from PyQt6.QtCore import QPoint, QRect
 
 from helpers.pets.animation import load_animation
-from helpers.pets.catalog import EAT_STATE, RUN_STATE, PetKind
+from helpers.pets.catalog import BARK_STATE, EAT_STATE, LIE_STATE, RUN_STATE, WALK_STATE, PetKind
 from helpers.pets.defense import DefenseBehavior
 from helpers.pets.egg import Egg
 from helpers.pets.food import BITES_PER_FOOD, Food
@@ -23,17 +23,17 @@ _GAIT_SPEED_FACTOR = {"walk": 1.0, "walk_fast": 1.6, "run": 2.5}
 _CARRY_SPEED_FACTOR = 2.0  # a predator slowed by its prey
 _TURN_CHANCE = 0.4
 _CONTACT_ART_PIXELS = 2  # how close two pets must get to touch
-# state: (pick weight, minimum ms, maximum ms)
+# state: (pick weight, minimum ms, maximum ms); running is not here: a pet runs only to chase, flee or reach food
 _STATE_PLAN = {
-    "idle": (4, 2000, 6000),
+    "idle": (5, 2000, 6000),
     "walk": (5, 3000, 8000),
-    "walk_fast": (2, 2000, 5000),
-    "run": (1, 1500, 3500),
+    "walk_fast": (1, 1500, 3500),
     "swipe": (1, 1500, 3000),
     "with_ball": (2, 4000, 9000),
-    "lie": (1, 6000, 14000),
+    "lie": (3, 6000, 14000),
     "stand": (2, 3000, 8000),
 }
+_EFFECT_STATES = frozenset({BARK_STATE})  # their canvas is widened on the facing side for effects such as sound waves
 _SCARE_MS = (1200, 2200)
 _LAYING_SPECIES = frozenset({"chicken"})
 _EGG_INTERVAL_MS = (20000, 50000)  # walking time between two eggs
@@ -77,6 +77,7 @@ class Pet(HuntingBehavior, DefenseBehavior, Throwable):
         self._reaction_ms = 0
         self._watching: Food | None = None  # the food whose race the pet watches instead of running
         self._is_scared = False
+        self._state = WALK_STATE
         self._line_width = line_width
         self._init_hunting()
         self._init_defense()
@@ -223,7 +224,15 @@ class Pet(HuntingBehavior, DefenseBehavior, Throwable):
             return self._load("idle"), 0
         return self._animation, self._state_elapsed_ms
 
+    def _effect_margin(self, state: str) -> int:
+        """Return the width the canvas of a state adds in front of the pet for effects, beyond its idle canvas."""
+        if state not in _EFFECT_STATES:
+            return 0
+        return self._load(state).frames_right[0].width() - self._load("idle").frames_right[0].width()
+
     def _start_state(self, state: str, duration_ms: int) -> None:
+        if not self._facing_right:  # a mirrored canvas grows to the left: keep the body where it stands
+            self.x += self._effect_margin(self._state) - self._effect_margin(state)
         self._state = state
         self._state_limit_ms = duration_ms
         self._state_elapsed_ms = 0
@@ -231,10 +240,13 @@ class Pet(HuntingBehavior, DefenseBehavior, Throwable):
 
     def _choose_state(self) -> None:
         self._is_scared = False
-        if self.is_predator:
-            self._start_raid()  # a wild predator never idles about: it hunts
+        if self.is_predator and not self.is_exploring:
+            self._start_raid()  # a wild predator never idles about while there is prey: it hunts
             return
-        states = [state for state in sorted(self.kind.states) if state in _STATE_PLAN]
+        states = [
+            state for state in sorted(self.kind.states)
+            if state in _STATE_PLAN and not (state == LIE_STATE and self._is_guard_present)
+        ]
         state = random.choices(states, [_STATE_PLAN[state][0] for state in states])[0]
         self._start_state(state, random.randint(*_STATE_PLAN[state][1:]))
         if state in _GAIT_SPEED_FACTOR and random.random() < _TURN_CHANCE:
@@ -330,6 +342,10 @@ class Pet(HuntingBehavior, DefenseBehavior, Throwable):
     def _face_toward(self, x: float) -> None:
         self._facing_right = x > self.center_x
 
+    def is_facing(self, other: "Pet") -> bool:
+        """Whether the other pet is on the side this pet looks at."""
+        return (other.center_x > self.center_x) == self._facing_right
+
     def _end_meal(self) -> None:
         self._meal = None
         self._choose_state()
@@ -373,6 +389,11 @@ class Pet(HuntingBehavior, DefenseBehavior, Throwable):
             self._walk_in(line_width)
             return
         span_left, span_right = self._current()[0].visible_span(self._facing_right)
+        margin = self._effect_margin(self._state)  # effects in front of the pet may reach beyond the edge
+        if self._facing_right:
+            span_right -= margin
+        else:
+            span_left += margin
         lowest = -span_left
         highest = max(lowest, line_width - span_right)
         if self.x < lowest:

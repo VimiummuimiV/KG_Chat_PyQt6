@@ -4,7 +4,7 @@ import math
 import random
 from typing import TYPE_CHECKING, Iterable
 
-from helpers.pets.catalog import RUN_STATE
+from helpers.pets.catalog import BARK_STATE, RUN_STATE
 from helpers.pets.relations import guards_against, preys_on
 
 if TYPE_CHECKING:  # pet.py imports this module
@@ -16,6 +16,9 @@ _GUARD_NOTICE_ART_PIXELS = 220
 _THREAT_REACTION_MS = (100, 700)
 _FLIGHT_MS = (2000, 3500)
 _CHASE_LIMIT_MS = 10000
+_BARK_BOUT_MS = (800, 1600)  # a guard barks in bouts while it chases, and runs on in silence in between
+_QUIET_RUN_MS = (900, 2200)
+_BITE_STATE = "swipe"  # a guard lunges once at the quarry it has caught up with
 
 
 class DefenseBehavior:
@@ -26,6 +29,8 @@ class DefenseBehavior:
         self._threat_reaction_ms = 0
         self._chasing: "Pet | None" = None
         self._chase_ms = 0
+        self._is_barking = False
+        self._bark_phase_ms = 0
 
     def defend(self, others: list["Pet"], step_ms: int) -> None:
         """Notice raiders after a random moment; prey runs from them, a guard chases them."""
@@ -60,12 +65,12 @@ class DefenseBehavior:
         return any(preys_on(other.kind, self.kind) and low <= other.center_x <= high for other in others)
 
     def _raider_in_sight(self, others: list["Pet"]) -> "Pet | None":
-        """Return the nearest predator this pet reacts to and sees: a hunter after its kind or one its kind guards against."""
+        """Return the nearest predator this pet reacts to and sees: a hunter after its kind or one its kind guards against, on the side a guard looks at."""
         guard_reach = _GUARD_NOTICE_ART_PIXELS * self.pixel_size
         prey_reach = _PREY_NOTICE_ART_PIXELS * self.pixel_size
         seen = [
             other for other in others
-            if (guards_against(self.kind, other.kind) and self.distance_to(other) <= guard_reach)
+            if (guards_against(self.kind, other.kind) and self.distance_to(other) <= guard_reach and self.is_facing(other))
             or (other.is_hunting_now and preys_on(other.kind, self.kind) and self.distance_to(other) <= prey_reach)
         ]
         return min(seen, key=self.distance_to, default=None)
@@ -74,17 +79,36 @@ class DefenseBehavior:
         self._meal = self._noticed = self._watching = None
         self._chasing, self._chase_ms = raider, 0
         self._face_toward(raider.center_x)
-        self._start_state(RUN_STATE, math.inf)
+        self._start_chase_phase(barking=True)
+
+    def _start_chase_phase(self, barking: bool) -> None:
+        """Stand and bark for a bout, or run on in silence for a while."""
+        self._is_barking = barking and BARK_STATE in self.kind.states
+        self._bark_phase_ms = random.randint(*(_BARK_BOUT_MS if self._is_barking else _QUIET_RUN_MS))
+        self._start_state(BARK_STATE if self._is_barking else RUN_STATE, math.inf)
 
     def _keep_chasing(self, others: list["Pet"], step_ms: int) -> None:
-        """Run after the quarry even when it has stopped raiding; bite it away on reaching it, give up when it is lost."""
+        """Run after the quarry, barking in bouts, even when it has stopped raiding; bite it away on reaching it, give up when it is lost."""
         self._chase_ms += step_ms
         quarry = self._chasing
         sight = _GUARD_NOTICE_ART_PIXELS * self.pixel_size
         if quarry in others and self._chase_ms <= _CHASE_LIMIT_MS and self.distance_to(quarry) <= sight:
             self._face_toward(quarry.center_x)
             if not self.touches(quarry):
+                self._bark_phase_ms -= step_ms
+                if self._bark_phase_ms <= 0:
+                    self._start_chase_phase(barking=not self._is_barking)
                 return
             quarry._bolt(self.center_x)
+            self._chasing = None
+            self._bite()
+            return
         self._chasing = None
         self._choose_state()
+
+    def _bite(self) -> None:
+        """Lunge once at the quarry, then carry on as usual."""
+        if _BITE_STATE not in self.kind.states:
+            self._choose_state()
+            return
+        self._start_state(_BITE_STATE, self._load(_BITE_STATE).cycle_ms)

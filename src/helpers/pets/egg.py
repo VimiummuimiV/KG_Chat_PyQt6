@@ -7,7 +7,7 @@ from PyQt6.QtCore import QPoint
 from PyQt6.QtGui import QPixmap
 
 from helpers.pets.animation import load_animation
-from helpers.pets.catalog import EAT_STATE, PetKind
+from helpers.pets.catalog import EAT_STATE, FOOD_CATEGORY, PetKind
 from helpers.pets.egg_rolling import advance, spin_for_speed
 from helpers.pets.food import Food
 
@@ -19,7 +19,7 @@ _MAXIMUM_ROLL_SPEED = 700  # device pixels per second
 _START_TILT = 0.05  # radians; a laid egg stands on its blunt end only until this tilt grows
 _WALL_BOUNCE = 0.4  # share of the spin kept after hitting the side of the area
 _RESTING_SPIN = 0.2  # radians per second; an old egg bursts only when it lies about this still
-_EGG_KIND = PetKind("egg", "white", frozenset())
+_EGG_KIND = PetKind("egg", "white", frozenset(), FOOD_CATEGORY)
 _ROLL, _BREAK, _EVAPORATE = "roll", "break", "evaporate"  # sprite states; the egg is intact only while rolling
 _BURST_RIGHT, _BURST_LEFT = "burst_right", "burst_left"  # an old egg cracking open, by the side its pointed end lies on
 

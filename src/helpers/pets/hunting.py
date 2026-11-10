@@ -5,14 +5,14 @@ import random
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Iterable
 
-from helpers.pets.catalog import RUN_STATE, WALK_STATE
+from helpers.pets.catalog import LIE_STATE, RUN_STATE, WALK_STATE
 from helpers.pets.relations import PREDATOR_SPECIES, guards_against, preys_on
 
 if TYPE_CHECKING:  # pet.py imports this module
     from helpers.pets.pet import Pet
 
 
-_STALK, _POUNCE, _CARRY, _LEAVE = "stalk", "pounce", "carry", "leave"
+_STALK, _POUNCE, _CARRY, _LEAVE, _EXPLORE = "stalk", "pounce", "carry", "leave", "explore"
 _POUNCE_LIMIT_MS = 6000  # a pounce that has caught nothing by then turns back into stalking
 _GUARD_RADIUS_ART_PIXELS = 120  # a predator runs off the line when a guard is this close
 _POUNCE_RANGE_ART_PIXELS = 40  # a predator springs when its head is this close to the prey
@@ -20,15 +20,17 @@ _POUNCE_BOOST = 1.35
 _CARRY_STATE = "carry"  # the sprite state is "carry_<color of the prey>"
 _ENTRY_MS = (3000, 6000)  # prey walks this long after coming back
 _ARRIVAL_MS = (3000, 10000)  # a predator first shows up after this long
+_EXPLORE_MS = (12000, 30000)  # how long a predator wanders the line when there is no prey, before it leaves
 _AWAY_MS = (30000, 60000)  # how long a predator stays away before it comes back, until the settings say otherwise
 
 
 @dataclass
 class _Raid:
-    """What a predator on the line is doing: creeping up on prey, springing at it, carrying it off, running off."""
+    """What a predator on the line is doing: creeping up on prey, springing at it, carrying it off, running off, wandering."""
 
     phase: str = _STALK
     elapsed_ms: int = 0
+    limit_ms: float = math.inf  # a wandering predator leaves once this much time has passed
 
 
 class HuntingBehavior:
@@ -42,6 +44,7 @@ class HuntingBehavior:
         self._prey: "Pet | None" = None
         self._speed_boost = 1.0
         self._is_seized = False
+        self._is_guard_present = False  # a guard against this predator is on the line
         self._is_away = self.is_predator  # a predator is never at home on the line: it comes from beyond an edge
         self._is_entering = False
         self.away_ms = _AWAY_MS
@@ -56,6 +59,11 @@ class HuntingBehavior:
     def is_hunting_now(self) -> bool:
         """Whether the pet is after prey that is still free."""
         return self._raid is not None and self._raid.phase in (_STALK, _POUNCE)
+
+    @property
+    def is_exploring(self) -> bool:
+        """Whether the pet is wandering the line because there is no prey on it."""
+        return self._raid is not None and self._raid.phase == _EXPLORE
 
     @property
     def is_leaving(self) -> bool:
@@ -90,6 +98,9 @@ class HuntingBehavior:
         if self._raid is None:
             self._start_raid()
         guards = [other for other in others if guards_against(other.kind, self.kind)]
+        self._is_guard_present = bool(guards)
+        if self._is_guard_present and self._state == LIE_STATE:
+            self._choose_state()  # nobody lies down in front of a guard
         prey = [other for other in others if preys_on(self.kind, other.kind) and not (other.is_held or other.is_flying)]
         self._advance_raid(prey, guards, step_ms)
 
@@ -122,10 +133,22 @@ class HuntingBehavior:
         elif self._guard_near(guards):
             self.flee(min(guards, key=self.distance_to).center_x)
         elif target is None:
-            self._run_to_edge(_LEAVE, RUN_STATE, self.center_x > self._line_width / 2)
+            self._explore(raid)
         else:
+            if raid.phase == _EXPLORE:
+                self._start_raid()  # prey has appeared: the walk is over
+                raid = self._raid
             self._face_toward(target.center_x)
             self._chase(raid, target)
+
+    def _explore(self, raid: _Raid) -> None:
+        """With no prey, wander the line in the usual random states and leave over a random edge after a while."""
+        if raid.phase in (_STALK, _POUNCE):
+            self._raid = _Raid(_EXPLORE, limit_ms=random.randint(*_EXPLORE_MS))
+            self._speed_boost = 1.0
+            self._choose_state()
+        elif raid.elapsed_ms >= raid.limit_ms:
+            self._run_to_edge(_LEAVE, RUN_STATE, random.choice((True, False)))
 
     def _carry_off(self, prey: "Pet") -> None:
         prey._seize()
@@ -173,4 +196,4 @@ class HuntingBehavior:
 
     def _guard_near(self, guards: Iterable["Pet"]) -> bool:
         radius = _GUARD_RADIUS_ART_PIXELS * self.pixel_size
-        return any(self.distance_to(guard) < radius for guard in guards)
+        return any(self.distance_to(guard) < radius for guard in guards)

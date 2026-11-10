@@ -3,9 +3,10 @@
 from itertools import groupby
 
 from PyQt6.QtCore import pyqtSignal, QRect, Qt
-from PyQt6.QtGui import QImage, QPainter, QPixmap
-from PyQt6.QtWidgets import QGridLayout, QLabel, QVBoxLayout, QWidget
+from PyQt6.QtGui import QPainter, QPixmap
+from PyQt6.QtWidgets import QGridLayout, QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
+from components.button import create_icon_button
 from helpers.fonts.fonts import FontType, get_font
 from helpers.hold_repeater import HoldRepeater
 from helpers.pets.catalog import (
@@ -22,30 +23,16 @@ from helpers.pets.catalog import (
 )
 from helpers.pets.relations import PREDATOR_SPECIES
 from helpers.translate import tr
+from ui.dialogs.pets_guide_dialog import PetsGuideDialog
 
 
 _TILE_COLUMNS = 8
 _TILE_SIZE = 40
-_DIMMED_OPACITY = 0.35
 _BADGE_HEIGHT = 14
 _BADGE_PADDING = 6
 _BADGE_FONT_PIXELS = 10
 _BADGE_RADIUS = 4
 _HINT_FONT_SCALE = 0.85
-
-
-def _dimmed_grayscale_pixmap(pixmap: QPixmap) -> QPixmap:
-    """Return the pixmap in grays and faded, keeping its transparency."""
-    image = pixmap.toImage().convertToFormat(QImage.Format.Format_ARGB32)
-    gray = image.convertToFormat(QImage.Format.Format_Grayscale8).convertToFormat(QImage.Format.Format_ARGB32)
-    gray.setAlphaChannel(image.convertToFormat(QImage.Format.Format_Alpha8))
-    dimmed = QPixmap(gray.size())
-    dimmed.fill(Qt.GlobalColor.transparent)
-    painter = QPainter(dimmed)
-    painter.setOpacity(_DIMMED_OPACITY)
-    painter.drawImage(0, 0, gray)
-    painter.end()
-    return dimmed
 
 
 class _PetTile(QLabel):
@@ -56,7 +43,6 @@ class _PetTile(QLabel):
 
     def __init__(self, icon: QPixmap, tooltip: str):
         super().__init__()
-        self._icons = (_dimmed_grayscale_pixmap(icon), icon)
         self._count = 0
         self._repeaters = {
             Qt.MouseButton.LeftButton: HoldRepeater(self.added.emit, self),
@@ -66,11 +52,11 @@ class _PetTile(QLabel):
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setToolTip(tooltip)
-        self._set_count(0)
+        self.setPixmap(icon)
 
-    def _set_count(self, count: int) -> None:
+    def set_count(self, count: int) -> None:
+        """Show how many pets of the kind are enabled."""
         self._count = count
-        self.setPixmap(self._icons[count > 0])
         self.update()
 
     def mousePressEvent(self, event):
@@ -88,7 +74,7 @@ class _PetTile(QLabel):
 
     def paintEvent(self, event):
         super().paintEvent(event)
-        if self._count < 2:
+        if self._count < 1:
             return
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
@@ -126,8 +112,15 @@ class SettingsPetsMixin:
         hint_font.setPointSizeF(hint_font.pointSizeF() * _HINT_FONT_SCALE)
         hint_label.setFont(hint_font)
         hint_label.setStyleSheet("color: palette(placeholder-text);")
-        section.addWidget(hint_label)
+        guide_tooltip = tr("How the pets behave", "Как ведут себя питомцы")
+        guide_button = create_icon_button(self.icons_path, "line/information-line.svg", guide_tooltip, size_type="small", config=self.config)
+        guide_button.clicked.connect(lambda: PetsGuideDialog(self).exec())
+        hint_layout = QHBoxLayout()
+        hint_layout.addWidget(hint_label, 1)
+        hint_layout.addWidget(guide_button)
+        section.addLayout(hint_layout)
         self.register_tr(hint_label.setText, hint)
+        self.register_tr(guide_button.setToolTip, guide_tooltip)
         tiles_widget = QWidget()
         grid = QGridLayout(tiles_widget)
         grid.setContentsMargins(0, 0, 0, 0)
@@ -172,7 +165,7 @@ class SettingsPetsMixin:
         self.pets_stepped_checkbox.setChecked(pets_stepped(self.config))
         counts = pet_counts(self.config)
         for key, tile in self._pet_tiles.items():
-            tile._set_count(counts.get(key, 0))
+            tile.set_count(counts.get(key, 0))
         for species, spin in self.pet_size_spins.items():
             spin.parentWidget().setVisible(any(kind.key in counts for kind in self._pet_species_kinds[species]))
             multiplier = pet_size_multiplier(self.config, species)

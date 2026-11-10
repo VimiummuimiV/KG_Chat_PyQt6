@@ -80,7 +80,7 @@ class PetOverlay(QWidget):
             pet.stepped = pets_stepped(self._config)
             pet.away_ms = visit_ms
         self._respawns.clear()
-        tallest = max((sprite_height(pet.kind, pet.pixel_size) for pet in self._pets), default=0)
+        tallest = max((sprite_height(kind, pixel_size) for kind, pixel_size in {(pet.kind, pet.pixel_size) for pet in self._pets}), default=0)
         self._anchor.setFixedHeight(math.ceil(tallest / self.devicePixelRatioF()))
         self._anchor.setVisible(bool(self._pets))
         if not self._pets:

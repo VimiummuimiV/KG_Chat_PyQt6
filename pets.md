@@ -28,7 +28,8 @@ Grass and eggs are not pets; they are food on the strip.
 
 ## 2. Behavior Shared by All Pets
 
-- **Random states** (when there is nothing else to do): `idle` (weight 4, 2–6 s), `walk` (5, 3–8 s), `walk_fast` (2, 2–5 s), `run` (1, 1.5–3.5 s), `swipe` (1, 1.5–3 s), `with_ball` (2, 4–9 s), `lie` (1, 6–14 s; only dogs and foxes have this state). While walking or running, a pet has a 40% chance of turning around.
+- **Random states** (when there is nothing else to do): `idle` (weight 5, 2–6 s), `walk` (5, 3–8 s), `walk_fast` (1, 1.5–3.5 s), `swipe` (1, 1.5–3 s), `with_ball` (2, 4–9 s), `lie` (3, 6–14 s; only dogs and foxes have this state). While walking, a pet has a 40% chance of turning around.
+- **Running is never a random state.** A pet runs only when it has a reason: a fox stalking or fleeing, a dog chasing a fox, panic, or a chicken or rat going for food. With nothing to do, pets mostly rest, stand guard or stroll.
 - **Speed** is tied to body length and animation pace: `walk` ×1, `walk_fast` ×1.6, `run` ×2.5. Enabling the "step-based" checkbox makes movement happen in short bursts timed to the steps.
 - **Strip edges**: a pet turns around when it reaches an edge.
 - **Mouse**: clicking a pet triggers panic (runs for 1.2–2.2 s and forgets everything); click and drag to throw it—it flies and panics on landing. Eggs can be picked up and rolled; grass cannot be picked up.
@@ -91,7 +92,7 @@ The reaction takes 100–700 ms. The fox can be in any state: hunting, roaming, 
 **Chase.** The dog runs toward the fox and barks **intermittently**: a barking bout lasts 0.8–1.6 s, followed by 0.9–2.2 s of silent running, repeating in a loop. The first bout starts immediately when the fox is detected.
 The chase ends if the fox is more than 220 art px away, 10 s have passed, or the dog touches it.
 
-**Barking** is shown as an open mouth and sound waves in front of the muzzle. One "woof" lasts 0.36 s: the mouth opens wide (one wave appears, then two), starts to close (three waves), then closes (no waves). The tongue is not shown while barking.
+**Barking** is the `bark` animation, a regular GIF like every other state (`<color>_bark_8fps.gif`, built from the first `idle` frame). The dog stands still during a bout. It is shown as a barely open mouth and puffs of air that leave the muzzle, spread out and thin away. One "woof" lasts 0.36 s (four frames of 90 ms): the mouth opens slightly, opens a little more, starts to close, then closes, while the puff moves away and fades. The tongue is not shown while barking. The bark canvas is wider than the idle one to fit the waves; the code compensates for the difference so the dog does not shift when it starts or stops barking.
 
 **Bite.** On touching the fox, the dog lunges (`swipe`) once. The fox immediately drops its prey and runs away through the far edge; the chicken breaks free and panics, running away from the fox.
 
@@ -118,7 +119,29 @@ Neutral pets. They only use random states and react to the mouse. They are not p
 - A pet's icon in the settings is always in color. The number of enabled instances is shown by a badge in the corner (1 or more); with no badge, that pet is disabled.
 - Left-click adds a pet, right-click removes one, and holding the button repeats the action. Maximum 10 of each color.
 - Size is set for the entire species, in whole art pixels (×1…×10).
+- The "i" button next to the hint opens a guide (English and Russian) describing the role and behavior of every pet.
+- Changing the counts must stay cheap: decoded animations are kept in a bounded cache and are never cleared on a click, and existing pets are reused when the options are reloaded.
 
-## 11. Not Connected
+## 11. Resource Layout
+
+Everything bundled lives in `ecosystem/` (located with `get_resource_dir("ecosystem")`):
+
+```
+ecosystem/
+├── pets/
+│   └── <species>/
+│       ├── animations/   <color>_<state>_8fps.gif
+│       └── icons/        icon_<color>.png
+├── food/
+│   └── <species>/
+│       └── animations/   <color>_<state>_8fps.gif
+└── pixel_grid.json
+```
+
+- The suffix of an icon or animation is always the color of the pet it shows.
+- Food (`egg`, `grass`) has no icons: it is not shown in the settings.
+- Who eats or guards against whom is not a matter of folders: it lives in `helpers/pets/relations.py`. Snails and Clippy sit in `pets/` like everyone else.
+
+## 12. Not Connected
 
 `helpers/pets/options.py` (`HuntingOptions`: raid interval, capture chance) is currently not imported anywhere and does not affect behavior. The "Predator visits every" slider is read from `helpers/pets/catalog.py`.

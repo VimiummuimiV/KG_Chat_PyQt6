@@ -1,11 +1,11 @@
 """Grass tuft that grows on the line and is grazed by hens."""
 
 from helpers.pets.animation import load_animation
-from helpers.pets.catalog import PetKind
+from helpers.pets.catalog import FOOD_CATEGORY, PetKind
 from helpers.pets.food import Food
 
 
-_GRASS_KIND = PetKind("grass", "green", frozenset())
+_GRASS_KIND = PetKind("grass", "green", frozenset(), FOOD_CATEGORY)
 _GROW_STATE = "grow"  # played once; the tuft can be eaten when it is over
 _GRAZING_SPECIES = frozenset({"chicken"})
 

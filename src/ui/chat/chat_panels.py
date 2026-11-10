@@ -1,7 +1,5 @@
 """ChatWindow: stacked panels (profile, settings, ban list, tracker, pronunciation)."""
 
-from helpers.pets.animation import load_animation
-from helpers.system.memory import release_memory_soon
 from ui.account.ui_profile import ProfileWidget
 from ui.settings.ui_settings import SettingsWidget
 from ui.tracker.ui_user_tracker import UserTrackerWidget
@@ -217,11 +215,9 @@ class ChatPanelsMixin:
 
     def _reload_all_pets(self):
         """Apply pet settings to the general overlay and every open room overlay."""
-        load_animation.cache_clear()  # frames of removed kinds and sizes must not stay cached forever
         if getattr(self, "pet_overlay", None):
             self.pet_overlay.reload()
         for room in self.all_room_widgets():
             overlay = getattr(room, "pet_overlay", None)
             if overlay:
                 overlay.reload()
-        release_memory_soon()
