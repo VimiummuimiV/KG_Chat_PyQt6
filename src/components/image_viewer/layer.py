@@ -162,8 +162,8 @@ class ImageLayer:
             (available_height - frame.height() * self.scale) / 2,
         )
 
-    def reset_zoom(self, viewport: QSize, reserved_bottom: int = 0):
-        """Restore the image's original size and center it above the reserved bottom strip."""
+    def set_actual_size(self, viewport: QSize, reserved_bottom: int = 0):
+        """Show the image at its original size and center it above the reserved bottom strip."""
         frame = self._frame()
         available_height = viewport.height() - reserved_bottom
         self.scale = 1.0

@@ -46,7 +46,7 @@ class CloseButton(QFrame):
 
 
 class ZoomButtons(QFrame):
-    """Translucent panel with zoom out, zoom in and reset buttons."""
+    """Translucent panel with zoom out, zoom in and actual-size buttons."""
 
     zoom_pressed = pyqtSignal(int)  # -1 / +1; the viewer repeats it while the button stays down
     zoom_released = pyqtSignal()
@@ -56,7 +56,7 @@ class ZoomButtons(QFrame):
         self.setObjectName("zoomButtons")
         self._zoom_out_button = create_icon_button(icons_path, "line/zoom-out-line.svg", config=config)
         self._zoom_in_button = create_icon_button(icons_path, "line/zoom-in-line.svg", config=config)
-        self.reset_zoom_button = create_icon_button(icons_path, "line/refresh-line.svg", config=config)
+        self.actual_size_button = create_icon_button(icons_path, "line/aspect-ratio-line.svg", config=config)
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(PANEL_MARGIN, PANEL_MARGIN, PANEL_MARGIN, PANEL_MARGIN)
@@ -66,8 +66,8 @@ class ZoomButtons(QFrame):
             button.pressed.connect(lambda step=step: self.zoom_pressed.emit(step))
             button.released.connect(self.zoom_released)
             layout.addWidget(button)
-        self.reset_zoom_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        layout.addWidget(self.reset_zoom_button)
+        self.actual_size_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        layout.addWidget(self.actual_size_button)
         self.adjustSize()
         self.refresh_tooltips()
 
@@ -84,7 +84,7 @@ class ZoomButtons(QFrame):
         """Re-translate the tooltips for the current interface language."""
         self._zoom_out_button.setToolTip(tr("Zoom out (wheel down)", "Уменьшить (колесо вниз)"))
         self._zoom_in_button.setToolTip(tr("Zoom in (wheel up)", "Увеличить (колесо вверх)"))
-        self.reset_zoom_button.setToolTip(tr("Reset zoom to 100%", "Сбросить масштаб до 100%"))
+        self.actual_size_button.setToolTip(tr("Zoom to 100%", "Масштаб 100%"))
 
 
 class EdgeZone(QWidget):
