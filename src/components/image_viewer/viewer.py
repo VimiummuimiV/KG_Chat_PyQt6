@@ -3,7 +3,7 @@
 from typing import Callable, Optional
 
 from PyQt6.QtCore import QPoint, QPointF, Qt, QTimer
-from PyQt6.QtGui import QCursor, QPainter
+from PyQt6.QtGui import QColor, QCursor, QPainter
 from PyQt6.QtWidgets import QApplication, QWidget
 
 from components.help_panel import HelpPanel
@@ -63,6 +63,7 @@ _EMOTICON_MIN_HEIGHT = 250
 _EMOTICON_MAX_HEIGHT = 650
 _NEIGHBOR_PRIORITY = 1
 _THUMBNAIL_PRIORITY = 0
+_HIT_TEST_FILL = QColor(0, 0, 0, 1)  # on Windows a fully transparent pixel of a translucent window lets the mouse through
 _NAVIGATION_KEYS = {
     Qt.Key.Key_H: -1,
     Qt.Key.Key_Left: -1,
@@ -164,9 +165,10 @@ class ImageHoverView(QWidget):
 
     def paintEvent(self, event):
         """Paint the current image, and the outgoing one while a transition runs"""
+        painter = QPainter(self)
+        painter.fillRect(self.rect(), _HIT_TEST_FILL)
         if not self._layer:
             return
-        painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
         if self._outgoing and self._transition.running:
