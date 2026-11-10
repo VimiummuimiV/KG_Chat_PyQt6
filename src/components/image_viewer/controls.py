@@ -1,12 +1,16 @@
-"""Controls over the image: close and zoom buttons (top right) and the navigation strips at the screen edges."""
+"""Controls over the image: close button, zoom buttons and zoom slider (top right) and the navigation strips at the screen edges."""
 
+import math
 from pathlib import Path
+from typing import Optional
 
 from PyQt6.QtCore import pyqtSignal, QPoint, QPropertyAnimation, QRect, QSize, Qt
-from PyQt6.QtWidgets import QFrame, QGraphicsOpacityEffect, QHBoxLayout, QLabel, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QFrame, QGraphicsOpacityEffect, QHBoxLayout, QLabel, QSlider, QVBoxLayout, QWidget
 
-from components.button import create_icon_button, render_svg_icon
+from components.button import create_icon_button, render_svg_icon, set_button_icon
+from components.image_viewer.layer import ImageLayer, MAX_SCALE, MIN_SCALE
 from components.image_viewer.overlay import PANEL_MARGIN, PANEL_SPACING, PANEL_STYLES, panel_stylesheet
+from helpers.fonts.fonts import FontType, get_font
 from helpers.translate import tr
 
 
@@ -16,6 +20,12 @@ _EDGE_ZONE_HOT_RATIO = 0.2  # share of the viewport width, counted from each edg
 _EDGE_ZONE_ICON_SIZE = 36
 _EDGE_ZONE_FADE_MS = 150
 _EDGE_ZONE_ICONS = {True: "line/arrow-left-s-line.svg", False: "line/arrow-right-s-line.svg"}
+_ACTUAL_SIZE_ICON = "line/aspect-ratio-line.svg"
+_FIT_ICON = "line/fullscreen-line.svg"
+_ZOOM_SLIDER_WIDTH = 140
+_ZOOM_SLIDER_STEPS = 200  # positions across MIN_SCALE..MAX_SCALE, spaced logarithmically
+_PERCENT = 100
+_WIDEST_ZOOM_TEXT = f"{round(MAX_SCALE * _PERCENT)}%"
 
 
 class CloseButton(QFrame):
@@ -46,7 +56,7 @@ class CloseButton(QFrame):
 
 
 class ZoomButtons(QFrame):
-    """Translucent panel with zoom out, zoom in and actual-size buttons."""
+    """Translucent panel with zoom out, zoom in and actual-size / fit buttons."""
 
     zoom_pressed = pyqtSignal(int)  # -1 / +1; the viewer repeats it while the button stays down
     zoom_released = pyqtSignal()
@@ -56,7 +66,8 @@ class ZoomButtons(QFrame):
         self.setObjectName("zoomButtons")
         self._zoom_out_button = create_icon_button(icons_path, "line/zoom-out-line.svg", config=config)
         self._zoom_in_button = create_icon_button(icons_path, "line/zoom-in-line.svg", config=config)
-        self.actual_size_button = create_icon_button(icons_path, "line/aspect-ratio-line.svg", config=config)
+        self.actual_size_button = create_icon_button(icons_path, _ACTUAL_SIZE_ICON, config=config)
+        self._is_actual_size = False
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(PANEL_MARGIN, PANEL_MARGIN, PANEL_MARGIN, PANEL_MARGIN)
@@ -75,16 +86,86 @@ class ZoomButtons(QFrame):
         """Restyle the panel for the theme."""
         self.setStyleSheet(panel_stylesheet("zoomButtons", is_dark))
 
-    def set_limits(self, can_zoom_out: bool, can_zoom_in: bool):
-        """Enable each button only while its direction still has room."""
-        self._zoom_out_button.setEnabled(can_zoom_out)
-        self._zoom_in_button.setEnabled(can_zoom_in)
+    def set_layer(self, layer: Optional[ImageLayer]):
+        """Enable each button only while it has something to do; the last one flips between 100% and fit."""
+        has_layer = layer is not None
+        self._zoom_out_button.setEnabled(has_layer and layer.scale > MIN_SCALE)
+        self._zoom_in_button.setEnabled(has_layer and layer.scale < MAX_SCALE)
+        self.actual_size_button.setEnabled(has_layer)
+        is_actual_size = has_layer and layer.is_actual_size
+        if is_actual_size != self._is_actual_size:
+            self._is_actual_size = is_actual_size
+            set_button_icon(self.actual_size_button, _FIT_ICON if is_actual_size else _ACTUAL_SIZE_ICON)
+            self._refresh_actual_size_tooltip()
 
     def refresh_tooltips(self):
         """Re-translate the tooltips for the current interface language."""
-        self._zoom_out_button.setToolTip(tr("Zoom out (wheel down)", "Уменьшить (колесо вниз)"))
-        self._zoom_in_button.setToolTip(tr("Zoom in (wheel up)", "Увеличить (колесо вверх)"))
-        self.actual_size_button.setToolTip(tr("Zoom to 100%", "Масштаб 100%"))
+        self._zoom_out_button.setToolTip(tr("Zoom out (wheel down / -)", "Уменьшить (колесо вниз / -)"))
+        self._zoom_in_button.setToolTip(tr("Zoom in (wheel up / +)", "Увеличить (колесо вверх / +)"))
+        self._refresh_actual_size_tooltip()
+
+    def _refresh_actual_size_tooltip(self):
+        self.actual_size_button.setToolTip(
+            tr("Fit to screen (0)", "По размеру экрана (0)") if self._is_actual_size
+            else tr("Zoom to 100% (1)", "Масштаб 100% (1)")
+        )
+
+
+def _position_from_scale(scale: float) -> int:
+    return round(math.log(scale / MIN_SCALE) / math.log(MAX_SCALE / MIN_SCALE) * _ZOOM_SLIDER_STEPS)
+
+
+def _scale_from_position(position: int) -> float:
+    return MIN_SCALE * (MAX_SCALE / MIN_SCALE) ** (position / _ZOOM_SLIDER_STEPS)
+
+
+class ZoomSlider(QFrame):
+    """Translucent panel with a slider over the whole zoom range and the current zoom in percent."""
+
+    scale_requested = pyqtSignal(float)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setObjectName("zoomSlider")
+        self._slider = QSlider(Qt.Orientation.Horizontal)
+        self._slider.setRange(0, _ZOOM_SLIDER_STEPS)
+        self._slider.setFixedWidth(_ZOOM_SLIDER_WIDTH)
+        self._slider.setFocusPolicy(Qt.FocusPolicy.NoFocus)  # keys stay with the viewer
+        self._slider.valueChanged.connect(lambda position: self.scale_requested.emit(_scale_from_position(position)))
+        self._value_label = QLabel()
+        self._value_label.setFont(get_font(FontType.UI))
+        self._value_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._value_label.setFixedWidth(self._value_label.fontMetrics().horizontalAdvance(_WIDEST_ZOOM_TEXT))
+
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(PANEL_MARGIN, PANEL_MARGIN, PANEL_MARGIN, PANEL_MARGIN)
+        layout.setSpacing(PANEL_SPACING)
+        layout.addWidget(self._slider)
+        layout.addWidget(self._value_label)
+        self.set_layer(None)
+        self.adjustSize()
+        self.refresh_tooltip()
+
+    def apply_theme(self, is_dark: bool):
+        """Restyle the panel for the theme."""
+        self.setStyleSheet(panel_stylesheet("zoomSlider", is_dark))
+
+    def set_layer(self, layer: Optional[ImageLayer]):
+        """Show the zoom of the layer; the slider is disabled while there is no image."""
+        self._slider.setEnabled(layer is not None)
+        if layer is None:
+            self._value_label.clear()
+            return
+        self._value_label.setText(f"{round(layer.scale * _PERCENT)}%")
+        if self._slider.isSliderDown():  # the drag itself is the source of the value
+            return
+        self._slider.blockSignals(True)
+        self._slider.setValue(_position_from_scale(layer.scale))
+        self._slider.blockSignals(False)
+
+    def refresh_tooltip(self):
+        """Re-translate the tooltip for the current interface language."""
+        self.setToolTip(tr("Zoom", "Масштаб"))
 
 
 class EdgeZone(QWidget):

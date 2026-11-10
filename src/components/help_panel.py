@@ -182,6 +182,8 @@ _IMAGE_KB = [
     ("P",               "Start / stop slideshow", "Запустить / остановить слайдшоу"),
     ("R",               "Reply to the message with the image", "Ответить на сообщение с изображением"),
     ("G",               "Go to the message with the image", "Перейти к сообщению с изображением"),
+    ("+ / -",           "Zoom in / out (hold to repeat)", "Увеличить / уменьшить (удерживать для повтора)"),
+    ("0  /  1",         "Fit to screen  /  actual size (100%)", "По размеру экрана  /  реальный размер (100%)"),
     ("Enter / Esc",     "Reply field: send / close it", "Поле ответа: отправить / закрыть"),
     ("Esc / Space / Q", "Close image viewer", "Закрыть просмотр изображения"),
 ]
@@ -191,7 +193,8 @@ _IMAGE_MOUSE = [
     ("Click reply / go-to buttons", "Клик по кнопкам ответа / перехода", "Close viewer; reply to the message or scroll to it", "Закрыть просмотр; ответить на сообщение или перейти к нему"),
     ("Click thumbnail",    "Клик по миниатюре",           "Go to that image", "Перейти к этому изображению"),
     ("Screen edge",        "Край экрана",                 "Side strips appear: click for the previous / next image", "Появляются боковые полосы: клик — предыдущее / следующее изображение"),
-    ("Click zoom buttons", "Клик по кнопкам масштаба",    "Zoom out / in", "Уменьшить / увеличить"),
+    ("Click zoom buttons", "Клик по кнопкам масштаба",    "Zoom out / in; the last one toggles 100% and fit to screen", "Уменьшить / увеличить; последняя переключает 100% и по размеру экрана"),
+    ("Zoom slider",        "Ползунок масштаба",           "Drag to zoom (can be hidden in Settings)", "Тянуть для изменения масштаба (скрывается в настройках)"),
     ("Click day buttons",  "Клик по кнопкам дня",         "Chatlog only: previous / next day", "Только чатлог: предыдущий / следующий день"),
     ("Click close button", "Клик по кнопке закрытия",     "Close image viewer", "Закрыть просмотр изображения"),
     ("Left drag",          "Перетаскивание (ЛКМ)",        "Pan / move image", "Переместить изображение"),

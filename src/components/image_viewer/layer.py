@@ -8,6 +8,9 @@ from PyQt6.QtWidgets import QApplication
 
 
 _FIT_RATIO = 0.95
+MIN_SCALE = 0.1
+MAX_SCALE = 10.0
+_ACTUAL_SIZE_TOLERANCE = 0.005
 INSTANT_MODE = "instant"
 _DRIFT_SHIFT = 0.25
 _ZOOM_AMOUNT = 0.15
@@ -141,6 +144,10 @@ class ImageLayer:
         pixmap = QPixmap()
         pixmap.loadFromData(data)
         return None if pixmap.isNull() else cls(pixmap=pixmap)
+
+    @property
+    def is_actual_size(self) -> bool:
+        return abs(self.scale - 1.0) < _ACTUAL_SIZE_TOLERANCE
 
     def _frame(self) -> Optional[QPixmap]:
         return self._movie.currentPixmap() if self._movie else self._pixmap

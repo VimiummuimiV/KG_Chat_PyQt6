@@ -9,6 +9,7 @@ TRANSITION_MS_RANGE = (100, 1500)
 DEFAULT_SLIDESHOW_SECONDS = 3
 SLIDESHOW_SECONDS_RANGE = (1, 60)
 _DEFAULT_SHOW_THUMBNAILS = True
+_DEFAULT_SHOW_ZOOM_SLIDER = True
 REPLY_MODE_INLINE = "inline"  # write the reply in a field inside the viewer
 REPLY_MODE_CLOSE = "close"  # close the viewer and write the reply in the chat input
 _REPLY_MODES = (REPLY_MODE_INLINE, REPLY_MODE_CLOSE)
@@ -23,6 +24,11 @@ def _read_bounded_int(config, key: str, default: int, bounds: tuple[int, int]) -
         return max(bounds[0], min(bounds[1], int(value)))
     except (TypeError, ValueError):
         return default
+
+
+def _read_flag(config, key: str, default: bool) -> bool:
+    value = config.get("image_viewer", key) if config else None
+    return default if value is None else bool(value)
 
 
 def transition_mode(config) -> str:
@@ -48,5 +54,8 @@ def reply_mode(config) -> str:
 
 
 def show_thumbnails(config) -> bool:
-    value = config.get("image_viewer", "show_thumbnails") if config else None
-    return _DEFAULT_SHOW_THUMBNAILS if value is None else bool(value)
+    return _read_flag(config, "show_thumbnails", _DEFAULT_SHOW_THUMBNAILS)
+
+
+def show_zoom_slider(config) -> bool:
+    return _read_flag(config, "show_zoom_slider", _DEFAULT_SHOW_ZOOM_SLIDER)
