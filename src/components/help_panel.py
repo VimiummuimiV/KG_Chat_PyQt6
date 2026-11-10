@@ -190,6 +190,8 @@ _IMAGE_MOUSE = [
     ("Click source badge", "Клик по плашке автора",       "Close viewer and scroll to the message with the image", "Закрыть просмотр и перейти к сообщению с изображением"),
     ("Click reply / go-to buttons", "Клик по кнопкам ответа / перехода", "Close viewer; reply to the message or scroll to it", "Закрыть просмотр; ответить на сообщение или перейти к нему"),
     ("Click thumbnail",    "Клик по миниатюре",           "Go to that image", "Перейти к этому изображению"),
+    ("Screen edge",        "Край экрана",                 "Side strips appear: click for the previous / next image", "Появляются боковые полосы: клик — предыдущее / следующее изображение"),
+    ("Click zoom buttons", "Клик по кнопкам масштаба",    "Zoom out / in", "Уменьшить / увеличить"),
     ("Click day buttons",  "Клик по кнопкам дня",         "Chatlog only: previous / next day", "Только чатлог: предыдущий / следующий день"),
     ("Click close button", "Клик по кнопке закрытия",     "Close image viewer", "Закрыть просмотр изображения"),
     ("Left drag",          "Перетаскивание (ЛКМ)",        "Pan / move image", "Переместить изображение"),

@@ -1,4 +1,4 @@
-"""Floating panels of the image viewer: source and position badges (top left), close button (top right), gallery bar and reply panel (bottom center), notice."""
+"""Floating panels of the image viewer: source and position badges (top left), gallery bar and reply panel (bottom center), notice."""
 
 from datetime import date
 from pathlib import Path
@@ -29,21 +29,21 @@ _UNAVAILABLE_ICON_SIZE = 24
 _GROUP_SPACING = 16
 _POSITION_SEPARATOR = "  ·  "
 _NOTICE_ICON_SIZE = 40
-_PANEL_MARGIN = 10
-_PANEL_SPACING = 8
+PANEL_MARGIN = 10
+PANEL_SPACING = 8
 _PANEL_RADIUS = 12
 _BADGE_AVATAR_SIZE = 28
 _BADGE_SVG_AVATAR_SIZE = 20
 _BADGE_MARGIN = 6
 _BADGE_SPACING = 8
-_PANEL_STYLES = {
+PANEL_STYLES = {
     True: {"background": "rgba(30, 30, 30, 215)", "text": "#dddddd", "muted": "#999999", "placeholder": "#3a3a3a"},
     False: {"background": "rgba(245, 245, 245, 225)", "text": "#333333", "muted": "#777777", "placeholder": "#cfcfcf"},
 }
 
 
-def _panel_stylesheet(object_name: str, is_dark: bool) -> str:
-    style = _PANEL_STYLES[is_dark]
+def panel_stylesheet(object_name: str, is_dark: bool) -> str:
+    style = PANEL_STYLES[is_dark]
     return (
         f"#{object_name} {{ background-color: {style['background']}; border-radius: {_PANEL_RADIUS}px; }}"
         f"#{object_name} QLabel {{ color: {style['text']}; background: transparent; }}"
@@ -101,7 +101,7 @@ class _ThumbnailStrip(QWidget):
 
     def set_theme(self, is_dark: bool):
         self._is_dark = is_dark
-        icon = render_svg_icon(self._icons_path / _UNAVAILABLE_ICON, _UNAVAILABLE_ICON_SIZE, _PANEL_STYLES[is_dark]["muted"])
+        icon = render_svg_icon(self._icons_path / _UNAVAILABLE_ICON, _UNAVAILABLE_ICON_SIZE, PANEL_STYLES[is_dark]["muted"])
         self._unavailable_icon = icon.pixmap(_UNAVAILABLE_ICON_SIZE, _UNAVAILABLE_ICON_SIZE)
         self.update()
 
@@ -123,7 +123,7 @@ class _ThumbnailStrip(QWidget):
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        placeholder = QColor(_PANEL_STYLES[self._is_dark]["placeholder"])
+        placeholder = QColor(PANEL_STYLES[self._is_dark]["placeholder"])
         accent = QColor(get_user_svg_color(True, self._is_dark))  # theme accent
         for slot, index in enumerate(self.indices):
             rect = self._slot_rect(slot)
@@ -202,7 +202,7 @@ class GalleryBar(QFrame):
         self._strip.clicked.connect(self.thumbnail_clicked)
 
         controls = QHBoxLayout()
-        controls.setSpacing(_PANEL_SPACING)
+        controls.setSpacing(PANEL_SPACING)
         controls.addWidget(self._reply_button)
         controls.addWidget(self._source_button)
         controls.addSpacing(_GROUP_SPACING)
@@ -213,8 +213,8 @@ class GalleryBar(QFrame):
         controls.addWidget(self._next_day_button)
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(_PANEL_MARGIN, _PANEL_MARGIN, _PANEL_MARGIN, _PANEL_MARGIN)
-        layout.setSpacing(_PANEL_SPACING)
+        layout.setContentsMargins(PANEL_MARGIN, PANEL_MARGIN, PANEL_MARGIN, PANEL_MARGIN)
+        layout.setSpacing(PANEL_SPACING)
         layout.addLayout(controls)
         layout.setAlignment(controls, Qt.AlignmentFlag.AlignHCenter)
         layout.addWidget(self._strip, 0, Qt.AlignmentFlag.AlignHCenter)
@@ -222,7 +222,7 @@ class GalleryBar(QFrame):
         self._refresh_tooltips()
 
     def apply_theme(self, is_dark: bool):
-        self.setStyleSheet(_panel_stylesheet("galleryBar", is_dark))
+        self.setStyleSheet(panel_stylesheet("galleryBar", is_dark))
         self._strip.set_theme(is_dark)
 
     def set_message_actions(self, can_go_to_source: bool, can_reply: bool):
@@ -284,33 +284,6 @@ class GalleryBar(QFrame):
         )
 
 
-class CloseButton(QFrame):
-    """Translucent panel with the button that closes the viewer."""
-
-    clicked = pyqtSignal()
-
-    def __init__(self, icons_path: Path, config=None, parent=None):
-        super().__init__(parent)
-        self.setObjectName("closeButton")
-        self._button = create_icon_button(icons_path, "line/close-large-line.svg", config=config)
-        self._button.setFocusPolicy(Qt.FocusPolicy.NoFocus)  # keys stay with the viewer
-        self._button.clicked.connect(self.clicked)
-
-        layout = QHBoxLayout(self)
-        layout.setContentsMargins(_PANEL_MARGIN, _PANEL_MARGIN, _PANEL_MARGIN, _PANEL_MARGIN)
-        layout.addWidget(self._button)
-        self.adjustSize()
-        self.refresh_tooltip()
-
-    def apply_theme(self, is_dark: bool):
-        """Restyle the panel for the theme."""
-        self.setStyleSheet(_panel_stylesheet("closeButton", is_dark))
-
-    def refresh_tooltip(self):
-        """Re-translate the tooltip for the current interface language."""
-        self._button.setToolTip(tr("Close (Esc / Space / Q / RMB)", "Закрыть (Esc / Space / Q / ПКМ)"))
-
-
 class NoticeKind(NamedTuple):
     icon: str
     color: str
@@ -335,8 +308,8 @@ class Notice(QFrame):
         self._label = QLabel()
         self._label.setFont(get_font(FontType.UI))
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(_PANEL_MARGIN, _PANEL_MARGIN, _PANEL_MARGIN, _PANEL_MARGIN)
-        layout.setSpacing(_PANEL_SPACING)
+        layout.setContentsMargins(PANEL_MARGIN, PANEL_MARGIN, PANEL_MARGIN, PANEL_MARGIN)
+        layout.setSpacing(PANEL_SPACING)
         layout.addWidget(self._icon_label, 0, Qt.AlignmentFlag.AlignHCenter)
         layout.addWidget(self._label, 0, Qt.AlignmentFlag.AlignHCenter)
 
@@ -382,8 +355,8 @@ class SourceBadge(QFrame):
             self._avatar_label, cache.get_user_id(image.username), _BADGE_AVATAR_SIZE, _BADGE_SVG_AVATAR_SIZE,
             is_dark, self._icons_path,
         )
-        style = _PANEL_STYLES[is_dark]
-        self.setStyleSheet(_panel_stylesheet("sourceBadge", is_dark))
+        style = PANEL_STYLES[is_dark]
+        self.setStyleSheet(panel_stylesheet("sourceBadge", is_dark))
         self._username_label.setText(image.username)
         self._username_label.setStyleSheet(f"color: {cache.get_username_color(image.username, is_dark)};")
         self._time_label.setText(self._format_time(image))
@@ -422,7 +395,7 @@ class PositionBadge(QFrame):
 
     def show_position(self, index: int, count: int, day: Optional[date], is_dark: bool):
         """Fill the badge for the image at index of count; day is None outside chatlog days."""
-        self.setStyleSheet(_panel_stylesheet("positionBadge", is_dark))
+        self.setStyleSheet(panel_stylesheet("positionBadge", is_dark))
         text = f"{index + 1 if count else 0} / {count}"
         self._label.setText(f"{text}{_POSITION_SEPARATOR}{day:%Y-%m-%d}" if day else text)
         self.adjustSize()
@@ -440,12 +413,12 @@ class ReplyPanel(QFrame):
         self.input_row = InputRow(icons_path, config, parent=self)
         self.input_row.input_field.installEventFilter(self)
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(_PANEL_MARGIN, _PANEL_MARGIN, _PANEL_MARGIN, _PANEL_MARGIN)
+        layout.setContentsMargins(PANEL_MARGIN, PANEL_MARGIN, PANEL_MARGIN, PANEL_MARGIN)
         layout.addWidget(self.input_row)
 
     def open(self, text: str, has_emoticons: bool, is_dark: bool):
         """Show the panel with the text in the field and the cursor at its end."""
-        self.setStyleSheet(_panel_stylesheet("replyPanel", is_dark))
+        self.setStyleSheet(panel_stylesheet("replyPanel", is_dark))
         field = self.input_row.input_field
         if self._config:
             field.setStyleSheet(resolve_input_style(self._config, is_dark)[0])

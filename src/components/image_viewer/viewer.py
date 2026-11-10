@@ -7,6 +7,7 @@ from PyQt6.QtGui import QCursor, QPainter
 from PyQt6.QtWidgets import QApplication, QWidget
 
 from components.help_panel import HelpPanel
+from components.image_viewer.controls import CloseButton, EdgeZone, ZoomButtons
 from components.image_viewer.gallery import (
     DayState,
     extract_image_url,
@@ -25,7 +26,6 @@ from components.image_viewer.options import (
     transition_mode,
 )
 from components.image_viewer.overlay import (
-    CloseButton,
     GalleryBar,
     make_thumbnail,
     Notice,
@@ -48,6 +48,7 @@ _MIN_SCALE = 0.1
 _MAX_SCALE = 10.0
 _ZOOM_IN_FACTOR = 1.15
 _ZOOM_OUT_FACTOR = 0.87
+_ZOOM_BUTTON_FACTOR = 1.25
 _SCALE_DRAG_SENSITIVITY = 0.003
 _DRAG_PAN = "pan"
 _DRAG_SCALE = "scale"
@@ -141,6 +142,15 @@ class ImageHoverView(QWidget):
         self._close_button = CloseButton(icons_path, config, self)
         self._close_button.clicked.connect(self._hide_preview)
         self._close_button.hide()
+        self._zoom_buttons = ZoomButtons(icons_path, config, self)
+        self._zoom_hold = HoldRepeater(self._zoom_step, self)
+        self._zoom_buttons.zoom_pressed.connect(self._zoom_hold.press)
+        self._zoom_buttons.zoom_released.connect(self._zoom_hold.release)
+        self._zoom_buttons.hide()
+        self._edge_zones = (EdgeZone(icons_path, True, self), EdgeZone(icons_path, False, self))
+        for zone, step in zip(self._edge_zones, (-1, 1)):
+            zone.clicked.connect(lambda step=step: self._navigate(step))
+            zone.cursor_left.connect(self._update_edge_zones)
 
         self._drag_mode: Optional[str] = None
         self._last_mouse_pos: Optional[QPointF] = None
@@ -199,6 +209,9 @@ class ImageHoverView(QWidget):
         self._is_dark = is_dark
         self._gallery_bar.apply_theme(is_dark)
         self._close_button.apply_theme(is_dark)
+        self._zoom_buttons.apply_theme(is_dark)
+        for zone in self._edge_zones:
+            zone.apply_theme(is_dark)
         if self._gallery:
             self._update_overlays(self._current_image)
 
@@ -347,6 +360,7 @@ class ImageHoverView(QWidget):
         else:
             self._outgoing = previous
             self._transition.start(mode, self._direction, transition_duration_ms(self._config))
+        self._update_zoom_buttons()
         self._restart_slideshow_timer()
 
     def _release_layers(self):
@@ -355,6 +369,7 @@ class ImageHoverView(QWidget):
             self._layer.release()
             self._layer = None
             self.update()
+        self._update_zoom_buttons()
 
     def _release_outgoing(self):
         self._transition.stop()
@@ -383,6 +398,13 @@ class ImageHoverView(QWidget):
         self._close_button.refresh_tooltip()
         self._close_button.move(self.width() - self._close_button.width() - _OVERLAY_MARGIN, _OVERLAY_MARGIN)
         self._close_button.show()
+        self._zoom_buttons.refresh_tooltips()
+        self._zoom_buttons.move(self._close_button.x() - _OVERLAY_SPACING - self._zoom_buttons.width(), _OVERLAY_MARGIN)
+        self._zoom_buttons.show()
+        edge_zone_top = self._close_button.geometry().bottom() + _OVERLAY_SPACING
+        for zone in self._edge_zones:
+            zone.place(self.size(), edge_zone_top)
+        self._update_edge_zones()
         self._source_badge.setVisible(has_source)
         if has_source:
             self._source_badge.show_image(image, self._is_dark)
@@ -555,13 +577,39 @@ class ImageHoverView(QWidget):
                 self._loading_spinner.move(spinner_pos)
 
     def _apply_zoom(self, new_scale: float, pivot: QPointF):
-        """Apply zoom transformation around pivot point"""
-        if not self._layer or not (_MIN_SCALE <= new_scale <= _MAX_SCALE):
+        """Apply zoom transformation around pivot point, keeping the scale within its limits"""
+        if not self._layer:
             return
+        new_scale = max(_MIN_SCALE, min(new_scale, _MAX_SCALE))
         point_before = (pivot - self._layer.offset) / self._layer.scale
         self._layer.scale = new_scale
         self._layer.offset = pivot - point_before * new_scale
+        self._update_zoom_buttons()
         self.update()
+
+    def _viewport_center(self) -> QPointF:
+        """Center of the area the image is fitted into, above the gallery bar."""
+        return QPointF(self.width() / 2, (self.height() - self._reserved_bottom()) / 2)
+
+    def _zoom_step(self, step: int):
+        """Zoom in (+1) or out (-1) by one button step around the viewport center."""
+        if self._layer:
+            self._apply_zoom(self._layer.scale * _ZOOM_BUTTON_FACTOR ** step, self._viewport_center())
+
+    def _update_zoom_buttons(self):
+        layer = self._layer
+        can_zoom_out = layer is not None and layer.scale > _MIN_SCALE
+        can_zoom_in = layer is not None and layer.scale < _MAX_SCALE
+        self._zoom_buttons.set_limits(can_zoom_out, can_zoom_in)
+        if not (can_zoom_out and can_zoom_in):
+            self._zoom_hold.release()  # a button disabled under the cursor never reports its release
+
+    def _update_edge_zones(self):
+        """Reveal an edge zone while the cursor is in its hot area; keep both hidden with nothing to turn to."""
+        position = self.mapFromGlobal(QCursor.pos())
+        can_navigate = self._gallery is not None and len(self._gallery.images) > 1
+        for zone in self._edge_zones:
+            zone.set_active(can_navigate and zone.is_hot(position))
 
     def wheelEvent(self, event):
         """Handle mouse wheel for zoom"""
@@ -584,6 +632,7 @@ class ImageHoverView(QWidget):
 
     def mouseMoveEvent(self, event):
         """Handle mouse move for dragging or scaling"""
+        self._update_edge_zones()
         if not self._drag_mode or not self._layer:
             return
 
@@ -593,10 +642,7 @@ class ImageHoverView(QWidget):
             self._layer.offset += delta
             self.update()
         else:
-            new_scale = self._layer.scale * (1.0 - delta.y() * _SCALE_DRAG_SENSITIVITY)
-            new_scale = max(_MIN_SCALE, min(new_scale, _MAX_SCALE))
-            center = QPointF(self.width() / 2, self.height() / 2)
-            self._apply_zoom(new_scale, center)
+            self._apply_zoom(self._layer.scale * (1.0 - delta.y() * _SCALE_DRAG_SENSITIVITY), self._viewport_center())
 
         self._last_mouse_pos = event.position()
         event.accept()
@@ -647,13 +693,19 @@ class ImageHoverView(QWidget):
             self._day_hold.release()
         super().keyReleaseEvent(event)
 
+    def leaveEvent(self, event):
+        self._update_edge_zones()
+        super().leaveEvent(event)
+
     def focusOutEvent(self, event):
         self._day_hold.release()  # the key release would go to another window
+        self._zoom_hold.release()
         super().focusOutEvent(event)
 
     def _hide_preview(self):
         """Hide preview and reset state"""
         self._day_hold.release()
+        self._zoom_hold.release()
         self._position_timer.stop()
         self._slideshow_timer.stop()
         self._stop_spinner()
@@ -679,6 +731,7 @@ class ImageHoverView(QWidget):
             except (RuntimeError, TypeError):
                 pass  # the chatlog is already gone
         self._gallery = self._target_pos = None
+        self._update_edge_zones()
         self._end_drag()
         self.hide()
         release_memory_soon()
