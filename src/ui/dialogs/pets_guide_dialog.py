@@ -49,10 +49,10 @@ _PET_CARDS = (
     ("dog", ("Dog", "Собака"), ("guard against foxes", "сторож от лис"), (
         ("eats", ("Eats", "Ест"), ("nothing", "ничего")),
         ("fears", ("Afraid of", "Боится"), ("nobody", "никого")),
-        ("does", ("Does", "Делает"), ("notices a fox only in front of it, then runs at it and barks in bursts. "
+        ("does", ("Does", "Делает"), ("sees a fox in front of it from afar and hears one sneaking up from behind when it is near (a pack of foxes is heard from farther), then runs at it and barks in bursts. "
                                       "On catching it, the dog bites and the fox drops its prey and flees. "
                                       "Otherwise lies, stands or walks, and runs only after a fox",
-                                      "замечает лису, только если она перед ней, затем бежит к ней и лает сериями. "
+                                      "видит лису перед собой издалека, а подкрадывающуюся сзади слышит вблизи (стаю лис слышно дальше), затем бежит к ней и лает сериями. "
                                       "Укушенная лиса бросает добычу и убегает. "
                                       "В остальное время лежит, стоит или ходит, а бегает только за лисой")),
     )),

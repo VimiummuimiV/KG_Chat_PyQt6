@@ -83,9 +83,9 @@ If the dog catches and bites the fox, the fox does the same.
 
 A dog does not eat or hunt anything: it is a **guard**, and its only role in the food chain is to chase foxes away. The rest of the time, it behaves like an ordinary pet (all random states, including `lie`).
 
-**Detection.** A dog notices a fox only if it is within its field of view:
-- Within 220 art px.
-- **On the side the dog is facing.** It does not notice a fox behind it until it turns around (which happens when its state changes and at the edges).
+**Detection.** A dog notices a fox in one of two ways:
+- **Sight:** within 220 art px, on the side the dog is facing.
+- **Hearing:** within 60 art px on either side, so a fox sneaking up from behind is heard. Every extra fox on the same side of the dog adds 60 art px: the more foxes sneak in from one corner, the louder the rustle and the farther it is heard.
 - The dog is not in an "important" state. Whether it is walking, standing, or lying down does not matter: a lying dog gets up.
 
 The reaction takes 100–700 ms. The fox can be in any state: hunting, roaming, or lying down.
@@ -110,7 +110,7 @@ Neutral pets. They only use random states and react to the mouse. They are not p
 | Chickens + foxes           | Foxes visit, stalk, and carry off chickens; carried-off chickens are replaced                           |
 | Chickens + foxes + dogs    | Dogs chase foxes away while barking; when they catch one, they bite it and the fox releases the chicken |
 | Foxes only (no chickens)   | Foxes visit, roam for 12–30 s, may lie down, leave through any edge, and then visit again               |
-| Foxes + dogs (no chickens) | Foxes roam but do not lie down; if a dog is facing one, it chases the fox while barking and bites it    |
+| Foxes + dogs (no chickens) | Foxes roam but do not lie down; a dog that sees or hears one chases it while barking and bites it    |
 | Dogs only                  | No foxes and no barking. Dogs just roam, play, and lie down                                             |
 | Dogs + chickens (no foxes) | Dogs do not eat or bother chickens; they walk nearby                                                    |
 | Rats, snails, Clippy       | They are independent and do not affect or interact with anyone, except that rats eat eggs               |

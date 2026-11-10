@@ -13,6 +13,7 @@ if TYPE_CHECKING:  # pet.py imports this module
 
 _PREY_NOTICE_ART_PIXELS = 70  # how far prey sees a raider coming
 _GUARD_NOTICE_ART_PIXELS = 220
+_GUARD_HEARING_ART_PIXELS = 60  # how near a lone raider is heard from any side; every further raider on the same side adds this much
 _THREAT_REACTION_MS = (100, 700)
 _FLIGHT_MS = (2000, 3500)
 _CHASE_LIMIT_MS = 10000
@@ -65,15 +66,26 @@ class DefenseBehavior:
         return any(preys_on(other.kind, self.kind) and low <= other.center_x <= high for other in others)
 
     def _raider_in_sight(self, others: list["Pet"]) -> "Pet | None":
-        """Return the nearest predator this pet reacts to and sees: a hunter after its kind or one its kind guards against, on the side a guard looks at."""
+        """Return the nearest predator this pet reacts to: a hunter after its kind, or one its kind guards against that a guard sees ahead or hears close by."""
         guard_reach = _GUARD_NOTICE_ART_PIXELS * self.pixel_size
         prey_reach = _PREY_NOTICE_ART_PIXELS * self.pixel_size
         seen = [
             other for other in others
-            if (guards_against(self.kind, other.kind) and self.distance_to(other) <= guard_reach and self.is_facing(other))
+            if (guards_against(self.kind, other.kind) and self._guard_notices(other, guard_reach, others))
             or (other.is_hunting_now and preys_on(other.kind, self.kind) and self.distance_to(other) <= prey_reach)
         ]
         return min(seen, key=self.distance_to, default=None)
+
+    def _guard_notices(self, raider: "Pet", sight_reach: float, others: list["Pet"]) -> bool:
+        """Whether a guard sees the raider within its reach on the side it looks at, or hears it near on either side; a pack on one side is heard from farther."""
+        distance = self.distance_to(raider)
+        if distance <= sight_reach and self.is_facing(raider):
+            return True
+        pack = sum(
+            guards_against(self.kind, other.kind) and (other.center_x > self.center_x) == (raider.center_x > self.center_x)
+            for other in others
+        )
+        return distance <= _GUARD_HEARING_ART_PIXELS * self.pixel_size * pack
 
     def _start_chase(self, raider: "Pet") -> None:
         self._meal = self._noticed = self._watching = None
