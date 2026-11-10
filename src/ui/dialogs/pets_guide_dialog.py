@@ -11,8 +11,7 @@ from helpers.translate import tr
 _SCREEN_SHARE = 0.9
 _MAX_WIDTH = 1500
 _COLUMNS = 3
-_TITLE_ICON_SIZE = 32
-_CHAIN_ICON_SIZE = 64
+_ICON_SIZE = 32
 
 # markdown-like palette: headings, text, muted text, links, green and red accents, code spans
 _COLORS = {
@@ -166,7 +165,7 @@ class PetsGuideDialog(QDialog):
         layout.setSpacing(8)
         header = QHBoxLayout()
         if species in self._icons:
-            header.addWidget(self._icon(species, _TITLE_ICON_SIZE))
+            header.addWidget(self._icon(species, _ICON_SIZE))
         title_label = QLabel(title)
         title_label.setObjectName("title")
         header.addWidget(title_label, 1)
@@ -210,7 +209,7 @@ class PetsGuideDialog(QDialog):
             row.setSpacing(10)
             for item in chain:
                 if isinstance(item, str):
-                    row.addWidget(self._icon(item, _CHAIN_ICON_SIZE))
+                    row.addWidget(self._icon(item, _ICON_SIZE))
                 else:
                     word = QLabel(tr(*item))
                     word.setStyleSheet(f"font-size: 16px; color: {self._colors['accent']};")
