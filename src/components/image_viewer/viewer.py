@@ -147,6 +147,7 @@ class ImageHoverView(QWidget):
         self._zoom_hold = HoldRepeater(self._zoom_step, self)
         self._zoom_buttons.zoom_pressed.connect(self._zoom_hold.press)
         self._zoom_buttons.zoom_released.connect(self._zoom_hold.release)
+        self._zoom_buttons.reset_zoom_button.clicked.connect(self._reset_zoom)
         self._zoom_buttons.hide()
         self._edge_zones = (EdgeZone(icons_path, True, self), EdgeZone(icons_path, False, self))
         for zone, step in zip(self._edge_zones, (-1, 1)):
@@ -597,6 +598,13 @@ class ImageHoverView(QWidget):
         """Zoom in (+1) or out (-1) by one button step around the viewport center."""
         if self._layer:
             self._apply_zoom(self._layer.scale * _ZOOM_BUTTON_FACTOR ** step, self._viewport_center())
+
+    def _reset_zoom(self):
+        """Restore the current image to its original size and center it."""
+        if self._layer:
+            self._layer.reset_zoom(self.size(), self._reserved_bottom())
+            self._update_zoom_buttons()
+            self.update()
 
     def _update_zoom_buttons(self):
         layer = self._layer

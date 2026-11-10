@@ -154,10 +154,20 @@ class ImageLayer:
             available_height * _FIT_RATIO / frame.height(),
             1.0,
         )
+        self._center(viewport, frame, available_height)
+
+    def _center(self, viewport: QSize, frame: QPixmap, available_height: int):
         self.offset = QPointF(
             (viewport.width() - frame.width() * self.scale) / 2,
             (available_height - frame.height() * self.scale) / 2,
         )
+
+    def reset_zoom(self, viewport: QSize, reserved_bottom: int = 0):
+        """Restore the image's original size and center it above the reserved bottom strip."""
+        frame = self._frame()
+        available_height = viewport.height() - reserved_bottom
+        self.scale = 1.0
+        self._center(viewport, frame, available_height)
 
     def paint(self, painter: QPainter, viewport: QSize, pose: _Pose = _IDENTITY_POSE):
         frame = self._frame()
