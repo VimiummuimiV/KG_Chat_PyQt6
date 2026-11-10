@@ -19,6 +19,7 @@ RUN_STATE = "run"
 WALK_STATE = "walk"
 BARK_STATE = "bark"
 LIE_STATE = "lie"
+LAY_STATE = "lay"
 PETS_CATEGORY = "pets"  # folders of the animals that roam the line
 FOOD_CATEGORY = "food"  # folders of what they eat: not pets
 _RESOURCE_FOLDER = "ecosystem"
@@ -26,7 +27,7 @@ _ANIMATIONS_FOLDER = "animations"
 _ICONS_FOLDER = "icons"
 _SPRITE_SUFFIX = "_8fps.gif"
 # Longest names first so "walk_fast" is not read as "walk".
-_STATE_NAMES = ("walk_fast", "with_ball", "walk", "run", "idle", "swipe", "lie", "stand", "bark", EAT_STATE)
+_STATE_NAMES = ("walk_fast", "with_ball", "walk", "run", "idle", "swipe", "lie", "lay", "stand", "bark", EAT_STATE)
 _PIXEL_GRID_FILE = "pixel_grid.json"
 
 

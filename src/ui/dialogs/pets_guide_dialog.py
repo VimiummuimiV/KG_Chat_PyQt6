@@ -33,9 +33,9 @@ _PET_CARDS = (
     ("chicken", ("Chicken", "Курица"), ("herbivore, prey of foxes, lays eggs", "травоядная, добыча лисы, несёт яйца"), (
         ("eats", ("Eats", "Ест"), ("grass", "траву")),
         ("fears", ("Afraid of", "Боится"), ("a hunting fox", "охотящейся лисы")),
-        ("does", ("Does", "Делает"), ("pecks a clump of grass, which is enough for an egg, and lays eggs while walking; "
+        ("does", ("Does", "Делает"), ("pecks a clump of grass, which is enough for an egg, and lays eggs while walking: it sits down, lays and walks on; "
                                       "never runs for food past a fox",
-                                      "клюёт пучок травы, которого хватает на яйцо, и несёт яйца на ходу; "
+                                      "клюёт пучок травы, которого хватает на яйцо, и несёт яйца на ходу: присядет, снесёт и пойдёт дальше; "
                                       "не побежит за кормом мимо лисы")),
     )),
     ("fox", ("Fox", "Лиса"), ("wild predator from around the corner", "дикий хищник из-за угла"), (

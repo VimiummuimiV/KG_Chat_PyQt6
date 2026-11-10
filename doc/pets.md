@@ -39,6 +39,7 @@ Grass and eggs are not pets; they are food on the strip.
 
 - Pecks at grass by running up to the nearest clump (reaction delay: 150–1500 ms). One clump = 4 pecks = one egg.
 - Lays eggs while walking: once every 20–50 s of walking, if it has enough food for at least one egg (it starts with enough for one).
+- To lay, the hen stops and sits down (`lay` animation, 1.6 s, played once). The egg leaves her tail at 40% of the animation, then she stands up and walks on in the same direction. While she runs for food or panics, laying waits; a scare or a fox interrupts it, and then no food is spent.
 - If a fox is hunting and comes within 70 art px, the chicken runs away from it for 2–3.5 s.
 - It will not run for food past a fox: if a fox is in the way, the chicken gives up on the food.
 - If another pet is clearly going to reach the food first (by at least 0.5 s), the chicken stops and watches.
@@ -48,7 +49,7 @@ Grass and eggs are not pets; they are food on the strip.
 
 **Grass** grows only while there is at least one chicken. There are no more than 2 clumps per chicken. A new clump appears every 10–25 s (the more chickens, the more frequently). Eaten clumps disappear; when the last chicken disappears, all the grass is removed.
 
-**Eggs** fall from a chicken's tail and roll according to the shape of the strip. They break on a hard landing (being thrown or falling from a height of about 75 px). An intact egg remains for up to 90 s, then cracks on its own once it is almost motionless. A broken egg remains for 8 s (time spent being eaten does not count), then evaporates. Only pets with the `eat` animation—that is, rats—can eat eggs, and only when they are broken. If there are no rats, eggs simply crack and evaporate.
+**Eggs** fall from a chicken's tail (drawn behind the pets, so a laid egg lies behind its hen) and roll according to the shape of the strip. They break on a hard landing (being thrown or falling from a height of about 75 px). An intact egg remains for up to 90 s, then cracks on its own once it is almost motionless. A broken egg remains for 8 s (time spent being eaten does not count), then evaporates. Only pets with the `eat` animation—that is, rats—can eat eggs, and only when they are broken. If there are no rats, eggs simply crack and evaporate.
 
 ## 5. Rat
 

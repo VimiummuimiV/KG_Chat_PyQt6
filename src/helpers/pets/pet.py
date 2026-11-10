@@ -8,7 +8,7 @@ from typing import Iterable
 from PyQt6.QtCore import QPoint, QRect
 
 from helpers.pets.animation import load_animation
-from helpers.pets.catalog import BARK_STATE, EAT_STATE, LIE_STATE, RUN_STATE, WALK_STATE, PetKind
+from helpers.pets.catalog import BARK_STATE, EAT_STATE, LAY_STATE, LIE_STATE, RUN_STATE, WALK_STATE, PetKind
 from helpers.pets.defense import DefenseBehavior
 from helpers.pets.egg import Egg
 from helpers.pets.food import BITES_PER_FOOD, Food
@@ -37,6 +37,7 @@ _EFFECT_STATES = frozenset({BARK_STATE})  # their canvas is widened on the facin
 _SCARE_MS = (1200, 2200)
 _LAYING_SPECIES = frozenset({"chicken"})
 _EGG_INTERVAL_MS = (20000, 50000)  # walking time between two eggs
+_LAY_PHASE = 0.4  # share of the laying animation after which the egg leaves the hen
 _BITES_PER_EGG = BITES_PER_FOOD  # a hen lays an egg for each tuft of grass eaten
 _BITE_LIMIT = 2 * _BITES_PER_EGG  # the most bites a pet keeps in stock
 _EGG_DROP_ART_PIXELS = 4  # height the egg leaves the pet from, in art pixels
@@ -152,7 +153,7 @@ class Pet(HuntingBehavior, DefenseBehavior, Throwable):
 
     def look_for_food(self, foods: Iterable[Food], rivals: Iterable["Pet"], step_ms: int) -> None:
         """Notice food after a random moment and run for it, unless a rival clearly gets there first; then watch the race."""
-        if self._is_scared or self.is_held or self.is_flying or (self._meal and self._meal.is_eating):
+        if self._is_scared or self.is_held or self.is_flying or self._state == LAY_STATE or (self._meal and self._meal.is_eating):
             return
         rivals = [rival for rival in rivals if rival is not self]
         if self._meal and self.is_path_blocked(self._meal.food.center_x, rivals):
@@ -270,10 +271,14 @@ class Pet(HuntingBehavior, DefenseBehavior, Throwable):
             self.x += direction * self._walk_speed * gait_factor * self._speed_boost * moved_ms / 1000
             if self._lays_eggs:
                 self._count_down_egg(step_ms)
+        self._lay_egg(before_ms)
         if self._meal:
             self._follow_meal(step_ms)
         elif self._state_elapsed_ms >= self._state_limit_ms:
-            self._choose_state()
+            if self._state == LAY_STATE:
+                self._resume_walk()
+            else:
+                self._choose_state()
 
     def _follow_meal(self, step_ms: int) -> None:
         """Run to the food of the meal, then eat it; give up when another pet or the evaporation wins."""
@@ -365,12 +370,23 @@ class Pet(HuntingBehavior, DefenseBehavior, Throwable):
         return edge + reach - right if from_left else edge - reach - left
 
     def _count_down_egg(self, step_ms: int) -> None:
+        """Sit down to lay once the countdown ends, the hen is fed and nothing else occupies her."""
         self._egg_countdown_ms -= step_ms
-        if self._egg_countdown_ms > 0 or self._fed_bites < _BITES_PER_EGG:
+        if self._egg_countdown_ms > 0 or self._fed_bites < _BITES_PER_EGG or self._meal or self._is_scared:
             return
-        self._fed_bites -= _BITES_PER_EGG
-        self._egg_due = True
         self._egg_countdown_ms = random.randint(*_EGG_INTERVAL_MS)
+        self._start_state(LAY_STATE, self._load(LAY_STATE).cycle_ms)
+
+    def _lay_egg(self, before_ms: int) -> None:
+        """Release the egg at the moment of the laying animation when the hen is at its deepest sit."""
+        laying_ms = _LAY_PHASE * self._state_limit_ms
+        if self._state == LAY_STATE and before_ms < laying_ms <= self._state_elapsed_ms:
+            self._fed_bites -= _BITES_PER_EGG
+            self._egg_due = True
+
+    def _resume_walk(self) -> None:
+        """Walk on in the same direction after laying."""
+        self._start_state(WALK_STATE, random.randint(*_STATE_PLAN[WALK_STATE][1:]))
 
     def _ground_ms(self, elapsed_ms: int) -> float:
         """Return the time the feet have worked: even, or bunched into steps."""

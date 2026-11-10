@@ -132,9 +132,9 @@ class PetOverlay(QWidget):
             self._grabbed = None
 
     def _bodies(self) -> list[Throwable]:
-        """Everything drawn on the line: grass first, eggs last so they lie over the pets and are picked first."""
+        """Everything drawn on the line, back to front: grass, eggs, pets, so a laid egg lies behind its hen."""
         visible_pets = (pet for pet in self._pets if pet.is_visible)
-        return [*self._meadow.grass, *visible_pets, *self._eggs]
+        return [*self._meadow.grass, *self._eggs, *visible_pets]
 
     def _device_size(self) -> tuple[int, int]:
         ratio = self.devicePixelRatioF()
