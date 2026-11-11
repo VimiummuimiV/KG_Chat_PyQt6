@@ -83,6 +83,11 @@ class ImageHoverView(QWidget):
 
     _active_viewer: Optional["ImageHoverView"] = None  # only one viewer is open at a time
 
+    @classmethod
+    def is_open(cls) -> bool:
+        """Whether a viewer is on screen; it then owns the keyboard and the mouse."""
+        return cls._active_viewer is not None and cls._active_viewer.isVisible()
+
     def __init__(self, parent=None, config=None):
         super().__init__(parent)
         self._config = config
@@ -814,7 +819,7 @@ class ImageHoverView(QWidget):
                 self._on_save_requested()
             event.accept()
         else:
-            super().keyPressEvent(event)
+            event.accept()  # unused keys must not reach the chat behind
 
     def keyReleaseEvent(self, event):
         if not event.isAutoRepeat():
@@ -822,7 +827,7 @@ class ImageHoverView(QWidget):
                 self._day_hold.release()
             elif event.key() in _ZOOM_KEYS:
                 self._zoom_hold.release()
-        super().keyReleaseEvent(event)
+        event.accept()
 
     def leaveEvent(self, event):
         self._update_edge_zones()

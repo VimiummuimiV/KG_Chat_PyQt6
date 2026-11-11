@@ -3,11 +3,16 @@
 from PyQt6.QtCore import QEvent, Qt, QTimer
 from PyQt6.QtWidgets import QApplication, QLineEdit, QMenu, QTextEdit
 
+from components.image_viewer.viewer import ImageHoverView
+
 
 class ChatHotkeysMixin:
     """ChatWindow: keyboard shortcuts and global event filter."""
 
     def eventFilter(self, obj, event):
+        if ImageHoverView.is_open():  # the viewer keeps every key and mouse action for itself
+            return super().eventFilter(obj, event)
+
         # Ctrl+Space hold-to-talk. Must live here (not only keyPressEvent):
         # the focused QLineEdit would otherwise swallow Space.
         if event.type() == QEvent.Type.KeyPress and not event.isAutoRepeat():
