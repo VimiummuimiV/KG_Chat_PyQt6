@@ -37,7 +37,9 @@ from helpers.fonts.fonts import FontType, get_font
 from helpers.scroll.scroll import scroll
 from helpers.text.emoticons import EmoticonManager
 from helpers.text.me_action import format_me_action
+from helpers.text.message_format import format_message_line
 from helpers.translate import tr
+from ui.messages.message_range_selector import MessageRangeSelector
 from ui.messages.message_renderer import MessageRenderer
 from ui.messages.messages_separator import DateSeparator, NewMessagesSeparator
 from ui.notification.popup_manager import popup_manager
@@ -115,12 +117,13 @@ class _TextSelectorOverlay(QTextEdit):
 
     def __init__(self, text: str, font, row_rect: QRect, is_dark: bool, viewport,
                  reply_callback=None, paste_callback=None,
-                 username: str = "", timestamp=None):
+                 username: str = "", timestamp=None, reply_body: str = ""):
         super().__init__(viewport)
         self._reply_callback = reply_callback
         self._paste_callback = paste_callback
         self._username = username
         self._timestamp = timestamp
+        self._reply_body = reply_body  # what a reply quotes when nothing is selected; the shown text may carry a prefix
         self.setReadOnly(True)
         self.setPlainText(text)
         self.setFont(font)
@@ -155,20 +158,21 @@ class _TextSelectorOverlay(QTextEdit):
     def contextMenuEvent(self, event):
         self._show_context_menu(event.globalPos())
 
+    def _selection(self) -> str:
+        """The selected text with real line breaks (Qt returns paragraph separators for them)."""
+        return self.textCursor().selectedText().replace("\u2029", "\n").strip()
+
     def _copy_text(self):
-        selected = self.textCursor().selectedText().strip()
-        QApplication.clipboard().setText(selected or self.toPlainText())
+        QApplication.clipboard().setText(self._selection() or self.toPlainText())
         self.close()
 
     def _paste_text(self):
-        selected = self.textCursor().selectedText().strip()
-        text = selected or self.toPlainText()
-        self._paste_callback(text)
+        text = self._selection() or self.toPlainText()
+        self._paste_callback(" ".join(text.splitlines()))  # the input field is single-line
         self.close()
 
     def _reply(self):
-        selected = self.textCursor().selectedText().strip()
-        self._reply_callback(self._username, selected or self.toPlainText(), self._timestamp)
+        self._reply_callback(self._username, self._selection() or self._reply_body, self._timestamp)
         self.close()
 
     def _show_context_menu(self, global_pos):
@@ -270,6 +274,7 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
 
         # Text selector overlay
         self.text_selector = None
+        self._range_selector = None
 
         # Highlight support for clicked messages - independent fade per row so a
         # new click doesn't cut off an older row's animation still playing out
@@ -335,6 +340,8 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
 
     def set_list_view(self, list_view):
         self.list_view = list_view
+        if list_view and self._range_selector is None:
+            self._range_selector = MessageRangeSelector(list_view, self)
 
         # Initialize message renderer with parent for viewers
         if list_view and not self.message_renderer:
@@ -784,7 +791,7 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
 
             # RMB on body - show selectable text overlay
             if button == Qt.MouseButton.RightButton:
-                self._show_text_selector(msg, option.rect)
+                self.show_text_selector([msg], option.rect)
                 return True
 
             # Click on message content area (not on specific clickable elements)
@@ -847,17 +854,39 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
         username, timestamp = self._reply_context(message)
         self.reply_callback(username, message.body, timestamp)
 
-    def _show_text_selector(self, msg, rect: QRect):
+    @staticmethod
+    def _is_copyable(msg) -> bool:
+        return not (msg.is_separator or msg.is_new_messages_marker or msg.is_presence_log)
+
+    def _copy_text_for(self, messages) -> str:
+        """One line per message: the body, with the sender and the time added as the settings ask."""
+        include_username = bool(self.config.get("ui", "chat", "copy_include_username"))
+        include_timestamp = bool(self.config.get("ui", "chat", "copy_include_timestamp"))
+        return "\n".join(
+            format_message_line(
+                "" if msg.is_system or msg.is_competition else msg.username,
+                msg.body, msg.timestamp, include_username, include_timestamp,
+            )
+            for msg in messages
+        )
+
+    def show_text_selector(self, messages: list, rect: QRect):
+        """Open the copy overlay over rect with the text of the messages; Reply is offered for a single message only."""
+        messages = [msg for msg in messages if self._is_copyable(msg)]
+        if not messages:
+            return
         if self.text_selector:
             self.text_selector.close()
-        username, timestamp = self._reply_context(msg)
+        single = messages[0] if len(messages) == 1 else None
+        username, timestamp = self._reply_context(single) if single else ("", None)
         self.text_selector = _TextSelectorOverlay(
-            msg.body, self.body_font, rect, self.is_dark_theme,
+            self._copy_text_for(messages), self.body_font, rect, self.is_dark_theme,
             self.list_view.viewport(),
-            reply_callback=self.reply_callback,
+            reply_callback=self.reply_callback if single else None,
             paste_callback=self.paste_callback,
             username=username,
             timestamp=timestamp,
+            reply_body=single.body if single else "",
         )
         self.text_selector.destroyed.connect(lambda: setattr(self, 'text_selector', None))
 

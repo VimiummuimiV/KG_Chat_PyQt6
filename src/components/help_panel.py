@@ -81,6 +81,7 @@ _MSG_TIMESTAMP_MOUSE = [
 
 _MSG_BODY_MOUSE = [
     ("Right click", "Правый клик", "Open selectable text (reply / copy / paste)", "Выделяемый текст (ответ / копировать / вставить)"),
+    ("Right drag", "Перетаскивание ПКМ", "Select several messages and open their text (copy / paste)", "Выделить несколько сообщений и открыть их текст (копировать / вставить)"),
 ]
 
 _MSG_COMPETITION_CHIP_MOUSE = [

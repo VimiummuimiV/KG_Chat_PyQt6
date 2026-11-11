@@ -191,6 +191,17 @@ class SettingsChatMixin:
         )
         self.add_collapse_toggle(parser_header, parser_content, ("ui", "settings", "widgets", "chat_parser"))
 
+        copy_header, copy_content, copy_layout = self.add_subsection(
+            section, tr("📋 Copying Messages", "📋 Копирование сообщений")
+        )
+        self.copy_username_checkbox = self.add_checkbox(
+            copy_layout, tr("Include username", "Добавлять имя пользователя"), self._on_copy_username_toggled
+        )
+        self.copy_timestamp_checkbox = self.add_checkbox(
+            copy_layout, tr("Include timestamp", "Добавлять время"), self._on_copy_timestamp_toggled
+        )
+        self.add_collapse_toggle(copy_header, copy_content, ("ui", "settings", "widgets", "chat_copy"))
+
         flash_header, flash_content, flash_layout = self.add_subsection(
             section, tr("🪄 Highlight Animation", "🪄 Анимация подсветки")
         )
@@ -267,6 +278,9 @@ class SettingsChatMixin:
         self.parser_validate_usernames_checkbox.setChecked(
             True if validate_usernames is None else bool(validate_usernames)
         )
+
+        self.copy_username_checkbox.setChecked(bool(self.config.get("ui", "chat", "copy_include_username")))
+        self.copy_timestamp_checkbox.setChecked(bool(self.config.get("ui", "chat", "copy_include_timestamp")))
 
         chat_max_messages = self.config.get("ui", "chat", "max_messages")
         chat_max_messages = DEFAULTS["chat"]["max_messages"] if chat_max_messages is None else int(chat_max_messages)
@@ -356,6 +370,12 @@ class SettingsChatMixin:
 
     def _on_parser_validate_usernames_toggled(self, checked: bool):
         self.config.set("chatlog_parser", "validate_usernames", value=checked)
+
+    def _on_copy_username_toggled(self, checked: bool):
+        self.config.set("ui", "chat", "copy_include_username", value=checked)
+
+    def _on_copy_timestamp_toggled(self, checked: bool):
+        self.config.set("ui", "chat", "copy_include_timestamp", value=checked)
 
     def _on_chat_max_messages_changed(self, value: int):
         self.config.set("ui", "chat", "max_messages", value=int(value))

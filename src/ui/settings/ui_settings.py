@@ -388,6 +388,7 @@ class SettingsWidget(
             self.chatlog_max_messages_spin, self.chatlog_live_search_spin,
             self.chatlog_filtered_click_combo,
             self.parser_validate_usernames_checkbox,
+            self.copy_username_checkbox, self.copy_timestamp_checkbox,
             self.badge_size_spin, self.input_hue_spin, self.input_saturation_spin,
             self.input_opacity_spin, self.input_idle_opacity_spin,
             self.mentions_digest_mode_combo,

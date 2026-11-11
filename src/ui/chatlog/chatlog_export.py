@@ -5,6 +5,7 @@ from datetime import datetime
 from PyQt6.QtWidgets import QApplication, QFileDialog, QMessageBox
 
 from helpers.data import get_data_dir
+from helpers.text.message_format import format_message_line
 from helpers.translate import tr
 
 
@@ -38,8 +39,7 @@ class ChatlogExportMixin:
                 text_lines.append(f"{'='*60}")
                 text_lines.append("")
             else:
-                timestamp = msg.timestamp.strftime("%H:%M:%S")
-                text_lines.append(f"[{timestamp}] {msg.username}: {msg.body}")
+                text_lines.append(format_message_line(msg.username, msg.body, msg.timestamp))
                 message_count += 1
         while text_lines and text_lines[-1] == "":
             text_lines.pop()
