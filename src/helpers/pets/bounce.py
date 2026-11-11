@@ -94,6 +94,11 @@ class BounceBehavior:
         is_above = self.rect(area_height).center().y() <= board.center().y()
         return self.is_thrown and not self.is_held and is_above
 
+    def grab(self, point: QPoint, area_height: int, timestamp_ms: int) -> None:
+        if not self.is_flying:
+            self.bounces = 0  # picked up from the floor: a new attempt starts without the old count
+        super().grab(point, area_height, timestamp_ms)
+
     def release(self, timestamp_ms: int) -> None:
         super().release(timestamp_ms)
         self._is_cursor_ignored = True
