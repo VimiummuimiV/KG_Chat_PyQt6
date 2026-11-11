@@ -224,12 +224,6 @@ class ImageHoverView(QWidget):
         """Re-theme the overlays; also called while the viewer is open when the app theme is switched."""
         self._is_dark = is_dark
         self._gallery_bar.apply_theme(is_dark)
-        self._close_button.apply_theme(is_dark)
-        self._zoom_buttons.apply_theme(is_dark)
-        self._zoom_slider.apply_theme(is_dark)
-        self._minimap.apply_theme(is_dark)
-        for zone in self._edge_zones:
-            zone.apply_theme(is_dark)
         if self._gallery:
             self._update_overlays(self._current_image)
 
@@ -429,18 +423,16 @@ class ImageHoverView(QWidget):
             panel.move(right - panel.width(), _OVERLAY_MARGIN)
             panel.show()
             right = panel.x() - _OVERLAY_SPACING
-        edge_zone_top = self._close_button.geometry().bottom() + _OVERLAY_SPACING
-        for zone in self._edge_zones:
-            zone.place(self.size(), edge_zone_top)
+        self._place_edge_zones()
         self._update_edge_zones()
         self._source_badge.setVisible(has_source)
         if has_source:
-            self._source_badge.show_image(image, self._is_dark)
+            self._source_badge.show_image(image)
             self._source_badge.move(_OVERLAY_MARGIN, _OVERLAY_MARGIN)
         has_position = count > 1 or day_state is not None
         self._position_badge.setVisible(has_position)
         if has_position:
-            self._position_badge.show_position(self._index, count, day_state.day if day_state else None, self._is_dark)
+            self._position_badge.show_position(self._index, count, day_state.day if day_state else None)
             left = self._source_badge.geometry().right() + _OVERLAY_SPACING if has_source else _OVERLAY_MARGIN
             self._position_badge.move(left, _OVERLAY_MARGIN)
         if self._reply_panel.isVisible():
@@ -663,6 +655,15 @@ class ImageHoverView(QWidget):
         self._minimap.move(
             self.width() - self._minimap.width() - _OVERLAY_MARGIN, self.height() - self._minimap.height() - _OVERLAY_MARGIN
         )
+        self._place_edge_zones()
+
+    def _place_edge_zones(self):
+        """Stretch the strips below the close button; the right one stops above the minimap with the same gap."""
+        top_margin = self._close_button.y() + self._close_button.height() + _OVERLAY_SPACING
+        left_zone, right_zone = self._edge_zones
+        left_zone.place(self.size(), top_margin, top_margin)
+        right_margin = self.height() - self._minimap.y() + _OVERLAY_SPACING if self._minimap.isVisibleTo(self) else top_margin
+        right_zone.place(self.size(), top_margin, right_margin)
 
     def _update_layer_controls(self):
         layer = self._layer

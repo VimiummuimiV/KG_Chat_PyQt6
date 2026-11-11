@@ -15,10 +15,11 @@ from PyQt6.QtCore import (
     Qt,
     QVariantAnimation,
 )
-from PyQt6.QtGui import QMovie, QPainter, QPixmap
+from PyQt6.QtGui import QBrush, QMovie, QPainter, QPixmap
 from PyQt6.QtWidgets import QApplication
 
 
+CORNER_RADIUS = 12  # screen pixels; the image corners match the floating panels
 _FIT_RATIO = 0.95
 MIN_SCALE = 0.1
 MAX_SCALE = 10.0
@@ -225,7 +226,10 @@ class ImageLayer:
         painter.translate(-viewport.width() / 2, -viewport.height() / 2)
         painter.translate(self.offset)
         painter.scale(self.scale, self.scale)
-        painter.drawPixmap(0, 0, frame)
+        radius = CORNER_RADIUS / (self.scale * pose.scale)
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(QBrush(frame))  # a textured rounded rect keeps the corners antialiased, unlike a clip path
+        painter.drawRoundedRect(QRectF(frame.rect()), radius, radius)
         painter.restore()
 
     def release(self):
