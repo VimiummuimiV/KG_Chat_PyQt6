@@ -34,6 +34,7 @@ Grass and eggs are not pets; they are food on the strip.
 - **Strip edges**: a pet turns around when it reaches an edge. A pet with a goal (running to or eating food, watching a race for food, stalking prey, chasing a fox) is only stopped by the edge and keeps facing its goal; turning it around every tick would fight the goal and make it jitter. A flying pet is not turned either: it bounces off the edge with half of its sideways speed.
 - **Mouse**: clicking a pet triggers panic (runs for 1.2–2.2 s and forgets everything); click and drag to throw it—it flies and panics on landing. While it flies, the cursor is an obstacle (see section 10). Eggs can be picked up and rolled; grass cannot be picked up.
 - **Redraw rate**: the strip is updated 30 times per second while everything stays on the ground and 60 times per second while any pet or egg is held by the mouse or in the air, so a thrown pet can be followed and hit. Both rates are set in the pet settings ("Strip, fps" and "Flight, fps"), from 10 up to 165 or the refresh rate of the fastest screen when that is higher. A higher rate costs processor time (every frame moves the pets and repaints their area); it does not need more memory, and the strip is painted by the processor, not by the graphics card. The timer is a precise one (`Qt.PreciseTimer`): the default coarse timer rounds the interval to the system clock step and makes the motion uneven. A held body is redrawn on every mouse move. Only what changed is repainted: a pet is invalidated when its place or its picture changed since the last frame, and a body outside the dirty area is not drawn at all. The mouse mask is the strip plus the bodies above it, so it is set again only when a body is in the air or leaves it.
+- **Sight of food**: a pet notices food (grass, a broken egg) only within 160 art px on either side. Farther food does not exist for it, so a rat far from a broken egg never goes for it and the egg simply evaporates.
 - **"Important" state**: panic, being held by the mouse, and flight. In these states, a pet notices nothing and does not react to anything.
 
 ## 3. Chicken
@@ -55,7 +56,7 @@ Grass and eggs are not pets; they are food on the strip.
 
 ## 5. Rat
 
-- Runs to a broken egg and eats it from the edges, taking a quarter per bite.
+- Runs to a broken egg it sees (within 160 art px) and eats it from the edges, taking a quarter per bite.
 - The first rat to arrive and "claim" an egg gets to eat it; the others give up or watch.
 - When there are no eggs, it behaves according to the usual random states.
 - Foxes and dogs leave it alone, and it leaves them alone too.
@@ -78,6 +79,8 @@ A fox is a wild predator that lives not on the strip, but "around the corner."
 - **Lies down (`lie`) only if there is no dog on the strip.** If a dog appears while the fox is lying down, it gets up immediately.
 - When a chicken appears on the strip, the fox abandons its walk and starts stalking.
 
+**Looking ahead while carrying.** A fox running off (with prey or not) watches the way ahead like a dog does: if a dog is within 220 art px in front of it and no dog is nearer behind, it turns and runs to the other edge, prey in its teeth.
+
 **Fleeing.** If a dog is within 120 art px (regardless of which way it is facing), the fox abandons its prey and runs away from the dog toward the edge on the opposite side.
 If the dog catches and bites the fox, the fox does the same.
 
@@ -93,7 +96,7 @@ A dog does not eat or hunt anything: it is a **guard**, and its only role in the
 The reaction takes 100–700 ms. The fox can be in any state: hunting, roaming, or lying down.
 
 **Chase.** The dog runs toward the fox and barks **intermittently**: a barking bout lasts 0.8–1.6 s, followed by 0.9–2.2 s of silent running, repeating in a loop. The first bout starts immediately when the fox is detected.
-The chase ends if the fox is more than 220 art px away, 10 s have passed, or the dog touches it.
+The chase ends if the fox is more than 220 art px away, 10 s have passed, or the dog touches it. A fox held by the mouse or in the air is not noticed and not chased.
 
 **Barking** is the `bark` animation, a regular GIF like every other state (`<color>_bark_8fps.gif`, built from the first `idle` frame). The dog stands still during a bout. It is shown as a barely open mouth and puffs of air that leave the muzzle, spread out and thin away. One "woof" lasts 0.36 s (four frames of 90 ms): the mouth opens slightly, opens a little more, starts to close, then closes, while the puff moves away and fades. The tongue is not shown while barking. The bark canvas is wider than the idle one to fit the waves; the code compensates for the difference so the dog does not shift when it starts or stops barking.
 
@@ -121,7 +124,7 @@ Neutral pets. They only use random states and react to the mouse. They are not p
 
 Applies to pets only (not eggs): after being thrown, a flying pet above the cursor bounces off the mouse cursor, and the bounces are counted. Code: `helpers/pets/bounce.py` (`BounceBehavior`, `CursorMotion`); the cursor is read every tick in `ui_pets.py`.
 
-- **Board.** The obstacle is a pixel board centered on the cursor, drawn in the accent color of the theme (light top row with notched ends, darker bottom row) and snapped to its own pixel grid. It is the same for every pet: 2 cells thick, 1.25 times as wide as the widest pet on the strip, with cells as big as the biggest pet pixel (`CollisionBoard.for_pets`). The board exists only for a pet that was thrown (let go with a swing, not just put down) and only while that pet is above the board; a pet that is carried and lowered, dropped without a swing, or that has fallen below the cursor level, does not see it. What is drawn is exactly what collides. Flight is simulated in short slices (at most one board thickness of pet and cursor movement each), so a fast swing of the mouse cannot pass through the pet.
+- **Board.** The obstacle is a pixel board centered on the cursor, drawn in the accent color of the theme (light top row with notched ends, darker bottom row) and snapped to its own pixel grid. It is the same for every pet: 2 cells thick, 1.25 times as wide as the widest pet on the strip, with cells as big as the biggest pet pixel (`CollisionBoard.for_pets`). The board exists only for a pet that was thrown (let go with a swing, not just put down) and only while that pet is above the board; a pet that is carried and lowered, dropped without a swing, or that has fallen below the cursor level, does not see it. What is drawn is exactly what collides. When the mouse picks up anything else (an egg, another pet) while a thrown pet is still in the air, that pet loses the board for the rest of its flight; it gets it back only after being thrown again. Flight is simulated in short slices (at most one board thickness of pet and cursor movement each), so a fast swing of the mouse cannot pass through the pet.
 - **Direction.** The push is always up, tilted sideways by where the body is hit, like in Breakout: up to 0.6 of the push at the very end of the board, none in the middle. The speed of the cursor is added, so a flick hits harder.
 - **Strength.** The pet gives back 90% of its approach speed. A hit always lifts the pet at least 1100 device px/s (about 250 px of height, 0.9 s in the air), enough time for a person to react and hit again. The total speed is capped at 2200 device px/s. 
 - **One hit, one count.** After a hit, or right after the pet is released from the hand, the board cannot hit it again until the pet has got clear of the board.
@@ -158,7 +161,3 @@ ecosystem/
 - The suffix of an icon or animation is always the color of the pet it shows.
 - Food (`egg`, `grass`) has no icons: it is not shown in the settings.
 - Who eats or guards against whom is not a matter of folders: it lives in `helpers/pets/relations.py`. Snails and Clippy sit in `pets/` like everyone else.
-
-## 13. Not Connected
-
-`helpers/pets/options.py` (`HuntingOptions`: raid interval, capture chance) is currently not imported anywhere and does not affect behavior. The "Predator visits every" slider is read from `helpers/pets/catalog.py`.

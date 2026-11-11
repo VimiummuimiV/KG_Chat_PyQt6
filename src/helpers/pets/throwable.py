@@ -48,6 +48,11 @@ class Throwable(ABC):
         return self.hold is not None
 
     @property
+    def is_grounded(self) -> bool:
+        """Whether the body stands on the line: neither held nor in the air."""
+        return not (self.is_held or self.is_flying)
+
+    @property
     def can_be_held(self) -> bool:
         return True
 

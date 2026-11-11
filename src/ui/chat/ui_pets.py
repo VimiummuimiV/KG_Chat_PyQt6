@@ -169,6 +169,8 @@ class PetOverlay(QWidget):
         holdable = (body for body in reversed(self._bodies()) if body.can_be_held)
         self._grabbed = next((body for body in holdable if body.rect(area_height).contains(point)), None)
         if self._grabbed:
+            for pet in self._pets:
+                pet.withdraw_board()  # the hand is busy: pets still in the air lose the board
             self._grabbed.grab(point, area_height, event.timestamp())
         else:
             event.ignore()  # grass in the mask is not for the mouse; let the widget below take the click

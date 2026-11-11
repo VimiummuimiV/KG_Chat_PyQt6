@@ -76,6 +76,7 @@ class BounceBehavior:
         self._badge_ms = 0  # time left of the counter once the pet is down
         self._is_cursor_ignored = False  # the board that threw or just hit the pet is still on it
         self._was_thrown = False  # let go with a swing, not just put down
+        self._is_board_withdrawn = False  # the hand took hold of something else: no board for the rest of the flight
 
     @property
     def badge_text(self) -> str:
@@ -91,9 +92,13 @@ class BounceBehavior:
 
     def is_over(self, board: QRect, area_height: int) -> bool:
         """Whether the pet is thrown and above the board: only then the board is there for it."""
-        if not self.is_thrown or self.is_held:
+        if not self.is_thrown or self.is_held or self._is_board_withdrawn:
             return False
         return self.rect(area_height).center().y() <= board.center().y()
+
+    def withdraw_board(self) -> None:
+        """Take the board away from the pet until it is thrown again: the hand is busy with another body."""
+        self._is_board_withdrawn = True
 
     def grab(self, point: QPoint, area_height: int, timestamp_ms: int) -> None:
         if not self.is_flying:
@@ -103,6 +108,7 @@ class BounceBehavior:
     def release(self, timestamp_ms: int) -> None:
         super().release(timestamp_ms)
         self._is_cursor_ignored = True
+        self._is_board_withdrawn = False
         self._was_thrown = any(self.velocity)
 
     def land(self, impact_speed: float) -> None:

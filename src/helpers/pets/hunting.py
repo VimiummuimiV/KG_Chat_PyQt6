@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Iterable
 
 from helpers.pets.catalog import LIE_STATE, RUN_STATE, WALK_STATE
+from helpers.pets.defense import GUARD_NOTICE_ART_PIXELS
 from helpers.pets.relations import PREDATOR_SPECIES, guards_against, preys_on
 
 if TYPE_CHECKING:  # pet.py imports this module
@@ -101,7 +102,7 @@ class HuntingBehavior:
         self._is_guard_present = bool(guards)
         if self._is_guard_present and self._state == LIE_STATE:
             self._choose_state()  # nobody lies down in front of a guard
-        prey = [other for other in others if preys_on(self.kind, other.kind) and not (other.is_held or other.is_flying)]
+        prey = [other for other in others if preys_on(self.kind, other.kind) and other.is_grounded]
         self._advance_raid(prey, guards, step_ms)
 
     def flee(self, away_from: float) -> None:
@@ -124,6 +125,7 @@ class HuntingBehavior:
         raid = self._raid
         raid.elapsed_ms += step_ms
         if self.is_leaving:
+            self._avoid_guards(guards)
             self._leave_line()
             return
         target = min(prey, key=self.distance_to, default=None)  # always the nearest prey, not the one chased before
@@ -170,6 +172,15 @@ class HuntingBehavior:
         self.exit_right = exit_right
         self._facing_right = exit_right
         self._start_state(state, math.inf)
+
+    def _avoid_guards(self, guards: list["Pet"]) -> None:
+        """Turn to the other edge when a guard is in sight ahead and no guard is nearer behind."""
+        sight = GUARD_NOTICE_ART_PIXELS * self.pixel_size
+        ahead = [self.distance_to(guard) for guard in guards if self.is_facing(guard) and self.distance_to(guard) <= sight]
+        behind = [self.distance_to(guard) for guard in guards if not self.is_facing(guard)]
+        if ahead and min(ahead) < min(behind, default=math.inf):
+            self.exit_right = not self.exit_right
+            self._facing_right = self.exit_right
 
     def _leave_line(self) -> None:
         """Once the edge is passed, go away with the prey if there is one."""

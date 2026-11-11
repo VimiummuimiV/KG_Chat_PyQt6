@@ -12,7 +12,7 @@ if TYPE_CHECKING:  # pet.py imports this module
 
 
 _PREY_NOTICE_ART_PIXELS = 70  # how far prey sees a raider coming
-_GUARD_NOTICE_ART_PIXELS = 220
+GUARD_NOTICE_ART_PIXELS = 220  # how far a guard sees a predator ahead, and a predator a guard
 _GUARD_HEARING_ART_PIXELS = 60  # how near a lone raider is heard from any side; every further raider on the same side adds this much
 _THREAT_REACTION_MS = (100, 700)
 _FLIGHT_MS = (2000, 3500)
@@ -67,11 +67,11 @@ class DefenseBehavior:
 
     def _raider_in_sight(self, others: list["Pet"]) -> "Pet | None":
         """Return the nearest predator this pet reacts to: a hunter after its kind, or one its kind guards against that a guard sees ahead or hears close by."""
-        guard_reach = _GUARD_NOTICE_ART_PIXELS * self.pixel_size
+        guard_reach = GUARD_NOTICE_ART_PIXELS * self.pixel_size
         prey_reach = _PREY_NOTICE_ART_PIXELS * self.pixel_size
         seen = [
             other for other in others
-            if (guards_against(self.kind, other.kind) and self._guard_notices(other, guard_reach, others))
+            if (guards_against(self.kind, other.kind) and other.is_grounded and self._guard_notices(other, guard_reach, others))
             or (other.is_hunting_now and preys_on(other.kind, self.kind) and self.distance_to(other) <= prey_reach)
         ]
         return min(seen, key=self.distance_to, default=None)
@@ -103,8 +103,8 @@ class DefenseBehavior:
         """Run after the quarry, barking in bouts, even when it has stopped raiding; bite it away on reaching it, give up when it is lost."""
         self._chase_ms += step_ms
         quarry = self._chasing
-        sight = _GUARD_NOTICE_ART_PIXELS * self.pixel_size
-        if quarry in others and self._chase_ms <= _CHASE_LIMIT_MS and self.distance_to(quarry) <= sight:
+        sight = GUARD_NOTICE_ART_PIXELS * self.pixel_size
+        if quarry in others and quarry.is_grounded and self._chase_ms <= _CHASE_LIMIT_MS and self.distance_to(quarry) <= sight:
             self._face_toward(quarry.center_x)
             if not self.touches(quarry):
                 self._bark_phase_ms -= step_ms

@@ -45,6 +45,7 @@ _BITE_LIMIT = 2 * _BITES_PER_EGG  # the most bites a pet keeps in stock
 _EGG_DROP_ART_PIXELS = 4  # height the egg leaves the pet from, in art pixels
 _NOSE_OVER_FOOD_ART_PIXELS = 1  # how far the nose of an eating pet reaches into the edge of the food
 _WATCH_STATE = "idle"  # a pet that stays out of a race stands and looks at it
+_FOOD_SIGHT_ART_PIXELS = 160  # how far a pet sees food on either side; farther food does not exist for it
 _REACTION_MS = (150, 1500)  # how long a pet takes to notice food and set off
 _CATCH_UP_MARGIN_MS = 500  # a pet gives up when a rival gets to the food this much sooner than it could
 _PECK_STATE = "swipe"  # the eating state of pets without their own
@@ -171,7 +172,7 @@ class Pet(HuntingBehavior, DefenseBehavior, BounceBehavior, Throwable):
         free = [
             food for food in foods
             if food.is_food_for(self.kind) and food.is_edible and food.is_free_for(self)
-            and self._can_reach(food) and not self.is_path_blocked(food.center_x, rivals)
+            and self._sees(food) and self._can_reach(food) and not self.is_path_blocked(food.center_x, rivals)
         ]
         if self._watching:
             has_other_food = any(food is not self._watching for food in free)
@@ -204,6 +205,10 @@ class Pet(HuntingBehavior, DefenseBehavior, BounceBehavior, Throwable):
         others = [other for other in others if other is not self]
         self.defend(others, step_ms)
         self.hunt(others, step_ms)
+
+    def _sees(self, food: Food) -> bool:
+        """Whether the food is within the sight of the pet."""
+        return abs(food.center_x - self.center_x) <= _FOOD_SIGHT_ART_PIXELS * self.pixel_size
 
     def _is_going_to(self, food: Food) -> bool:
         """Whether the pet is running to the food or eating it."""

@@ -41,9 +41,9 @@ _PET_CARDS = (
     ("fox", ("Fox", "Лиса"), ("wild predator from around the corner", "дикий хищник из-за угла"), (
         ("eats", ("Eats", "Ест"), ("chickens", "кур")),
         ("fears", ("Afraid of", "Боится"), ("dogs", "собак")),
-        ("does", ("Does", "Делает"), ("stalks the nearest chicken, pounces and carries it off; the chicken is replaced later. "
+        ("does", ("Does", "Делает"), ("stalks the nearest chicken, pounces and carries it off, turning away from a dog in its path; the chicken is replaced later. "
                                       "With no chickens it explores the strip, lies down only if there is no dog, and leaves by a random edge",
-                                      "подкрадывается к ближайшей курице, прыгает и уносит её; позже курица появляется снова. "
+                                      "подкрадывается к ближайшей курице, прыгает и уносит её, обходя собаку на пути; позже курица появляется снова. "
                                       "Без кур гуляет по полосе, ложится, только если нет собаки, и уходит через случайный край")),
     )),
     ("dog", ("Dog", "Собака"), ("guard against foxes", "сторож от лис"), (
@@ -59,8 +59,8 @@ _PET_CARDS = (
     ("rat", ("Rat", "Крыса"), ("scavenger", "падальщик"), (
         ("eats", ("Eats", "Ест"), ("broken eggs", "разбитые яйца")),
         ("fears", ("Afraid of", "Боится"), ("nobody", "никого")),
-        ("does", ("Does", "Делает"), ("runs to a broken egg and eats it; otherwise just wanders. Nobody bothers it",
-                                      "бежит к разбитому яйцу и ест его, а так просто гуляет. Её никто не трогает")),
+        ("does", ("Does", "Делает"), ("runs to a broken egg it sees nearby and eats it; otherwise just wanders. Nobody bothers it",
+                                      "бежит к разбитому яйцу, которое видит рядом, и ест его, а так просто гуляет. Её никто не трогает")),
     )),
     ("snail", ("Snail and Clippy", "Улитка и Скрепыш"), ("neutral, live on their own", "нейтральные, живут сами по себе"), (
         ("eats", ("Eats", "Едят"), ("nothing", "ничего")),
@@ -88,8 +88,8 @@ _WHO_IS_ON_THE_STRIP = (
 _MOUSE = (
     (("On a pet", "По питомцу"), ("click to scare it, drag to throw it", "клик пугает, перетаскивание бросает")),
     (("Thrown pet", "Брошенный питомец"), (
-        "a pixel board follows the cursor while the pet is above it; each bounce adds to its badge",
-        "за курсором следует пиксельная доска, пока питомец выше; отскок прибавляет к бейджу",
+        "a pixel board follows the cursor while the pet is above it, until the mouse picks up something else; each bounce adds to its badge",
+        "за курсором следует пиксельная доска, пока питомец выше, и до тех пор, пока мышь не возьмёт что-то другое; отскок прибавляет к бейджу",
     )),
     (("On an egg", "По яйцу"), ("pick it up and roll it", "можно поднять и покатать")),
     (("In settings", "В настройках"), ("left click adds a pet, right click removes one, hold to repeat",
