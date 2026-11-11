@@ -7,8 +7,8 @@ from PyQt6.QtCore import pyqtSignal, QEvent, QModelIndex, QRect, QSize, Qt
 from PyQt6.QtGui import QColor, QCursor, QFontMetrics, QPainter, QPen
 from PyQt6.QtWidgets import QStyledItemDelegate, QStyleOptionViewItem
 
+from components.badge import badge_style
 from components.flash_highlight import FlashFade, highlight_color, paint_flash, RowFlashMixin
-from components.presence_badge import presence_badge_style
 from helpers.cache import get_cache
 from helpers.fonts.fonts import FontType, get_font
 from ui.messages.messages_separator import DateSeparator
@@ -139,7 +139,7 @@ class TrackerEventDelegate(RowFlashMixin, QStyledItemDelegate):
         x += timestamp_width + self.spacing
 
         event_type = event.get('type', '') or ''
-        badge_text, badge_background, badge_foreground, badge_border = presence_badge_style(
+        badge_text, badge_background, badge_foreground, badge_border = badge_style(
             event_type, self.is_dark_theme
         )
         painter.setFont(self._badge_font)

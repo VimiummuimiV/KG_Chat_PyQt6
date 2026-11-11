@@ -5,8 +5,8 @@ from pathlib import Path
 from PyQt6.QtCore import pyqtSignal, QEvent, Qt
 from PyQt6.QtWidgets import QApplication, QLabel, QVBoxLayout, QWidget
 
+from components.badge import apply_counter_style
 from components.button import create_icon_button, set_button_icon, set_visual_active
-from components.presence_badge import apply_counter_style
 from helpers.config import Config
 from helpers.data import open_in_file_manager
 from helpers.scroll.scrollable_buttons import ScrollableButtonContainer

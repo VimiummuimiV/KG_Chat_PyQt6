@@ -15,8 +15,8 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from components.badge import TypeFilterBar
 from components.button import create_icon_button
-from components.presence_badge import TypeFilterBar
 from helpers.fonts.fonts import FontType, get_font, get_userlist_width
 from helpers.scroll.auto_scroll import AutoScroller
 from helpers.scroll.scroll_buttons import ScrollButtonsPanel

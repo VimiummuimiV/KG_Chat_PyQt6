@@ -4,7 +4,7 @@ from collections import Counter
 
 from PyQt6.QtWidgets import QMessageBox
 
-from components.presence_badge import toggle_filter_value
+from components.badge import toggle_filter_value
 from helpers.translate import tr
 
 

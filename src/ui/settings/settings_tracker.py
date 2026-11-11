@@ -2,7 +2,7 @@
 
 from PyQt6.QtWidgets import QHBoxLayout, QLabel
 
-from components.presence_badge import EVENT_TYPES, TypeFilterBar
+from components.badge import EVENT_TYPES, TypeFilterBar
 from helpers.fonts.fonts import FontType, get_font
 from helpers.translate import tr
 from ui.settings.settings_options import (

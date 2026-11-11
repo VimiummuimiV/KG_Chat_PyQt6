@@ -7,10 +7,10 @@ from PyQt6.QtCore import pyqtSignal, QObject, QRect, QSize, Qt
 from PyQt6.QtGui import QColor, QFontMetrics, QMovie, QPainter, QPen, QPixmap
 from PyQt6.QtWidgets import QApplication
 
+from components.badge import badge_style, EVENT_TYPES
 from components.flash_highlight import FlashFade, link_colors, paint_flash, timestamp_color
 from components.image_viewer.gallery import ImageGallery, is_image_url, URL_PATTERN
 from components.image_viewer.viewer import ImageHoverView
-from components.presence_badge import EVENT_TYPES, presence_badge_style
 from components.video_player import VideoPlayer
 from core.web.youtube import fetch_async, get_cached_info, is_youtube_url
 from helpers.browser import open_url as open_url_in_browser
@@ -558,7 +558,7 @@ class MessageRenderer(QObject):
     _PRESENCE_LAST_DOT = 6
 
     def _presence_badge(self, event_type: str, count: int, is_last: bool = False):
-        label, bg, fg, border = presence_badge_style(event_type, self.is_dark_theme)
+        label, bg, fg, border = badge_style(event_type, self.is_dark_theme)
         text = label if count == 1 else f"{label} {count}"
         return text, bg, fg, border
 

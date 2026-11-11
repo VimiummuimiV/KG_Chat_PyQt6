@@ -3,8 +3,8 @@
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QHBoxLayout, QLabel, QProgressBar, QPushButton, QWidget
 
+from components.badge import apply_counter_style
 from components.button import create_icon_button
-from components.presence_badge import apply_counter_style
 from helpers.translate import tr
 from ui.notification.popup_manager import show_notification
 

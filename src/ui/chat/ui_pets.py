@@ -6,8 +6,8 @@ from PyQt6.QtCore import QElapsedTimer, QEvent, QPoint, QRect, QTimer, Qt
 from PyQt6.QtGui import QColor, QCursor, QPainter, QPixmap, QRegion
 from PyQt6.QtWidgets import QWidget
 
+from components.badge import counter_pixmap
 from components.button import get_accent_color
-from components.presence_badge import counter_pixmap
 from helpers.pets.animation import sprite_height
 from helpers.pets.bounce import CollisionBoard, CursorMotion
 from helpers.pets.catalog import get_pet_kind, pet_counts, pet_pixel_size, pets_enabled, pets_stepped, predator_visit_ms
@@ -22,6 +22,7 @@ _TICK_MS = 33
 _RESPAWN_SHARE = 0.5  # a carried-off pet is replaced after this share of the time between the visits of a predator
 _MAXIMUM_STEP_MS = 100  # a stall (sleep, window drag) must not make pets jump across the line
 _BADGE_FONT_SIZE = 10
+_BADGE_GAP = 1  # logical pixels between the badge and the top of the pet
 _BOARD_SHADE = 150  # percent; the lower row of the board is the accent color darkened by this much
 _ANCHOR_EVENTS = (QEvent.Type.Move, QEvent.Type.Resize, QEvent.Type.Show, QEvent.Type.Hide)
 
@@ -173,8 +174,9 @@ class PetOverlay(QWidget):
                 continue
             pixmap = counter_pixmap(pet.badge_text, _BADGE_FONT_SIZE, self.devicePixelRatioF())
             body = pet.rect(area_height)
+            gap = round(_BADGE_GAP * self.devicePixelRatioF())
             x = min(body.center().x() - pixmap.width() // 2, line_width - pixmap.width())
-            badges.append((pixmap, QPoint(max(0, x), max(0, body.top() - pixmap.height()))))
+            badges.append((pixmap, QPoint(max(0, x), max(0, body.top() - pixmap.height() - gap))))
         return badges
 
     def _cursor_motion(self, step_ms: int) -> CursorMotion:

@@ -7,7 +7,7 @@ from PyQt6.QtGui import QCursor
 from PyQt6.QtWidgets import QHBoxLayout, QLabel, QWidget
 
 from components.avatar import make_avatar_label, make_avatar_pixmap
-from components.presence_badge import make_game_id_label, make_presence_badge
+from components.badge import make_badge
 from helpers.data import get_resource_dir
 from helpers.fonts.fonts import FontType, get_font
 from helpers.translate import tr
@@ -21,6 +21,16 @@ from ui.notification.popup_helpers import (
     safe_call,
     setup_popup_window,
 )
+
+
+def _make_game_id_label(event_type: str, game_id) -> QLabel | None:
+    if not game_id or event_type != "game":
+        return None
+    label = QLabel(f"#{game_id}")
+    label.setFont(get_font(FontType.UI))
+    label.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+    label.setStyleSheet("color: #888; border: none;")
+    return label
 
 
 class PresenceMiniPopup(AutoHidePopupMixin, QWidget):
@@ -69,9 +79,9 @@ class PresenceMiniPopup(AutoHidePopupMixin, QWidget):
         layout.addWidget(ts)
 
         is_dark = (config.get("ui", "theme") == "dark") if config else True
-        layout.addWidget(make_presence_badge(event_type, is_dark=is_dark))
+        layout.addWidget(make_badge(event_type, is_dark=is_dark))
 
-        gid = make_game_id_label(event_type, game_id)
+        gid = _make_game_id_label(event_type, game_id)
         if gid is not None:
             layout.addWidget(gid)
 

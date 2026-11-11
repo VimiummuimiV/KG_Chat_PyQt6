@@ -2,7 +2,7 @@
 
 from typing import List
 
-from components.presence_badge import EVENT_TYPES, presence_badge_style
+from components.badge import badge_style, EVENT_TYPES
 
 
 def add_presence_entry(entries: List[dict], login: str, event_type: str) -> List[dict]:
@@ -30,7 +30,7 @@ def presence_entries_to_text(entries: List[dict]) -> str:
             c = entry['counts'].get(et)
             if not c:
                 continue
-            label = presence_badge_style(et)[0]
+            label = badge_style(et)[0]
             mark = '●' if et == last else ''
             badges.append(f"[{label}{mark}]" if c == 1 else f"[{label} {c}{mark}]")
         parts.append(f"{entry['login']} {' '.join(badges)}".strip())

@@ -1,7 +1,7 @@
-"""Shared presence event badge (join / left / game)."""
+"""Shared badges: colored pills with their toggle bar, and small counter labels and pixmaps."""
 
 from functools import lru_cache
-from typing import Iterable, Optional, Set, Tuple
+from typing import Iterable, Set, Tuple
 
 from PyQt6.QtCore import pyqtSignal, Qt
 from PyQt6.QtGui import QPixmap
@@ -33,8 +33,8 @@ def _lighten_hex(base_hex: str, lightness: float = 0.90) -> str:
     return rgb_to_hex(hsl_to_rgb((h, min(1.0, s * 0.55), lightness)))
 
 
-def presence_badge_style(event_type: str, is_dark: bool = True) -> Tuple[str, str, str, str]:
-    """Return (text, bg, fg, border) for a presence badge."""
+def badge_style(event_type: str, is_dark: bool = True) -> Tuple[str, str, str, str]:
+    """Return (text, bg, fg, border) for a badge of the given kind."""
     en, ru, base = _STYLES.get(event_type, _STYLES["left"])
     bg, fg, border = tinted_chip_colors(base, is_dark)
     return tr(en, ru), bg, fg, border
@@ -54,8 +54,8 @@ def _counter_css(bg: str, fg: str, font_size: int = 9) -> str:
     )
 
 
-def make_presence_badge(event_type: str, is_dark: bool = True) -> QLabel:
-    text, bg, fg, border = presence_badge_style(event_type, is_dark)
+def make_badge(event_type: str, is_dark: bool = True) -> QLabel:
+    text, bg, fg, border = badge_style(event_type, is_dark)
     badge = QLabel(text)
     badge.setFont(get_font(FontType.UI))
     badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -65,14 +65,14 @@ def make_presence_badge(event_type: str, is_dark: bool = True) -> QLabel:
 
 def apply_counter_style(label: QLabel, event_type: str = "join", font_size: int = 9,
                         is_dark: bool = True):
-    """Style the small unread counter with solid base fill and lightened text."""
+    """Style a small counter label with a solid base fill and lightened text."""
     _, _, base = _STYLES.get(event_type or "join", _STYLES["join"])
     label.setStyleSheet(_counter_css(base, _lighten_hex(base), max(8, min(18, int(font_size)))))
 
 
 @lru_cache(maxsize=64)
 def counter_pixmap(text: str, font_size: int, device_pixel_ratio: float) -> QPixmap:
-    """Render the small counter badge to a pixmap measured in device pixels, for painting where no label widget fits."""
+    """Render a small counter badge to a pixmap measured in device pixels, for painting where no label widget fits."""
     label = QLabel(text)
     apply_counter_style(label, font_size=font_size)
     label.adjustSize()
@@ -97,7 +97,7 @@ def toggle_filter_value(current: Set[str], value: str, ctrl_pressed: bool, alway
 
 
 def _set_badge_active(badge: QLabel, active: bool, dim: float = 0.4):
-    """Dim inactive filter pills; full opacity when active."""
+    """Dim an inactive pill; full opacity when active."""
     if active:
         badge.setGraphicsEffect(None)
     else:
@@ -107,11 +107,11 @@ def _set_badge_active(badge: QLabel, active: bool, dim: float = 0.4):
 
 
 class _TypeFilterBadge(QLabel):
-    """Colored JOIN/LEFT/GAME pill toggle."""
+    """Colored pill toggle of one badge kind."""
     clicked = pyqtSignal(str, bool)  # event_type, ctrl_pressed
 
     def __init__(self, event_type: str, is_dark: bool = True):
-        text, bg, fg, border = presence_badge_style(event_type, is_dark)
+        text, bg, fg, border = badge_style(event_type, is_dark)
         super().__init__(text)
         self.event_type = event_type
         self._active = False
@@ -131,7 +131,7 @@ class _TypeFilterBadge(QLabel):
 
     def update_theme(self, is_dark: bool):
         self._is_dark = is_dark
-        text, bg, fg, border = presence_badge_style(self.event_type, is_dark)
+        text, bg, fg, border = badge_style(self.event_type, is_dark)
         self.setText(text)
         self.setStyleSheet(_pill_css(bg, fg, border))
 
@@ -143,7 +143,7 @@ class _TypeFilterBadge(QLabel):
 
 
 class TypeFilterBar(QWidget):
-    """Row of JOIN/LEFT/GAME toggles. Reused by tracker filter panel and settings.
+    """Row of pill toggles, one per badge kind.
 
     empty_means_all: filter mode — empty active set means all types pass.
     Otherwise settings mode — active set is the enabled types (default all).
@@ -190,12 +190,3 @@ class TypeFilterBar(QWidget):
         self._sync()
         self.changed.emit(self._active_types())
 
-
-def make_game_id_label(event_type: str, game_id) -> Optional[QLabel]:
-    if not game_id or event_type != "game":
-        return None
-    label = QLabel(f"#{game_id}")
-    label.setFont(get_font(FontType.UI))
-    label.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-    label.setStyleSheet("color: #888; border: none;")
-    return label
