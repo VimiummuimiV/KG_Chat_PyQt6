@@ -21,6 +21,7 @@ from PyQt6.QtWidgets import (
 from components.button import create_icon_button, render_svg_icon, set_button_icon
 from components.image_viewer.layer import ImageLayer, MAX_SCALE, MIN_SCALE
 from components.image_viewer.overlay import (
+    BADGE_HEIGHT,
     INNER_IMAGE_RADIUS,
     PANEL_BORDER_WIDTH,
     PANEL_MARGIN,
@@ -148,13 +149,14 @@ def _scale_from_position(position: int) -> float:
 
 
 class ZoomSlider(QFrame):
-    """Translucent panel with a slider over the whole zoom range and the current zoom in percent (without the sign)."""
+    """Translucent panel as tall as the badges, with a slider over the whole zoom range and the zoom in percent (without the sign)."""
 
     scale_requested = pyqtSignal(float)
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setObjectName("zoomSlider")
+        self.setFixedHeight(BADGE_HEIGHT)
         self._slider = QSlider(Qt.Orientation.Horizontal)
         self._slider.setRange(0, _ZOOM_SLIDER_STEPS)
         self._slider.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
@@ -167,7 +169,7 @@ class ZoomSlider(QFrame):
         self._reserve_value_width()
 
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(PANEL_MARGIN, PANEL_MARGIN, PANEL_MARGIN, PANEL_MARGIN)
+        layout.setContentsMargins(PANEL_MARGIN, 0, PANEL_MARGIN, 0)
         layout.setSpacing(PANEL_SPACING)
         layout.addWidget(self._slider, 1)
         layout.addWidget(self._value_label)

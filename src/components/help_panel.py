@@ -203,7 +203,7 @@ _IMAGE_MOUSE = [
     ("Double click",       "Двойной клик",                "Toggle fit to screen / 100% at the cursor", "Переключить по размеру экрана / 100% в точке курсора"),
     ("Minimap",            "Мини-карта",                  "Shown when zoomed in: click or drag to move the view", "Показывается при увеличении: клик или перетаскивание перемещает вид"),
     ("Left drag",          "Перетаскивание (ЛКМ)",        "Pan / move image", "Переместить изображение"),
-    ("Ctrl + Left drag",   "Ctrl + перетаскивание (ЛКМ)", "Scale image (up / down)", "Масштаб изображения (+ / −)"),
+    ("Ctrl + Left drag",   "Ctrl + перетаскивание (ЛКМ)", "Scale image (up / down) around the point where the drag started", "Масштаб изображения (+ / −) вокруг точки начала перетаскивания"),
     ("Wheel",              "Колесо мыши",                 "Zoom in / out", "Приблизить / отдалить"),
     ("Right click",        "Правый клик",                 "Close image viewer", "Закрыть просмотр изображения"),
 ]

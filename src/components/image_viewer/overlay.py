@@ -39,6 +39,7 @@ _BADGE_AVATAR_SIZE = 28
 _BADGE_SVG_AVATAR_SIZE = 20
 _BADGE_MARGIN = 6
 _BADGE_SPACING = 8
+BADGE_HEIGHT = _BADGE_AVATAR_SIZE + 2 * (_BADGE_MARGIN + PANEL_BORDER_WIDTH)  # the zoom slider matches it
 PANEL_STYLES = {
     True: {
         "background": "rgba(18, 18, 18, 235)",
@@ -401,6 +402,7 @@ class SourceBadge(QFrame):
         self.setObjectName("sourceBadge")
         self._icons_path = icons_path
         self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setMinimumHeight(BADGE_HEIGHT)
 
         self._avatar_label = make_avatar_label(_BADGE_AVATAR_SIZE)
         self._username_label = QLabel()
@@ -458,7 +460,7 @@ class PositionBadge(QFrame):
         self.setObjectName("positionBadge")
         self._label = QLabel()
         self._label.setFont(get_font(FontType.TEXT))
-        self.setMinimumHeight(_BADGE_AVATAR_SIZE + 2 * (_BADGE_MARGIN + PANEL_BORDER_WIDTH))  # same height as the source badge
+        self.setMinimumHeight(BADGE_HEIGHT)
         layout = QHBoxLayout(self)
         layout.setContentsMargins(_BADGE_MARGIN + _BADGE_SPACING, _BADGE_MARGIN, _BADGE_MARGIN + _BADGE_SPACING, _BADGE_MARGIN)
         layout.addWidget(self._label)

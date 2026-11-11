@@ -163,7 +163,6 @@ class ImageHoverView(QWidget):
         self._zoom_buttons.actual_size_button.clicked.connect(self._toggle_actual_size)
         self._zoom_buttons.hide()
         self._zoom_slider = ZoomSlider(self)
-        self._zoom_slider.setFixedHeight(self._position_badge.minimumHeight())
         self._zoom_slider.scale_requested.connect(self._zoom_to)
         self._zoom_slider.hide()
         self._edge_zones = (EdgeZone(icons_path, True, self), EdgeZone(icons_path, False, self))
@@ -176,6 +175,7 @@ class ImageHoverView(QWidget):
 
         self._drag_mode: Optional[str] = None
         self._last_mouse_pos: Optional[QPointF] = None
+        self._zoom_pivot: Optional[QPointF] = None  # where a scale drag started; the zoom stays anchored there
 
         self._help_panel = HelpPanel(self)
 
@@ -428,21 +428,15 @@ class ImageHoverView(QWidget):
         self._close_button.refresh_tooltip()
         self._zoom_buttons.refresh_tooltips()
         self._zoom_slider.refresh_tooltip()
-        is_slider_shown = show_zoom_slider(self._config)
-        top_panels = [self._close_button, self._zoom_buttons]
-        right = self.width() - _OVERLAY_MARGIN
-        for panel in top_panels:
-            panel.move(right - panel.width(), _OVERLAY_MARGIN)
+        right_edge = self.width() - _OVERLAY_MARGIN
+        for panel in (self._close_button, self._zoom_buttons):
+            panel.move(right_edge - panel.width(), _OVERLAY_MARGIN)
             panel.setVisible(self._is_interface_shown)
-            right = panel.x() - _OVERLAY_SPACING
-        self._zoom_slider.setFixedWidth(
-            self._close_button.x() + self._close_button.width() - self._zoom_buttons.x()
-        )
-        self._zoom_slider.move(
-            self._zoom_buttons.x(),
-            self._zoom_buttons.y() + self._zoom_buttons.height() + _OVERLAY_SPACING,
-        )
-        self._zoom_slider.setVisible(is_slider_shown and self._is_interface_shown)
+            right_edge = panel.x() - _OVERLAY_SPACING
+        controls = self._zoom_buttons.geometry().united(self._close_button.geometry())
+        self._zoom_slider.setFixedWidth(controls.width())
+        self._zoom_slider.move(controls.x(), controls.y() + controls.height() + _OVERLAY_SPACING)
+        self._zoom_slider.setVisible(show_zoom_slider(self._config) and self._is_interface_shown)
         self._place_edge_zones()
         self._update_edge_zones()
         self._source_badge.setVisible(has_source and self._is_interface_shown)
@@ -690,14 +684,17 @@ class ImageHoverView(QWidget):
         self._place_edge_zones()
 
     def _place_edge_zones(self):
-        """Stretch the strips below top controls; the right one also stops above the minimap."""
-        top_margin = self._close_button.y() + self._close_button.height() + _OVERLAY_SPACING
+        """Stretch the strips below the top controls; the right one also stops below the slider and above the minimap."""
         left_zone, right_zone = self._edge_zones
+        top_margin = self._close_button.y() + self._close_button.height() + _OVERLAY_SPACING
         left_zone.place(self.size(), top_margin, top_margin)
-        if self._is_interface_shown and show_zoom_slider(self._config):
-            top_margin = self._zoom_slider.y() + self._zoom_slider.height() + _OVERLAY_SPACING
-        right_margin = self.height() - self._minimap.y() + _OVERLAY_SPACING if self._minimap.isVisibleTo(self) else top_margin
-        right_zone.place(self.size(), top_margin, right_margin)
+        right_top_margin = top_margin
+        if self._zoom_slider.isVisibleTo(self):
+            right_top_margin = self._zoom_slider.y() + self._zoom_slider.height() + _OVERLAY_SPACING
+        right_bottom_margin = right_top_margin
+        if self._minimap.isVisibleTo(self):
+            right_bottom_margin = self.height() - self._minimap.y() + _OVERLAY_SPACING
+        right_zone.place(self.size(), right_top_margin, right_bottom_margin)
 
     def _update_layer_controls(self):
         layer = self._layer
@@ -730,7 +727,7 @@ class ImageHoverView(QWidget):
         if event.button() == Qt.MouseButton.LeftButton:
             is_ctrl = QApplication.keyboardModifiers() & Qt.KeyboardModifier.ControlModifier
             self._drag_mode = _DRAG_SCALE if is_ctrl else _DRAG_PAN
-            self._last_mouse_pos = event.position()
+            self._last_mouse_pos = self._zoom_pivot = event.position()
             self.setCursor(QCursor(Qt.CursorShape.ClosedHandCursor))
             self._update_edge_zones()
             event.accept()
@@ -762,7 +759,7 @@ class ImageHoverView(QWidget):
             self._update_minimap()
             self.update()
         else:
-            self._zoom_to(self._layer.scale * (1.0 - delta.y() * _SCALE_DRAG_SENSITIVITY))
+            self._apply_zoom(self._layer.scale * (1.0 - delta.y() * _SCALE_DRAG_SENSITIVITY), self._zoom_pivot)
 
         self._last_mouse_pos = event.position()
         event.accept()
@@ -774,7 +771,7 @@ class ImageHoverView(QWidget):
             event.accept()
 
     def _end_drag(self):
-        self._drag_mode = self._last_mouse_pos = None
+        self._drag_mode = self._last_mouse_pos = self._zoom_pivot = None
         self.setCursor(QCursor(Qt.CursorShape.ArrowCursor))
         self._update_edge_zones()
 
