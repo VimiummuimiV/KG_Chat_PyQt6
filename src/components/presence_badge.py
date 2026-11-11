@@ -1,8 +1,10 @@
 """Shared presence event badge (join / left / game)."""
 
+from functools import lru_cache
 from typing import Iterable, Optional, Set, Tuple
 
 from PyQt6.QtCore import pyqtSignal, Qt
+from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import QGraphicsOpacityEffect, QHBoxLayout, QLabel, QWidget
 
 from helpers.colors.color_utils import (
@@ -66,6 +68,20 @@ def apply_counter_style(label: QLabel, event_type: str = "join", font_size: int 
     """Style the small unread counter with solid base fill and lightened text."""
     _, _, base = _STYLES.get(event_type or "join", _STYLES["join"])
     label.setStyleSheet(_counter_css(base, _lighten_hex(base), max(8, min(18, int(font_size)))))
+
+
+@lru_cache(maxsize=64)
+def counter_pixmap(text: str, font_size: int, device_pixel_ratio: float) -> QPixmap:
+    """Render the small counter badge to a pixmap measured in device pixels, for painting where no label widget fits."""
+    label = QLabel(text)
+    apply_counter_style(label, font_size=font_size)
+    label.adjustSize()
+    pixmap = QPixmap(label.size() * device_pixel_ratio)
+    pixmap.setDevicePixelRatio(device_pixel_ratio)
+    pixmap.fill(Qt.GlobalColor.transparent)
+    label.render(pixmap, flags=QWidget.RenderFlag.DrawChildren)
+    pixmap.setDevicePixelRatio(1.0)
+    return pixmap
 
 
 def toggle_filter_value(current: Set[str], value: str, ctrl_pressed: bool, always_multi: bool = False) -> Set[str]:

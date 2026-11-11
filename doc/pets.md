@@ -31,8 +31,8 @@ Grass and eggs are not pets; they are food on the strip.
 - **Random states** (when there is nothing else to do): `idle` (weight 5, 2–6 s), `walk` (5, 3–8 s), `walk_fast` (1, 1.5–3.5 s), `swipe` (1, 1.5–3 s), `with_ball` (2, 4–9 s), `lie` (3, 6–14 s; only dogs and foxes have this state). While walking, a pet has a 40% chance of turning around.
 - **Running is never a random state.** A pet runs only when it has a reason: a fox stalking or fleeing, a dog chasing a fox, panic, or a chicken or rat going for food. With nothing to do, pets mostly rest, stand guard or stroll.
 - **Speed** is tied to body length and animation pace: `walk` ×1, `walk_fast` ×1.6, `run` ×2.5. Enabling the "step-based" checkbox makes movement happen in short bursts timed to the steps.
-- **Strip edges**: a pet turns around when it reaches an edge.
-- **Mouse**: clicking a pet triggers panic (runs for 1.2–2.2 s and forgets everything); click and drag to throw it—it flies and panics on landing. Eggs can be picked up and rolled; grass cannot be picked up.
+- **Strip edges**: a pet turns around when it reaches an edge. A pet with a goal (running to or eating food, watching a race for food, stalking prey, chasing a fox) is only stopped by the edge and keeps facing its goal; turning it around every tick would fight the goal and make it jitter. A flying pet is not turned either: it bounces off the edge with half of its sideways speed.
+- **Mouse**: clicking a pet triggers panic (runs for 1.2–2.2 s and forgets everything); click and drag to throw it—it flies and panics on landing. While it flies, the cursor is an obstacle (see section 10). Eggs can be picked up and rolled; grass cannot be picked up.
 - **"Important" state**: panic, being held by the mouse, and flight. In these states, a pet notices nothing and does not react to anything.
 
 ## 3. Chicken
@@ -42,6 +42,7 @@ Grass and eggs are not pets; they are food on the strip.
 - To lay, the hen stops and sits down (`lay` animation, 1.6 s, played once). The egg leaves her tail at 40% of the animation, then she stands up and walks on in the same direction. While she runs for food or panics, laying waits; a scare or a fox interrupts it, and then no food is spent.
 - If a fox is hunting and comes within 70 art px, the chicken runs away from it for 2–3.5 s.
 - It will not run for food past a fox: if a fox is in the way, the chicken gives up on the food.
+- It only goes for food it can actually reach: the food must leave room at one of its ends for the whole body of the hen inside the strip. If the nearer end is against an edge, she takes the other end; if neither fits, she ignores the food. A meal that becomes unreachable is dropped.
 - If another pet is clearly going to reach the food first (by at least 0.5 s), the chicken stops and watches.
 - A chicken carried off by a fox is replaced after half the average interval between predator visits. The new chicken enters from the edge farthest from the foxes, or, if there are no foxes, from the opposite edge to the one the previous chicken was carried off through.
 
@@ -115,7 +116,18 @@ Neutral pets. They only use random states and react to the mouse. They are not p
 | Dogs + chickens (no foxes) | Dogs do not eat or bother chickens; they walk nearby                                                    |
 | Rats, snails, Clippy       | They are independent and do not affect or interact with anyone, except that rats eat eggs               |
 
-## 10. Settings
+## 10. Throwing and Bouncing off the Cursor
+
+Applies to pets only (not eggs): after being thrown, a flying pet bounces off the mouse cursor, and the bounces are counted. Code: `helpers/pets/bounce.py` (`BounceBehavior`, `CursorMotion`); the cursor is read every tick in `ui_pets.py`.
+
+- **Obstacle.** The cursor counts as touching when it is within 8 device px of the visible body of the pet. Flight is simulated in short slices (at most 8 px of pet and cursor movement each), so a fast swing of the mouse cannot pass through the pet.
+- **Direction.** The push goes from the cursor through the middle of the pet: a hit off-centre sends the pet sideways, a dead-centre hit straight up. The cursor's own speed is added, so a flick hits harder.
+- **Strength.** The pet gives back 90% of its approach speed. A hit from below or from the side always lifts it at least 1100 device px/s (about 250 px of height, 0.9 s in the air), enough time for a person to react and hit again. The total speed is capped at 2200 device px/s. A hit from above pushes the pet down.
+- **One hit, one count.** After a hit, or right after the pet is released from the hand, the cursor cannot hit it again until the pet has got clear of the cursor.
+- **Badge.** Every bounce adds 1 to a counter drawn over the top right corner of the pet (`99+` above 99). It has the same look as the counters on the buttons: `apply_counter_style` rendered into a pixmap by `counter_pixmap` in `components/presence_badge.py`.
+- **Miss.** When the pet lands on the floor, the badge stays for 2.5 s and then disappears, and the count resets. Picking the pet up again pauses this timer; the count continues.
+
+## 11. Settings
 
 - A pet's icon in the settings is always in color. The number of enabled instances is shown by a badge in the corner (1 or more); with no badge, that pet is disabled.
 - Left-click adds a pet, right-click removes one, and holding the button repeats the action. Maximum 10 of each color.
@@ -123,7 +135,7 @@ Neutral pets. They only use random states and react to the mouse. They are not p
 - The "i" button next to the hint opens a guide (English and Russian) describing the role and behavior of every pet.
 - Changing the counts must stay cheap: decoded animations are kept in a bounded cache and are never cleared on a click, and existing pets are reused when the options are reloaded.
 
-## 11. Resource Layout
+## 12. Resource Layout
 
 Everything bundled lives in `ecosystem/` (located with `get_resource_dir("ecosystem")`):
 
@@ -143,6 +155,6 @@ ecosystem/
 - Food (`egg`, `grass`) has no icons: it is not shown in the settings.
 - Who eats or guards against whom is not a matter of folders: it lives in `helpers/pets/relations.py`. Snails and Clippy sit in `pets/` like everyone else.
 
-## 12. Not Connected
+## 13. Not Connected
 
 `helpers/pets/options.py` (`HuntingOptions`: raid interval, capture chance) is currently not imported anywhere and does not affect behavior. The "Predator visits every" slider is read from `helpers/pets/catalog.py`.

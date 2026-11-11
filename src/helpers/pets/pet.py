@@ -8,6 +8,7 @@ from typing import Iterable
 from PyQt6.QtCore import QPoint, QRect
 
 from helpers.pets.animation import load_animation
+from helpers.pets.bounce import BounceBehavior, CursorMotion
 from helpers.pets.catalog import BARK_STATE, EAT_STATE, LAY_STATE, LIE_STATE, RUN_STATE, WALK_STATE, PetKind
 from helpers.pets.defense import DefenseBehavior
 from helpers.pets.egg import Egg
@@ -21,6 +22,7 @@ _WALK_STRIDE_RATIO = 0.8
 # Faster gaits reuse the walk speed; their GIFs often share one cycle, so only the pace scales.
 _GAIT_SPEED_FACTOR = {"walk": 1.0, "walk_fast": 1.6, "run": 2.5}
 _CARRY_SPEED_FACTOR = 2.0  # a predator slowed by its prey
+_WALL_BOUNCE = 0.5  # share of the sideways speed a flying pet keeps after hitting the side of the area
 _TURN_CHANCE = 0.4
 _CONTACT_ART_PIXELS = 2  # how close two pets must get to touch
 # state: (pick weight, minimum ms, maximum ms); running is not here: a pet runs only to chase, flee or reach food
@@ -60,7 +62,7 @@ class _Meal:
     bites: int = 0
 
 
-class Pet(HuntingBehavior, DefenseBehavior, Throwable):
+class Pet(HuntingBehavior, DefenseBehavior, BounceBehavior, Throwable):
     """One pet moving along the bottom of an area measured in device pixels."""
 
     def __init__(self, kind: PetKind, pixel_size: int, line_width: int):
@@ -82,6 +84,7 @@ class Pet(HuntingBehavior, DefenseBehavior, Throwable):
         self._line_width = line_width
         self._init_hunting()
         self._init_defense()
+        self._init_bounce()
         walk = self._load("walk")
         self._walk_speed = walk.body.width() * _WALK_STRIDE_RATIO * 1000 / walk.cycle_ms
         self._facing_right = random.choice((True, False))
@@ -128,8 +131,8 @@ class Pet(HuntingBehavior, DefenseBehavior, Throwable):
         margin = _CONTACT_ART_PIXELS * self.pixel_size
         return left - margin < other_right and other_left - margin < right
 
-    def update(self, step_ms: int, line_width: int, area_height: int) -> None:
-        """Advance the pet by step_ms and keep it inside the area."""
+    def update(self, step_ms: int, line_width: int, area_height: int, cursor: CursorMotion | None = None) -> None:
+        """Advance the pet by step_ms and keep it inside the area; a flying pet bounces off the cursor."""
         self._line_width = line_width
         if self._is_seized:
             return
@@ -137,9 +140,10 @@ class Pet(HuntingBehavior, DefenseBehavior, Throwable):
             self.wait_away(step_ms, line_width)
             return
         if self.is_flying:
-            self.fly(step_ms, area_height)
+            self.fly_past_cursor(step_ms, area_height, cursor)
         elif not self.is_held:
             self._walk(step_ms)
+        self.age_badge(step_ms)
         self._keep_inside(line_width)
 
     def take_egg(self) -> Egg | None:
@@ -164,7 +168,8 @@ class Pet(HuntingBehavior, DefenseBehavior, Throwable):
             return
         free = [
             food for food in foods
-            if food.is_food_for(self.kind) and food.is_edible and food.is_free_for(self) and not self.is_path_blocked(food.center_x, rivals)
+            if food.is_food_for(self.kind) and food.is_edible and food.is_free_for(self) and self._can_reach(food)
+            and not self.is_path_blocked(food.center_x, rivals)
         ]
         if self._watching:
             has_other_food = any(food is not self._watching for food in free)
@@ -210,6 +215,7 @@ class Pet(HuntingBehavior, DefenseBehavior, Throwable):
         self._scare()
 
     def land(self, impact_speed: float) -> None:
+        super().land(impact_speed)
         self._scare()
 
     def _maximum_lift(self, area_height: int) -> float:
@@ -294,6 +300,9 @@ class Pet(HuntingBehavior, DefenseBehavior, Throwable):
 
     def _reach_egg(self, meal: _Meal) -> None:
         """Keep running until the nose touches the food; the pet that gets there first claims it and eats."""
+        if not self._can_reach_from(meal.food, meal.from_left):
+            self._end_meal()
+            return
         stop = self._nose_stop(meal.food, meal.from_left)
         if (stop - self.x) * (1 if meal.from_left else -1) > 0:
             return
@@ -356,11 +365,19 @@ class Pet(HuntingBehavior, DefenseBehavior, Throwable):
         self._choose_state()
 
     def _approach(self, food: Food) -> tuple[float, bool]:
-        """Return how far to go to reach the nearer end of the food, and whether that is its left end."""
+        """Return how far to go to reach the nearer end of the food the pet can stand at, and whether that is its left end."""
         return min(
-            (abs(self._nose_stop(food, True) - self.x), True),
-            (abs(self._nose_stop(food, False) - self.x), False),
+            ((abs(self._nose_stop(food, from_left) - self.x), from_left) for from_left in (True, False) if self._can_reach_from(food, from_left)),
+            default=(math.inf, True),
         )
+
+    def _can_reach(self, food: Food) -> bool:
+        """Whether the pet can stand at either end of the food without its body going beyond an edge of the line."""
+        return any(self._can_reach_from(food, from_left) for from_left in (True, False))
+
+    def _can_reach_from(self, food: Food, from_left: bool) -> bool:
+        lowest, highest = self._horizontal_range(self._load(self._eat_state), from_left)
+        return lowest <= self._nose_stop(food, from_left) <= highest
 
     def _nose_stop(self, food: Food, from_left: bool) -> float:
         """Return the x at which an eating pet has its nose just inside the chosen end of the food."""
@@ -398,23 +415,35 @@ class Pet(HuntingBehavior, DefenseBehavior, Throwable):
         self._facing_right = self.center_x < line_width / 2
         self._is_entering = not (self.x + left >= 0 and self.x + right <= line_width)
 
+    @property
+    def _turns_at_wall(self) -> bool:
+        """Whether an edge of the line turns the pet around: a flying pet or one that looks at its food, rival or quarry keeps its side."""
+        return not (self.is_flying or self._meal or self._watching or self._chasing or self.is_hunting_now)
+
+    def _horizontal_range(self, animation, facing_right: bool, effect_margin: int = 0) -> tuple[float, float]:
+        """Return the lowest and the highest x at which the pet keeps its visible pixels inside the line; effects may reach beyond it."""
+        span_left, span_right = animation.visible_span(facing_right)
+        if facing_right:
+            span_right -= effect_margin
+        else:
+            span_left += effect_margin
+        lowest = -span_left
+        return lowest, max(lowest, self._line_width - span_right)
+
     def _keep_inside(self, line_width: int) -> None:
         if self.is_leaving:
             return  # a predator running off leaves over the edge
         if self._is_entering:
             self._walk_in(line_width)
             return
-        span_left, span_right = self._current()[0].visible_span(self._facing_right)
-        margin = self._effect_margin(self._state)  # effects in front of the pet may reach beyond the edge
-        if self._facing_right:
-            span_right -= margin
-        else:
-            span_left += margin
-        lowest = -span_left
-        highest = max(lowest, line_width - span_right)
-        if self.x < lowest:
-            self._facing_right = True
-            self.x = -self._current()[0].visible_span(True)[0]
-        elif self.x > highest:
-            self._facing_right = False
-            self.x = line_width - self._current()[0].visible_span(False)[1]
+        animation, margin = self._current()[0], self._effect_margin(self._state)
+        lowest, highest = self._horizontal_range(animation, self._facing_right, margin)
+        if lowest <= self.x <= highest:
+            return
+        was_left = self.x < lowest
+        if self._turns_at_wall:
+            self._facing_right = was_left
+            lowest, highest = self._horizontal_range(animation, self._facing_right, margin)
+        if self.is_flying:
+            self.velocity[0] = _WALL_BOUNCE * abs(self.velocity[0]) * (1 if was_left else -1)
+        self.x = max(lowest, min(self.x, highest))
