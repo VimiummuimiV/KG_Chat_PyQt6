@@ -16,7 +16,7 @@ _RESTITUTION = 0.9  # share of the approach speed a bounce gives back
 _MINIMUM_RISE_SPEED = 1100  # device pixels per second; about 250 pixels of height and 0.9 s in the air, time enough for the next hit
 _MAXIMUM_BOUNCE_SPEED = 2200  # device pixels per second
 _BADGE_LINGER_MS = 2500  # the counter stays this long after the pet has landed
-_BADGE_LIMIT = 99
+_BADGE_LIMIT = 999
 
 
 @dataclass(frozen=True)
@@ -70,6 +70,7 @@ class BounceBehavior:
         self.bounces = 0
         self._badge_ms = 0  # time left of the counter once the pet is down
         self._is_cursor_ignored = False  # the cursor that threw or just hit the pet is still on it and cannot hit it again
+        self._was_thrown = False  # let go with a swing, not just put down
 
     @property
     def badge_text(self) -> str:
@@ -78,12 +79,23 @@ class BounceBehavior:
             return ""
         return f"{_BADGE_LIMIT}+" if self.bounces > _BADGE_LIMIT else str(self.bounces)
 
+    @property
+    def is_thrown(self) -> bool:
+        """Whether the pet is in the air after a throw; a pet that was only put down and falls is not."""
+        return self.is_flying and self._was_thrown
+
+    def is_over(self, board: QRect, area_height: int) -> bool:
+        """Whether the pet is a thrown one and is above the board: only then the board is there for it."""
+        return self.is_thrown and not self.is_held and self.rect(area_height).center().y() <= board.center().y()
+
     def release(self, timestamp_ms: int) -> None:
         super().release(timestamp_ms)
         self._is_cursor_ignored = True
+        self._was_thrown = any(self.velocity)
 
     def land(self, impact_speed: float) -> None:
         super().land(impact_speed)
+        self._was_thrown = False
         self._badge_ms = _BADGE_LINGER_MS
 
     def age_badge(self, step_ms: int) -> None:
@@ -96,7 +108,7 @@ class BounceBehavior:
 
     def fly_past_cursor(self, step_ms: int, area_height: int, cursor: CursorMotion | None) -> None:
         """Fly for step_ms in slices short enough that neither the pet nor the cursor can pass through the other between two checks."""
-        if cursor is None:
+        if cursor is None or not self.is_thrown:
             self.fly(step_ms, area_height)
             return
         reach = math.hypot(*self.velocity) * step_ms / 1000 + cursor.distance
@@ -108,18 +120,17 @@ class BounceBehavior:
             self._bounce_off(cursor.board.at(cursor.at(index / slices)), cursor.velocity, area_height)
 
     def _bounce_off(self, board: QRect, cursor_velocity: tuple[float, float], area_height: int) -> None:
-        """Bounce off the board when it is touched and approached; the push is up from above the board and down from below it, tilted by where the pet is hit, and the board's own speed adds to it."""
+        """Bounce off the board when it is touched from above and approached; the push is up, tilted by where the pet is hit, and the board's own speed adds to it."""
         body = self.rect(area_height)
-        if not body.intersects(board):
+        if not (self.is_over(board, area_height) and body.intersects(board)):
             self._is_cursor_ignored = False
             return
         if self._is_cursor_ignored:
             return
         tilt = (body.center().x() - board.center().x()) / ((board.width() + body.width()) / 2)
         tilt = max(-1.0, min(1.0, tilt)) * _MAXIMUM_TILT
-        side = 1.0 if body.center().y() <= board.center().y() else -1.0
-        length = math.hypot(tilt, side)
-        normal = (tilt / length, side / length)
+        length = math.hypot(tilt, 1.0)
+        normal = (tilt / length, 1.0 / length)
         relative = (self.velocity[0] - cursor_velocity[0], self.velocity[1] - cursor_velocity[1])
         approach = relative[0] * normal[0] + relative[1] * normal[1]
         if approach >= 0:
@@ -127,8 +138,7 @@ class BounceBehavior:
         push = (1 + _RESTITUTION) * approach
         right = relative[0] - push * normal[0] + cursor_velocity[0]
         up = relative[1] - push * normal[1] + cursor_velocity[1]
-        if normal[1] >= 0:
-            up = max(up, _MINIMUM_RISE_SPEED)  # a hit from below or aside always lifts the pet clear
+        up = max(up, _MINIMUM_RISE_SPEED)  # the pet is always lifted clear
         speed = math.hypot(right, up)
         scale = min(1.0, _MAXIMUM_BOUNCE_SPEED / speed)
         self.velocity = [right * scale, up * scale]

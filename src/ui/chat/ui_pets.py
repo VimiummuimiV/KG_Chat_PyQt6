@@ -151,10 +151,11 @@ class PetOverlay(QWidget):
         return [*self._meadow.grass, *self._eggs, *visible_pets]
 
     def _board_rect(self) -> QRect | None:
-        """Return the board at the cursor while a pet is flying, otherwise None: the board shows only when it can be hit."""
-        if self._cursor_point is None or not any(pet.is_visible and pet.is_flying and not pet.is_held for pet in self._pets):
+        """Return the board at the cursor while a thrown pet is above it, otherwise None: the board shows only when it can be hit."""
+        if self._cursor_point is None:
             return None
-        return self._board.at(self._cursor_point)
+        board, area_height = self._board.at(self._cursor_point), self._device_size()[1]
+        return board if any(pet.is_visible and pet.is_over(board, area_height) for pet in self._pets) else None
 
     def _paint_board(self, painter: QPainter, board: QRect) -> None:
         """Draw the board in pixels: a light top row with notched ends over a darker full bottom row."""
@@ -164,7 +165,7 @@ class PetOverlay(QWidget):
         painter.fillRect(board.adjusted(0, cell, 0, 0), light.darker(_BOARD_SHADE))
 
     def _badges(self) -> list[tuple[QPixmap, QPoint]]:
-        """Return the bounce counters with their top left corners: each hangs over the top right corner of its pet."""
+        """Return the bounce counters with their top left corners: each sits centered right above its pet."""
         line_width, area_height = self._device_size()
         badges = []
         for pet in self._pets:
@@ -172,8 +173,8 @@ class PetOverlay(QWidget):
                 continue
             pixmap = counter_pixmap(pet.badge_text, _BADGE_FONT_SIZE, self.devicePixelRatioF())
             body = pet.rect(area_height)
-            x = min(body.right() - pixmap.width() // 2, line_width - pixmap.width())
-            badges.append((pixmap, QPoint(max(0, x), max(0, body.top() - pixmap.height() // 2))))
+            x = min(body.center().x() - pixmap.width() // 2, line_width - pixmap.width())
+            badges.append((pixmap, QPoint(max(0, x), max(0, body.top() - pixmap.height()))))
         return badges
 
     def _cursor_motion(self, step_ms: int) -> CursorMotion:
