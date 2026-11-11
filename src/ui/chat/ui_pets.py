@@ -3,12 +3,13 @@
 import math
 
 from PyQt6.QtCore import QElapsedTimer, QEvent, QPoint, QRect, QTimer, Qt
-from PyQt6.QtGui import QCursor, QPainter, QPixmap, QRegion
+from PyQt6.QtGui import QColor, QCursor, QPainter, QPixmap, QRegion
 from PyQt6.QtWidgets import QWidget
 
+from components.button import get_accent_color
 from components.presence_badge import counter_pixmap
 from helpers.pets.animation import sprite_height
-from helpers.pets.bounce import CursorMotion
+from helpers.pets.bounce import CollisionBoard, CursorMotion
 from helpers.pets.catalog import get_pet_kind, pet_counts, pet_pixel_size, pets_enabled, pets_stepped, predator_visit_ms
 from helpers.pets.egg import Egg
 from helpers.pets.meadow import Meadow
@@ -21,6 +22,7 @@ _TICK_MS = 33
 _RESPAWN_SHARE = 0.5  # a carried-off pet is replaced after this share of the time between the visits of a predator
 _MAXIMUM_STEP_MS = 100  # a stall (sleep, window drag) must not make pets jump across the line
 _BADGE_FONT_SIZE = 10
+_BOARD_SHADE = 150  # percent; the lower row of the board is the accent color darkened by this much
 _ANCHOR_EVENTS = (QEvent.Type.Move, QEvent.Type.Resize, QEvent.Type.Show, QEvent.Type.Hide)
 
 
@@ -38,6 +40,7 @@ class PetOverlay(QWidget):
         self._respawn_ms = 0
         self._grabbed: Throwable | None = None
         self._cursor_point: QPoint | None = None  # where the cursor was on the previous tick
+        self._board = CollisionBoard.for_pets(())
         self._painted = QRegion()
         self._clock = QElapsedTimer()
         self._timer = QTimer(self)
@@ -91,6 +94,7 @@ class PetOverlay(QWidget):
             self._eggs.clear()
         self._grabbed = None
         self._cursor_point = None
+        self._board = CollisionBoard.for_pets(self._pets)
         self._place()
 
     def eventFilter(self, watched, event):
@@ -115,6 +119,9 @@ class PetOverlay(QWidget):
         area_height = self._device_size()[1]
         for body in self._bodies():
             painter.drawPixmap(body.position(area_height), body.pixmap)
+        board = self._board_rect()
+        if board:
+            self._paint_board(painter, board)
         for pixmap, position in self._badges():
             painter.drawPixmap(position, pixmap)
 
@@ -143,6 +150,19 @@ class PetOverlay(QWidget):
         visible_pets = (pet for pet in self._pets if pet.is_visible)
         return [*self._meadow.grass, *self._eggs, *visible_pets]
 
+    def _board_rect(self) -> QRect | None:
+        """Return the board at the cursor while a pet is flying, otherwise None: the board shows only when it can be hit."""
+        if self._cursor_point is None or not any(pet.is_visible and pet.is_flying and not pet.is_held for pet in self._pets):
+            return None
+        return self._board.at(self._cursor_point)
+
+    def _paint_board(self, painter: QPainter, board: QRect) -> None:
+        """Draw the board in pixels: a light top row with notched ends over a darker full bottom row."""
+        cell = self._board.cell
+        light = QColor(get_accent_color())
+        painter.fillRect(board.adjusted(cell, 0, -cell, -cell), light)
+        painter.fillRect(board.adjusted(0, cell, 0, 0), light.darker(_BOARD_SHADE))
+
     def _badges(self) -> list[tuple[QPixmap, QPoint]]:
         """Return the bounce counters with their top left corners: each hangs over the top right corner of its pet."""
         line_width, area_height = self._device_size()
@@ -164,7 +184,7 @@ class PetOverlay(QWidget):
         previous = self._cursor_point or current
         self._cursor_point = current
         seconds = max(step_ms, 1) / 1000
-        return CursorMotion(previous, current, ((current.x() - previous.x()) / seconds, (previous.y() - current.y()) / seconds))
+        return CursorMotion(self._board, previous, current, ((current.x() - previous.x()) / seconds, (previous.y() - current.y()) / seconds))
 
     def _device_size(self) -> tuple[int, int]:
         ratio = self.devicePixelRatioF()
@@ -205,6 +225,9 @@ class PetOverlay(QWidget):
             region = region.united(self._logical_rect(body.rect(area_height)))
         for pixmap, position in self._badges():
             region = region.united(self._logical_rect(QRect(position, pixmap.size())))
+        board = self._board_rect()
+        if board:
+            region = region.united(self._logical_rect(board))
         self.setMask(region)
         self.update(self._painted.united(region))
         self._painted = region

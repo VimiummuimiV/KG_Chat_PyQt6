@@ -120,10 +120,10 @@ Neutral pets. They only use random states and react to the mouse. They are not p
 
 Applies to pets only (not eggs): after being thrown, a flying pet bounces off the mouse cursor, and the bounces are counted. Code: `helpers/pets/bounce.py` (`BounceBehavior`, `CursorMotion`); the cursor is read every tick in `ui_pets.py`.
 
-- **Obstacle.** The cursor counts as touching when it is within 8 device px of the visible body of the pet. Flight is simulated in short slices (at most 8 px of pet and cursor movement each), so a fast swing of the mouse cannot pass through the pet.
-- **Direction.** The push goes from the cursor through the middle of the pet: a hit off-centre sends the pet sideways, a dead-centre hit straight up. The cursor's own speed is added, so a flick hits harder.
+- **Board.** The obstacle is a pixel board centered on the cursor, drawn in the accent color of the theme (light top row with notched ends, darker bottom row) and snapped to its own pixel grid. It is the same for every pet: 2 cells thick, 1.25 times as wide as the widest pet on the strip, with cells as big as the biggest pet pixel (`CollisionBoard.for_pets`). The board is shown only while a pet is flying; what is drawn is exactly what collides. Flight is simulated in short slices (at most one board thickness of pet and cursor movement each), so a fast swing of the mouse cannot pass through the pet.
+- **Direction.** A pet above the board is pushed up, below it down. The push is tilted sideways by where the body is hit, like in Breakout: up to 0.6 of the push at the very end of the board, none in the middle. The speed of the cursor is added, so a flick hits harder.
 - **Strength.** The pet gives back 90% of its approach speed. A hit from below or from the side always lifts it at least 1100 device px/s (about 250 px of height, 0.9 s in the air), enough time for a person to react and hit again. The total speed is capped at 2200 device px/s. A hit from above pushes the pet down.
-- **One hit, one count.** After a hit, or right after the pet is released from the hand, the cursor cannot hit it again until the pet has got clear of the cursor.
+- **One hit, one count.** After a hit, or right after the pet is released from the hand, the board cannot hit it again until the pet has got clear of the board.
 - **Badge.** Every bounce adds 1 to a counter drawn over the top right corner of the pet (`99+` above 99). It has the same look as the counters on the buttons: `apply_counter_style` rendered into a pixmap by `counter_pixmap` in `components/presence_badge.py`.
 - **Miss.** When the pet lands on the floor, the badge stays for 2.5 s and then disappears, and the count resets. Picking the pet up again pauses this timer; the count continues.
 

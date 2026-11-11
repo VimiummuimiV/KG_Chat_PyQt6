@@ -29,6 +29,11 @@ def register_icon_button(button) -> None:
     _icon_registry.append(button)
 
 
+def get_accent_color() -> str:
+    """Accent color of the current theme."""
+    return _COLOR_DARK if is_dark_theme else _COLOR_LIGHT
+
+
 def get_user_svg_color(is_known: bool, is_dark: bool) -> str:
     """SVG icon color: theme accent for known users, gray for unknown."""
     return (_COLOR_DARK if is_dark else _COLOR_LIGHT) if is_known else _COLOR_GRAY
@@ -42,7 +47,7 @@ def render_svg_icon(svg_file: Path, icon_size: int, color: str = None, stroke_wi
     with open(svg_file, 'r') as f:
         svg = f.read()
 
-    color = color or (_COLOR_DARK if is_dark_theme else _COLOR_LIGHT)
+    color = color or get_accent_color()
     for attr in ('fill', 'stroke'):  # skip "none" - it means don't paint this channel
         svg = re.sub(rf'{attr}="(?!none")[^"]*"', f'{attr}="{color}"', svg)
 
