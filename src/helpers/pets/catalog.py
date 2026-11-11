@@ -15,6 +15,7 @@ MAXIMUM_PET_COUNT = 10
 MAXIMUM_SIZE_MULTIPLIER = 10
 DEFAULT_SIZE_MULTIPLIER = 2
 PREDATOR_VISIT_SECONDS = (45, 5, 1800)  # default, minimum and maximum of the seconds between the visits of a predator
+HIDE_FADE_MILLISECONDS = (250, 50, 1000)  # default, minimum and maximum of the fade-out time
 HIDE_OFF = "off"
 HIDE_BOUNCE = "bounce"  # from the first bounce off the board until every thrown pet has landed
 HIDE_FLIGHT = "flight"  # while any pet is in the air after a throw
@@ -167,6 +168,11 @@ def pets_hide_mode(config) -> str:
     """Return when the content fades out for a throw: HIDE_OFF, HIDE_BOUNCE or HIDE_FLIGHT."""
     mode = config.get("ui", "pets", "hide_mode")
     return mode if mode in HIDE_MODES else HIDE_OFF
+
+
+def hide_fade_ms(config) -> int:
+    """Return the milliseconds the content takes to fade out for a throw."""
+    return _pets_setting(config, "hide_fade", HIDE_FADE_MILLISECONDS)
 
 
 def predator_visit_seconds(config) -> int:

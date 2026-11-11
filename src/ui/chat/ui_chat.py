@@ -440,9 +440,7 @@ class ChatWindow(
             # Default to visible
             self.button_panel.set_button_state(self.button_panel.toggle_userlist_button, True)
 
-        self.pet_overlay = PetOverlay(
-            self, pet_strip, (self.stacked_widget, self.userlist_panel), self.config
-        )
+        self.pet_overlay = PetOverlay(self, pet_strip, self.stacked_widget, self.config)
 
         # Emoticon selector widget (overlay - positioned absolutely)
         # Create AFTER userlist so positioning works correctly

@@ -19,6 +19,8 @@ from helpers.pets.catalog import (
     action_frame_rate_setting,
     ground_frame_rate,
     ground_frame_rate_setting,
+    hide_fade_ms,
+    HIDE_FADE_MILLISECONDS,
     pet_counts,
     pet_size_multiplier,
     pets_enabled,
@@ -194,11 +196,25 @@ class SettingsPetsMixin:
             self._on_pets_hide_changed,
         )
         fill_pets_hide_combo(self.pets_hide_combo, pets_hide_mode(self.config))
+        default, minimum, maximum = HIDE_FADE_MILLISECONDS
+        self.pets_hide_fade_spin = self.add_slider_spin_row(
+            section, tr("Fade, ms", "Затухание, мс"), minimum, maximum,
+            self._on_pets_hide_fade_changed, default=default,
+        )
+        fade_tooltip = tr(
+            "How long the chat takes to fade out; it comes back twice as slowly",
+            "За сколько чат скрывается; возвращается вдвое медленнее",
+        )
+        self.pets_hide_fade_spin.parentWidget().setToolTip(fade_tooltip)
+        self.register_tr(self.pets_hide_fade_spin.parentWidget().setToolTip, fade_tooltip)
 
     def refresh_pets(self):
         self.pets_checkbox.setChecked(pets_enabled(self.config))
         self.pets_stepped_checkbox.setChecked(pets_stepped(self.config))
         fill_pets_hide_combo(self.pets_hide_combo, pets_hide_mode(self.config))
+        fade_ms = hide_fade_ms(self.config)
+        self.pets_hide_fade_spin.setValue(fade_ms)
+        self.pets_hide_fade_spin.linked_slider.setValue(fade_ms)
         counts = pet_counts(self.config)
         for key, tile in self._pet_tiles.items():
             tile.set_count(counts.get(key, 0))
@@ -229,6 +245,10 @@ class SettingsPetsMixin:
     def _on_pets_hide_changed(self, _text: str = ""):
         self.sync_combo_tooltip(self.pets_hide_combo)
         self.config.set("ui", "pets", "hide_mode", value=self.pets_hide_combo.currentData())
+        self.pets_changed.emit()
+
+    def _on_pets_hide_fade_changed(self, value: int):
+        self.config.set("ui", "pets", "hide_fade", value=int(value))
         self.pets_changed.emit()
 
     def _on_predator_visit_changed(self, value: int):

@@ -149,9 +149,7 @@ class RoomWidget(TranslatableMixin, QWidget):
 
         main_layout.addLayout(content_layout, stretch=1)
         # After the layout tree is attached so input_row is under this widget for mapTo
-        self.pet_overlay = PetOverlay(
-            self, pet_strip, (self.messages_widget, self.userlist_panel), self.config
-        )
+        self.pet_overlay = PetOverlay(self, pet_strip, self.messages_widget, self.config)
 
     def _update_userlist_width(self) -> None:
         self.userlist_panel.setFixedWidth(get_userlist_width())

@@ -15,6 +15,7 @@ from helpers.pets.catalog import (
     action_frame_rate,
     get_pet_kind,
     ground_frame_rate,
+    hide_fade_ms,
     HIDE_BOUNCE,
     HIDE_FLIGHT,
     HIDE_OFF,
@@ -33,8 +34,7 @@ from helpers.pets.throwable import Throwable
 
 
 _MILLISECONDS = 1000
-_FADE_OUT_MS = 250
-_FADE_IN_MS = 450
+_FADE_IN_RATIO = 2  # the content comes back this much slower than it goes
 _HIDDEN_OPACITY = 0.0
 _RESPAWN_SHARE = 0.5  # a carried-off pet is replaced after this share of the time between the visits of a predator
 _MAXIMUM_STEP_MS = 100  # a stall (sleep, window drag) must not make pets jump across the line
@@ -51,11 +51,11 @@ def _tick_ms(frame_rate: int) -> int:
 class PetOverlay(QWidget):
     """Area over everything down to the bottom of anchor, the strip kept free for the pets; the mask leaves only the pets themselves to the mouse."""
 
-    def __init__(self, parent: QWidget, anchor: QWidget, content: tuple[QWidget, ...], config):
+    def __init__(self, parent: QWidget, anchor: QWidget, content: QWidget, config):
         super().__init__(parent)
         self._anchor = anchor
         self._config = config
-        self._faders = [WidgetFader(widget) for widget in content]  # what the pets fly over
+        self._fader = WidgetFader(content)  # what the pets fly over
         self._hide_mode = HIDE_OFF
         self._is_content_hidden = False
         self._pets: list[Pet] = []
@@ -347,15 +347,16 @@ class PetOverlay(QWidget):
         if is_hidden == self._is_content_hidden:
             return
         self._is_content_hidden = is_hidden
-        opacity, duration_ms = (_HIDDEN_OPACITY, _FADE_OUT_MS) if is_hidden else (1.0, _FADE_IN_MS)
-        for fader in self._faders:
-            fader.fade_to(opacity, duration_ms)
+        fade_ms = hide_fade_ms(self._config)
+        if is_hidden:
+            self._fader.fade_to(_HIDDEN_OPACITY, fade_ms)
+        else:
+            self._fader.fade_to(1.0, fade_ms * _FADE_IN_RATIO)
 
     def _show_content(self) -> None:
         """Show the content again at once, when the pets stop or go away during a fade."""
         self._is_content_hidden = False
-        for fader in self._faders:
-            fader.restore()
+        self._fader.restore()
 
     def _adjust_tick_rate(self) -> None:
         """Tick fast while a body is held or in the air, slowly otherwise."""
