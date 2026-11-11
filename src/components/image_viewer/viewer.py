@@ -2,7 +2,7 @@
 
 from typing import Callable, Optional
 
-from PyQt6.QtCore import QPoint, QPointF, Qt, QTimer
+from PyQt6.QtCore import QEvent, QPoint, QPointF, Qt, QTimer
 from PyQt6.QtGui import QColor, QCursor, QPainter
 from PyQt6.QtWidgets import QApplication, QWidget
 
@@ -91,6 +91,7 @@ class ImageHoverView(QWidget):
         self._direction = 0
         self._is_dark = True
         self._is_playing = False
+        self._is_interface_shown = True
         self._layer: Optional[ImageLayer] = None
         self._outgoing: Optional[ImageLayer] = None
 
@@ -402,8 +403,8 @@ class ImageHoverView(QWidget):
             self.update()
 
     def _reserved_bottom(self) -> int:
-        """Height kept free at the bottom for the gallery bar."""
-        return self._gallery_bar.height() + 2 * _OVERLAY_MARGIN if self._gallery_bar.isVisibleTo(self) else 0
+        """Height kept free at the bottom for the gallery bar, also while the interface is hidden so the image stays put."""
+        return self._gallery_bar.height() + 2 * _OVERLAY_MARGIN if self._has_gallery_bar() else 0
 
     def _update_overlays(self, image: Optional[GalleryImage]):
         count = len(self._gallery.images)
@@ -411,7 +412,8 @@ class ImageHoverView(QWidget):
         has_source = has_message and self._gallery.on_source is not None
         can_reply = has_message and self._gallery.on_reply is not None
         day_state = self._day_state()
-        self._gallery_bar.setVisible(count > 0 or day_state is not None)
+        day = day_state.day if day_state else None
+        self._gallery_bar.setVisible(self._has_gallery_bar() and self._is_interface_shown)
         self._gallery_bar.set_message_actions(has_source, can_reply)
         self._gallery_bar.set_position(self._index, count, count > 0 and show_thumbnails(self._config), day_state)
         self._gallery_bar.move(
@@ -429,22 +431,28 @@ class ImageHoverView(QWidget):
         right = self.width() - _OVERLAY_MARGIN
         for panel in top_panels:
             panel.move(right - panel.width(), _OVERLAY_MARGIN)
-            panel.show()
+            panel.setVisible(self._is_interface_shown)
             right = panel.x() - _OVERLAY_SPACING
         self._place_edge_zones()
         self._update_edge_zones()
-        self._source_badge.setVisible(has_source)
+        self._source_badge.setVisible(has_source and self._is_interface_shown)
         if has_source:
-            self._source_badge.show_image(image, self._is_dark)
+            self._source_badge.show_image(image, self._is_dark, day)
             self._source_badge.move(_OVERLAY_MARGIN, _OVERLAY_MARGIN)
         has_position = count > 1 or day_state is not None
-        self._position_badge.setVisible(has_position)
+        self._position_badge.setVisible(has_position and self._is_interface_shown)
         if has_position:
-            self._position_badge.show_position(self._index, count, day_state.day if day_state else None, self._is_dark)
+            self._position_badge.show_position(self._index, count, day, self._is_dark)
             left = self._source_badge.geometry().right() + _OVERLAY_SPACING if has_source else _OVERLAY_MARGIN
             self._position_badge.move(left, _OVERLAY_MARGIN)
         if self._reply_panel.isVisible():
             self._place_reply()
+
+    def _toggle_interface(self):
+        """Hide or show every floating panel at once; the image, the notice and the reply field stay."""
+        self._is_interface_shown = not self._is_interface_shown
+        self._update_overlays(self._current_image)
+        self._update_minimap()
 
     def _start_spinner_at_center(self):
         self._position_timer.stop()
@@ -478,6 +486,10 @@ class ImageHoverView(QWidget):
     def _day_state(self) -> Optional[DayState]:
         navigation = self._gallery.day_navigation
         return navigation.state() if navigation else None
+
+    def _has_gallery_bar(self) -> bool:
+        """Whether the gallery has anything for the bar to show, whether or not the interface is hidden."""
+        return self._gallery is not None and (bool(self._gallery.images) or self._day_state() is not None)
 
     def _on_day_requested(self, step: int):
         """Switch the chatlog behind the viewer by a day; the gallery follows once its messages are replaced."""
@@ -539,7 +551,7 @@ class ImageHoverView(QWidget):
         panel = self._reply_panel
         panel.setFixedWidth(min(_REPLY_PANEL_WIDTH, self.width() - 2 * _OVERLAY_MARGIN))
         panel.adjustSize()
-        bottom = self._gallery_bar.y() if self._gallery_bar.isVisibleTo(self) else self.height() - _OVERLAY_MARGIN
+        bottom = self._gallery_bar.y() if self._has_gallery_bar() else self.height() - _OVERLAY_MARGIN
         panel.move((self.width() - panel.width()) // 2, bottom - _OVERLAY_SPACING - panel.height())
         panel.raise_()
         if self._emoticon_selector is not None and self._emoticon_selector.isVisible():
@@ -660,6 +672,8 @@ class ImageHoverView(QWidget):
 
     def _update_minimap(self):
         self._minimap.update_view(self._layer, self.size())
+        if not self._is_interface_shown:
+            self._minimap.hide()
         self._minimap.move(
             self.width() - self._minimap.width() - _OVERLAY_MARGIN, self.height() - self._minimap.height() - _OVERLAY_MARGIN
         )
@@ -683,9 +697,11 @@ class ImageHoverView(QWidget):
             self._zoom_hold.release()  # a button disabled under the cursor never reports its release
 
     def _update_edge_zones(self):
-        """Reveal an edge zone while the cursor is in its hot area; keep both hidden while dragging or with nothing to turn to."""
+        """Reveal an edge zone while the cursor is in its hot area; keep both hidden while dragging, with nothing to turn to or with the interface hidden."""
         position = self.mapFromGlobal(QCursor.pos())
-        can_navigate = self._gallery is not None and len(self._gallery.images) > 1 and self._drag_mode is None
+        can_navigate = (
+            self._is_interface_shown and self._gallery is not None and len(self._gallery.images) > 1 and self._drag_mode is None
+        )
         for zone in self._edge_zones:
             zone.set_active(can_navigate and zone.is_hot(position))
 
@@ -749,6 +765,14 @@ class ImageHoverView(QWidget):
         self._drag_mode = self._last_mouse_pos = None
         self.setCursor(QCursor(Qt.CursorShape.ArrowCursor))
         self._update_edge_zones()
+
+    def event(self, event):
+        """Tab is taken here: the focus chain would consume it before keyPressEvent."""
+        if event.type() == QEvent.Type.KeyPress and event.key() == Qt.Key.Key_Tab and event.modifiers() == Qt.KeyboardModifier.NoModifier:
+            if not event.isAutoRepeat():
+                self._toggle_interface()
+            return True
+        return super().event(event)
 
     def keyPressEvent(self, event):
         """Handle keyboard shortcuts - layout independent"""
@@ -823,6 +847,7 @@ class ImageHoverView(QWidget):
         if ImageHoverView._active_viewer is self:
             ImageHoverView._active_viewer = None
         self._set_slideshow_playing(False)
+        self._is_interface_shown = True
         self._gallery_bar.clear_thumbnails()
         if self._help_panel:
             self._help_panel.close()

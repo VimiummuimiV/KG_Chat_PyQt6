@@ -417,7 +417,7 @@ class SourceBadge(QFrame):
 
         self._refresh_tooltip()
 
-    def show_image(self, image: GalleryImage, is_dark: bool):
+    def show_image(self, image: GalleryImage, is_dark: bool, day: Optional[date]):
         """Fill the badge with the sender and time of the message that holds this image."""
         cache = get_cache()
         apply_user_avatar(
@@ -428,16 +428,17 @@ class SourceBadge(QFrame):
         self.setStyleSheet(panel_stylesheet("sourceBadge", is_dark))
         self._username_label.setText(image.username)
         self._username_label.setStyleSheet(f"color: {cache.get_username_color(image.username, is_dark)};")
-        self._time_label.setText(self._format_time(image))
+        self._time_label.setText(self._format_time(image, day))
         self._time_label.setStyleSheet(f"color: {style['muted']};")
         self._refresh_tooltip()
         self.adjustSize()
 
     @staticmethod
-    def _format_time(image: GalleryImage) -> str:
+    def _format_time(image: GalleryImage, day: Optional[date]) -> str:
         if image.timestamp is None:
             return ""
-        pattern = "%H:%M:%S" if image.timestamp.date() == date.today() else "%Y-%m-%d %H:%M:%S"
+        # the date is left out when it is today or the day the position badge already shows
+        pattern = "%H:%M:%S" if image.timestamp.date() in (date.today(), day) else "%Y-%m-%d %H:%M:%S"
         return image.timestamp.strftime(pattern)
 
     def _refresh_tooltip(self):

@@ -185,6 +185,7 @@ _IMAGE_KB = [
     ("S",               "Save the image to a file",             "Сохранить изображение в файл"),
     ("+ / -",           "Zoom in / out (hold to repeat)",       "Увеличить / уменьшить (удерживать для повтора)"),
     ("0  /  1",         "Fit to screen  /  actual size (100%)", "По размеру экрана  /  реальный размер (100%)"),
+    ("Tab",             "Hide / show all panels",               "Скрыть / показать все панели"),
     ("Enter / Esc",     "Reply field: send / close it",         "Поле ответа: отправить / закрыть"),
     ("Esc / Space / Q", "Close image viewer",                   "Закрыть просмотр изображения"),
 ]
