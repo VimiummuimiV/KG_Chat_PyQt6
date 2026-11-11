@@ -91,8 +91,9 @@ class BounceBehavior:
 
     def is_over(self, board: QRect, area_height: int) -> bool:
         """Whether the pet is thrown and above the board: only then the board is there for it."""
-        is_above = self.rect(area_height).center().y() <= board.center().y()
-        return self.is_thrown and not self.is_held and is_above
+        if not self.is_thrown or self.is_held:
+            return False
+        return self.rect(area_height).center().y() <= board.center().y()
 
     def grab(self, point: QPoint, area_height: int, timestamp_ms: int) -> None:
         if not self.is_flying:

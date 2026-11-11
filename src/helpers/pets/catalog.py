@@ -15,6 +15,10 @@ MAXIMUM_PET_COUNT = 10
 MAXIMUM_SIZE_MULTIPLIER = 10
 DEFAULT_SIZE_MULTIPLIER = 2
 PREDATOR_VISIT_SECONDS = (45, 5, 1800)  # default, minimum and maximum of the seconds between the visits of a predator
+HIDE_OFF = "off"
+HIDE_BOUNCE = "bounce"  # from the first bounce off the board until every thrown pet has landed
+HIDE_FLIGHT = "flight"  # while any pet is in the air after a throw
+HIDE_MODES = (HIDE_OFF, HIDE_BOUNCE, HIDE_FLIGHT)
 _GROUND_FRAME_RATE_DEFAULT = 30  # frames per second of the strip while the pets stay on the ground
 _ACTION_FRAME_RATE_DEFAULT = 60  # the same while a pet or an egg is held or in the air
 _MINIMUM_FRAME_RATE = 10
@@ -159,9 +163,10 @@ def action_frame_rate_setting() -> tuple[int, int, int]:
     return _ACTION_FRAME_RATE_DEFAULT, *frame_rate_range()
 
 
-def pets_hide_messages(config) -> bool:
-    """Return True when the messages fade out while a thrown pet bounces off the cursor."""
-    return bool(config.get("ui", "pets", "hide_messages"))
+def pets_hide_mode(config) -> str:
+    """Return when the content fades out for a throw: HIDE_OFF, HIDE_BOUNCE or HIDE_FLIGHT."""
+    mode = config.get("ui", "pets", "hide_mode")
+    return mode if mode in HIDE_MODES else HIDE_OFF
 
 
 def predator_visit_seconds(config) -> int:

@@ -22,13 +22,14 @@ from helpers.pets.catalog import (
     pet_counts,
     pet_size_multiplier,
     pets_enabled,
-    pets_hide_messages,
+    pets_hide_mode,
     pets_stepped,
     predator_visit_seconds,
 )
 from helpers.pets.relations import PREDATOR_SPECIES
 from helpers.translate import tr
 from ui.dialogs.pets_guide_dialog import PetsGuideDialog
+from ui.settings.settings_options import fill_pets_hide_combo
 
 
 _TILE_COLUMNS = 8
@@ -188,18 +189,16 @@ class SettingsPetsMixin:
         ):
             spin.parentWidget().setToolTip(tooltip)
             self.register_tr(spin.parentWidget().setToolTip, tooltip)
-        hide_messages_label = tr(
-            "Fade the messages while a thrown pet bounces off the cursor",
-            "Скрывать сообщения, пока брошенный питомец отскакивает от курсора",
+        self.pets_hide_combo = self.add_combo_row(
+            section, tr("Fade the chat during throws", "Скрывать чат при бросках"), [],
+            self._on_pets_hide_changed,
         )
-        self.pets_hide_messages_checkbox = self.add_checkbox(
-            section, hide_messages_label, self._on_pets_hide_messages_toggled
-        )
+        fill_pets_hide_combo(self.pets_hide_combo, pets_hide_mode(self.config))
 
     def refresh_pets(self):
         self.pets_checkbox.setChecked(pets_enabled(self.config))
         self.pets_stepped_checkbox.setChecked(pets_stepped(self.config))
-        self.pets_hide_messages_checkbox.setChecked(pets_hide_messages(self.config))
+        fill_pets_hide_combo(self.pets_hide_combo, pets_hide_mode(self.config))
         counts = pet_counts(self.config)
         for key, tile in self._pet_tiles.items():
             tile.set_count(counts.get(key, 0))
@@ -227,8 +226,9 @@ class SettingsPetsMixin:
         self.config.set("ui", "pets", "stepped", value=checked)
         self.pets_changed.emit()
 
-    def _on_pets_hide_messages_toggled(self, checked: bool):
-        self.config.set("ui", "pets", "hide_messages", value=checked)
+    def _on_pets_hide_changed(self, _text: str = ""):
+        self.sync_combo_tooltip(self.pets_hide_combo)
+        self.config.set("ui", "pets", "hide_mode", value=self.pets_hide_combo.currentData())
         self.pets_changed.emit()
 
     def _on_predator_visit_changed(self, value: int):

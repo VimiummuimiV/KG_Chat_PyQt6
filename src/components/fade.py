@@ -1,5 +1,6 @@
 """Smooth fade of a whole widget through the opacity of the widget as one picture."""
 
+from PyQt6 import sip
 from PyQt6.QtCore import QEasingCurve, QObject, QVariantAnimation
 from PyQt6.QtWidgets import QGraphicsOpacityEffect, QWidget
 
@@ -35,6 +36,8 @@ class WidgetFader(QObject):
 
     def restore(self) -> None:
         """Show the widget fully at once."""
+        if sip.isdeleted(self._widget):
+            return
         self._animation.stop()
         self._remove_effect()
 

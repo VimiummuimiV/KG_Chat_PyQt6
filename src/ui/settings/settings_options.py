@@ -5,6 +5,7 @@ from PyQt6.QtCore import Qt
 from components.flash_highlight import TIMING_FUNCTIONS
 from components.image_viewer.layer import TRANSITION_MODES
 from components.image_viewer.options import DEFAULT_REPLY_MODE, DEFAULT_TRANSITION_MODE, REPLY_MODE_CLOSE, REPLY_MODE_INLINE
+from helpers.pets.catalog import HIDE_BOUNCE, HIDE_FLIGHT, HIDE_OFF
 from helpers.translate import tr
 
 
@@ -194,6 +195,24 @@ def _mentions_digest_mode_options():
         ("start", tr("Every chat start", "При каждом запуске чата"),
          tr("Check on every chat start (ignore the interval).",
             "Проверять при каждом запуске чата (игнорируя интервал).")),
+    )
+
+
+def _pets_hide_options():
+    return (
+        (HIDE_OFF, tr("Off", "Выкл"),
+         tr("The chat stays visible during throws.",
+            "Чат остаётся на виду во время бросков.")),
+        (HIDE_BOUNCE, tr("Bounce", "Отскок"),
+         tr("The chat fades out at the first bounce off the cursor and returns when every "
+            "thrown pet has landed.",
+            "Чат скрывается при первом отскоке от курсора и возвращается, когда все "
+            "брошенные питомцы приземлились.")),
+        (HIDE_FLIGHT, tr("Flight", "Полёт"),
+         tr("The chat fades out as soon as a pet is thrown and returns when every thrown "
+            "pet has landed.",
+            "Чат скрывается сразу при броске питомца и возвращается, когда все "
+            "брошенные питомцы приземлились.")),
     )
 
 
@@ -428,6 +447,10 @@ def fill_tracker_default_tab_combo(combo, current=None):
 
 def fill_mentions_digest_mode_combo(combo, current=None):
     fill_tooltip_combo(combo, _mentions_digest_mode_options(), current, "daily")
+
+
+def fill_pets_hide_combo(combo, current=None):
+    fill_tooltip_combo(combo, _pets_hide_options(), current, HIDE_OFF)
 
 
 def fill_flash_easing_combo(combo, current=None):

@@ -15,10 +15,13 @@ from helpers.pets.catalog import (
     action_frame_rate,
     get_pet_kind,
     ground_frame_rate,
+    HIDE_BOUNCE,
+    HIDE_FLIGHT,
+    HIDE_OFF,
     pet_counts,
     pet_pixel_size,
     pets_enabled,
-    pets_hide_messages,
+    pets_hide_mode,
     pets_stepped,
     predator_visit_ms,
 )
@@ -30,9 +33,9 @@ from helpers.pets.throwable import Throwable
 
 
 _MILLISECONDS = 1000
-_MESSAGES_FADE_OUT_MS = 250
-_MESSAGES_FADE_IN_MS = 450
-_MESSAGES_HIDDEN_OPACITY = 0.0
+_FADE_OUT_MS = 250
+_FADE_IN_MS = 450
+_HIDDEN_OPACITY = 0.0
 _RESPAWN_SHARE = 0.5  # a carried-off pet is replaced after this share of the time between the visits of a predator
 _MAXIMUM_STEP_MS = 100  # a stall (sleep, window drag) must not make pets jump across the line
 _BADGE_FONT_SIZE = 10
@@ -48,13 +51,13 @@ def _tick_ms(frame_rate: int) -> int:
 class PetOverlay(QWidget):
     """Area over everything down to the bottom of anchor, the strip kept free for the pets; the mask leaves only the pets themselves to the mouse."""
 
-    def __init__(self, parent: QWidget, anchor: QWidget, messages: QWidget, config):
+    def __init__(self, parent: QWidget, anchor: QWidget, content: tuple[QWidget, ...], config):
         super().__init__(parent)
         self._anchor = anchor
         self._config = config
-        self._messages_fader = WidgetFader(messages)
-        self._is_hiding_messages = False  # the option is on
-        self._are_messages_hidden = False
+        self._faders = [WidgetFader(widget) for widget in content]  # what the pets fly over
+        self._hide_mode = HIDE_OFF
+        self._is_content_hidden = False
         self._pets: list[Pet] = []
         self._eggs: list[Egg] = []
         self._meadow = Meadow()
@@ -63,7 +66,8 @@ class PetOverlay(QWidget):
         self._grabbed: Throwable | None = None
         self._cursor_point: QPoint | None = None  # where the cursor was on the previous tick
         self._board = CollisionBoard.for_pets(())
-        self._painted = QRegion()
+        self._items: dict = {}  # what was drawn last: where and which picture, to repaint only changes
+        self._mask = QRegion()
         self._clock = QElapsedTimer()
         self._timer = QTimer(self)
         self._timer.setTimerType(Qt.TimerType.PreciseTimer)  # the coarse default is uneven
@@ -78,7 +82,7 @@ class PetOverlay(QWidget):
     def shutdown(self) -> None:
         """Detach filters/parent so a deferred _place cannot mapTo after the room is gone."""
         self._timer.stop()
-        self._show_messages()
+        self._show_content()
         if self._anchor is not None:
             self._anchor.removeEventFilter(self)
         parent = self.parentWidget()
@@ -120,7 +124,7 @@ class PetOverlay(QWidget):
         self._ground_tick_ms = _tick_ms(ground_frame_rate(self._config))
         self._action_tick_ms = _tick_ms(action_frame_rate(self._config))
         self._adjust_tick_rate()
-        self._is_hiding_messages = pets_hide_messages(self._config)
+        self._hide_mode = pets_hide_mode(self._config)
         self._grabbed = None
         self._cursor_point = None
         self._board = CollisionBoard.for_pets(self._pets)
@@ -141,14 +145,17 @@ class PetOverlay(QWidget):
     def hideEvent(self, event):
         super().hideEvent(event)
         self._timer.stop()
-        self._show_messages()
+        self._show_content()
 
-    def paintEvent(self, _event):
+    def paintEvent(self, event):
         painter = QPainter(self)
         painter.scale(1 / self.devicePixelRatioF(), 1 / self.devicePixelRatioF())  # draw in device pixels
         area_height = self._device_size()[1]
+        changed = event.rect()
         for body in self._bodies():
-            painter.drawPixmap(body.position(area_height), body.pixmap)
+            item = self._items.get(body)
+            if item is None or item[0].intersects(changed):
+                painter.drawPixmap(body.position(area_height), body.pixmap)
         board = self._board_rect()
         if board:
             self._paint_board(painter, board)
@@ -253,20 +260,35 @@ class PetOverlay(QWidget):
         self._refresh_region()
 
     def _refresh_region(self) -> None:
-        """Limit mouse input to the pets and repaint only where they were and are."""
+        """Repaint only what changed since the last picture; the mouse reaches the strip and whatever left it."""
         area_height = self._device_size()[1]
-        region = QRegion()
-        for body in self._bodies():
-            region = region.united(self._logical_rect(body.rect(area_height)))
-        for pixmap, position in self._badges():
-            region = region.united(self._logical_rect(QRect(position, pixmap.size())))
+        items = {
+            body: (self._logical_rect(body.rect(area_height)), body.pixmap.cacheKey())
+            for body in self._bodies()
+        }
+        for index, (pixmap, position) in enumerate(self._badges()):
+            items[("badge", index)] = (self._logical_rect(QRect(position, pixmap.size())), pixmap.cacheKey())
         board = self._board_rect()
         if board:
-            region = region.united(self._logical_rect(board))
-        if region != self._painted:
-            self.setMask(region)
-        self.update(self._painted.united(region))
-        self._painted = region
+            items["board"] = (self._logical_rect(board), 0)
+        dirty = QRegion()
+        for key in self._items.keys() | items.keys():
+            before, after = self._items.get(key), items.get(key)
+            if before != after:
+                dirty += before[0] if before else QRect()
+                dirty += after[0] if after else QRect()
+        self._items = items
+        if dirty.isEmpty():
+            return
+        strip = QRect(0, self.height() - self._anchor.height(), self.width(), self._anchor.height())
+        mask = QRegion(strip)
+        for rect, _ in items.values():
+            if not strip.contains(rect.intersected(self.rect())):
+                mask += rect
+        if mask != self._mask:
+            self.setMask(mask)
+            self._mask = mask
+        self.update(dirty)
 
     def _safer_edge_is_right(self, kind, exit_right: bool, line_width: int) -> bool:
         """Whether a newcomer should come in at the right edge: the one farthest from the predators in sight, else the one no raider left by."""
@@ -311,23 +333,29 @@ class PetOverlay(QWidget):
         self._eggs = [egg for egg in self._eggs if not egg.expired]
         self._refresh_region()
         self._adjust_tick_rate()
-        self._fade_messages()
+        self._fade_content()
 
-    def _fade_messages(self) -> None:
-        """Fade the messages out at the first bounce and back in when the counters are gone."""
-        is_hidden = self._is_hiding_messages and any(pet.bounces for pet in self._pets)
-        if is_hidden == self._are_messages_hidden:
-            return
-        self._are_messages_hidden = is_hidden
-        if is_hidden:
-            self._messages_fader.fade_to(_MESSAGES_HIDDEN_OPACITY, _MESSAGES_FADE_OUT_MS)
+    def _fade_content(self) -> None:
+        """Fade the content out for a throw as the mode says and back in once all have landed."""
+        thrown = [pet for pet in self._pets if pet.is_thrown]
+        if self._hide_mode == HIDE_FLIGHT:
+            is_hidden = bool(thrown)
+        elif self._hide_mode == HIDE_BOUNCE:
+            is_hidden = bool(thrown) and (self._is_content_hidden or any(pet.bounces for pet in thrown))
         else:
-            self._messages_fader.fade_to(1.0, _MESSAGES_FADE_IN_MS)
+            is_hidden = False
+        if is_hidden == self._is_content_hidden:
+            return
+        self._is_content_hidden = is_hidden
+        opacity, duration_ms = (_HIDDEN_OPACITY, _FADE_OUT_MS) if is_hidden else (1.0, _FADE_IN_MS)
+        for fader in self._faders:
+            fader.fade_to(opacity, duration_ms)
 
-    def _show_messages(self) -> None:
-        """Show the messages again at once, when the pets stop or go away during a fade."""
-        self._are_messages_hidden = False
-        self._messages_fader.restore()
+    def _show_content(self) -> None:
+        """Show the content again at once, when the pets stop or go away during a fade."""
+        self._is_content_hidden = False
+        for fader in self._faders:
+            fader.restore()
 
     def _adjust_tick_rate(self) -> None:
         """Tick fast while a body is held or in the air, slowly otherwise."""
