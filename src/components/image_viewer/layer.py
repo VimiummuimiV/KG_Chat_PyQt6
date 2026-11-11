@@ -15,7 +15,7 @@ from PyQt6.QtCore import (
     Qt,
     QVariantAnimation,
 )
-from PyQt6.QtGui import QBrush, QMovie, QPainter, QPixmap
+from PyQt6.QtGui import QBrush, QColor, QMovie, QPainter, QPen, QPixmap
 from PyQt6.QtWidgets import QApplication
 
 
@@ -215,7 +215,7 @@ class ImageLayer:
             max_size, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation
         )
 
-    def paint(self, painter: QPainter, viewport: QSize, pose: _Pose = _IDENTITY_POSE):
+    def paint(self, painter: QPainter, viewport: QSize, outline: QColor, pose: _Pose = _IDENTITY_POSE):
         frame = self._frame()
         if not frame or frame.isNull() or pose.opacity <= 0 or pose.stretch <= 0:
             return
@@ -227,7 +227,9 @@ class ImageLayer:
         painter.translate(self.offset)
         painter.scale(self.scale, self.scale)
         radius = CORNER_RADIUS / (self.scale * pose.scale)
-        painter.setPen(Qt.PenStyle.NoPen)
+        pen = QPen(outline)
+        pen.setCosmetic(True)  # one screen pixel at any zoom
+        painter.setPen(pen)
         painter.setBrush(QBrush(frame))  # a textured rounded rect keeps the corners antialiased, unlike a clip path
         painter.drawRoundedRect(QRectF(frame.rect()), radius, radius)
         painter.restore()

@@ -34,27 +34,40 @@ _POSITION_SEPARATOR = "  ·  "
 _NOTICE_ICON_SIZE = 40
 PANEL_MARGIN = 10
 PANEL_SPACING = 8
-_PANEL_IS_DARK = True  # the panels are dark in both themes, so what is drawn on them uses the dark colors
+_PANEL_BORDER_WIDTH = 1
 _BADGE_AVATAR_SIZE = 28
 _BADGE_SVG_AVATAR_SIZE = 20
 _BADGE_MARGIN = 6
 _BADGE_SPACING = 8
-PANEL_STYLE = {
-    "background": "rgba(18, 18, 18, 235)",
-    "text": "#dddddd",
-    "muted": "#999999",
-    "placeholder": "#2c2c2c",
+PANEL_STYLES = {
+    True: {
+        "background": "rgba(18, 18, 18, 235)",
+        "text": "#dddddd",
+        "muted": "#999999",
+        "placeholder": "#2c2c2c",
+        "border": QColor(255, 255, 255, 45),
+    },
+    False: {
+        "background": "rgba(245, 245, 245, 225)",
+        "text": "#333333",
+        "muted": "#777777",
+        "placeholder": "#cfcfcf",
+        "border": QColor(0, 0, 0, 55),
+    },
 }
 
 
-def panel_stylesheet(object_name: str) -> str:
+def panel_stylesheet(object_name: str, is_dark: bool) -> str:
+    style = PANEL_STYLES[is_dark]
+    border = style["border"]
     return f"""
         #{object_name} {{
-            background-color: {PANEL_STYLE['background']};
+            background-color: {style['background']};
+            border: {_PANEL_BORDER_WIDTH}px solid rgba({border.red()}, {border.green()}, {border.blue()}, {border.alpha()});
             border-radius: {CORNER_RADIUS}px;
         }}
         #{object_name} QLabel {{
-            color: {PANEL_STYLE['text']};
+            color: {style['text']};
             background: transparent;
         }}
     """
@@ -95,6 +108,7 @@ class _ThumbnailStrip(QWidget):
     def __init__(self, icons_path: Path, progress_source: Callable[[int], Optional[float]], parent=None):
         super().__init__(parent)
         self.indices = range(0)
+        self._icons_path = icons_path
         self._progress_source = progress_source  # download progress (0..1) of a gallery index, None when idle
         self._progress: dict[int, float] = {}
         self._progress_timer = QTimer(self)
@@ -103,8 +117,7 @@ class _ThumbnailStrip(QWidget):
         self._current = 0
         self._is_dark = True
         self._thumbnails: dict[int, Optional[QPixmap]] = {}  # None = image unavailable
-        icon = render_svg_icon(icons_path / _UNAVAILABLE_ICON, _UNAVAILABLE_ICON_SIZE, PANEL_STYLE["muted"])
-        self._unavailable_icon = icon.pixmap(_UNAVAILABLE_ICON_SIZE, _UNAVAILABLE_ICON_SIZE)
+        self._unavailable_icon = QPixmap()
         self.setCursor(Qt.CursorShape.PointingHandCursor)
 
     def _set_state(self, indices: range, current: int):
@@ -117,6 +130,8 @@ class _ThumbnailStrip(QWidget):
 
     def set_theme(self, is_dark: bool):
         self._is_dark = is_dark
+        icon = render_svg_icon(self._icons_path / _UNAVAILABLE_ICON, _UNAVAILABLE_ICON_SIZE, PANEL_STYLES[is_dark]["muted"])
+        self._unavailable_icon = icon.pixmap(_UNAVAILABLE_ICON_SIZE, _UNAVAILABLE_ICON_SIZE)
         self.update()
 
     def set_thumbnail(self, index: int, pixmap: Optional[QPixmap]):
@@ -159,9 +174,9 @@ class _ThumbnailStrip(QWidget):
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        placeholder = QColor(PANEL_STYLE["placeholder"])
+        placeholder = QColor(PANEL_STYLES[self._is_dark]["placeholder"])
         accent = QColor(get_user_svg_color(True, self._is_dark))  # theme accent
-        progress_color = QColor(PANEL_STYLE["text"])
+        progress_color = QColor(PANEL_STYLES[self._is_dark]["text"])
         progress_color.setAlpha(_PROGRESS_FILL_ALPHA)
         for slot, index in enumerate(self.indices):
             rect = self._slot_rect(slot)
@@ -217,7 +232,6 @@ class GalleryBar(QFrame):
     ):
         super().__init__(parent)
         self.setObjectName("galleryBar")
-        self.setStyleSheet(panel_stylesheet("galleryBar"))
         self._is_playing = False
 
         self._reply_button = create_icon_button(icons_path, "fill/reply-fill.svg", config=config)
@@ -272,6 +286,7 @@ class GalleryBar(QFrame):
         self._refresh_tooltips()
 
     def apply_theme(self, is_dark: bool):
+        self.setStyleSheet(panel_stylesheet("galleryBar", is_dark))
         self._strip.set_theme(is_dark)
 
     def set_message_actions(self, can_go_to_source: bool, can_reply: bool):
@@ -384,7 +399,6 @@ class SourceBadge(QFrame):
     def __init__(self, icons_path: Path, parent=None):
         super().__init__(parent)
         self.setObjectName("sourceBadge")
-        self.setStyleSheet(panel_stylesheet("sourceBadge"))
         self._icons_path = icons_path
         self.setCursor(Qt.CursorShape.PointingHandCursor)
 
@@ -393,7 +407,6 @@ class SourceBadge(QFrame):
         self._username_label.setFont(get_font(FontType.TEXT))
         self._time_label = QLabel()
         self._time_label.setFont(get_font(FontType.TEXT))
-        self._time_label.setStyleSheet(f"color: {PANEL_STYLE['muted']};")
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(_BADGE_MARGIN, _BADGE_MARGIN, _BADGE_MARGIN + _BADGE_SPACING, _BADGE_MARGIN)
@@ -404,16 +417,19 @@ class SourceBadge(QFrame):
 
         self._refresh_tooltip()
 
-    def show_image(self, image: GalleryImage):
+    def show_image(self, image: GalleryImage, is_dark: bool):
         """Fill the badge with the sender and time of the message that holds this image."""
         cache = get_cache()
         apply_user_avatar(
             self._avatar_label, cache.get_user_id(image.username), _BADGE_AVATAR_SIZE, _BADGE_SVG_AVATAR_SIZE,
-            _PANEL_IS_DARK, self._icons_path,
+            is_dark, self._icons_path,
         )
+        style = PANEL_STYLES[is_dark]
+        self.setStyleSheet(panel_stylesheet("sourceBadge", is_dark))
         self._username_label.setText(image.username)
-        self._username_label.setStyleSheet(f"color: {cache.get_username_color(image.username, _PANEL_IS_DARK)};")
+        self._username_label.setStyleSheet(f"color: {cache.get_username_color(image.username, is_dark)};")
         self._time_label.setText(self._format_time(image))
+        self._time_label.setStyleSheet(f"color: {style['muted']};")
         self._refresh_tooltip()
         self.adjustSize()
 
@@ -439,16 +455,16 @@ class PositionBadge(QFrame):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setObjectName("positionBadge")
-        self.setStyleSheet(panel_stylesheet("positionBadge"))
         self._label = QLabel()
         self._label.setFont(get_font(FontType.TEXT))
-        self.setMinimumHeight(_BADGE_AVATAR_SIZE + 2 * _BADGE_MARGIN)  # same height as the source badge
+        self.setMinimumHeight(_BADGE_AVATAR_SIZE + 2 * (_BADGE_MARGIN + _PANEL_BORDER_WIDTH))  # same height as the source badge
         layout = QHBoxLayout(self)
         layout.setContentsMargins(_BADGE_MARGIN + _BADGE_SPACING, _BADGE_MARGIN, _BADGE_MARGIN + _BADGE_SPACING, _BADGE_MARGIN)
         layout.addWidget(self._label)
 
-    def show_position(self, index: int, count: int, day: Optional[date]):
+    def show_position(self, index: int, count: int, day: Optional[date], is_dark: bool):
         """Fill the badge for the image at index of count; day is None outside chatlog days."""
+        self.setStyleSheet(panel_stylesheet("positionBadge", is_dark))
         text = f"{index + 1 if count else 0} / {count}"
         self._label.setText(f"{text}{_POSITION_SEPARATOR}{day:%Y-%m-%d}" if day else text)
         self.adjustSize()
@@ -462,7 +478,6 @@ class ReplyPanel(QFrame):
     def __init__(self, icons_path: Path, config=None, parent=None):
         super().__init__(parent)
         self.setObjectName("replyPanel")
-        self.setStyleSheet(panel_stylesheet("replyPanel"))
         self._config = config
         self.input_row = InputRow(icons_path, config, parent=self)
         self.input_row.input_field.installEventFilter(self)
@@ -472,6 +487,7 @@ class ReplyPanel(QFrame):
 
     def open(self, text: str, has_emoticons: bool, is_dark: bool):
         """Show the panel with the text in the field and the cursor at its end."""
+        self.setStyleSheet(panel_stylesheet("replyPanel", is_dark))
         field = self.input_row.input_field
         if self._config:
             field.setStyleSheet(resolve_input_style(self._config, is_dark)[0])

@@ -33,6 +33,7 @@ from components.image_viewer.overlay import (
     NOTICE_ERROR,
     NOTICE_WARNING,
     NoticeKind,
+    PANEL_STYLES,
     PositionBadge,
     ReplyPanel,
     SourceBadge,
@@ -185,12 +186,13 @@ class ImageHoverView(QWidget):
             return
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+        outline = PANEL_STYLES[self._is_dark]["border"]
         if self._outgoing and self._transition.running:
             outgoing_pose, incoming_pose = self._transition.poses()
-            self._outgoing.paint(painter, self.size(), outgoing_pose)
-            self._layer.paint(painter, self.size(), incoming_pose)
+            self._outgoing.paint(painter, self.size(), outline, outgoing_pose)
+            self._layer.paint(painter, self.size(), outline, incoming_pose)
         else:
-            self._layer.paint(painter, self.size())
+            self._layer.paint(painter, self.size(), outline)
 
     def show_preview(self, url: str, cursor_pos: QPoint, gallery: Optional[ImageGallery] = None):
         image_url = extract_image_url(url)
@@ -224,6 +226,12 @@ class ImageHoverView(QWidget):
         """Re-theme the overlays; also called while the viewer is open when the app theme is switched."""
         self._is_dark = is_dark
         self._gallery_bar.apply_theme(is_dark)
+        self._close_button.apply_theme(is_dark)
+        self._zoom_buttons.apply_theme(is_dark)
+        self._zoom_slider.apply_theme(is_dark)
+        self._minimap.apply_theme(is_dark)
+        for zone in self._edge_zones:
+            zone.apply_theme(is_dark)
         if self._gallery:
             self._update_overlays(self._current_image)
 
@@ -427,12 +435,12 @@ class ImageHoverView(QWidget):
         self._update_edge_zones()
         self._source_badge.setVisible(has_source)
         if has_source:
-            self._source_badge.show_image(image)
+            self._source_badge.show_image(image, self._is_dark)
             self._source_badge.move(_OVERLAY_MARGIN, _OVERLAY_MARGIN)
         has_position = count > 1 or day_state is not None
         self._position_badge.setVisible(has_position)
         if has_position:
-            self._position_badge.show_position(self._index, count, day_state.day if day_state else None)
+            self._position_badge.show_position(self._index, count, day_state.day if day_state else None, self._is_dark)
             left = self._source_badge.geometry().right() + _OVERLAY_SPACING if has_source else _OVERLAY_MARGIN
             self._position_badge.move(left, _OVERLAY_MARGIN)
         if self._reply_panel.isVisible():

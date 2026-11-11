@@ -11,7 +11,7 @@ from PyQt6.QtWidgets import QFrame, QGraphicsOpacityEffect, QHBoxLayout, QLabel,
 
 from components.button import create_icon_button, render_svg_icon, set_button_icon
 from components.image_viewer.layer import ImageLayer, MAX_SCALE, MIN_SCALE
-from components.image_viewer.overlay import PANEL_MARGIN, PANEL_SPACING, PANEL_STYLE, panel_stylesheet
+from components.image_viewer.overlay import PANEL_MARGIN, PANEL_SPACING, PANEL_STYLES, panel_stylesheet
 from helpers.fonts.fonts import FontType, get_font
 from helpers.translate import tr
 
@@ -49,7 +49,6 @@ class CloseButton(QFrame):
     def __init__(self, icons_path: Path, config=None, parent=None):
         super().__init__(parent)
         self.setObjectName("closeButton")
-        self.setStyleSheet(panel_stylesheet("closeButton"))
         self._button = create_icon_button(icons_path, "line/close-large-line.svg", config=config)
         self._button.setFocusPolicy(Qt.FocusPolicy.NoFocus)  # keys stay with the viewer
         self._button.clicked.connect(self.clicked)
@@ -59,6 +58,10 @@ class CloseButton(QFrame):
         layout.addWidget(self._button)
         self.adjustSize()
         self.refresh_tooltip()
+
+    def apply_theme(self, is_dark: bool):
+        """Restyle the panel for the theme."""
+        self.setStyleSheet(panel_stylesheet("closeButton", is_dark))
 
     def refresh_tooltip(self):
         """Re-translate the tooltip for the current interface language."""
@@ -74,7 +77,6 @@ class ZoomButtons(QFrame):
     def __init__(self, icons_path: Path, config=None, parent=None):
         super().__init__(parent)
         self.setObjectName("zoomButtons")
-        self.setStyleSheet(panel_stylesheet("zoomButtons"))
         self._zoom_out_button = create_icon_button(icons_path, "line/zoom-out-line.svg", config=config)
         self._zoom_in_button = create_icon_button(icons_path, "line/zoom-in-line.svg", config=config)
         self.actual_size_button = create_icon_button(icons_path, _ACTUAL_SIZE_ICON, config=config)
@@ -92,6 +94,10 @@ class ZoomButtons(QFrame):
         layout.addWidget(self.actual_size_button)
         self.adjustSize()
         self.refresh_tooltips()
+
+    def apply_theme(self, is_dark: bool):
+        """Restyle the panel for the theme."""
+        self.setStyleSheet(panel_stylesheet("zoomButtons", is_dark))
 
     def set_layer(self, layer: Optional[ImageLayer]):
         """Enable each button only while it has something to do; the last one flips between 100% and fit."""
@@ -134,7 +140,6 @@ class ZoomSlider(QFrame):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setObjectName("zoomSlider")
-        self.setStyleSheet(panel_stylesheet("zoomSlider") + _SLIDER_STYLESHEET)
         self._slider = QSlider(Qt.Orientation.Horizontal)
         self._slider.setRange(0, _ZOOM_SLIDER_STEPS)
         self._slider.setFixedWidth(_ZOOM_SLIDER_WIDTH)
@@ -154,6 +159,10 @@ class ZoomSlider(QFrame):
         self.set_layer(None)
         self.adjustSize()
         self.refresh_tooltip()
+
+    def apply_theme(self, is_dark: bool):
+        """Restyle the panel for the theme."""
+        self.setStyleSheet(panel_stylesheet("zoomSlider", is_dark) + _SLIDER_STYLESHEET)
 
     def _reserve_value_width(self):
         self._value_label.setFixedWidth(
@@ -192,11 +201,16 @@ class Minimap(QFrame):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setObjectName("minimap")
-        self.setStyleSheet(panel_stylesheet("minimap"))
         self.setCursor(Qt.CursorShape.CrossCursor)
+        self._is_dark = True
         self._layer: Optional[ImageLayer] = None
         self._preview = QPixmap()
         self._view = QRectF()  # the part in view, as fractions of the image
+
+    def apply_theme(self, is_dark: bool):
+        """Restyle the panel for the theme."""
+        self._is_dark = is_dark
+        self.setStyleSheet(panel_stylesheet("minimap", is_dark))
 
     def update_view(self, layer: Optional[ImageLayer], viewport: QSize):
         """Show the overview only while the viewport covers a small part of the layer's image."""
@@ -225,7 +239,7 @@ class Minimap(QFrame):
             _MINIMAP_PADDING + self._view.x() * width, _MINIMAP_PADDING + self._view.y() * height,
             self._view.width() * width, self._view.height() * height,
         )
-        color = QColor(PANEL_STYLE["text"])
+        color = QColor(PANEL_STYLES[self._is_dark]["text"])
         painter.setPen(QPen(color, _MINIMAP_VIEW_BORDER_WIDTH))
         color.setAlpha(_MINIMAP_VIEW_FILL_ALPHA)
         painter.setBrush(color)
@@ -258,17 +272,15 @@ class EdgeZone(QWidget):
 
     def __init__(self, icons_path: Path, is_left_edge: bool, parent=None):
         super().__init__(parent)
+        self._icon_path = icons_path / _EDGE_ZONE_ICONS[is_left_edge]
         self._is_left_edge = is_left_edge
         self._is_active = False
         self._hot_rect = QRect()
         self._icon_label = QLabel()
-        icon = render_svg_icon(icons_path / _EDGE_ZONE_ICONS[is_left_edge], _EDGE_ZONE_ICON_SIZE, PANEL_STYLE["text"])
-        self._icon_label.setPixmap(icon.pixmap(_EDGE_ZONE_ICON_SIZE, _EDGE_ZONE_ICON_SIZE))
         self.setCursor(Qt.CursorShape.PointingHandCursor)
 
         self._strip = QFrame()
         self._strip.setObjectName("edgeZone")
-        self._strip.setStyleSheet(panel_stylesheet("edgeZone"))
         strip_layout = QVBoxLayout(self._strip)
         strip_layout.setContentsMargins(0, 0, 0, 0)
         strip_layout.addWidget(self._icon_label, 0, Qt.AlignmentFlag.AlignCenter)
@@ -283,6 +295,12 @@ class EdgeZone(QWidget):
         self._fade.setDuration(_EDGE_ZONE_FADE_MS)
         self._fade.finished.connect(self._hide_when_inactive)
         self.hide()
+
+    def apply_theme(self, is_dark: bool):
+        """Restyle the strip and recolor its arrow for the theme."""
+        self._strip.setStyleSheet(panel_stylesheet("edgeZone", is_dark))
+        icon = render_svg_icon(self._icon_path, _EDGE_ZONE_ICON_SIZE, PANEL_STYLES[is_dark]["text"])
+        self._icon_label.setPixmap(icon.pixmap(_EDGE_ZONE_ICON_SIZE, _EDGE_ZONE_ICON_SIZE))
 
     def place(self, viewport: QSize, top_margin: int, bottom_margin: int):
         """Put the strip flush against its edge of the viewport; the hot area reaches from the edge inwards."""
