@@ -172,6 +172,14 @@ class MessagesWidget(TranslatableMixin, QWidget):
         # Add scroll buttons panel for quick navigation
         self._scroll_buttons = None if self.minimal else ScrollButtonsPanel(self.list_view, parent=self)
 
+    def copy_all_messages_text(self):
+        """Return the text and count of all copyable messages currently shown."""
+        messages = [
+            message for message in self.model.stored_messages
+            if self.delegate.is_copyable(message)
+        ]
+        return self.delegate.copy_text_for(messages), len(messages)
+
     def toggle_search(self):
         self.search.toggle()
 

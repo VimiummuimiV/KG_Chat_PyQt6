@@ -1,8 +1,9 @@
+import math
 import re
 from pathlib import Path
 
 from PyQt6 import sip
-from PyQt6.QtCore import QSize, Qt
+from PyQt6.QtCore import QEasingCurve, QPointF, QSize, Qt, QVariantAnimation
 from PyQt6.QtGui import QIcon, QPainter, QPixmap
 from PyQt6.QtSvg import QSvgRenderer
 from PyQt6.QtWidgets import QGraphicsOpacityEffect, QPushButton
@@ -16,6 +17,11 @@ is_dark_theme = True
 _COLOR_DARK  = "#e28743"
 _COLOR_LIGHT = "#154c79"
 _COLOR_GRAY  = "#888888"
+
+# Icon bounce animation: (position, scale) keyframes between a start and end scale of 1.0
+_BOUNCE_DURATION_MS = 440
+_BOUNCE_KEYFRAMES = ((0.16, 1.48), (0.38, 0.82), (0.62, 1.14))
+_BOUNCE_PEAK_SCALE = max(scale for _, scale in _BOUNCE_KEYFRAMES)
 
 
 def set_theme(is_dark: bool):
@@ -108,6 +114,47 @@ def set_button_icon(button, icon_name: str) -> None:
     """Switch an icon button to another icon; the name is kept so theme changes re-render it."""
     button._icon_name = icon_name
     button.setIcon(render_svg_icon(button.icon_path / icon_name, button.icon_size))
+
+
+def animate_button_bounce(button: QPushButton) -> None:
+    """Pop and bounce the button's own icon; frames are repainted inside a fixed-size icon so Qt never re-centers it."""
+    previous = getattr(button, "_bounce_animation", None)
+    if previous is not None:
+        previous.stop()
+        previous.deleteLater()
+
+    icon_size = button.icon_size
+    canvas_size = icon_size + 2 * math.ceil(icon_size * (_BOUNCE_PEAK_SCALE - 1) / 2)  # same parity as icon_size
+    source = render_svg_icon(button.icon_path / button._icon_name, canvas_size).pixmap(canvas_size, canvas_size)
+    center = canvas_size / 2
+
+    def paint_frame(scale: float) -> None:
+        canvas = QPixmap(canvas_size, canvas_size)
+        canvas.fill(Qt.GlobalColor.transparent)
+        painter = QPainter(canvas)
+        painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+        painter.translate(center, center)
+        painter.scale(scale * icon_size / canvas_size, scale * icon_size / canvas_size)
+        painter.drawPixmap(QPointF(-center, -center), source)
+        painter.end()
+        button.setIcon(QIcon(canvas))
+
+    def restore_icon() -> None:
+        set_button_icon(button, button._icon_name)
+        button.setIconSize(QSize(icon_size, icon_size))
+
+    animation = QVariantAnimation(button)
+    animation.setDuration(_BOUNCE_DURATION_MS)
+    animation.setStartValue(1.0)
+    for position, scale in _BOUNCE_KEYFRAMES:
+        animation.setKeyValueAt(position, scale)
+    animation.setEndValue(1.0)
+    animation.setEasingCurve(QEasingCurve.Type.OutCubic)
+    animation.valueChanged.connect(paint_frame)
+    animation.finished.connect(restore_icon)
+    button._bounce_animation = animation
+    button.setIconSize(QSize(canvas_size, canvas_size))
+    animation.start()
 
 
 def create_disabled_icon(icons_path: Path, icon_name: str, icon_size: int) -> QIcon:

@@ -39,6 +39,7 @@ class ButtonPanel(QWidget):
     reconnect_requested = pyqtSignal()
     join_room_requested = pyqtSignal()
     search_requested = pyqtSignal()
+    copy_messages_requested = pyqtSignal()
 
     def __init__(self, config: Config, icons_path: Path, theme_manager):
         super().__init__()
@@ -54,6 +55,7 @@ class ButtonPanel(QWidget):
         self.voice_button = None
         self.effects_button = None
         self.notification_button = None
+        self.copy_messages_button = None
         self._color_button = None
         self._theme_button = None
         self.reset_size_button = None
@@ -185,6 +187,12 @@ class ButtonPanel(QWidget):
             lambda: self.search_requested.emit()
         )
 
+        self.copy_messages_button = self._create_button(
+            "fill/clipboard-fill.svg",
+            tr("Copy all messages (Ctrl+A)", "Копировать все сообщения (Ctrl+A)"),
+            lambda: self.copy_messages_requested.emit()
+        )
+
         self.voice_button = self._create_button(
             "fill/user-voice-fill.svg",
             tr("Toggle Voice Sound (V) (RMB for Username Pronunciation (P))",
@@ -288,6 +296,9 @@ class ButtonPanel(QWidget):
         if self._search_button:
             self._search_button.setToolTip(
                 tr("Toggle search (S / Ctrl+F)", "Поиск (S / Ctrl+F)"))
+        if self.copy_messages_button:
+            self.copy_messages_button.setToolTip(
+                tr("Copy all messages (Ctrl+A)", "Копировать все сообщения (Ctrl+A)"))
         if self.voice_button:
             self.voice_button.setToolTip(
                 tr("Toggle Voice Sound (V) (RMB for Username Pronunciation (P))",

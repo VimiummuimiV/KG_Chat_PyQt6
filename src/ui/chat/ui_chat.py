@@ -31,6 +31,7 @@ from ui.chat.chat_balance import ChatBalanceMixin
 from ui.chat.chat_competitions import ChatCompetitionsMixin
 from ui.chat.chat_connection import ChatConnectionMixin
 from ui.chat.chat_controls import ChatControlsMixin
+from ui.chat.chat_copy import ChatCopyMixin
 from ui.chat.chat_emoticons import ChatEmoticonsMixin
 from ui.chat.chat_fonts import ChatFontsMixin
 from ui.chat.chat_geometry import ChatGeometryMixin
@@ -69,6 +70,7 @@ class ChatWindow(
     ChatCompetitionsMixin,
     ChatConnectionMixin,
     ChatControlsMixin,
+    ChatCopyMixin,
     ChatEmoticonsMixin,
     ChatFontsMixin,
     ChatGeometryMixin,
@@ -414,6 +416,7 @@ class ChatWindow(
         self.button_panel.reconnect_requested.connect(self.manual_reconnect)
         self.button_panel.join_room_requested.connect(self.on_join_room_requested)
         self.button_panel.search_requested.connect(self.toggle_search_for_current_view)
+        self.button_panel.copy_messages_requested.connect(self.copy_messages_from_current_view)
 
         content_wrapper.addWidget(self.button_panel, stretch=0)
 

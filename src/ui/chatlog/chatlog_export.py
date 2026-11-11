@@ -60,6 +60,10 @@ class ChatlogExportMixin:
             f"Сохранить {kind} в файл (Ctrl+S)")
         )
 
+    def copy_all_messages_text(self):
+        """Return the text and count of messages currently shown in the chatlog or parser."""
+        return self._format_messages_export(self._messages_for_export())
+
     def on_copy_results(self):
         messages = self._messages_for_export()
         if not messages:

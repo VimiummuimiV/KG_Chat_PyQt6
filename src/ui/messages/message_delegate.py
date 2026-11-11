@@ -855,10 +855,10 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
         self.reply_callback(username, message.body, timestamp)
 
     @staticmethod
-    def _is_copyable(msg) -> bool:
+    def is_copyable(msg) -> bool:
         return not (msg.is_separator or msg.is_new_messages_marker or msg.is_presence_log)
 
-    def _copy_text_for(self, messages) -> str:
+    def copy_text_for(self, messages) -> str:
         """One line per message: the body, with the sender and the time added as the settings ask."""
         include_username = bool(self.config.get("ui", "chat", "copy_include_username"))
         include_timestamp = bool(self.config.get("ui", "chat", "copy_include_timestamp"))
@@ -872,7 +872,7 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
 
     def show_text_selector(self, messages: list, rect: QRect):
         """Open the copy overlay over rect with the text of the messages; Reply is offered for a single message only."""
-        messages = [msg for msg in messages if self._is_copyable(msg)]
+        messages = [msg for msg in messages if self.is_copyable(msg)]
         if not messages:
             return
         if self.text_selector:
@@ -880,7 +880,7 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
         single = messages[0] if len(messages) == 1 else None
         username, timestamp = self._reply_context(single) if single else ("", None)
         self.text_selector = _TextSelectorOverlay(
-            self._copy_text_for(messages), self.body_font, rect, self.is_dark_theme,
+            self.copy_text_for(messages), self.body_font, rect, self.is_dark_theme,
             self.list_view.viewport(),
             reply_callback=self.reply_callback if single else None,
             paste_callback=self.paste_callback,

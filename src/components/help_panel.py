@@ -44,6 +44,7 @@ _CHAT_CTRL_KB = [
     ("Ctrl+,",         "Toggle settings", "Настройки"),
     ("Ctrl+J",         "Join / Create room", "Войти / создать комнату"),
     ("Ctrl+P",         "Open chatlog parser", "Парсер чатлогов"),
+    ("Ctrl+A",         "Copy all messages", "Копировать все сообщения"),
     ("Ctrl+C",         "Reset username color", "Сбросить цвет имени"),
     ("Ctrl + / -",     "Font size up / down", "Размер шрифта + / −"),
     ("Ctrl+Scroll",    "Font size up / down", "Размер шрифта + / −"),
@@ -112,6 +113,7 @@ _CHATLOG_KB = [
     ("D",               "Open calendar date picker", "Календарь выбора даты"),
     ("S / Ctrl+F",      "Toggle search bar", "Панель поиска"),
     ("P",               "Toggle chatlog parser", "Парсер чатлогов"),
+    ("Ctrl+A",          "Copy all messages", "Копировать все сообщения"),
     ("M",               "Toggle mention filter", "Фильтр упоминаний"),
     ("Esc",             "Close search", "Закрыть поиск"),
 ]
@@ -145,6 +147,7 @@ _EMOTICON_MOUSE = [
 
 _CHATLOG_PARSER_ACTIVE_KB = [
     ("P",               "Toggle chatlog parser", "Парсер чатлогов"),
+    ("Ctrl+A",          "Copy all results", "Копировать все результаты"),
     ("S",               "Start parsing", "Начать парсинг"),
     ("C",               "Cancel parsing", "Отменить парсинг"),
     ("Ctrl+C",          "Copy results", "Копировать результаты"),

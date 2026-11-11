@@ -246,6 +246,10 @@ class ChatHotkeysMixin:
         if ctrl and (key == Qt.Key.Key_F or event.nativeVirtualKey() == Qt.Key.Key_F):
             self.toggle_search_for_current_view()
             return
+        # Ctrl+A copy all messages of the current view (text inputs keep their own select-all)
+        if ctrl and not focused and (key == Qt.Key.Key_A or event.nativeVirtualKey() == Qt.Key.Key_A):
+            self.copy_messages_from_current_view()
+            return
         # Ctrl+C / Ctrl+S in chatlog parser — copy / save results
         if ctrl and self.chatlog_widget and self.stacked_widget.currentWidget() == self.chatlog_widget:
             cw = self.chatlog_widget
