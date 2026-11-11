@@ -22,7 +22,7 @@ from helpers.translate import tr
 _THUMBNAIL_SIZE = QSize(84, 56)
 _THUMBNAIL_MAX_VISIBLE = 9
 _THUMBNAIL_GAP = 6
-_THUMBNAIL_RADIUS = 4
+INNER_IMAGE_RADIUS = 4  # corners of an image inside a panel, smaller than the panel's own
 _THUMBNAIL_BORDER_WIDTH = 2
 _THUMBNAIL_DIMMED_OPACITY = 0.55
 _PROGRESS_INTERVAL_MS = 60
@@ -34,7 +34,7 @@ _POSITION_SEPARATOR = "  ·  "
 _NOTICE_ICON_SIZE = 40
 PANEL_MARGIN = 10
 PANEL_SPACING = 8
-_PANEL_BORDER_WIDTH = 1
+PANEL_BORDER_WIDTH = 1
 _BADGE_AVATAR_SIZE = 28
 _BADGE_SVG_AVATAR_SIZE = 20
 _BADGE_MARGIN = 6
@@ -63,7 +63,7 @@ def panel_stylesheet(object_name: str, is_dark: bool) -> str:
     return f"""
         #{object_name} {{
             background-color: {style['background']};
-            border: {_PANEL_BORDER_WIDTH}px solid rgba({border.red()}, {border.green()}, {border.blue()}, {border.alpha()});
+            border: {PANEL_BORDER_WIDTH}px solid rgba({border.red()}, {border.green()}, {border.blue()}, {border.alpha()});
             border-radius: {CORNER_RADIUS}px;
         }}
         #{object_name} QLabel {{
@@ -182,7 +182,7 @@ class _ThumbnailStrip(QWidget):
             rect = self._slot_rect(slot)
             is_current = index == self._current
             path = QPainterPath()
-            path.addRoundedRect(QRectF(rect), _THUMBNAIL_RADIUS, _THUMBNAIL_RADIUS)
+            path.addRoundedRect(QRectF(rect), INNER_IMAGE_RADIUS, INNER_IMAGE_RADIUS)
             painter.save()
             painter.setClipPath(path)
             painter.setOpacity(1.0 if is_current else _THUMBNAIL_DIMMED_OPACITY)
@@ -204,7 +204,7 @@ class _ThumbnailStrip(QWidget):
                 painter.setPen(QPen(accent, _THUMBNAIL_BORDER_WIDTH))
                 painter.setBrush(Qt.BrushStyle.NoBrush)
                 half = _THUMBNAIL_BORDER_WIDTH / 2
-                painter.drawRoundedRect(QRectF(rect).adjusted(half, half, -half, -half), _THUMBNAIL_RADIUS, _THUMBNAIL_RADIUS)
+                painter.drawRoundedRect(QRectF(rect).adjusted(half, half, -half, -half), INNER_IMAGE_RADIUS, INNER_IMAGE_RADIUS)
 
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
@@ -458,7 +458,7 @@ class PositionBadge(QFrame):
         self.setObjectName("positionBadge")
         self._label = QLabel()
         self._label.setFont(get_font(FontType.TEXT))
-        self.setMinimumHeight(_BADGE_AVATAR_SIZE + 2 * (_BADGE_MARGIN + _PANEL_BORDER_WIDTH))  # same height as the source badge
+        self.setMinimumHeight(_BADGE_AVATAR_SIZE + 2 * (_BADGE_MARGIN + PANEL_BORDER_WIDTH))  # same height as the source badge
         layout = QHBoxLayout(self)
         layout.setContentsMargins(_BADGE_MARGIN + _BADGE_SPACING, _BADGE_MARGIN, _BADGE_MARGIN + _BADGE_SPACING, _BADGE_MARGIN)
         layout.addWidget(self._label)

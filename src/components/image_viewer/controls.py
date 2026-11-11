@@ -6,12 +6,19 @@ from pathlib import Path
 from typing import Optional
 
 from PyQt6.QtCore import pyqtSignal, QEvent, QPoint, QPointF, QPropertyAnimation, QRect, QRectF, QSize, Qt
-from PyQt6.QtGui import QColor, QPainter, QPen, QPixmap
+from PyQt6.QtGui import QBrush, QColor, QPainter, QPen, QPixmap
 from PyQt6.QtWidgets import QFrame, QGraphicsOpacityEffect, QHBoxLayout, QLabel, QSlider, QVBoxLayout, QWidget
 
 from components.button import create_icon_button, render_svg_icon, set_button_icon
 from components.image_viewer.layer import ImageLayer, MAX_SCALE, MIN_SCALE
-from components.image_viewer.overlay import PANEL_MARGIN, PANEL_SPACING, PANEL_STYLES, panel_stylesheet
+from components.image_viewer.overlay import (
+    INNER_IMAGE_RADIUS,
+    PANEL_BORDER_WIDTH,
+    PANEL_MARGIN,
+    PANEL_SPACING,
+    PANEL_STYLES,
+    panel_stylesheet,
+)
 from helpers.fonts.fonts import FontType, get_font
 from helpers.translate import tr
 
@@ -28,7 +35,7 @@ _ZOOM_SLIDER_WIDTH = 140
 _ZOOM_SLIDER_STEPS = 200  # positions across MIN_SCALE..MAX_SCALE, spaced logarithmically
 _PERCENT = 100
 _MINIMAP_MAX_SIZE = QSize(180, 120)
-_MINIMAP_PADDING = 6
+_MINIMAP_INSET = PANEL_MARGIN + PANEL_BORDER_WIDTH  # same gap to the content as the other panels
 _MINIMAP_VISIBLE_AREA_LIMIT = 0.5  # shown while the viewport covers less of the image than this
 _MINIMAP_VIEW_FILL_ALPHA = 40
 _MINIMAP_VIEW_BORDER_WIDTH = 1.5
@@ -224,20 +231,23 @@ class Minimap(QFrame):
             return
         if self._preview.isNull():
             self._preview = layer.preview(_MINIMAP_MAX_SIZE)
-            self.setFixedSize(self._preview.size() + QSize(2 * _MINIMAP_PADDING, 2 * _MINIMAP_PADDING))
+            self.setFixedSize(self._preview.size() + QSize(2 * _MINIMAP_INSET, 2 * _MINIMAP_INSET))
         self._view = view
         self.update()
 
     def paintEvent(self, event):
         super().paintEvent(event)
         painter = QPainter(self)
-        painter.drawPixmap(_MINIMAP_PADDING, _MINIMAP_PADDING, self._preview)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.translate(_MINIMAP_INSET, _MINIMAP_INSET)
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(QBrush(self._preview))  # a textured rounded rect keeps the corners antialiased
+        painter.drawRoundedRect(QRectF(self._preview.rect()), INNER_IMAGE_RADIUS, INNER_IMAGE_RADIUS)
         if self._view.isEmpty():
             return
         width, height = self._preview.width(), self._preview.height()
         view_rect = QRectF(
-            _MINIMAP_PADDING + self._view.x() * width, _MINIMAP_PADDING + self._view.y() * height,
-            self._view.width() * width, self._view.height() * height,
+            self._view.x() * width, self._view.y() * height, self._view.width() * width, self._view.height() * height
         )
         color = QColor(PANEL_STYLES[self._is_dark]["text"])
         painter.setPen(QPen(color, _MINIMAP_VIEW_BORDER_WIDTH))
@@ -246,8 +256,8 @@ class Minimap(QFrame):
         painter.drawRect(view_rect)
 
     def _request_position(self, position: QPointF):
-        fraction_x = (position.x() - _MINIMAP_PADDING) / self._preview.width()
-        fraction_y = (position.y() - _MINIMAP_PADDING) / self._preview.height()
+        fraction_x = (position.x() - _MINIMAP_INSET) / self._preview.width()
+        fraction_y = (position.y() - _MINIMAP_INSET) / self._preview.height()
         self.position_requested.emit(QPointF(max(0.0, min(1.0, fraction_x)), max(0.0, min(1.0, fraction_y))))
 
     def mousePressEvent(self, event):
