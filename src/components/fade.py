@@ -5,9 +5,9 @@ from PyQt6.QtWidgets import QGraphicsOpacityEffect, QWidget
 
 
 class WidgetFader(QObject):
-    """Fades a widget out and back in as a whole, which costs one animation however many items it holds.
+    """Fades a widget out and back in as a whole: one animation, however many items it holds.
 
-    The opacity effect exists only while the widget is not fully visible; a fully transparent widget is not drawn at all.
+    The opacity effect exists only while the widget is not fully visible.
     """
 
     def __init__(self, widget: QWidget):

@@ -18,7 +18,7 @@ PREDATOR_VISIT_SECONDS = (45, 5, 1800)  # default, minimum and maximum of the se
 _GROUND_FRAME_RATE_DEFAULT = 30  # frames per second of the strip while the pets stay on the ground
 _ACTION_FRAME_RATE_DEFAULT = 60  # the same while a pet or an egg is held or in the air
 _MINIMUM_FRAME_RATE = 10
-_LOWEST_MAXIMUM_FRAME_RATE = 165  # the limit is the refresh rate of the fastest screen, but never lower than this
+_LOWEST_MAXIMUM_FRAME_RATE = 165  # the maximum is the fastest screen's rate, but at least this
 _VISIT_SPREAD = 0.3  # a visit every n seconds means every n -30% to n +30% seconds
 _MILLISECONDS = 1000
 EAT_STATE = "eat"
@@ -136,7 +136,7 @@ def pets_stepped(config) -> bool:
 
 
 def _pets_setting(config, name: str, setting: tuple[int, int, int]) -> int:
-    """Return a whole-number pets option kept inside the limits of its settings row; the default when it is not a number."""
+    """Return a whole-number pets option kept inside its limits; the default if it is no number."""
     default, minimum, maximum = setting
     value = config.get("ui", "pets", name)
     is_number = isinstance(value, (int, float)) and not isinstance(value, bool)
@@ -144,7 +144,7 @@ def _pets_setting(config, name: str, setting: tuple[int, int, int]) -> int:
 
 
 def frame_rate_range() -> tuple[int, int]:
-    """Return the lowest and the highest frame rate to offer: the refresh rate of the fastest screen, at least 165."""
+    """Return the lowest and highest frame rate; the top is the fastest screen's, at least 165."""
     refresh_rate = max((screen.refreshRate() for screen in QGuiApplication.screens()), default=0)
     return _MINIMUM_FRAME_RATE, max(_LOWEST_MAXIMUM_FRAME_RATE, math.ceil(refresh_rate))
 

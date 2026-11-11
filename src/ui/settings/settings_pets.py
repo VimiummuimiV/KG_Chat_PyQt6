@@ -174,15 +174,26 @@ class SettingsPetsMixin:
             section, tr("Flight, fps", "Полёт, к/с"), minimum, maximum,
             self._on_pet_action_frame_rate_changed, default=default,
         )
+        ground_tooltip = tr(
+            "Frames per second while the pets stay on the ground",
+            "Кадров в секунду, пока питомцы на земле",
+        )
+        action_tooltip = tr(
+            "Frames per second while a pet or an egg is held or in the air",
+            "Кадров в секунду, пока питомец или яйцо в руке или в воздухе",
+        )
         for spin, tooltip in (
-            (self.pet_ground_frame_rate_spin, tr("Frames per second of the pets' strip while they stay on the ground", "Кадров в секунду на полосе питомцев, пока они на земле")),
-            (self.pet_action_frame_rate_spin, tr("Frames per second while a pet or an egg is held or in the air", "Кадров в секунду, пока питомец или яйцо в руке или в воздухе")),
+            (self.pet_ground_frame_rate_spin, ground_tooltip),
+            (self.pet_action_frame_rate_spin, action_tooltip),
         ):
             spin.parentWidget().setToolTip(tooltip)
             self.register_tr(spin.parentWidget().setToolTip, tooltip)
+        hide_messages_label = tr(
+            "Fade the messages while a thrown pet bounces off the cursor",
+            "Скрывать сообщения, пока брошенный питомец отскакивает от курсора",
+        )
         self.pets_hide_messages_checkbox = self.add_checkbox(
-            section, tr("Fade the messages while a thrown pet bounces off the cursor", "Скрывать сообщения, пока брошенный питомец отскакивает от курсора"),
-            self._on_pets_hide_messages_toggled,
+            section, hide_messages_label, self._on_pets_hide_messages_toggled
         )
 
     def refresh_pets(self):

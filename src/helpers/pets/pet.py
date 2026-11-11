@@ -22,7 +22,7 @@ _WALK_STRIDE_RATIO = 0.8
 # Faster gaits reuse the walk speed; their GIFs often share one cycle, so only the pace scales.
 _GAIT_SPEED_FACTOR = {"walk": 1.0, "walk_fast": 1.6, "run": 2.5}
 _CARRY_SPEED_FACTOR = 2.0  # a predator slowed by its prey
-_WALL_BOUNCE = 0.5  # share of the sideways speed a flying pet keeps after hitting the side of the area
+_WALL_BOUNCE = 0.5  # share of the sideways speed a flying pet keeps after hitting a side
 _TURN_CHANCE = 0.4
 _CONTACT_ART_PIXELS = 2  # how close two pets must get to touch
 # state: (pick weight, minimum ms, maximum ms); running is not here: a pet runs only to chase, flee or reach food
@@ -131,8 +131,10 @@ class Pet(HuntingBehavior, DefenseBehavior, BounceBehavior, Throwable):
         margin = _CONTACT_ART_PIXELS * self.pixel_size
         return left - margin < other_right and other_left - margin < right
 
-    def update(self, step_ms: int, line_width: int, area_height: int, cursor: CursorMotion | None = None) -> None:
-        """Advance the pet by step_ms and keep it inside the area; a flying pet bounces off the cursor."""
+    def update(
+        self, step_ms: int, line_width: int, area_height: int, cursor: CursorMotion | None = None
+    ) -> None:
+        """Advance the pet by step_ms and keep it inside; a flying pet bounces off the cursor."""
         self._line_width = line_width
         if self._is_seized:
             return
@@ -168,8 +170,8 @@ class Pet(HuntingBehavior, DefenseBehavior, BounceBehavior, Throwable):
             return
         free = [
             food for food in foods
-            if food.is_food_for(self.kind) and food.is_edible and food.is_free_for(self) and self._can_reach(food)
-            and not self.is_path_blocked(food.center_x, rivals)
+            if food.is_food_for(self.kind) and food.is_edible and food.is_free_for(self)
+            and self._can_reach(food) and not self.is_path_blocked(food.center_x, rivals)
         ]
         if self._watching:
             has_other_food = any(food is not self._watching for food in free)
@@ -365,14 +367,16 @@ class Pet(HuntingBehavior, DefenseBehavior, BounceBehavior, Throwable):
         self._choose_state()
 
     def _approach(self, food: Food) -> tuple[float, bool]:
-        """Return how far to go to reach the nearer end of the food the pet can stand at, and whether that is its left end."""
-        return min(
-            ((abs(self._nose_stop(food, from_left) - self.x), from_left) for from_left in (True, False) if self._can_reach_from(food, from_left)),
-            default=(math.inf, True),
+        """Return the distance to the nearer reachable end of the food, and whether it is the left."""
+        distances = (
+            (abs(self._nose_stop(food, from_left) - self.x), from_left)
+            for from_left in (True, False)
+            if self._can_reach_from(food, from_left)
         )
+        return min(distances, default=(math.inf, True))
 
     def _can_reach(self, food: Food) -> bool:
-        """Whether the pet can stand at either end of the food without its body going beyond an edge of the line."""
+        """Whether the pet can stand at an end of the food with its whole body inside the line."""
         return any(self._can_reach_from(food, from_left) for from_left in (True, False))
 
     def _can_reach_from(self, food: Food, from_left: bool) -> bool:
@@ -417,11 +421,14 @@ class Pet(HuntingBehavior, DefenseBehavior, BounceBehavior, Throwable):
 
     @property
     def _turns_at_wall(self) -> bool:
-        """Whether an edge of the line turns the pet around: a flying pet or one that looks at its food, rival or quarry keeps its side."""
-        return not (self.is_flying or self._meal or self._watching or self._chasing or self.is_hunting_now)
+        """Whether an edge turns the pet around; a flying pet or one with a goal keeps its side."""
+        has_goal = self._meal or self._watching or self._chasing or self.is_hunting_now
+        return not (self.is_flying or has_goal)
 
-    def _horizontal_range(self, animation, facing_right: bool, effect_margin: int = 0) -> tuple[float, float]:
-        """Return the lowest and the highest x at which the pet keeps its visible pixels inside the line; effects may reach beyond it."""
+    def _horizontal_range(
+        self, animation, facing_right: bool, effect_margin: int = 0
+    ) -> tuple[float, float]:
+        """Return the lowest and the highest x that keep the visible pixels inside the line."""
         span_left, span_right = animation.visible_span(facing_right)
         if facing_right:
             span_right -= effect_margin

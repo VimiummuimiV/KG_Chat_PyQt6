@@ -66,7 +66,7 @@ class PetOverlay(QWidget):
         self._painted = QRegion()
         self._clock = QElapsedTimer()
         self._timer = QTimer(self)
-        self._timer.setTimerType(Qt.TimerType.PreciseTimer)  # the coarse default rounds the interval to the system clock step and makes the motion uneven
+        self._timer.setTimerType(Qt.TimerType.PreciseTimer)  # the coarse default is uneven
         self._ground_tick_ms = _tick_ms(ground_frame_rate(config))
         self._action_tick_ms = _tick_ms(action_frame_rate(config))
         self._timer.timeout.connect(self._tick)
@@ -182,21 +182,22 @@ class PetOverlay(QWidget):
         return [*self._meadow.grass, *self._eggs, *visible_pets]
 
     def _board_rect(self) -> QRect | None:
-        """Return the board at the cursor while a thrown pet is above it, otherwise None: the board shows only when it can be hit."""
+        """Return the board at the cursor while a thrown pet is above it, otherwise None."""
         if self._cursor_point is None:
             return None
         board, area_height = self._board.at(self._cursor_point), self._device_size()[1]
-        return board if any(pet.is_visible and pet.is_over(board, area_height) for pet in self._pets) else None
+        is_needed = any(pet.is_visible and pet.is_over(board, area_height) for pet in self._pets)
+        return board if is_needed else None
 
     def _paint_board(self, painter: QPainter, board: QRect) -> None:
-        """Draw the board in pixels: a light top row with notched ends over a darker full bottom row."""
+        """Draw the board: a light top row with notched ends over a darker full bottom row."""
         cell = self._board.cell
         light = QColor(get_accent_color())
         painter.fillRect(board.adjusted(cell, 0, -cell, -cell), light)
         painter.fillRect(board.adjusted(0, cell, 0, 0), light.darker(_BOARD_SHADE))
 
     def _badges(self) -> list[tuple[QPixmap, QPoint]]:
-        """Return the bounce counters with their top left corners: each sits centered right above its pet."""
+        """Return the bounce counters with their top left corners, each centered above its pet."""
         line_width, area_height = self._device_size()
         badges = []
         for pet in self._pets:
@@ -210,14 +211,15 @@ class PetOverlay(QWidget):
         return badges
 
     def _cursor_motion(self, step_ms: int) -> CursorMotion:
-        """Return the cursor over the last tick in device pixels of the line, with its speed to the right and upwards."""
+        """Return the cursor over the last tick in device pixels, with its speed right and up."""
         ratio = self.devicePixelRatioF()
         local = self.mapFromGlobal(QCursor.pos())
         current = QPoint(round(local.x() * ratio), round(local.y() * ratio))
         previous = self._cursor_point or current
         self._cursor_point = current
         seconds = max(step_ms, 1) / 1000
-        return CursorMotion(self._board, previous, current, ((current.x() - previous.x()) / seconds, (previous.y() - current.y()) / seconds))
+        velocity = ((current.x() - previous.x()) / seconds, (previous.y() - current.y()) / seconds)
+        return CursorMotion(self._board, previous, current, velocity)
 
     def _device_size(self) -> tuple[int, int]:
         ratio = self.devicePixelRatioF()
@@ -312,7 +314,7 @@ class PetOverlay(QWidget):
         self._fade_messages()
 
     def _fade_messages(self) -> None:
-        """Fade the messages out with the first bounce and back in when the counters are gone, as one widget."""
+        """Fade the messages out at the first bounce and back in when the counters are gone."""
         is_hidden = self._is_hiding_messages and any(pet.bounces for pet in self._pets)
         if is_hidden == self._are_messages_hidden:
             return
@@ -323,12 +325,12 @@ class PetOverlay(QWidget):
             self._messages_fader.fade_to(1.0, _MESSAGES_FADE_IN_MS)
 
     def _show_messages(self) -> None:
-        """Show the messages again at once, when the pets stop or go away in the middle of a fade."""
+        """Show the messages again at once, when the pets stop or go away during a fade."""
         self._are_messages_hidden = False
         self._messages_fader.restore()
 
     def _adjust_tick_rate(self) -> None:
-        """Tick fast while a body is held or in the air, when the eye follows it and a person aims at it; slowly otherwise."""
+        """Tick fast while a body is held or in the air, slowly otherwise."""
         is_action = any(body.is_flying or body.is_held for body in self._bodies())
         interval = self._action_tick_ms if is_action else self._ground_tick_ms
         if interval != self._timer.interval():

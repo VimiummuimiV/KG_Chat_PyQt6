@@ -72,7 +72,7 @@ def apply_counter_style(label: QLabel, event_type: str = "join", font_size: int 
 
 @lru_cache(maxsize=64)
 def counter_pixmap(text: str, font_size: int, device_pixel_ratio: float) -> QPixmap:
-    """Render a small counter badge to a pixmap measured in device pixels, for painting where no label widget fits."""
+    """Render a small counter badge to a pixmap in device pixels, for painting without a label."""
     label = QLabel(text)
     apply_counter_style(label, font_size=font_size)
     label.adjustSize()
