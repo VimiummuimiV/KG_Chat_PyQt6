@@ -537,13 +537,14 @@ class ImageHoverView(QWidget):
         image = self._current_image
         inline = self._gallery.inline_reply if self._gallery else None
         if inline and image and image.source is not None and reply_mode(self._config) == REPLY_MODE_INLINE:
-            self._open_reply(inline, image.source)
+            self._toggle_reply(inline, image.source)
         else:
             self._leave_to_message(lambda gallery: gallery.on_reply)
 
-    def _open_reply(self, inline: InlineReply, message):
+    def _toggle_reply(self, inline: InlineReply, message):
+        """Open the reply field, or close it when it is already shown."""
         if self._reply_panel.isVisible():
-            self._reply_panel.focus_field()
+            self._close_reply()
             return
         self._inline_reply = inline
         self._set_slideshow_playing(False)
