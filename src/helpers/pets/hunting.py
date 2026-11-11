@@ -107,8 +107,9 @@ class HuntingBehavior:
 
     def flee(self, away_from: float) -> None:
         """Drop the prey that is carried and run off the line over the edge on the far side of the x."""
+        exit_right = self.exit_right if self.is_leaving else self.center_x > away_from
         self._abort_raid()
-        self._run_to_edge(_LEAVE, RUN_STATE, self.center_x > away_from)
+        self._run_to_edge(_LEAVE, RUN_STATE, exit_right)
 
     def wait_away(self, step_ms: int, line_width: int) -> None:
         """Count down the time away and come back over a random edge."""
@@ -174,11 +175,11 @@ class HuntingBehavior:
         self._start_state(state, math.inf)
 
     def _avoid_guards(self, guards: list["Pet"]) -> None:
-        """Turn to the other edge when a guard is in sight ahead and no guard is nearer behind."""
+        """Turn away from a guard ahead only when no other guard is behind."""
         sight = GUARD_NOTICE_ART_PIXELS * self.pixel_size
         ahead = [self.distance_to(guard) for guard in guards if self.is_facing(guard) and self.distance_to(guard) <= sight]
         behind = [self.distance_to(guard) for guard in guards if not self.is_facing(guard)]
-        if ahead and min(ahead) < min(behind, default=math.inf):
+        if ahead and not behind:
             self.exit_right = not self.exit_right
             self._facing_right = self.exit_right
 
