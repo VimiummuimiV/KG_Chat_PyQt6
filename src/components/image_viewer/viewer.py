@@ -163,7 +163,7 @@ class ImageHoverView(QWidget):
         self._zoom_buttons.actual_size_button.clicked.connect(self._toggle_actual_size)
         self._zoom_buttons.hide()
         self._zoom_slider = ZoomSlider(self)
-        self._zoom_slider.setFixedHeight(self._zoom_buttons.height())
+        self._zoom_slider.setFixedHeight(self._position_badge.minimumHeight())
         self._zoom_slider.scale_requested.connect(self._zoom_to)
         self._zoom_slider.hide()
         self._edge_zones = (EdgeZone(icons_path, True, self), EdgeZone(icons_path, False, self))
@@ -429,15 +429,20 @@ class ImageHoverView(QWidget):
         self._zoom_buttons.refresh_tooltips()
         self._zoom_slider.refresh_tooltip()
         is_slider_shown = show_zoom_slider(self._config)
-        self._zoom_slider.setVisible(is_slider_shown)
         top_panels = [self._close_button, self._zoom_buttons]
-        if is_slider_shown:
-            top_panels.append(self._zoom_slider)
         right = self.width() - _OVERLAY_MARGIN
         for panel in top_panels:
             panel.move(right - panel.width(), _OVERLAY_MARGIN)
             panel.setVisible(self._is_interface_shown)
             right = panel.x() - _OVERLAY_SPACING
+        self._zoom_slider.setFixedWidth(
+            self._close_button.x() + self._close_button.width() - self._zoom_buttons.x()
+        )
+        self._zoom_slider.move(
+            self._zoom_buttons.x(),
+            self._zoom_buttons.y() + self._zoom_buttons.height() + _OVERLAY_SPACING,
+        )
+        self._zoom_slider.setVisible(is_slider_shown and self._is_interface_shown)
         self._place_edge_zones()
         self._update_edge_zones()
         self._source_badge.setVisible(has_source and self._is_interface_shown)
@@ -685,10 +690,12 @@ class ImageHoverView(QWidget):
         self._place_edge_zones()
 
     def _place_edge_zones(self):
-        """Stretch the strips below the close button; the right one stops above the minimap with the same gap."""
+        """Stretch the strips below top controls; the right one also stops above the minimap."""
         top_margin = self._close_button.y() + self._close_button.height() + _OVERLAY_SPACING
         left_zone, right_zone = self._edge_zones
         left_zone.place(self.size(), top_margin, top_margin)
+        if self._is_interface_shown and show_zoom_slider(self._config):
+            top_margin = self._zoom_slider.y() + self._zoom_slider.height() + _OVERLAY_SPACING
         right_margin = self.height() - self._minimap.y() + _OVERLAY_SPACING if self._minimap.isVisibleTo(self) else top_margin
         right_zone.place(self.size(), top_margin, right_margin)
 

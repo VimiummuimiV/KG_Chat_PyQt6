@@ -7,7 +7,16 @@ from typing import Optional
 
 from PyQt6.QtCore import pyqtSignal, QEvent, QPoint, QPointF, QPropertyAnimation, QRect, QRectF, QSize, Qt
 from PyQt6.QtGui import QBrush, QColor, QPainter, QPen, QPixmap
-from PyQt6.QtWidgets import QFrame, QGraphicsOpacityEffect, QHBoxLayout, QLabel, QSlider, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import (
+    QFrame,
+    QGraphicsOpacityEffect,
+    QHBoxLayout,
+    QLabel,
+    QSizePolicy,
+    QSlider,
+    QVBoxLayout,
+    QWidget,
+)
 
 from components.button import create_icon_button, render_svg_icon, set_button_icon
 from components.image_viewer.layer import ImageLayer, MAX_SCALE, MIN_SCALE
@@ -31,7 +40,6 @@ _EDGE_ZONE_FADE_MS = 150
 _EDGE_ZONE_ICONS = {True: "line/arrow-left-s-line.svg", False: "line/arrow-right-s-line.svg"}
 _ACTUAL_SIZE_ICON = "line/aspect-ratio-line.svg"
 _FIT_ICON = "line/fullscreen-line.svg"
-_ZOOM_SLIDER_WIDTH = 140
 _ZOOM_SLIDER_STEPS = 200  # positions across MIN_SCALE..MAX_SCALE, spaced logarithmically
 _PERCENT = 100
 _MINIMAP_MAX_SIZE = QSize(180, 120)
@@ -149,7 +157,7 @@ class ZoomSlider(QFrame):
         self.setObjectName("zoomSlider")
         self._slider = QSlider(Qt.Orientation.Horizontal)
         self._slider.setRange(0, _ZOOM_SLIDER_STEPS)
-        self._slider.setFixedWidth(_ZOOM_SLIDER_WIDTH)
+        self._slider.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self._slider.setFocusPolicy(Qt.FocusPolicy.NoFocus)  # keys stay with the viewer
         self._slider.valueChanged.connect(lambda position: self.scale_requested.emit(_scale_from_position(position)))
         self._value_label = QLabel()
@@ -161,7 +169,7 @@ class ZoomSlider(QFrame):
         layout = QHBoxLayout(self)
         layout.setContentsMargins(PANEL_MARGIN, PANEL_MARGIN, PANEL_MARGIN, PANEL_MARGIN)
         layout.setSpacing(PANEL_SPACING)
-        layout.addWidget(self._slider)
+        layout.addWidget(self._slider, 1)
         layout.addWidget(self._value_label)
         self.set_layer(None)
         self.adjustSize()
