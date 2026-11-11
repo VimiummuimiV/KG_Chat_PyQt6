@@ -33,6 +33,7 @@ Grass and eggs are not pets; they are food on the strip.
 - **Speed** is tied to body length and animation pace: `walk` ×1, `walk_fast` ×1.6, `run` ×2.5. Enabling the "step-based" checkbox makes movement happen in short bursts timed to the steps.
 - **Strip edges**: a pet turns around when it reaches an edge. A pet with a goal (running to or eating food, watching a race for food, stalking prey, chasing a fox) is only stopped by the edge and keeps facing its goal; turning it around every tick would fight the goal and make it jitter. A flying pet is not turned either: it bounces off the edge with half of its sideways speed.
 - **Mouse**: clicking a pet triggers panic (runs for 1.2–2.2 s and forgets everything); click and drag to throw it—it flies and panics on landing. While it flies, the cursor is an obstacle (see section 10). Eggs can be picked up and rolled; grass cannot be picked up.
+- **Redraw rate**: the strip is updated every 33 ms (about 30 frames per second) and every 16 ms (about 60) while any pet or egg is held by the mouse or in the air, so a thrown pet can be followed and hit. The timer is a precise one (`Qt.PreciseTimer`): the default coarse timer rounds the interval to the system clock step and makes the motion uneven. A held body is redrawn on every mouse move.
 - **"Important" state**: panic, being held by the mouse, and flight. In these states, a pet notices nothing and does not react to anything.
 
 ## 3. Chicken
@@ -124,7 +125,7 @@ Applies to pets only (not eggs): after being thrown, a flying pet above the curs
 - **Direction.** The push is always up, tilted sideways by where the body is hit, like in Breakout: up to 0.6 of the push at the very end of the board, none in the middle. The speed of the cursor is added, so a flick hits harder.
 - **Strength.** The pet gives back 90% of its approach speed. A hit always lifts the pet at least 1100 device px/s (about 250 px of height, 0.9 s in the air), enough time for a person to react and hit again. The total speed is capped at 2200 device px/s. 
 - **One hit, one count.** After a hit, or right after the pet is released from the hand, the board cannot hit it again until the pet has got clear of the board.
-- **Badge.** Every bounce adds 1 to a counter drawn centered right above the pet (`999+` above 999). It has the same look as the counters on the buttons: `apply_counter_style` rendered into a pixmap by `counter_pixmap` in `components/presence_badge.py`.
+- **Badge.** Every bounce adds 1 to a counter drawn centered above the pet with a 1 px gap (`999+` above 999). It has the same look as the counters on the buttons: `apply_counter_style` rendered into a pixmap by `counter_pixmap` in `components/badge.py`.
 - **Miss.** When the pet lands on the floor, the badge stays for 2.5 s and then disappears, and the count resets. Picking the pet up again pauses this timer; the count continues.
 
 ## 11. Settings

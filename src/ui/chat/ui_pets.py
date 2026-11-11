@@ -19,6 +19,7 @@ from helpers.pets.throwable import Throwable
 
 
 _TICK_MS = 33
+_ACTION_TICK_MS = 16  # while something is held or in the air the picture is redrawn at about 60 frames per second
 _RESPAWN_SHARE = 0.5  # a carried-off pet is replaced after this share of the time between the visits of a predator
 _MAXIMUM_STEP_MS = 100  # a stall (sleep, window drag) must not make pets jump across the line
 _BADGE_FONT_SIZE = 10
@@ -45,6 +46,7 @@ class PetOverlay(QWidget):
         self._painted = QRegion()
         self._clock = QElapsedTimer()
         self._timer = QTimer(self)
+        self._timer.setTimerType(Qt.TimerType.PreciseTimer)  # the coarse default rounds the interval to the system clock step and makes the motion uneven
         self._timer.setInterval(_TICK_MS)
         self._timer.timeout.connect(self._tick)
         anchor.installEventFilter(self)
@@ -140,6 +142,7 @@ class PetOverlay(QWidget):
     def mouseMoveEvent(self, event):
         if self._grabbed:
             self._grabbed.drag_to(self._device_point(event), self._device_size()[1], event.timestamp())
+            self._refresh_region()  # the held body follows the mouse at once, not at the next tick
 
     def mouseReleaseEvent(self, event):
         if self._grabbed and event.button() == Qt.MouseButton.LeftButton:
@@ -231,7 +234,8 @@ class PetOverlay(QWidget):
         board = self._board_rect()
         if board:
             region = region.united(self._logical_rect(board))
-        self.setMask(region)
+        if region != self._painted:
+            self.setMask(region)
         self.update(self._painted.united(region))
         self._painted = region
 
@@ -277,3 +281,11 @@ class PetOverlay(QWidget):
             egg.update(step_ms, line_width, area_height)
         self._eggs = [egg for egg in self._eggs if not egg.expired]
         self._refresh_region()
+        self._adjust_tick_rate()
+
+    def _adjust_tick_rate(self) -> None:
+        """Tick fast while a body is held or in the air, when the eye follows it and a person aims at it; slowly otherwise."""
+        is_action = any(body.is_flying or body.is_held for body in self._bodies())
+        interval = _ACTION_TICK_MS if is_action else _TICK_MS
+        if interval != self._timer.interval():
+            self._timer.setInterval(interval)
