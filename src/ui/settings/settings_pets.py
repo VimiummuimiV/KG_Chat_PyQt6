@@ -15,9 +15,14 @@ from helpers.pets.catalog import (
     DEFAULT_SIZE_MULTIPLIER,
     MAXIMUM_SIZE_MULTIPLIER,
     PREDATOR_VISIT_SECONDS,
+    action_frame_rate,
+    action_frame_rate_setting,
+    ground_frame_rate,
+    ground_frame_rate_setting,
     pet_counts,
     pet_size_multiplier,
     pets_enabled,
+    pets_hide_messages,
     pets_stepped,
     predator_visit_seconds,
 )
@@ -159,10 +164,31 @@ class SettingsPetsMixin:
             section, tr("A predator comes every, seconds", "Хищник приходит раз в, сек"), minimum, maximum,
             self._on_predator_visit_changed, default=default,
         )
+        default, minimum, maximum = ground_frame_rate_setting()
+        self.pet_ground_frame_rate_spin = self.add_slider_spin_row(
+            section, tr("Strip, fps", "Лужайка, к/с"), minimum, maximum,
+            self._on_pet_ground_frame_rate_changed, default=default,
+        )
+        default, minimum, maximum = action_frame_rate_setting()
+        self.pet_action_frame_rate_spin = self.add_slider_spin_row(
+            section, tr("Flight, fps", "Полёт, к/с"), minimum, maximum,
+            self._on_pet_action_frame_rate_changed, default=default,
+        )
+        for spin, tooltip in (
+            (self.pet_ground_frame_rate_spin, tr("Frames per second of the pets' strip while they stay on the ground", "Кадров в секунду на полосе питомцев, пока они на земле")),
+            (self.pet_action_frame_rate_spin, tr("Frames per second while a pet or an egg is held or in the air", "Кадров в секунду, пока питомец или яйцо в руке или в воздухе")),
+        ):
+            spin.parentWidget().setToolTip(tooltip)
+            self.register_tr(spin.parentWidget().setToolTip, tooltip)
+        self.pets_hide_messages_checkbox = self.add_checkbox(
+            section, tr("Fade the messages while a thrown pet bounces off the cursor", "Скрывать сообщения, пока брошенный питомец отскакивает от курсора"),
+            self._on_pets_hide_messages_toggled,
+        )
 
     def refresh_pets(self):
         self.pets_checkbox.setChecked(pets_enabled(self.config))
         self.pets_stepped_checkbox.setChecked(pets_stepped(self.config))
+        self.pets_hide_messages_checkbox.setChecked(pets_hide_messages(self.config))
         counts = pet_counts(self.config)
         for key, tile in self._pet_tiles.items():
             tile.set_count(counts.get(key, 0))
@@ -175,6 +201,12 @@ class SettingsPetsMixin:
         seconds = predator_visit_seconds(self.config)
         self.pet_visit_spin.setValue(seconds)
         self.pet_visit_spin.linked_slider.setValue(seconds)
+        for spin, frame_rate in (
+            (self.pet_ground_frame_rate_spin, ground_frame_rate(self.config)),
+            (self.pet_action_frame_rate_spin, action_frame_rate(self.config)),
+        ):
+            spin.setValue(frame_rate)
+            spin.linked_slider.setValue(frame_rate)
 
     def _on_pets_toggled(self, checked: bool):
         self.config.set("ui", "pets", "enabled", value=checked)
@@ -184,8 +216,20 @@ class SettingsPetsMixin:
         self.config.set("ui", "pets", "stepped", value=checked)
         self.pets_changed.emit()
 
+    def _on_pets_hide_messages_toggled(self, checked: bool):
+        self.config.set("ui", "pets", "hide_messages", value=checked)
+        self.pets_changed.emit()
+
     def _on_predator_visit_changed(self, value: int):
         self.config.set("ui", "pets", "predator_visit", value=int(value))
+        self.pets_changed.emit()
+
+    def _on_pet_ground_frame_rate_changed(self, value: int):
+        self.config.set("ui", "pets", "ground_frame_rate", value=int(value))
+        self.pets_changed.emit()
+
+    def _on_pet_action_frame_rate_changed(self, value: int):
+        self.config.set("ui", "pets", "action_frame_rate", value=int(value))
         self.pets_changed.emit()
 
     def _on_pet_size_changed(self, species: str, value: int):

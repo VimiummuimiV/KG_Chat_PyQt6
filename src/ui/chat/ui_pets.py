@@ -8,9 +8,20 @@ from PyQt6.QtWidgets import QWidget
 
 from components.badge import counter_pixmap
 from components.button import get_accent_color
+from components.fade import WidgetFader
 from helpers.pets.animation import sprite_height
 from helpers.pets.bounce import CollisionBoard, CursorMotion
-from helpers.pets.catalog import get_pet_kind, pet_counts, pet_pixel_size, pets_enabled, pets_stepped, predator_visit_ms
+from helpers.pets.catalog import (
+    action_frame_rate,
+    get_pet_kind,
+    ground_frame_rate,
+    pet_counts,
+    pet_pixel_size,
+    pets_enabled,
+    pets_hide_messages,
+    pets_stepped,
+    predator_visit_ms,
+)
 from helpers.pets.egg import Egg
 from helpers.pets.meadow import Meadow
 from helpers.pets.pet import Pet
@@ -18,8 +29,10 @@ from helpers.pets.relations import preys_on
 from helpers.pets.throwable import Throwable
 
 
-_TICK_MS = 33
-_ACTION_TICK_MS = 16  # while something is held or in the air the picture is redrawn at about 60 frames per second
+_MILLISECONDS = 1000
+_MESSAGES_FADE_OUT_MS = 250
+_MESSAGES_FADE_IN_MS = 450
+_MESSAGES_HIDDEN_OPACITY = 0.0
 _RESPAWN_SHARE = 0.5  # a carried-off pet is replaced after this share of the time between the visits of a predator
 _MAXIMUM_STEP_MS = 100  # a stall (sleep, window drag) must not make pets jump across the line
 _BADGE_FONT_SIZE = 10
@@ -28,13 +41,20 @@ _BOARD_SHADE = 150  # percent; the lower row of the board is the accent color da
 _ANCHOR_EVENTS = (QEvent.Type.Move, QEvent.Type.Resize, QEvent.Type.Show, QEvent.Type.Hide)
 
 
+def _tick_ms(frame_rate: int) -> int:
+    return round(_MILLISECONDS / frame_rate)
+
+
 class PetOverlay(QWidget):
     """Area over everything down to the bottom of anchor, the strip kept free for the pets; the mask leaves only the pets themselves to the mouse."""
 
-    def __init__(self, parent: QWidget, anchor: QWidget, config):
+    def __init__(self, parent: QWidget, anchor: QWidget, messages: QWidget, config):
         super().__init__(parent)
         self._anchor = anchor
         self._config = config
+        self._messages_fader = WidgetFader(messages)
+        self._is_hiding_messages = False  # the option is on
+        self._are_messages_hidden = False
         self._pets: list[Pet] = []
         self._eggs: list[Egg] = []
         self._meadow = Meadow()
@@ -47,7 +67,8 @@ class PetOverlay(QWidget):
         self._clock = QElapsedTimer()
         self._timer = QTimer(self)
         self._timer.setTimerType(Qt.TimerType.PreciseTimer)  # the coarse default rounds the interval to the system clock step and makes the motion uneven
-        self._timer.setInterval(_TICK_MS)
+        self._ground_tick_ms = _tick_ms(ground_frame_rate(config))
+        self._action_tick_ms = _tick_ms(action_frame_rate(config))
         self._timer.timeout.connect(self._tick)
         anchor.installEventFilter(self)
         parent.installEventFilter(self)
@@ -57,6 +78,7 @@ class PetOverlay(QWidget):
     def shutdown(self) -> None:
         """Detach filters/parent so a deferred _place cannot mapTo after the room is gone."""
         self._timer.stop()
+        self._show_messages()
         if self._anchor is not None:
             self._anchor.removeEventFilter(self)
         parent = self.parentWidget()
@@ -95,6 +117,10 @@ class PetOverlay(QWidget):
         self._anchor.setVisible(bool(self._pets))
         if not self._pets:
             self._eggs.clear()
+        self._ground_tick_ms = _tick_ms(ground_frame_rate(self._config))
+        self._action_tick_ms = _tick_ms(action_frame_rate(self._config))
+        self._adjust_tick_rate()
+        self._is_hiding_messages = pets_hide_messages(self._config)
         self._grabbed = None
         self._cursor_point = None
         self._board = CollisionBoard.for_pets(self._pets)
@@ -115,6 +141,7 @@ class PetOverlay(QWidget):
     def hideEvent(self, event):
         super().hideEvent(event)
         self._timer.stop()
+        self._show_messages()
 
     def paintEvent(self, _event):
         painter = QPainter(self)
@@ -282,10 +309,27 @@ class PetOverlay(QWidget):
         self._eggs = [egg for egg in self._eggs if not egg.expired]
         self._refresh_region()
         self._adjust_tick_rate()
+        self._fade_messages()
+
+    def _fade_messages(self) -> None:
+        """Fade the messages out with the first bounce and back in when the counters are gone, as one widget."""
+        is_hidden = self._is_hiding_messages and any(pet.bounces for pet in self._pets)
+        if is_hidden == self._are_messages_hidden:
+            return
+        self._are_messages_hidden = is_hidden
+        if is_hidden:
+            self._messages_fader.fade_to(_MESSAGES_HIDDEN_OPACITY, _MESSAGES_FADE_OUT_MS)
+        else:
+            self._messages_fader.fade_to(1.0, _MESSAGES_FADE_IN_MS)
+
+    def _show_messages(self) -> None:
+        """Show the messages again at once, when the pets stop or go away in the middle of a fade."""
+        self._are_messages_hidden = False
+        self._messages_fader.restore()
 
     def _adjust_tick_rate(self) -> None:
         """Tick fast while a body is held or in the air, when the eye follows it and a person aims at it; slowly otherwise."""
         is_action = any(body.is_flying or body.is_held for body in self._bodies())
-        interval = _ACTION_TICK_MS if is_action else _TICK_MS
+        interval = self._action_tick_ms if is_action else self._ground_tick_ms
         if interval != self._timer.interval():
             self._timer.setInterval(interval)

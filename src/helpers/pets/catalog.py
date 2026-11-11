@@ -1,9 +1,12 @@
 """Pet catalog: finds the bundled pet sprites and reads the pet options."""
 
 import json
+import math
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
+
+from PyQt6.QtGui import QGuiApplication
 
 from helpers.data import get_resource_dir
 
@@ -12,6 +15,10 @@ MAXIMUM_PET_COUNT = 10
 MAXIMUM_SIZE_MULTIPLIER = 10
 DEFAULT_SIZE_MULTIPLIER = 2
 PREDATOR_VISIT_SECONDS = (45, 5, 1800)  # default, minimum and maximum of the seconds between the visits of a predator
+_GROUND_FRAME_RATE_DEFAULT = 30  # frames per second of the strip while the pets stay on the ground
+_ACTION_FRAME_RATE_DEFAULT = 60  # the same while a pet or an egg is held or in the air
+_MINIMUM_FRAME_RATE = 10
+_LOWEST_MAXIMUM_FRAME_RATE = 165  # the limit is the refresh rate of the fastest screen, but never lower than this
 _VISIT_SPREAD = 0.3  # a visit every n seconds means every n -30% to n +30% seconds
 _MILLISECONDS = 1000
 EAT_STATE = "eat"
@@ -128,12 +135,48 @@ def pets_stepped(config) -> bool:
     return True if stepped is None else bool(stepped)
 
 
+def _pets_setting(config, name: str, setting: tuple[int, int, int]) -> int:
+    """Return a whole-number pets option kept inside the limits of its settings row; the default when it is not a number."""
+    default, minimum, maximum = setting
+    value = config.get("ui", "pets", name)
+    is_number = isinstance(value, (int, float)) and not isinstance(value, bool)
+    return max(minimum, min(maximum, round(value))) if is_number else default
+
+
+def frame_rate_range() -> tuple[int, int]:
+    """Return the lowest and the highest frame rate to offer: the refresh rate of the fastest screen, at least 165."""
+    refresh_rate = max((screen.refreshRate() for screen in QGuiApplication.screens()), default=0)
+    return _MINIMUM_FRAME_RATE, max(_LOWEST_MAXIMUM_FRAME_RATE, math.ceil(refresh_rate))
+
+
+def ground_frame_rate_setting() -> tuple[int, int, int]:
+    """Return the default, minimum and maximum of the frame rate on the ground."""
+    return _GROUND_FRAME_RATE_DEFAULT, *frame_rate_range()
+
+
+def action_frame_rate_setting() -> tuple[int, int, int]:
+    """Return the default, minimum and maximum of the frame rate in the air and in the hand."""
+    return _ACTION_FRAME_RATE_DEFAULT, *frame_rate_range()
+
+
+def pets_hide_messages(config) -> bool:
+    """Return True when the messages fade out while a thrown pet bounces off the cursor."""
+    return bool(config.get("ui", "pets", "hide_messages"))
+
+
 def predator_visit_seconds(config) -> int:
     """Return the seconds a predator stays away between its visits, kept inside the limits of the settings page."""
-    default, minimum, maximum = PREDATOR_VISIT_SECONDS
-    seconds = config.get("ui", "pets", "predator_visit")
-    is_number = isinstance(seconds, (int, float)) and not isinstance(seconds, bool)
-    return max(minimum, min(maximum, round(seconds))) if is_number else default
+    return _pets_setting(config, "predator_visit", PREDATOR_VISIT_SECONDS)
+
+
+def ground_frame_rate(config) -> int:
+    """Return the frames per second of the strip while the pets stay on the ground."""
+    return _pets_setting(config, "ground_frame_rate", ground_frame_rate_setting())
+
+
+def action_frame_rate(config) -> int:
+    """Return the frames per second of the strip while a pet or an egg is held or in the air."""
+    return _pets_setting(config, "action_frame_rate", action_frame_rate_setting())
 
 
 def predator_visit_ms(config) -> tuple[int, int]:

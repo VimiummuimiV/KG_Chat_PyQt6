@@ -33,7 +33,7 @@ Grass and eggs are not pets; they are food on the strip.
 - **Speed** is tied to body length and animation pace: `walk` ×1, `walk_fast` ×1.6, `run` ×2.5. Enabling the "step-based" checkbox makes movement happen in short bursts timed to the steps.
 - **Strip edges**: a pet turns around when it reaches an edge. A pet with a goal (running to or eating food, watching a race for food, stalking prey, chasing a fox) is only stopped by the edge and keeps facing its goal; turning it around every tick would fight the goal and make it jitter. A flying pet is not turned either: it bounces off the edge with half of its sideways speed.
 - **Mouse**: clicking a pet triggers panic (runs for 1.2–2.2 s and forgets everything); click and drag to throw it—it flies and panics on landing. While it flies, the cursor is an obstacle (see section 10). Eggs can be picked up and rolled; grass cannot be picked up.
-- **Redraw rate**: the strip is updated every 33 ms (about 30 frames per second) and every 16 ms (about 60) while any pet or egg is held by the mouse or in the air, so a thrown pet can be followed and hit. The timer is a precise one (`Qt.PreciseTimer`): the default coarse timer rounds the interval to the system clock step and makes the motion uneven. A held body is redrawn on every mouse move.
+- **Redraw rate**: the strip is updated 30 times per second while everything stays on the ground and 60 times per second while any pet or egg is held by the mouse or in the air, so a thrown pet can be followed and hit. Both rates are set in the pet settings ("Strip, fps" and "Flight, fps"), from 10 up to 165 or the refresh rate of the fastest screen when that is higher. A higher rate costs processor time (every frame moves the pets and repaints their area); it does not need more memory, and the strip is painted by the processor, not by the graphics card. The timer is a precise one (`Qt.PreciseTimer`): the default coarse timer rounds the interval to the system clock step and makes the motion uneven. A held body is redrawn on every mouse move.
 - **"Important" state**: panic, being held by the mouse, and flight. In these states, a pet notices nothing and does not react to anything.
 
 ## 3. Chicken
@@ -127,12 +127,15 @@ Applies to pets only (not eggs): after being thrown, a flying pet above the curs
 - **One hit, one count.** After a hit, or right after the pet is released from the hand, the board cannot hit it again until the pet has got clear of the board.
 - **Badge.** Every bounce adds 1 to a counter drawn centered above the pet with a 1 px gap (`999+` above 999). It has the same look as the counters on the buttons: `apply_counter_style` rendered into a pixmap by `counter_pixmap` in `components/badge.py`.
 - **Miss.** When the pet lands on the floor, the badge stays for 2.5 s and then disappears, and the count resets. Picking the pet up again pauses this timer; the count continues.
+- **Fading the messages** (option "Fade the messages while a thrown pet bounces off the cursor", off by default). A pet flying past lines of text can make them flicker before the eyes. With the option on, the whole message list fades out in 0.25 s at the first bounce of any pet and fades back in over 0.45 s when the last badge is gone (or at once when the pets are turned off). The messages keep arriving meanwhile; only the visibility of the widget changes. It is one opacity effect on the whole list (`components/fade.py`, `WidgetFader`) with a single animation, not a fade of every message; the effect exists only during the fade and while the list is hidden, a fully transparent list is not drawn at all.
 
 ## 11. Settings
 
 - A pet's icon in the settings is always in color. The number of enabled instances is shown by a badge in the corner (1 or more); with no badge, that pet is disabled.
 - Left-click adds a pet, right-click removes one, and holding the button repeats the action. Maximum 10 of each color.
 - Size is set for the entire species, in whole art pixels (×1…×10).
+- Two sliders set the redraw rate of the strip: "Strip, fps" (pets on the ground, 30 by default) and "Flight, fps" (a pet or an egg held or in the air, 60 by default). The maximum is 165, or the refresh rate of the fastest screen when that is higher.
+- A checkbox turns on fading the messages during a throw (off by default).
 - The "i" button next to the hint opens a guide (English and Russian) describing the role and behavior of every pet.
 - Changing the counts must stay cheap: decoded animations are kept in a bounded cache and are never cleared on a click, and existing pets are reused when the options are reloaded.
 
