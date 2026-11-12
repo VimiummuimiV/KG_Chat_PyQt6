@@ -181,6 +181,30 @@ class MessageRenderer(QObject):
             return self.system_colors["text"]
         return timestamp_color(self.is_dark_theme)
 
+    def get_text_color(self, is_ban: bool, is_private: bool, is_system: bool, is_competition: bool = False, is_parser: bool = False) -> str:
+        """Return the body text color for the message type"""
+        if is_parser:
+            return self.parser_colors["text"]
+        if is_competition:
+            return self.competition_colors["text"]
+        if is_system:
+            return self.system_colors["text"]
+        if is_private:
+            return self._private_colors["text"]
+        if is_ban:
+            return self._ban_colors["text"]
+        return "#FFFFFF" if self.is_dark_theme else "#000000"
+
+    def get_link_color(self, url: str, is_media: Optional[bool] = None) -> str:
+        """Return the link color: media, chatlog or normal; pass is_media when it is already known"""
+        if is_media is None:
+            is_media = self._is_media_url(url)
+        if is_media:
+            return self._link_colors["media"]
+        if self._parse_chatlog_url(url):
+            return self._link_colors["chatlog"]
+        return self._link_colors["normal"]
+
     def set_my_username(self, username: str):
         """Set the current user's username for mention highlighting"""
         self.my_username = username.lower() if username else None
@@ -324,19 +348,7 @@ class MessageRenderer(QObject):
         current_x, current_y = x, y
         line_height = font_metrics.height()
 
-        # Determine text color based on message type
-        if is_parser:
-            text_color = self.parser_colors["text"]
-        elif is_competition:
-            text_color = self.competition_colors["text"]
-        elif is_system:
-            text_color = self.system_colors["text"]
-        elif is_private:
-            text_color = self._private_colors["text"]
-        elif is_ban:
-            text_color = self._ban_colors["text"]
-        else:
-            text_color = "#FFFFFF" if self.is_dark_theme else "#000000"
+        text_color = self.get_text_color(is_ban, is_private, is_system, is_competition, is_parser)
 
         highlight_pattern = re.compile(re.escape(highlight_text), re.IGNORECASE) if highlight_text else None
         highlight_background, highlight_foreground = self._highlight_colors
@@ -422,13 +434,7 @@ class MessageRenderer(QObject):
             nonlocal current_x
             link_text = self._get_link_text(url, row)
 
-            # Choose color based on whether it's a media link or chatlog link
-            if is_media:
-                link_color = self._link_colors["media"]
-            elif self._parse_chatlog_url(url):
-                link_color = self._link_colors["chatlog"]
-            else:
-                link_color = self._link_colors["normal"]
+            link_color = self.get_link_color(url, is_media)
             painter.setPen(QColor(link_color))
 
             remaining = link_text
