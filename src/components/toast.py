@@ -1,9 +1,9 @@
-"""Toast: a short message that slides in at the top left of a window and fades away."""
+"""Toast: a short message that slides in at the top center of a window and fades away."""
 
 from enum import Enum
 from typing import Callable
 
-from PyQt6.QtCore import QEasingCurve, Qt, QVariantAnimation
+from PyQt6.QtCore import QEasingCurve, QEvent, Qt, QVariantAnimation
 from PyQt6.QtWidgets import QApplication, QFrame, QGraphicsOpacityEffect, QHBoxLayout, QLabel, QWidget
 
 from components.button import render_svg_icon
@@ -17,7 +17,7 @@ DEFAULT_DURATION_MS = 2200
 _ENTER_MS = 220
 _EXIT_MS = 300
 _SLIDE_DISTANCE = 18
-_EDGE_MARGIN = 14
+_TOP_OFFSET = 88  # below the room tabs and the chatlog header buttons, so they stay clickable
 _COPIED_TEXT_LIMIT = 40
 _ICON_SIZE = 18
 _RADIUS = 12
@@ -40,6 +40,7 @@ class Toast(QFrame):
 
     def __init__(self, host: QWidget, is_dark_fn: Callable[[], bool]):
         super().__init__(host)
+        self._host = host
         self._is_dark_fn = is_dark_fn
         self._progress = 0.0
         self._curve = QEasingCurve(QEasingCurve.Type.OutCubic)
@@ -64,6 +65,7 @@ class Toast(QFrame):
         self._animation.valueChanged.connect(self._apply_progress)
         self._animation.finished.connect(self.hide)
 
+        host.installEventFilter(self)
         self.hide()
 
     def show_message(self, text: str, kind: ToastKind = ToastKind.INFO, duration_ms: int = DEFAULT_DURATION_MS) -> None:
@@ -93,6 +95,11 @@ class Toast(QFrame):
         self.raise_()
         self._animation.start()
 
+    def eventFilter(self, watched, event) -> bool:
+        if watched is self._host and event.type() == QEvent.Type.Resize and self.isVisible():
+            self._place()
+        return super().eventFilter(watched, event)
+
     def _apply_progress(self, progress: float) -> None:
         self._progress = progress
         self._opacity_effect.setOpacity(progress)
@@ -100,7 +107,7 @@ class Toast(QFrame):
 
     def _place(self) -> None:
         slide = round((1.0 - self._curve.valueForProgress(self._progress)) * _SLIDE_DISTANCE)
-        self.move(_EDGE_MARGIN - slide, _EDGE_MARGIN)
+        self.move((self._host.width() - self.width()) // 2, _TOP_OFFSET - slide)
 
 
 def show_toast(widget: QWidget, text: str, kind: ToastKind = ToastKind.INFO, duration_ms: int = DEFAULT_DURATION_MS) -> None:
