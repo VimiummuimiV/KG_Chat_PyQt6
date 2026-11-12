@@ -2,7 +2,7 @@
 
 import threading
 
-from PyQt6.QtWidgets import QApplication, QMessageBox
+from PyQt6.QtWidgets import QMessageBox
 
 from components.context_menu.message import (
     BAN_PERMANENT,
@@ -21,6 +21,7 @@ from components.context_menu.message import (
     TRACK as MSG_TRACK,
     UNTRACK as MSG_UNTRACK,
 )
+from components.toast import copy_text_with_toast
 from core.web.api_data import get_exact_user_id_by_name, validate_username_and_get_id
 from core.xmpp.jid_utils import extract_user_data_from_jid
 from helpers.translate import tr
@@ -140,10 +141,10 @@ class ChatUserActionsMixin:
                     self._resolve_user_then(username, lambda jid, login, uid: self.enter_private_mode(jid, login, uid))
             elif action == MSG_COPY_USERNAME:
                 if username:
-                    QApplication.clipboard().setText(username)
+                    copy_text_with_toast(self, username)
             elif action == MSG_COPY_ID:
                 user_id = self.cache.get_user_id(username) if username else None
-                QApplication.clipboard().setText(str(user_id or ""))
+                copy_text_with_toast(self, str(user_id or ""))
             elif action in (MSG_TRACK, MSG_UNTRACK):
                 self.on_track_user_requested(str(uid or ""), username or "", action == MSG_TRACK)
             elif action == BAN_PERMANENT:

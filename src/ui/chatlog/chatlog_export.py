@@ -1,9 +1,11 @@
 """ChatlogWidget: copying and saving the shown messages."""
 
 from datetime import datetime
+from pathlib import Path
 
-from PyQt6.QtWidgets import QApplication, QFileDialog, QMessageBox
+from PyQt6.QtWidgets import QFileDialog, QMessageBox
 
+from components.toast import copy_messages_with_toast, show_toast, ToastKind
 from helpers.data import get_data_dir
 from helpers.text.message_format import format_message_line
 from helpers.translate import tr
@@ -67,27 +69,15 @@ class ChatlogExportMixin:
     def on_copy_results(self):
         messages = self._messages_for_export()
         if not messages:
-            QMessageBox.information(self,
-                tr("No Results", "Нет результатов"),
-                tr("No messages to copy.", "Нет сообщений для копирования.")
-            )
+            show_toast(self, tr("No messages to copy", "Нет сообщений для копирования"), ToastKind.WARNING)
             return
         result, message_count = self._format_messages_export(messages)
-        QApplication.clipboard().setText(result)
-        QMessageBox.information(self,
-            tr("Copied", "Скопировано"),
-            tr(
-                f"Copied {message_count} messages to clipboard.",
-                f"Скопировано {message_count} сообщений в буфер.")
-            )
+        copy_messages_with_toast(self, result, message_count)
 
     def on_save_results(self):
         messages = self._messages_for_export()
         if not messages:
-            QMessageBox.information(self,
-                tr("No Results", "Нет результатов"),
-                tr("No messages to save.", "Нет сообщений для сохранения.")
-            )
+            show_toast(self, tr("No messages to save", "Нет сообщений для сохранения"), ToastKind.WARNING)
             return
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -107,12 +97,11 @@ class ChatlogExportMixin:
             result, message_count = self._format_messages_export(messages)
             with open(filename, 'w', encoding='utf-8') as f:
                 f.write(result)
-            QMessageBox.information(self,
-                tr("Saved", "Сохранено"),
-                tr(
-                    f"Saved {message_count} messages to:\n{filename}",
-                    f"Сохранено {message_count} сообщений в:\n{filename}")
-                )
+            show_toast(
+                self,
+                tr(f"Saved {message_count} messages: {Path(filename).name}", f"Сохранено сообщений: {message_count} ({Path(filename).name})"),
+                ToastKind.SUCCESS,
+            )
         except Exception as e:
             QMessageBox.critical(self,
                 tr("Error", "Ошибка"),

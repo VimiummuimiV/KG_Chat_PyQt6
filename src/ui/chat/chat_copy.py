@@ -1,9 +1,7 @@
 """ChatWindow: copy messages from the currently displayed message view."""
 
-from PyQt6.QtWidgets import QApplication
-
 from components.button import animate_button_bounce
-from components.toast import ToastKind
+from components.toast import copy_messages_with_toast, ToastKind
 from helpers.translate import tr
 
 
@@ -22,8 +20,5 @@ class ChatCopyMixin:
             self.toast.show_message(tr("Nothing to copy", "Нечего копировать"), ToastKind.WARNING)
             return
 
-        QApplication.clipboard().setText(text)
+        copy_messages_with_toast(self, text, message_count)
         animate_button_bounce(self.button_panel.copy_messages_button)
-        self.toast.show_message(
-            tr(f"Messages copied: {message_count}", f"Скопировано сообщений: {message_count}"), ToastKind.SUCCESS,
-        )

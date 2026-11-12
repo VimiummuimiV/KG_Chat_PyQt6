@@ -1,22 +1,24 @@
-"""Toast: a short message that slides in at the top center of a window and fades away."""
+"""Toast: a short message that slides in at the top left of a window and fades away."""
 
 from enum import Enum
 from typing import Callable
 
-from PyQt6.QtCore import QEasingCurve, QEvent, Qt, QVariantAnimation
-from PyQt6.QtWidgets import QFrame, QGraphicsOpacityEffect, QHBoxLayout, QLabel, QWidget
+from PyQt6.QtCore import QEasingCurve, Qt, QVariantAnimation
+from PyQt6.QtWidgets import QApplication, QFrame, QGraphicsOpacityEffect, QHBoxLayout, QLabel, QWidget
 
 from components.button import render_svg_icon
 from helpers.colors.color_utils import tinted_chip_colors
 from helpers.data import get_resource_dir
 from helpers.fonts.fonts import FontType, get_font
+from helpers.translate import tr
 
 
 DEFAULT_DURATION_MS = 2200
 _ENTER_MS = 220
 _EXIT_MS = 300
 _SLIDE_DISTANCE = 18
-_TOP_MARGIN = 14
+_EDGE_MARGIN = 14
+_COPIED_TEXT_LIMIT = 40
 _ICON_SIZE = 18
 _RADIUS = 12
 _PADDING_HORIZONTAL = 16
@@ -38,7 +40,6 @@ class Toast(QFrame):
 
     def __init__(self, host: QWidget, is_dark_fn: Callable[[], bool]):
         super().__init__(host)
-        self._host = host
         self._is_dark_fn = is_dark_fn
         self._progress = 0.0
         self._curve = QEasingCurve(QEasingCurve.Type.OutCubic)
@@ -63,7 +64,6 @@ class Toast(QFrame):
         self._animation.valueChanged.connect(self._apply_progress)
         self._animation.finished.connect(self.hide)
 
-        host.installEventFilter(self)
         self.hide()
 
     def show_message(self, text: str, kind: ToastKind = ToastKind.INFO, duration_ms: int = DEFAULT_DURATION_MS) -> None:
@@ -93,11 +93,6 @@ class Toast(QFrame):
         self.raise_()
         self._animation.start()
 
-    def eventFilter(self, watched, event) -> bool:
-        if watched is self._host and event.type() == QEvent.Type.Resize and self.isVisible():
-            self._place()
-        return super().eventFilter(watched, event)
-
     def _apply_progress(self, progress: float) -> None:
         self._progress = progress
         self._opacity_effect.setOpacity(progress)
@@ -105,4 +100,28 @@ class Toast(QFrame):
 
     def _place(self) -> None:
         slide = round((1.0 - self._curve.valueForProgress(self._progress)) * _SLIDE_DISTANCE)
-        self.move((self._host.width() - self.width()) // 2, _TOP_MARGIN - slide)
+        self.move(_EDGE_MARGIN - slide, _EDGE_MARGIN)
+
+
+def show_toast(widget: QWidget, text: str, kind: ToastKind = ToastKind.INFO, duration_ms: int = DEFAULT_DURATION_MS) -> None:
+    """Show a toast on the window that holds the widget; does nothing when that window has none."""
+    toast = widget.window().findChild(Toast, options=Qt.FindChildOption.FindDirectChildrenOnly)
+    if toast is not None:
+        toast.show_message(text, kind, duration_ms)
+
+
+def copy_text_with_toast(widget: QWidget, text: str, message: str = "") -> None:
+    """Put the text on the clipboard and confirm it with a toast; the message defaults to the copied text."""
+    if not text:
+        show_toast(widget, tr("Nothing to copy", "Нечего копировать"), ToastKind.WARNING)
+        return
+    QApplication.clipboard().setText(text)
+    if not message:
+        shown = text if len(text) <= _COPIED_TEXT_LIMIT else f"{text[:_COPIED_TEXT_LIMIT]}…"
+        message = tr(f"Copied: {shown}", f"Скопировано: {shown}")
+    show_toast(widget, message, ToastKind.SUCCESS)
+
+
+def copy_messages_with_toast(widget: QWidget, text: str, message_count: int) -> None:
+    """Copy exported messages and confirm with their count."""
+    copy_text_with_toast(widget, text, tr(f"Messages copied: {message_count}", f"Скопировано сообщений: {message_count}"))

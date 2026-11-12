@@ -21,6 +21,7 @@ from components.context_menu.userlist import (
     TRACK,
     UNTRACK,
 )
+from components.toast import copy_text_with_toast
 from components.tracked_mark import TrackedMarkMixin
 from components.user_count_row import UserCountRow
 from helpers.cache import get_cache
@@ -77,9 +78,9 @@ class _ChatlogUserWidget(TrackedMarkMixin, UserCountRow):
         elif action == PASTE_USERNAME:
             self.paste_requested.emit(self.username)
         elif action == COPY_USERNAME:
-            QApplication.clipboard().setText(self.username)
+            copy_text_with_toast(self, self.username)
         elif action == COPY_ID:
-            QApplication.clipboard().setText(str(self.user_id or ""))
+            copy_text_with_toast(self, str(self.user_id or ""))
         elif action == FILTER:
             self.clicked.emit(self.username, False)
         elif action == TRACK:

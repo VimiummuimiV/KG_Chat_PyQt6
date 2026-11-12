@@ -8,12 +8,12 @@ from PyQt6.QtWidgets import (
     QDialog,
     QHBoxLayout,
     QMenu,
-    QMessageBox,
     QTabBar,
     QTabWidget,
     QWidget,
 )
 
+from components.toast import copy_text_with_toast, show_toast, ToastKind
 from core.xmpp.jid_utils import custom_room_name_from_jid, game_id_from_jid, is_from_game_room
 from helpers.system.memory import release_memory_soon
 from helpers.translate import tr
@@ -122,14 +122,15 @@ class ChatRoomTabsMixin:
             return
         # Allow only simple room names (letters, digits, underscore, hyphen)
         if not re.match(r'^[a-z0-9_-]+$', room_name):
-            QMessageBox.warning(
+            show_toast(
                 self,
-                tr("Invalid room name", "Неверное имя комнаты"),
-                tr("Use only letters, digits, underscore or hyphen.", "Используйте только буквы, цифры, подчёркивание или дефис."),
+                tr("Invalid room name: use only letters, digits, underscore or hyphen",
+                   "Неверное имя комнаты: только буквы, цифры, подчёркивание или дефис"),
+                ToastKind.WARNING,
             )
             return
         if room_name == "general":
-            QMessageBox.information(self, tr("Room", "Комната"), tr("You are already in the General room.", "Вы уже находитесь в общей комнате."))
+            show_toast(self, tr("You are already in the General room", "Вы уже находитесь в общей комнате"), ToastKind.INFO)
             return
         if dialog.should_remember():
             dialog.remember_name(room_name)
@@ -328,7 +329,7 @@ class ChatRoomTabsMixin:
             name = widget.room_name
             menu.addAction(
                 tr("Copy room name", "Скопировать имя комнаты"),
-                lambda n=name: QApplication.clipboard().setText(n),
+                lambda n=name: copy_text_with_toast(self, n),
             )
             menu.addSeparator()
         if index > 0:

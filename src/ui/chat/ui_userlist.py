@@ -25,6 +25,7 @@ from components.context_menu.userlist import (
     TRACK,
     UNTRACK,
 )
+from components.toast import copy_text_with_toast
 from components.tracked_mark import TrackedMarkMixin
 from core.xmpp.userlist import ChatUser
 from helpers.cache import get_cache
@@ -219,9 +220,9 @@ class _UserWidget(TrackedMarkMixin, QWidget):
         elif action == PASTE_USERNAME:
             self.paste_requested.emit(self.user.login)
         elif action == COPY_USERNAME:
-            QApplication.clipboard().setText(self.user.login)
+            copy_text_with_toast(self, self.user.login)
         elif action == COPY_ID:
-            QApplication.clipboard().setText(str(self.user.user_id or ""))
+            copy_text_with_toast(self, str(self.user.user_id or ""))
         elif action == OPEN_GAME and has_game:
             self.open_game_requested.emit(str(self.user.game_id))
         elif action == TRACK:

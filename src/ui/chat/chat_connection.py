@@ -4,6 +4,7 @@ import threading
 
 from PyQt6.QtCore import QTimer
 
+from components.toast import show_toast, ToastKind
 from core.xmpp.client import XMPPClient
 from helpers.translate import tr
 from ui.notification.popup_manager import show_notification
@@ -158,11 +159,14 @@ class ChatConnectionMixin:
 
     def set_connection_status(self, status: str):
         status = (status or '').lower()
+        previous_status = getattr(self, 'connection_status', None)
         self.connection_status = status
         self.update_connection_title()
 
         # Reset on success
         if status == 'online':
+            if status != previous_status:
+                show_toast(self, tr("Connected", "Подключено"), ToastKind.SUCCESS)
             self.reconnect_count = 0
             if hasattr(self, 'button_panel') and hasattr(self.button_panel, 'reconnect_button'):
                 self.button_panel.reconnect_button.setVisible(False)
@@ -171,6 +175,9 @@ class ChatConnectionMixin:
         elif status == 'offline':
             if getattr(self, 'really_close', False):
                 return
+
+            if previous_status == 'online':  # not on every failed retry
+                show_toast(self, tr("Connection lost", "Соединение потеряно"), ToastKind.ERROR)
 
             # Show manual reconnect button immediately
             if hasattr(self, 'button_panel') and hasattr(self.button_panel, 'reconnect_button'):

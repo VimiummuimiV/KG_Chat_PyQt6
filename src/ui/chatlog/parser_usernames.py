@@ -7,6 +7,7 @@ from PyQt6.QtCore import QTimer
 from PyQt6.QtWidgets import QLineEdit, QMessageBox
 
 from components.button import set_button_icon
+from components.toast import show_toast, ToastKind
 from core.web.api_data import get_exact_user_id_by_name, get_usernames_history
 from helpers.translate import tr
 
@@ -174,13 +175,13 @@ class ParserUsernamesMixin:
             )
         elif usernames:
             # Only show success message if we found users and had no errors
-            QMessageBox.information(
+            show_toast(
                 self,
-                tr("History Fetched", "История загружена"),
                 tr(
-                    f"Retrieved {len(usernames)} usernames including history.",
-                    f"Получено {len(usernames)} имён с учётом истории."
-                )
+                    f"Retrieved {len(usernames)} usernames including history",
+                    f"Получено {len(usernames)} имён с учётом истории",
+                ),
+                ToastKind.SUCCESS,
             )
         else:
             # No users found at all

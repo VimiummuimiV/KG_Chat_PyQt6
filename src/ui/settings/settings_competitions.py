@@ -4,9 +4,10 @@ import re
 from html import escape
 
 from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QApplication, QTextEdit
+from PyQt6.QtWidgets import QTextEdit
 
 from components.button import create_icon_button
+from components.toast import copy_text_with_toast
 from helpers.colors.color_utils import blend_hex_colors
 from helpers.fonts.fonts import FontType, get_font
 from helpers.translate import tr
@@ -292,7 +293,7 @@ class SettingsCompetitionsMixin:
             self.set_competition_log_lines(lines)
 
     def _on_copy_log_clicked(self):
-        QApplication.clipboard().setText(self.competitions_log.toPlainText())
+        copy_text_with_toast(self, self.competitions_log.toPlainText(), tr("Log copied", "Лог скопирован"))
 
     def _on_clear_log_clicked(self):
         self.competitions_log.clear()

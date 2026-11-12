@@ -17,6 +17,7 @@ from PyQt6.QtWidgets import (
 )
 
 from components.button import create_icon_button
+from components.toast import show_toast, ToastKind
 from core.web.api_data import get_exact_user_id_by_name
 from helpers.fonts.fonts import FontType, get_font
 from helpers.translate import on_language_changed, tr, TranslatableMixin
@@ -311,11 +312,7 @@ class PronunciationWidget(TranslatableMixin, QWidget):
     def _clear_all(self):
         """Clear all pronunciation mappings"""
         if not any(not item.is_empty() for item in self.items):
-            QMessageBox.information(
-                self,
-                tr("Empty", "Пусто"),
-                tr("Pronunciation list is already empty", "Список произношений уже пуст")
-            )
+            show_toast(self, tr("Pronunciation list is already empty", "Список произношений уже пуст"), ToastKind.INFO)
             return
 
         reply = QMessageBox.question(

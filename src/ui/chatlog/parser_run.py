@@ -6,6 +6,7 @@ from typing import List, Optional
 from PyQt6.QtWidgets import QLineEdit, QMessageBox
 
 from components.button import set_button_icon
+from components.toast import show_toast, ToastKind
 from core.chatlogs.range_parser import ParseConfig
 from core.web.api_data import get_registration_date
 from helpers.translate import tr
@@ -200,15 +201,13 @@ class ParserRunMixin:
 
             # Optionally inform user if date was clamped
             if earliest_reg < EARLIEST_ALLOWED_DATE:
-                QMessageBox.information(
+                show_toast(
                     self,
-                    tr("Date Adjusted", "Дата скорректирована"),
                     tr(
-                        f"Registration date ({earliest_reg}) is before earliest available logs.\n"
-                        f"Starting from {EARLIEST_ALLOWED_DATE} instead.",
-                        f"Дата регистрации ({earliest_reg}) раньше самых ранних доступных логов.\n"
-                        f"Начинаем с {EARLIEST_ALLOWED_DATE}."
-                    )
+                        f"Registration date {earliest_reg} is before the earliest logs, starting from {EARLIEST_ALLOWED_DATE}",
+                        f"Дата регистрации {earliest_reg} раньше самых ранних логов, начинаем с {EARLIEST_ALLOWED_DATE}",
+                    ),
+                    ToastKind.INFO,
                 )
 
         elif mode == "Personal Mentions":
