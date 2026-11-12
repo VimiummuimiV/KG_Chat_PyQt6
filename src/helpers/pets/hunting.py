@@ -175,11 +175,10 @@ class HuntingBehavior:
         self._start_state(state, math.inf)
 
     def _avoid_guards(self, guards: list["Pet"]) -> None:
-        """Turn away from a guard ahead only when no other guard is behind."""
+        """Turn to the other edge when every guard in sight is ahead; with guards on both sides keep running."""
         sight = GUARD_NOTICE_ART_PIXELS * self.pixel_size
-        ahead = [self.distance_to(guard) for guard in guards if self.is_facing(guard) and self.distance_to(guard) <= sight]
-        behind = [self.distance_to(guard) for guard in guards if not self.is_facing(guard)]
-        if ahead and not behind:
+        is_ahead = [self.is_facing(guard) for guard in guards if self.distance_to(guard) <= sight]
+        if is_ahead and all(is_ahead):
             self.exit_right = not self.exit_right
             self._facing_right = self.exit_right
 

@@ -88,8 +88,8 @@ _WHO_IS_ON_THE_STRIP = (
 _MOUSE = (
     (("On a pet", "По питомцу"), ("click to scare it, drag to throw it", "клик пугает, перетаскивание бросает")),
     (("Thrown pet", "Брошенный питомец"), (
-        "a pixel board follows the cursor while the pet is above it, until the mouse picks up something else; each bounce adds to its badge",
-        "за курсором следует пиксельная доска, пока питомец выше, и до тех пор, пока мышь не возьмёт что-то другое; отскок прибавляет к бейджу",
+        "a pixel board follows the cursor while the pet is above it, until the mouse picks up an egg; each bounce adds to its badge",
+        "за курсором следует пиксельная доска, пока питомец выше, пока мышь не возьмёт яйцо; отскок прибавляет к бейджу",
     )),
     (("On an egg", "По яйцу"), ("pick it up and roll it", "можно поднять и покатать")),
     (("In settings", "В настройках"), ("left click adds a pet, right click removes one, hold to repeat",
