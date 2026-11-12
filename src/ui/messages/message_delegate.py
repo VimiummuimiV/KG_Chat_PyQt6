@@ -30,7 +30,7 @@ from components.flash_highlight import (
     RowFlashMixin,
 )
 from components.image_viewer.gallery import DayNavigation, first_image, ImageGallery, InlineReply, is_image_url
-from components.toast import copy_text_with_toast
+from components.toast import copy_messages_with_toast, copy_text_with_toast
 from helpers.cache import get_cache
 from helpers.data import get_resource_dir
 from helpers.deferred import call_later
@@ -118,8 +118,9 @@ class _TextSelectorOverlay(QTextEdit):
 
     def __init__(self, text: str, font, row_rect: QRect, is_dark: bool, viewport,
                  reply_callback=None, paste_callback=None,
-                 username: str = "", timestamp=None, reply_body: str = ""):
+                 username: str = "", timestamp=None, reply_body: str = "", message_count: int = 1):
         super().__init__(viewport)
+        self._message_count = message_count
         self._reply_callback = reply_callback
         self._paste_callback = paste_callback
         self._username = username
@@ -164,7 +165,11 @@ class _TextSelectorOverlay(QTextEdit):
         return self.textCursor().selectedText().replace("\u2029", "\n").strip()
 
     def _copy_text(self):
-        copy_text_with_toast(self, self._selection() or self.toPlainText())
+        selection = self._selection()
+        if selection:
+            copy_text_with_toast(self, selection, tr("Text copied", "Текст скопирован"))
+        else:
+            copy_messages_with_toast(self, self.toPlainText(), self._message_count)
         self.close()
 
     def _paste_text(self):
@@ -888,6 +893,7 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
             username=username,
             timestamp=timestamp,
             reply_body=single.body if single else "",
+            message_count=len(messages),
         )
         self.text_selector.destroyed.connect(lambda: setattr(self, 'text_selector', None))
 
