@@ -42,6 +42,7 @@ class _CacheManager:
             return
         self._avatar_stamps: Dict[str, str] = {}  # user_id → updated timestamp
         self._data: Dict[str, Dict] = {}          # user_id → {login, background?, light?, dark?}
+        self._login_index: Dict[str, str] = {}    # login → user_id
         self._avatar_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="cache_avatar_loader")
         self._cache_lock = threading.Lock()
         self._data_path = get_data_dir("data") / "users.json"
@@ -57,6 +58,7 @@ class _CacheManager:
                 for uid, entry in raw.items():
                     if isinstance(entry, dict) and entry.get('login'):
                         self._data[str(uid)] = entry
+                        self._login_index.setdefault(entry['login'], str(uid))
         except Exception:
             pass
 
@@ -82,7 +84,10 @@ class _CacheManager:
             changed = False
 
             if entry.get('login') != login:
+                if self._login_index.get(entry.get('login')) == user_id:
+                    del self._login_index[entry['login']]
                 entry['login'] = login
+                self._login_index.setdefault(login, user_id)
                 changed = True
 
             if background and entry.get('background') != background:
@@ -99,19 +104,14 @@ class _CacheManager:
 
     def get_user_id(self, login: str) -> Optional[str]:
         with self._cache_lock:
-            for uid, entry in self._data.items():
-                if entry.get('login') == login:
-                    return uid
-        return None
+            return self._login_index.get(login)
 
     def get_username_color(self, login: str, is_dark: bool) -> str:
         """Return precomputed color for login, or theme default if unknown."""
         with self._cache_lock:
-            for entry in self._data.values():
-                if entry.get('login') == login:
-                    if entry.get('dark'):
-                        return entry['dark'] if is_dark else entry['light']
-                    break
+            entry = self._data.get(self._login_index.get(login), {})
+            if entry.get('dark'):
+                return entry['dark'] if is_dark else entry['light']
         return '#CCCCCC' if is_dark else '#666666'
 
     def has_user(self, user_id: str) -> bool:

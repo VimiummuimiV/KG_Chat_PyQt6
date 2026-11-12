@@ -287,15 +287,11 @@ class ChatlogUserlistWidget(TranslatableMixin, QWidget):
     def update_theme(self):
         """Update colors based on theme"""
         is_dark = self.config.get("ui", "theme") == "dark"
-        neutral_color = "#CCCCCC" if is_dark else "#666666"
 
         self.setUpdatesEnabled(False)
-        for username, widget in list(self.user_widgets.items()):
+        for widget in list(self.user_widgets.values()):
             try:
-                # Username gets its own precomputed color; count gets neutral theme color
-                username_color = self.cache.get_username_color(username, is_dark)
-                widget.username_label.setStyleSheet(f"color: {username_color};")
-                widget.update_color(neutral_color)
+                widget.update_theme(is_dark)
             except (RuntimeError, AttributeError):
                 pass
         self.setUpdatesEnabled(True)

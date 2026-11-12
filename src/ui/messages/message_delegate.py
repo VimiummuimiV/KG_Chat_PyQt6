@@ -1,5 +1,6 @@
 """Message delegate for rendering with virtual scrolling"""
 
+from contextlib import contextmanager
 from typing import Dict, Optional
 
 from PyQt6.QtCore import pyqtSignal, QEvent, QModelIndex, QRect, QRectF, QSize, Qt, QTimer
@@ -51,6 +52,16 @@ _DARK  = dict(bg="#0A0A0A", fg="#D4D4D4", sel_bg="#2E7D32", sel_fg="#E8F5E9")
 _LIGHT = dict(bg="#E3F0E4", fg="#1A1A1A", sel_bg="#388E3C", sel_fg="#FFFFFF")
 _REVEAL_SCROLL_DELAY_MS = 100
 _REVEAL_HIGHLIGHT_DELAY_MS = 250
+
+
+@contextmanager
+def freeze_row_sizes():
+    """Measure each row once inside the block; Qt relayouts caused by a style change reuse the result."""
+    MessageDelegate._frozen_row_sizes = {}
+    try:
+        yield
+    finally:
+        MessageDelegate._frozen_row_sizes = None
 
 
 class _MarkerGutter:
@@ -229,6 +240,8 @@ class _TextSelectorOverlay(QTextEdit):
 
 class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
     """Delegate for rendering messages with virtual scrolling"""
+
+    _frozen_row_sizes: Optional[dict] = None  # (delegate, row, width) -> size while freeze_row_sizes is active
 
     row_needs_refresh = pyqtSignal(int)
     message_clicked = pyqtSignal(int)
@@ -450,13 +463,20 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
         if width <= 0:
             width = 800
         row = index.row()
+        frozen_sizes = MessageDelegate._frozen_row_sizes
+        frozen_key = (id(self), row, width)
+        if frozen_sizes is not None and frozen_key in frozen_sizes:
+            return frozen_sizes[frozen_key]
         gutter_left, gutter_right = self._row_gutter(msg)
         content_width = width - gutter_left - gutter_right
         if getattr(msg, 'is_presence_log', False):
             height = self._presence_log_height(msg, content_width)
         else:
             height = self._calculate_compact_height(msg, content_width, row) if self.compact_mode else self._calculate_normal_height(msg, content_width, row)
-        return QSize(width, height)
+        size = QSize(width, height)
+        if frozen_sizes is not None:
+            frozen_sizes[frozen_key] = size
+        return size
 
     def _presence_log_height(self, msg, width: int) -> int:
         if not self.message_renderer:

@@ -6,23 +6,34 @@ from PyQt6.QtWidgets import QApplication, QLineEdit, QMenu, QTextEdit
 from components.image_viewer.viewer import ImageHoverView
 
 
+_HANDLED_EVENT_TYPES = frozenset({
+    QEvent.Type.KeyPress,
+    QEvent.Type.KeyRelease,
+    QEvent.Type.MouseButtonPress,
+    QEvent.Type.MouseButtonRelease,
+    QEvent.Type.Wheel,
+})
+
+
 class ChatHotkeysMixin:
     """ChatWindow: keyboard shortcuts and global event filter."""
 
     def eventFilter(self, obj, event):
-        if ImageHoverView.is_open():  # the viewer keeps every key and mouse action for itself
+        event_type = event.type()
+        # the image viewer keeps every key and mouse action for itself
+        if event_type not in _HANDLED_EVENT_TYPES or ImageHoverView.is_open():
             return super().eventFilter(obj, event)
 
         # Ctrl+Space hold-to-talk. Must live here (not only keyPressEvent):
         # the focused QLineEdit would otherwise swallow Space.
-        if event.type() == QEvent.Type.KeyPress and not event.isAutoRepeat():
+        if event_type == QEvent.Type.KeyPress and not event.isAutoRepeat():
             if (event.key() == Qt.Key.Key_Space
                     and event.modifiers() & Qt.KeyboardModifier.ControlModifier):
                 start = getattr(self, "start_voice_ptt", None)
                 if callable(start):
                     start()
                     return True
-        if event.type() == QEvent.Type.KeyRelease and not event.isAutoRepeat():
+        if event_type == QEvent.Type.KeyRelease and not event.isAutoRepeat():
             if getattr(self, "voice_ptt_held", False) and event.key() in (
                 Qt.Key.Key_Space,
                 Qt.Key.Key_Control,
@@ -35,7 +46,7 @@ class ChatHotkeysMixin:
         font_scaler = getattr(self.app_controller, 'font_scaler', None)
         if font_scaler is not None:
             # Ctrl + Scroll → font size
-            if event.type() == QEvent.Type.Wheel:
+            if event_type == QEvent.Type.Wheel:
                 if event.modifiers() & Qt.KeyboardModifier.ControlModifier:
                     if event.angleDelta().y() > 0:
                         font_scaler.scale_up()
@@ -43,7 +54,7 @@ class ChatHotkeysMixin:
                         font_scaler.scale_down()
                     return True
             # Ctrl + Plus/Minus/Equal → font size
-            elif event.type() == QEvent.Type.KeyPress:
+            elif event_type == QEvent.Type.KeyPress:
                 if event.modifiers() & Qt.KeyboardModifier.ControlModifier:
                     if event.key() in (Qt.Key.Key_Plus, Qt.Key.Key_Equal):
                         font_scaler.scale_up()
@@ -53,7 +64,7 @@ class ChatHotkeysMixin:
                         return True
 
         # Tab switches views or cycles emoticon groups; Ctrl+Tab cycles room tabs in keyPressEvent
-        if (event.type() == QEvent.Type.KeyPress and event.key() in (Qt.Key.Key_Tab, Qt.Key.Key_Backtab)
+        if (event_type == QEvent.Type.KeyPress and event.key() in (Qt.Key.Key_Tab, Qt.Key.Key_Backtab)
                 and not (event.modifiers() & Qt.KeyboardModifier.ControlModifier)):
             sel = getattr(self, 'emoticon_selector', None)
             if sel and sel.isVisible():
@@ -85,7 +96,7 @@ class ChatHotkeysMixin:
                 return True
 
         # Handle mouse button presses/releases for navigation and focus reclaim
-        if event.type() == QEvent.Type.MouseButtonPress:
+        if event_type == QEvent.Type.MouseButtonPress:
             # Back/Forward mouse buttons navigate chatlog days
             # (works on main stacked chatlog OR split view under cursor)
             cw = self.get_hovered_chatlog_widget()
@@ -130,7 +141,7 @@ class ChatHotkeysMixin:
             except Exception:
                 pass
 
-        if event.type() == QEvent.Type.MouseButtonRelease:
+        if event_type == QEvent.Type.MouseButtonRelease:
             cw = self.get_hovered_chatlog_widget()
             if cw and event.button() in (Qt.MouseButton.BackButton, Qt.MouseButton.ForwardButton):
                 cw.navigate_hold()

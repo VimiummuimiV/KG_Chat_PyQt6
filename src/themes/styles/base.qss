@@ -1,0 +1,7 @@
+/* Container borders stay transparent */
+QListView,
+QScrollArea,
+QFrame,
+QTabWidget::pane {
+    border: 1px solid transparent !important;
+}

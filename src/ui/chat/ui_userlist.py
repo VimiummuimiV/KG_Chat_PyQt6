@@ -10,7 +10,13 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from components.avatar import apply_user_avatar, make_avatar_label, make_rounded_avatar
+from components.avatar import (
+    apply_user_avatar,
+    make_avatar_label,
+    refresh_avatar_placeholder,
+    show_real_avatar,
+)
+from components.colored_label import ColoredLabel
 from components.context_menu.userlist import (
     BAN_PERMANENT,
     BAN_TEMPORARY,
@@ -80,7 +86,7 @@ class _UserWidget(TrackedMarkMixin, QWidget):
             self.cache.update_user(user.user_id, user.login)
         text_color = self.cache.get_username_color(user.login, is_dark_theme)
 
-        self.username_label = QLabel()
+        self.username_label = ColoredLabel(color=text_color)
         self.username_label.setFont(get_font(FontType.TEXT))
 
         # Build username text with role icon
@@ -112,7 +118,6 @@ class _UserWidget(TrackedMarkMixin, QWidget):
             call_later(self.username_label, 700, mark_blocked)
 
         self.username_label.setText(username_text)
-        self.username_label.setStyleSheet(f"color: {text_color};")
         layout.addWidget(self.username_label)
 
         # Game-session counter (distinct races this session)
@@ -122,7 +127,7 @@ class _UserWidget(TrackedMarkMixin, QWidget):
             self.game_counter_label.setFont(get_font(FontType.TEXT))
             self.game_counter_label.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Fixed)
             self.game_counter_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            self._game_counter_style(is_dark_theme)
+            self.game_counter_label.setObjectName("mutedLabel")
             layout.addWidget(self.game_counter_label)
         layout.addStretch()
 
@@ -167,15 +172,13 @@ class _UserWidget(TrackedMarkMixin, QWidget):
 
         return "\n".join(parts) if parts else tr("Moderator", "Модератор")
 
-    def _game_counter_style(self, is_dark: bool):
-        color = "#CCCCCC" if is_dark else "#666666"
-        self.game_counter_label.setStyleSheet(f"color:{color};")
-
     def update_color(self, color: str, is_dark: bool = None):
         """Update colors without rebuilding widget"""
-        self.username_label.setStyleSheet(f"color: {color};")
-        if self.game_counter_label and is_dark is not None:
-            self._game_counter_style(is_dark)
+        self.username_label.set_text_color(color)
+        if is_dark is not None:
+            refresh_avatar_placeholder(
+                self.avatar_label, self.user.user_id, self.SVG_AVATAR_SIZE, is_dark, self.icons_path
+            )
 
     def mousePressEvent(self, event):
         """Handle click events.
@@ -294,7 +297,7 @@ class UserListWidget(TranslatableMixin, QWidget):
         # Chat section
         self.chat_label = QLabel(tr("Chat", "Чат"))
         self.chat_label.setFont(section_label)
-        self.chat_label.setStyleSheet("color: #888;")
+        self.chat_label.setObjectName("sectionLabel")
         self.chat_label.setVisible(False)
         self._main_layout.addWidget(self.chat_label)
         self.register_tr(self.chat_label.setText, tr("Chat", "Чат"))
@@ -311,7 +314,7 @@ class UserListWidget(TranslatableMixin, QWidget):
         # Game section
         self.game_label = QLabel(tr("Game", "Игра"))
         self.game_label.setFont(section_label)
-        self.game_label.setStyleSheet("color: #888;")
+        self.game_label.setObjectName("sectionLabel")
         self.game_label.setVisible(False)
         self._main_layout.addWidget(self.game_label)
         self.register_tr(self.game_label.setText, tr("Game", "Игра"))
@@ -577,7 +580,7 @@ class UserListWidget(TranslatableMixin, QWidget):
         for w in self.user_widgets.values():
             try:
                 if w.user.user_id == user_id:
-                    w.avatar_label.setPixmap(make_rounded_avatar(pixmap, w.AVATAR_SIZE))
+                    show_real_avatar(w.avatar_label, pixmap, w.AVATAR_SIZE)
             except RuntimeError:
                 pass
 

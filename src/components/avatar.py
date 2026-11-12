@@ -15,6 +15,7 @@ from helpers.load import make_rounded_pixmap
 
 _AVATAR_RADIUS = 8
 _USER_ID_PROPERTY = "avatar_user_id"
+_PLACEHOLDER_PROPERTY = "avatar_is_placeholder"
 
 
 class _AvatarLoadBridge(QObject):
@@ -34,7 +35,7 @@ def make_avatar_label(size: int = 36) -> QLabel:
     """Styled, fixed-size avatar placeholder shared by all avatar layouts."""
     label = QLabel()
     label.setFixedSize(size, size)
-    label.setStyleSheet("background: transparent; border: none; padding: 0; margin: 0;")
+    label.setObjectName("avatar")
     label.setAlignment(Qt.AlignmentFlag.AlignCenter)
     return label
 
@@ -84,9 +85,24 @@ def request_avatar(owner: QObject, user_id: str, on_loaded: Callable[[QPixmap], 
         _fetch_avatar(owner, user_id, on_loaded)
 
 
+def show_real_avatar(label: QLabel, pixmap: QPixmap, size: int):
+    """Show a loaded avatar; it no longer follows the theme."""
+    label.setProperty(_PLACEHOLDER_PROPERTY, False)
+    label.setPixmap(make_rounded_avatar(pixmap, size))
+
+
 def _show_loaded_avatar(label: QLabel, user_id: str, pixmap: QPixmap, size: int):
     if label.property(_USER_ID_PROPERTY) == user_id:
-        label.setPixmap(make_rounded_avatar(pixmap, size))
+        show_real_avatar(label, pixmap, size)
+
+
+def refresh_avatar_placeholder(label: QLabel, user_id: Optional[str], svg_size: int, is_dark: bool,
+                               icons_path: Path, icon_name: str = "fill/user-3-fill.svg"):
+    """Recolor a themed placeholder after a theme change; a real avatar is left as is."""
+    if not label.property(_PLACEHOLDER_PROPERTY):
+        return
+    color = get_user_svg_color(get_cache().has_user(user_id), is_dark)
+    label.setPixmap(_svg_avatar_pixmap(icons_path, svg_size, color, icon_name))
 
 
 def apply_user_avatar(label: QLabel, user_id: Optional[str], size: int, svg_size: int, is_dark: bool,
@@ -96,6 +112,7 @@ def apply_user_avatar(label: QLabel, user_id: Optional[str], size: int, svg_size
     cached_avatar = cache.get_avatar(user_id) if user_id else None
     color = get_user_svg_color(cache.has_user(user_id), is_dark)
     label.setProperty(_USER_ID_PROPERTY, user_id)
+    label.setProperty(_PLACEHOLDER_PROPERTY, not cached_avatar)
     label.setPixmap(make_avatar_pixmap(icons_path, cached_avatar, size, svg_size, color, icon_name))
     if user_id and not cached_avatar:
         _fetch_avatar(label, user_id, lambda pixmap: _show_loaded_avatar(label, user_id, pixmap, size))

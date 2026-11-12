@@ -7,6 +7,7 @@ from components.button import set_theme, update_all_icons
 from components.tag_button import update_all_tag_buttons
 from helpers.deferred import call_later
 from helpers.fonts.fonts import set_application_font
+from ui.messages.message_delegate import freeze_row_sizes
 
 
 class ChatLifecycleMixin:
@@ -81,13 +82,14 @@ class ChatLifecycleMixin:
 
     def toggle_theme(self):
         try:
-            self.theme_manager.toggle_theme()
-            is_dark = self.theme_manager.is_dark()
-            set_theme(is_dark)
-            # Theme replaces app stylesheet — restore UI font for menus/tooltips.
-            app = QApplication.instance()
-            if app:
-                set_application_font(app)
+            with freeze_row_sizes():
+                self.theme_manager.toggle_theme()
+                is_dark = self.theme_manager.is_dark()
+                set_theme(is_dark)
+                # Theme replaces app stylesheet — restore UI font for menus/tooltips.
+                app = QApplication.instance()
+                if app:
+                    set_application_font(app)
 
             # Update theme button icon via button panel
             self.button_panel.update_theme_button_icon()

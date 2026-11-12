@@ -1,5 +1,6 @@
-import qdarktheme
 from PyQt6.QtWidgets import QApplication
+
+from themes.stylesheet import build_stylesheet
 
 
 class ThemeManager:
@@ -16,19 +17,7 @@ class ThemeManager:
 
         app = QApplication.instance()
         if app:
-            stylesheet = qdarktheme.load_stylesheet(theme)
-
-            # Custom overrides - make container borders transparent only
-            stylesheet += """
-                QListView,
-                QScrollArea,
-                QFrame,
-                QTabWidget::pane {
-                    border: 1px solid transparent !important;
-                }
-            """
-
-            app.setStyleSheet(stylesheet)
+            app.setStyleSheet(build_stylesheet(theme))
             self._current_theme = theme
             self.config.set("ui", "theme", value=theme)
 

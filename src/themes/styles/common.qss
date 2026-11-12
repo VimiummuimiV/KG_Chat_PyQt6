@@ -1,0 +1,15 @@
+/* Shared small widgets */
+QLabel#avatar {
+    background: transparent;
+    border: none;
+    padding: 0;
+    margin: 0;
+}
+
+QLabel#mutedLabel {
+    color: $text_muted;
+}
+
+QLabel#sectionLabel {
+    color: #888;
+}

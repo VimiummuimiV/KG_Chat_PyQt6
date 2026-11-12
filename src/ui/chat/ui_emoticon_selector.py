@@ -19,16 +19,13 @@ from PyQt6.QtWidgets import (
 
 from helpers.text.emoticons import EmoticonManager
 from helpers.translate import on_language_changed, TranslatableMixin
+from themes.stylesheet import repolish
 
-
-_RADIUS_PANEL = 10   # outer widget corners
-_RADIUS_BUTTON   = 8    # tab buttons + emoticon buttons + keyboard highlight
 
 # Grid / sizing constants — single source of truth
 _COLS           = 7    # columns in the emoticon grid (must match number of groups)
 _BUTTON_SIZE       = 60   # emoticon & tab button size (px)
 _BUTTON_SPACING    = 6    # gap between buttons (px)
-_BUTTON_BORDER     = 2    # button border width (px)
 _NAV_ICON_SIZE  = 32   # group icon size in the nav buttons (px)
 _MARGIN         = 6    # margin for nav area (px)
 _CONTENT_MARGIN = _MARGIN - 3  # margin for content area (px) — compensates for QScrollArea platform chrome
@@ -36,57 +33,27 @@ _GRID_WIDTH     = _COLS * _BUTTON_SIZE + (_COLS - 1) * _BUTTON_SPACING
 PANEL_WIDTH    = _MARGIN + _GRID_WIDTH + _MARGIN
 _NAV_HEIGHT     = _MARGIN + _BUTTON_SIZE + _MARGIN
 
-def _theme_colors(is_dark: bool) -> dict:
-    """Return a colour palette dict for the given theme."""
-    return dict(
-        panel_bg          = "#1b1b1b"  if is_dark else "#EEEEEE",
-        panel_border      = "#3D3D3D"  if is_dark else "#CCCCCC",
-        btn_active_bg     = "#3C3830"  if is_dark else "#C8D4E0",
-        btn_active_border = "#e28743"  if is_dark else "#3a7fc1",
-        btn_hover_bg      = "#3A3B3F"  if is_dark else "#D8D8D8",
-        btn_hover_border  = "#4d4d4d"  if is_dark else "#BBBBBB",
-    )
-
-
 class _EmoticonButton(QPushButton):
     """Button displaying an animated emoticon"""
     _emoticon_clicked = pyqtSignal(str, bool)
 
-    def __init__(self, emoticon_path: Path, emoticon_name: str, is_dark: bool):
+    def __init__(self, emoticon_path: Path, emoticon_name: str):
         super().__init__()
+        self.setObjectName("emoticonButton")
         self._emoticon_name = emoticon_name
         self._emoticon_path = emoticon_path
-        self.is_dark = is_dark
         self.movie = None
-        self._highlighted = False
 
         self.setFixedSize(QSize(_BUTTON_SIZE, _BUTTON_SIZE))
         self.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
         self.setToolTip(f":{emoticon_name}:")
 
-        self._update_style()
         self._load_emoticon()
 
-    def _update_style(self):
-        c = _theme_colors(self.is_dark)
-        base_background = c['btn_active_bg']  if self._highlighted else 'transparent'
-        base_border = c['btn_active_border']  if self._highlighted else 'transparent'
-        hover_background = c['btn_active_bg'] if self._highlighted else c['btn_hover_bg']
-        hover_border = c['btn_active_border'] if self._highlighted else c['btn_hover_border']
-        self.setStyleSheet(f"""
-            QPushButton {{
-                background: {base_background};
-                border: {_BUTTON_BORDER}px solid {base_border};
-                border-radius: {_RADIUS_BUTTON}px;
-                padding: 2px;
-            }}
-            QPushButton:hover {{
-                background: {hover_background};
-                border: {_BUTTON_BORDER}px solid {hover_border};
-                border-radius: {_RADIUS_BUTTON}px;
-                padding: 2px;
-            }}
-        """)
+    def set_highlighted(self, active: bool):
+        """Keyboard cursor look; the colors come from the stylesheet."""
+        self.setProperty("highlighted", active)
+        repolish(self)
 
     def _load_emoticon(self):
         """Load and animate the emoticon GIF"""
@@ -153,10 +120,10 @@ class _EmoticonButton(QPushButton):
         if self.movie.state() != QMovie.MovieState.Running:
             self.movie.start()
 
-    def update_theme(self, new_path: Path, is_dark: bool):
-        """Update button for new theme"""
-        self.is_dark = is_dark
-        self._update_style()
+    def update_theme(self, new_path: Path):
+        """Reload the GIF when the theme uses another file"""
+        if new_path == self._emoticon_path and self.movie:
+            return
         if self.movie:
             self.movie.stop()
             self.movie.deleteLater()
@@ -175,10 +142,9 @@ class _EmoticonGroup(QWidget):
     """Widget for displaying a group of emoticons"""
     _emoticon_clicked = pyqtSignal(str, bool)
 
-    def __init__(self, group_name: str, emoticons: List[tuple], is_dark: bool):
+    def __init__(self, group_name: str, emoticons: List[tuple]):
         super().__init__()
         self._group_name = group_name
-        self.is_dark = is_dark
         self.buttons = []
 
         layout = QVBoxLayout()
@@ -191,7 +157,7 @@ class _EmoticonGroup(QWidget):
         scroll.setWidgetResizable(True)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        scroll.setStyleSheet("QScrollArea { border: none; background: transparent; }")
+        scroll.setObjectName("emoticonScroll")
         layout.addWidget(scroll)
 
         # Container with grid
@@ -210,17 +176,24 @@ class _EmoticonGroup(QWidget):
         container_layout.addLayout(grid)
         container_layout.addStretch()
 
-        # Add emoticons (COLS per row)
-        cols = _COLS
-        for index, (name, path) in enumerate(emoticons):
+        self._emoticons = emoticons
+        self._grid = grid
+        self._is_built = False
+
+    def ensure_built(self):
+        """Create the buttons on first use; a never opened group costs no widgets"""
+        if self._is_built:
+            return
+        self._is_built = True
+        for index, (name, path) in enumerate(self._emoticons):
             if not self._is_valid(path):
                 continue
 
-            row, col = index // cols, index % cols
-            button = _EmoticonButton(path, name, self.is_dark)
+            row, col = index // _COLS, index % _COLS
+            button = _EmoticonButton(path, name)
             button._emoticon_clicked.connect(self._emoticon_clicked.emit)
             self.buttons.append(button)
-            grid.addWidget(button, row, col, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
+            self._grid.addWidget(button, row, col, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
 
     def _is_valid(self, path: Path) -> bool:
         """Quick validation"""
@@ -234,12 +207,10 @@ class _EmoticonGroup(QWidget):
         for button in self.buttons:
             button._resume_animation()
 
-    def update_theme(self, manager: EmoticonManager, is_dark: bool):
+    def update_theme(self, manager: EmoticonManager):
         """Update group for new theme"""
-        self.is_dark = is_dark
         for button in self.buttons:
-            new_path = manager.get_emoticon_path(button._emoticon_name)
-            button.update_theme(new_path, is_dark)
+            button.update_theme(manager.get_emoticon_path(button._emoticon_name))
 
     def cleanup(self):
         """Clean up all buttons"""
@@ -263,6 +234,7 @@ class EmoticonSelectorWidget(TranslatableMixin, QWidget):
         self._recent_buttons = []
         self._group_widgets = []
         self._nav_btn = None  # currently keyboard-highlighted EmoticonButton
+        self._is_theme_stale = False
         self._pos_timer = QTimer(self)
         self._pos_timer.setSingleShot(True)
         self._pos_timer.timeout.connect(self._save_position)
@@ -286,31 +258,14 @@ class EmoticonSelectorWidget(TranslatableMixin, QWidget):
         layout.setSpacing(0)
         self.setLayout(layout)
 
+        self.setObjectName("emoticonSelector")
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
 
-        theme = self.config.get("ui", "theme")
-        self.is_dark_theme = (theme == "dark")
-        c = _theme_colors(self.is_dark_theme)
-
-        self.setStyleSheet(f"""
-            EmoticonSelectorWidget {{
-                background: {c['panel_bg']};
-                border: {_BUTTON_BORDER}px solid {c['panel_border']};
-                border-radius: {_RADIUS_PANEL}px;
-            }}
-        """)
+        self.is_dark_theme = self.config.get("ui", "theme") == "dark"
 
         # Navigation bar
         self._nav_container = QWidget()
-        self._nav_container.setStyleSheet(f"""
-            QWidget {{
-                background: {c['panel_bg']};
-                border: none;
-                border-bottom: 1px solid {c['panel_border']};
-                border-top-left-radius: {_RADIUS_PANEL}px;
-                border-top-right-radius: {_RADIUS_PANEL}px;
-            }}
-        """)
+        self._nav_container.setObjectName("emoticonNav")
         nav_layout = QHBoxLayout()
         nav_layout.setContentsMargins(_MARGIN, _MARGIN, _MARGIN, _MARGIN)
         nav_layout.setSpacing(_BUTTON_SPACING)
@@ -344,14 +299,7 @@ class EmoticonSelectorWidget(TranslatableMixin, QWidget):
 
         # Content area
         self._content_container = QWidget()
-        self._content_container.setStyleSheet(f"""
-            QWidget {{
-                background: {c['panel_bg']};
-                border: none;
-                border-bottom-left-radius: {_RADIUS_PANEL}px;
-                border-bottom-right-radius: {_RADIUS_PANEL}px;
-            }}
-        """)
+        self._content_container.setObjectName("emoticonContent")
         content_layout = QVBoxLayout()
         content_layout.setContentsMargins(_CONTENT_MARGIN, _CONTENT_MARGIN, _CONTENT_MARGIN, _CONTENT_MARGIN)
         content_layout.setSpacing(0)
@@ -360,7 +308,7 @@ class EmoticonSelectorWidget(TranslatableMixin, QWidget):
 
         # Stacked widget
         self._stacked_content = QStackedWidget()
-        self._stacked_content.setStyleSheet("QStackedWidget { background: transparent; border: none; }")
+        self._stacked_content.setObjectName("emoticonStack")
         content_layout.addWidget(self._stacked_content, stretch=1)
 
         # Add content
@@ -385,18 +333,8 @@ class EmoticonSelectorWidget(TranslatableMixin, QWidget):
         layout.addWidget(button)
 
     def _update_nav_button_style(self, button: QPushButton, active: bool):
-        c = _theme_colors(self.is_dark_theme)
-        button.setStyleSheet(f"""
-            QPushButton {{
-                background: {c['btn_active_bg'] if active else 'transparent'};
-                border: {_BUTTON_BORDER}px solid {c['btn_active_border'] if active else 'transparent'};
-                border-radius: {_RADIUS_BUTTON}px;
-            }}
-            QPushButton:hover {{
-                background: {c['btn_active_bg'] if active else c['btn_hover_bg']};
-                border: {_BUTTON_BORDER}px solid {c['btn_active_border'] if active else c['btn_hover_border']};
-            }}
-        """)
+        button.setProperty("active", active)
+        repolish(button)
 
     def _create_recent_content(self):
         """Create recent emoticons content"""
@@ -410,7 +348,7 @@ class EmoticonSelectorWidget(TranslatableMixin, QWidget):
         scroll.setWidgetResizable(True)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        scroll.setStyleSheet("QScrollArea { border: none; background: transparent; }")
+        scroll.setObjectName("emoticonScroll")
         recent_layout.addWidget(scroll)
 
         self._recent_container = QWidget()
@@ -460,7 +398,7 @@ class EmoticonSelectorWidget(TranslatableMixin, QWidget):
                 continue
 
             row, col = index // cols, index % cols
-            button = _EmoticonButton(path, name, self.is_dark_theme)
+            button = _EmoticonButton(path, name)
             button._emoticon_clicked.connect(self._on_emoticon_clicked)
             self._recent_buttons.append(button)
             self._recent_grid.addWidget(button, row, col, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
@@ -469,7 +407,7 @@ class EmoticonSelectorWidget(TranslatableMixin, QWidget):
         if not self._recent_emoticons:
             placeholder = QLabel()
             placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            placeholder.setStyleSheet("color: #888; padding: 20px;")
+            placeholder.setObjectName("emoticonPlaceholder")
             self.tr_set(placeholder.setText, "No recent emoticons yet", "Пока нет недавних эмотиконов")
             self._recent_grid.addWidget(placeholder, 0, 0, 1, _COLS)
 
@@ -485,7 +423,7 @@ class EmoticonSelectorWidget(TranslatableMixin, QWidget):
             if group_name not in groups:
                 continue
 
-            group_widget = _EmoticonGroup(group_name, groups[group_name], self.is_dark_theme)
+            group_widget = _EmoticonGroup(group_name, groups[group_name])
             group_widget._emoticon_clicked.connect(self._on_emoticon_clicked)
             self._group_widgets.append(group_widget)
 
@@ -493,6 +431,12 @@ class EmoticonSelectorWidget(TranslatableMixin, QWidget):
             self._group_indices[key] = self._stacked_content.count()
             self._stacked_content.addWidget(group_widget)
 
+        self._stacked_content.currentChanged.connect(self._build_current_group)
+
+    def _build_current_group(self, index: int):
+        group_widget = self._stacked_content.widget(index)
+        if isinstance(group_widget, _EmoticonGroup):
+            group_widget.ensure_built()
 
     def _current_key(self):
         index = self._stacked_content.currentIndex()
@@ -511,8 +455,7 @@ class EmoticonSelectorWidget(TranslatableMixin, QWidget):
         if not button:
             return
         try:
-            button._highlighted = active
-            button._update_style()
+            button.set_highlighted(active)
         except RuntimeError:
             pass  # C++ object already deleted — nothing to style
 
@@ -642,53 +585,30 @@ class EmoticonSelectorWidget(TranslatableMixin, QWidget):
         self._populate_recent_emoticons()
 
     def update_theme(self):
-        """Update theme colors"""
-        theme = self.config.get("ui", "theme")
-        self.is_dark_theme = (theme == "dark")
+        """Colors come from the application stylesheet; only the theme dependent GIFs are reloaded"""
+        self.is_dark_theme = self.config.get("ui", "theme") == "dark"
         self.emoticon_manager.set_theme(self.is_dark_theme)
-        c = _theme_colors(self.is_dark_theme)
+        self._is_theme_stale = True
+        if self.isVisible():
+            self._apply_theme_to_buttons()
 
-        self.setStyleSheet(f"""
-            EmoticonSelectorWidget {{
-                background: {c['panel_bg']};
-                border: {_BUTTON_BORDER}px solid {c['panel_border']};
-                border-radius: {_RADIUS_PANEL}px;
-            }}
-        """)
-
-        if hasattr(self, '_nav_container'):
-            self._nav_container.setStyleSheet(f"""
-                QWidget {{
-                    background: {c['panel_bg']};
-                    border: none;
-                    border-bottom: 1px solid {c['panel_border']};
-                    border-top-left-radius: {_RADIUS_PANEL}px;
-                    border-top-right-radius: {_RADIUS_PANEL}px;
-                }}
-            """)
-
-        if hasattr(self, '_content_container'):
-            self._content_container.setStyleSheet(f"""
-                QWidget {{
-                    background: {c['panel_bg']};
-                    border: none;
-                    border-bottom-left-radius: {_RADIUS_PANEL}px;
-                    border-bottom-right-radius: {_RADIUS_PANEL}px;
-                }}
-            """)
-
-        current_index = self._stacked_content.currentIndex()
-        for key, button in self._nav_buttons.items():
-            self._update_nav_button_style(button, self._group_indices.get(key) == current_index)
-
+    def _apply_theme_to_buttons(self):
+        """Reload theme-dependent GIFs; deferred while the panel is hidden."""
+        if not self._is_theme_stale:
+            return
+        self._is_theme_stale = False
         for group_widget in self._group_widgets:
-            group_widget.update_theme(self.emoticon_manager, self.is_dark_theme)
+            group_widget.update_theme(self.emoticon_manager)
 
         for button in self._recent_buttons:
-            button.update_theme(self.emoticon_manager.get_emoticon_path(button._emoticon_name), self.is_dark_theme)
+            button.update_theme(self.emoticon_manager.get_emoticon_path(button._emoticon_name))
 
         if 'recent' in self._group_indices:
             self._switch_to_group('recent')
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        self._apply_theme_to_buttons()
 
     def toggle_visibility(self):
         """Toggle visibility and save state"""
