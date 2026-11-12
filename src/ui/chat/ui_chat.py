@@ -14,6 +14,7 @@ from components.button import set_theme
 from components.font_scale_slider import FontScaleSlider
 from components.help_panel import HelpPanel
 from components.input_row import InputRow
+from components.toast import Toast
 from core.state.mentions_digest import MentionsDigest
 from core.state.self_ban import SelfBan
 from helpers.cache import get_cache
@@ -417,6 +418,7 @@ class ChatWindow(
         self.button_panel.join_room_requested.connect(self.on_join_room_requested)
         self.button_panel.search_requested.connect(self.toggle_search_for_current_view)
         self.button_panel.copy_messages_requested.connect(self.copy_messages_from_current_view)
+        self.toast = Toast(self, self.theme_manager.is_dark)
 
         content_wrapper.addWidget(self.button_panel, stretch=0)
 
