@@ -3,7 +3,8 @@
 from enum import Enum
 from typing import Callable
 
-from PyQt6.QtCore import QEasingCurve, QEvent, Qt, QVariantAnimation
+from PyQt6.QtCore import QEasingCurve, QEvent, QRect, Qt, QTimer, QVariantAnimation
+from PyQt6.QtGui import QCursor
 from PyQt6.QtWidgets import QApplication, QFrame, QGraphicsOpacityEffect, QHBoxLayout, QLabel, QWidget
 
 from components.button import render_svg_icon
@@ -17,7 +18,10 @@ DEFAULT_DURATION_MS = 2200
 _ENTER_MS = 220
 _EXIT_MS = 300
 _SLIDE_DISTANCE = 18
-_TOP_OFFSET = 88  # below the room tabs and the chatlog header buttons, so they stay clickable
+_TOP_MARGIN = 14
+_DODGE_PADDING = 12  # the toast steps aside when the cursor comes this close to it
+_DODGE_MS = 180
+_CURSOR_POLL_MS = 50
 _COPIED_TEXT_LIMIT = 40
 _ICON_SIZE = 18
 _RADIUS = 12
@@ -43,6 +47,8 @@ class Toast(QFrame):
         self._host = host
         self._is_dark_fn = is_dark_fn
         self._progress = 0.0
+        self._dodge = 0.0
+        self._is_dodged = False
         self._curve = QEasingCurve(QEasingCurve.Type.OutCubic)
 
         self.setObjectName("toast")
@@ -63,7 +69,16 @@ class Toast(QFrame):
 
         self._animation = QVariantAnimation(self)
         self._animation.valueChanged.connect(self._apply_progress)
-        self._animation.finished.connect(self.hide)
+        self._animation.finished.connect(self._finish)
+
+        self._dodge_animation = QVariantAnimation(self)
+        self._dodge_animation.setDuration(_DODGE_MS)
+        self._dodge_animation.setEasingCurve(QEasingCurve.Type.OutCubic)
+        self._dodge_animation.valueChanged.connect(self._apply_dodge)
+
+        self._cursor_timer = QTimer(self)
+        self._cursor_timer.setInterval(_CURSOR_POLL_MS)
+        self._cursor_timer.timeout.connect(self._follow_cursor)
 
         host.installEventFilter(self)
         self.hide()
@@ -83,6 +98,9 @@ class Toast(QFrame):
 
         total_ms = _ENTER_MS + duration_ms + _EXIT_MS
         self._animation.stop()
+        self._dodge_animation.stop()
+        self._dodge = 0.0
+        self._is_dodged = False
         self._animation.setDuration(total_ms)
         self._animation.setKeyValues([
             (0.0, 0.0),
@@ -94,11 +112,34 @@ class Toast(QFrame):
         self.show()
         self.raise_()
         self._animation.start()
+        self._cursor_timer.start()
 
     def eventFilter(self, watched, event) -> bool:
         if watched is self._host and event.type() == QEvent.Type.Resize and self.isVisible():
             self._place()
         return super().eventFilter(watched, event)
+
+    def _finish(self) -> None:
+        self._cursor_timer.stop()
+        self.hide()
+
+    def _follow_cursor(self) -> None:
+        """Step aside (down) while the cursor is near the toast, so the controls under it stay visible."""
+        home = QRect((self._host.width() - self.width()) // 2, _TOP_MARGIN, self.width(), self.height())
+        is_near = home.adjusted(-_DODGE_PADDING, -_DODGE_PADDING, _DODGE_PADDING, _DODGE_PADDING).contains(
+            self._host.mapFromGlobal(QCursor.pos())
+        )
+        if is_near == self._is_dodged:
+            return
+        self._is_dodged = is_near
+        self._dodge_animation.stop()
+        self._dodge_animation.setStartValue(self._dodge)
+        self._dodge_animation.setEndValue(1.0 if is_near else 0.0)
+        self._dodge_animation.start()
+
+    def _apply_dodge(self, dodge: float) -> None:
+        self._dodge = dodge
+        self._place()
 
     def _apply_progress(self, progress: float) -> None:
         self._progress = progress
@@ -107,7 +148,8 @@ class Toast(QFrame):
 
     def _place(self) -> None:
         slide = round((1.0 - self._curve.valueForProgress(self._progress)) * _SLIDE_DISTANCE)
-        self.move((self._host.width() - self.width()) // 2, _TOP_OFFSET - slide)
+        dodge_distance = round(self._dodge * (self.height() + _TOP_MARGIN))
+        self.move((self._host.width() - self.width()) // 2, _TOP_MARGIN + dodge_distance - slide)
 
 
 def show_toast(widget: QWidget, text: str, kind: ToastKind = ToastKind.INFO, duration_ms: int = DEFAULT_DURATION_MS) -> None:
