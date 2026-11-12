@@ -2,8 +2,6 @@
 
 import threading
 
-from PyQt6.QtWidgets import QMessageBox
-
 from components.context_menu.message import (
     BAN_PERMANENT,
     BAN_TEMPORARY,
@@ -21,7 +19,7 @@ from components.context_menu.message import (
     TRACK as MSG_TRACK,
     UNTRACK as MSG_UNTRACK,
 )
-from components.toast import copy_text_with_toast
+from components.toast import copy_text_with_toast, show_toast, ToastKind
 from core.web.api_data import get_exact_user_id_by_name, validate_username_and_get_id
 from core.xmpp.jid_utils import extract_user_data_from_jid
 from helpers.translate import tr
@@ -179,10 +177,12 @@ class ChatUserActionsMixin:
             if not uid and login:
                 uid = validate_username_and_get_id(login) or ""
             if not uid or not login:
-                QMessageBox.warning(self, tr("Error", "Ошибка"), tr("Could not resolve user for tracking", "Не удалось определить пользователя для отслеживания"))
+                show_toast(self, tr("Could not resolve user for tracking", "Не удалось определить пользователя для отслеживания"), ToastKind.ERROR)
                 return
             self.user_tracker.add_selected(str(uid), login)
+            show_toast(self, tr(f"Tracking user: {login}", f"Пользователь отслеживается: {login}"), ToastKind.SUCCESS)
         else:
+            show_toast(self, tr("User removed from tracking", "Пользователь удалён из отслеживания"), ToastKind.INFO)
             if user_id:
                 self.user_tracker.remove_selected(str(user_id))
             elif login:
@@ -238,10 +238,10 @@ class ChatUserActionsMixin:
             user_id = validate_username_and_get_id(username)
 
         if not user_id:
-            QMessageBox.warning(
+            show_toast(
                 self,
-                tr("Error", "Ошибка"),
                 tr(f"Could not find user ID for {username}", f"Не удалось найти ID пользователя для {username}"),
+                ToastKind.ERROR,
             )
             return
 
@@ -273,6 +273,9 @@ class ChatUserActionsMixin:
                 self.ban_list_widget.load_bans()
             except Exception:
                 pass
+
+        banned_name = username or user_id
+        show_toast(self, tr(f"Banned: {banned_name}", f"Забанен: {banned_name}"), ToastKind.SUCCESS)
 
     def set_username_pronunciation(self, username: str):
         """Open pronunciation dialog for a username and save the result.

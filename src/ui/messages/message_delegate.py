@@ -30,6 +30,7 @@ from components.flash_highlight import (
     RowFlashMixin,
 )
 from components.image_viewer.gallery import DayNavigation, first_image, ImageGallery, InlineReply, is_image_url
+from components.toast import copy_text_with_toast
 from helpers.cache import get_cache
 from helpers.data import get_resource_dir
 from helpers.deferred import call_later
@@ -163,7 +164,7 @@ class _TextSelectorOverlay(QTextEdit):
         return self.textCursor().selectedText().replace("\u2029", "\n").strip()
 
     def _copy_text(self):
-        QApplication.clipboard().setText(self._selection() or self.toPlainText())
+        copy_text_with_toast(self, self._selection() or self.toPlainText())
         self.close()
 
     def _paste_text(self):

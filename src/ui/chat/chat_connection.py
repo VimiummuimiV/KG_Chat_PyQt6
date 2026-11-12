@@ -234,6 +234,7 @@ class ChatConnectionMixin:
             self.button_panel.reconnect_button.setVisible(False)
 
         print("🔄 Manual reconnection (auto-reconnect cancelled)...")
+        show_toast(self, tr("Reconnecting…", "Переподключение…"), ToastKind.INFO)
         self.set_connection_status('connecting')
         self.connect_xmpp()
 

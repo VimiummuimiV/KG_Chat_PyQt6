@@ -3,6 +3,7 @@
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QApplication, QMessageBox
 
+from components.toast import show_toast, ToastKind
 from helpers.data import get_resource_dir
 from helpers.deferred import call_later
 from helpers.sounds import get_sound_path, is_sound_frozen
@@ -10,6 +11,12 @@ from helpers.translate import tr
 from helpers.users.username_color_manager import change_username_color, reset_username_color
 from helpers.voice.voice_engine import play_sound
 from ui.notification.popup_manager import popup_manager
+
+
+def _show_toggle_toast(window, label: str, is_enabled: bool) -> None:
+    """Confirm a panel toggle: "<label>: on" or "<label>: off"."""
+    state = tr("on", "вкл") if is_enabled else tr("off", "выкл")
+    show_toast(window, f"{label}: {state}", ToastKind.INFO)
 
 
 class ChatControlsMixin:
@@ -35,8 +42,9 @@ class ChatControlsMixin:
 
     def on_toggle_voice_sound(self):
         """Toggle TTS (Voice Sound) from the panel button."""
-        current = self.config.get("sound", "tts_enabled") or False
-        self._apply_voice_sound(not current)
+        new = not (self.config.get("sound", "tts_enabled") or False)
+        self._apply_voice_sound(new)
+        _show_toggle_toast(self, tr("Voice sound", "Озвучка"), new)
 
     def _apply_voice_sound(self, new: bool):
         """Set TTS (Voice Sound) to an explicit state. Shared by the panel button and Settings."""
@@ -70,6 +78,7 @@ class ChatControlsMixin:
         if current is None:
             current = True
         self._apply_effects_sound(not current)
+        _show_toggle_toast(self, tr("Sound effects", "Звуковые эффекты"), not current)
 
     def _apply_effects_sound(self, new: bool):
         """Set effects sound to an explicit state. Shared by the panel button and Settings."""
@@ -102,6 +111,7 @@ class ChatControlsMixin:
         """Toggle notifications muted on/off. Stack/Replace is chosen in Settings."""
         current_muted = self.config.get("notification", "muted") or False
         self.apply_notification_muted(not current_muted)
+        _show_toggle_toast(self, tr("Notifications", "Уведомления"), current_muted)
 
     def apply_notification_muted(self, muted: bool):
         """Set notification muted state. Shared by the panel button and tray."""
@@ -139,6 +149,7 @@ class ChatControlsMixin:
         """Toggle always on top window flag"""
         current = self.config.get("ui", "always_on_top") or False
         self._apply_always_on_top(not current)
+        _show_toggle_toast(self, tr("Always on top", "Поверх всех окон"), not current)
 
     def _apply_always_on_top(self, new: bool):
         """Set always-on-top to an explicit state. Shared by the panel button and Settings."""
