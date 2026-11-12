@@ -48,7 +48,7 @@ from ui.notification.popup_manager import popup_manager
 
 
 _DARK  = dict(bg="#0A0A0A", fg="#D4D4D4", sel_bg="#2E7D32", sel_fg="#E8F5E9")
-_LIGHT = dict(bg="#C8C8C8", fg="#1A1A1A", sel_bg="#388E3C", sel_fg="#FFFFFF")
+_LIGHT = dict(bg="#E3F0E4", fg="#1A1A1A", sel_bg="#388E3C", sel_fg="#FFFFFF")
 _REVEAL_SCROLL_DELAY_MS = 100
 _REVEAL_HIGHLIGHT_DELAY_MS = 250
 
