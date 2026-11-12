@@ -167,32 +167,30 @@ class MessageRenderer(QObject):
         """Check if position is over any link"""
         return any(rect.contains(pos) for rect, _, _ in link_rects)
 
+    def _message_palette(self, is_ban: bool, is_private: bool, is_system: bool, is_competition: bool, is_parser: bool) -> Optional[Dict[str, str]]:
+        """Return the color palette of the message type, or None for a regular message"""
+        if is_parser:
+            return self.parser_colors
+        if is_competition:
+            return self.competition_colors
+        if is_system:
+            return self.system_colors
+        if is_private:
+            return self._private_colors
+        if is_ban:
+            return self._ban_colors
+        return None
+
     def get_timestamp_color(self, is_ban: bool, is_private: bool, is_system: bool, is_competition: bool = False, is_parser: bool = False) -> str:
         """Return the appropriate timestamp color for the message type"""
-        if is_parser:
-            return self.parser_colors["text"]
-        if is_competition:
-            return self.competition_colors["text"]
-        if is_ban:
-            return self._ban_colors["text"]
-        if is_private:
-            return self._private_colors["text"]
-        if is_system:
-            return self.system_colors["text"]
-        return timestamp_color(self.is_dark_theme)
+        palette = self._message_palette(is_ban, is_private, is_system, is_competition, is_parser)
+        return palette["text"] if palette else timestamp_color(self.is_dark_theme)
 
     def get_text_color(self, is_ban: bool, is_private: bool, is_system: bool, is_competition: bool = False, is_parser: bool = False) -> str:
         """Return the body text color for the message type"""
-        if is_parser:
-            return self.parser_colors["text"]
-        if is_competition:
-            return self.competition_colors["text"]
-        if is_system:
-            return self.system_colors["text"]
-        if is_private:
-            return self._private_colors["text"]
-        if is_ban:
-            return self._ban_colors["text"]
+        palette = self._message_palette(is_ban, is_private, is_system, is_competition, is_parser)
+        if palette:
+            return palette["text"]
         return "#FFFFFF" if self.is_dark_theme else "#000000"
 
     def get_link_color(self, url: str, is_media: Optional[bool] = None) -> str:
