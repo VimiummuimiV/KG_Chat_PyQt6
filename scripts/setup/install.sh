@@ -9,7 +9,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 VENV="$ROOT/.venv"
 LOG_FILE="$ROOT/install_log.txt"
-ICON_FILE="$ROOT/src/icons/chat.svg"
+ICON_FILE="$ROOT/src/icons/app/crazy.svg"
 APPLICATIONS_DIR="$HOME/.local/share/applications"
 DESKTOP_ENTRY="$APPLICATIONS_DIR/kg-chat.desktop"
 MIN_PYTHON_MAJOR=3

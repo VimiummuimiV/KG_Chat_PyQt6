@@ -28,7 +28,7 @@ set "DESKTOP=%USERPROFILE%\Desktop"
 set "SHORTCUT=%DESKTOP%\KG Chat.lnk"
 
 set "TARGET=%SCRIPT_DIR%\scripts\launchers\launcher.pyw"
-set "ICON=%SCRIPT_DIR%\src\icons\app\crazy.ico"
+set "ICON=%SCRIPT_DIR%\src\icons\app\crazy\ico\crazy.ico"
 
 echo Script Directory: %SCRIPT_DIR% >> "%LOGFILE%"
 echo Desktop: %DESKTOP% >> "%LOGFILE%"
