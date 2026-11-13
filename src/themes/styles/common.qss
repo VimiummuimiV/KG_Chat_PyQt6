@@ -95,7 +95,26 @@ QLabel#mutedLabel[filtered="true"] {
     border-radius: 4px;
 }
 
-/* Join room dialog fields */
+/* Input fields share one height; a stylesheet min-height overrides any size set in code, so it lives here */
+QLineEdit,
+QComboBox {
+    min-height: ${input_height}px;
+}
+
+QAbstractSpinBox QLineEdit,
+QComboBox QLineEdit {
+    min-height: 0;
+}
+
+/* Settings keep the plain qdarktheme field size */
+#settingsPage QLineEdit {
+    min-height: 1em;
+}
+
+#settingsPage QComboBox {
+    min-height: 1.5em;
+}
+
 QLineEdit#joinRoomField,
 QComboBox#joinRoomField {
     padding: 0px 8px;

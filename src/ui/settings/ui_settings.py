@@ -96,6 +96,7 @@ class SettingsWidget(
     def __init__(self, config, icons_path: Path, my_username, font_scaler=None, emoticon_manager=None):
         super().__init__()
         self.init_translatable()
+        self.setObjectName("settingsPage")
         self.config = config
         self.icons_path = icons_path
         self.my_username = my_username

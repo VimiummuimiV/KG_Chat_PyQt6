@@ -47,7 +47,6 @@ class JoinRoomDialog(TranslatableMixin, QDialog):
         margin = 15
         spacing = 10
         button_spacing = 8
-        input_height = self.config.get("ui", "input_height") or 48
 
         layout = QVBoxLayout()
         layout.setSpacing(spacing)
@@ -62,15 +61,13 @@ class JoinRoomDialog(TranslatableMixin, QDialog):
 
         self._name_input = QLineEdit()
         self.tr_set(self._name_input.setPlaceholderText, "Room name", "Название комнаты")
-        self._name_input.setFixedHeight(input_height)
-        self._name_input.setFont(get_font(FontType.UI))
         self._name_input.setObjectName("joinRoomField")
+        self._name_input.setFont(get_font(FontType.UI))
         self._name_input.returnPressed.connect(self.accept)
         layout.addWidget(self._name_input)
 
         self._saved_combo = QComboBox()
         self._saved_combo.setFont(get_font(FontType.UI))
-        self._saved_combo.setFixedHeight(input_height)
         self._saved_combo.setEditable(False)
         self._saved_combo.setObjectName("joinRoomField")
         self.tr_set(self._saved_combo.setPlaceholderText, "Saved rooms", "Сохранённые комнаты")

@@ -2,6 +2,8 @@ from PyQt6.QtWidgets import QApplication
 
 from themes.stylesheet import build_stylesheet
 
+_DEFAULT_INPUT_HEIGHT = 48
+
 
 class ThemeManager:
     _DARK = "dark"
@@ -17,7 +19,7 @@ class ThemeManager:
 
         app = QApplication.instance()
         if app:
-            app.setStyleSheet(build_stylesheet(theme))
+            app.setStyleSheet(build_stylesheet(theme, self.config.get("ui", "input_height") or _DEFAULT_INPUT_HEIGHT))
             self._current_theme = theme
             self.config.set("ui", "theme", value=theme)
 
