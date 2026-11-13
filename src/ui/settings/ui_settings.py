@@ -92,12 +92,11 @@ class SettingsWidget(
     delivery_marker_changed = pyqtSignal()
     pets_changed = pyqtSignal()
 
-    def __init__(self, config, icons_path: Path, mention_aliases, my_username, font_scaler=None, emoticon_manager=None):
+    def __init__(self, config, icons_path: Path, my_username, font_scaler=None, emoticon_manager=None):
         super().__init__()
         self.init_translatable()
         self.config = config
         self.icons_path = icons_path
-        self.mention_aliases = mention_aliases
         self.my_username = my_username
         self.font_scaler = font_scaler
         self.emoticon_manager = emoticon_manager

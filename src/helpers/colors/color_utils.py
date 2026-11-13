@@ -2,6 +2,8 @@
 
 import colorsys
 
+from helpers.text.mention_parser import MENTION_GLOBAL, MENTION_LOCAL, MENTION_NICK
+
 
 def hex_to_rgb(hex_color: str) -> tuple:
     hex_color = hex_color.lstrip("#")
@@ -180,8 +182,14 @@ def get_system_message_colors(config, is_dark_theme: bool) -> dict:
                                {"text": 60}, {"text": 50})
 
 
-def get_mention_color(is_dark_theme: bool) -> str:
-    return "#00FF00" if is_dark_theme else "#008000"
+def get_mention_colors(is_dark_theme: bool) -> dict:
+    """Text color of a mention by kind: aliases get a slightly different shade than the own nick."""
+    alias_color = "#B6FF00" if is_dark_theme else "#6B8E00"
+    return {
+        MENTION_NICK: "#00FF00" if is_dark_theme else "#008000",
+        MENTION_LOCAL: alias_color,
+        MENTION_GLOBAL: alias_color,
+    }
 
 
 def get_search_highlight_colors(is_dark_theme: bool) -> tuple:

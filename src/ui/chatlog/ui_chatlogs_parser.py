@@ -17,7 +17,7 @@ from PyQt6.QtWidgets import (
 
 from components.button import create_icon_button
 from components.tag_button import SavedValuesBar
-from core.state.ui_state import ui_state
+from core.state.json_state import JsonState
 from helpers.dates import parse_short_date
 from helpers.fonts.fonts import FontType, get_font
 from helpers.translate import on_language_changed, tr, TranslatableMixin
@@ -25,6 +25,9 @@ from ui.chatlog.parser_modes import ParserModesMixin
 from ui.chatlog.parser_modes_data import MODE_KEYS, MODE_LABELS
 from ui.chatlog.parser_run import ParserRunMixin
 from ui.chatlog.parser_usernames import ParserUsernamesMixin
+
+
+_parser_users = JsonState("parser_users.json")
 
 
 class ChatlogsParserConfigWidget(ParserModesMixin, ParserRunMixin, ParserUsernamesMixin, TranslatableMixin, QWidget):
@@ -203,8 +206,8 @@ class ChatlogsParserConfigWidget(ParserModesMixin, ParserRunMixin, ParserUsernam
         # Saved usernames quick-access chips (loaded from/persisted to config)
         self.saved_usernames_bar = SavedValuesBar(
             self.icons_path,
-            lambda: ui_state.get("saved_usernames") or [],
-            lambda values: ui_state.set("saved_usernames", value=values),
+            lambda: _parser_users.get("usernames") or [],
+            lambda values: _parser_users.set("usernames", value=values),
         )
         self.saved_usernames_bar.value_selected.connect(self._on_saved_username_clicked)
         self.saved_usernames_bar.value_double_clicked.connect(self._on_saved_username_double_clicked)

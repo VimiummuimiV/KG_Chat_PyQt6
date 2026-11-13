@@ -18,9 +18,12 @@ from PyQt6.QtWidgets import (
 )
 
 from components.button import create_icon_button
-from core.state.ui_state import ui_state
+from core.state.json_state import JsonState
 from helpers.fonts.fonts import FontType, get_font
 from helpers.translate import on_language_changed, tr, TranslatableMixin
+
+
+_saved_rooms = JsonState("saved_rooms.json")
 
 
 class JoinRoomDialog(TranslatableMixin, QDialog):
@@ -148,7 +151,7 @@ class JoinRoomDialog(TranslatableMixin, QDialog):
         on_language_changed(self.retranslate_all)
 
     def _load_saved(self) -> list:
-        raw = ui_state.get("saved_rooms") or []
+        raw = _saved_rooms.get("rooms") or []
         if not isinstance(raw, list):
             return []
         out = []
@@ -213,7 +216,7 @@ class JoinRoomDialog(TranslatableMixin, QDialog):
         if name in saved:
             return
         saved.append(name)
-        ui_state.set("saved_rooms", value=saved)
+        _saved_rooms.set("rooms", value=saved)
         self._populate_saved()
 
     def _delete_saved(self):
@@ -221,7 +224,7 @@ class JoinRoomDialog(TranslatableMixin, QDialog):
         if not name:
             return
         saved = [n for n in self._load_saved() if n != name]
-        ui_state.set("saved_rooms", value=saved)
+        _saved_rooms.set("rooms", value=saved)
         if self.room_name() == name:
             self._name_input.clear()
         self._populate_saved()

@@ -5,7 +5,9 @@ from PyQt6.QtWidgets import QApplication, QHBoxLayout, QLabel, QLineEdit
 
 from components.button import create_icon_button
 from components.tag_button import SavedValuesBar
+from core.state.mention_aliases import mention_aliases
 from helpers.fonts.fonts import FontType, get_font
+from helpers.text.mention_parser import MENTION_GLOBAL, MENTION_ICONS, MENTION_LOCAL
 from helpers.translate import tr
 from ui.notification.notification_settings import expanded_reply_width, resolve_notification_width
 from ui.notification.popup_manager import popup_manager, show_notification
@@ -108,20 +110,22 @@ class SettingsNotificationsMixin:
         self.add_collapse_toggle(bypass_header, bypass_content, ("ui", "settings", "widgets", "notifications_bypass"))
 
         if self.my_username:
+            local_icon = MENTION_ICONS[MENTION_LOCAL]
             local_header, local_content, local_layout = self.add_subsection(
-                section, tr("🏷️ Local aliases (this account)", "🏷️ Локальные алиасы (этот аккаунт)")
+                section, tr(f"{local_icon} Local aliases (this account)", f"{local_icon} Локальные алиасы (этот аккаунт)")
             )
             self.add_alias_block(
                 local_layout,
-                lambda: self.mention_aliases.local_aliases(self.my_username),
-                lambda values: self.mention_aliases.set_local_aliases(self.my_username, values),
+                lambda: mention_aliases.local_aliases(self.my_username),
+                lambda values: mention_aliases.set_local_aliases(self.my_username, values),
             )
             self.add_collapse_toggle(local_header, local_content, ("ui", "settings", "widgets", "aliases_local"))
 
+        global_icon = MENTION_ICONS[MENTION_GLOBAL]
         global_header, global_content, global_layout = self.add_subsection(
-            section, tr("🌐 Global aliases (all accounts)", "🌐 Глобальные алиасы (все аккаунты)")
+            section, tr(f"{global_icon} Global aliases (all accounts)", f"{global_icon} Глобальные алиасы (все аккаунты)")
         )
-        self.add_alias_block(global_layout, self.mention_aliases.global_aliases, self.mention_aliases.set_global_aliases)
+        self.add_alias_block(global_layout, mention_aliases.global_aliases, mention_aliases.set_global_aliases)
         self.add_collapse_toggle(global_header, global_content, ("ui", "settings", "widgets", "aliases_global"))
 
     def add_alias_block(self, layout, load_values, save_values):

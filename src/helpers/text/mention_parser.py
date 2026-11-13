@@ -1,46 +1,43 @@
 import re
-from typing import List, Optional, Pattern, Tuple
+from typing import Iterable, List, Optional, Pattern, Tuple
 
 
-def compile_mention_pattern(keywords: List[str]) -> Optional[Pattern]:
-    """Case-insensitive whole-word pattern matching any keyword, or None when there are none."""
-    escaped = [re.escape(keyword) for keyword in keywords if keyword]
-    if not escaped:
+MENTION_NICK = "nick"
+MENTION_LOCAL = "local"
+MENTION_GLOBAL = "global"
+# Marks a matched alias in the text; the settings use the same icons for the alias sections
+MENTION_ICONS = {MENTION_LOCAL: "🏷️", MENTION_GLOBAL: "🌐"}
+
+
+def _keyword_pattern(keyword: str) -> str:
+    """Escaped keyword where е and ё match each other."""
+    return re.sub("[еёЕЁ]", "[её]", re.escape(keyword))
+
+
+def compile_mention_pattern(username: str, local_aliases: Iterable[str], global_aliases: Iterable[str]) -> Optional[Pattern]:
+    """Case-insensitive whole-word pattern; the matched group name tells the nick, a local and a global alias apart."""
+    groups = []
+    for kind, keywords in ((MENTION_NICK, [username]), (MENTION_LOCAL, local_aliases), (MENTION_GLOBAL, global_aliases)):
+        patterns = [_keyword_pattern(keyword) for keyword in keywords if keyword]
+        if patterns:
+            groups.append(f"(?P<{kind}>" + "|".join(patterns) + ")")
+    if not groups:
         return None
-    return re.compile(r"(?<!\w)(?:" + "|".join(escaped) + r")(?!\w)", re.IGNORECASE)
+    return re.compile(r"(?<!\w)(?:" + "|".join(groups) + r")(?!\w)", re.IGNORECASE)
 
 
-def parse_mentions(text: str, my_username: str) -> List[Tuple[bool, str]]:
-    """
-    Parse text and identify mentions of my_username.
-
-    Args:
-        text: The text to process
-        my_username: The username to highlight (case-insensitive)
-
-    Returns:
-        List of (is_mention: bool, text: str) tuples
-    """
-    if not my_username or not text:
-        return [(False, text)]
-
-    # Create pattern to match username as whole word (case-insensitive)
-    pattern = r'\b' + re.escape(my_username.lower()) + r'\b'
+def parse_mentions(text: str, pattern: Optional[Pattern]) -> List[Tuple[Optional[str], str]]:
+    """Split text into (kind, text) segments; kind is a MENTION_* constant, or None for plain text."""
+    if not pattern or not text:
+        return [(None, text)]
 
     segments = []
     last_end = 0
-
-    for match in re.finditer(pattern, text, re.IGNORECASE):
-        # Add text before mention
+    for match in pattern.finditer(text):
         if match.start() > last_end:
-            segments.append((False, text[last_end:match.start()]))
-
-        # Add mention
-        segments.append((True, text[match.start():match.end()]))
+            segments.append((None, text[last_end:match.start()]))
+        segments.append((match.lastgroup, match.group()))
         last_end = match.end()
-
-    # Add remaining text
     if last_end < len(text):
-        segments.append((False, text[last_end:]))
-
-    return segments if segments else [(False, text)]
+        segments.append((None, text[last_end:]))
+    return segments or [(None, text)]

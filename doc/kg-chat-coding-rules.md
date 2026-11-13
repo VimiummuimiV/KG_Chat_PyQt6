@@ -45,7 +45,7 @@ core/                   no widgets: data, network, XMPP, parsing, persistence
   xmpp/                 client.py (BOSH), messages.py, userlist.py, jid_utils.py, delivery.py (DeliveryTracker: pending / delivered / failed state of own messages)
   chatlogs/             fetch.py, database.py (SQLite), range_parser.py (workers), workers_calculator.py
   web/                  api_data.py, scores.py, races_listener.py, youtube.py, image_loader.py (parallel image downloads + LRU cache)
-  state/                accounts.py, user_state.py (ByUserStore), presence_db.py, mentions_digest.py, self_ban.py, input_drafts.py (draft and unsent messages), mention_aliases.py (extra mention words, one file: local per account + global), json_state.py (JsonState: nested JSON file in data/), ui_state.py (ui_state: remembered UI state)
+  state/                accounts.py, user_state.py (ByUserStore), presence_db.py, mentions_digest.py, self_ban.py, input_drafts.py (draft and unsent messages), mention_aliases.py (extra mention words, one file: local per account + global), json_state.py (JsonState: nested JSON file in data/), ui_state.py (ui_state: remembered UI state, not lists)
 helpers/                shared non-visual logic and managers
   config.py data.py translate.py cache.py load.py dates.py browser.py sounds.py   (top level)
   colors/               color_utils.py, color_contrast.py
@@ -106,9 +106,16 @@ ui/                     screens and windows of the app
 Where it goes:
 - Per-account values: `ByUserStore("<name>.json")`, shape `{"by_user": {username: value}}` (`self_bans`, `input_drafts`, `mentions_digest`).
 - One feature with local and shared parts: one file, one class, local under the username and shared beside it (`mention_aliases.json`: `{"local": {...}, "global": [...]}`). Never two files for one feature.
-- Remembered UI state of the app: `ui_state` from `core/state/ui_state.py` (`data/ui_state.json`), one key per concern (`window`, `window_presets`, `emoticons`, `saved_usernames`, `saved_rooms`). Do not make a new file for each small item; make one only for a feature with its own store class.
+- Remembered UI state of the app: `ui_state` from `core/state/ui_state.py` (`data/ui_state.json`), one key per concern (`window`, `window_presets`, `emoticons`). It holds only state the program remembers by itself.
+- A list the user builds by hand (saved usernames, saved rooms) is data, not UI state: it gets its own file named after the feature (`parser_users.json`, `saved_rooms.json`), a `JsonState` private to the one module that uses it. Ask "is this something the user typed in, or something the program remembers?" to pick between the two.
 - Data files are plain JSON with no schema migration code: a format change means the old file is deleted or replaced, as with databases.
 - A new key written with `config.set` is checked against the rule above first; a default value for a setting goes to `settings/config.json`, a default for state lives in the code that reads it (`or []`).
+
+## Shared constants
+
+A mark, color or label that stands for one concept in several places (an emoji in a settings title and the same emoji in front of a highlighted word, a mention kind and its color) is one constant next to the logic that owns the concept (`MENTION_ICONS` in `helpers/text/mention_parser.py`), imported by every screen. Never retype the emoji or the color literal in a second file.
+
+Matching of user-entered words (mentions, aliases) is case-insensitive, whole-word, and treats е and ё as the same letter; it is built once in `helpers/text/mention_parser.py` and cached per account by `core/state/mention_aliases.py`, never re-implemented per screen.
 
 ## Imports
 

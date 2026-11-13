@@ -12,13 +12,14 @@ from components.flash_highlight import FlashFade, link_colors, paint_flash, time
 from components.image_viewer.gallery import ImageGallery, is_image_url, URL_PATTERN
 from components.image_viewer.viewer import ImageHoverView
 from components.video_player import VideoPlayer
+from core.state.mention_aliases import mention_aliases
 from core.web.youtube import fetch_async, get_cached_info, is_youtube_url
 from helpers.browser import open_url as open_url_in_browser
 from helpers.colors.color_utils import (
     get_ban_message_colors,
     get_competition_message_colors,
     get_competition_value_colors,
-    get_mention_color,
+    get_mention_colors,
     get_parser_message_colors,
     get_private_message_colors,
     get_rank_chip_colors,
@@ -27,7 +28,7 @@ from helpers.colors.color_utils import (
 )
 from helpers.data import get_resource_dir
 from helpers.fonts.fonts import FontType, get_font
-from helpers.text.mention_parser import parse_mentions
+from helpers.text.mention_parser import MENTION_ICONS, parse_mentions
 
 
 class MessageRenderer(QObject):
@@ -53,7 +54,7 @@ class MessageRenderer(QObject):
         # Track own username for mention highlighting
         self.my_username = None
         self.content_end = QPoint()  # top-left of the spot right after the last painted body text
-        self._mention_color = get_mention_color(is_dark_theme)
+        self._mention_colors = get_mention_colors(is_dark_theme)
         self._highlight_colors = get_search_highlight_colors(is_dark_theme)
         self._link_colors = link_colors(is_dark_theme)
 
@@ -206,13 +207,13 @@ class MessageRenderer(QObject):
 
     def set_my_username(self, username: str):
         """Set the current user's username for mention highlighting"""
-        self.my_username = username.lower() if username else None
+        self.my_username = username or None
 
     def update_theme(self, is_dark_theme: bool):
         """Update theme and reload colors"""
         self.is_dark_theme = is_dark_theme
         self.background_hex = "#1E1E1E" if is_dark_theme else "#FFFFFF"
-        self._mention_color = get_mention_color(is_dark_theme)
+        self._mention_colors = get_mention_colors(is_dark_theme)
         self._highlight_colors = get_search_highlight_colors(is_dark_theme)
         self._link_colors = link_colors(is_dark_theme)
         self._private_colors = get_private_message_colors(self.config, is_dark_theme)
@@ -389,17 +390,20 @@ class MessageRenderer(QObject):
             """Draw text chunk with mention highlighting"""
             # Only apply mention highlighting for normal messages
             if not is_system and not is_private and not is_ban and not is_parser:
-                mention_segments = parse_mentions(content, self.my_username)
+                mention_segments = parse_mentions(content, mention_aliases.pattern(self.my_username))
             else:
-                mention_segments = [(False, content)]
+                mention_segments = [(None, content)]
 
-            for is_mention, segment_text in mention_segments:
+            for mention_kind, segment_text in mention_segments:
                 if not segment_text:
                     continue
 
-                # Use mention color AND bold font for mentions
+                is_mention = mention_kind is not None
+                # Use mention color AND bold font for mentions; an alias also gets its section icon in front
                 if is_mention:
-                    draw_color = self._mention_color
+                    if mention_kind in MENTION_ICONS:
+                        segment_text = f"{MENTION_ICONS[mention_kind]} {segment_text}"
+                    draw_color = self._mention_colors[mention_kind]
                     painter.setFont(get_font(FontType.TEXT))
                     bold_font = painter.font()
                     bold_font.setBold(True)

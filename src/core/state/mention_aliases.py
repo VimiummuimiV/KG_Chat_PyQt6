@@ -37,6 +37,8 @@ class MentionAliases:
     def pattern(self, username: str) -> Optional[Pattern]:
         """Pattern for the username plus its local and the global aliases (cached until an alias changes)."""
         if username not in self._patterns:
-            keywords = [username, *self.local_aliases(username), *self.global_aliases()]
-            self._patterns[username] = compile_mention_pattern(keywords)
+            self._patterns[username] = compile_mention_pattern(username, self.local_aliases(username), self.global_aliases())
         return self._patterns[username]
+
+
+mention_aliases = MentionAliases()

@@ -5,8 +5,8 @@ from datetime import datetime
 
 from components.button import set_button_icon
 from components.search import parse_search_text
+from core.state.mention_aliases import mention_aliases
 from helpers.dates import parse_short_date
-from helpers.text.mention_parser import parse_mentions
 from helpers.translate import tr
 
 
@@ -82,8 +82,8 @@ class ChatlogSearchMixin:
 
     def _message_matches_filters(self, msg, search_users, search_message, is_prefix_mode) -> bool:
         if self.filter_mentions and self.account and self.account.get('chat_username'):
-            my_username = self.account.get('chat_username')
-            if not any(is_mention for is_mention, _ in parse_mentions(msg.body, my_username)):
+            pattern = mention_aliases.pattern(self.account.get('chat_username'))
+            if not (pattern and pattern.search(msg.body)):
                 return False
 
         if is_prefix_mode:
