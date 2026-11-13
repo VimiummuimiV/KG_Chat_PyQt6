@@ -45,7 +45,7 @@ core/                   no widgets: data, network, XMPP, parsing, persistence
   xmpp/                 client.py (BOSH), messages.py, userlist.py, jid_utils.py, delivery.py (DeliveryTracker: pending / delivered / failed state of own messages)
   chatlogs/             fetch.py, database.py (SQLite), range_parser.py (workers), workers_calculator.py
   web/                  api_data.py, scores.py, races_listener.py, youtube.py, image_loader.py (parallel image downloads + LRU cache)
-  state/                accounts.py, user_state.py (ByUserStore), presence_db.py, mentions_digest.py, self_ban.py, input_drafts.py (draft and unsent messages)
+  state/                accounts.py, user_state.py (ByUserStore), presence_db.py, mentions_digest.py, self_ban.py, input_drafts.py (draft and unsent messages), mention_aliases.py (extra mention words: local per account in mention_aliases.json, global in config)
 helpers/                shared non-visual logic and managers
   config.py data.py translate.py cache.py load.py dates.py browser.py sounds.py   (top level)
   colors/               color_utils.py, color_contrast.py
@@ -60,7 +60,7 @@ components/             reusable widgets used by more than one screen
   context_menu/         message and userlist context menus
   image_viewer/         viewer.py (ImageHoverView) + gallery.py (image URLs, ImageGallery), layer.py (layers, transitions), overlay.py (gallery bar, source badge), options.py (config defaults and accessors)
   button.py avatar.py video_player.py help_panel.py flash_highlight.py font_scale_slider.py
-  presence_badge.py search.py tag_button.py mic_button.py loading_spinner.py user_count_row.py tracked_mark.py tray_badge.py colored_label.py
+  presence_badge.py search.py tag_button.py (SavedValuesBar: draggable removable chips) mic_button.py loading_spinner.py user_count_row.py tracked_mark.py tray_badge.py colored_label.py
 ui/                     screens and windows of the app
   chat/                 ui_chat.py (ChatWindow shell) + chat_*.py mixins (chat_hotkeys.py = local keyboard shortcuts, chat_delivery.py = input draft and delivery markers), ui_room, ui_messages, ui_userlist, ui_buttons, ui_emoticon_selector, voice_input_attach
   tracker/              ui_user_tracker.py + tracker_*.py mixins and models
@@ -78,6 +78,7 @@ ui/                     screens and windows of the app
 - `helpers/`: non-visual only. Colors: new app palettes follow the `get_*_colors` pattern in `helpers/colors/color_utils.py` (hue and saturation from config, defaults in code).
 - `components/`: widgets reused by two or more screens; must not import from `ui/`. Code that both a component and `ui/` need goes down into `components/` or `helpers/` (avatars: `components/avatar.py`), never imported upward.
 - A component with its own options keeps their defaults, limits and config accessors in its own `options.py`; the settings page imports them from there instead of repeating the numbers.
+- A list of removable, draggable chips (saved usernames, aliases) is always `SavedValuesBar` from `components/tag_button.py`, built as `SavedValuesBar(icons_path, load_values, save_values)`: the storage (config, `ByUserStore`, anything) is passed as two callables, so the component never knows where the values live. Its look is only `themes/styles/tag_button.qss` (`tag_*` and `drop_line` tokens); dragging, the drop line, flow layout and removal are inside the component. Never write a second chip widget or copy its drag code; a screen adds only the input row and reacts to `value_selected` / `value_double_clicked`.
 - Switching an icon button's icon at runtime: `set_button_icon` from `components/button.py`.
 - Every new hotkey or mouse action of a view is registered in the matching context of `components/help_panel.py` (F1).
 - `ui/`: screens. A mixin file contains only methods of one concern of its shell class.
