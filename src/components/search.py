@@ -127,6 +127,10 @@ class MessageSearchBar(QWidget):
 
         self.setVisible(self.visible_state)
 
+    def set_font(self, font):
+        """Apply a font to the search field."""
+        self.field.setFont(font)
+
     @property
     def active(self) -> bool:
         return self._backup is not None

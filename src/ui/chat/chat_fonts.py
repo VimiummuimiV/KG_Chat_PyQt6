@@ -71,9 +71,7 @@ class ChatFontsMixin:
                 if widget.delegate.message_renderer:
                     widget.delegate.message_renderer.body_font = new_font
                 widget.force_recalculate()
-                search = getattr(widget, 'search', None)
-                if search:
-                    search.field.setFont(new_font)
+                widget.search.set_font(new_font)
 
         # Update message input fields (general + game rooms + custom rooms)
         if self.input_field:

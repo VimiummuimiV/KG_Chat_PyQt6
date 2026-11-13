@@ -27,6 +27,7 @@ class _NullSearch:
     def register_message(self, *_args, **_kwargs) -> bool: return True
     def filter_backup(self, *_args, **_kwargs): pass
     def reset(self): pass
+    def set_font(self, _font): pass
 
 
 class MessagesWidget(TranslatableMixin, QWidget):
