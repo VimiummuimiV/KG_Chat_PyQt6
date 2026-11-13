@@ -1,6 +1,6 @@
 ---
 name: kg-chat-coding-rules
-description: Coding conventions and project structure for KG_Chat_PyQt6, the PyQt6 XMPP chat client for Klavogonki (main.py, core/, helpers/, components/, ui/, themes/, settings/). Covers clean-code rules (no duplication, no over-engineering), where every new file must live, import order, naming rules (full names, no digits, leading underscore for file-private names), SVG icon folders and file naming, good practices and delivery rules. Use whenever writing, editing, reviewing or adding files to this project, even for small changes, and whenever the user mentions the chat client, ui_chat.py, KG_Chat_Data, Klavobot, or any file or folder from this project.
+description: Coding conventions and project structure for KG_Chat_PyQt6, the PyQt6 XMPP chat client for Klavogonki (main.py, core/, helpers/, components/, ui/, themes/, settings/). Covers clean-code rules (no duplication, no over-engineering), where every new file must live, import order, naming rules (full names, no digits, leading underscore for file-private names), styling and themes (QSS templates with palette tokens, object names and properties instead of per-widget setStyleSheet, when QSS is not the tool, fast theme switching), SVG icon folders and file naming, good practices and delivery rules. Use whenever writing, editing, reviewing or adding files to this project, even for small changes, and whenever the user mentions the chat client, ui_chat.py, KG_Chat_Data, Klavobot, or any file or folder from this project.
 ---
 
 # KG_Chat_PyQt6 coding rules
@@ -31,7 +31,11 @@ scripts/                nothing here is imported by the app
 src/                    all application code below lives in src/ (the source root for imports)
 main.py                 application entry: tray, account window, global hotkey, exit
 settings/config.json    default configuration (the user config overrides it)
-themes/theme.py         theme manager, light/dark switching, stylesheets
+themes/                 everything about the look, see Styling and themes
+  theme.py              ThemeManager: current theme, one app.setStyleSheet per switch
+  palette.py            color tokens of every theme, the only place where theme colors are defined
+  stylesheet.py         build_stylesheet (qdarktheme base + styles/*.qss, cached per theme), repolish, set_style_property
+  styles/               one <component>.qss template per component, filled with palette tokens
 bin/ emoticons/ fonts/ sounds/          bundled resources, not Python code
 icons/                  bundled icons: chat.ico in the root, SVGs only in the subfolders below (see Icons)
   line/                 outline icons, every file name ends with -line.svg
@@ -56,7 +60,7 @@ components/             reusable widgets used by more than one screen
   context_menu/         message and userlist context menus
   image_viewer/         viewer.py (ImageHoverView) + gallery.py (image URLs, ImageGallery), layer.py (layers, transitions), overlay.py (gallery bar, source badge), options.py (config defaults and accessors)
   button.py avatar.py video_player.py help_panel.py flash_highlight.py font_scale_slider.py
-  presence_badge.py search.py tag_button.py mic_button.py loading_spinner.py user_count_row.py tracked_mark.py tray_badge.py
+  presence_badge.py search.py tag_button.py mic_button.py loading_spinner.py user_count_row.py tracked_mark.py tray_badge.py colored_label.py
 ui/                     screens and windows of the app
   chat/                 ui_chat.py (ChatWindow shell) + chat_*.py mixins (chat_hotkeys.py = local keyboard shortcuts), ui_room, ui_messages, ui_userlist, ui_buttons, ui_emoticon_selector, voice_input_attach
   tracker/              ui_user_tracker.py + tracker_*.py mixins and models
@@ -85,7 +89,7 @@ ui/                     screens and windows of the app
 - A whole screen, window or pane → its feature folder in `ui/` (`ui_<name>.py`); if it has no related files, directly in `ui/` without its own folder
 - Install, uninstall or launch script → `scripts/setup/` or `scripts/launchers/`; they locate the project root two levels up
 - A modal dialog → `ui/dialogs/`
-- Default setting values → `settings/config.json`; colors and theming → `themes/` and `helpers/colors/color_utils.py`
+- Default setting values → `settings/config.json`; theme colors and the look of widgets → `themes/` (tokens in `palette.py`, rules in `styles/<component>.qss`); colors computed from data or settings → `helpers/colors/color_utils.py`
 - Persistent user data goes under `KG_Chat_Data` via `get_data_dir()`, never next to the sources.
 - A new SVG icon → `icons/line/` or `icons/fill/` by its style, named by the Icons rules; a group button icon of the emoticon panel → `icons/emoticon_groups/`
 - Bundled resources (icons, sounds, fonts, emoticons) are located with `get_resource_dir("icons")` from `helpers/data.py`, never with `Path(__file__)` arithmetic, so moving a file cannot break the path.
@@ -136,6 +140,44 @@ from helpers.translate import tr
   - when something becomes shared across files or stops being shared, rename it project-wide so the prefix stays truthful (also dynamic attributes set on other objects and `getattr` strings)
 - Constants are UPPER_SNAKE_CASE, classes PascalCase, everything else snake_case. Related constants of one concept are grouped, not scattered as many sibling names.
 
+## Styling and themes
+
+The look of the app is one application stylesheet. A theme switch is one `app.setStyleSheet` of a cached string and nothing else: no loop that restyles widgets one by one. Reason: every widget with its own `setStyleSheet` costs about ten times more on each switch than a widget without one (measured ~1.5 ms against ~0.1 ms per widget), so hundreds of such widgets made a switch take over a second.
+
+### Where things live
+- `themes/palette.py`: color tokens per theme (`PALETTES["dark"]` / `["light"]`). Both themes have exactly the same keys. A token is named by its role (`panel_bg`, `text_muted`), never by its value or color name. A value that is the same in both themes is a literal in the `.qss`, not a token.
+- `themes/styles/<component>.qss`: the rules of one component, written as `$token` templates. Every `.qss` in the folder is picked up automatically in alphabetical order; there is no registry. QSS `{}` braces are literal, only `$name` is substituted.
+- `themes/stylesheet.py`: `build_stylesheet(theme)` (qdarktheme base + all templates, built once per theme), `repolish(widget)` and `set_style_property(widget, name, value)`.
+- `themes/theme.py`: `ThemeManager` only applies the built string; it knows no colors.
+
+### How a widget gets its look
+- By `setObjectName("camelCaseRole")` (id selector `#role` or `QLabel#role`) and, for a state, a dynamic property. The widget code never contains a color or a stylesheet string for a static or theme-dependent look.
+- A state (`highlighted`, `active`, `filtered`, `validation`, `loaded`) is a property selected in QSS (`QLineEdit[validation="invalid"]`), switched with `set_style_property`. Hover, pressed and disabled are QSS pseudo-states, never code.
+- `update_theme` of a widget never rebuilds styles. It does only what QSS cannot express (see below) and is skipped or deferred while the widget is hidden (apply in `showEvent`).
+- Names used in QSS (object names, property names) are camelCase strings; each one is defined in exactly one `.qss` file. Search the existing `.qss` files before adding a rule: reuse `mutedHint`, `mutedLabel`, `avatar` and the other shared ones from `common.qss` instead of a second copy.
+
+### Writing the rules
+- Qt precedence: a widget's own stylesheet and its ancestors' sheets beat the application sheet; inside the application sheet an id selector beats the qdarktheme type rules, and for equal specificity the later rule wins (file order, so alphabetical). Check a new rule against the qdarktheme base, do not guess.
+- A plain `QWidget { }` or `QFrame { }` rule hits every descendant, and a `QLabel` is a `QFrame`. When a component relied on that cascade, write it explicitly (`#panel, #panel QWidget { }`), then give the specific rules after it.
+- A custom `QWidget` subclass paints a QSS background only with `WA_StyledBackground`; `QFrame` subclasses (and `QLabel`) paint it themselves. A subclass that overrides `paintEvent` must not draw the styled background a second time.
+- Verify a migration visually: render the widget offscreen before and after in both themes and compare the images; the result must be pixel-identical unless a change is intended.
+
+### Where QSS is not the tool
+QSS cannot carry a value that is data or that is used by code. These stay in code, still without a per-widget stylesheet where there are many widgets:
+- Text color that is data (username colors, rank colors, event or kind colors): `ColoredLabel` from `components/colored_label.py` and `set_text_color`, never one `setStyleSheet` per row. Rows of a list are always painted or use such a widget.
+- Colors used by painting, SVG icons or rich text (`QPainter`, `render_svg_icon(color=...)`, HTML `<span style>`): a small palette dict next to the code that paints. Do not copy such a dict into a second place; if QSS needs the same value, the dict is the source and the QSS gets it from there.
+- Colors computed from user settings (input hue and saturation, gradient sliders, previews) or from a base color (tinted chips, badges): one helper builds the string and it is applied to the single widget that needs it. Never in a loop over many widgets and never on a theme switch.
+- Files that depend on the theme (emoticon GIFs `dark/` and `light/`, placeholder avatars): reload only what differs, skip the unchanged ones, build lazily and refresh on `showEvent` when hidden.
+- A short-lived dialog whose palette also feeds its rich text may keep one local stylesheet; it must not grow per-widget styles.
+
+### A theme switch must stay cheap
+- The sequence is: apply the cached application stylesheet, then update only what QSS cannot do. Wrap the application of the stylesheet in `freeze_row_sizes()` when list views exist, so row heights are measured once, then relayout.
+- Never call `set_application_font` after a theme change: the stylesheet does not change fonts. It runs once at startup and when a font setting changes; a repeated call is a bug (it also prints twice).
+- A global event filter returns early for events it does not handle: read `event.type()` once into a local variable, never call it repeatedly (each call builds an enum).
+- Create heavy widget groups on first use, not at startup (the emoticon groups are built when first opened). A hidden but polished widget still costs on every stylesheet change.
+- Cache lookups that scan all users (`login → user_id` index in `helpers/cache.py`); no linear search in a path that runs per row or per paint.
+- Measure before and after in an offscreen Qt run (`QT_QPA_PLATFORM=offscreen`, hundreds of messages, dozens of users): time `toggle_theme()` and look for functions that run thousands of times with `cProfile`.
+
 ## Icons
 
 - SVG icons live only in `icons/line/` (outline) or `icons/fill/` (solid), plus the one special folder `icons/emoticon_groups/` (below). Never loose in `icons/`; only `chat.ico` stays in its root. A file name ends with `-line` or `-fill` and the suffix always matches the folder.
@@ -162,7 +204,7 @@ from helpers.translate import tr
 - Public classes and functions get a one-line English docstring and type hints on new code.
 - Add a dependency only when the standard library or an existing helper cannot do the job.
 - Delete dead code and unused names instead of leaving them.
-- Verify before delivering: the files compile (`python -m py_compile`), pyflakes is clean, every module imports (offscreen Qt), every `.svg` name used in code exists in its icon folder, no new or renamed name collides with or shadows another, and any new logic is exercised with a quick check.
+- Verify before delivering: the files compile (`python -m py_compile`), pyflakes is clean, every module imports (offscreen Qt), every `.svg` name used in code exists in its icon folder, every `$token` of a `.qss` exists in both palettes, no new or renamed name collides with or shadows another, and any new logic is exercised with a quick check. A change to styling or theming is checked in both themes (offscreen screenshots before and after) and a theme switch is toggled back and forth.
 
 ## Delivery
 
