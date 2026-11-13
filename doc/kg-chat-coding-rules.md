@@ -45,7 +45,7 @@ core/                   no widgets: data, network, XMPP, parsing, persistence
   xmpp/                 client.py (BOSH), messages.py, userlist.py, jid_utils.py, delivery.py (DeliveryTracker: pending / delivered / failed state of own messages)
   chatlogs/             fetch.py, database.py (SQLite), range_parser.py (workers), workers_calculator.py
   web/                  api_data.py, scores.py, races_listener.py, youtube.py, image_loader.py (parallel image downloads + LRU cache)
-  state/                accounts.py, user_state.py (ByUserStore), presence_db.py, mentions_digest.py, self_ban.py, input_drafts.py (draft and unsent messages), mention_aliases.py (extra mention words: local per account in mention_aliases.json, global in config)
+  state/                accounts.py, user_state.py (ByUserStore), presence_db.py, mentions_digest.py, self_ban.py, input_drafts.py (draft and unsent messages), mention_aliases.py (extra mention words, one file: local per account + global), json_state.py (JsonState: nested JSON file in data/), ui_state.py (ui_state: remembered UI state)
 helpers/                shared non-visual logic and managers
   config.py data.py translate.py cache.py load.py dates.py browser.py sounds.py   (top level)
   colors/               color_utils.py, color_contrast.py
@@ -74,7 +74,7 @@ ui/                     screens and windows of the app
 ```
 
 ### Rules for each folder
-- `core/`: nothing here builds a widget. Small per-account JSON state reuses `ByUserStore` from `core/state/user_state.py` instead of new load/save code.
+- `core/`: nothing here builds a widget. JSON state reuses `JsonState` from `core/state/json_state.py` (any nested file) or `ByUserStore` from `core/state/user_state.py` (per-account values) instead of new load/save code.
 - `helpers/`: non-visual only. Colors: new app palettes follow the `get_*_colors` pattern in `helpers/colors/color_utils.py` (hue and saturation from config, defaults in code).
 - `components/`: widgets reused by two or more screens; must not import from `ui/`. Code that both a component and `ui/` need goes down into `components/` or `helpers/` (avatars: `components/avatar.py`), never imported upward.
 - A component with its own options keeps their defaults, limits and config accessors in its own `options.py`; the settings page imports them from there instead of repeating the numbers.
@@ -91,9 +91,24 @@ ui/                     screens and windows of the app
 - Install, uninstall or launch script → `scripts/setup/` or `scripts/launchers/`; they locate the project root two levels up
 - A modal dialog → `ui/dialogs/`
 - Default setting values → `settings/config.json`; theme colors and the look of widgets → `themes/` (tokens in `palette.py`, rules in `styles/<component>.qss`); colors computed from data or settings → `helpers/colors/color_utils.py`
-- Persistent user data goes under `KG_Chat_Data` via `get_data_dir()`, never next to the sources.
+- Persistent user data goes under `KG_Chat_Data` via `get_data_dir()`, never next to the sources. Every JSON state file lives in `KG_Chat_Data/data/` (`get_state_dir()` from `helpers/data.py`, which `JsonState` uses), never loose in the `KG_Chat_Data` root; databases and big caches keep their own folders (`chatlogs/`, `presence/`, `avatars/`).
 - A new SVG icon → `icons/line/` or `icons/fill/` by its style, named by the Icons rules; a group button icon of the emoticon panel → `icons/emoticon_groups/`
 - Bundled resources (icons, sounds, fonts, emoticons) are located with `get_resource_dir("icons")` from `helpers/data.py`, never with `Path(__file__)` arithmetic, so moving a file cannot break the path.
+
+## Config and state
+
+`settings/config.json` (the `Config` class) holds only settings: booleans, numbers, and short choices the user sets on the Settings page (an enum string, a font family, a hotkey, an executable path). Everything else is state and goes to `KG_Chat_Data/data/`, never into `config.json`:
+
+- Lists and dicts of user content: saved usernames, saved rooms, recent emoticons, aliases, window presets.
+- Remembered UI state: window size and position, last selected group or tab, scroll or cursor positions.
+- Anything per account (it needs the username as a key) or filled in by the program while it runs.
+
+Where it goes:
+- Per-account values: `ByUserStore("<name>.json")`, shape `{"by_user": {username: value}}` (`self_bans`, `input_drafts`, `mentions_digest`).
+- One feature with local and shared parts: one file, one class, local under the username and shared beside it (`mention_aliases.json`: `{"local": {...}, "global": [...]}`). Never two files for one feature.
+- Remembered UI state of the app: `ui_state` from `core/state/ui_state.py` (`data/ui_state.json`), one key per concern (`window`, `window_presets`, `emoticons`, `saved_usernames`, `saved_rooms`). Do not make a new file for each small item; make one only for a feature with its own store class.
+- Data files are plain JSON with no schema migration code: a format change means the old file is deleted or replaced, as with databases.
+- A new key written with `config.set` is checked against the rule above first; a default value for a setting goes to `settings/config.json`, a default for state lives in the code that reads it (`or []`).
 
 ## Imports
 
