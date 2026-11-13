@@ -136,7 +136,7 @@ class Application(QObject):
         icon = lambda name: render_svg_icon(self.icons_path / name, 16)
 
         menu = QMenu()
-        menu.setFont(get_font(FontType.UI))
+        menu.aboutToShow.connect(lambda: self._apply_tray_menu_font(menu))
 
         self._show_action = QAction(icon("fill/door-open-fill.svg"), "", self.app)
         self._show_action.triggered.connect(self._show_from_tray)
@@ -207,6 +207,13 @@ class Application(QObject):
         self._notification_enabled_action.setChecked(not muted)
         self._notification_enabled_action.triggered.connect(self._on_notification_enabled_toggled)
         parent_menu.addAction(self._notification_enabled_action)
+
+    @staticmethod
+    def _apply_tray_menu_font(menu: QMenu):
+        """Qt menus ignore the application font and do not pass theirs to submenus."""
+        font = get_font(FontType.UI)
+        for item in (menu, *menu.findChildren(QMenu)):
+            item.setFont(font)
 
     def _retranslate_tray(self, _code=None):
         if not self._tray_icon:
