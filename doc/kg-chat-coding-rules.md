@@ -42,10 +42,10 @@ icons/                  bundled icons: chat.ico in the root, SVGs only in the su
   fill/                 solid icons, every file name ends with -fill.svg
   emoticon_groups/      full-colour Noto Color Emoji icons of the group buttons in ui/chat/ui_emoticon_selector.py
 core/                   no widgets: data, network, XMPP, parsing, persistence
-  xmpp/                 client.py (BOSH), messages.py, userlist.py, jid_utils.py
+  xmpp/                 client.py (BOSH), messages.py, userlist.py, jid_utils.py, delivery.py (DeliveryTracker: pending / delivered / failed state of own messages)
   chatlogs/             fetch.py, database.py (SQLite), range_parser.py (workers), workers_calculator.py
   web/                  api_data.py, scores.py, races_listener.py, youtube.py, image_loader.py (parallel image downloads + LRU cache)
-  state/                accounts.py, user_state.py (ByUserStore), presence_db.py, mentions_digest.py, self_ban.py
+  state/                accounts.py, user_state.py (ByUserStore), presence_db.py, mentions_digest.py, self_ban.py, input_drafts.py (draft and unsent messages)
 helpers/                shared non-visual logic and managers
   config.py data.py translate.py cache.py load.py dates.py browser.py sounds.py   (top level)
   colors/               color_utils.py, color_contrast.py
@@ -62,7 +62,7 @@ components/             reusable widgets used by more than one screen
   button.py avatar.py video_player.py help_panel.py flash_highlight.py font_scale_slider.py
   presence_badge.py search.py tag_button.py mic_button.py loading_spinner.py user_count_row.py tracked_mark.py tray_badge.py colored_label.py
 ui/                     screens and windows of the app
-  chat/                 ui_chat.py (ChatWindow shell) + chat_*.py mixins (chat_hotkeys.py = local keyboard shortcuts), ui_room, ui_messages, ui_userlist, ui_buttons, ui_emoticon_selector, voice_input_attach
+  chat/                 ui_chat.py (ChatWindow shell) + chat_*.py mixins (chat_hotkeys.py = local keyboard shortcuts, chat_delivery.py = input draft and delivery markers), ui_room, ui_messages, ui_userlist, ui_buttons, ui_emoticon_selector, voice_input_attach
   tracker/              ui_user_tracker.py + tracker_*.py mixins and models
   chatlog/              ui_chatlog.py + chatlog_*.py mixins, ui_chatlog_userlist, ui_chatlogs_parser.py + parser_*.py
   messages/             message_model, message_delegate, message_renderer, messages_separator, message_interactions
@@ -200,6 +200,7 @@ QSS cannot carry a value that is data or that is used by code. These stay in cod
 - Give every `QTimer`, widget and connection an owner (`parent=self`) and stop or disconnect it in the teardown path.
 - Handle errors at boundaries only (file, network, parsing external data). Never a bare `except:`; catch `Exception` at most, and never hide a failure that the user needs to know about.
 - Time: chatlog timestamps are Moscow time (`CHATLOG_TIMEZONE` in `core/chatlogs/fetch.py`), live XMPP stamps are UTC. Convert explicitly, never compare them to naive local time.
+- What the user typed or sent is never lost silently: unsent text is persisted (`InputDrafts`) until the server confirms it, restored into the input field on start, and a message the server may not have gets a visible state (`DeliveryTracker`), never an assumed success. An HTTP 200 of the transport is not a delivery; the server's echo is.
 - Settings are read through `Config.get`; defaults live in code or `settings/config.json`. No hardcoded user paths.
 - Public classes and functions get a one-line English docstring and type hints on new code.
 - Add a dependency only when the standard library or an existing helper cannot do the job.
