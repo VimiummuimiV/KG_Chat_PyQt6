@@ -1,6 +1,6 @@
 """Message data model for virtual scrolling"""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import List, Optional
 
@@ -30,6 +30,7 @@ class MessageData:
     joins_next: bool = False
     delivery_id: Optional[int] = None  # own message followed by DeliveryTracker
     delivery: Optional[str] = None
+    layout_cache: Optional[tuple] = field(default=None, compare=False, repr=False)  # (key, TextLayout) kept by MessageDelegate
 
     def get_time_str(self) -> str:
         return self.timestamp.strftime("%H:%M:%S")

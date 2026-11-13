@@ -1,10 +1,11 @@
 """Reusable message body renderer for delegates and notifications"""
 
+import math
 import re
 from typing import Dict, List, Optional, Tuple
 
-from PyQt6.QtCore import pyqtSignal, QObject, QPoint, QRect, QSize, Qt
-from PyQt6.QtGui import QColor, QFontMetrics, QMovie, QPainter, QPen, QPixmap
+from PyQt6.QtCore import pyqtSignal, QObject, QRect, QSize, Qt
+from PyQt6.QtGui import QColor, QFont, QFontMetrics, QFontMetricsF, QMovie, QPainter, QPen, QPixmap
 from PyQt6.QtWidgets import QApplication
 
 from components.badge import badge_style, EVENT_TYPES
@@ -29,19 +30,23 @@ from helpers.colors.color_utils import (
 from helpers.data import get_resource_dir
 from helpers.fonts.fonts import FontType, get_font
 from helpers.text.mention_parser import MENTION_ICONS, parse_mentions
+from ui.messages.message_layout import Atom, Fragment, KIND_EMOTICON, KIND_LINK, KIND_TEXT, layout_atoms, TextLayout
+
+
+_WORD_WIDTH_CACHE_LIMIT = 50000
 
 
 class MessageRenderer(QObject):
     """Renders message body content with links, emoticons, and mentions"""
 
     # Signal emitted when content needs refresh (e.g., YouTube metadata loaded)
-    refresh_row = pyqtSignal(int) # row index to refresh
+    link_text_loaded = pyqtSignal(object) # owner of a layout whose link label has just arrived
     refresh_view = pyqtSignal() # general refresh (link rmb highlight)
     chatlog_link_clicked = pyqtSignal(str, str) # date_str, time_str ("" if none) - chatlog URL clicked in a message body
 
     _CHATLOG_URL_PATTERN = re.compile(r'^https?://klavogonki\.ru/chatlogs/(\d{4}-\d{2}-\d{2})\.html(?:#(\d{2}:\d{2}:\d{2}))?$')
     _GAME_URL_PATTERN = re.compile(r'^https?://klavogonki\.ru/g/\?gmid=(\d+)$')
-    _VALUE_TAG_PATTERN = re.compile(r'\[(COST|SCORE|BONUS)\](.*?)\[/\1\]')
+    _TOKEN_PATTERN = re.compile(r'\[(COST|SCORE|BONUS)\](.*?)\[/\1\]|' + URL_PATTERN.pattern)
     _CHIP_GAP = 6
 
     def __init__(self, config, emoticon_manager, is_dark_theme: bool, parent_widget=None):
@@ -53,7 +58,6 @@ class MessageRenderer(QObject):
 
         # Track own username for mention highlighting
         self.my_username = None
-        self.content_end = QPoint()  # top-left of the spot right after the last painted body text
         self._mention_colors = get_mention_colors(is_dark_theme)
         self._highlight_colors = get_search_highlight_colors(is_dark_theme)
         self._link_colors = link_colors(is_dark_theme)
@@ -67,7 +71,9 @@ class MessageRenderer(QObject):
         self.parser_colors = get_parser_message_colors(config, is_dark_theme)
 
         # Font setup
-        self.body_font = get_font(FontType.TEXT)
+        self.layout_revision = 0
+        self._word_widths: Dict[Tuple[bool, str], float] = {}
+        self.set_body_font(get_font(FontType.TEXT))
 
         # Emoticon settings
         self._emoticon_max_size = int(config.get("ui", "emoticon_max_size") or 140)
@@ -97,6 +103,7 @@ class MessageRenderer(QObject):
 
     def set_youtube_override(self, enabled: Optional[bool]):
         self._youtube_override = enabled
+        self.invalidate_layouts()
 
     def _init_viewers(self, parent_widget):
         """Initialize image and video viewers"""
@@ -223,6 +230,7 @@ class MessageRenderer(QObject):
         self._competition_value_colors = get_competition_value_colors(is_dark_theme)
         self.parser_colors = get_parser_message_colors(self.config, is_dark_theme)
         self.emoticon_cache.clear()
+        self.invalidate_layouts()
         if self.image_viewer:
             self.image_viewer.update_theme(is_dark_theme)
 
@@ -241,73 +249,80 @@ class MessageRenderer(QObject):
             return "🔥 " + text
         return text
 
-    def calculate_content_height(self, text: str, width: int, row: Optional[int] = None) -> int:
-        """Calculate height needed for message content"""
+    def mention_pattern(self):
+        """Pattern of the own nick and its aliases; part of every layout cache key, as a mention is drawn bold."""
+        return mention_aliases.pattern(self.my_username)
+
+    def invalidate_layouts(self):
+        """Make every cached layout stale (fonts, emoticon sizes or link labels changed)."""
+        self.layout_revision += 1
+
+    def set_body_font(self, font: QFont):
+        """Switch the body font; widths measured with the old one are dropped."""
+        self.body_font = font
+        self._bold_font = QFont(font)
+        self._bold_font.setBold(True)
+        self._metrics = QFontMetricsF(font)
+        self._bold_metrics = QFontMetricsF(self._bold_font)
+        self._line_height = QFontMetrics(font).height()
+        self._ascent = QFontMetrics(font).ascent()
+        self._word_widths.clear()
+        self.invalidate_layouts()
+
+    def _measure(self, text: str, bold: bool) -> float:
+        key = (bold, text)
+        width = self._word_widths.get(key)
+        if width is None:
+            width = (self._bold_metrics if bold else self._metrics).horizontalAdvance(text)
+            if len(self._word_widths) >= _WORD_WIDTH_CACHE_LIMIT:
+                self._word_widths.clear()
+            self._word_widths[key] = width
+        return width
+
+    def layout_body(self, text: str, width: float, has_mentions: bool = True, owner=None) -> TextLayout:
+        """Wrap a message body to the width. owner is passed to link_text_loaded when a link label arrives later."""
+        return layout_atoms(self._atoms(text, has_mentions, owner), width, self._line_height, self._measure)
+
+    def _atoms(self, text: str, has_mentions: bool, owner) -> List[Atom]:
+        """Split a body into text runs, links, colored competition values and emoticons."""
         text = ' '.join(text.split())
-        text = self._VALUE_TAG_PATTERN.sub(lambda m: m.group(2), text)
-
-        if self._youtube_enabled:
-            url_pattern = re.compile(r'https?://[^\s<>"]+')
-            def repl(m):
-                url = m.group(0)
-                cached = get_cached_info(url, use_emojis=True)
-                if cached and cached[1]:
-                    return cached[0] + ' '
-                if row is not None and cached:
-                    try:
-                        fetch_async(url, lambda _, r=row: self.refresh_row.emit(r))
-                    except Exception:
-                        pass
-                return url + ' '
-            text = url_pattern.sub(repl, text)
-
-        segments = self.emoticon_manager.parse_emoticons(text)
-
-        font_metrics = QFontMetrics(self.body_font)
-        current_line_height = font_metrics.height()
-        total_height = 0
-        current_width = 0
-
-        for seg_type, content in segments:
-            if seg_type == 'text':
-                lines = self._wrap_text(content, width - current_width, font_metrics)
-                for i, line in enumerate(lines):
-                    if i == 0 and current_width > 0:
-                        line_width = font_metrics.horizontalAdvance(line)
-                        if current_width + line_width <= width:
-                            current_width += line_width
-                            continue
-
-                    if current_width > 0:
-                        total_height += current_line_height
-                        current_line_height = font_metrics.height()
-                        current_width = 0
-                    current_width = font_metrics.horizontalAdvance(line)
+        atoms: List[Atom] = []
+        position = 0
+        for match in self._TOKEN_PATTERN.finditer(text):
+            self._add_plain_atoms(atoms, text[position:match.start()], has_mentions)
+            if match.group(1):
+                atoms.append(Atom(KIND_TEXT, match.group(2), role=match.group(1).lower()))
             else:
+                url = match.group(0)
+                atoms.append(Atom(KIND_LINK, self._get_link_text(url, owner), url=url, is_media=self._is_media_url(url)))
+            position = match.end()
+        self._add_plain_atoms(atoms, text[position:], has_mentions)
+        return atoms
+
+    def _add_plain_atoms(self, atoms: List[Atom], text: str, has_mentions: bool):
+        """Emoticons and (for regular messages) mentions of a stretch without links."""
+        for kind, content in self.emoticon_manager.parse_emoticons(text):
+            if kind == KIND_EMOTICON:
                 pixmap = self._get_emoticon_pixmap(content)
                 if pixmap:
-                    w, h = pixmap.width(), pixmap.height()
-                    if current_width + w > width:
-                        total_height += current_line_height
-                        current_line_height = h
-                        current_width = w
-                    else:
-                        current_width += w
-                        current_line_height = max(current_line_height, h)
+                    atoms.append(Atom(KIND_EMOTICON, content, size=(pixmap.width(), pixmap.height())))
+                continue
+            segments = parse_mentions(content, self.mention_pattern()) if has_mentions else [(None, content)]
+            for mention_kind, segment in segments:
+                if not segment:
+                    continue
+                if mention_kind is None:
+                    atoms.append(Atom(KIND_TEXT, segment))
+                else:
+                    label = f"{MENTION_ICONS[mention_kind]} {segment}" if mention_kind in MENTION_ICONS else segment
+                    atoms.append(Atom(KIND_TEXT, label, role=mention_kind, bold=True))
 
-        if current_width > 0:
-            total_height += current_line_height
-
-        return max(total_height, font_metrics.height())
-
-    def paint_content(
+    def paint_layout(
         self,
         painter: QPainter,
+        layout: TextLayout,
         x: int,
         y: int,
-        width: int,
-        text: str,
-        row: Optional[int] = None,
         is_private: bool = False,
         is_ban: bool = False,
         is_system: bool = False,
@@ -315,189 +330,60 @@ class MessageRenderer(QObject):
         is_parser: bool = False,
         highlight_text: str = "",
     ) -> List[Tuple[QRect, str, bool]]:
-        """
-        Paint message body content with links, emoticons, and mentions.
-        Returns list of (QRect, url, is_media) tuples for clickable links.
-        """
-        link_rects = []
-
-        # Replace newlines with spaces
-        text = ' '.join(text.split())
-
-        # Extract colored value tags (competition cost/scores/bonuses) and replace with placeholders
-        values = []
-        def replace_value(match):
-            values.append((match.group(1).lower(), match.group(2)))
-            return f"[VAL{len(values)-1}] "
-
-        text = self._VALUE_TAG_PATTERN.sub(replace_value, text)
-
-        # Extract URLs and replace with placeholders
-        urls = []
-        def replace_url(match):
-            url = match.group(0)
-            urls.append(url)
-            return f"[URL{len(urls)-1}] "
-
-        processed_text = URL_PATTERN.sub(replace_url, text)
-        segments = self.emoticon_manager.parse_emoticons(processed_text)
-
-        painter.setFont(self.body_font)
-        font_metrics = QFontMetrics(self.body_font)
-
-        current_x, current_y = x, y
-        line_height = font_metrics.height()
-
+        """Paint a laid out body with its top-left at (x, y); returns (QRect, url, is_media) for every link piece."""
         text_color = self.get_text_color(is_ban, is_private, is_system, is_competition, is_parser)
-
         highlight_pattern = re.compile(re.escape(highlight_text), re.IGNORECASE) if highlight_text else None
-        highlight_background, highlight_foreground = self._highlight_colors
-
-        def new_line():
-            nonlocal current_x, current_y, line_height
-            current_y += line_height
-            current_x = x
-            line_height = font_metrics.height()
-
-        def draw_plain_line(line: str, fm_local: QFontMetrics, color: str):
-            nonlocal current_x
-            painter.setPen(QColor(color))
-            painter.drawText(current_x, current_y + fm_local.ascent(), line)
-            current_x += fm_local.horizontalAdvance(line)
-
-        def draw_highlighted_line(line: str, fm_local: QFontMetrics, color: str):
-            """Draw a line with search-match substrings highlighted (case-insensitive)."""
-            nonlocal current_x
-            pos = 0
-            for match in highlight_pattern.finditer(line):
-                if match.start() > pos:
-                    draw_plain_line(line[pos:match.start()], fm_local, color)
-                matched = line[match.start():match.end()]
-                match_width = fm_local.horizontalAdvance(matched)
-                match_rect = QRect(current_x, current_y, match_width, fm_local.height())
-                painter.setPen(Qt.PenStyle.NoPen)
-                painter.setBrush(QColor(highlight_background))
-                painter.drawRoundedRect(match_rect, 4, 4)
-                painter.setBrush(Qt.BrushStyle.NoBrush)
-                painter.setPen(QColor(highlight_foreground))
-                painter.drawText(current_x, current_y + fm_local.ascent(), matched)
-                current_x += match_width
-                pos = match.end()
-            if pos < len(line):
-                draw_plain_line(line[pos:], fm_local, color)
-
-        def draw_text_chunk(content: str, color: str):
-            """Draw text chunk with mention highlighting"""
-            # Only apply mention highlighting for normal messages
-            if not is_system and not is_private and not is_ban and not is_parser:
-                mention_segments = parse_mentions(content, mention_aliases.pattern(self.my_username))
-            else:
-                mention_segments = [(None, content)]
-
-            for mention_kind, segment_text in mention_segments:
-                if not segment_text:
-                    continue
-
-                is_mention = mention_kind is not None
-                # Use mention color AND bold font for mentions; an alias also gets its section icon in front
-                if is_mention:
-                    if mention_kind in MENTION_ICONS:
-                        segment_text = f"{MENTION_ICONS[mention_kind]} {segment_text}"
-                    draw_color = self._mention_colors[mention_kind]
-                    painter.setFont(get_font(FontType.TEXT))
-                    bold_font = painter.font()
-                    bold_font.setBold(True)
-                    painter.setFont(bold_font)
-                    fm_local = QFontMetrics(bold_font)
-                else:
-                    draw_color = color
-                    painter.setFont(self.body_font)
-                    fm_local = QFontMetrics(self.body_font)
-
-                lines = self._wrap_text(segment_text, width - (current_x - x), fm_local)
-                for line in lines:
-                    if not line:
-                        new_line()
-                        continue
-
-                    line_width = fm_local.horizontalAdvance(line)
-                    if current_x > x and current_x + line_width > x + width:
-                        new_line()
-
-                    if not is_mention and highlight_pattern and highlight_pattern.search(line):
-                        draw_highlighted_line(line, fm_local, draw_color)
-                    else:
-                        draw_plain_line(line, fm_local, draw_color)
-
-                # Reset to normal font after mention
-                if is_mention:
-                    painter.setFont(self.body_font)
-
-        def draw_link(url: str, is_media: bool = False):
-            nonlocal current_x
-            link_text = self._get_link_text(url, row)
-
-            link_color = self.get_link_color(url, is_media)
-            painter.setPen(QColor(link_color))
-
-            remaining = link_text
-            while remaining:
-                avail = x + width - current_x
-                if avail <= 0:
-                    new_line()
-                    avail = width
-
-                chunk = self._fit(remaining, avail, font_metrics) or remaining[0]
-                chunk_width = font_metrics.horizontalAdvance(chunk)
-
-                if current_x > x and current_x + chunk_width > x + width:
-                    new_line()
-                    continue
-
-                painter.drawText(current_x, current_y + font_metrics.ascent(), chunk)
-                link_rect = QRect(current_x, current_y, chunk_width, font_metrics.height())
-                if self.is_copied(url):
-                    self.draw_copy_highlight(painter, link_rect, link_color)
-                    painter.setPen(QColor(link_color))
-                    painter.drawText(current_x, current_y + font_metrics.ascent(), chunk)
-                link_rects.append((link_rect, url, is_media))
-                current_x += chunk_width
-                remaining = remaining[len(chunk):]
-
-        placeholder_pattern = re.compile(r'\[(URL|VAL)(\d+)\]')
-
-        for seg_type, content in segments:
-            if seg_type == 'text':
-                last_pos = 0
-                for match in placeholder_pattern.finditer(content):
-                    if match.start() > last_pos:
-                        draw_text_chunk(content[last_pos:match.start()], text_color)
-                    kind, index = match.group(1), int(match.group(2))
-                    if kind == 'URL':
-                        url = urls[index]
-                        draw_link(url, self._is_media_url(url))
-                    else:
-                        value_kind, value_text = values[index]
-                        draw_text_chunk(value_text, self._competition_value_colors.get(value_kind, text_color))
-                    last_pos = match.end()
-
-                if last_pos < len(content):
-                    draw_text_chunk(content[last_pos:], text_color)
-
-            else:  # emoticon
-                pixmap = self._get_emoticon_pixmap(content)
+        link_rects = []
+        for fragment in layout.fragments:
+            left, top = round(x + fragment.x), round(y + fragment.y)
+            if fragment.kind == KIND_EMOTICON:
+                pixmap = self._get_emoticon_pixmap(fragment.text)
                 if pixmap:
-                    w, h = pixmap.width(), pixmap.height()
-                    if current_x > x and current_x + w > x + width:
-                        new_line()
-                        line_height = h
-
-                    painter.drawPixmap(current_x, current_y, pixmap)
-                    current_x += w
-                    line_height = max(line_height, h)
-
-        self.content_end = QPoint(current_x, current_y)
+                    painter.drawPixmap(left, top, pixmap)
+            elif fragment.kind == KIND_LINK:
+                rect = QRect(left, top, math.ceil(fragment.width), fragment.height)
+                color = self.get_link_color(fragment.url, fragment.is_media)
+                if self.is_copied(fragment.url):
+                    self.draw_copy_highlight(painter, rect, color)
+                painter.setFont(self.body_font)
+                painter.setPen(QColor(color))
+                painter.drawText(left, top + self._ascent, fragment.text)
+                link_rects.append((rect, fragment.url, fragment.is_media))
+            else:
+                self._paint_text(painter, fragment, left, top, self._fragment_color(fragment, text_color), highlight_pattern)
         return link_rects
+
+    def _fragment_color(self, fragment: Fragment, text_color: str) -> str:
+        if fragment.role in self._mention_colors:
+            return self._mention_colors[fragment.role]
+        return self._competition_value_colors.get(fragment.role, text_color)
+
+    def _paint_text(self, painter: QPainter, fragment: Fragment, left: int, top: int, color: str, highlight_pattern):
+        """Draw a text fragment; search matches get a rounded background and their own text color."""
+        metrics = self._bold_metrics if fragment.bold else self._metrics
+        painter.setFont(self._bold_font if fragment.bold else self.body_font)
+        baseline = top + self._ascent
+        text = fragment.text
+        matches = [match.span() for match in highlight_pattern.finditer(text)] if highlight_pattern and not fragment.bold else []
+        highlight_background, highlight_foreground = self._highlight_colors
+        position = 0
+        for start, end in matches:
+            self._draw_run(painter, text[position:start], left + metrics.horizontalAdvance(text[:position]), baseline, color)
+            match_left = left + metrics.horizontalAdvance(text[:start])
+            match_rect = QRect(round(match_left), top, math.ceil(metrics.horizontalAdvance(text[start:end])), self._line_height)
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(QColor(highlight_background))
+            painter.drawRoundedRect(match_rect, 4, 4)
+            painter.setBrush(Qt.BrushStyle.NoBrush)
+            self._draw_run(painter, text[start:end], match_left, baseline, highlight_foreground)
+            position = end
+        self._draw_run(painter, text[position:], left + metrics.horizontalAdvance(text[:position]), baseline, color)
+
+    @staticmethod
+    def _draw_run(painter: QPainter, text: str, left: float, baseline: int, color: str):
+        if text:
+            painter.setPen(QColor(color))
+            painter.drawText(round(left), baseline, text)
 
     @staticmethod
     def _chip_label(player) -> str:
@@ -696,7 +582,7 @@ class MessageRenderer(QObject):
         """Check if URL is a media link"""
         return is_image_url(url) or VideoPlayer.is_video_url(url)
 
-    def _get_link_text(self, url: str, row: Optional[int]) -> str:
+    def _get_link_text(self, url: str, owner) -> str:
         """Get display text for link (short label for game links, processed YouTube title, else the URL)"""
         game_match = self._GAME_URL_PATTERN.match(url)
         if game_match:
@@ -710,64 +596,10 @@ class MessageRenderer(QObject):
             formatted_text, is_cached = cached
             if is_cached:
                 return formatted_text
-            if row is not None:
-                fetch_async(url, lambda result: self.refresh_row.emit(row))
+            if owner is not None:
+                fetch_async(url, lambda result: self.link_text_loaded.emit(owner))
 
         return url
-
-    def _wrap_text(self, text: str, width: int, font_metrics: QFontMetrics) -> List[str]:
-        """Wrap text to fit within width"""
-        if not text or width <= 0:
-            return [text] if text else []
-
-        lines = []
-        for para in text.split('\n'):
-            if not para:
-                lines.append('')
-                continue
-
-            current_line, current_width = [], 0
-            for word in para.split(' '):
-                word_width = font_metrics.horizontalAdvance(word + ' ')
-
-                if current_width + word_width <= width:
-                    current_line.append(word)
-                    current_width += word_width
-                elif font_metrics.horizontalAdvance(word) > width:
-                    if current_line:
-                        lines.append(' '.join(current_line))
-                        current_line, current_width = [], 0
-
-                    # Split long word across lines
-                    while word:
-                        chunk = self._fit(word, width, font_metrics)
-                        lines.append(chunk)
-                        word = word[len(chunk):]
-                else:
-                    if current_line:
-                        lines.append(' '.join(current_line))
-                    current_line = [word]
-                    current_width = word_width
-
-            if current_line:
-                lines.append(' '.join(current_line))
-
-        return lines
-
-    def _fit(self, text: str, max_pixels: int, font_metrics: QFontMetrics) -> str:
-        """Binary search to fit maximum characters within pixel width"""
-        if not text or max_pixels <= 0:
-            return text[:1] if text else ''
-
-        lo, hi, best = 1, len(text), 1
-        while lo <= hi:
-            mid = (lo + hi) // 2
-            if font_metrics.horizontalAdvance(text[:mid]) <= max_pixels:
-                best = mid
-                lo = mid + 1
-            else:
-                hi = mid - 1
-        return text[:best]
 
     def _get_emoticon_pixmap(self, name: str) -> Optional[QPixmap]:
         """Get emoticon pixmap (static or animated)"""
@@ -832,4 +664,4 @@ class MessageRenderer(QObject):
         if self._video_player:
             self._video_player.cleanup()
             self._video_player.deleteLater()
-            self._video_player = None
+            self._video_player = None

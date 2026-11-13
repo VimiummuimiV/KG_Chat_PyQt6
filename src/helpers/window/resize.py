@@ -4,21 +4,10 @@ from PyQt6.QtCore import QTimer
 
 
 def recalculate_layout(chat_window):
-    """Force layout recalculation after userlist visibility / width change."""
+    """Re-layout the tracker after userlist visibility / width change; message lists re-measure their rows by themselves."""
     current_view = chat_window.stacked_widget.currentWidget()
 
-    if current_view == chat_window.messages_splitter:
-        mw = chat_window.active_messages_widget()
-        mw.force_recalculate()
-        QTimer.singleShot(50, mw.force_recalculate)
-    elif current_view == chat_window.chatlog_widget and chat_window.chatlog_widget:
-        chat_window.chatlog_widget.force_recalculate()
-        QTimer.singleShot(50, chat_window.chatlog_widget.force_recalculate)
-        nested = chat_window.chatlog_widget.split_chatlog_widget
-        if nested:
-            nested.force_recalculate()
-            QTimer.singleShot(50, nested.force_recalculate)
-    elif current_view is getattr(chat_window, 'user_tracker_widget', None):
+    if current_view is getattr(chat_window, 'user_tracker_widget', None):
         chat_window.user_tracker_widget.recalculate_layout()
         QTimer.singleShot(50, chat_window.user_tracker_widget.recalculate_layout)
 
@@ -106,6 +95,6 @@ def handle_chat_resize(chat_window, width: int):
         if getattr(chat_window, 'chatlog_split_widget', None):
             chat_window.chatlog_split_widget.set_compact_mode(is_compact)
             chat_window.chatlog_split_widget.set_compact_layout(is_compact)
-        QTimer.singleShot(150, chat_window.complete_resize_recalculation)
+        QTimer.singleShot(150, chat_window.finish_resize)
     else:
-        QTimer.singleShot(50, chat_window.complete_resize_recalculation)
+        QTimer.singleShot(50, chat_window.finish_resize)

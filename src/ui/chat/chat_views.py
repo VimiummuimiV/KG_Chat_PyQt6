@@ -67,7 +67,6 @@ class ChatViewsMixin:
                 self.user_list_widget.isVisible()
             )
 
-        self.messages_widget.force_recalculate()
         self.scroll_to_bottom(self.messages_widget.list_view)
         # If parsing ongoing, show status widget
         if self.chatlog_widget and self.chatlog_widget.parser_widget.is_parsing:

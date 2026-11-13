@@ -1,6 +1,6 @@
 """Message delegate for rendering with virtual scrolling"""
 
-from contextlib import contextmanager
+from dataclasses import dataclass
 from typing import Dict, Optional
 
 from PyQt6.QtCore import pyqtSignal, QEvent, QModelIndex, QPoint, QPointF, QRect, QRectF, QSize, Qt, QTimer
@@ -43,6 +43,7 @@ from helpers.text.me_action import format_me_action
 from helpers.text.message_format import message_line_parts
 from helpers.translate import tr
 from ui.messages.message_html import message_line_html
+from ui.messages.message_layout import TextLayout
 from ui.messages.message_range_selector import MessageRangeSelector
 from ui.messages.message_renderer import MessageRenderer
 from ui.messages.messages_separator import DateSeparator, NewMessagesSeparator
@@ -51,16 +52,21 @@ from ui.notification.popup_manager import popup_manager
 
 _REVEAL_SCROLL_DELAY_MS = 100
 _REVEAL_HIGHLIGHT_DELAY_MS = 250
+_MAX_ROW_HEIGHT = 500
+_FALLBACK_ROW_WIDTH = 800
+_COMPACT_HEADER_GAP = 2  # space between the header line and the body in compact mode
 
 
-@contextmanager
-def freeze_row_sizes():
-    """Measure each row once inside the block; Qt relayouts caused by a style change reuse the result."""
-    MessageDelegate._frozen_row_sizes = {}
-    try:
-        yield
-    finally:
-        MessageDelegate._frozen_row_sizes = None
+@dataclass(frozen=True)
+class _RowGeometry:
+    """Layout of a regular row relative to its content rectangle."""
+    body: TextLayout
+    body_x: int
+    body_y: int
+    height: int
+    timestamp_width: int
+    username_width: int
+    has_username: bool
 
 
 class _MarkerGutter:
@@ -246,9 +252,8 @@ class _TextSelectorOverlay(QTextEdit):
 class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
     """Delegate for rendering messages with virtual scrolling"""
 
-    _frozen_row_sizes: Optional[dict] = None  # (delegate, row, width) -> size while freeze_row_sizes is active
-
     row_needs_refresh = pyqtSignal(int)
+    geometry_changed = pyqtSignal()  # row heights may differ now: the view has to measure its rows again
     message_clicked = pyqtSignal(int)
     separator_clicked = pyqtSignal(str)  # date_str of clicked chatlog date separator
     _timestamp_clicked = pyqtSignal(str)  # full chatlog URL for the clicked message
@@ -317,6 +322,7 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
         self.my_username = username
         if self.message_renderer:
             self.message_renderer.set_my_username(username)
+        self.geometry_changed.emit()  # a mention is drawn bold, so its width changes
 
     def set_highlight_text(self, text: str):
         """Set the active search term to highlight in message bodies."""
@@ -381,7 +387,7 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
             if self.my_username:
                 self.message_renderer.set_my_username(self.my_username)
             # Connect refresh signals
-            self.message_renderer.refresh_row.connect(self._refresh_row)
+            self.message_renderer.link_text_loaded.connect(self._refresh_message)
             self.message_renderer.refresh_view.connect(self._refresh_viewport)
             self.message_renderer.chatlog_link_clicked.connect(self.chatlog_link_clicked.emit)
 
@@ -399,16 +405,36 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
         self.background_hex = "#1E1E1E" if theme == "dark" else "#FFFFFF"
         if self.message_renderer:
             self.message_renderer.update_theme(self.is_dark_theme)
+        self.geometry_changed.emit()  # the emoticons of the other theme may have another size
+
+    def set_fonts(self, font):
+        """Use one font for bodies and timestamps; every cached layout of the old font is dropped."""
+        self.body_font = font
+        self.timestamp_font = font
+        if self.message_renderer:
+            self.message_renderer.set_body_font(font)
+        self.geometry_changed.emit()
+
+    def invalidate_geometry(self):
+        """Link labels or emoticon sizes may have changed: drop every cached layout."""
+        if self.message_renderer:
+            self.message_renderer.invalidate_layouts()
+        self.geometry_changed.emit()
 
     def set_compact_mode(self, compact: bool):
         if self.compact_mode != compact:
             self.compact_mode = compact
+            self.geometry_changed.emit()
 
     def set_continuity_rails(self, enabled: bool):
-        self._show_continuity = enabled
+        if self._show_continuity != enabled:
+            self._show_continuity = enabled
+            self.geometry_changed.emit()  # a row with a rail reserves a side gutter
 
     def set_show_delivery_marker(self, enabled: bool):
-        self._show_delivery_marker = enabled
+        if self._show_delivery_marker != enabled:
+            self._show_delivery_marker = enabled
+            self.geometry_changed.emit()  # a row with a marker reserves a side gutter
 
     def _has_delivery_marker(self, msg) -> bool:
         return self._show_delivery_marker and bool(msg.delivery)
@@ -469,29 +495,23 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
         if getattr(msg, 'is_new_messages_marker', False):
             return QSize(option.rect.width(), NewMessagesSeparator.get_height())
 
+        width = self._row_width(option)
+        if not self.message_renderer:
+            return QSize(width, 50)
+        gutter_left, gutter_right = self._row_gutter(msg)
+        content_width = width - gutter_left - gutter_right
+        if getattr(msg, 'is_presence_log', False):
+            return QSize(width, self._presence_log_height(msg, content_width))
+        return QSize(width, self._row_geometry(msg, content_width).height)
+
+    def _row_width(self, option: QStyleOptionViewItem) -> int:
         width = option.rect.width()
         if width <= 0 and self.list_view is not None:
             try:
                 width = self.list_view.viewport().width()
             except RuntimeError:
                 width = 0
-        if width <= 0:
-            width = 800
-        row = index.row()
-        frozen_sizes = MessageDelegate._frozen_row_sizes
-        frozen_key = (id(self), row, width)
-        if frozen_sizes is not None and frozen_key in frozen_sizes:
-            return frozen_sizes[frozen_key]
-        gutter_left, gutter_right = self._row_gutter(msg)
-        content_width = width - gutter_left - gutter_right
-        if getattr(msg, 'is_presence_log', False):
-            height = self._presence_log_height(msg, content_width)
-        else:
-            height = self._calculate_compact_height(msg, content_width, row) if self.compact_mode else self._calculate_normal_height(msg, content_width, row)
-        size = QSize(width, height)
-        if frozen_sizes is not None:
-            frozen_sizes[frozen_key] = size
-        return size
+        return width if width > 0 else _FALLBACK_ROW_WIDTH
 
     def _presence_log_height(self, msg, width: int) -> int:
         if not self.message_renderer:
@@ -504,38 +524,46 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
         content_width = max(width - 2 * self.padding - (0 if self.compact_mode else timestamp_width), 50)
         content_height = self.message_renderer.calculate_presence_entries_height(entries, content_width)
         if self.compact_mode:
-            return min(self.padding + line_height + 2 + content_height + self.padding, 500)
-        return min(max(line_height, content_height) + 2 * self.padding, 500)
+            return min(self.padding + line_height + 2 + content_height + self.padding, _MAX_ROW_HEIGHT)
+        return min(max(line_height, content_height) + 2 * self.padding, _MAX_ROW_HEIGHT)
 
-    def _calculate_compact_height(self, msg, width: int, row: Optional[int] = None) -> int:
-        if not self.message_renderer:
-            return 50
-
+    def _row_geometry(self, msg, content_width: int) -> _RowGeometry:
+        """Where the parts of a regular row sit; sizeHint and paint both read it, so the height always matches the drawing."""
         font_metrics = QFontMetrics(self.body_font)
-        header_height = max(font_metrics.height(), QFontMetrics(self.timestamp_font).height())
-        display_body, _ = self._get_display_body(msg)
-        content_height = self.message_renderer.calculate_content_height(display_body, width - 2 * self.padding, row)
-        chips_height = self._chips_height(msg, width - 2 * self.padding)
-        return min(self.padding + header_height + 2 + content_height + chips_height + self.padding, 500)
+        timestamp_metrics = QFontMetrics(self.timestamp_font)
+        display_body, is_system = self._get_display_body(msg)
+        label_height = max(font_metrics.height(), timestamp_metrics.height())
+        timestamp_width = timestamp_metrics.horizontalAdvance(msg.get_time_str())
+        username_width = 0 if is_system else font_metrics.horizontalAdvance(msg.username)
+        full_width = content_width - 2 * self.padding
 
-    def _calculate_normal_height(self, msg, width: int, row: Optional[int] = None) -> int:
-        if not self.message_renderer:
-            return 50
+        if self.compact_mode:
+            body_x, body_y, body_width = self.padding, self.padding + label_height + _COMPACT_HEADER_GAP, full_width
+        else:
+            body_x = self.padding + timestamp_width + self.spacing + (0 if is_system else username_width + self.spacing)
+            body_y, body_width = self.padding, content_width - body_x - self.padding
 
-        font_metrics = QFontMetrics(self.body_font)
-        font_metrics_timestamp = QFontMetrics(self.timestamp_font)
+        body = self._body_layout(msg, display_body, is_system, body_width)
+        chips_height = self._chips_height(msg, full_width)
+        if self.compact_mode:
+            height = body_y + body.height + chips_height + self.padding
+        else:
+            height = max(label_height, body.height) + chips_height + 2 * self.padding
+        return _RowGeometry(
+            body, body_x, body_y, min(height, _MAX_ROW_HEIGHT), timestamp_width, username_width, not is_system,
+        )
 
-        time_str = msg.get_time_str()
-        timestamp_width = font_metrics_timestamp.horizontalAdvance(time_str) + self.spacing
-        username_width = font_metrics.horizontalAdvance(msg.username) + self.spacing
-
-        content_width = max(width - timestamp_width - username_width - 2 * self.padding, 200)
-
-        display_body, _ = self._get_display_body(msg)
-        content_height = self.message_renderer.calculate_content_height(display_body, content_width, row)
-        chips_height = self._chips_height(msg, width - 2 * self.padding)
-        label_height = max(font_metrics.height(), font_metrics_timestamp.height())
-        return min(max(label_height, content_height) + chips_height + 2 * self.padding, 500)
+    def _body_layout(self, msg, display_body: str, is_system: bool, width: int) -> TextLayout:
+        """The wrapped body of the message; kept on the message until the width, the font or the text changes."""
+        renderer = self.message_renderer
+        has_mentions = not (is_system or msg.is_private or msg.is_ban or getattr(msg, 'is_parser', False))
+        key = (width, renderer.layout_revision, display_body, has_mentions, renderer.mention_pattern())
+        cached = msg.layout_cache
+        if cached is not None and cached[0] == key:
+            return cached[1]
+        layout = renderer.layout_body(display_body, width, has_mentions, msg)
+        msg.layout_cache = (key, layout)
+        return layout
 
     def _chips_height(self, msg, width: int) -> int:
         players = getattr(msg, 'competition_players', None)
@@ -594,13 +622,9 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
         if getattr(msg, 'is_presence_log', False):
             self._paint_presence_log(painter, content_rect, msg, row, self.compact_mode)
         else:
-            self._paint_message(painter, content_rect, msg, row, self.compact_mode)
-
-        if self._has_delivery_marker(msg):
-            _DeliveryMarker.paint(
-                painter, option.rect, msg.delivery, self.message_renderer.content_end,
-                QFontMetrics(self.body_font).height()
-            )
+            text_end = self._paint_message(painter, content_rect, msg, row)
+            if self._has_delivery_marker(msg):
+                _DeliveryMarker.paint(painter, option.rect, msg.delivery, text_end, QFontMetrics(self.body_font).height())
 
         if self._show_continuity:
             first_line_middle = option.rect.top() + self.padding + QFontMetrics(self.body_font).height() // 2
@@ -644,20 +668,15 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
         )
         self.click_rects[row]['presence_users'] = user_rects
 
-    def _paint_message(self, painter: QPainter, rect: QRect, msg, row: int, compact: bool):
-        """Paint message in either compact or normal mode"""
-        if not self.message_renderer:
-            return
-
+    def _paint_message(self, painter: QPainter, rect: QRect, msg, row: int) -> QPoint:
+        """Paint a regular row; returns the spot right after the last character of the body."""
+        geometry = self._row_geometry(msg, rect.width())
         x, y = rect.x() + self.padding, rect.y() + self.padding
-        width = rect.width() - 2 * self.padding
-        time_str = msg.get_time_str()
-
         body_font_metrics = QFontMetrics(self.body_font)
         timestamp_font_metrics = QFontMetrics(self.timestamp_font)
 
         # Resolve display body and message type once - used for both timestamp color and content
-        display_body, is_system = self._get_display_body(msg)
+        _, is_system = self._get_display_body(msg)
         is_competition = bool(getattr(msg, 'is_competition', False))
         is_parser = bool(getattr(msg, 'is_parser', False))
 
@@ -666,8 +685,7 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
         timestamp_color = self.message_renderer.get_timestamp_color(
             msg.is_ban, msg.is_private, is_system, is_competition, is_parser
         )
-        timestamp_width = timestamp_font_metrics.horizontalAdvance(time_str)
-        timestamp_rect = QRect(x, y, timestamp_width, timestamp_font_metrics.height())
+        timestamp_rect = QRect(x, y, geometry.timestamp_width, timestamp_font_metrics.height())
 
         if self.message_renderer.is_copied(self._chatlog_url(msg)):
             self.message_renderer.draw_copy_highlight(painter, timestamp_rect, timestamp_color)
@@ -676,90 +694,49 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
         painter.drawText(
             timestamp_rect,
             Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
-            time_str
+            msg.get_time_str()
         )
         self.click_rects[row]['timestamp'] = timestamp_rect
 
-        # Determine content position based on mode and message type
-        if not is_system:
-            # Normal message - paint username
-            username_x = x + timestamp_width + self.spacing
-            color = self._get_username_color(msg.username, msg.background_color)
-
+        if geometry.has_username:
+            username_rect = QRect(
+                x + geometry.timestamp_width + self.spacing, y, geometry.username_width, body_font_metrics.height()
+            )
             painter.setFont(self.body_font)
-            painter.setPen(QColor(color))
-
-            un_width = body_font_metrics.horizontalAdvance(msg.username)
-            un_rect = QRect(username_x, y, un_width, body_font_metrics.height())
-            painter.drawText(
-                un_rect,
-                Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
-                msg.username
-            )
-            self.click_rects[row]['username'] = un_rect
-
-            # Content position after username
-            content_x = username_x + un_width + self.spacing
+            painter.setPen(QColor(self._get_username_color(msg.username, msg.background_color)))
+            painter.drawText(username_rect, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, msg.username)
+            self.click_rects[row]['username'] = username_rect
         else:
-            # System message - skip username, create empty click rect
             self.click_rects[row]['username'] = QRect()
-            # Content position right after timestamp
-            content_x = x + timestamp_width + self.spacing
 
-        # Calculate content position and dimensions based on mode
-        if compact:
-            # Compact mode: content below header
-            content_y = y + max(body_font_metrics.height(), timestamp_font_metrics.height()) + 2
-            content_width = width
-            link_rects = self.message_renderer.paint_content(
-                painter, x, content_y, content_width, display_body, row,
-                msg.is_private, msg.is_ban, is_system, is_competition,
-                is_parser, self.highlight_text
-            )
-            chips_base_y = content_y
-        else:
-            # Normal mode: content on same line after username/timestamp
-            content_width = rect.width() - (content_x - rect.x()) - self.padding
-            link_rects = self.message_renderer.paint_content(
-                painter, content_x, y, content_width, display_body, row,
-                msg.is_private, msg.is_ban, is_system, is_competition,
-                is_parser, self.highlight_text
-            )
-            chips_base_y = y
-
-        self.click_rects[row]['links'] = link_rects
+        body_x, body_y = rect.x() + geometry.body_x, rect.y() + geometry.body_y
+        self.click_rects[row]['links'] = self.message_renderer.paint_layout(
+            painter, geometry.body, body_x, body_y,
+            msg.is_private, msg.is_ban, is_system, is_competition, is_parser, self.highlight_text
+        )
 
         players = getattr(msg, 'competition_players', None)
         if players:
-            content_height = self.message_renderer.calculate_content_height(display_body, content_width, row)
             _, chip_rects = self.message_renderer.paint_chips(
-                painter, x, chips_base_y + content_height + self.spacing, width, players, self.is_dark_theme
+                painter, x, body_y + geometry.body.height + self.spacing, rect.width() - 2 * self.padding,
+                players, self.is_dark_theme
             )
             self.click_rects[row]['chips'] = chip_rects
 
-    def _refresh_row(self, row: int):
-        """Request refresh from background thread - emit signal to main thread"""
-        self.row_needs_refresh.emit(row)
+        end_x, end_y = geometry.body.content_end
+        return QPoint(round(body_x + end_x), round(body_y + end_y))
 
     def _do_refresh_row(self, row: int):
-        """Refresh row when async metadata arrives"""
-        if not self.list_view or not self.list_view.model() or not (0 <= row < self.list_view.model().rowCount()):
-            return
-        try:
-            model = self.list_view.model()
-            index = model.index(row, 0)
-            try:
-                model.dataChanged.emit(index, index, [Qt.ItemDataRole.DisplayRole])
-            except Exception:
-                pass
-            for attr in ('updateGeometries', 'doItemsLayout'):
-                try:
-                    getattr(self.list_view, attr, lambda: None)()
-                except Exception:
-                    pass
-            self.list_view.viewport().update()
-        except RuntimeError:
-            pass
+        """A row's content changed after it was added (competition header, chips): measure it again."""
+        model = self.list_view.model() if self.list_view else None
+        self._refresh_message(model.get_message_at(row) if model is not None else None)
+
+    def _refresh_message(self, message):
+        """Drop the message's cached layout and let the view measure its rows again."""
+        if message is not None:
+            message.layout_cache = None
+        self.geometry_changed.emit()
+        self._refresh_viewport()
 
     def editorEvent(self, event: QEvent, model, option: QStyleOptionViewItem,
                     index: QModelIndex) -> bool:

@@ -226,7 +226,7 @@ class ChatIncomingMixin:
         )
         for widget in widgets:
             if widget:
-                widget.force_recalculate()
+                widget.invalidate_geometry()
 
     def remove_message(self, msg, single: bool = True, direction: str = None, widget=None):
         """Remove message(s) without banning user.

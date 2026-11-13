@@ -66,11 +66,7 @@ class ChatFontsMixin:
         )
         for widget in message_widgets:
             if widget:
-                widget.delegate.body_font = new_font
-                widget.delegate.timestamp_font = new_font
-                if widget.delegate.message_renderer:
-                    widget.delegate.message_renderer.body_font = new_font
-                widget.force_recalculate()
+                widget.delegate.set_fonts(new_font)
                 widget.search.set_font(new_font)
 
         # Update message input fields (general + game rooms + custom rooms)

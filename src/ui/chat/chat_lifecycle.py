@@ -5,7 +5,6 @@ from PyQt6.QtWidgets import QApplication
 
 from components.button import set_theme, update_all_icons
 from helpers.deferred import call_later
-from ui.messages.message_delegate import freeze_row_sizes
 
 
 class ChatLifecycleMixin:
@@ -80,10 +79,9 @@ class ChatLifecycleMixin:
 
     def toggle_theme(self):
         try:
-            with freeze_row_sizes():
-                self.theme_manager.toggle_theme()
-                is_dark = self.theme_manager.is_dark()
-                set_theme(is_dark)
+            self.theme_manager.toggle_theme()
+            is_dark = self.theme_manager.is_dark()
+            set_theme(is_dark)
 
             # Update theme button icon via button panel
             self.button_panel.update_theme_button_icon()
@@ -128,9 +126,6 @@ class ChatLifecycleMixin:
             self.messages_widget.rebuild_messages()
             if self.presence_log_widget:
                 self.presence_log_widget.rebuild_messages()
-
-            if self.chatlog_widget and self.stacked_widget.currentWidget() == self.chatlog_widget:
-                self.chatlog_widget.force_recalculate()
 
             # Re-theme open game rooms and custom rooms
             for room in self.all_room_widgets():

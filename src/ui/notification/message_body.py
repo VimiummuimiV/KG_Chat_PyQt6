@@ -6,6 +6,7 @@ from PyQt6.QtCore import pyqtSignal, QRect, QSize, Qt, QTimer
 from PyQt6.QtGui import QCursor, QPainter
 from PyQt6.QtWidgets import QWidget
 
+from ui.messages.message_layout import TextLayout
 from ui.messages.message_renderer import MessageRenderer
 
 
@@ -27,6 +28,8 @@ class MessageBodyWidget(QWidget):
         self.is_competition = is_competition
         self.is_parser = is_parser
         self.players = players or []
+        self._layout: Optional[TextLayout] = None
+        self._layout_key = None
         self._link_rects: List[Tuple[QRect, str, bool]] = []
         self._chip_rects: List[Tuple[QRect, str]] = []
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
@@ -44,8 +47,17 @@ class MessageBodyWidget(QWidget):
             self.animation_timer.timeout.connect(self.update)  # Trigger repaint
             self.animation_timer.start(33)  # ~30 FPS
 
+    def _body_layout(self, width: int) -> TextLayout:
+        """The wrapped text; rebuilt only when the text, the width or the font changed."""
+        key = (self.text, width, self.message_renderer.layout_revision, self.message_renderer.mention_pattern())
+        if key != self._layout_key:
+            has_mentions = not (self.is_system or self.is_private or self.is_ban or self.is_parser)
+            self._layout = self.message_renderer.layout_body(self.text, width, has_mentions)
+            self._layout_key = key
+        return self._layout
+
     def _calculate_height(self, width: int) -> int:
-        height = self.message_renderer.calculate_content_height(self.text, width)
+        height = self._body_layout(width).height
         if self.players:
             height += 6 + self.message_renderer.calculate_chips_height(self.players, width)
         return height
@@ -67,12 +79,11 @@ class MessageBodyWidget(QWidget):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
         # Paint content and get link rectangles
-        self._link_rects = self.message_renderer.paint_content(
+        body = self._body_layout(self.width())
+        self._link_rects = self.message_renderer.paint_layout(
             painter,
+            body,
             0, 0,
-            self.width(),
-            self.text,
-            None,  # row
             self.is_private,
             self.is_ban,
             self.is_system,
@@ -81,9 +92,8 @@ class MessageBodyWidget(QWidget):
         )
 
         if self.players:
-            content_height = self.message_renderer.calculate_content_height(self.text, self.width())
             _, self._chip_rects = self.message_renderer.paint_chips(
-                painter, 0, content_height + 6, self.width(), self.players, self.message_renderer.is_dark_theme
+                painter, 0, body.height + 6, self.width(), self.players, self.message_renderer.is_dark_theme
             )
         else:
             self._chip_rects = []

@@ -245,7 +245,6 @@ class ChatRoomTabsMixin:
 
         self.content_layout.addWidget(self.room_tabs)
         self.setUpdatesEnabled(True)
-        self.messages_widget.force_recalculate()
 
     def _collapse_room_tabs(self):
         """Reverse of _ensure_room_tabs: once no game-room tabs remain, unwrap
@@ -264,7 +263,6 @@ class ChatRoomTabsMixin:
         self.general_body = None
         self.unread_rooms.clear()
         self.setUpdatesEnabled(True)
-        self.messages_widget.force_recalculate()
 
     def _room_tab_index(self, game_id):
         """QTabWidget index for a room, or 0 for General (gid=None). -1 if not open.
@@ -374,10 +372,6 @@ class ChatRoomTabsMixin:
                     self._clear_tab_unread(f"c:{w.room_name}")
                 else:
                     self._clear_tab_unread(w.game_id)
-        mw = self.active_messages_widget()
-        if mw:
-            mw.force_recalculate()
-            QTimer.singleShot(0, mw.force_recalculate)
 
     def _join_room(self, room_jid: str, game_id=None):
         """Join a MUC room. game_id set → game/competition room, unset → custom room."""

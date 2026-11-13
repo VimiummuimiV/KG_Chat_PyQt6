@@ -3,7 +3,7 @@
 from datetime import datetime
 from types import SimpleNamespace
 
-from PyQt6.QtCore import pyqtSignal, Qt, QTimer
+from PyQt6.QtCore import pyqtSignal, Qt
 from PyQt6.QtWidgets import QListView, QVBoxLayout, QWidget
 
 from components.search import MessageSearchBar
@@ -18,6 +18,7 @@ from helpers.users.presence_log import add_presence_entry, presence_entries_to_t
 from ui.messages.message_delegate import MessageDelegate
 from ui.messages.message_interactions import MessageInteractions
 from ui.messages.message_model import MessageData, MessageListModel
+from ui.messages.message_view_geometry import MessageViewGeometry
 from ui.settings.settings_options import DEFAULTS
 
 
@@ -121,9 +122,7 @@ class MessagesWidget(TranslatableMixin, QWidget):
         self.retranslate_all()
 
     def set_compact_mode(self, compact: bool):
-        if self.delegate.compact_mode != compact:
-            self.delegate.set_compact_mode(compact)
-            self.force_recalculate()
+        self.delegate.set_compact_mode(compact)
 
     def _setup_ui(self):
         spacing = self.config.get("ui", "spacing", "widget_elements") or 4
@@ -156,6 +155,7 @@ class MessagesWidget(TranslatableMixin, QWidget):
         self.list_view.setModel(self.model)
         self.list_view.setItemDelegate(self.delegate)
         self.delegate.set_list_view(self.list_view)
+        self.view_geometry = MessageViewGeometry(self.list_view, self.delegate)
 
         self.list_view.setVerticalScrollMode(QListView.ScrollMode.ScrollPerPixel)
         self.list_view.setUniformItemSizes(False)
@@ -276,9 +276,6 @@ class MessagesWidget(TranslatableMixin, QWidget):
 
     def rebuild_messages(self):
         self.delegate.update_theme()
-        if self.delegate.message_renderer:
-            self.delegate.message_renderer.emoticon_cache.clear()
-        self.force_recalculate()
 
     def update_theme(self):
         theme = self.config.get("ui", "theme")
@@ -290,18 +287,10 @@ class MessagesWidget(TranslatableMixin, QWidget):
 
     def set_show_delivery_marker(self, enabled: bool):
         self.delegate.set_show_delivery_marker(enabled)
-        self.force_recalculate()
 
-    def force_recalculate(self):
-        """Aggressive force recalculation of all item sizes"""
-        self.list_view.setUpdatesEnabled(False)
-        self.list_view.reset()
-        self.list_view.clearSelection()
-        self.list_view.scheduleDelayedItemsLayout()
-        self.model.layoutChanged.emit()
-        self.list_view.setUpdatesEnabled(True)
-        self.list_view.viewport().update()
-        QTimer.singleShot(10, self.list_view.viewport().update)  # a bound method is dropped with its widget
+    def invalidate_geometry(self):
+        """Drop every cached row layout (link labels or emoticon sizes changed) and measure the rows again."""
+        self.delegate.invalidate_geometry()
 
     def cleanup(self):
         """Cleanup delegate to stop animation timer"""

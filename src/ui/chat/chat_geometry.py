@@ -116,24 +116,15 @@ class ChatGeometryMixin:
         if self.window_size_manager.has_saved_size() or cur != self.calculate_default_geometry():
             self.window_size_manager.update_geometry(*cur)
 
-    def complete_resize_recalculation(self):
-        """Complete resize with aggressive recalculation"""
+    def finish_resize(self):
+        """After a resize: pin the open list to the bottom and refit the presence pane to its re-measured rows."""
         current = self.stacked_widget.currentWidget()
         if current == self.messages_splitter:
-            mw = self.active_messages_widget()
-            mw.force_recalculate()
-            self.scroll_to_bottom(mw.list_view)
-            if self.chatlog_split_widget:
-                self.chatlog_split_widget.force_recalculate()
+            self.scroll_to_bottom(self.active_messages_widget().list_view)
             if self.presence_log_widget:
-                self.presence_log_widget.force_recalculate()
                 self.apply_presence_split_sizes()
         elif current == self.chatlog_widget and self.chatlog_widget:
-            self.chatlog_widget.force_recalculate()
             self.scroll_to_bottom(self.chatlog_widget.list_view)
-            nested = self.chatlog_widget.split_chatlog_widget
-            if nested:
-                nested.force_recalculate()
 
     def toggle_user_list(self):
         """Toggle userlist based on current view with proper recalculation"""

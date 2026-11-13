@@ -560,7 +560,7 @@ class Application(QObject):
                 own_messages_updated = True
 
         if own_messages_updated:
-            self.chat_window.messages_widget.force_recalculate()
+            self.chat_window.messages_widget.list_view.viewport().update()
 
     def _handle_change_username_color(self):
         """Handle Change Username Color from tray menu."""
