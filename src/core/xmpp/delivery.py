@@ -49,14 +49,18 @@ class DeliveryTracker:
         return []
 
     def echo_received(self, from_jid: str, body: str) -> List[tuple]:
-        """Our own message came back from the server; the oldest waiting message with that text is delivered."""
+        """Our own message came back from the server; the oldest waiting message with that text is delivered.
+
+        A pending message wins over a failed one with the same text: the failed one may be a resent duplicate.
+        """
         room_jid = bare_room_jid(from_jid)
         text = (body or "").strip()
-        for delivery_id, outgoing in self._outgoing.items():
-            if outgoing.state == DELIVERED or not outgoing.is_echoed or outgoing.body != text:
-                continue
-            if outgoing.target_jid is None or bare_room_jid(outgoing.target_jid) == room_jid:
-                return self._change(delivery_id, DELIVERED)
+        for wanted_state in (PENDING, FAILED):
+            for delivery_id, outgoing in self._outgoing.items():
+                if outgoing.state != wanted_state or not outgoing.is_echoed or outgoing.body != text:
+                    continue
+                if outgoing.target_jid is None or bare_room_jid(outgoing.target_jid) == room_jid:
+                    return self._change(delivery_id, DELIVERED)
         return []
 
     def timed_out(self, delivery_id: int) -> List[tuple]:

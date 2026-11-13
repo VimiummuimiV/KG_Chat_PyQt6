@@ -17,6 +17,7 @@ class ChatDeliveryMixin:
     def setup_delivery(self):
         self.delivery_tracker = DeliveryTracker()
         self.input_drafts = InputDrafts()
+        self._given_back_ids = set()  # failed messages returned to the input, in case the server still turns out to have them
         self._draft_timer = QTimer(self)
         self._draft_timer.setSingleShot(True)
         self._draft_timer.setInterval(_DRAFT_SAVE_DELAY_MS)
@@ -71,11 +72,22 @@ class ChatDeliveryMixin:
                 widget.set_delivery(delivery_id, state)
             if state == DELIVERED:
                 self.input_drafts.remove_unsent(self.my_username, body)
+                if delivery_id in self._given_back_ids:
+                    self._take_back_from_input(delivery_id, body)
             elif state == FAILED:
-                self._give_back_to_input(body)
+                self._give_back_to_input(delivery_id, body)
 
-    def _give_back_to_input(self, body: str):
+    def _give_back_to_input(self, delivery_id: int, body: str):
         """Put a message the server did not get back into the input field so it can be sent again."""
+        self._given_back_ids.add(delivery_id)
         self.input_field.setText(f"{self.input_field.text()} {body}".strip())
         self.input_drafts.remove_unsent(self.my_username, body)  # it is the draft now; keeping both would restore it twice
         self.save_draft()
+
+    def _take_back_from_input(self, delivery_id: int, body: str):
+        """A message given back as failed was delivered after all (late echo): remove it from the input field."""
+        self._given_back_ids.discard(delivery_id)
+        text = self.input_field.text()
+        if body in text:
+            self.input_field.setText(text.replace(body, "", 1).strip())
+            self.save_draft()

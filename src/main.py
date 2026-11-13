@@ -621,12 +621,14 @@ class Application(QObject):
                 window.teardown_presence_log_widget()
             window.hide()
         else:
+            input_field = getattr(window, 'input_field', None) if window == self.chat_window else None
+            draft = input_field.text() if input_field else ""
             self._reveal_window(window)
             if window == self.chat_window:
                 self.reset_unread()
-                # Clear input field to remove any stray characters from hotkey
-                if hasattr(window, 'input_field') and window.input_field:
-                    QTimer.singleShot(50, window.input_field.clear)
+                if input_field:
+                    # Put the draft back: drops any stray characters typed by the hotkey but keeps what the user wrote
+                    QTimer.singleShot(50, lambda: input_field.setText(draft))
 
 
 def main():
