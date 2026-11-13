@@ -60,9 +60,7 @@ class JoinRoomDialog(TranslatableMixin, QDialog):
         self.tr_set(self._name_input.setPlaceholderText, "Room name", "Название комнаты")
         self._name_input.setFixedHeight(input_height)
         self._name_input.setFont(get_font(FontType.UI))
-        self._name_input.setStyleSheet(
-            f"QLineEdit {{ height: {input_height}px; padding: 0px 8px; }}"
-        )
+        self._name_input.setObjectName("joinRoomField")
         self._name_input.returnPressed.connect(self.accept)
         layout.addWidget(self._name_input)
 
@@ -70,9 +68,7 @@ class JoinRoomDialog(TranslatableMixin, QDialog):
         self._saved_combo.setFont(get_font(FontType.UI))
         self._saved_combo.setFixedHeight(input_height)
         self._saved_combo.setEditable(False)
-        self._saved_combo.setStyleSheet(
-            f"QComboBox {{ height: {input_height}px; padding: 0px 8px; }}"
-        )
+        self._saved_combo.setObjectName("joinRoomField")
         self.tr_set(self._saved_combo.setPlaceholderText, "Saved rooms", "Сохранённые комнаты")
         self._saved_combo.currentIndexChanged.connect(self._on_saved_picked)
         layout.addWidget(self._saved_combo)

@@ -1,5 +1,6 @@
 """QLabel painted in an arbitrary data color (e.g. a username color) without a per-widget stylesheet."""
 
+from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QColor, QPainter
 from PyQt6.QtWidgets import QLabel
 
@@ -18,4 +19,11 @@ class ColoredLabel(QLabel):
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setPen(self._color)
-        painter.drawText(self.contentsRect(), self.alignment().value, self.text())
+        rect = self.contentsRect()
+        if self.frameWidth():  # QLabel insets its text by half an "x" inside a frame
+            inset = self.fontMetrics().horizontalAdvance("x") // 2
+            if self.alignment() & Qt.AlignmentFlag.AlignLeft:
+                rect.setLeft(rect.left() + inset)
+            elif self.alignment() & Qt.AlignmentFlag.AlignRight:
+                rect.setRight(rect.right() - inset)
+        painter.drawText(rect, self.alignment().value, self.text())

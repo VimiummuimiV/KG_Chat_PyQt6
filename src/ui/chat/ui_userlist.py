@@ -297,7 +297,7 @@ class UserListWidget(TranslatableMixin, QWidget):
         # Chat section
         self.chat_label = QLabel(tr("Chat", "Чат"))
         self.chat_label.setFont(section_label)
-        self.chat_label.setObjectName("sectionLabel")
+        self.chat_label.setObjectName("mutedHint")
         self.chat_label.setVisible(False)
         self._main_layout.addWidget(self.chat_label)
         self.register_tr(self.chat_label.setText, tr("Chat", "Чат"))
@@ -314,7 +314,7 @@ class UserListWidget(TranslatableMixin, QWidget):
         # Game section
         self.game_label = QLabel(tr("Game", "Игра"))
         self.game_label.setFont(section_label)
-        self.game_label.setObjectName("sectionLabel")
+        self.game_label.setObjectName("mutedHint")
         self.game_label.setVisible(False)
         self._main_layout.addWidget(self.game_label)
         self.register_tr(self.game_label.setText, tr("Game", "Игра"))

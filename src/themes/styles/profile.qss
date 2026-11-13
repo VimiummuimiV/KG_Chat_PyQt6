@@ -1,0 +1,23 @@
+/* Profile: elevated cards (a QLabel is a QFrame, so the labels inside share the container look) */
+#statCard,
+#statCard QFrame {
+    background-color: $container_bg;
+    border: 1px solid $container_border;
+    border-radius: 8px;
+    padding: 4px;
+}
+
+QLabel#statLabel {
+    color: $text_secondary;
+}
+
+QLabel#profileAvatar {
+    background-color: $container_bg;
+    border: none;
+    border-radius: 15px;
+    padding: 0px;
+}
+
+QLabel#historyCurrent {
+    color: $current_name;
+}

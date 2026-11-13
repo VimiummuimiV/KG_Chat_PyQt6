@@ -69,38 +69,12 @@ _RANKS = {
 }
 
 
-class _ContainerStyleMixin:
-    """Unified styling for elevated container components"""
-
-    @staticmethod
-    def _get_container_style(is_dark: bool) -> str:
-        """Get container background and border styling"""
-        if is_dark:
-            return """
-                background-color: rgba(255, 255, 255, 0.05);
-                border: 1px solid rgba(255, 255, 255, 0.1);
-                border-radius: 8px;
-                padding: 4px;
-            """
-        return """
-            background-color: rgba(0, 0, 0, 0.03);
-            border: 1px solid rgba(0, 0, 0, 0.1);
-            border-radius: 8px;
-            padding: 4px;
-        """
-
-    @staticmethod
-    def _get_secondary_label_color(is_dark: bool) -> str:
-        """Get secondary label color"""
-        return "rgba(255, 255, 255, 0.6)" if is_dark else "rgba(0, 0, 0, 0.5)"
-
-
 class _StatCard(QFrame):
     """Styled card for displaying a stat"""
-    def __init__(self, icon: str, label: str, value: str, config, is_dark: bool, value_color: str = None):
+    def __init__(self, icon: str, label: str, value: str, config, value_color: str = None):
         super().__init__()
         self.config = config
-        self.is_dark = is_dark
+        self.setObjectName("statCard")
 
         self.setFrameShape(QFrame.Shape.StyledPanel)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
@@ -118,6 +92,7 @@ class _StatCard(QFrame):
         header.addWidget(self._icon_label)
 
         self._label_widget = QLabel(label)
+        self._label_widget.setObjectName("statLabel")
         self._label_widget.setFont(get_font(FontType.TEXT))
         self._label_widget.setWordWrap(True)
         header.addWidget(self._label_widget, stretch=1)
@@ -131,19 +106,6 @@ class _StatCard(QFrame):
         if value_color:
             self.value_label.setStyleSheet(f"color: {value_color};")
         layout.addWidget(self.value_label)
-
-        self._update_style()
-
-    def _update_style(self):
-        """Update card and label styling"""
-        self.setStyleSheet(f"QFrame {{ {_ContainerStyleMixin._get_container_style(self.is_dark)} }}")
-        if hasattr(self, '_label_widget'):
-            self._label_widget.setStyleSheet(f"color: {_ContainerStyleMixin._get_secondary_label_color(self.is_dark)};")
-
-    def update_theme(self, is_dark: bool):
-        """Update theme"""
-        self.is_dark = is_dark
-        self._update_style()
 
     def _set_label(self, label: str):
         self._label_widget.setText(label)
@@ -170,7 +132,7 @@ class _UsernameHistoryWidget(TranslatableMixin, QWidget):
         self._header_card = _StatCard(
             _ProfileIcons._USERNAME_HISTORY,
             tr("Username History", "История ников"),
-            "", config, is_dark
+            "", config
         )
         self._header_card.value_label.hide()
         layout.addWidget(self._header_card)
@@ -180,10 +142,10 @@ class _UsernameHistoryWidget(TranslatableMixin, QWidget):
         scroll.setWidgetResizable(True)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         scroll.setFrameShape(QFrame.Shape.NoFrame)
-        scroll.setStyleSheet("QScrollArea { background: transparent; border: none; }")
+        scroll.setObjectName("profileScroll")
 
         content = QWidget()
-        content.setStyleSheet("background: transparent;")
+        content.setObjectName("profileContent")
         self.content_layout = QVBoxLayout(content)
         self.content_layout.setContentsMargins(8, 0, 8, 0)
         self.content_layout.setSpacing(3)
@@ -213,20 +175,16 @@ class _UsernameHistoryWidget(TranslatableMixin, QWidget):
                 item.widget().deleteLater()
 
         # Helper to create labels
-        def create_label(text, color=None):
+        def create_label(text, is_current=False):
             lbl = QLabel(text)
             lbl.setTextFormat(Qt.TextFormat.RichText)
-            lbl.setFont(get_font(FontType.TEXT, weight=QFont.Weight.Bold if color else QFont.Weight.Normal))
-            style = f"color: {color}; background: transparent;" if color else "background: transparent;"
-            lbl.setStyleSheet(style)
+            lbl.setFont(get_font(FontType.TEXT, weight=QFont.Weight.Bold if is_current else QFont.Weight.Normal))
+            if is_current:
+                lbl.setObjectName("historyCurrent")
             self.content_layout.addWidget(lbl)
-            return lbl
 
         # Current username (highlighted)
-        self._current_label = create_label(
-            f"<b>{current_username}</b>", 
-            '#00aaff' if self.is_dark else '#0066cc'
-        )
+        create_label(f"<b>{current_username}</b>", is_current=True)
 
         # History items
         date_color = '#60a5fa' if self.is_dark else '#2563eb'
@@ -261,9 +219,6 @@ class _UsernameHistoryWidget(TranslatableMixin, QWidget):
     def update_theme(self, is_dark: bool):
         """Update theme"""
         self.is_dark = is_dark
-        self._header_card.update_theme(is_dark)
-        if hasattr(self, '_current_label'):
-            self._current_label.setStyleSheet(f"color: {'#00aaff' if is_dark else '#0066cc'}; background: transparent;")
         QTimer.singleShot(0, self.adjust_height)
 
 
@@ -355,22 +310,10 @@ class ProfileWidget(TranslatableMixin, QWidget):
         self.avatar_label.setFixedSize(_AVATAR_SIZE, _AVATAR_SIZE)
         self.avatar_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.avatar_label.setFont(get_font(FontType.HEADER, size=48))
-        self._update_avatar_style()
+        self.avatar_label.setObjectName("profileAvatar")
 
         self.content_layout.addWidget(self.avatar_label, alignment=Qt.AlignmentFlag.AlignHCenter)
         self.content_layout.addSpacing(10)
-
-    def _update_avatar_style(self):
-        """Update avatar styling based on theme"""
-        style = f"""
-            QLabel {{
-                {_ContainerStyleMixin._get_container_style(self.is_dark)}
-                border: none;
-                border-radius: 15px;
-                padding: 0px;
-            }}
-        """
-        self.avatar_label.setStyleSheet(style)
 
     def _open_profile_in_browser(self):
         if self.current_user_id:
@@ -524,20 +467,16 @@ class ProfileWidget(TranslatableMixin, QWidget):
         if self.history_widget:
             self.history_widget.setFixedWidth(self._grid_width(1))
         for index, (icon, label, value, value_color) in enumerate(self.cards_data):
-            card = _StatCard(icon, label, value, self.config, self.is_dark, value_color)
+            card = _StatCard(icon, label, value, self.config, value_color)
             self._card_widgets.append(card)
             self._cards_layout.addWidget(card, index // cols, index % cols)
 
     def update_theme(self):
         """Update widget styling for theme changes"""
         self.is_dark = self.config.get("ui", "theme") == "dark"
-        self._update_avatar_style()
 
         if self.history_widget:
             self.history_widget.update_theme(self.is_dark)
-
-        for card in self._card_widgets:
-            card.update_theme(self.is_dark)
 
     def _retranslate(self, _code=None):
         self.retranslate_all()

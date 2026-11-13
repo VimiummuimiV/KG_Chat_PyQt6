@@ -1,0 +1,27 @@
+/* Tag chips (saved quick-access values) */
+#tagButton {
+    background-color: $tag_bg;
+    border: 1px solid $tag_border;
+    border-radius: 6px;
+}
+
+QLabel#tagLabel {
+    color: $tag_text;
+    background: transparent;
+    border: none;
+}
+
+QPushButton#tagClose {
+    background: transparent;
+    border: none;
+    border-radius: 4px;
+}
+
+QPushButton#tagClose:hover {
+    background-color: $tag_close_hover;
+}
+
+#tagDropLine {
+    background-color: $drop_line;
+    border-radius: 3px;
+}

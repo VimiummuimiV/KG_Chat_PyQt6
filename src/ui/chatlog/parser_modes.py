@@ -120,7 +120,7 @@ class ParserModesMixin:
         elif mode == "From Date":
             self._add_date_input(tr("From:", "С:"), "from_date")
             info = QLabel(tr("(to today)", "(до сегодня)"))
-            info.setStyleSheet("color: #888;")
+            info.setObjectName("mutedHint")
             self.date_layout.addWidget(info)
 
         elif mode == "Date Range":
@@ -128,7 +128,7 @@ class ParserModesMixin:
 
         elif mode == "From Start":
             info = QLabel(tr("Will parse from 2012-12-02 to today", "Парсинг с 2012-12-02 до сегодня"))
-            info.setStyleSheet("color: #888;")
+            info.setObjectName("mutedHint")
             self.date_layout.addWidget(info)
 
         elif mode == "From Registered":
@@ -136,7 +136,7 @@ class ParserModesMixin:
                 "Will use registration date of entered user(s)",
                 "Будет использована дата регистрации указанных пользователей")
             )
-            info.setStyleSheet("color: #888;")
+            info.setObjectName("mutedHint")
             self.date_layout.addWidget(info)
 
         elif mode == "Sync Database":
@@ -144,7 +144,7 @@ class ParserModesMixin:
                 "📁 Sync all missing chatlogs to database",
                 "📁 Синхронизировать все недостающие чатлоги в базу")
             )
-            info.setStyleSheet("color: #4CAF50; font-weight: bold; padding: 8px;")
+            info.setObjectName("successHint")
             self.date_layout.addWidget(info)
 
             desc = QLabel(tr(
@@ -154,7 +154,7 @@ class ParserModesMixin:
                 "Сообщения не будут показаны — только синхронизация базы."
             ))
             desc.setWordWrap(True)
-            desc.setStyleSheet("color: #888; padding: 4px;")
+            desc.setObjectName("mutedHintPadded")
             self.date_layout.addWidget(desc)
 
         elif mode == "Personal Mentions":

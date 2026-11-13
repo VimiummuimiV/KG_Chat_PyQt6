@@ -96,7 +96,7 @@ class UserTrackerWidget(
 
         self.info_label = QLabel("")
         self.info_label.setFont(get_font(FontType.UI))
-        self.info_label.setStyleSheet("color: #888;")
+        self.info_label.setObjectName("mutedHint")
         self.info_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         self.info_label.setVisible(False)
         header_layout.addWidget(self.info_label, stretch=1)
@@ -186,7 +186,7 @@ class UserTrackerWidget(
         self._empty_history_label = QLabel()
         self._empty_history_label.setFont(get_font(FontType.UI))
         self._empty_history_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._empty_history_label.setStyleSheet("color: #888;")
+        self._empty_history_label.setObjectName("mutedHint")
         self.tr_set(self._empty_history_label.setText, "No events", "Нет событий")
 
         self.history_stack = QStackedWidget()

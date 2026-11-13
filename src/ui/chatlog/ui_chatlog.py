@@ -174,7 +174,7 @@ class ChatlogWidget(
 
         # Info label
         self.info_label = FlashLabel(tr("Loading...", "Загрузка..."), is_dark_fn=lambda: self.delegate.is_dark_theme, config=self.config, duration_kind="copy")
-        self.info_label.setStyleSheet("color: #666666;")
+        self.info_label.setObjectName("infoLabel")
         self.info_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         self.info_label.setWordWrap(True)
         self.info_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)

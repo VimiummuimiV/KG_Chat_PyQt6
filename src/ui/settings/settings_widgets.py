@@ -77,9 +77,3 @@ class SettingsRow(QWidget):
         layout = QHBoxLayout(self)
         layout.setContentsMargins(4, 4, 4, 4)
         layout.setSpacing(spacing)
-        # Soft row fill; label/slider transparent so it shows through (combo/spin keep chrome).
-        self.setStyleSheet(
-            "#settingsRow { background: transparent; border-radius: 6px; }"
-            "#settingsRow:hover { background: rgba(128, 128, 128, 0.10); }"
-            "#settingsRow QLabel, #settingsRow QSlider { background: transparent; }"
-        )

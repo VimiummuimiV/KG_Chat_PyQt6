@@ -21,7 +21,7 @@ from helpers.cache import get_cache
 from helpers.config import Config, get_config_path
 from helpers.data import get_resource_dir
 from helpers.deferred import call_later
-from helpers.fonts.fonts import get_userlist_width, set_application_font
+from helpers.fonts.fonts import get_userlist_width
 from helpers.system.memory import release_memory_soon
 from helpers.text.emoticons import EmoticonManager
 from helpers.translate import on_language_changed, tr, TranslatableMixin
@@ -202,10 +202,6 @@ class ChatWindow(
         self.theme_manager = ThemeManager(self.config)
         self.theme_manager.apply_theme()
         set_theme(self.theme_manager.is_dark())
-        # Theme stylesheet can wipe menu/tooltip font; re-apply UI font after it.
-        app = QApplication.instance()
-        if app:
-            set_application_font(app)
 
         # Initialize voice engine
         self.voice_engine = get_voice_engine()

@@ -1,0 +1,50 @@
+/* Context help panel; the panel colors every child, specific rules below win by order */
+#helpPanel,
+#helpPanel QWidget {
+    background-color: $help_bg;
+}
+
+QScrollArea#helpScroll {
+    background-color: $help_bg;
+    border: none;
+}
+
+QLabel#helpTitle {
+    color: $help_title;
+    font-size: 14px;
+    font-weight: bold;
+    padding-bottom: 6px;
+}
+
+QLabel#helpSection {
+    color: $help_section;
+    font-size: 12px;
+    font-weight: bold;
+    padding: 6px 0 2px 0;
+}
+
+QFrame#helpSeparator {
+    color: $help_separator;
+    margin: 2px 0;
+}
+
+QLabel#helpDescription {
+    color: $help_text;
+    font-size: 12px;
+    padding: 3px 8px;
+}
+
+QLabel#helpKey {
+    color: $help_badge_text;
+    border-radius: 4px;
+    padding: 3px 8px;
+    font-weight: bold;
+}
+
+QLabel#helpKey[kind="keyboard"] {
+    background-color: $help_keyboard_bg;
+}
+
+QLabel#helpKey[kind="mouse"] {
+    background-color: $help_mouse_bg;
+}

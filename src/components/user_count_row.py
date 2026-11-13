@@ -8,6 +8,7 @@ from components.avatar import apply_user_avatar, make_avatar_label, refresh_avat
 from components.colored_label import ColoredLabel
 from helpers.cache import get_cache
 from helpers.fonts.fonts import FontType, get_font
+from themes.stylesheet import set_style_property
 
 
 class UserCountRow(QWidget):
@@ -18,13 +19,13 @@ class UserCountRow(QWidget):
     clicked = pyqtSignal(str, bool)  # username, ctrl_pressed
 
     def __init__(self, username, count, config, icons_path, user_id=None,
-                 margins=(2, 0, 2, 0), spacing=6, filter_radius=4):
+                 margins=(2, 0, 2, 0), spacing=6):
         super().__init__()
+        self.setObjectName("userCountRow")
         self.username = username
         self.user_id = user_id
         self.icons_path = icons_path
         self._is_filtered = False
-        self._filter_radius = filter_radius
         self._cache = get_cache()
 
         layout = QHBoxLayout()
@@ -40,6 +41,7 @@ class UserCountRow(QWidget):
         layout.addWidget(self.avatar_label)
 
         self.username_label = ColoredLabel(username, self._cache.get_username_color(username, is_dark))
+        self.username_label.setObjectName("userName")
         self.username_label.setFont(get_font(FontType.TEXT))
         self.username_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         self.username_label.setMinimumWidth(20)
@@ -58,12 +60,7 @@ class UserCountRow(QWidget):
     def set_filtered(self, filtered: bool):
         """Update visual state when filtered"""
         self._is_filtered = filtered
-        if filtered:
-            self.setStyleSheet(
-                f"background-color: rgba(226, 135, 67, 0.2); border-radius: {self._filter_radius}px;"
-            )
-        else:
-            self.setStyleSheet("")
+        set_style_property(self, "filtered", filtered)
 
     def update_theme(self, is_dark: bool):
         """Username color re-read from the cache; placeholder avatar recolored; the count follows the stylesheet."""

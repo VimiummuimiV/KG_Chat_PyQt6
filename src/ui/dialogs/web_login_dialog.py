@@ -208,7 +208,7 @@ class LoginWebView(QDialog):
 
         self.setWindowTitle(tr("Authorization", "Авторизация"))
         self.resize(360, 360)
-        self.setStyleSheet("background:#000;")
+        self.setObjectName("webLoginDialog")
         self._navigating_to_gamelist = False
         self._spinner = LoadingSpinner(None, 48)
         self._captured_cookies = {}
@@ -233,7 +233,6 @@ class LoginWebView(QDialog):
         self._page.scripts().insert(script)
 
         root = QWidget(self)
-        root.setStyleSheet("background:#000;")
         stack = QStackedLayout(root)
         stack.setStackingMode(QStackedLayout.StackingMode.StackAll)
         stack.setContentsMargins(0, 0, 0, 0)
@@ -241,7 +240,6 @@ class LoginWebView(QDialog):
 
         self._wait_background = QWidget()
         self._wait_background.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
-        self._wait_background.setStyleSheet("background:#000;")
         stack.addWidget(self._wait_background)
 
         layout = QVBoxLayout(self)

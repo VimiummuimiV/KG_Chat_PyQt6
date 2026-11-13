@@ -21,6 +21,7 @@ from components.toast import show_toast, ToastKind
 from core.web.api_data import get_exact_user_id_by_name
 from helpers.fonts.fonts import FontType, get_font
 from helpers.translate import on_language_changed, tr, TranslatableMixin
+from themes.stylesheet import set_style_property
 
 
 class _PronunciationItemWidget(TranslatableMixin, QWidget):
@@ -138,15 +139,11 @@ class _PronunciationItemWidget(TranslatableMixin, QWidget):
         """Update input styling based on validation state"""
         if not self.username_valid:
             # Invalid username - show red border
-            self._original_input.setStyleSheet("""
-                QLineEdit {
-                    border: 2px solid #ff4444;
-                }
-            """)
+            set_style_property(self._original_input, "validation", "invalid")
             self._original_input.setToolTip(tr("User not found", "Пользователь не найден"))
         else:
             # Valid or empty - remove custom styling
-            self._original_input.setStyleSheet("")
+            set_style_property(self._original_input, "validation", "")
             self._original_input.setToolTip("")
 
     def get_values(self):

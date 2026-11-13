@@ -10,6 +10,93 @@ QLabel#mutedLabel {
     color: $text_muted;
 }
 
-QLabel#sectionLabel {
+QLabel#mutedHint {
     color: #888;
+}
+
+QLabel#mutedHintPadded {
+    color: #888;
+    padding: 4px;
+}
+
+QLabel#successHint {
+    color: #4CAF50;
+    font-weight: bold;
+    padding: 8px;
+}
+
+QLabel#infoLabel {
+    color: #666666;
+}
+
+QLabel#hintLabel {
+    color: palette(placeholder-text);
+}
+
+/* Input validation: set with set_style_property(field, "validation", "missing" | "invalid") */
+QLineEdit[validation="missing"] {
+    border: 2px solid #ffb84d;
+}
+
+QLineEdit[validation="invalid"] {
+    border: 2px solid #ff4444;
+}
+
+QLineEdit#readOnlyField {
+    background-color: rgba(128, 128, 128, 0.1);
+}
+
+/* Settings rows: soft fill; label/slider transparent so it shows through (combo/spin keep chrome) */
+#settingsRow {
+    background: transparent;
+    border-radius: 6px;
+}
+
+#settingsRow:hover {
+    background: rgba(128, 128, 128, 0.10);
+}
+
+#settingsRow QLabel,
+#settingsRow QSlider {
+    background: transparent;
+}
+
+/* Account avatar button; "loaded" is a real photo that fills the button */
+QPushButton#accountAvatar {
+    background: transparent;
+    border: none;
+}
+
+QPushButton#accountAvatar[loaded="true"] {
+    padding: 0;
+}
+
+/* Web login dialog is black from edge to edge */
+#webLoginDialog,
+#webLoginDialog QWidget {
+    background: #000;
+}
+
+/* Profile history scroll area */
+QScrollArea#profileScroll {
+    background: transparent;
+    border: none;
+}
+
+#profileContent,
+#profileContent QWidget {
+    background: transparent;
+}
+
+/* Row marked by the user filter: its name and count are highlighted */
+#userCountRow[filtered="true"] #userName,
+#userCountRow[filtered="true"] #mutedLabel {
+    background-color: rgba(226, 135, 67, 0.2);
+    border-radius: 4px;
+}
+
+/* Join room dialog fields */
+QLineEdit#joinRoomField,
+QComboBox#joinRoomField {
+    padding: 0px 8px;
 }

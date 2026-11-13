@@ -1,0 +1,10 @@
+/* In-place text selection editor shown over a message row */
+QTextEdit#selectionEditor {
+    background: $editor_bg;
+    color: $editor_text;
+    border: none;
+    border-radius: 3px;
+    padding: 0px;
+    selection-background-color: $editor_selection_bg;
+    selection-color: $editor_selection_text;
+}

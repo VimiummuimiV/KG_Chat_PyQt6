@@ -236,7 +236,7 @@ class ChatlogsParserConfigWidget(ParserModesMixin, ParserRunMixin, ParserUsernam
         # Mention label (only for personal mentions mode)
         self.mention_label_widget = QLabel()
         self.mention_label_widget.setWordWrap(True)
-        self.mention_label_widget.setStyleSheet("color: #888; padding: 4px;")
+        self.mention_label_widget.setObjectName("mutedHintPadded")
         self.mention_label_widget.setVisible(False)
         layout.addWidget(self.mention_label_widget)
 

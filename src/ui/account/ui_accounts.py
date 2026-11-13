@@ -25,6 +25,7 @@ from helpers.fonts.fonts import FontType, get_font
 from helpers.system.startup_manager import StartupManager
 from helpers.translate import on_language_changed, tr, TranslatableMixin
 from helpers.users.username_color_manager import change_username_color, reset_username_color
+from themes.stylesheet import set_style_property
 from themes.theme import ThemeManager
 from ui.dialogs.web_login_dialog import LoginWebView
 from ui.settings.settings_options import fill_resource_combo
@@ -145,7 +146,7 @@ class AccountWindow(TranslatableMixin, QWidget):
             self.icons_path, "fill/user-3-fill.svg", tooltip=avatar_tooltip
         )
         self.register_tr(self._account_avatar.setToolTip, avatar_tooltip)
-        self._account_avatar.setStyleSheet("QPushButton { background: transparent; border: none; }")
+        self._account_avatar.setObjectName("accountAvatar")
         self._account_avatar.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         account_row.addWidget(self._account_avatar)
 
@@ -501,7 +502,7 @@ class AccountWindow(TranslatableMixin, QWidget):
     def _show_default_avatar(self):
         set_button_icon(self._account_avatar, "fill/user-3-fill.svg")
         self._account_avatar.setIconSize(QSize(self._account_avatar.icon_size, self._account_avatar.icon_size))
-        self._account_avatar.setStyleSheet("QPushButton { background: transparent; border: none; }")
+        set_style_property(self._account_avatar, "loaded", False)
 
     def _set_avatar(self, user_id: str, pixmap: QPixmap):
         """Show the loaded avatar unless another account was selected meanwhile."""
@@ -509,7 +510,7 @@ class AccountWindow(TranslatableMixin, QWidget):
             return
         self._account_avatar.setIcon(QIcon(make_rounded_avatar(pixmap, _AVATAR_SIZE)))
         self._account_avatar.setIconSize(QSize(_AVATAR_SIZE, _AVATAR_SIZE))
-        self._account_avatar.setStyleSheet("QPushButton { background: transparent; border: none; padding: 0; }")
+        set_style_property(self._account_avatar, "loaded", True)
 
     def _on_web_login(self):
         """Open browser login dialog to add an account."""

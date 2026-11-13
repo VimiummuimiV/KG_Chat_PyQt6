@@ -48,8 +48,6 @@ from ui.messages.messages_separator import DateSeparator, NewMessagesSeparator
 from ui.notification.popup_manager import popup_manager
 
 
-_DARK  = dict(bg="#0A0A0A", fg="#D4D4D4", sel_bg="#2E7D32", sel_fg="#E8F5E9")
-_LIGHT = dict(bg="#E3F0E4", fg="#1A1A1A", sel_bg="#388E3C", sel_fg="#FFFFFF")
 _REVEAL_SCROLL_DELAY_MS = 100
 _REVEAL_HIGHLIGHT_DELAY_MS = 250
 
@@ -128,7 +126,7 @@ class _AnchorMarker:
 class _TextSelectorOverlay(QTextEdit):
     """Self-sizing, self-closing read-only text overlay for copy/select."""
 
-    def __init__(self, html: str, font, row_rect: QRect, is_dark: bool, viewport,
+    def __init__(self, html: str, font, row_rect: QRect, viewport,
                  reply_callback=None, paste_callback=None,
                  username: str = "", timestamp=None, reply_body: str = "", message_count: int = 1):
         super().__init__(viewport)
@@ -144,18 +142,7 @@ class _TextSelectorOverlay(QTextEdit):
         self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
 
-        c = _DARK if is_dark else _LIGHT
-        self.setStyleSheet(f"""
-            QTextEdit {{
-                background   : {c['bg']};
-                color        : {c['fg']};
-                border       : none;
-                border-radius: 3px;
-                padding      : 0px;
-                selection-background-color: {c['sel_bg']};
-                selection-color           : {c['sel_fg']};
-            }}
-        """)
+        self.setObjectName("selectionEditor")
         self.document().setDocumentMargin(0)
 
         self.setGeometry(row_rect)
@@ -920,7 +907,7 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
         single = messages[0] if len(messages) == 1 else None
         username, timestamp = self._reply_context(single) if single else ("", None)
         self.text_selector = _TextSelectorOverlay(
-            self.copy_html_for(messages), self.body_font, rect, self.is_dark_theme,
+            self.copy_html_for(messages), self.body_font, rect,
             self.list_view.viewport(),
             reply_callback=self.reply_callback if single else None,
             paste_callback=self.paste_callback,

@@ -1,7 +1,5 @@
 """Context-aware help panel - displays keyboard shortcuts for the currently active component"""
 
-import json
-
 from PyQt6.QtCore import QEvent, Qt
 from PyQt6.QtWidgets import (
     QApplication,
@@ -13,7 +11,6 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from helpers.config import get_config_path
 from helpers.translate import on_language_changed, tr
 
 
@@ -273,32 +270,6 @@ _CONTEXTS = {
 }
 
 
-_THEMES = {
-    "dark": {
-        "bg": "#1e1e1e",
-        "title_color": "#6bb6d6",
-        "section_color": "#6ba885",
-        "text_color": "#c8c8c8",
-        "sep_color": "#404040",
-        "kb_bg": "#5a8fb4",
-        "kb_text": "#1a1a1a",
-        "mouse_bg": "#c9954d",
-        "mouse_text": "#1a1a1a",
-    },
-    "light": {
-        "bg": "#f0f0f0",
-        "title_color": "#3a8fb0",
-        "section_color": "#4a9570",
-        "text_color": "#4a4a4a",
-        "sep_color": "#d0d0d0",
-        "kb_bg": "#7ba8c7",
-        "kb_text": "#1a1a1a",
-        "mouse_bg": "#d9a866",
-        "mouse_text": "#1a1a1a",
-    },
-}
-
-
 class HelpPanel(QWidget):
     """
     Context-aware help panel. Call show_for_context(context_key) to display
@@ -310,7 +281,7 @@ class HelpPanel(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
 
-        self._config_path = get_config_path()
+        self.setObjectName("helpPanel")
         self._current_context = None
 
         self.setWindowFlags(
@@ -324,11 +295,7 @@ class HelpPanel(QWidget):
     def _on_language_changed(self, _code=None):
         self.setWindowTitle(tr("Help", "Справка"))
         if self.isVisible() and self._current_context:
-            try:
-                theme = json.loads(self._config_path.read_text(encoding="utf-8")).get("ui", {}).get("theme", "dark")
-            except Exception:
-                theme = "dark"
-            self._build(self._current_context, theme)
+            self._build(self._current_context)
 
     # ── Public API ─────────────────────────────────────────────────────────
 
@@ -342,12 +309,8 @@ class HelpPanel(QWidget):
             return
 
         self._current_context = context_key
-        try:
-            theme = json.loads(self._config_path.read_text(encoding="utf-8")).get("ui", {}).get("theme", "dark")
-        except Exception:
-            theme = "dark"
         geo = QApplication.primaryScreen().availableGeometry()
-        self._build(context_key, theme)
+        self._build(context_key)
         self.show()
         self.raise_()
         # Measure the real content height + chrome (title + footer + margins + spacing)
@@ -387,8 +350,8 @@ class HelpPanel(QWidget):
         y = geo.y() + (geo.height() - self.height()) // 2
         self.move(x, y)
 
-    def _build(self, context_key: str, theme: str = "dark"):
-        """Rebuild UI for the given context with current theme."""
+    def _build(self, context_key: str):
+        """Rebuild UI for the given context; colors come from the application stylesheet."""
         # ── Clear existing layout ─────────────────────────────────────────
         old_layout = self.layout()
         if old_layout:
@@ -400,11 +363,6 @@ class HelpPanel(QWidget):
                     _clear_layout(child.layout())
             QWidget().setLayout(old_layout)
 
-        # ── Theme colors ──────────────────────────────────────────────────
-        colors = _THEMES.get(theme, _THEMES["dark"])
-
-        self.setStyleSheet(f"QWidget {{ background-color: {colors['bg']}; }}")
-
         # ── Context definition ────────────────────────────────────────────
         context = _CONTEXTS.get(context_key, _CONTEXTS["chat"])
 
@@ -415,9 +373,7 @@ class HelpPanel(QWidget):
 
         # Title — always visible, outside scroll
         title_label = QLabel(tr(*context["title"]))
-        title_label.setStyleSheet(
-            f"color: {colors['title_color']}; font-size: 14px; font-weight: bold; padding-bottom: 6px;"
-        )
+        title_label.setObjectName("helpTitle")
         title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         outer.addWidget(title_label)
 
@@ -426,10 +382,9 @@ class HelpPanel(QWidget):
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.Shape.NoFrame)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        scroll.setStyleSheet(f"QScrollArea {{ background-color: {colors['bg']}; border: none; }}")
+        scroll.setObjectName("helpScroll")
 
         content = QWidget()
-        content.setStyleSheet(f"background-color: {colors['bg']};")
         sections_layout = QVBoxLayout(content)
         sections_layout.setContentsMargins(0, 0, 8, 0)
         sections_layout.setSpacing(6)
@@ -439,29 +394,24 @@ class HelpPanel(QWidget):
                 continue
 
             sec_label = QLabel(tr(*section_title))
-            sec_label.setStyleSheet(
-                f"color: {colors['section_color']}; font-size: 12px; font-weight: bold; "
-                f"padding: 6px 0 2px 0;"
-            )
+            sec_label.setObjectName("helpSection")
             sections_layout.addWidget(sec_label)
 
             sep = QFrame()
             sep.setFrameShape(QFrame.Shape.HLine)
-            sep.setStyleSheet(f"color: {colors['sep_color']}; margin: 2px 0;")
+            sep.setObjectName("helpSeparator")
             sections_layout.addWidget(sep)
 
             if kb_rows:
                 for key_text, desc_en, desc_ru in kb_rows:
                     sections_layout.addLayout(
-                        _badge_row(key_text, tr(desc_en, desc_ru),
-                                   colors['kb_bg'], colors['kb_text'], 130, colors['text_color'])
+                        _badge_row(key_text, tr(desc_en, desc_ru), "keyboard", 130)
                     )
 
             if mouse_rows:
                 for action_en, action_ru, desc_en, desc_ru in mouse_rows:
                     sections_layout.addLayout(
-                        _badge_row(tr(action_en, action_ru), tr(desc_en, desc_ru),
-                                   colors['mouse_bg'], colors['mouse_text'], 130, colors['text_color'])
+                        _badge_row(tr(action_en, action_ru), tr(desc_en, desc_ru), "mouse", 130)
                     )
 
         sections_layout.addStretch()
@@ -477,20 +427,18 @@ class HelpPanel(QWidget):
             super().keyPressEvent(event)
 
 
-def _badge_row(key_text, desc_text, badge_background, badge_text, min_width, desc_color):
+def _badge_row(key_text, desc_text, kind, min_width):
     row = QHBoxLayout()
     row.setSpacing(10)
 
     key = QLabel(key_text)
-    key.setStyleSheet(
-        f"background-color: {badge_background}; color: {badge_text}; "
-        f"border-radius: 4px; padding: 3px 8px; font-weight: bold;"
-    )
+    key.setObjectName("helpKey")
+    key.setProperty("kind", kind)
     key.setMinimumWidth(min_width)
     key.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
     desc = QLabel(desc_text)
-    desc.setStyleSheet(f"color: {desc_color}; font-size: 12px; padding: 3px 8px;")
+    desc.setObjectName("helpDescription")
 
     row.addWidget(key)
     row.addWidget(desc, 1)

@@ -235,7 +235,7 @@ class ChatlogUserlistWidget(TranslatableMixin, QWidget):
             # All users were banned or no messages
             empty_label = QLabel()
             empty_label.setFont(get_font(FontType.TEXT))
-            empty_label.setStyleSheet("color: #888888;")
+            empty_label.setObjectName("mutedHint")
             empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             self.tr_set(empty_label.setText, "No users to display", "Нет пользователей для отображения")
             self._user_layout.addWidget(empty_label)

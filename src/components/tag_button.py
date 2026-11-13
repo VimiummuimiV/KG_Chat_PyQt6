@@ -2,7 +2,6 @@
 
 from pathlib import Path
 
-from PyQt6 import sip
 from PyQt6.QtCore import pyqtSignal, QMimeData, QRect, QSize, Qt, QTimer
 from PyQt6.QtGui import QDrag
 from PyQt6.QtWidgets import QApplication, QHBoxLayout, QLabel, QLayout, QPushButton, QWidget
@@ -10,31 +9,18 @@ from PyQt6.QtWidgets import QApplication, QHBoxLayout, QLabel, QLayout, QPushBut
 from components import button as icon_helpers
 
 
-_tag_registry = []
-
-# Tag chip colors: (background, text, border)
-_TAG_COLORS_DARK = ("#333333", "#dddddd", "#454545")
-_TAG_COLORS_LIGHT = ("#eceef0", "#222222", "#d5d8db")
-_TAG_BORDER_RADIUS = 6 
-
 # Close (x) button
 _CLOSE_BUTTON_SIZE = 22
-_CLOSE_BUTTON_RADIUS = 4
 _CLOSE_ICON_SIZE = 12 
 _CLOSE_ICON_COLOR = "#999999"
 _CLOSE_ICON_STROKE_WIDTH = 2 
-_CLOSE_HOVER_BACKGROUND_DARK = "#4a4a4a"
-_CLOSE_HOVER_BACKGROUND_LIGHT = "#d5d8db"
 
 # Drag-to-reorder insertion line
-_DROP_LINE_COLOR_DARK = "#3399ff"
-_DROP_LINE_COLOR_LIGHT = "#0060df"
 _DROP_LINE_WIDTH = 6
-_DROP_LINE_RADIUS = 3
 
 
 class _TagButton(QWidget):
-    """Pill-shaped tag with a label and a small remove (x) icon, themed for dark/light."""
+    """Pill-shaped tag with a label and a small remove (x) icon; colors come from the stylesheet."""
 
     clicked = pyqtSignal(str)
     _double_clicked = pyqtSignal(str)
@@ -42,6 +28,7 @@ class _TagButton(QWidget):
 
     def __init__(self, text: str, icons_path: Path, close_icon: str = "line/close-large-line.svg"):
         super().__init__()
+        self.setObjectName("tagButton")
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self._text_value = text
         self.icons_path = icons_path
@@ -53,6 +40,7 @@ class _TagButton(QWidget):
         layout.setSpacing(6)
 
         self.label = QLabel(text)
+        self.label.setObjectName("tagLabel")
         self.label.setCursor(Qt.CursorShape.PointingHandCursor)
         self.label.mousePressEvent = self._on_label_press
         self.label.mouseMoveEvent = self._on_label_move
@@ -61,6 +49,7 @@ class _TagButton(QWidget):
         layout.addWidget(self.label)
 
         self.close_btn = QPushButton()
+        self.close_btn.setObjectName("tagClose")
         self.close_btn.setFlat(True)
         self.close_btn.setFixedSize(_CLOSE_BUTTON_SIZE, _CLOSE_BUTTON_SIZE)
         self.close_btn.setIconSize(QSize(_CLOSE_ICON_SIZE, _CLOSE_ICON_SIZE))
@@ -69,8 +58,10 @@ class _TagButton(QWidget):
         layout.addWidget(self.close_btn)
 
         self.setLayout(layout)
-        _tag_registry.append(self)
-        self._update_style()
+        self.close_btn.setIcon(icon_helpers.render_svg_icon(
+            self.icons_path / self._close_icon, _CLOSE_ICON_SIZE,
+            color=_CLOSE_ICON_COLOR, stroke_width=_CLOSE_ICON_STROKE_WIDTH
+        ))
 
     def _on_label_press(self, e):
         if e.button() == Qt.MouseButton.LeftButton:
@@ -98,33 +89,6 @@ class _TagButton(QWidget):
         drag.setPixmap(self.grab())
         drag.setHotSpot(self.rect().center())
         drag.exec(Qt.DropAction.MoveAction)
-
-    def _update_style(self):
-        """Re-apply colors for the current theme (read live from helpers.button)"""
-        is_dark = icon_helpers.is_dark_theme
-        bg, fg, border = _TAG_COLORS_DARK if is_dark else _TAG_COLORS_LIGHT
-        close_hover_background = _CLOSE_HOVER_BACKGROUND_DARK if is_dark else _CLOSE_HOVER_BACKGROUND_LIGHT
-
-        self.setStyleSheet(
-            f"background-color: {bg}; border: 1px solid {border}; border-radius: {_TAG_BORDER_RADIUS}px;"
-        )
-        self.label.setStyleSheet(f"color: {fg}; background: transparent; border: none;")
-        self.close_btn.setStyleSheet(
-            f"QPushButton {{ background: transparent; border: none; border-radius: {_CLOSE_BUTTON_RADIUS}px; }}"
-            f"QPushButton:hover {{ background-color: {close_hover_background}; }}"
-        )
-        self.close_btn.setIcon(icon_helpers.render_svg_icon(
-            self.icons_path / self._close_icon, _CLOSE_ICON_SIZE,
-            color=_CLOSE_ICON_COLOR, stroke_width=_CLOSE_ICON_STROKE_WIDTH
-        ))
-
-
-def update_all_tag_buttons():
-    """Refresh all registered TagButton instances. Call alongside update_all_icons() on theme change."""
-    global _tag_registry
-    _tag_registry = [tag for tag in _tag_registry if not sip.isdeleted(tag)]
-    for tag in _tag_registry:
-        tag._update_style()
 
 
 class _FlowLayout(QLayout):
@@ -199,6 +163,7 @@ class SavedValuesBar(QWidget):
 
         self._layout = _FlowLayout(self)
         self._drop_indicator = QWidget(self)
+        self._drop_indicator.setObjectName("tagDropLine")
         self._drop_indicator.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self._drop_indicator.hide()
         self._drop_target = (None, False)
@@ -251,10 +216,6 @@ class SavedValuesBar(QWidget):
             self._drop_indicator.hide()
             return
 
-        color = _DROP_LINE_COLOR_DARK if icon_helpers.is_dark_theme else _DROP_LINE_COLOR_LIGHT
-        self._drop_indicator.setStyleSheet(
-            f"background-color: {color}; border-radius: {_DROP_LINE_RADIUS}px;"
-        )
         g, gap = widget.geometry(), self._layout.spacing()
         x = (g.right() + gap / 2) if after else (g.left() - gap / 2)
         self._drop_indicator.setGeometry(round(x - _DROP_LINE_WIDTH / 2), g.top(), _DROP_LINE_WIDTH, g.height())

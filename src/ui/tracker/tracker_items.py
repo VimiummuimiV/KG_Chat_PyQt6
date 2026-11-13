@@ -12,6 +12,7 @@ from components.user_count_row import UserCountRow
 from core.web.api_data import validate_username_and_get_id
 from helpers.fonts.fonts import FontType, get_font, get_scaled_width
 from helpers.translate import on_language_changed, tr, TranslatableMixin
+from themes.stylesheet import set_style_property
 
 
 class TrackedUserItem(TranslatableMixin, QWidget):
@@ -141,16 +142,16 @@ class TrackedUserItem(TranslatableMixin, QWidget):
 
     def update_input_style(self, highlight_empty=False):
         if highlight_empty and not self.username_input.text().strip():
-            self.username_input.setStyleSheet("QLineEdit { border: 2px solid #ffb84d; }")
+            set_style_property(self.username_input, "validation", "missing")
             self.username_input.setToolTip(tr(
                 "Fill username before adding new item",
                 "Заполните имя пользователя перед добавлением новой записи")
             )
         elif self.username_input.text().strip() and not self.username_valid:
-            self.username_input.setStyleSheet("QLineEdit { border: 2px solid #ff4444; }")
+            set_style_property(self.username_input, "validation", "invalid")
             self.username_input.setToolTip(tr("User not found", "Пользователь не найден"))
         else:
-            self.username_input.setStyleSheet("")
+            set_style_property(self.username_input, "validation", "")
             self.username_input.setToolTip("")
 
     def set_frozen(self, frozen: bool):

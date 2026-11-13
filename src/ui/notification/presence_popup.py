@@ -29,7 +29,7 @@ def _make_game_id_label(event_type: str, game_id) -> QLabel | None:
     label = QLabel(f"#{game_id}")
     label.setFont(get_font(FontType.UI))
     label.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-    label.setStyleSheet("color: #888; border: none;")
+    label.setObjectName("mutedHint")
     return label
 
 
@@ -75,7 +75,7 @@ class PresenceMiniPopup(AutoHidePopupMixin, QWidget):
         ts = QLabel(datetime.now().strftime("%H:%M:%S"))
         ts.setFont(get_font(FontType.TEXT))
         ts.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-        ts.setStyleSheet("color: #888;")
+        ts.setObjectName("mutedHint")
         layout.addWidget(ts)
 
         is_dark = (config.get("ui", "theme") == "dark") if config else True

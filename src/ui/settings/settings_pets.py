@@ -119,7 +119,7 @@ class SettingsPetsMixin:
         hint_font = get_font(FontType.UI)
         hint_font.setPointSizeF(hint_font.pointSizeF() * _HINT_FONT_SCALE)
         hint_label.setFont(hint_font)
-        hint_label.setStyleSheet("color: palette(placeholder-text);")
+        hint_label.setObjectName("hintLabel")
         guide_tooltip = tr("How the pets behave", "Как ведут себя питомцы")
         guide_button = create_icon_button(self.icons_path, "line/information-line.svg", guide_tooltip, size_type="small", config=self.config)
         guide_button.clicked.connect(lambda: PetsGuideDialog(self.config, self).exec())

@@ -24,3 +24,10 @@ def repolish(widget: QWidget):
     """Re-evaluate the stylesheet of one widget after a dynamic property changed."""
     widget.style().unpolish(widget)
     widget.style().polish(widget)
+
+
+def set_style_property(widget: QWidget, name: str, value):
+    """Switch a state the stylesheet selects on, e.g. QLineEdit[validation="invalid"]."""
+    if widget.property(name) != value:
+        widget.setProperty(name, value)
+        repolish(widget)
