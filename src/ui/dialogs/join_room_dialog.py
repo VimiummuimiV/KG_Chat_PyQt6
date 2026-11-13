@@ -34,6 +34,7 @@ class JoinRoomDialog(TranslatableMixin, QDialog):
     _LEN_MIN = 5
     _LEN_MAX = 20
     _LEN_DEFAULT = 8
+    _FIELD_BORDER_TOTAL = 2
 
     def __init__(self, config, icons_path: Path, parent=None):
         super().__init__(parent)
@@ -43,6 +44,8 @@ class JoinRoomDialog(TranslatableMixin, QDialog):
         self.tr_set(self.setWindowTitle, "Join / Create Room", "Войти / Создать комнату")
         self.setFixedWidth(self._WINDOW_WIDTH)
         self.setFont(get_font(FontType.UI))
+        field_height = (self.config.get("ui", "input_height") or 48) - self._FIELD_BORDER_TOTAL
+        self.setStyleSheet(f"#joinRoomField {{ min-height: {field_height}px; }}")
 
         margin = 15
         spacing = 10
