@@ -17,6 +17,7 @@ from PyQt6.QtWidgets import (
 
 from components.button import create_icon_button
 from components.tag_button import SavedValuesBar
+from core.state.ui_state import ui_state
 from helpers.dates import parse_short_date
 from helpers.fonts.fonts import FontType, get_font
 from helpers.translate import on_language_changed, tr, TranslatableMixin
@@ -200,11 +201,10 @@ class ChatlogsParserConfigWidget(ParserModesMixin, ParserRunMixin, ParserUsernam
         layout.addWidget(username_container)
 
         # Saved usernames quick-access chips (loaded from/persisted to config)
-        saved_usernames_path = ("chatlog_parser", "saved_usernames")
         self.saved_usernames_bar = SavedValuesBar(
             self.icons_path,
-            lambda: self.config.get(*saved_usernames_path) or [],
-            lambda values: self.config.set(*saved_usernames_path, value=values),
+            lambda: ui_state.get("saved_usernames") or [],
+            lambda values: ui_state.set("saved_usernames", value=values),
         )
         self.saved_usernames_bar.value_selected.connect(self._on_saved_username_clicked)
         self.saved_usernames_bar.value_double_clicked.connect(self._on_saved_username_double_clicked)

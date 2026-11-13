@@ -9,7 +9,7 @@ from typing import Callable, Dict, Optional
 from PyQt6.QtGui import QPixmap
 
 from helpers.colors.color_contrast import optimize_color_contrast
-from helpers.data import get_data_dir
+from helpers.data import get_data_dir, get_state_dir
 from helpers.load import fetch_avatar_bytes, load_avatar_from_disk
 
 
@@ -45,7 +45,7 @@ class _CacheManager:
         self._login_index: Dict[str, str] = {}    # login → user_id
         self._avatar_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="cache_avatar_loader")
         self._cache_lock = threading.Lock()
-        self._data_path = get_data_dir("data") / "users.json"
+        self._data_path = get_state_dir() / "users.json"
         self._initialized = True
         self._load_data()
 

@@ -12,7 +12,7 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
 )
 
-from helpers.config import Config
+from core.state.ui_state import ui_state
 from helpers.deferred import call_later
 from helpers.translate import on_language_changed, tr, TranslatableMixin
 
@@ -20,10 +20,9 @@ from helpers.translate import on_language_changed, tr, TranslatableMixin
 class WindowPresetsDialog(TranslatableMixin, QDialog):
     """Dialog to manage window geometry presets"""
 
-    def __init__(self, config: Config, chat_window, parent=None):
+    def __init__(self, chat_window, parent=None):
         super().__init__(parent)
         self.init_translatable()
-        self.config = config
         self.chat_window = chat_window
 
         self.tr_set(self.setWindowTitle, "Window Presets", "Пресеты окна")
@@ -84,10 +83,10 @@ class WindowPresetsDialog(TranslatableMixin, QDialog):
         self._load_presets()
 
     def _load_presets(self):
-        """Load presets from config and populate list"""
+        """Load presets and populate list"""
         self._preset_list.clear()
 
-        presets = self.config.get("ui", "window_presets")
+        presets = ui_state.get("window_presets")
         if not presets:
             return
 
@@ -134,7 +133,7 @@ class WindowPresetsDialog(TranslatableMixin, QDialog):
 
         name = name.strip()
 
-        presets = self.config.get("ui", "window_presets") or []
+        presets = ui_state.get("window_presets") or []
         for preset in presets:
             if preset.get("name") == name:
                 reply = QMessageBox.question(
@@ -160,7 +159,7 @@ class WindowPresetsDialog(TranslatableMixin, QDialog):
         }
         presets.append(preset)
 
-        self.config.set("ui", "window_presets", value=presets)
+        ui_state.set("window_presets", value=presets)
         self._load_presets()
 
     def _load_selected_preset(self):
@@ -229,8 +228,8 @@ class WindowPresetsDialog(TranslatableMixin, QDialog):
         if reply != QMessageBox.StandardButton.Yes:
             return
 
-        presets = self.config.get("ui", "window_presets") or []
+        presets = ui_state.get("window_presets") or []
         presets = [p for p in presets if p.get("name") not in presets_to_delete]
-        self.config.set("ui", "window_presets", value=presets)
+        ui_state.set("window_presets", value=presets)
 
         self._load_presets()

@@ -99,7 +99,7 @@ class ChatGeometryMixin:
 
     def show_window_presets(self):
         """Show window presets dialog"""
-        dialog = WindowPresetsDialog(self.config, self, parent=self)
+        dialog = WindowPresetsDialog(self, parent=self)
         dialog.exec()
 
     def update_reset_size_button_state(self):

@@ -37,6 +37,11 @@ def get_data_dir(subdir: str = "") -> Path:
     return base_dir
 
 
+def get_state_dir() -> Path:
+    """Return the folder of JSON state files (KG_Chat_Data/data)."""
+    return get_data_dir("data")
+
+
 def open_in_file_manager(path: Path | str | None = None) -> bool:
     """Open a folder in the OS file manager (Explorer / Finder / xdg-open).
 

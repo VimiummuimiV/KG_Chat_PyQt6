@@ -17,6 +17,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from core.state.ui_state import ui_state
 from helpers.text.emoticons import EmoticonManager
 from helpers.translate import on_language_changed, TranslatableMixin
 from themes.stylesheet import repolish
@@ -228,7 +229,7 @@ class EmoticonSelectorWidget(TranslatableMixin, QWidget):
         self.emoticon_manager = emoticon_manager
         self.icons_path = icons_path
 
-        self._recent_emoticons = config.get("ui", "recent_emoticons") or []
+        self._recent_emoticons = ui_state.get("emoticons", "recent") or []
         self._group_indices = {}
         self._nav_buttons = {}
         self._recent_buttons = []
@@ -473,12 +474,12 @@ class EmoticonSelectorWidget(TranslatableMixin, QWidget):
         self._pos_timer.start(600)
 
     def _get_positions(self) -> dict:
-        return self.config.get("ui", "emoticon_nav_positions") or {}
+        return ui_state.get("emoticons", "nav_positions") or {}
 
     def _set_position(self, key: str, index: int):
         positions = self._get_positions()
         positions[key] = index
-        self.config.set("ui", "emoticon_nav_positions", value=positions)
+        ui_state.set("emoticons", "nav_positions", value=positions)
 
     def _restore_index(self, btns) -> int:
         """Return saved position index for the current group (default 0)."""
@@ -505,7 +506,7 @@ class EmoticonSelectorWidget(TranslatableMixin, QWidget):
         if key in self._group_indices:
             self._stacked_content.setCurrentIndex(self._group_indices[key])
 
-        self.config.set("ui", "emoticon_last_group", value=key)
+        ui_state.set("emoticons", "last_group", value=key)
 
         # Restore saved cursor position for the new group
         btns = self._current_buttons()
@@ -581,7 +582,7 @@ class EmoticonSelectorWidget(TranslatableMixin, QWidget):
         self._recent_emoticons.insert(0, emoticon_name)
         self._recent_emoticons = self._recent_emoticons[:20]
 
-        self.config.set("ui", "recent_emoticons", value=self._recent_emoticons)
+        ui_state.set("emoticons", "recent", value=self._recent_emoticons)
         self._populate_recent_emoticons()
 
     def update_theme(self):
@@ -627,7 +628,7 @@ class EmoticonSelectorWidget(TranslatableMixin, QWidget):
 
     def _restore_state(self):
         """Restore last group + cursor position; called after the widget is shown."""
-        last = self.config.get("ui", "emoticon_last_group") or "recent"
+        last = ui_state.get("emoticons", "last_group") or "recent"
         key  = last if last in self._group_indices else "recent"
         # Switch without triggering a config write for the group we're leaving
         for k, button in self._nav_buttons.items():

@@ -17,7 +17,7 @@ from components.button import render_svg_icon
 from components.tray_badge import TrayIconWithBadge
 from core.state.accounts import AccountManager
 from helpers.config import Config, get_config_path
-from helpers.data import get_data_dir
+from helpers.data import get_state_dir
 from helpers.deferred import call_later
 from helpers.fonts.font_scaler import FontScaler
 from helpers.fonts.fonts import (
@@ -70,7 +70,7 @@ class Application(QObject):
             sys.exit(0)
 
         # Initialize data path (user data lives under KG_Chat_Data/data)
-        self._data_path = get_data_dir("data")
+        self._data_path = get_state_dir()
 
         # Initialize account manager and config
         self.config_path = get_config_path()

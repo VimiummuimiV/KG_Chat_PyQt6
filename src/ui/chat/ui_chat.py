@@ -186,7 +186,7 @@ class ChatWindow(
             self.config = app_controller.config
         else:
             self.config = Config(self.config_path)
-        self.mention_aliases = MentionAliases(self.config)
+        self.mention_aliases = MentionAliases()
         # rating competitions tracking
         track = self.config.get("competitions", "enabled")
         if track is None or track:
@@ -198,10 +198,7 @@ class ChatWindow(
         self.emoticon_manager = EmoticonManager(emoticons_path)
 
         # Initialize window size manager
-        self.window_size_manager = WindowSizeManager(
-            self.config,
-            on_save_callback=self.update_reset_size_button_state
-        )
+        self.window_size_manager = WindowSizeManager(on_save_callback=self.update_reset_size_button_state)
 
         self.theme_manager = ThemeManager(self.config)
         self.theme_manager.apply_theme()

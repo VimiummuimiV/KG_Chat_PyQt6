@@ -18,6 +18,7 @@ from PyQt6.QtWidgets import (
 )
 
 from components.button import create_icon_button
+from core.state.ui_state import ui_state
 from helpers.fonts.fonts import FontType, get_font
 from helpers.translate import on_language_changed, tr, TranslatableMixin
 
@@ -147,9 +148,7 @@ class JoinRoomDialog(TranslatableMixin, QDialog):
         on_language_changed(self.retranslate_all)
 
     def _load_saved(self) -> list:
-        if not self.config:
-            return []
-        raw = self.config.get("join_room", "saved") or []
+        raw = ui_state.get("saved_rooms") or []
         if not isinstance(raw, list):
             return []
         out = []
@@ -208,21 +207,21 @@ class JoinRoomDialog(TranslatableMixin, QDialog):
         return self._remember_checkbox.isChecked()
 
     def remember_name(self, name: str):
-        if not self.config or not name:
+        if not name:
             return
         saved = self._load_saved()
         if name in saved:
             return
         saved.append(name)
-        self.config.set("join_room", "saved", value=saved)
+        ui_state.set("saved_rooms", value=saved)
         self._populate_saved()
 
     def _delete_saved(self):
         name = self._saved_combo.currentData() or self.room_name()
-        if not name or not self.config:
+        if not name:
             return
         saved = [n for n in self._load_saved() if n != name]
-        self.config.set("join_room", "saved", value=saved)
+        ui_state.set("saved_rooms", value=saved)
         if self.room_name() == name:
             self._name_input.clear()
         self._populate_saved()
