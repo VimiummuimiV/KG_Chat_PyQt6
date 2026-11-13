@@ -141,6 +141,10 @@ class ChatLifecycleMixin:
             print(f"Theme toggle error: {e}")
 
     def closeEvent(self, event):
+        if self.tray_mode and not self.really_close and self.app_controller and self.config.get("ui", "close_action") == "exit":
+            event.ignore()
+            self.app_controller.exit_application()
+            return
         self.save_draft()
         # Cleanup emoticon selector
         if hasattr(self, 'emoticon_selector'):

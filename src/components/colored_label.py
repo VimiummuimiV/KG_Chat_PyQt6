@@ -18,6 +18,7 @@ class ColoredLabel(QLabel):
 
     def paintEvent(self, event):
         painter = QPainter(self)
+        self.drawFrame(painter)  # stylesheet background and border
         painter.setPen(self._color)
         rect = self.contentsRect()
         if self.frameWidth():  # QLabel insets its text by half an "x" inside a frame

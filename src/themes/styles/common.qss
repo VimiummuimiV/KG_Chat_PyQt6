@@ -89,8 +89,8 @@ QScrollArea#profileScroll {
 }
 
 /* Row marked by the user filter: its name and count are highlighted */
-#userCountRow[filtered="true"] #userName,
-#userCountRow[filtered="true"] #mutedLabel {
+QLabel#userName[filtered="true"],
+QLabel#mutedLabel[filtered="true"] {
     background-color: rgba(226, 135, 67, 0.2);
     border-radius: 4px;
 }

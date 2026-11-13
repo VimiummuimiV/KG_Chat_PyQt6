@@ -91,6 +91,16 @@ def _own_message_mode_options():
     )
 
 
+def _close_action_options():
+    return (
+        ("tray", tr("Hide to tray", "Скрыть в трей"),
+         tr("The window hides and the chat keeps running in the background.",
+            "Окно скрывается, чат продолжает работать в фоне.")),
+        ("exit", tr("Exit", "Выйти"),
+         tr("The application quits completely.", "Приложение полностью закрывается.")),
+    )
+
+
 def _notification_mode_options():
     return (
         ("stack", tr("Stack", "Стопка"),
@@ -411,6 +421,10 @@ def fill_tooltip_combo(combo, options, current=None, default=None):
 
 def fill_resource_combo(combo, current=None):
     fill_tooltip_combo(combo, _xmpp_resource_options(), current, "web")
+
+
+def fill_close_action_combo(combo, current=None):
+    fill_tooltip_combo(combo, _close_action_options(), current, "tray")
 
 
 def fill_own_message_mode_combo(combo, current=None):

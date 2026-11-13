@@ -189,7 +189,6 @@ class TrackerUserChip(UserCountRow):
     def __init__(self, config, icons_path: Path, login: str, count: int, user_id: str = None):
         super().__init__(
             login, count, config, icons_path, user_id,
-            margins=(2, 0, 2, 0), filter_radius=6,
         )
         self.login = login
         self._delete_button = create_icon_button(

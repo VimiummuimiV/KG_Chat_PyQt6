@@ -4,7 +4,7 @@ from PyQt6.QtWidgets import QMessageBox
 
 from core.xmpp.delivery import is_marker_enabled
 from helpers.translate import get_language, set_language, tr
-from ui.settings.settings_options import fill_own_message_mode_combo, fill_resource_combo
+from ui.settings.settings_options import fill_close_action_combo, fill_own_message_mode_combo, fill_resource_combo
 
 
 class SettingsGeneralMixin:
@@ -21,6 +21,10 @@ class SettingsGeneralMixin:
         self.start_with_system_checkbox = self.add_checkbox(
             section, tr("Start with system", "Запускать вместе с системой"), self._on_start_with_system_toggled
         )
+        self.close_action_combo = self.add_combo_row(
+            section, tr("Close button", "Кнопка закрытия окна"), [], self.on_close_action_changed
+        )
+        self.close_action_combo.setFixedWidth(240)
 
     def refresh_general(self):
         self.settings_accordion_checkbox.setChecked(
@@ -29,6 +33,7 @@ class SettingsGeneralMixin:
         self.auto_login_checkbox.setChecked(bool(self.config.get("startup", "auto_login")))
         self.start_minimized_checkbox.setChecked(bool(self.config.get("startup", "start_minimized")))
         self.start_with_system_checkbox.setChecked(self.startup_manager.is_enabled())
+        fill_close_action_combo(self.close_action_combo, self.config.get("ui", "close_action"))
 
         fill_resource_combo(
             self.resource_combo,
@@ -67,6 +72,10 @@ class SettingsGeneralMixin:
             self.start_with_system_checkbox.blockSignals(True)
             self.start_with_system_checkbox.setChecked(not checked)
             self.start_with_system_checkbox.blockSignals(False)
+
+    def on_close_action_changed(self, _text: str = ""):
+        self.sync_combo_tooltip(self.close_action_combo)
+        self.config.set("ui", "close_action", value=self.close_action_combo.currentData() or "tray")
 
     def on_resource_changed(self, _text: str = ""):
         self.sync_combo_tooltip(self.resource_combo)

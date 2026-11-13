@@ -1,7 +1,7 @@
 """SettingsWidget: popup notification options and live preview."""
 
 from PyQt6.QtCore import QTimer
-from PyQt6.QtWidgets import QApplication, QHBoxLayout, QLabel, QLineEdit
+from PyQt6.QtWidgets import QApplication, QHBoxLayout, QLineEdit
 
 from components.button import create_icon_button
 from components.tag_button import SavedValuesBar
@@ -130,20 +130,16 @@ class SettingsNotificationsMixin:
 
     def add_alias_block(self, layout, load_values, save_values):
         """Input row plus draggable chips of extra words that trigger mention sound and popup."""
-        hint_text = tr(
-            "Words that notify like your nickname, comma-separated",
-            "Слова, которые оповещают как ваш ник, через запятую",
-        )
-        hint = QLabel(hint_text)
-        hint.setObjectName("mutedHint")
-        hint.setWordWrap(True)
-        self.register_tr(hint.setText, hint_text)
-        layout.addWidget(hint)
-
         row = QHBoxLayout()
         row.setSpacing(self.element_spacing())
         alias_input = QLineEdit()
         alias_input.setFont(get_font(FontType.UI))
+        placeholder = tr(
+            "Words that notify like your nickname, comma-separated",
+            "Слова, которые оповещают как ваш ник, через запятую",
+        )
+        alias_input.setPlaceholderText(placeholder)
+        self.register_tr(alias_input.setPlaceholderText, placeholder)
         row.addWidget(alias_input, stretch=1)
         add_tooltip = tr("Add alias", "Добавить алиас")
         add_button = create_icon_button(self.icons_path, "line/add-large-line.svg", add_tooltip, size_type="small", config=self.config)

@@ -25,7 +25,6 @@ class UserCountRow(QWidget):
         self.username = username
         self.user_id = user_id
         self.icons_path = icons_path
-        self._is_filtered = False
         self._cache = get_cache()
 
         layout = QHBoxLayout()
@@ -58,9 +57,9 @@ class UserCountRow(QWidget):
         layout.addWidget(self.count_label)
 
     def set_filtered(self, filtered: bool):
-        """Update visual state when filtered"""
-        self._is_filtered = filtered
-        set_style_property(self, "filtered", filtered)
+        """Highlight name and count; the property sits on the labels because a parent's property does not repolish children."""
+        set_style_property(self.username_label, "filtered", filtered)
+        set_style_property(self.count_label, "filtered", filtered)
 
     def update_theme(self, is_dark: bool):
         """Username color re-read from the cache; placeholder avatar recolored; the count follows the stylesheet."""

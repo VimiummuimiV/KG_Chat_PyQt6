@@ -47,7 +47,7 @@ class JoinRoomDialog(TranslatableMixin, QDialog):
         margin = 15
         spacing = 10
         button_spacing = 8
-        input_height = 48
+        input_height = self.config.get("ui", "input_height") or 48
 
         layout = QVBoxLayout()
         layout.setSpacing(spacing)

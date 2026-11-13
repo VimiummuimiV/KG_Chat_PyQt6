@@ -32,6 +32,7 @@ from ui.settings.settings_pets import SettingsPetsMixin
 from ui.settings.settings_options import (
     fill_alert_chat_action_combo,
     fill_chatlog_filtered_click_combo,
+    fill_close_action_combo,
     fill_competition_notification_style_combo,
     fill_flash_easing_combo,
     fill_image_transition_combo,
@@ -378,7 +379,7 @@ class SettingsWidget(
         """Reload every control from the current config state."""
         widgets = (
             self.settings_accordion_checkbox, self.auto_login_checkbox,
-            self.start_minimized_checkbox, self.start_with_system_checkbox,
+            self.start_minimized_checkbox, self.start_with_system_checkbox, self.close_action_combo,
             self.resource_combo, self.own_message_mode_combo, self.delivery_marker_checkbox,
             self.clear_private_checkbox, self.youtube_checkbox, self.voice_input_checkbox,
             self.player_tls_checkbox, self.player_hwdec_combo, self.player_volume_spin,
@@ -446,6 +447,7 @@ class SettingsWidget(
         produced by tr(), preserving the current selection. Combos with
         static content (language, fonts, browser, multiplier) don't need this."""
         for combo, fill in (
+            (self.close_action_combo, fill_close_action_combo),
             (self.resource_combo, fill_resource_combo),
             (self.own_message_mode_combo, fill_own_message_mode_combo),
             (self.mentions_digest_mode_combo, fill_mentions_digest_mode_combo),
