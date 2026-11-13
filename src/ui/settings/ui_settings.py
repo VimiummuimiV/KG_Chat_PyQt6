@@ -89,6 +89,7 @@ class SettingsWidget(
     tracker_userlist_star_changed = pyqtSignal(bool)
     tracker_presence_log_split_changed = pyqtSignal(int)
     resource_changed = pyqtSignal()
+    delivery_marker_changed = pyqtSignal()
     pets_changed = pyqtSignal()
 
     def __init__(self, config, icons_path: Path, font_scaler=None, emoticon_manager=None):
@@ -377,7 +378,7 @@ class SettingsWidget(
         widgets = (
             self.settings_accordion_checkbox, self.auto_login_checkbox,
             self.start_minimized_checkbox, self.start_with_system_checkbox,
-            self.resource_combo, self.own_message_mode_combo,
+            self.resource_combo, self.own_message_mode_combo, self.delivery_marker_checkbox,
             self.clear_private_checkbox, self.youtube_checkbox, self.voice_input_checkbox,
             self.player_tls_checkbox, self.player_hwdec_combo, self.player_volume_spin,
             self.player_log_checkbox, self.player_keep_open_checkbox, self.player_ontop_checkbox,

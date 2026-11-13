@@ -36,6 +36,7 @@ class ChatIncomingMixin:
         return False
 
     def on_message(self, msg):
+        self.confirm_own_echo(msg)
         if self._is_ban_message(msg):
             self.track_self_ban(msg)
 

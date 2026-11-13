@@ -141,6 +141,7 @@ class ChatLifecycleMixin:
             print(f"Theme toggle error: {e}")
 
     def closeEvent(self, event):
+        self.save_draft()
         # Cleanup emoticon selector
         if hasattr(self, 'emoticon_selector'):
             self.emoticon_selector.cleanup()

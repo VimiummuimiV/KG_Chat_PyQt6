@@ -203,6 +203,8 @@ class MessagesWidget(TranslatableMixin, QWidget):
             competition_players=getattr(msg, 'competition_players', None),
             is_presence_log=getattr(msg, 'is_presence_log', False),
             presence_entries=getattr(msg, 'presence_entries', None),
+            delivery_id=getattr(msg, 'delivery_id', None),
+            delivery=getattr(msg, 'delivery', None),
         )
         if not self.search.register_message(msg_data, self.model.max_messages):
             return -1
@@ -281,6 +283,13 @@ class MessagesWidget(TranslatableMixin, QWidget):
         theme = self.config.get("ui", "theme")
         self.delegate.is_dark_theme = (theme == "dark")
         self.delegate.background_hex = "#1E1E1E" if theme == "dark" else "#FFFFFF"
+
+    def set_delivery(self, delivery_id: int, state: str):
+        self.model.set_delivery(delivery_id, state)
+
+    def set_show_delivery_marker(self, enabled: bool):
+        self.delegate.set_show_delivery_marker(enabled)
+        self.force_recalculate()
 
     def force_recalculate(self):
         """Aggressive force recalculation of all item sizes"""

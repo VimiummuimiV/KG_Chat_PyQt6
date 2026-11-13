@@ -168,6 +168,15 @@ class SettingsChatMixin:
             xmpp_layout, tr("Own messages", "Свои сообщения"), [], self.on_own_message_mode_changed
         )
         self.own_message_mode_combo.setFixedWidth(240)
+        self.delivery_marker_checkbox = self.add_checkbox(
+            xmpp_layout, tr("Delivery marker after own messages", "Маркер доставки после своих сообщений"),
+            self.on_delivery_marker_toggled,
+        )
+        self.tr_set(
+            self.delivery_marker_checkbox.setToolTip,
+            "Orange dot: sending. Green dot: the server has the message. Red dot: not delivered.",
+            "Оранжевая точка: отправляется. Зелёная: сервер получил сообщение. Красная: не доставлено.",
+        )
         self.add_collapse_toggle(xmpp_header, xmpp_content, ("ui", "settings", "widgets", "chat_xmpp"))
 
         chatlog_header, chatlog_content, chatlog_layout = self.add_subsection(

@@ -28,6 +28,8 @@ class MessageData:
     presence_entries: Optional[list] = None
     joins_previous: bool = False  # Filtered chatlog: same user's previous shown message, nothing hidden between
     joins_next: bool = False
+    delivery_id: Optional[int] = None  # own message followed by DeliveryTracker
+    delivery: Optional[str] = None
 
     def get_time_str(self) -> str:
         return self.timestamp.strftime("%H:%M:%S")
@@ -64,6 +66,17 @@ class MessageListModel(QAbstractListModel):
         self.stored_messages.append(msg)
         self.endInsertRows()
         return row
+
+    def set_delivery(self, delivery_id: int, state: str) -> bool:
+        """Set the delivery state of the message with this id; True if it is in this model."""
+        for row in range(len(self.stored_messages) - 1, -1, -1):
+            msg = self.stored_messages[row]
+            if msg.delivery_id == delivery_id:
+                msg.delivery = state
+                index = self.index(row)
+                self.dataChanged.emit(index, index)
+                return True
+        return False
 
     def set_messages(self, messages: List[MessageData]):
         """Replace all messages in one model reset (bulk load)."""

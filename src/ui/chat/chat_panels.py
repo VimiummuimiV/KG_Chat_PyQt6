@@ -203,6 +203,7 @@ class ChatPanelsMixin:
             )
             self.settings_widget.font_family_changed.connect(self.on_font_family_changed)
             self.settings_widget.resource_changed.connect(self.manual_reconnect)
+            self.settings_widget.delivery_marker_changed.connect(self.apply_delivery_marker_setting)
             self.settings_widget.pets_changed.connect(self._reload_all_pets)
             self.stacked_widget.addWidget(self.settings_widget)
         else:

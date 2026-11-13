@@ -33,6 +33,7 @@ from ui.chat.chat_competitions import ChatCompetitionsMixin
 from ui.chat.chat_connection import ChatConnectionMixin
 from ui.chat.chat_controls import ChatControlsMixin
 from ui.chat.chat_copy import ChatCopyMixin
+from ui.chat.chat_delivery import ChatDeliveryMixin
 from ui.chat.chat_emoticons import ChatEmoticonsMixin
 from ui.chat.chat_fonts import ChatFontsMixin
 from ui.chat.chat_geometry import ChatGeometryMixin
@@ -72,6 +73,7 @@ class ChatWindow(
     ChatConnectionMixin,
     ChatControlsMixin,
     ChatCopyMixin,
+    ChatDeliveryMixin,
     ChatEmoticonsMixin,
     ChatFontsMixin,
     ChatGeometryMixin,
@@ -344,6 +346,7 @@ class ChatWindow(
         input_main_layout.addLayout(self._input_bottom_layout)
 
         self.messages_widget.set_input_field(self.input_field)
+        self.setup_delivery()
         install_voice_input(self)
 
         # Exit private mode button reference (created dynamically when needed)

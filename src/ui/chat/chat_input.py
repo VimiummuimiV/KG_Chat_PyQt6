@@ -4,6 +4,7 @@ import re
 import threading
 from datetime import datetime
 
+from core.xmpp.delivery import PENDING
 from core.xmpp.messages import Message
 
 
@@ -53,6 +54,7 @@ class ChatInputMixin:
 
         # Send each chunk
         for i, chunk in enumerate(chunks):
+            delivery_id = self.track_outgoing(target_jid, chunk, msg_type)
             if local_echo:
                 own_msg = Message(
                     from_jid=self.xmpp_client.jid,
@@ -62,7 +64,9 @@ class ChatInputMixin:
                     avatar=None,
                     background=own_user.background if own_user else None,
                     timestamp=datetime.now(),
-                    initial=False
+                    initial=False,
+                    delivery_id=delivery_id,
+                    delivery=PENDING
                 )
                 own_msg.is_private = (msg_type == 'chat')
                 add_message_fn(own_msg)
@@ -70,8 +74,8 @@ class ChatInputMixin:
             delay = i * 0.8 # 800ms delay between chunks
             threading.Timer(
                 delay,
-                self.xmpp_client.send_message,
-                args=(chunk, target_jid, msg_type)
+                self.send_tracked_chunk,
+                args=(chunk, target_jid, msg_type, delivery_id)
             ).start()
 
     def _chunk_message(self, text: str, max_len: int) -> list:

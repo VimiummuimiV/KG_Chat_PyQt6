@@ -19,6 +19,8 @@ class Message:
     background: Optional[str] = None
     timestamp: Optional[datetime] = None
     initial: bool = False
+    delivery_id: Optional[int] = None  # set on own messages followed by DeliveryTracker
+    delivery: Optional[str] = None
 
 @dataclass
 class _Presence:

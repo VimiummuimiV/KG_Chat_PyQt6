@@ -35,14 +35,14 @@ def extract_user_data_from_jid(jid: Optional[str]) -> Tuple[Optional[str], Optio
     return None, None
 
 
-def _bare_room_jid(from_jid: Optional[str]) -> str:
+def bare_room_jid(from_jid: Optional[str]) -> str:
     """The room part of a stanza's from_jid, with any /resource stripped."""
     return (from_jid or "").split('/')[0]
 
 
 def is_from_game_room(from_jid: Optional[str]) -> bool:
     """True if from_jid belongs to a gameXXXX@conference room."""
-    bare = _bare_room_jid(from_jid)
+    bare = bare_room_jid(from_jid)
     return bare.startswith('game') and MUC_DOMAIN in bare
 
 
@@ -50,7 +50,7 @@ def game_id_from_jid(from_jid: Optional[str]) -> Optional[int]:
     """The numeric game_id from a gameXXXX@conference room's jid, or None
     if from_jid isn't a game room."""
     try:
-        local = _bare_room_jid(from_jid).split('@')[0]
+        local = bare_room_jid(from_jid).split('@')[0]
         if local.startswith('game'):
             return int(local[4:])
     except Exception:
@@ -61,7 +61,7 @@ def game_id_from_jid(from_jid: Optional[str]) -> Optional[int]:
 def custom_room_name_from_jid(from_jid: Optional[str]) -> Optional[str]:
     """The room name from a custom (non-game, non-general) MUC room's jid,
     or None if from_jid isn't a custom room."""
-    bare = _bare_room_jid(from_jid)
+    bare = bare_room_jid(from_jid)
     if MUC_DOMAIN not in bare:
         return None
     local = bare.split('@')[0]

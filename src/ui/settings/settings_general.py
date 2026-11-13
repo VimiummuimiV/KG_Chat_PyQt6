@@ -2,6 +2,7 @@
 
 from PyQt6.QtWidgets import QMessageBox
 
+from core.xmpp.delivery import is_marker_enabled
 from helpers.translate import get_language, set_language, tr
 from ui.settings.settings_options import fill_own_message_mode_combo, fill_resource_combo
 
@@ -37,6 +38,7 @@ class SettingsGeneralMixin:
             self.own_message_mode_combo,
             self.config.get("ui", "own_message_mode") or "local",
         )
+        self.delivery_marker_checkbox.setChecked(is_marker_enabled(self.config))
 
         self.clear_private_checkbox.setChecked(bool(self.config.get("ui", "clear_private_messages_on_exit")))
 
@@ -88,6 +90,10 @@ class SettingsGeneralMixin:
             return
         self.config.set("ui", "own_message_mode", value=value)
         print(f"💬 Own message mode: {value}")
+
+    def on_delivery_marker_toggled(self, checked: bool):
+        self.config.set("ui", "show_delivery_marker", value=checked)
+        self.delivery_marker_changed.emit()
 
     def on_language_changed(self, _text: str = ""):
         code = self.language_combo.currentData()
