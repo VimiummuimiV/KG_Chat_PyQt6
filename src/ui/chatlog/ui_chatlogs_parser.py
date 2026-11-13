@@ -200,7 +200,12 @@ class ChatlogsParserConfigWidget(ParserModesMixin, ParserRunMixin, ParserUsernam
         layout.addWidget(username_container)
 
         # Saved usernames quick-access chips (loaded from/persisted to config)
-        self.saved_usernames_bar = SavedValuesBar(self.config, ("chatlog_parser", "saved_usernames"), self.icons_path)
+        saved_usernames_path = ("chatlog_parser", "saved_usernames")
+        self.saved_usernames_bar = SavedValuesBar(
+            self.icons_path,
+            lambda: self.config.get(*saved_usernames_path) or [],
+            lambda values: self.config.set(*saved_usernames_path, value=values),
+        )
         self.saved_usernames_bar.value_selected.connect(self._on_saved_username_clicked)
         self.saved_usernames_bar.value_double_clicked.connect(self._on_saved_username_double_clicked)
         layout.addWidget(self.saved_usernames_bar)

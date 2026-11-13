@@ -143,6 +143,8 @@ class ChatPanelsMixin:
             self.settings_widget = SettingsWidget(
                 self.config,
                 self.icons_path,
+                self.mention_aliases,
+                self.my_username,
                 font_scaler=getattr(self.app_controller, "font_scaler", None),
                 emoticon_manager=self.emoticon_manager,
             )

@@ -1,8 +1,11 @@
 """SettingsWidget: popup notification options and live preview."""
 
 from PyQt6.QtCore import QTimer
-from PyQt6.QtWidgets import QApplication
+from PyQt6.QtWidgets import QApplication, QHBoxLayout, QLabel, QLineEdit
 
+from components.button import create_icon_button
+from components.tag_button import SavedValuesBar
+from helpers.fonts.fonts import FontType, get_font
 from helpers.translate import tr
 from ui.notification.notification_settings import expanded_reply_width, resolve_notification_width
 from ui.notification.popup_manager import popup_manager, show_notification
@@ -103,6 +106,58 @@ class SettingsNotificationsMixin:
             lambda _t: self._on_mute_bypass_changed(self.messages_bypass_combo, "messages_bypass_mute"),
         )
         self.add_collapse_toggle(bypass_header, bypass_content, ("ui", "settings", "widgets", "notifications_bypass"))
+
+        if self.my_username:
+            local_header, local_content, local_layout = self.add_subsection(
+                section, tr("🏷️ Local aliases (this account)", "🏷️ Локальные алиасы (этот аккаунт)")
+            )
+            self.add_alias_block(
+                local_layout,
+                lambda: self.mention_aliases.local_aliases(self.my_username),
+                lambda values: self.mention_aliases.set_local_aliases(self.my_username, values),
+            )
+            self.add_collapse_toggle(local_header, local_content, ("ui", "settings", "widgets", "aliases_local"))
+
+        global_header, global_content, global_layout = self.add_subsection(
+            section, tr("🌐 Global aliases (all accounts)", "🌐 Глобальные алиасы (все аккаунты)")
+        )
+        self.add_alias_block(global_layout, self.mention_aliases.global_aliases, self.mention_aliases.set_global_aliases)
+        self.add_collapse_toggle(global_header, global_content, ("ui", "settings", "widgets", "aliases_global"))
+
+    def add_alias_block(self, layout, load_values, save_values):
+        """Input row plus draggable chips of extra words that trigger mention sound and popup."""
+        hint_text = tr(
+            "Words that notify like your nickname, comma-separated",
+            "Слова, которые оповещают как ваш ник, через запятую",
+        )
+        hint = QLabel(hint_text)
+        hint.setObjectName("mutedHint")
+        hint.setWordWrap(True)
+        self.register_tr(hint.setText, hint_text)
+        layout.addWidget(hint)
+
+        row = QHBoxLayout()
+        row.setSpacing(self.element_spacing())
+        alias_input = QLineEdit()
+        alias_input.setFont(get_font(FontType.UI))
+        row.addWidget(alias_input, stretch=1)
+        add_tooltip = tr("Add alias", "Добавить алиас")
+        add_button = create_icon_button(self.icons_path, "line/add-large-line.svg", add_tooltip, size_type="small", config=self.config)
+        add_button.setEnabled(False)
+        self.register_tr(add_button.setToolTip, add_tooltip)
+        row.addWidget(add_button)
+        layout.addLayout(row)
+
+        bar = SavedValuesBar(self.icons_path, load_values, save_values)
+        layout.addWidget(bar)
+
+        def add_aliases():
+            bar.add_values([alias.strip() for alias in alias_input.text().split(",") if alias.strip()])
+            alias_input.clear()
+
+        alias_input.textChanged.connect(lambda text: add_button.setEnabled(bool(text.strip())))
+        alias_input.returnPressed.connect(add_aliases)
+        add_button.clicked.connect(add_aliases)
 
     def refresh_notification_bypass(self):
         fill_notification_mute_bypass_combo(

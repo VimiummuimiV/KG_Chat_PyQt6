@@ -1,5 +1,13 @@
 import re
-from typing import List, Tuple
+from typing import List, Optional, Pattern, Tuple
+
+
+def compile_mention_pattern(keywords: List[str]) -> Optional[Pattern]:
+    """Case-insensitive whole-word pattern matching any keyword, or None when there are none."""
+    escaped = [re.escape(keyword) for keyword in keywords if keyword]
+    if not escaped:
+        return None
+    return re.compile(r"(?<!\w)(?:" + "|".join(escaped) + r")(?!\w)", re.IGNORECASE)
 
 
 def parse_mentions(text: str, my_username: str) -> List[Tuple[bool, str]]:

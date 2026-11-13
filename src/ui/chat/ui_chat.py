@@ -15,6 +15,7 @@ from components.font_scale_slider import FontScaleSlider
 from components.help_panel import HelpPanel
 from components.input_row import InputRow
 from components.toast import Toast
+from core.state.mention_aliases import MentionAliases
 from core.state.mentions_digest import MentionsDigest
 from core.state.self_ban import SelfBan
 from helpers.cache import get_cache
@@ -185,6 +186,7 @@ class ChatWindow(
             self.config = app_controller.config
         else:
             self.config = Config(self.config_path)
+        self.mention_aliases = MentionAliases(self.config)
         # rating competitions tracking
         track = self.config.get("competitions", "enabled")
         if track is None or track:

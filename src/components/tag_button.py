@@ -1,6 +1,7 @@
 """Reusable tag/chip UI components (e.g. saved-value quick-access buttons)."""
 
 from pathlib import Path
+from typing import Callable
 
 from PyQt6.QtCore import pyqtSignal, QMimeData, QRect, QSize, Qt, QTimer
 from PyQt6.QtGui import QDrag
@@ -147,18 +148,17 @@ class _FlowLayout(QLayout):
 
 
 class SavedValuesBar(QWidget):
-    """Row of removable chips backed by a config list, e.g. saved usernames.
+    """Row of removable, draggable chips backed by any list storage, e.g. saved usernames or aliases.
     Owns loading/saving/rebuilding; the parent widget only reacts to chip clicks."""
 
     value_selected = pyqtSignal(str)
     value_double_clicked = pyqtSignal(str)
 
-    def __init__(self, config, config_path: tuple, icons_path: Path):
+    def __init__(self, icons_path: Path, load_values: Callable[[], list], save_values: Callable[[list], None]):
         super().__init__()
-        self.config = config
-        self.config_path = config_path
         self.icons_path = icons_path
-        self.values = self.config.get(*config_path) or []
+        self._save_values = save_values
+        self.values = load_values()
         self._tags = {}
 
         self._layout = _FlowLayout(self)
@@ -197,7 +197,7 @@ class SavedValuesBar(QWidget):
         self._update_size()
 
     def _save(self):
-        self.config.set(*self.config_path, value=self.values)
+        self._save_values(self.values)
 
     def _tag_at(self, pos):
         """Which tag (if any) a point is over, and whether pos is past its midpoint."""

@@ -1,7 +1,5 @@
 """ChatWindow: handling incoming messages and presence."""
 
-import re
-
 from core.xmpp.jid_utils import extract_user_data_from_jid, is_from_game_room
 from helpers.text.me_action import format_me_action
 from ui.messages.messages_separator import NewMessagesSeparator
@@ -116,11 +114,8 @@ class ChatIncomingMixin:
     def message_mentions_me(self, msg):
         if not self.account or not msg.body:
             return False
-        my_username = (self.my_username or '').lower()
-        if not my_username:
-            return False
-        pattern = r'\b' + re.escape(my_username) + r'\b'
-        return bool(re.search(pattern, msg.body.lower()))
+        pattern = self.mention_aliases.pattern(self.my_username)
+        return bool(pattern and pattern.search(msg.body))
 
     def on_presence(self, pres):
         if not self.xmpp_client or self.initial_roster_loading:
