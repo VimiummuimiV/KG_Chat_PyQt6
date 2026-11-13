@@ -3,7 +3,7 @@
 from contextlib import contextmanager
 from typing import Dict, Optional
 
-from PyQt6.QtCore import pyqtSignal, QEvent, QModelIndex, QPointF, QRect, QRectF, QSize, Qt, QTimer
+from PyQt6.QtCore import pyqtSignal, QEvent, QModelIndex, QPoint, QPointF, QRect, QRectF, QSize, Qt, QTimer
 from PyQt6.QtGui import (
     QColor,
     QCursor,
@@ -107,14 +107,17 @@ class _ContinuityRail:
 
 
 class _DeliveryMarker:
-    """Small dot at the end of an own message: amber while sending, green once delivered, red when not delivered"""
+    """Small dot right after the last character of an own message: amber while sending, green once delivered, red when not delivered"""
     GUTTER = 16
     _DIAMETER = 8
+    _TEXT_GAP = 6
     _COLORS = {PENDING: "#E8A33D", DELIVERED: "#4CAF50", FAILED: "#E5484D"}
 
     @classmethod
-    def paint(cls, painter: QPainter, rect: QRect, state: str, line_height: int, padding: int):
-        center = QPointF(rect.right() - cls.GUTTER / 2 + 1, rect.bottom() + 1 - padding - line_height / 2)
+    def paint(cls, painter: QPainter, rect: QRect, state: str, text_end: QPoint, line_height: int):
+        radius = cls._DIAMETER / 2
+        center_x = min(text_end.x() + cls._TEXT_GAP + radius, rect.right() - radius)  # never leaves the row
+        center = QPointF(center_x, text_end.y() + line_height / 2)
         painter.setPen(Qt.PenStyle.NoPen)
         painter.setBrush(QColor(cls._COLORS[state]))
         painter.drawEllipse(center, cls._DIAMETER / 2, cls._DIAMETER / 2)
@@ -595,7 +598,8 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
 
         if self._has_delivery_marker(msg):
             _DeliveryMarker.paint(
-                painter, option.rect, msg.delivery, QFontMetrics(self.body_font).height(), self.padding
+                painter, option.rect, msg.delivery, self.message_renderer.content_end,
+                QFontMetrics(self.body_font).height()
             )
 
         if self._show_continuity:

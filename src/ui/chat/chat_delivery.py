@@ -71,5 +71,11 @@ class ChatDeliveryMixin:
                 widget.set_delivery(delivery_id, state)
             if state == DELIVERED:
                 self.input_drafts.remove_unsent(self.my_username, body)
-            elif state == FAILED and self._own_message_mode() != "local" and not self.input_field.text():
-                self.input_field.setText(body)  # nothing on screen shows this message, so give it back to the user
+            elif state == FAILED:
+                self._give_back_to_input(body)
+
+    def _give_back_to_input(self, body: str):
+        """Put a message the server did not get back into the input field so it can be sent again."""
+        self.input_field.setText(f"{self.input_field.text()} {body}".strip())
+        self.input_drafts.remove_unsent(self.my_username, body)  # it is the draft now; keeping both would restore it twice
+        self.save_draft()

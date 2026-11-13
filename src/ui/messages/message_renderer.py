@@ -3,7 +3,7 @@
 import re
 from typing import Dict, List, Optional, Tuple
 
-from PyQt6.QtCore import pyqtSignal, QObject, QRect, QSize, Qt
+from PyQt6.QtCore import pyqtSignal, QObject, QPoint, QRect, QSize, Qt
 from PyQt6.QtGui import QColor, QFontMetrics, QMovie, QPainter, QPen, QPixmap
 from PyQt6.QtWidgets import QApplication
 
@@ -52,6 +52,7 @@ class MessageRenderer(QObject):
 
         # Track own username for mention highlighting
         self.my_username = None
+        self.content_end = QPoint()  # top-left of the spot right after the last painted body text
         self._mention_color = get_mention_color(is_dark_theme)
         self._highlight_colors = get_search_highlight_colors(is_dark_theme)
         self._link_colors = link_colors(is_dark_theme)
@@ -491,6 +492,7 @@ class MessageRenderer(QObject):
                     current_x += w
                     line_height = max(line_height, h)
 
+        self.content_end = QPoint(current_x, current_y)
         return link_rects
 
     @staticmethod
