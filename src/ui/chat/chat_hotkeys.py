@@ -361,7 +361,7 @@ class ChatHotkeysMixin:
                 cw.toggle_mention_filter()
             else:
                 self.on_toggle_effects_sound()
-        # Toggle search (S) — chatlog or messages; parser: start parse when visible
+        # Toggle search (S) — chatlog or messages
         elif vk == 'search':
             self.toggle_search_for_current_view()
         # Navigate chatlog days — H backward, L forward, supports hold

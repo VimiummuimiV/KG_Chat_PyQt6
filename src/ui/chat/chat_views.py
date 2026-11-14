@@ -224,11 +224,7 @@ class ChatViewsMixin:
         current = self.stacked_widget.currentWidget()
         if current == self.chatlog_widget:
             cw = self.chatlog_for_hotkey()
-            if not cw:
-                return
-            if cw.parser_visible and not cw.parser_widget.is_parsing:
-                cw.parser_widget.on_parse_clicked()
-            elif not cw.parser_visible:
+            if cw:
                 cw.toggle_search()
             return
         if current == self.messages_splitter:
