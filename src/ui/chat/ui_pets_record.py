@@ -1,4 +1,4 @@
-"""Record effect over the pet area: a trophy pulses in, confetti bursts out, the beaten and the new score shine under it, a button closes it."""
+"""Record effect over the pet area: a trophy pulses in, confetti bursts out, the beaten and the new score shine under it, a click on the trophy replays it, a button closes it."""
 
 import math
 import random
@@ -159,6 +159,8 @@ class RecordCelebration(QWidget):
         self._close_button.setParent(self)
         self._close_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)  # Esc stays with the window
         self._close_button.clicked.connect(self.stop)
+        self._count = 0
+        self._previous = 0
         self._elapsed_ms = 0.0
         self._pieces: list[_Piece] = []
         self._trophy = QPixmap()
@@ -168,15 +170,17 @@ class RecordCelebration(QWidget):
         self._animation.setEndValue(float(_INTRO_MS))
         self._animation.setDuration(_INTRO_MS)
         self._animation.valueChanged.connect(self._advance)
+        self.setMouseTracking(True)  # the pointer turns into a hand over the trophy
         self.hide()
 
     def play(self, area: QRect, count: int, previous: int) -> None:
         """Celebrate count, which beat previous (zero for the first record), centered in area."""
         self._animation.stop()
+        self._count, self._previous = count, previous
         self.setGeometry(area)
         ratio = self.devicePixelRatioF()
         self._trophy = self._render_trophy(ratio)
-        self._text = self._render_text(count, previous, ratio)
+        self._text = self._render_text(self._count, self._previous, ratio)
         self._pieces = _scatter(area.width(), area.height())
         self._elapsed_ms = 0.0
         self._close_button.setToolTip(tr("Close (Esc)", "Закрыть (Esc)"))
@@ -197,9 +201,14 @@ class RecordCelebration(QWidget):
         QApplication.instance().removeEventFilter(self)
 
     def event(self, event):
-        if event.type() in _MOUSE_EVENTS:  # a click on the effect must not reach the messages under it
+        event_type = event.type()
+        if event_type in _MOUSE_EVENTS:  # a click on the effect must not reach the messages under it
+            if event_type == QEvent.Type.MouseButtonPress and event.button() == Qt.MouseButton.LeftButton and self._is_over_trophy(event):
+                self.play(self.geometry(), self._count, self._previous)
             event.accept()
             return True
+        if event_type == QEvent.Type.MouseMove:
+            self.setCursor(Qt.CursorShape.PointingHandCursor if self._is_over_trophy(event) else Qt.CursorShape.ArrowCursor)
         return super().event(event)
 
     def resizeEvent(self, event):
@@ -215,8 +224,8 @@ class RecordCelebration(QWidget):
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHints(QPainter.RenderHint.Antialiasing | QPainter.RenderHint.SmoothPixmapTransform)
-        stack_top = (self.height() - _TROPHY_SIZE - _TEXT_GAP - _TEXT_HEIGHT) / 2
-        trophy_center = QPointF(self.width() / 2, stack_top + _TROPHY_SIZE / 2)
+        stack_top = self._stack_top()
+        trophy_center = self._trophy_rect().center()
         self._paint_glow(painter, trophy_center)
         self._paint_confetti(painter, trophy_center)
         self._paint_trophy(painter, trophy_center)
@@ -224,6 +233,15 @@ class RecordCelebration(QWidget):
         painter.setOpacity(reveal)
         text_left = (self.width() - self._text.width() / self._text.devicePixelRatio()) / 2
         painter.drawPixmap(QPointF(text_left, stack_top + _TROPHY_SIZE + _TEXT_GAP + (1 - reveal) * _TEXT_RISE), self._text)
+
+    def _stack_top(self) -> float:
+        return (self.height() - _TROPHY_SIZE - _TEXT_GAP - _TEXT_HEIGHT) / 2
+
+    def _trophy_rect(self) -> QRectF:
+        return QRectF((self.width() - _TROPHY_SIZE) / 2, self._stack_top(), _TROPHY_SIZE, _TROPHY_SIZE)
+
+    def _is_over_trophy(self, event) -> bool:
+        return self._trophy_rect().contains(event.position())
 
     def _advance(self, elapsed_ms: float) -> None:
         self._elapsed_ms = elapsed_ms
