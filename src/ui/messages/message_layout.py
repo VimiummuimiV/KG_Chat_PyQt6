@@ -201,6 +201,18 @@ class _Flow:
         self._open_text = False
 
 
+def wrap_boxes(widths: List[int], available: int, gap: int) -> List[Tuple[int, int]]:
+    """Left offset and row of every box in a row of boxes that wraps when the next one would pass the available width."""
+    positions = []
+    offset, row = 0, 0
+    for width in widths:
+        if offset > 0 and offset + width > available:
+            offset, row = 0, row + 1
+        positions.append((offset, row))
+        offset += width + gap
+    return positions
+
+
 def layout_atoms(atoms: List[Atom], width: float, line_height: int, measure: Measure) -> TextLayout:
     """Wrap the atoms to the width: breaks only at spaces, a run wider than a line is cut by characters."""
     flow = _Flow(width, line_height, measure)

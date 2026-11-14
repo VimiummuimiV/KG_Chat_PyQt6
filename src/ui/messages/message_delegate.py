@@ -58,17 +58,8 @@ _COMPACT_HEADER_GAP = 2  # space between the header line and the body in compact
 
 
 @dataclass(frozen=True)
-class _RowCache:
-    """Geometry of a row kept on its message; it holds for every content width in [min_width, max_width)."""
-    key: tuple
-    geometry: "_RowGeometry"
-    min_width: float
-    max_width: float
-
-
-@dataclass(frozen=True)
 class _RowGeometry:
-    """Layout of a regular row relative to its content rectangle."""
+    """Layout of a regular row relative to its content rectangle; kept on the message while key and width stay valid."""
     body: TextLayout
     body_x: int
     body_y: int
@@ -76,6 +67,9 @@ class _RowGeometry:
     timestamp_width: int
     username_width: int
     has_username: bool
+    key: tuple
+    min_width: float  # the geometry holds for every content width in [min_width, max_width)
+    max_width: float
 
 
 class _MarkerGutter:
@@ -495,7 +489,8 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
         return f"https://klavogonki.ru/chatlogs/{date_str}.html#{msg.get_time_str()}"
 
     def sizeHint(self, option: QStyleOptionViewItem, index: QModelIndex) -> QSize:
-        msg = self._message_at(index.row())
+        messages = self._model.stored_messages
+        msg = messages[index.row()] if 0 <= index.row() < len(messages) else None  # not index.data(): sizeHint runs for every row
         if not msg:
             return QSize(200, 50)
 
@@ -511,17 +506,12 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
         if not self.message_renderer:
             return QSize(width, 50)
         if self.exact_rows is not None and msg.layout_cache is not None and not self.exact_rows[0] <= index.row() <= self.exact_rows[1]:
-            return QSize(width, msg.layout_cache.geometry.height)  # far from the screen: the old height does until the resize settles
+            return QSize(width, msg.layout_cache.height)  # far from the screen: the old height does until the resize settles
         gutter_left, gutter_right = self._row_gutter(msg)
         content_width = width - gutter_left - gutter_right
         if msg.is_presence_log:
             return QSize(width, self._presence_log_height(msg, content_width))
         return QSize(width, self._row_geometry(msg, content_width).height)
-
-    def _message_at(self, row: int):
-        """The message of a row read straight from the model: sizeHint runs for every row on each relayout."""
-        messages = self._model.stored_messages
-        return messages[row] if 0 <= row < len(messages) else None
 
     def _row_width(self, option: QStyleOptionViewItem) -> int:
         width = option.rect.width()
@@ -553,8 +543,8 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
         cached = msg.layout_cache
         is_valid = cached is not None and cached.key == key and cached.min_width <= content_width < cached.max_width
         if is_valid and not msg.competition_players:
-            return cached.geometry
-        return self._measure_row(msg, content_width, key, cached.geometry.body if is_valid else None)
+            return cached
+        return self._measure_row(msg, content_width, key, cached.body if is_valid else None)
 
     def _measure_row(self, msg, content_width: int, key: tuple, body: Optional[TextLayout]) -> _RowGeometry:
         """Measure a row; body is its still valid wrapped text, if any. The result is kept on the message."""
@@ -580,11 +570,12 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
             height = body_y + body.height + chips_height + self.padding
         else:
             height = max(label_height, body.height) + chips_height + 2 * self.padding
+        extra = content_width - body_width
         geometry = _RowGeometry(
             body, body_x, body_y, min(height, _MAX_ROW_HEIGHT), timestamp_width, username_width, not is_system,
+            key, body.min_width + extra, body.max_width + extra,
         )
-        extra = content_width - body_width
-        msg.layout_cache = _RowCache(key, geometry, body.min_width + extra, body.max_width + extra)
+        msg.layout_cache = geometry
         return geometry
 
     def _chips_height(self, msg, width: int) -> int:

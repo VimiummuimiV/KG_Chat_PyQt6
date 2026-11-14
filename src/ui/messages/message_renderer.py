@@ -30,7 +30,16 @@ from helpers.colors.color_utils import (
 from helpers.data import get_resource_dir
 from helpers.fonts.fonts import FontType, get_font
 from helpers.text.mention_parser import MENTION_ICONS, parse_mentions
-from ui.messages.message_layout import Atom, Fragment, KIND_EMOTICON, KIND_LINK, KIND_TEXT, layout_atoms, TextLayout
+from ui.messages.message_layout import (
+    Atom,
+    Fragment,
+    KIND_EMOTICON,
+    KIND_LINK,
+    KIND_TEXT,
+    layout_atoms,
+    TextLayout,
+    wrap_boxes,
+)
 
 
 _WORD_WIDTH_CACHE_LIMIT = 50000
@@ -395,18 +404,13 @@ class MessageRenderer(QObject):
         """Height needed for the wrapping row of user chips."""
         if not players or width <= 0:
             return 0
-        font_metrics = QFontMetrics(self.body_font)
-        chip_height = font_metrics.height() + 6
-        row_width = 0
-        rows = 1
-        for player in players:
-            chip_width = font_metrics.horizontalAdvance(self._chip_label(player)) + 16
-            if row_width and row_width + self._CHIP_GAP + chip_width > width:
-                rows += 1
-                row_width = chip_width
-            else:
-                row_width += (self._CHIP_GAP if row_width else 0) + chip_width
+        chip_height = QFontMetrics(self.body_font).height() + 6
+        rows = wrap_boxes(self._chip_widths(players), width, self._CHIP_GAP)[-1][1] + 1
         return rows * chip_height + (rows - 1) * self._CHIP_GAP
+
+    def _chip_widths(self, players: list) -> List[int]:
+        font_metrics = QFontMetrics(self.body_font)
+        return [font_metrics.horizontalAdvance(self._chip_label(player)) + 16 for player in players]
 
     def paint_chips(self, painter: QPainter, x: int, y: int, width: int, players: list, is_dark: bool):
         """Paint usernames as pill-shaped chips. Returns (block_height, [(QRect, name), ...])."""
@@ -417,20 +421,17 @@ class MessageRenderer(QObject):
         font_metrics = QFontMetrics(self.body_font)
         painter.setFont(self.body_font)
         chip_height = font_metrics.height() + 6
-        current_x, current_y = x, y
+        chip_widths = self._chip_widths(players)
+        positions = wrap_boxes(chip_widths, width, self._CHIP_GAP)
         chip_rects = []
 
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
-        for player in players:
+        for player, chip_width, (offset, row) in zip(players, chip_widths, positions):
             name = self._chip_label(player)
             level = player.get("level") if isinstance(player, dict) else None
             background_hex, foreground_hex, border_hex = get_rank_chip_colors(level, is_dark)
-            chip_width = font_metrics.horizontalAdvance(name) + 16
-            if current_x > x and current_x + chip_width > x + width:
-                current_y += chip_height + self._CHIP_GAP
-                current_x = x
-            chip_rect = QRect(current_x, current_y, chip_width, chip_height)
+            chip_rect = QRect(x + offset, y + row * (chip_height + self._CHIP_GAP), chip_width, chip_height)
 
             pen = QPen(QColor(border_hex))
             pen.setWidth(border)
@@ -442,9 +443,8 @@ class MessageRenderer(QObject):
             painter.setPen(QColor(foreground_hex))
             painter.drawText(chip_rect, Qt.AlignmentFlag.AlignCenter, name)
             chip_rects.append((chip_rect, name))
-            current_x += chip_width + self._CHIP_GAP
 
-        return current_y + chip_height - y, chip_rects
+        return positions[-1][1] * (chip_height + self._CHIP_GAP) + chip_height, chip_rects
 
     _PRESENCE_GROUP_GAP = 12
     _PRESENCE_BADGE_GAP = 4
@@ -479,15 +479,8 @@ class MessageRenderer(QObject):
     def _presence_line_count(self, entries: list, width: int, font_metrics: QFontMetrics) -> int:
         if width <= 0:
             return 1
-        lines, row_width = 1, 0
-        for entry in entries:
-            ew = self._presence_entry_width(entry, font_metrics)
-            if row_width and row_width + self._PRESENCE_GROUP_GAP + ew > width:
-                lines += 1
-                row_width = ew
-            else:
-                row_width += (self._PRESENCE_GROUP_GAP if row_width else 0) + ew
-        return lines
+        widths = [self._presence_entry_width(entry, font_metrics) for entry in entries]
+        return wrap_boxes(widths, width, self._PRESENCE_GROUP_GAP)[-1][1] + 1
 
     def calculate_presence_entries_height(self, entries: list, width: int = 0) -> int:
         if not entries:
@@ -507,14 +500,15 @@ class MessageRenderer(QObject):
         painter.setFont(self.body_font)
         line_h = line_height if line_height > 0 else self._presence_line_height(font_metrics)
         badge_height = min(self._presence_line_height(font_metrics), line_h)
-        cx, cy = x, y
+        positions = wrap_boxes(
+            [self._presence_entry_width(entry, font_metrics) for entry in entries], width, self._PRESENCE_GROUP_GAP
+        )
+        cy = y
         user_rects = []
 
-        for entry in entries:
-            ew = self._presence_entry_width(entry, font_metrics)
-            if cx > x and cx + ew > x + width:
-                cx = x
-                cy += line_h + self._PRESENCE_LINE_GAP
+        for entry, (offset, row) in zip(entries, positions):
+            cx = x + offset
+            cy = y + row * (line_h + self._PRESENCE_LINE_GAP)
 
             login = entry.get('login', '')
             name_width = font_metrics.horizontalAdvance(login)
@@ -564,8 +558,6 @@ class MessageRenderer(QObject):
                     )
 
                 cx += bw + self._PRESENCE_BADGE_GAP
-
-            cx += self._PRESENCE_GROUP_GAP
 
         return QRect(x, y, width, (cy - y) + line_h), user_rects
 
