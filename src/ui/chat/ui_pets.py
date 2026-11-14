@@ -3,10 +3,9 @@
 import math
 
 from PyQt6.QtCore import QElapsedTimer, QEvent, QPoint, QRect, QTimer, Qt
-from PyQt6.QtGui import QColor, QCursor, QPainter, QPixmap, QRegion
+from PyQt6.QtGui import QColor, QCursor, QPainter, QRegion
 from PyQt6.QtWidgets import QWidget
 
-from components.badge import counter_pixmap
 from components.button import get_accent_color
 from components.fade import WidgetFader
 from core.state.pet_records import PetRecords
@@ -32,6 +31,7 @@ from helpers.pets.meadow import Meadow
 from helpers.pets.pet import Pet
 from helpers.pets.relations import preys_on
 from helpers.pets.throwable import Throwable
+from ui.chat.ui_pets_counter import BounceCounter, CORNER_MARGIN
 from ui.chat.ui_pets_record import RecordCelebration
 
 
@@ -40,8 +40,6 @@ _FADE_IN_RATIO = 2  # the content comes back this much slower than it goes
 _HIDDEN_OPACITY = 0.0
 _RESPAWN_SHARE = 0.5  # a carried-off pet is replaced after this share of the time between the visits of a predator
 _MAXIMUM_STEP_MS = 100  # a stall (sleep, window drag) must not make pets jump across the line
-_BADGE_FONT_SIZE = 10
-_BADGE_GAP = 1  # logical pixels between the badge and the top of the pet
 _BOARD_SHADE = 150  # percent; the lower row of the board is the accent color darkened by this much
 _ANCHOR_EVENTS = (QEvent.Type.Move, QEvent.Type.Resize, QEvent.Type.Show, QEvent.Type.Hide)
 
@@ -57,7 +55,8 @@ class PetOverlay(QWidget):
         super().__init__(parent)
         self._username = username
         self._records = PetRecords()
-        self._celebration = RecordCelebration(parent)  # a sibling: this widget's mask would clip a child
+        self._celebration = RecordCelebration(parent, config)  # a sibling: this widget's mask would clip a child
+        self._counter = BounceCounter(parent, config)  # a sibling too, in the corner of the message area
         self._anchor = anchor
         self._content = content
         self._config = config
@@ -90,6 +89,7 @@ class PetOverlay(QWidget):
         self._timer.stop()
         self._celebration.stop()
         self._celebration.deleteLater()
+        self._counter.deleteLater()
         self._show_content()
         if self._anchor is not None:
             self._anchor.removeEventFilter(self)
@@ -154,6 +154,7 @@ class PetOverlay(QWidget):
         super().hideEvent(event)
         self._timer.stop()
         self._celebration.stop()
+        self._counter.hide()
         self._show_content()
 
     def paintEvent(self, event):
@@ -168,8 +169,6 @@ class PetOverlay(QWidget):
         board = self._board_rect()
         if board:
             self._paint_board(painter, board)
-        for pixmap, position in self._badges():
-            painter.drawPixmap(position, pixmap)
 
     def mousePressEvent(self, event):
         if event.button() != Qt.MouseButton.LeftButton:
@@ -215,20 +214,6 @@ class PetOverlay(QWidget):
         painter.fillRect(board.adjusted(cell, 0, -cell, -cell), light)
         painter.fillRect(board.adjusted(0, cell, 0, 0), light.darker(_BOARD_SHADE))
 
-    def _badges(self) -> list[tuple[QPixmap, QPoint]]:
-        """Return the bounce counters with their top left corners, each centered above its pet."""
-        line_width, area_height = self._device_size()
-        badges = []
-        for pet in self._pets:
-            if not (pet.is_visible and pet.badge_text):
-                continue
-            pixmap = counter_pixmap(pet.badge_text, _BADGE_FONT_SIZE, self.devicePixelRatioF())
-            body = pet.rect(area_height)
-            gap = round(_BADGE_GAP * self.devicePixelRatioF())
-            x = min(body.center().x() - pixmap.width() // 2, line_width - pixmap.width())
-            badges.append((pixmap, QPoint(max(0, x), max(0, body.top() - pixmap.height() - gap))))
-        return badges
-
     def _cursor_motion(self, step_ms: int) -> CursorMotion:
         """Return the cursor over the last tick in device pixels, with its speed right and up."""
         ratio = self.devicePixelRatioF()
@@ -269,9 +254,12 @@ class PetOverlay(QWidget):
         self.setGeometry(top_left.x(), 0, self._anchor.width(), line_y)
         self.show()
         self.raise_()  # panes re-adopted by the window (room tabs opened or closed) land above the pets
+        zone = self._celebration_zone()
         if self._celebration.isVisible():
-            self._celebration.setGeometry(self._celebration_zone())
-            self._celebration.raise_()
+            self._celebration.setGeometry(zone)
+        self._counter.move(zone.topLeft() + QPoint(CORNER_MARGIN, CORNER_MARGIN))
+        self._celebration.stackUnder(self)  # the pets stay in reach of the mouse and fly in front of the effect
+        self._counter.stackUnder(self)
         self._refresh_region()
 
     def _refresh_region(self) -> None:
@@ -281,8 +269,6 @@ class PetOverlay(QWidget):
             body: (self._logical_rect(body.rect(area_height)), body.pixmap.cacheKey())
             for body in self._bodies()
         }
-        for index, (pixmap, position) in enumerate(self._badges()):
-            items[("badge", index)] = (self._logical_rect(QRect(position, pixmap.size())), pixmap.cacheKey())
         board = self._board_rect()
         if board:
             items["board"] = (self._logical_rect(board), 0)
@@ -343,6 +329,7 @@ class PetOverlay(QWidget):
             egg = pet.take_egg()
             if egg:
                 self._eggs.append(egg)
+        self._update_counter()
         self._replace_carried_off(step_ms, line_width)
         for egg in self._eggs:
             egg.update(step_ms, line_width, area_height)
@@ -361,6 +348,23 @@ class PetOverlay(QWidget):
         previous = self._records.submit(self._username, bounces) if bounces else None
         if previous is not None:
             self._celebration.play(self._celebration_zone(), bounces, previous)
+            self._celebration.stackUnder(self)
+
+    def _update_counter(self) -> None:
+        """Show the highest running bounce count in the corner while it counts; the record effect shows its own."""
+        counting = [pet for pet in self._pets if pet.is_visible and pet.bounces]
+        if not counting or self._celebration.isVisible():
+            self._counter.hide()
+            return
+        self._counter.set_value(max(counting, key=lambda pet: pet.bounces).badge_text)
+        self._counter.show()
+
+    def close_celebration(self) -> None:
+        """Close the record effect and give the page back at once, for a page that opens over it."""
+        if not self._celebration.isVisible():
+            return
+        self._celebration.stop()
+        self._show_content()
 
     def _fade_content(self) -> None:
         """Fade the content out for a throw as the mode says and back in once all have landed."""

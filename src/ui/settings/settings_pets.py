@@ -4,9 +4,10 @@ from itertools import groupby
 
 from PyQt6.QtCore import pyqtSignal, QRect, Qt
 from PyQt6.QtGui import QPainter, QPixmap
-from PyQt6.QtWidgets import QGridLayout, QHBoxLayout, QLabel, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QGridLayout, QHBoxLayout, QLabel, QMessageBox, QVBoxLayout, QWidget
 
 from components.button import create_icon_button
+from core.state.pet_records import PetRecords
 from helpers.hold_repeater import HoldRepeater
 from helpers.pets.catalog import (
     list_pet_kinds,
@@ -31,6 +32,7 @@ from helpers.pets.relations import PREDATOR_SPECIES
 from helpers.translate import tr
 from ui.dialogs.pets_guide_dialog import PetsGuideDialog
 from ui.settings.settings_options import fill_pets_hide_combo
+from ui.settings.settings_widgets import SettingsRow
 
 
 _TILE_COLUMNS = 8
@@ -39,6 +41,7 @@ _BADGE_HEIGHT = 14
 _BADGE_PADDING = 6
 _BADGE_FONT_PIXELS = 10
 _BADGE_RADIUS = 4
+_NO_RECORD = "—"
 
 
 class _PetTile(QLabel):
@@ -202,6 +205,33 @@ class SettingsPetsMixin:
         )
         self.pets_hide_fade_spin.parentWidget().setToolTip(fade_tooltip)
         self.register_tr(self.pets_hide_fade_spin.parentWidget().setToolTip, fade_tooltip)
+        self._build_pet_record_row(section)
+
+    def _build_pet_record_row(self, section) -> None:
+        """Record of the account with two resets: this account and all accounts."""
+        self._pet_records = PetRecords()
+        row_widget = SettingsRow(spacing=self.element_spacing())
+        row = row_widget.layout()
+        label_text = tr("Bounce record of this account", "Рекорд отбиваний этого аккаунта")
+        label = QLabel(label_text)
+        row.addWidget(label, stretch=1)
+        self.register_tr(label.setText, label_text)
+        self.pet_record_label = QLabel()
+        row.addWidget(self.pet_record_label)
+        reset_tooltip = tr("Reset the record of this account", "Сбросить рекорд этого аккаунта")
+        self.pet_record_reset_button = create_icon_button(
+            self.icons_path, "line/refresh-line.svg", reset_tooltip, size_type="small", config=self.config
+        )
+        self.pet_record_reset_button.clicked.connect(self._on_pet_record_reset)
+        reset_all_tooltip = tr("Reset the records of all accounts", "Сбросить рекорды всех аккаунтов")
+        reset_all_button = create_icon_button(
+            self.icons_path, "fill/delete-bin-fill.svg", reset_all_tooltip, size_type="small", config=self.config
+        )
+        reset_all_button.clicked.connect(self._on_pet_records_reset_all)
+        for button, tooltip in ((self.pet_record_reset_button, reset_tooltip), (reset_all_button, reset_all_tooltip)):
+            row.addWidget(button)
+            self.register_tr(button.setToolTip, tooltip)
+        section.addWidget(row_widget)
 
     def refresh_pets(self):
         self.pets_checkbox.setChecked(pets_enabled(self.config))
@@ -228,6 +258,30 @@ class SettingsPetsMixin:
         ):
             spin.setValue(frame_rate)
             spin.linked_slider.setValue(frame_rate)
+        self._refresh_pet_record()
+
+    def _refresh_pet_record(self) -> None:
+        record = self._pet_records.get(self.my_username)
+        self.pet_record_label.setText(str(record) if record else _NO_RECORD)
+        self.pet_record_reset_button.setEnabled(bool(record))
+
+    def _confirm_pet_record_reset(self, question: str, reset) -> None:
+        """Ask first, since a record cannot be got back; reset() forgets it."""
+        answer = QMessageBox.question(
+            self, tr("Pets", "Питомцы"), question, QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if answer == QMessageBox.StandardButton.Yes:
+            reset()
+            self._refresh_pet_record()
+
+    def _on_pet_record_reset(self):
+        question = tr("Reset the bounce record of this account?", "Сбросить рекорд отбиваний этого аккаунта?")
+        self._confirm_pet_record_reset(question, lambda: self._pet_records.reset(self.my_username))
+
+    def _on_pet_records_reset_all(self):
+        question = tr("Reset the bounce records of all accounts?", "Сбросить рекорды отбиваний всех аккаунтов?")
+        self._confirm_pet_record_reset(question, self._pet_records.reset_all)
 
     def _on_pets_toggled(self, checked: bool):
         self.config.set("ui", "pets", "enabled", value=checked)

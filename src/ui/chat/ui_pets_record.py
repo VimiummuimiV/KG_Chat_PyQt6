@@ -1,16 +1,18 @@
-"""Record effect over the pet area: a trophy pulses in, confetti bursts out, the beaten and the new score shine under it."""
+"""Record effect over the pet area: a trophy pulses in, confetti bursts out, the beaten and the new score shine under it, a button closes it."""
 
 import math
 import random
 from dataclasses import dataclass
 
 from PyQt6.QtCore import QEasingCurve, QEvent, QPointF, QRect, QRectF, Qt, QVariantAnimation
-from PyQt6.QtGui import QColor, QFont, QIcon, QLinearGradient, QPainter, QPainterPath, QPen, QPixmap, QPolygonF, QRadialGradient
+from PyQt6.QtGui import QColor, QIcon, QLinearGradient, QPainter, QPainterPath, QPen, QPixmap, QPolygonF, QRadialGradient
 from PyQt6.QtWidgets import QApplication, QWidget
 
+from components.button import create_icon_button
 from helpers.data import get_resource_dir
-from helpers.fonts.fonts import FontType, get_font
+from helpers.fonts.fonts import get_display_font
 from helpers.translate import tr
+from ui.chat.ui_pets_counter import CORNER_MARGIN
 
 
 _MILLISECONDS = 1000
@@ -48,6 +50,9 @@ _DRAG = 2.2  # per second: the burst slows down
 _GRAVITY_SHARE = 0.3  # of the area height per second squared
 _TILE_RADIUS = 1
 _CONFETTI_COLORS = tuple(QColor(code) for code in ("#ffd23f", "#ffb300", "#ff5252", "#4fc3f7", "#81c784", "#f48fb1", "#fff176"))
+_MOUSE_EVENTS = (
+    QEvent.Type.MouseButtonPress, QEvent.Type.MouseButtonRelease, QEvent.Type.MouseButtonDblClick, QEvent.Type.ContextMenu,
+)
 _SMOOTH = QEasingCurve(QEasingCurve.Type.InOutSine)
 _SETTLE = QEasingCurve(QEasingCurve.Type.OutCubic)
 
@@ -106,18 +111,10 @@ def _trophy_scale(elapsed_ms: float) -> float:
     return _SCALE_KEYFRAMES[-1][1]
 
 
-def _display_font(pixel_size: int) -> QFont:
-    font = QFont(get_font(FontType.UI))
-    font.setFamilies([font.family()])  # the emoji fallback has no outlines for the lettering path
-    font.setPixelSize(pixel_size)
-    font.setBold(True)
-    return font
-
-
 def _text_path(text: str, pixel_size: int) -> QPainterPath:
     """Return the outline of text with the middle of its box at the origin."""
     path = QPainterPath()
-    path.addText(0, 0, _display_font(pixel_size), text)
+    path.addText(0, 0, get_display_font(pixel_size), text)
     return path.translated(-path.boundingRect().center())
 
 
@@ -154,11 +151,14 @@ def _paint_lettering(painter: QPainter, path: QPainterPath, depth: int, palette:
 
 
 class RecordCelebration(QWidget):
-    """Plays the record effect over the pet area and stays until Esc; the mouse passes through it."""
+    """Plays the record effect over the pet area and stays until Esc or its close button; it takes the mouse from what lies under it."""
 
-    def __init__(self, parent: QWidget):
+    def __init__(self, parent: QWidget, config):
         super().__init__(parent)
-        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        self._close_button = create_icon_button(get_resource_dir("icons"), "line/close-large-line.svg", config=config)
+        self._close_button.setParent(self)
+        self._close_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)  # Esc stays with the window
+        self._close_button.clicked.connect(self.stop)
         self._elapsed_ms = 0.0
         self._pieces: list[_Piece] = []
         self._trophy = QPixmap()
@@ -179,7 +179,7 @@ class RecordCelebration(QWidget):
         self._text = self._render_text(count, previous, ratio)
         self._pieces = _scatter(area.width(), area.height())
         self._elapsed_ms = 0.0
-        self.raise_()
+        self._close_button.setToolTip(tr("Close (Esc)", "Закрыть (Esc)"))
         self.show()
         self._animation.start()
 
@@ -195,6 +195,16 @@ class RecordCelebration(QWidget):
     def hideEvent(self, event):
         super().hideEvent(event)
         QApplication.instance().removeEventFilter(self)
+
+    def event(self, event):
+        if event.type() in _MOUSE_EVENTS:  # a click on the effect must not reach the messages under it
+            event.accept()
+            return True
+        return super().event(event)
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self._close_button.move(self.width() - self._close_button.width() - CORNER_MARGIN, CORNER_MARGIN)
 
     def eventFilter(self, watched, event):
         if event.type() == QEvent.Type.KeyPress and event.key() == Qt.Key.Key_Escape and self.window().isActiveWindow():

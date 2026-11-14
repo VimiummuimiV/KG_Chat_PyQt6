@@ -20,3 +20,7 @@ class ByUserStore:
             self._state.remove("by_user", username)
         else:
             self._state.set("by_user", username, value=value)
+
+    def clear(self) -> None:
+        """Remove the values of all users."""
+        self._state.remove("by_user")

@@ -442,6 +442,7 @@ class ChatWindow(
             self.button_panel.set_button_state(self.button_panel.toggle_userlist_button, True)
 
         self.pet_overlay = PetOverlay(self, pet_strip, self.stacked_widget, self.config, self.my_username)
+        self.stacked_widget.currentChanged.connect(self.pet_overlay.close_celebration)
 
         # Emoticon selector widget (overlay - positioned absolutely)
         # Create AFTER userlist so positioning works correctly

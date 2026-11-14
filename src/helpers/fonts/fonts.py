@@ -257,6 +257,15 @@ def get_font(font_type: FontType = FontType.TEXT,
     return _font_manager._get_font(font_type, size, weight, italic)
 
 
+def get_display_font(pixel_size: int) -> QFont:
+    """Return the bold UI font at a pixel size, pinned to its one family: the emoji fallback has no outlines for lettering."""
+    font = QFont(get_font(FontType.UI))
+    font.setFamilies([font.family()])
+    font.setPixelSize(pixel_size)
+    font.setBold(True)
+    return font
+
+
 def set_application_font(app: QApplication):
     _font_manager._set_application_font(app)
 

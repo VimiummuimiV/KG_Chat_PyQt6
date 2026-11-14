@@ -89,12 +89,12 @@ _WHO_IS_ON_THE_STRIP = (
 _MOUSE = (
     (("On a pet", "По питомцу"), ("click to scare it, drag to throw it", "клик пугает, перетаскивание бросает")),
     (("Thrown pet", "Брошенный питомец"), (
-        "a pixel board follows the cursor while the pet is above it, until the mouse picks up an egg; each bounce adds to its badge",
-        "за курсором следует пиксельная доска, пока питомец выше, пока мышь не возьмёт яйцо; отскок прибавляет к бейджу",
+        "a pixel board follows the cursor while the pet is above it, until the mouse picks up an egg; each bounce adds to the counter in the top left corner",
+        "за курсором следует пиксельная доска, пока питомец выше, пока мышь не возьмёт яйцо; каждый отскок прибавляет счётчик в левом верхнем углу",
     )),
     (("Record", "Рекорд"), (
-        f"a throw with more bounces than ever before on this account, from {MINIMUM_RECORD}, sets a record: a trophy and confetti that stay until Esc or the next throw",
-        f"бросок с большим числом отскоков, чем когда-либо у этого аккаунта, от {MINIMUM_RECORD}, ставит рекорд: кубок и конфетти, которые висят до Esc или следующего броска",
+        f"a throw with more bounces than ever before on this account, from {MINIMUM_RECORD}, sets a record: a trophy and confetti that stay until Esc, the close button, the next throw or another page opening",
+        f"бросок с большим числом отскоков, чем когда-либо у этого аккаунта, от {MINIMUM_RECORD}, ставит рекорд: кубок и конфетти, которые висят до Esc, кнопки закрытия, следующего броска или открытия другой страницы",
     )),
     (("On an egg", "По яйцу"), ("pick it up and roll it", "можно поднять и покатать")),
     (("In settings", "В настройках"), ("left click adds a pet, right click removes one, hold to repeat",

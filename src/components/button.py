@@ -74,17 +74,8 @@ def render_svg_icon(svg_file: Path, icon_size: int, color: str = None, stroke_wi
 
     return QIcon(pixmap)
 
-def create_icon_button(
-    icons_path: Path,
-    icon_name: str,
-    tooltip: str = "",
-    size_type: str = "large",
-    config=None
-):
-    """Create icon button using sizes from config"""
-    button = QPushButton()
-
-    # Defaults from your config.json
+def get_button_sizes(size_type: str = "large", config=None) -> tuple[int, int]:
+    """Return (icon size, button size) of an icon button: the defaults, overridden by the config."""
     icon_size = 30 if size_type == "large" else 20
     button_size = 48 if size_type == "large" else 32
 
@@ -94,6 +85,19 @@ def create_icon_button(
         if isinstance(button_config, dict):
             icon_size = button_config.get("icon_size", icon_size)
             button_size = button_config.get("button_size", button_size)
+    return icon_size, button_size
+
+
+def create_icon_button(
+    icons_path: Path,
+    icon_name: str,
+    tooltip: str = "",
+    size_type: str = "large",
+    config=None
+):
+    """Create icon button using sizes from config"""
+    button = QPushButton()
+    icon_size, button_size = get_button_sizes(size_type, config)
 
     # Apply
     button.icon_path = icons_path

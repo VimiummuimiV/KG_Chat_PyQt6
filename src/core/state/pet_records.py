@@ -13,9 +13,21 @@ class PetRecords:
 
     _store = ByUserStore("pet_records.json")
 
+    def get(self, username: str) -> int:
+        """Return the record of the account, zero when there is none."""
+        return int(self._store.get(username) or 0)
+
+    def reset(self, username: str) -> None:
+        """Forget the record of one account."""
+        self._store.set(username, None)
+
+    def reset_all(self) -> None:
+        """Forget the records of all accounts."""
+        self._store.clear()
+
     def submit(self, username: str, bounces: int) -> int | None:
         """Save bounces as the new record and return the beaten one (zero for the first), or None when it is no record."""
-        previous = int(self._store.get(username) or 0)
+        previous = self.get(username)
         if not username or bounces < MINIMUM_RECORD or bounces <= previous:
             return None
         self._store.set(username, bounces)
