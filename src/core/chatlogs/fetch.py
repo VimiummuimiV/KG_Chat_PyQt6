@@ -109,7 +109,7 @@ class ChatlogsParser:
         messages = []
 
         for timestamp_element in tree.xpath('//a[@class="ts"]'):
-            timestamp = timestamp_element.get('name')
+            timestamp = (timestamp_element.get('name') or '').split('.')[0]  # some logs carry microseconds
             if not timestamp:
                 continue
 
