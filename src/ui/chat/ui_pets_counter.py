@@ -6,14 +6,14 @@ from PyQt6.QtCore import QRect, Qt
 from PyQt6.QtGui import QColor, QFont, QFontMetrics, QPainter
 from PyQt6.QtWidgets import QFrame, QPushButton, QWidget
 
-from components.button import get_accent_color, get_button_sizes
+from components.button import COLOR_GRAY, get_accent_color, get_button_sizes
 from helpers.fonts.fonts import get_display_font
-from ui.chat.ui_pets_palette import BROWN
 
 
 _FONT_SHARE = 0.75  # of the icon size of a button: the digits are as big as its icons
 _PADDING_SHARE = 0.4  # of the icon size, each side of a long text
 _BOARD_PADDING = 8  # between the panel edge and the cells
+_OVERHANG = 16  # of the panel above the window edge, clipped there, so its top corners never show
 _CELL_GAP = 6
 
 
@@ -51,12 +51,12 @@ class _ScoreCell(QPushButton):
 
 
 class BounceScoreboard(QFrame):
-    """Shows the running bounces in the accent color, with the previous record in brown to its left once there is one."""
+    """Shows the running bounces in the accent color, with the previous record in gray to its left once there is one."""
 
     def __init__(self, parent: QWidget, config):
         super().__init__(parent)
         self.setObjectName("petScoreboard")
-        self._record_cell = _ScoreCell(self, config, lambda: BROWN.middle)
+        self._record_cell = _ScoreCell(self, config, lambda: COLOR_GRAY)
         self._count_cell = _ScoreCell(self, config, get_accent_color)
         self._zone = QRect()
         self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
@@ -70,16 +70,16 @@ class BounceScoreboard(QFrame):
         self._arrange()
 
     def center_in(self, zone: QRect) -> None:
-        """Hang the panel from the top edge of zone, in the middle of it."""
+        """Hang the panel from the top edge of zone, in the middle of it; zone starts at the window edge."""
         self._zone = zone
         self._arrange()
 
     def _arrange(self) -> None:
         cells = [cell for cell in (self._record_cell, self._count_cell) if not cell.isHidden()]
         width = sum(cell.width() for cell in cells) + _CELL_GAP * (len(cells) - 1) + 2 * _BOARD_PADDING
-        self.setFixedSize(width, self._count_cell.height() + 2 * _BOARD_PADDING)
+        self.setFixedSize(width, self._count_cell.height() + 2 * _BOARD_PADDING + _OVERHANG)
         left = _BOARD_PADDING
         for cell in cells:
-            cell.move(left, _BOARD_PADDING)
+            cell.move(left, _BOARD_PADDING + _OVERHANG)
             left += cell.width() + _CELL_GAP
-        self.move(self._zone.x() + (self._zone.width() - width) // 2, self._zone.y())
+        self.move(self._zone.x() + (self._zone.width() - width) // 2, self._zone.y() - _OVERHANG)

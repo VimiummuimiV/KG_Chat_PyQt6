@@ -12,7 +12,6 @@ from components.button import create_icon_button
 from helpers.data import get_resource_dir
 from helpers.fonts.fonts import get_display_font
 from helpers.translate import tr
-from ui.chat.ui_pets_palette import BROWN, GOLD, LetteringPalette
 
 
 _MILLISECONDS = 1000
@@ -56,6 +55,21 @@ _MOUSE_EVENTS = (
 )
 _SMOOTH = QEasingCurve(QEasingCurve.Type.InOutSine)
 _SETTLE = QEasingCurve(QEasingCurve.Type.OutCubic)
+
+
+@dataclass(frozen=True)
+class _Palette:
+    """Colors of lettering with volume: face gradient from light to dark, the side, the rim."""
+
+    light: QColor
+    middle: QColor
+    dark: QColor
+    side: QColor
+    rim: QColor
+
+
+_GOLD = _Palette(QColor("#fff6b8"), QColor("#ffd23f"), QColor("#e09a10"), QColor("#8c5a0a"), QColor("#4a2c05"))
+_BROWN = _Palette(QColor("#c99a6b"), QColor("#a0693a"), QColor("#6f4220"), QColor("#3d2210"), QColor("#24120a"))
 
 
 @dataclass(frozen=True)
@@ -116,7 +130,7 @@ def _separator_path() -> QPainterPath:
     return path
 
 
-def _paint_lettering(painter: QPainter, path: QPainterPath, depth: int, palette: LetteringPalette) -> None:
+def _paint_lettering(painter: QPainter, path: QPainterPath, depth: int, palette: _Palette) -> None:
     """Draw the shape with a dark rim around it and a solid side of depth pixels under it."""
     rim = QPen(palette.rim, _OUTLINE_WIDTH * 2, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin)
     painter.setBrush(Qt.BrushStyle.NoBrush)
@@ -227,9 +241,9 @@ class RecordCelebration(QWidget):
         """Draw the lettering once: the title and the scores, the beaten score in brown and the new one in gold with a separator between."""
         title = _text_path(tr("NEW RECORD", "НОВЫЙ РЕКОРД"), _TITLE_PIXELS)
         score = _text_path(str(count), _SCORE_PIXELS)
-        shapes = [(score, GOLD)]
+        shapes = [(score, _GOLD)]
         if previous:
-            shapes = [(_text_path(str(previous), _SCORE_PIXELS), BROWN), (_separator_path(), GOLD), *shapes]
+            shapes = [(_text_path(str(previous), _SCORE_PIXELS), _BROWN), (_separator_path(), _GOLD), *shapes]
         gaps = _SEPARATOR_GAP * 2 if previous else 0
         row_width = sum(path.boundingRect().width() for path, _ in shapes) + gaps
         width = math.ceil(max(title.boundingRect().width(), row_width)) + 2 * _TEXT_MARGIN
@@ -238,7 +252,7 @@ class RecordCelebration(QWidget):
         pixmap.fill(Qt.GlobalColor.transparent)
         painter = QPainter(pixmap)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        _paint_lettering(painter, title.translated(width / 2, _TITLE_ROW / 2), _TITLE_DEPTH, GOLD)
+        _paint_lettering(painter, title.translated(width / 2, _TITLE_ROW / 2), _TITLE_DEPTH, _GOLD)
         left = (width - row_width) / 2
         for path, palette in shapes:
             shape_width = path.boundingRect().width()
@@ -254,9 +268,9 @@ class RecordCelebration(QWidget):
             return
         life = 1 - age / _GLOW_MS
         radius = min(self.width(), self.height()) * _GLOW_SHARE * (1.4 - 0.6 * life)
-        gold = QColor(GOLD.middle)
+        gold = QColor(_GOLD.middle)
         gold.setAlphaF(_GLOW_ALPHA * life)
-        fade = QColor(GOLD.middle)
+        fade = QColor(_GOLD.middle)
         fade.setAlpha(0)
         glow = QRadialGradient(center, radius)
         glow.setColorAt(0.0, gold)

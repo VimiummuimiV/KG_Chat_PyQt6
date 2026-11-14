@@ -257,7 +257,7 @@ class PetOverlay(QWidget):
         zone = self._celebration_zone()
         if self._celebration.isVisible():
             self._celebration.setGeometry(zone)
-        self._scoreboard.center_in(zone)
+        self._scoreboard.center_in(self.geometry())
         self._celebration.stackUnder(self)  # the pets stay in reach of the mouse and fly in front of the effect
         self._scoreboard.stackUnder(self)
         self._refresh_region()

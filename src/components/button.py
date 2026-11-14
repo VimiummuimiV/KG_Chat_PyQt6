@@ -16,7 +16,7 @@ is_dark_theme = True
 # Theme accent colors
 _COLOR_DARK  = "#e28743"
 _COLOR_LIGHT = "#154c79"
-_COLOR_GRAY  = "#888888"
+COLOR_GRAY  = "#888888"
 
 # Icon bounce animation: (position, scale) keyframes between a start and end scale of 1.0
 _BOUNCE_DURATION_MS = 440
@@ -42,7 +42,7 @@ def get_accent_color() -> str:
 
 def get_user_svg_color(is_known: bool, is_dark: bool) -> str:
     """SVG icon color: theme accent for known users, gray for unknown."""
-    return (_COLOR_DARK if is_dark else _COLOR_LIGHT) if is_known else _COLOR_GRAY
+    return (_COLOR_DARK if is_dark else _COLOR_LIGHT) if is_known else COLOR_GRAY
 
 
 def render_svg_icon(svg_file: Path, icon_size: int, color: str = None, stroke_width: float = None):
@@ -163,7 +163,7 @@ def animate_button_bounce(button: QPushButton) -> None:
 
 def create_disabled_icon(icons_path: Path, icon_name: str, icon_size: int) -> QIcon:
     """Render an icon in the muted gray tone used for a disabled button state"""
-    return render_svg_icon(icons_path / icon_name, icon_size, color=_COLOR_GRAY)
+    return render_svg_icon(icons_path / icon_name, icon_size, color=COLOR_GRAY)
 
 
 def set_visual_active(widget, is_active: bool, opacity: float = 0.5):
