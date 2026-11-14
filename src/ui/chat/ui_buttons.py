@@ -183,7 +183,7 @@ class ButtonPanel(QWidget):
 
         self._search_button = self._create_button(
             "line/search-line.svg",
-            tr("Toggle search (S / Ctrl+F)", "Поиск (S / Ctrl+F)"),
+            tr("Toggle search (Ctrl+F)", "Поиск (Ctrl+F)"),
             lambda: self.search_requested.emit()
         )
 
@@ -295,7 +295,7 @@ class ButtonPanel(QWidget):
                 tr("Join / Create Room (Ctrl+J)", "Войти / создать комнату (Ctrl+J)"))
         if self._search_button:
             self._search_button.setToolTip(
-                tr("Toggle search (S / Ctrl+F)", "Поиск (S / Ctrl+F)"))
+                tr("Toggle search (Ctrl+F)", "Поиск (Ctrl+F)"))
         if self.copy_messages_button:
             self.copy_messages_button.setToolTip(
                 tr("Copy all messages (Ctrl+A)", "Копировать все сообщения (Ctrl+A)"))

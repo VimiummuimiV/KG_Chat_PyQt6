@@ -161,7 +161,7 @@ class ChatHotkeysMixin:
         Qt.Key.Key_R: 'reset_size',
         Qt.Key.Key_C: 'color',
         Qt.Key.Key_N: 'notification',
-        Qt.Key.Key_S: 'search',
+        Qt.Key.Key_S: 'parse',
         Qt.Key.Key_H: 'nav_backward',
         Qt.Key.Key_L: 'nav_forward',
         Qt.Key.Key_Left:  'nav_backward',
@@ -361,9 +361,11 @@ class ChatHotkeysMixin:
                 cw.toggle_mention_filter()
             else:
                 self.on_toggle_effects_sound()
-        # Toggle search (S) — chatlog or messages
-        elif vk == 'search':
-            self.toggle_search_for_current_view()
+        # Start parsing (S) — only while the chatlog parser is open
+        elif vk == 'parse':
+            cw = self.chatlog_for_hotkey()
+            if cw and cw.parser_visible and not cw.parser_widget.is_parsing:
+                cw.parser_widget.on_parse_clicked()
         # Navigate chatlog days — H backward, L forward, supports hold
         elif vk in ('nav_backward', 'nav_forward'):
             cw = self.chatlog_for_hotkey()

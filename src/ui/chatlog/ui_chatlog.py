@@ -220,7 +220,7 @@ class ChatlogWidget(
 
         self._search_toggle_button = create_icon_button(self.icons_path, "line/search-line.svg", "",
                                                    size_type="large", config=self.config)
-        self.tr_set(self._search_toggle_button.setToolTip, "Toggle search (S / Ctrl+F)", "Поиск (S / Ctrl+F)")
+        self.tr_set(self._search_toggle_button.setToolTip, "Toggle search (Ctrl+F)", "Поиск (Ctrl+F)")
         self._search_toggle_button.clicked.connect(self.toggle_search)
         self._nav_buttons_container.add_widget(self._search_toggle_button)
 
