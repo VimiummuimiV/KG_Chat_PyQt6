@@ -16,9 +16,10 @@ from PyQt6.QtGui import (
     QPaintEvent,
     QPen,
 )
-from PyQt6.QtWidgets import QApplication, QMenu, QPushButton
+from PyQt6.QtWidgets import QApplication, QPushButton
 
 from components.button import register_icon_button, set_button_icon
+from components.menu import create_menu
 from helpers.translate import on_language_changed, tr
 from helpers.voice.voice_input import list_input_devices
 
@@ -282,7 +283,7 @@ class MicButton(QPushButton):
             self.hold_stopped.emit()
         self._pressing = False
 
-        menu = QMenu(self)
+        menu = create_menu(self)
         devices = list_input_devices()
 
         default_action = menu.addAction(tr("Default device", "Устройство по умолчанию"))

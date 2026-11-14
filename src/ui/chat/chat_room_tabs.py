@@ -7,12 +7,12 @@ from PyQt6.QtWidgets import (
     QApplication,
     QDialog,
     QHBoxLayout,
-    QMenu,
     QTabBar,
     QTabWidget,
     QWidget,
 )
 
+from components.menu import create_menu
 from components.toast import copy_text_with_toast, show_toast, ToastKind
 from core.xmpp.jid_utils import custom_room_name_from_jid, game_id_from_jid, is_from_game_room
 from helpers.system.memory import release_memory_soon
@@ -320,7 +320,7 @@ class ChatRoomTabsMixin:
         index = tab_bar.tabAt(pos)
         if index < 0:
             return
-        menu = QMenu(self)
+        menu = create_menu(self)
         widget = self.room_tabs.widget(index)
         # Custom rooms: allow copying the plain room name
         if isinstance(widget, RoomWidget) and widget.room_name:

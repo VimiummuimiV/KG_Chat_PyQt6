@@ -19,7 +19,7 @@ from PyQt6.QtWidgets import (
 
 from components.button import create_icon_button
 from core.state.json_state import JsonState
-from helpers.fonts.fonts import FontType, get_font
+from helpers.fonts.fonts import FontType, set_font_role
 from helpers.translate import on_language_changed, tr, TranslatableMixin
 
 
@@ -43,7 +43,6 @@ class JoinRoomDialog(TranslatableMixin, QDialog):
         self.icons_path = icons_path
         self.tr_set(self.setWindowTitle, "Join / Create Room", "Войти / Создать комнату")
         self.setFixedWidth(self._WINDOW_WIDTH)
-        self.setFont(get_font(FontType.UI))
         field_height = (self.config.get("ui", "input_height") or 48) - self._FIELD_BORDER_TOTAL
         self.setStyleSheet(f"#joinRoomField {{ min-height: {field_height}px; }}")
 
@@ -58,19 +57,17 @@ class JoinRoomDialog(TranslatableMixin, QDialog):
         self.setLayout(layout)
 
         self.header = QLabel()
-        self.header.setFont(get_font(FontType.HEADER))
+        set_font_role(self.header, FontType.HEADER)
         self.tr_set(self.header.setText, "🚪 Join / Create Room", "🚪 Войти / Создать комнату")
         layout.addWidget(self.header)
 
         self._name_input = QLineEdit()
         self.tr_set(self._name_input.setPlaceholderText, "Room name", "Название комнаты")
         self._name_input.setObjectName("joinRoomField")
-        self._name_input.setFont(get_font(FontType.UI))
         self._name_input.returnPressed.connect(self.accept)
         layout.addWidget(self._name_input)
 
         self._saved_combo = QComboBox()
-        self._saved_combo.setFont(get_font(FontType.UI))
         self._saved_combo.setEditable(False)
         self._saved_combo.setObjectName("joinRoomField")
         self.tr_set(self._saved_combo.setPlaceholderText, "Saved rooms", "Сохранённые комнаты")
@@ -80,7 +77,6 @@ class JoinRoomDialog(TranslatableMixin, QDialog):
         length_row = QHBoxLayout()
         length_row.setSpacing(button_spacing)
         self._length_label = QLabel(tr("Length", "Длина"))
-        self._length_label.setFont(get_font(FontType.UI))
         self.tr_set(self._length_label.setText, "Length", "Длина")
         length_row.addWidget(self._length_label)
 
@@ -99,7 +95,6 @@ class JoinRoomDialog(TranslatableMixin, QDialog):
         length_row.addWidget(self._length_slider, stretch=1)
 
         self._length_value = QLabel(str(length))
-        self._length_value.setFont(get_font(FontType.UI))
         self._length_value.setFixedWidth(24)
         self._length_value.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         length_row.addWidget(self._length_value)
@@ -108,7 +103,6 @@ class JoinRoomDialog(TranslatableMixin, QDialog):
         remember = self.config.get("join_room", "remember") if self.config else None
         self._remember_checkbox = QCheckBox()
         self.tr_set(self._remember_checkbox.setText, "Remember this name", "Запомнить это имя")
-        self._remember_checkbox.setFont(get_font(FontType.UI))
         self._remember_checkbox.setChecked(True if remember is None else bool(remember))
         self._remember_checkbox.toggled.connect(self._on_remember_toggled)
         layout.addWidget(self._remember_checkbox)

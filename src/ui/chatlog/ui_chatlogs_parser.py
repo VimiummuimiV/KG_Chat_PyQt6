@@ -19,7 +19,6 @@ from components.button import create_icon_button
 from components.tag_button import SavedValuesBar
 from core.state.json_state import JsonState
 from helpers.dates import parse_short_date
-from helpers.fonts.fonts import FontType, get_font
 from helpers.translate import on_language_changed, tr, TranslatableMixin
 from ui.chatlog.parser_modes import ParserModesMixin
 from ui.chatlog.parser_modes_data import MODE_KEYS, MODE_LABELS
@@ -70,7 +69,6 @@ class ChatlogsParserConfigWidget(ParserModesMixin, ParserRunMixin, ParserUsernam
         if object_name:
             input_field.setObjectName(object_name)
         input_field.setFixedHeight(self.input_height)
-        input_field.setFont(get_font(FontType.UI))
         return input_field
 
     def create_input_row(self, label_text: str, placeholder: str = "", object_name: str = "", as_widget: bool = False):
@@ -148,7 +146,6 @@ class ChatlogsParserConfigWidget(ParserModesMixin, ParserRunMixin, ParserUsernam
 
         self.mode_combo = QComboBox()
         self.mode_combo.setFixedHeight(self.input_height)
-        self.mode_combo.setFont(get_font(FontType.UI))
         for key in MODE_KEYS:
             en, ru = MODE_LABELS[key]
             self.mode_combo.addItem(tr(en, ru), key)

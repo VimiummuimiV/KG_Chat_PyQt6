@@ -6,6 +6,7 @@ from typing import Dict, Optional, Tuple
 from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import QColorDialog, QMessageBox
 
+from components.toast import show_toast, ToastKind
 from core.state.accounts import AccountManager
 from helpers.translate import tr
 
@@ -85,7 +86,7 @@ def change_username_color(parent, account_manager: AccountManager, account: Dict
 
     if success:
         _refresh_cache(account_manager, account, cache)
-        QMessageBox.information(parent, tr("Success", "Успех"), message)
+        show_toast(parent, message, ToastKind.SUCCESS)
         return True
     else:
         QMessageBox.critical(parent, tr("Error", "Ошибка"), message)
@@ -102,10 +103,10 @@ def reset_username_color(parent, account_manager: AccountManager, account: Dict,
         return False
 
     if not account.get('custom_background'):
-        QMessageBox.information(
+        show_toast(
             parent,
-            tr("Info", "Информация"),
-            tr("Nothing to reset - using original color.", "Нечего сбрасывать — используется исходный цвет.")
+            tr("Nothing to reset - using original color.", "Нечего сбрасывать — используется исходный цвет."),
+            ToastKind.INFO,
         )
         return True
 
@@ -113,7 +114,7 @@ def reset_username_color(parent, account_manager: AccountManager, account: Dict,
 
     if success:
         _refresh_cache(account_manager, account, cache)
-        QMessageBox.information(parent, tr("Success", "Успех"), message)
+        show_toast(parent, message, ToastKind.SUCCESS)
         return True
     else:
         QMessageBox.critical(parent, tr("Error", "Ошибка"), message)

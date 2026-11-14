@@ -17,11 +17,12 @@ from PyQt6.QtWidgets import (
 from components.avatar import make_rounded_avatar, request_avatar
 from components.button import create_icon_button, set_button_icon, set_theme
 from components.help_panel import HelpPanel
+from components.toast import Toast
 from core.state.accounts import AccountManager
 from helpers.cache import get_cache
 from helpers.config import Config, get_config_path
 from helpers.data import get_resource_dir
-from helpers.fonts.fonts import FontType, get_font
+from helpers.fonts.fonts import FontType, set_font_role
 from helpers.system.startup_manager import StartupManager
 from helpers.translate import on_language_changed, tr, TranslatableMixin
 from helpers.users.username_color_manager import change_username_color, reset_username_color
@@ -118,7 +119,7 @@ class AccountWindow(TranslatableMixin, QWidget):
         self.register_tr(self.setWindowTitle, window_title)
         self.setMinimumWidth(280)
         set_theme(self.theme_manager.is_dark())
-        self.setFont(get_font(FontType.UI))
+        self.toast = Toast(self, self.theme_manager.is_dark)
 
         spacing = self._get_config('spacing', 10)
         margin = self._get_config('margin', 15)
@@ -132,7 +133,7 @@ class AccountWindow(TranslatableMixin, QWidget):
         # ===== CONNECT SECTION =====
         connect_text = tr("🔑 Connect", "🔑 Подключение")
         connect_label = QLabel(connect_text)
-        connect_label.setFont(get_font(FontType.HEADER))
+        set_font_role(connect_label, FontType.HEADER)
         main_layout.addWidget(connect_label)
         self.register_tr(connect_label.setText, connect_text)
 
@@ -152,7 +153,6 @@ class AccountWindow(TranslatableMixin, QWidget):
 
         # Account dropdown
         self._account_dropdown = QComboBox()
-        self._account_dropdown.setFont(get_font(FontType.UI))
         self._set_input_height(self._account_dropdown)
         self._account_dropdown.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self._account_dropdown.currentIndexChanged.connect(self._update_avatar)
@@ -223,7 +223,6 @@ class AccountWindow(TranslatableMixin, QWidget):
         # Auto-login checkbox
         auto_login_text = tr("1. Auto-login", "1. Автовход")
         self.auto_login_checkbox = QCheckBox(auto_login_text)
-        self.auto_login_checkbox.setFont(get_font(FontType.UI))
         self.auto_login_checkbox.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.auto_login_checkbox.stateChanged.connect(self._on_auto_login_changed)
         self.register_tr(self.auto_login_checkbox.setText, auto_login_text)
@@ -238,7 +237,6 @@ class AccountWindow(TranslatableMixin, QWidget):
         # Start minimized to tray checkbox
         start_minimized_text = tr("2. Start minimized", "2. Запуск свёрнутым")
         self.start_minimized_checkbox = QCheckBox(start_minimized_text)
-        self.start_minimized_checkbox.setFont(get_font(FontType.UI))
         self.start_minimized_checkbox.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.start_minimized_checkbox.stateChanged.connect(self._on_start_minimized_changed)
         self.register_tr(self.start_minimized_checkbox.setText, start_minimized_text)
@@ -252,7 +250,6 @@ class AccountWindow(TranslatableMixin, QWidget):
         # Start with system checkbox
         start_with_system_text = tr("3. Start with system", "3. Запуск с системой")
         self.start_with_system_checkbox = QCheckBox(start_with_system_text)
-        self.start_with_system_checkbox.setFont(get_font(FontType.UI))
         self.start_with_system_checkbox.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.start_with_system_checkbox.stateChanged.connect(self._on_start_with_system_changed)
         self.register_tr(self.start_with_system_checkbox.setText, start_with_system_text)
@@ -265,11 +262,9 @@ class AccountWindow(TranslatableMixin, QWidget):
         resource_row.setSpacing(self._get_config('spacing', 8))
         resource_label_text = tr("XMPP resource", "XMPP-ресурс")
         resource_label = QLabel(resource_label_text)
-        resource_label.setFont(get_font(FontType.UI))
         resource_row.addWidget(resource_label, stretch=1)
         self.register_tr(resource_label.setText, resource_label_text)
         self.resource_combo = QComboBox()
-        self.resource_combo.setFont(get_font(FontType.UI))
         self._set_input_height(self.resource_combo)
         self.resource_combo.setFixedWidth(100)
         self.resource_combo.setFocusPolicy(Qt.FocusPolicy.NoFocus)

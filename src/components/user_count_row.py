@@ -7,7 +7,7 @@ from PyQt6.QtWidgets import QHBoxLayout, QLabel, QSizePolicy, QWidget
 from components.avatar import apply_user_avatar, make_avatar_label, refresh_avatar_placeholder
 from components.colored_label import ColoredLabel
 from helpers.cache import get_cache
-from helpers.fonts.fonts import FontType, get_font
+from helpers.fonts.fonts import FontType, set_font_role
 from themes.stylesheet import set_style_property
 
 
@@ -41,7 +41,7 @@ class UserCountRow(QWidget):
 
         self.username_label = ColoredLabel(username, self._cache.get_username_color(username, is_dark))
         self.username_label.setObjectName("userName")
-        self.username_label.setFont(get_font(FontType.TEXT))
+        set_font_role(self.username_label, FontType.TEXT)
         self.username_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         self.username_label.setMinimumWidth(20)
         self.username_label.setTextFormat(Qt.TextFormat.PlainText)
@@ -51,7 +51,7 @@ class UserCountRow(QWidget):
 
         self.count_label = QLabel(str(count))
         self.count_label.setObjectName("mutedLabel")
-        self.count_label.setFont(get_font(FontType.TEXT))
+        set_font_role(self.count_label, FontType.TEXT)
         self.count_label.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Preferred)
         self.count_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         layout.addWidget(self.count_label)

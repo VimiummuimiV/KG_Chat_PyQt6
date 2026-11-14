@@ -1,5 +1,5 @@
 from PyQt6.QtCore import pyqtSignal, Qt, QTimer
-from PyQt6.QtGui import QCursor, QFont
+from PyQt6.QtGui import QCursor
 from PyQt6.QtWidgets import (
     QApplication,
     QHBoxLayout,
@@ -37,7 +37,7 @@ from core.xmpp.userlist import ChatUser
 from helpers.cache import get_cache
 from helpers.data import get_resource_dir
 from helpers.deferred import call_later
-from helpers.fonts.fonts import FontType, get_font
+from helpers.fonts.fonts import FontType, set_font_role
 from helpers.scroll.auto_scroll import AutoScroller
 from helpers.translate import on_language_changed, tr, TranslatableMixin
 
@@ -87,7 +87,7 @@ class _UserWidget(TrackedMarkMixin, QWidget):
         text_color = self.cache.get_username_color(user.login, is_dark_theme)
 
         self.username_label = ColoredLabel(color=text_color)
-        self.username_label.setFont(get_font(FontType.TEXT))
+        set_font_role(self.username_label, FontType.TEXT)
 
         # Build username text with role icon
         username_text = user.login
@@ -124,7 +124,7 @@ class _UserWidget(TrackedMarkMixin, QWidget):
         self.game_counter_label = None
         if game_counter and game_counter > 0:
             self.game_counter_label = QLabel(str(game_counter))
-            self.game_counter_label.setFont(get_font(FontType.TEXT))
+            set_font_role(self.game_counter_label, FontType.TEXT)
             self.game_counter_label.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Fixed)
             self.game_counter_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             self.game_counter_label.setObjectName("mutedLabel")
@@ -292,11 +292,9 @@ class UserListWidget(TranslatableMixin, QWidget):
         container.setLayout(self._main_layout)
         scroll.setWidget(container)
 
-        section_label = get_font(FontType.TEXT, weight=QFont.Weight.Bold)
-
         # Chat section
         self.chat_label = QLabel(tr("Chat", "Чат"))
-        self.chat_label.setFont(section_label)
+        set_font_role(self.chat_label, FontType.TEXT)
         self.chat_label.setObjectName("mutedHint")
         self.chat_label.setVisible(False)
         self._main_layout.addWidget(self.chat_label)
@@ -313,7 +311,7 @@ class UserListWidget(TranslatableMixin, QWidget):
 
         # Game section
         self.game_label = QLabel(tr("Game", "Игра"))
-        self.game_label.setFont(section_label)
+        set_font_role(self.game_label, FontType.TEXT)
         self.game_label.setObjectName("mutedHint")
         self.game_label.setVisible(False)
         self._main_layout.addWidget(self.game_label)

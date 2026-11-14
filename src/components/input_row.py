@@ -6,7 +6,7 @@ from PyQt6.QtCore import pyqtSignal, Qt
 from PyQt6.QtWidgets import QHBoxLayout, QLineEdit, QWidget
 
 from components.button import create_icon_button, HoverIconButton
-from helpers.fonts.fonts import FontType, get_font
+from helpers.fonts.fonts import FontType, set_font_role
 from helpers.translate import on_language_changed, TranslatableMixin
 
 
@@ -28,7 +28,7 @@ class InputRow(TranslatableMixin, QWidget):
         self._layout.setSpacing((config.get("ui", "buttons", "spacing") if config else None) or _DEFAULT_SPACING)
 
         self.input_field = QLineEdit()
-        self.input_field.setFont(get_font(FontType.TEXT))
+        set_font_role(self.input_field, FontType.TEXT)
         self.input_field.setFixedHeight(
             (config.get("ui", "buttons", "large_button", "button_size") if config else None) or _DEFAULT_FIELD_HEIGHT
         )

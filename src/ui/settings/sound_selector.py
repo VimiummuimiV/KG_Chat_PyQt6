@@ -7,7 +7,6 @@ from PyQt6.QtWidgets import QFileDialog, QHBoxLayout, QInputDialog, QLabel, QMes
 
 from components.button import create_icon_button, set_visual_active
 from helpers.data import get_resource_dir
-from helpers.fonts.fonts import FontType, get_font
 from helpers.sounds import (
     get_merged_sound_files,
     get_sound_name,
@@ -46,7 +45,6 @@ class SoundSelectorWidget(TranslatableMixin, QWidget):
         self.setLayout(layout)
 
         label = QLabel(label_text)
-        label.setFont(get_font(FontType.UI))
         layout.addWidget(label)
         self.register_tr(label.setText, label_text)
 
@@ -60,7 +58,6 @@ class SoundSelectorWidget(TranslatableMixin, QWidget):
         self._prev_button = _nav_button("line/arrow-left-s-line.svg", tr("Previous sound", "Предыдущий звук"), self._on_prev)
 
         self.combo = NoWheelComboBox()
-        self.combo.setFont(get_font(FontType.UI))
         self.combo.currentIndexChanged.connect(self._on_combo_changed)
         self.combo.setMinimumWidth(180)
         layout.addWidget(self.combo, stretch=1)

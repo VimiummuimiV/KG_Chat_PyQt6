@@ -9,7 +9,7 @@ from PyQt6.QtWidgets import QHBoxLayout, QLabel, QWidget
 from components.avatar import make_avatar_label, make_avatar_pixmap
 from components.badge import make_badge
 from helpers.data import get_resource_dir
-from helpers.fonts.fonts import FontType, get_font
+from helpers.fonts.fonts import FontType, set_font_role
 from helpers.translate import tr
 from ui.notification.auto_hide_popup import AutoHidePopupMixin
 from ui.notification.notification_settings import (
@@ -27,7 +27,6 @@ def _make_game_id_label(event_type: str, game_id) -> QLabel | None:
     if not game_id or event_type != "game":
         return None
     label = QLabel(f"#{game_id}")
-    label.setFont(get_font(FontType.UI))
     label.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
     label.setObjectName("mutedHint")
     return label
@@ -73,7 +72,7 @@ class PresenceMiniPopup(AutoHidePopupMixin, QWidget):
         layout.addWidget(avatar)
 
         ts = QLabel(datetime.now().strftime("%H:%M:%S"))
-        ts.setFont(get_font(FontType.TEXT))
+        set_font_role(ts, FontType.TEXT)
         ts.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         ts.setObjectName("mutedHint")
         layout.addWidget(ts)
@@ -86,7 +85,7 @@ class PresenceMiniPopup(AutoHidePopupMixin, QWidget):
             layout.addWidget(gid)
 
         name = QLabel(f"<b>{login}</b>")
-        name.setFont(get_font(FontType.TEXT))
+        set_font_role(name, FontType.TEXT)
         name.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         if cache is not None:
             username_color = cache.get_username_color(login, is_dark)

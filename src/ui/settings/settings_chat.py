@@ -17,7 +17,6 @@ from helpers.colors.color_utils import (
     INPUT_SATURATION_DEFAULT,
     INPUT_SATURATION_MAX,
 )
-from helpers.fonts.fonts import FontType, get_font
 from helpers.translate import tr
 from ui.settings.settings_options import (
     DEFAULTS,
@@ -251,7 +250,6 @@ class SettingsChatMixin:
                 duration_kind=kind,
             )
             label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            label.setFont(get_font(FontType.UI))
             label.setMargin(0)
             label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
             preview_layout.addWidget(label, stretch=1)

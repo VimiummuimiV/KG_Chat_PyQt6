@@ -17,7 +17,7 @@ from PyQt6.QtWidgets import (
 )
 
 from components.button import create_icon_button
-from helpers.fonts.fonts import FontType, get_font
+from helpers.fonts.fonts import FontType, set_font_role
 from helpers.system import hotkey_manager as hotkey
 from helpers.system.startup_manager import StartupManager
 from helpers.translate import on_language_changed, tr, TranslatableMixin, TrStr
@@ -124,8 +124,7 @@ class SettingsWidget(
         header_row = QHBoxLayout()
         header_row.setSpacing(self.element_spacing())
         label = QLabel(title)
-        label.setProperty("fontRole", "header")
-        label.setFont(get_font(FontType.HEADER))
+        set_font_role(label, FontType.HEADER)
         header_row.addWidget(label)
         header_row.addStretch(1)
         section_layout.addLayout(header_row)
@@ -192,7 +191,6 @@ class SettingsWidget(
         header_row = QHBoxLayout()
         header_row.setSpacing(self.element_spacing())
         label = QLabel(title)
-        label.setFont(get_font(FontType.UI))
         header_row.addWidget(label)
         header_row.addStretch(1)
         section_layout.addLayout(header_row)
@@ -209,7 +207,6 @@ class SettingsWidget(
 
     def add_checkbox(self, section_layout: QVBoxLayout, text: str, on_toggled) -> QCheckBox:
         checkbox = QCheckBox(text)
-        checkbox.setFont(get_font(FontType.UI))
         checkbox.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         checkbox.toggled.connect(on_toggled)
         section_layout.addWidget(checkbox)
@@ -220,12 +217,10 @@ class SettingsWidget(
         row_widget = SettingsRow(spacing=self.element_spacing())
         row = row_widget.layout()
         label = QLabel(label_text)
-        label.setFont(get_font(FontType.UI))
         row.addWidget(label, stretch=1)
         self.register_tr(label.setText, label_text)
 
         combo = NoWheelComboBox()
-        combo.setFont(get_font(FontType.UI))
         combo.blockSignals(True)
         combo.addItems(items)
         combo.blockSignals(False)
@@ -240,7 +235,6 @@ class SettingsWidget(
         row = row_widget.layout()
 
         label = QLabel(label_text)
-        label.setFont(get_font(FontType.UI))
         row.addWidget(label)
         self.register_tr(label.setText, label_text)
 
@@ -249,7 +243,6 @@ class SettingsWidget(
         row.addWidget(slider, stretch=1)
 
         spin = QSpinBox()
-        spin.setFont(get_font(FontType.UI))
         spin.setRange(minimum, maximum)
         spin.setFixedWidth(100)
         row.addWidget(spin)
@@ -343,8 +336,7 @@ class SettingsWidget(
 
         title_text = tr("Settings", "Настройки")
         title_label = QLabel(title_text)
-        title_label.setProperty("fontRole", "header")
-        title_label.setFont(get_font(FontType.HEADER))
+        set_font_role(title_label, FontType.HEADER)
         header_layout.addWidget(title_label, stretch=1)
         self.register_tr(title_label.setText, title_text)
 

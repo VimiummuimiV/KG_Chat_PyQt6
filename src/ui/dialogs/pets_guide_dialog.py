@@ -143,8 +143,8 @@ class PetsGuideDialog(QDialog):
             f"QDialog {{ background-color: {colors['background']}; }}"
             f"QFrame#card {{ background-color: {colors['card']}; border: 1px solid {colors['border']}; border-radius: 8px; }}"
             f"QFrame#rule {{ background-color: {colors['border']}; border: none; }}"
-            f"QLabel {{ background: transparent; color: {colors['text']}; font-size: 14px; }}"
-            f"QLabel#title {{ color: {colors['heading']}; font-size: 18px; font-weight: bold; }}"
+            f"QLabel {{ background: transparent; color: {colors['text']}; }}"
+            f"QLabel#title {{ color: {colors['heading']}; font-weight: bold; }}"
         )
 
     def _code(self, text: str) -> str:
@@ -216,7 +216,7 @@ class PetsGuideDialog(QDialog):
                     row.addWidget(self._icon(item, _ICON_SIZE))
                 else:
                     word = QLabel(tr(*item))
-                    word.setStyleSheet(f"font-size: 16px; color: {self._colors['accent']};")
+                    word.setStyleSheet(f"color: {self._colors['accent']};")
                     row.addWidget(word)
             row.addStretch(1)
             layout.addLayout(row)

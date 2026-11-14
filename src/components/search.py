@@ -7,7 +7,7 @@ from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtWidgets import QHBoxLayout, QLineEdit, QWidget
 
 from components.button import create_icon_button
-from helpers.fonts.fonts import FontType, get_font
+from helpers.fonts.fonts import FontType, set_font_role
 from helpers.translate import tr
 
 
@@ -108,7 +108,7 @@ class MessageSearchBar(QWidget):
 
         self.field = QLineEdit()
         self.field.setPlaceholderText(placeholder)
-        self.field.setFont(get_font(FontType.TEXT))
+        set_font_role(self.field, FontType.TEXT)
         self.field.setFixedHeight(config.get("ui", "input_height") or 48)
         self.field.textChanged.connect(self._on_text_changed)
         self.field.returnPressed.connect(self.return_pressed.emit)
@@ -126,10 +126,6 @@ class MessageSearchBar(QWidget):
         layout.addWidget(self._clear_button)
 
         self.setVisible(self.visible_state)
-
-    def set_font(self, font):
-        """Apply a font to the search field."""
-        self.field.setFont(font)
 
     @property
     def active(self) -> bool:

@@ -25,7 +25,7 @@ from components.toast import copy_text_with_toast
 from components.tracked_mark import TrackedMarkMixin
 from components.user_count_row import UserCountRow
 from helpers.cache import get_cache
-from helpers.fonts.fonts import FontType, get_font
+from helpers.fonts.fonts import FontType, set_font_role
 from helpers.scroll.auto_scroll import AutoScroller
 from helpers.translate import on_language_changed, TranslatableMixin
 
@@ -234,7 +234,7 @@ class ChatlogUserlistWidget(TranslatableMixin, QWidget):
         if not counts:
             # All users were banned or no messages
             empty_label = QLabel()
-            empty_label.setFont(get_font(FontType.TEXT))
+            set_font_role(empty_label, FontType.TEXT)
             empty_label.setObjectName("mutedHint")
             empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             self.tr_set(empty_label.setText, "No users to display", "Нет пользователей для отображения")

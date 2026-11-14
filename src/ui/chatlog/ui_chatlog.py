@@ -21,7 +21,7 @@ from components.image_viewer.gallery import DayNavigation
 from components.search import MessageSearchBar
 from core.chatlogs.fetch import ChatlogsParser
 from helpers.dates import DATE_PLACEHOLDER
-from helpers.fonts.fonts import FontType, get_font
+from helpers.fonts.fonts import FontType, set_font_role
 from helpers.hold_repeater import HoldRepeater
 from helpers.scroll.auto_scroll import AutoScroller
 from helpers.scroll.scroll_buttons import ScrollButtonsPanel
@@ -169,7 +169,7 @@ class ChatlogWidget(
 
         # Date label
         self.date_label = QLabel()
-        self.date_label.setFont(get_font(FontType.HEADER))
+        set_font_role(self.date_label, FontType.HEADER)
         self.date_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         self._info_block.addWidget(self.date_label)
 

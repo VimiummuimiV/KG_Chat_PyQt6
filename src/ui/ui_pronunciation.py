@@ -19,7 +19,7 @@ from PyQt6.QtWidgets import (
 from components.button import create_icon_button
 from components.toast import show_toast, ToastKind
 from core.web.api_data import get_exact_user_id_by_name
-from helpers.fonts.fonts import FontType, get_font
+from helpers.fonts.fonts import FontType, set_font_role
 from helpers.translate import on_language_changed, tr, TranslatableMixin
 from themes.stylesheet import set_style_property
 
@@ -47,7 +47,7 @@ class _PronunciationItemWidget(TranslatableMixin, QWidget):
         self._original_input = QLineEdit()
         self.tr_set(self._original_input.setPlaceholderText, "Username", "Имя пользователя")
         self._original_input.setText(original)
-        self._original_input.setFont(get_font(FontType.TEXT))
+        set_font_role(self._original_input, FontType.TEXT)
         input_height = self.config.get("ui", "input_height") or 48
         self._original_input.setFixedHeight(input_height)
         self._original_input.setFixedWidth(250)
@@ -93,7 +93,7 @@ class _PronunciationItemWidget(TranslatableMixin, QWidget):
         self._pronunciation_input = QLineEdit()
         self.tr_set(self._pronunciation_input.setPlaceholderText, "Pronunciation", "Произношение")
         self._pronunciation_input.setText(pronunciation)
-        self._pronunciation_input.setFont(get_font(FontType.TEXT))
+        set_font_role(self._pronunciation_input, FontType.TEXT)
         self._pronunciation_input.setFixedHeight(input_height)
         self._pronunciation_input.setFixedWidth(250)
         layout.addWidget(self._pronunciation_input)
@@ -201,7 +201,7 @@ class PronunciationWidget(TranslatableMixin, QWidget):
 
         # Title
         title_label = QLabel()
-        title_label.setFont(get_font(FontType.HEADER))
+        set_font_role(title_label, FontType.HEADER)
         self.tr_set(title_label.setText, "Username Pronunciation", "Произношение имён")
         header_layout.addWidget(title_label, stretch=1)
 

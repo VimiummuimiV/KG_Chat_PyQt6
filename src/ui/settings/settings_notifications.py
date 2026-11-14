@@ -6,7 +6,6 @@ from PyQt6.QtWidgets import QApplication, QHBoxLayout, QLineEdit
 from components.button import create_icon_button
 from components.tag_button import SavedValuesBar
 from core.state.mention_aliases import mention_aliases
-from helpers.fonts.fonts import FontType, get_font
 from helpers.text.mention_parser import MENTION_GLOBAL, MENTION_ICONS, MENTION_LOCAL
 from helpers.translate import tr
 from ui.notification.notification_settings import expanded_reply_width, resolve_notification_width
@@ -133,7 +132,6 @@ class SettingsNotificationsMixin:
         row = QHBoxLayout()
         row.setSpacing(self.element_spacing())
         alias_input = QLineEdit()
-        alias_input.setFont(get_font(FontType.UI))
         placeholder = tr(
             "Words that notify like your nickname, comma-separated",
             "Слова, которые оповещают как ваш ник, через запятую",

@@ -26,7 +26,7 @@ from core.web.api_data import (
 from helpers.browser import open_url as open_url_in_browser
 from helpers.cache import get_cache
 from helpers.deferred import call_later
-from helpers.fonts.fonts import FontType, get_font
+from helpers.fonts.fonts import FontType, get_font, set_font_role
 from helpers.load import make_rounded_pixmap
 from helpers.translate import on_language_changed, tr, TranslatableMixin
 
@@ -93,7 +93,7 @@ class _StatCard(QFrame):
 
         self._label_widget = QLabel(label)
         self._label_widget.setObjectName("statLabel")
-        self._label_widget.setFont(get_font(FontType.TEXT))
+        set_font_role(self._label_widget, FontType.TEXT)
         self._label_widget.setWordWrap(True)
         header.addWidget(self._label_widget, stretch=1)
 
@@ -273,7 +273,7 @@ class ProfileWidget(TranslatableMixin, QWidget):
         top_bar.addWidget(self._open_profile_button)
 
         self._title_label = QLabel()
-        self._title_label.setFont(get_font(FontType.HEADER))
+        set_font_role(self._title_label, FontType.HEADER)
         top_bar.addWidget(self._title_label, stretch=1)
         layout.addLayout(top_bar)
 

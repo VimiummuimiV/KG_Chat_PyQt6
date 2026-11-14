@@ -3,7 +3,6 @@
 from PyQt6.QtWidgets import QHBoxLayout, QLabel
 
 from components.badge import EVENT_TYPES, TypeFilterBar
-from helpers.fonts.fonts import FontType, get_font
 from helpers.translate import tr
 from ui.settings.settings_options import (
     DEFAULTS,
@@ -50,7 +49,6 @@ class SettingsTrackerMixin:
         events_row.setSpacing(8)
         events_label_text = tr("Track events:", "Отслеживаемые события:")
         events_label = QLabel(events_label_text)
-        events_label.setFont(get_font(FontType.UI))
         events_row.addWidget(events_label)
         self.register_tr(events_label.setText, events_label_text)
         theme = self.config.get("ui", "theme") or "dark"
@@ -148,7 +146,6 @@ class SettingsTrackerMixin:
         )
         row = section_layout.itemAt(section_layout.count() - 1).widget().layout()
         self.tracker_retention_unit_combo = NoWheelComboBox()
-        self.tracker_retention_unit_combo.setFont(get_font(FontType.UI))
         self.tracker_retention_unit_combo.addItem(tr("hours", "часов"), "hours")
         self.tracker_retention_unit_combo.addItem(tr("days", "дней"), "days")
         self.tracker_retention_unit_combo.setFixedWidth(90)

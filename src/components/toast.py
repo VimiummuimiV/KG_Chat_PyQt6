@@ -10,7 +10,6 @@ from PyQt6.QtWidgets import QApplication, QFrame, QGraphicsOpacityEffect, QHBoxL
 from components.button import render_svg_icon
 from helpers.colors.color_utils import tinted_chip_colors
 from helpers.data import get_resource_dir
-from helpers.fonts.fonts import FontType, get_font
 from helpers.translate import tr
 
 
@@ -56,7 +55,6 @@ class Toast(QFrame):
 
         self._icon_label = QLabel()
         self._text_label = QLabel()
-        self._text_label.setFont(get_font(FontType.UI))
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(_PADDING_HORIZONTAL, _PADDING_VERTICAL, _PADDING_HORIZONTAL, _PADDING_VERTICAL)

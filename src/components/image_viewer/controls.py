@@ -29,7 +29,6 @@ from components.image_viewer.overlay import (
     PANEL_STYLES,
     panel_stylesheet,
 )
-from helpers.fonts.fonts import FontType, get_font
 from helpers.translate import tr
 
 
@@ -163,7 +162,6 @@ class ZoomSlider(QFrame):
         self._slider.setFocusPolicy(Qt.FocusPolicy.NoFocus)  # keys stay with the viewer
         self._slider.valueChanged.connect(lambda position: self.scale_requested.emit(_scale_from_position(position)))
         self._value_label = QLabel()
-        self._value_label.setFont(get_font(FontType.UI))
         self._value_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._value_label.installEventFilter(self)
         self._reserve_value_width()

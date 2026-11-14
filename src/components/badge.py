@@ -14,7 +14,6 @@ from helpers.colors.color_utils import (
     rgb_to_hsl,
     tinted_chip_colors,
 )
-from helpers.fonts.fonts import FontType, get_font
 from helpers.translate import tr
 
 
@@ -57,7 +56,6 @@ def _counter_css(bg: str, fg: str, font_size: int = 9) -> str:
 def make_badge(event_type: str, is_dark: bool = True) -> QLabel:
     text, bg, fg, border = badge_style(event_type, is_dark)
     badge = QLabel(text)
-    badge.setFont(get_font(FontType.UI))
     badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
     badge.setStyleSheet(_pill_css(bg, fg, border))
     return badge
@@ -116,7 +114,6 @@ class _TypeFilterBadge(QLabel):
         self.event_type = event_type
         self._active = False
         self._is_dark = is_dark
-        self.setFont(get_font(FontType.UI))
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setStyleSheet(_pill_css(bg, fg, border))

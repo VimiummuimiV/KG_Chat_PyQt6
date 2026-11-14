@@ -9,7 +9,6 @@ from PyQt6.QtWidgets import QTextEdit
 from components.button import create_icon_button
 from components.toast import copy_text_with_toast
 from helpers.colors.color_utils import blend_hex_colors
-from helpers.fonts.fonts import FontType, get_font
 from helpers.translate import tr
 from ui.settings.settings_options import (
     COMPETITIONS_LOG_COLORS,
@@ -57,7 +56,6 @@ class SettingsCompetitionsMixin:
         self.competitions_log = QTextEdit()
         self.competitions_log.setReadOnly(True)
         self.competitions_log.setFixedHeight(DEFAULTS["competitions"]["log_height"])
-        self.competitions_log.setFont(get_font(FontType.UI))
         log_placeholder = tr("Competition log", "Лог соревнований")
         self.competitions_log.setPlaceholderText(log_placeholder)
         self.register_tr(self.competitions_log.setPlaceholderText, log_placeholder)

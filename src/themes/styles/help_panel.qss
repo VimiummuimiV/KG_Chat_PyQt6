@@ -11,14 +11,12 @@ QScrollArea#helpScroll {
 
 QLabel#helpTitle {
     color: $help_title;
-    font-size: 14px;
     font-weight: bold;
     padding-bottom: 6px;
 }
 
 QLabel#helpSection {
     color: $help_section;
-    font-size: 12px;
     font-weight: bold;
     padding: 6px 0 2px 0;
 }
@@ -30,7 +28,6 @@ QFrame#helpSeparator {
 
 QLabel#helpDescription {
     color: $help_text;
-    font-size: 12px;
     padding: 3px 8px;
 }
 

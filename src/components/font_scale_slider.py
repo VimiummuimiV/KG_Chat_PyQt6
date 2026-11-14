@@ -1,5 +1,4 @@
 from PyQt6.QtCore import QEasingCurve, QEvent, QObject, QPropertyAnimation, Qt
-from PyQt6.QtGui import QFont
 from PyQt6.QtWidgets import QGraphicsOpacityEffect, QHBoxLayout, QLabel, QSlider, QWidget
 
 from helpers.fonts.font_scaler import FontScaler
@@ -54,7 +53,6 @@ class FontScaleSlider(QWidget):
 
         # Value label
         self.value_label = QLabel(str(font_scaler.get_text_size()))
-        self.value_label.setFont(QFont("Roboto", 12))
         self.value_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.value_label.setFixedWidth(24)
         layout.addWidget(self.value_label)

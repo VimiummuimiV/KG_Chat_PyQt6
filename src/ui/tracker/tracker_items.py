@@ -10,7 +10,7 @@ from PyQt6.QtWidgets import QHBoxLayout, QLabel, QLineEdit, QSizePolicy, QWidget
 from components.button import create_icon_button, set_visual_active
 from components.user_count_row import UserCountRow
 from core.web.api_data import validate_username_and_get_id
-from helpers.fonts.fonts import FontType, get_font, get_scaled_width
+from helpers.fonts.fonts import FontType, get_scaled_width, set_font_role
 from helpers.translate import on_language_changed, tr, TranslatableMixin
 from themes.stylesheet import set_style_property
 
@@ -44,7 +44,7 @@ class TrackedUserItem(TranslatableMixin, QWidget):
         self.username_input = QLineEdit()
         self.tr_set(self.username_input.setPlaceholderText, "Username", "Имя пользователя")
         self.username_input.setText(username)
-        self.username_input.setFont(get_font(FontType.TEXT))
+        set_font_role(self.username_input, FontType.TEXT)
         self.username_input.setFixedHeight(input_height)
         self._username_width = get_scaled_width(self._USERNAME_BASE_WIDTH)
         self.username_input.setFixedWidth(self._username_width)
@@ -70,7 +70,7 @@ class TrackedUserItem(TranslatableMixin, QWidget):
         self._user_id_input = QLineEdit()
         self.tr_set(self._user_id_input.setPlaceholderText, "ID", "ID")
         self._user_id_input.setText(user_id)
-        self._user_id_input.setFont(get_font(FontType.TEXT))
+        set_font_role(self._user_id_input, FontType.TEXT)
         self._user_id_input.setFixedHeight(input_height)
         self._user_id_width = get_scaled_width(self._USER_ID_BASE_WIDTH)
         self._user_id_input.setFixedWidth(self._user_id_width)
@@ -110,8 +110,8 @@ class TrackedUserItem(TranslatableMixin, QWidget):
     def update_font_scale(self):
         self._username_width = get_scaled_width(self._USERNAME_BASE_WIDTH)
         self._user_id_width = get_scaled_width(self._USER_ID_BASE_WIDTH)
-        self.username_input.setFont(get_font(FontType.TEXT))
-        self._user_id_input.setFont(get_font(FontType.TEXT))
+        set_font_role(self.username_input, FontType.TEXT)
+        set_font_role(self._user_id_input, FontType.TEXT)
         self.username_input.setFixedWidth(self._username_width)
         self._user_id_input.setFixedWidth(self._user_id_width)
         self._update_total_width()

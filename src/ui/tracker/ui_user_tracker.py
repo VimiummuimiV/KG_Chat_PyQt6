@@ -17,7 +17,7 @@ from PyQt6.QtWidgets import (
 
 from components.badge import TypeFilterBar
 from components.button import create_icon_button
-from helpers.fonts.fonts import FontType, get_font, get_userlist_width
+from helpers.fonts.fonts import FontType, get_userlist_width, set_font_role
 from helpers.scroll.auto_scroll import AutoScroller
 from helpers.scroll.scroll_buttons import ScrollButtonsPanel
 from helpers.translate import on_language_changed, tr, TranslatableMixin
@@ -59,9 +59,9 @@ class UserTrackerWidget(
         self._apply_default_tab()
         self._on_tab_changed(self.tabs.currentIndex())
         if self.font_scaler is not None:
-            self.font_scaler.font_size_committed.connect(self._on_font_size_committed)
+            self.font_scaler.font_size_committed.connect(self.refresh_fonts)
 
-    def _on_font_size_committed(self):
+    def refresh_fonts(self):
         self.filter_panel.setFixedWidth(get_userlist_width())
         for item in self.user_items:
             item.update_font_scale()
@@ -90,12 +90,11 @@ class UserTrackerWidget(
         header_layout.addWidget(self._back_button)
 
         title_label = QLabel()
-        title_label.setFont(get_font(FontType.HEADER))
+        set_font_role(title_label, FontType.HEADER)
         self.tr_set(title_label.setText, "User Tracker", "Трекер пользователей")
         header_layout.addWidget(title_label)
 
         self.info_label = QLabel("")
-        self.info_label.setFont(get_font(FontType.UI))
         self.info_label.setObjectName("mutedHint")
         self.info_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         self.info_label.setVisible(False)
@@ -123,7 +122,6 @@ class UserTrackerWidget(
         header_layout.addWidget(self._clear_history_button)
 
         self.tabs = QTabWidget()
-        self.tabs.setFont(get_font(FontType.UI))
         self.tabs.currentChanged.connect(self._on_tab_changed)
         main_layout.addWidget(self.tabs, stretch=1)
 
@@ -184,7 +182,6 @@ class UserTrackerWidget(
         self.history_delegate.date_filter_clicked.connect(self.handle_date_filter_click)
 
         self._empty_history_label = QLabel()
-        self._empty_history_label.setFont(get_font(FontType.UI))
         self._empty_history_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._empty_history_label.setObjectName("mutedHint")
         self.tr_set(self._empty_history_label.setText, "No events", "Нет событий")

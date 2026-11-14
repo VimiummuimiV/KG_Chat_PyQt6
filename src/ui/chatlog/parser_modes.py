@@ -4,7 +4,6 @@ from PyQt6.QtWidgets import QComboBox, QHBoxLayout, QLabel, QWidget
 
 from components.button import create_icon_button
 from helpers.dates import DATE_PLACEHOLDER
-from helpers.fonts.fonts import FontType, get_font
 from helpers.translate import tr
 from ui.chatlog.parser_modes_data import MENTION_SUB_KEYS, MENTION_SUB_LABELS
 
@@ -165,7 +164,6 @@ class ParserModesMixin:
 
             self.mention_date_combo = QComboBox()
             self.mention_date_combo.setFixedHeight(self.input_height)
-            self.mention_date_combo.setFont(get_font(FontType.UI))
             for key in MENTION_SUB_KEYS:
                 en, ru = MENTION_SUB_LABELS[key]
                 self.mention_date_combo.addItem(tr(en, ru), key)

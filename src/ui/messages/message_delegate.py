@@ -16,7 +16,6 @@ from PyQt6.QtGui import (
 )
 from PyQt6.QtWidgets import (
     QApplication,
-    QMenu,
     QStyledItemDelegate,
     QStyleOptionViewItem,
     QTextEdit,
@@ -31,6 +30,7 @@ from components.flash_highlight import (
     RowFlashMixin,
 )
 from components.image_viewer.gallery import DayNavigation, first_image, ImageGallery, InlineReply, is_image_url
+from components.menu import create_menu
 from components.toast import copy_messages_with_toast, copy_text_with_toast
 from core.xmpp.delivery import DELIVERED, FAILED, is_marker_enabled, PENDING
 from helpers.cache import get_cache
@@ -210,7 +210,7 @@ class _TextSelectorOverlay(QTextEdit):
     def _show_context_menu(self, global_pos):
         icons_path = get_resource_dir("icons")
         def icon(name): return render_svg_icon(icons_path / name, 16)
-        menu = QMenu(self)
+        menu = create_menu(self)
         if self._reply_callback is not None:
             reply_action = menu.addAction(icon("fill/reply-fill.svg"), tr("Reply", "Ответить"))
             reply_action.setShortcut(QKeySequence("R"))

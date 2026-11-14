@@ -7,7 +7,6 @@ from PyQt6.QtGui import QPainter, QPixmap
 from PyQt6.QtWidgets import QGridLayout, QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
 from components.button import create_icon_button
-from helpers.fonts.fonts import FontType, get_font
 from helpers.hold_repeater import HoldRepeater
 from helpers.pets.catalog import (
     list_pet_kinds,
@@ -40,7 +39,6 @@ _BADGE_HEIGHT = 14
 _BADGE_PADDING = 6
 _BADGE_FONT_PIXELS = 10
 _BADGE_RADIUS = 4
-_HINT_FONT_SCALE = 0.85
 
 
 class _PetTile(QLabel):
@@ -116,9 +114,6 @@ class SettingsPetsMixin:
             "ЛКМ: добавить питомца · ПКМ: убрать · удерживайте для повтора",
         )
         hint_label = QLabel(hint)
-        hint_font = get_font(FontType.UI)
-        hint_font.setPointSizeF(hint_font.pointSizeF() * _HINT_FONT_SCALE)
-        hint_label.setFont(hint_font)
         hint_label.setObjectName("hintLabel")
         guide_tooltip = tr("How the pets behave", "Как ведут себя питомцы")
         guide_button = create_icon_button(self.icons_path, "line/information-line.svg", guide_tooltip, size_type="small", config=self.config)

@@ -14,7 +14,7 @@ from components.input_row import InputRow
 from core.xmpp.messages import Message
 from helpers.colors.color_utils import get_game_message_colors
 from helpers.data import get_resource_dir
-from helpers.fonts.fonts import FontType, get_font
+from helpers.fonts.fonts import FontType, set_font_role
 from helpers.input_style import resolve_input_style
 from helpers.translate import tr
 from ui.chat.ui_emoticon_selector import release_selector
@@ -113,7 +113,7 @@ class PopupNotification(AutoHidePopupMixin, QWidget):
             username_color = "#AAAAAA"
         self.username_label = QLabel(f"<b>{data.title}</b>")
         self.username_label.setStyleSheet(f"color: {username_color};")
-        self.username_label.setFont(get_font(FontType.TEXT))
+        set_font_role(self.username_label, FontType.TEXT)
         self.username_label.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         if data.profile_callback and not data.is_parser and not data.is_competition:
             self.username_label.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
@@ -128,7 +128,7 @@ class PopupNotification(AutoHidePopupMixin, QWidget):
                 data.is_ban, data.is_private, data.is_system, data.is_competition, data.is_parser
             )
         self._timestamp_label.setStyleSheet(f"color: {timestamp_color};")
-        self._timestamp_label.setFont(get_font(FontType.TEXT))
+        set_font_role(self._timestamp_label, FontType.TEXT)
         self._timestamp_label.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
 
         # Avatar label - shown before timestamp for non-system messages

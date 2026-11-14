@@ -8,26 +8,22 @@ from PyQt6.QtWidgets import QApplication, QMenu, QMessageBox, QSystemTrayIcon
 
 
 QApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
+# With an application stylesheet Qt stops font propagation: setFont on the application or a parent then misses its children
+QApplication.setAttribute(Qt.ApplicationAttribute.AA_UseStyleSheetPropagationInWidgetStyles)
 
 # Add src directory to path
 _src_path = Path(__file__).parent
 sys.path.insert(0, str(_src_path if _src_path.name == 'src' else _src_path / 'src'))
 
 from components.button import render_svg_icon
+from components.menu import add_submenu, create_menu
 from components.tray_badge import TrayIconWithBadge
 from core.state.accounts import AccountManager
 from helpers.config import Config, get_config_path
 from helpers.data import get_state_dir
 from helpers.deferred import call_later
 from helpers.fonts.font_scaler import FontScaler
-from helpers.fonts.fonts import (
-    FontType,
-    get_font,
-    load_fonts,
-    set_application_font,
-    set_config,
-    set_font_scaler,
-)
+from helpers.fonts.fonts import load_fonts, set_application_font, set_config, set_font_scaler
 from helpers.system import hotkey_manager as hotkey
 from helpers.system.power_monitor import power_monitor
 from helpers.translate import on_language_changed, set_language, tr
@@ -135,8 +131,7 @@ class Application(QObject):
 
         icon = lambda name: render_svg_icon(self.icons_path / name, 16)
 
-        menu = QMenu()
-        menu.aboutToShow.connect(lambda: self._apply_tray_menu_font(menu))
+        menu = create_menu()
 
         self._show_action = QAction(icon("fill/door-open-fill.svg"), "", self.app)
         self._show_action.triggered.connect(self._show_from_tray)
@@ -170,7 +165,7 @@ class Application(QObject):
         on_language_changed(self._retranslate_tray)
 
     def _setup_color_menu(self, parent_menu: QMenu, icon):
-        self._color_menu = parent_menu.addMenu("")
+        self._color_menu = add_submenu(parent_menu)
         self._color_menu.setIcon(icon("fill/palette-fill.svg"))
         self._change_color_action = QAction(icon("fill/palette-fill.svg"), "", self.app)
         self._change_color_action.triggered.connect(self._handle_change_username_color)
@@ -181,7 +176,7 @@ class Application(QObject):
         self._color_menu.aboutToShow.connect(self._update_color_menu)
 
     def _setup_sound_menu(self, parent_menu: QMenu, icon):
-        self._sound_menu = parent_menu.addMenu("")
+        self._sound_menu = add_submenu(parent_menu)
         self._sound_menu.setIcon(icon("fill/volume-up-fill.svg"))
         self._sound_menu.addSeparator()
         self._voice_sound_action = QAction("", self.app, checkable=True)
@@ -207,13 +202,6 @@ class Application(QObject):
         self._notification_enabled_action.setChecked(not muted)
         self._notification_enabled_action.triggered.connect(self._on_notification_enabled_toggled)
         parent_menu.addAction(self._notification_enabled_action)
-
-    @staticmethod
-    def _apply_tray_menu_font(menu: QMenu):
-        """Qt menus ignore the application font and do not pass theirs to submenus."""
-        font = get_font(FontType.UI)
-        for item in (menu, *menu.findChildren(QMenu)):
-            item.setFont(font)
 
     def _retranslate_tray(self, _code=None):
         if not self._tray_icon:

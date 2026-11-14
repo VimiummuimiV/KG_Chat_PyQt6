@@ -14,7 +14,7 @@ from components.image_viewer.gallery import DayState, GalleryImage
 from components.image_viewer.layer import CORNER_RADIUS
 from components.input_row import InputRow
 from helpers.cache import get_cache
-from helpers.fonts.fonts import FontType, get_font
+from helpers.fonts.fonts import FontType, set_font_role
 from helpers.input_style import resolve_input_style
 from helpers.translate import tr
 
@@ -376,7 +376,6 @@ class Notice(QFrame):
         self._icons_path = icons_path
         self._icon_label = QLabel()
         self._label = QLabel()
-        self._label.setFont(get_font(FontType.UI))
         layout = QVBoxLayout(self)
         layout.setContentsMargins(PANEL_MARGIN, PANEL_MARGIN, PANEL_MARGIN, PANEL_MARGIN)
         layout.setSpacing(PANEL_SPACING)
@@ -406,9 +405,9 @@ class SourceBadge(QFrame):
 
         self._avatar_label = make_avatar_label(_BADGE_AVATAR_SIZE)
         self._username_label = QLabel()
-        self._username_label.setFont(get_font(FontType.TEXT))
+        set_font_role(self._username_label, FontType.TEXT)
         self._time_label = QLabel()
-        self._time_label.setFont(get_font(FontType.TEXT))
+        set_font_role(self._time_label, FontType.TEXT)
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(_BADGE_MARGIN, _BADGE_MARGIN, _BADGE_MARGIN + _BADGE_SPACING, _BADGE_MARGIN)
@@ -459,7 +458,7 @@ class PositionBadge(QFrame):
         super().__init__(parent)
         self.setObjectName("positionBadge")
         self._label = QLabel()
-        self._label.setFont(get_font(FontType.TEXT))
+        set_font_role(self._label, FontType.TEXT)
         self.setMinimumHeight(BADGE_HEIGHT)
         layout = QHBoxLayout(self)
         layout.setContentsMargins(_BADGE_MARGIN + _BADGE_SPACING, _BADGE_MARGIN, _BADGE_MARGIN + _BADGE_SPACING, _BADGE_MARGIN)

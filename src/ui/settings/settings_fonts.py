@@ -8,10 +8,10 @@ from helpers.fonts.fonts import (
     FontType,
     get_available_emoji_families,
     get_available_font_families,
-    get_font,
     invalidate_font_cache,
     set_application_font,
     set_config,
+    set_font_role,
 )
 from helpers.translate import tr
 from ui.settings.settings_widgets import (
@@ -50,7 +50,6 @@ class SettingsFontsMixin:
 
         preview_header, preview_content, preview_layout = self.add_subsection(section, tr("🔎 Preview", "🔎 Предпросмотр"))
         self._font_preview = QTextEdit()
-        self._font_preview.setProperty("fontRole", "text")
         self._font_preview.setReadOnly(True)
         self._font_preview.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self._font_preview.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
@@ -118,7 +117,7 @@ class SettingsFontsMixin:
     def update_font_preview(self):
         if not hasattr(self, "_font_preview"):
             return
-        self._font_preview.setFont(get_font(FontType.TEXT))
+        set_font_role(self._font_preview, FontType.TEXT)
         self.apply_font_preview_theme()
         self._fit_font_preview_height()
 
@@ -175,7 +174,6 @@ class SettingsFontsMixin:
         app = QApplication.instance()
         if app:
             set_application_font(app)
-        self.competitions_log.setFont(get_font(FontType.UI))
         if not self.competitions_log.isEnabled():
             self.competitions_log.setFixedHeight(self.collapsed_log_height())
         self.font_family_changed.emit()

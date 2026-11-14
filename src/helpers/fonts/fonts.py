@@ -4,14 +4,22 @@ import sys
 from enum import Enum
 
 from PyQt6.QtGui import QFont, QFontDatabase
-from PyQt6.QtWidgets import QApplication, QToolTip
+from PyQt6.QtWidgets import QApplication, QToolTip, QWidget
 
 from helpers.config import Config
 from helpers.data import get_resource_dir
 
 
+_FONT_ROLE_PROPERTY = "fontRole"
+
+
 class FontType(Enum):
-    """Font type categories"""
+    """Font type categories.
+
+    UI is the application font: widgets inherit it and never set it themselves, except
+    windows that do not inherit (menus), which take the UI role. TEXT and HEADER widgets
+    are marked with set_font_role.
+    """
     UI = "ui"           # Buttons, inputs, small UI elements
     TEXT = "text"       # Messages, content, body text
     HEADER = "header"   # Titles, section headers
@@ -251,6 +259,21 @@ def get_font(font_type: FontType = FontType.TEXT,
 
 def set_application_font(app: QApplication):
     _font_manager._set_application_font(app)
+
+
+def set_font_role(widget: QWidget, font_type: FontType):
+    """Give a widget the font of a role; refresh_font_roles keeps it in sync with the settings."""
+    widget.setProperty(_FONT_ROLE_PROPERTY, font_type.value)
+    widget.setFont(get_font(font_type))
+
+
+def refresh_font_roles():
+    """Re-apply the role fonts after a font setting changed: one pass over the widgets that carry a role."""
+    fonts = {font_type.value: get_font(font_type) for font_type in FontType}
+    for widget in QApplication.allWidgets():
+        role = widget.property(_FONT_ROLE_PROPERTY)
+        if role in fonts:
+            widget.setFont(fonts[role])
 
 
 def set_font_scaler(font_scaler):

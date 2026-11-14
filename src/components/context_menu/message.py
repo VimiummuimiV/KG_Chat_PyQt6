@@ -3,10 +3,8 @@
 from pathlib import Path
 from typing import Optional
 
-from PyQt6.QtWidgets import QMenu
-
 from components.button import render_svg_icon
-from helpers.fonts.fonts import FontType, get_font
+from components.menu import create_menu
 from helpers.translate import tr
 
 
@@ -42,8 +40,7 @@ def show_message_user_context_menu(
     def icon(name: str):
         return render_svg_icon(icons_path / name, 16)
 
-    menu = QMenu(parent)
-    menu.setFont(get_font(FontType.UI))
+    menu = create_menu(parent)
 
     profile_action = menu.addAction(icon("fill/user-3-fill.svg"), tr("Profile", "Профиль"))
     private_action = None

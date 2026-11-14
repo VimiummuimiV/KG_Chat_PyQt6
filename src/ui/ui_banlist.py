@@ -21,7 +21,7 @@ from PyQt6.QtWidgets import (
 from components.button import create_icon_button
 from components.toast import show_toast, ToastKind
 from core.web.api_data import validate_username_and_get_id
-from helpers.fonts.fonts import FontType, get_font
+from helpers.fonts.fonts import FontType, set_font_role
 from helpers.translate import on_language_changed, tr, TranslatableMixin
 from helpers.users.ban_manager import BanManager
 from themes.stylesheet import set_style_property
@@ -86,7 +86,7 @@ class _BanItemWidget(TranslatableMixin, QWidget):
         self.username_input = QLineEdit()
         self.tr_set(self.username_input.setPlaceholderText, "Username", "Имя пользователя")
         self.username_input.setText(username)
-        self.username_input.setFont(get_font(FontType.TEXT))
+        set_font_role(self.username_input, FontType.TEXT)
         input_height = config.get("ui", "input_height") or 44
         self.username_input.setFixedHeight(input_height)
         self.username_input.setFixedWidth(220)
@@ -114,7 +114,7 @@ class _BanItemWidget(TranslatableMixin, QWidget):
         self._user_id_input = QLineEdit()
         self.tr_set(self._user_id_input.setPlaceholderText, "ID", "ID")
         self._user_id_input.setText(user_id)
-        self._user_id_input.setFont(get_font(FontType.TEXT))
+        set_font_role(self._user_id_input, FontType.TEXT)
         self._user_id_input.setFixedHeight(input_height)
         self._user_id_input.setFixedWidth(125)
         self._user_id_input.setReadOnly(True)
@@ -124,7 +124,7 @@ class _BanItemWidget(TranslatableMixin, QWidget):
         # Duration button (only for temporary section) - clickable to change duration
         if self.is_temporary:
             self._duration_button = QPushButton()
-            self._duration_button.setFont(get_font(FontType.TEXT))
+            set_font_role(self._duration_button, FontType.TEXT)
             self._duration_button.setFixedHeight(input_height)
             self._duration_button.setMinimumWidth(110)  # Minimum width
             self._duration_button.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -298,7 +298,7 @@ class BanListWidget(TranslatableMixin, QWidget):
         # Header with title and add button
         header = QHBoxLayout()
         label = QLabel()
-        label.setFont(get_font(FontType.HEADER))
+        set_font_role(label, FontType.HEADER)
         self.tr_set(label.setText, title_en, title_ru)
         header.addWidget(label, stretch=1)
 
@@ -342,7 +342,7 @@ class BanListWidget(TranslatableMixin, QWidget):
         header_layout.addWidget(self._back_button)
 
         title_label = QLabel()
-        title_label.setFont(get_font(FontType.HEADER))
+        set_font_role(title_label, FontType.HEADER)
         self.tr_set(title_label.setText, "Ban List", "Список забаненных")
         header_layout.addWidget(title_label, stretch=1)
 

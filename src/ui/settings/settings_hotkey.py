@@ -5,7 +5,6 @@ from PyQt6.QtWidgets import QLabel, QPushButton, QVBoxLayout
 
 from components.button import create_icon_button
 from helpers.colors.color_utils import tinted_chip_colors
-from helpers.fonts.fonts import FontType, get_font
 from helpers.system import hotkey_manager as hotkey
 from helpers.translate import tr
 from ui.settings.settings_widgets import ClickableLabel, SettingsRow
@@ -19,7 +18,6 @@ class SettingsHotkeyMixin:
         row = row_widget.layout()
 
         label = QLabel(label_text)
-        label.setFont(get_font(FontType.UI))
         row.addWidget(label, stretch=1)
         self.register_tr(label.setText, label_text)
 
@@ -31,7 +29,6 @@ class SettingsHotkeyMixin:
         row.addSpacing(4)
 
         self._hotkey_button = QPushButton()
-        self._hotkey_button.setFont(get_font(FontType.UI))
         self._hotkey_button.setFixedWidth(180)
         self._hotkey_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self._hotkey_button.clicked.connect(self._on_hotkey_record_clicked)
