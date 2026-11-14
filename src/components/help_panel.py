@@ -15,16 +15,16 @@ from helpers.translate import on_language_changed, tr
 
 
 _CHAT_GENERAL_KB = [
-    ("F",           "Focus input field", "Фокус на поле ввода"),
-    ("Tab",         "Switch Messages / Chatlog", "Переключить Сообщения / Чатлог"),
-    ("U",           "Toggle user list", "Список пользователей"),
-    ("B",           "Toggle ban list", "Список банов"),
-    ("V",           "Toggle voice / TTS", "Голос / TTS"),
-    ("M",           "Toggle effects sound", "Звуки эффектов"),
-    ("N",           "Toggle notifications", "Уведомления"),
-    ("T",           "Toggle always on top", "Поверх всех окон"),
-    ("R",           "Reset window size", "Сбросить размер окна"),
-    ("C",           "Change username color", "Цвет имени"),
+    ("F",   "Focus input field",                "Фокус на поле ввода"),
+    ("Tab", "Switch Messages / Chatlog",        "Переключить Сообщения / Чатлог"),
+    ("U",   "Toggle user list",                 "Список пользователей"),
+    ("B",   "Toggle ban list",                  "Список банов"),
+    ("V",   "Toggle voice / TTS",               "Голос / TTS"),
+    ("M",   "Toggle effects sound",             "Звуки эффектов"),
+    ("N",   "Toggle notifications",             "Уведомления"),
+    ("T",   "Toggle always on top",             "Поверх всех окон"),
+    ("R",   "Reset window size",                "Сбросить размер окна"),
+    ("C",   "Change username color",            "Цвет имени"),
     (
         "E",
         "Open latest competition race in browser",
@@ -35,7 +35,7 @@ _CHAT_GENERAL_KB = [
         "Exit private chat / Clear markers, presence",
         "Выйти из ЛС / Очистить маркеры, присутствие",
     ),
-    ("Esc",         "Clear input focus / Close search", "Снять фокус с ввода / Закрыть поиск"),
+    ("Esc", "Clear input focus / Close search", "Снять фокус с ввода / Закрыть поиск"),
 ]
 
 _CHAT_CTRL_KB = [
@@ -44,51 +44,51 @@ _CHAT_CTRL_KB = [
         "Hold to dictate, release to stop",
         "Удерживать — диктовка, отпустить — остановить",
     ),
-    ("Ctrl+;",         "Toggle emoticon selector", "Селектор эмотиконов"),
-    ("Ctrl+F",         "Toggle search bar", "Строка поиска"),
-    ("Ctrl+T",         "Toggle theme", "Тема"),
-    ("Ctrl+U",         "Switch account", "Сменить аккаунт"),
-    ("Ctrl+Shift+U",   "Toggle user tracker", "Трекер пользователей"),
-    ("Ctrl+,",         "Toggle settings", "Настройки"),
-    ("Ctrl+J",         "Join / Create room", "Войти / создать комнату"),
-    ("Ctrl+P",         "Open chatlog parser", "Парсер чатлогов"),
-    ("Ctrl+A",         "Copy all messages", "Копировать все сообщения"),
-    ("Ctrl+C",         "Reset username color", "Сбросить цвет имени"),
-    ("Ctrl + / -",     "Font size up / down", "Размер шрифта + / −"),
-    ("Ctrl+Scroll",    "Font size up / down", "Размер шрифта + / −"),
+    ("Ctrl+;",       "Toggle emoticon selector", "Селектор эмотиконов"),
+    ("Ctrl+F",       "Toggle search bar",        "Строка поиска"),
+    ("Ctrl+T",       "Toggle theme",             "Тема"),
+    ("Ctrl+U",       "Switch account",           "Сменить аккаунт"),
+    ("Ctrl+Shift+U", "Toggle user tracker",      "Трекер пользователей"),
+    ("Ctrl+,",       "Toggle settings",          "Настройки"),
+    ("Ctrl+J",       "Join / Create room",       "Войти / создать комнату"),
+    ("Ctrl+P",       "Open chatlog parser",      "Парсер чатлогов"),
+    ("Ctrl+A",       "Copy all messages",        "Копировать все сообщения"),
+    ("Ctrl+C",       "Reset username color",     "Сбросить цвет имени"),
+    ("Ctrl + / -",   "Font size up / down",      "Размер шрифта + / −"),
+    ("Ctrl+Scroll",  "Font size up / down",      "Размер шрифта + / −"),
 ]
 
 _CHAT_SCROLL_KB = [
-    ("J / ↓",       "Scroll down", "Прокрутка вниз"),
-    ("K / ↑",       "Scroll up", "Прокрутка вверх"),
-    ("G G",         "Scroll to top", "В начало"),
+    ("J / ↓",       "Scroll down",      "Прокрутка вниз"),
+    ("K / ↑",       "Scroll up",        "Прокрутка вверх"),
+    ("G G",         "Scroll to top",    "В начало"),
     ("Shift+G",     "Scroll to bottom", "В конец"),
-    ("Space",       "Page down", "Страница вниз"),
-    ("Shift+Space", "Page up", "Страница вверх"),
+    ("Space",       "Page down",        "Страница вниз"),
+    ("Shift+Space", "Page up",          "Страница вверх"),
 ]
 
 _USERLIST_MOUSE = [
-    ("Left click",   "Левый клик",   "View user profile", "Профиль пользователя"),
-    ("Ctrl+Click",   "Ctrl+клик",    "Start private chat", "Приватный чат"),
+    ("Left click",   "Левый клик",   "View user profile",             "Профиль пользователя"),
+    ("Ctrl+Click",   "Ctrl+клик",    "Start private chat",            "Приватный чат"),
     ("Middle click", "Средний клик", "Open game chat (if in a race)", "Чат заезда (если в гонке)"),
-    ("Right click",  "Правый клик",  "Context menu", "Контекстное меню"),
+    ("Right click",  "Правый клик",  "Context menu",                  "Контекстное меню"),
 ]
 
 _MSG_USERNAME_MOUSE = [
-    ("Left click",   "Левый клик",   "Add username to input", "Добавить ник во ввод"),
+    ("Left click",  "Левый клик",  "Add username to input", "Добавить ник во ввод"),
     (
         "Double click",
         "Двойной клик",
         "Replace input / clear if solo",
         "Заменить ввод / очистить если один",
     ),
-    ("Ctrl+Click",   "Ctrl+клик",    "Start private chat", "Приватный чат"),
-    ("Shift+Click",  "Shift+клик",   "View user profile", "Профиль пользователя"),
-    ("Right click",  "Правый клик",  "Context menu", "Контекстное меню"),
+    ("Ctrl+Click",  "Ctrl+клик",   "Start private chat",    "Приватный чат"),
+    ("Shift+Click", "Shift+клик",  "View user profile",     "Профиль пользователя"),
+    ("Right click", "Правый клик", "Context menu",          "Контекстное меню"),
 ]
 
 _MSG_TIMESTAMP_MOUSE = [
-    ("Left click",    "Левый клик",    "Open chatlog for that day", "Чатлог за этот день"),
+    ("Left click",  "Левый клик",   "Open chatlog for that day",  "Чатлог за этот день"),
     ("Left click 🏆", "Левый клик 🏆", "Open competition room chat", "Чат соревновательной комнаты"),
     (
         "Right click",
@@ -151,17 +151,13 @@ _CHATLOG_KB = [
         "Previous day (hold to fast-seek)",
         "Предыдущий день (удерживать для быстрой перемотки)",
     ),
-    (
-        "L / →",
-        "Next day (hold to fast-seek)",
-        "Следующий день (удерживать для быстрой перемотки)",
-    ),
-    ("D",               "Open calendar date picker", "Календарь выбора даты"),
-    ("Ctrl+F",          "Toggle search bar", "Панель поиска"),
-    ("P",               "Toggle chatlog parser", "Парсер чатлогов"),
-    ("Ctrl+A",          "Copy all messages", "Копировать все сообщения"),
-    ("M",               "Toggle mention filter", "Фильтр упоминаний"),
-    ("Esc",             "Close search", "Закрыть поиск"),
+    ("L / →",  "Next day (hold to fast-seek)", "Следующий день (удерживать для быстрой перемотки)"),
+    ("D",      "Open calendar date picker",    "Календарь выбора даты"),
+    ("Ctrl+F", "Toggle search bar",            "Панель поиска"),
+    ("P",      "Toggle chatlog parser",        "Парсер чатлогов"),
+    ("Ctrl+A", "Copy all messages",            "Копировать все сообщения"),
+    ("M",      "Toggle mention filter",        "Фильтр упоминаний"),
+    ("Esc",    "Close search",                 "Закрыть поиск"),
 ]
 
 _CHATLOG_USERLIST_MOUSE = [
@@ -182,19 +178,19 @@ _CHATLOG_USERLIST_MOUSE = [
 
 _CHATLOG_MOUSE = [
     ("Back button",    "Кнопка «Назад»",  "Navigate to previous day", "К предыдущему дню"),
-    ("Forward button", "Кнопка «Вперёд»", "Navigate to next day", "К следующему дню"),
+    ("Forward button", "Кнопка «Вперёд»", "Navigate to next day",     "К следующему дню"),
 ]
 
 _EMOTICON_KB = [
-    ("H / ←",           "Move cursor left", "Курсор влево"),
-    ("L / →",           "Move cursor right", "Курсор вправо"),
-    ("J / ↓",           "Move cursor down", "Курсор вниз"),
-    ("K / ↑",           "Move cursor up", "Курсор вверх"),
-    ("Tab",             "Next emoticon group", "Следующая группа эмотиконов"),
-    ("Shift+Tab",       "Previous emoticon group", "Предыдущая группа эмотиконов"),
-    ("Enter / ;",       "Insert emoticon & close", "Вставить эмотикон и закрыть"),
-    ("Shift+Enter",     "Insert emoticon & stay open", "Вставить эмотикон и оставить открытым"),
-    ("Esc",             "Close selector", "Закрыть селектор"),
+    ("H / ←",       "Move cursor left",            "Курсор влево"),
+    ("L / →",       "Move cursor right",           "Курсор вправо"),
+    ("J / ↓",       "Move cursor down",            "Курсор вниз"),
+    ("K / ↑",       "Move cursor up",              "Курсор вверх"),
+    ("Tab",         "Next emoticon group",         "Следующая группа эмотиконов"),
+    ("Shift+Tab",   "Previous emoticon group",     "Предыдущая группа эмотиконов"),
+    ("Enter / ;",   "Insert emoticon & close",     "Вставить эмотикон и закрыть"),
+    ("Shift+Enter", "Insert emoticon & stay open", "Вставить эмотикон и оставить открытым"),
+    ("Esc",         "Close selector",              "Закрыть селектор"),
 ]
 
 _EMOTICON_MOUSE = [
@@ -207,17 +203,17 @@ _EMOTICON_MOUSE = [
 ]
 
 _CHATLOG_PARSER_ACTIVE_KB = [
-    ("P",               "Toggle chatlog parser", "Парсер чатлогов"),
-    ("Ctrl+A",          "Copy all results", "Копировать все результаты"),
-    ("S",               "Start parsing", "Начать парсинг"),
-    ("C",               "Cancel parsing", "Отменить парсинг"),
-    ("Ctrl+C",          "Copy results", "Копировать результаты"),
-    ("Ctrl+S",          "Save results to file", "Сохранить результаты в файл"),
-    ("Ctrl+F",          "Toggle search bar", "Строка поиска"),
+    ("P",      "Toggle chatlog parser", "Парсер чатлогов"),
+    ("Ctrl+A", "Copy all results",      "Копировать все результаты"),
+    ("S",      "Start parsing",         "Начать парсинг"),
+    ("C",      "Cancel parsing",        "Отменить парсинг"),
+    ("Ctrl+C", "Copy results",          "Копировать результаты"),
+    ("Ctrl+S", "Save results to file",  "Сохранить результаты в файл"),
+    ("Ctrl+F", "Toggle search bar",     "Строка поиска"),
 ]
 
 _PARSER_TAG_MOUSE = [
-    ("Left click",   "Левый клик",     "Add username to field", "Добавить ник в поле"),
+    ("Left click", "Левый клик", "Add username to field", "Добавить ник в поле"),
     (
         "Double click",
         "Двойной клик",
@@ -233,25 +229,25 @@ _PARSER_TAG_MOUSE = [
 ]
 
 _ACCOUNTS_CONNECT_KB = [
-    ("Enter / E",   "Connect to chat", "Подключиться к чату"),
-    ("Tab",         "Cycle account selection", "Переключение аккаунта"),
-    ("C",           "Change username color", "Цвет ника"),
-    ("Ctrl+C",      "Reset username color", "Сбросить цвет ника"),
-    ("D",           "Remove selected account", "Удалить выбранный аккаунт"),
-    ("W",           "Add account via browser login", "Добавить аккаунт через браузер"),
-    ("1",           "Toggle Auto-login", "Авто-вход"),
-    ("2",           "Toggle Start minimized", "Запуск свёрнутым"),
-    ("3",           "Toggle Start with system", "Запуск с системой"),
+    ("Enter / E", "Connect to chat",               "Подключиться к чату"),
+    ("Tab",       "Cycle account selection",       "Переключение аккаунта"),
+    ("C",         "Change username color",         "Цвет ника"),
+    ("Ctrl+C",    "Reset username color",          "Сбросить цвет ника"),
+    ("D",         "Remove selected account",       "Удалить выбранный аккаунт"),
+    ("W",         "Add account via browser login", "Добавить аккаунт через браузер"),
+    ("1",         "Toggle Auto-login",             "Авто-вход"),
+    ("2",         "Toggle Start minimized",        "Запуск свёрнутым"),
+    ("3",         "Toggle Start with system",      "Запуск с системой"),
 ]
 
 _ACCOUNTS_CONNECT_MOUSE = [
     ("Left click", "Левый клик", "Change username color", "Цвет ника"),
-    ("Ctrl+Click", "Ctrl+клик",  "Reset username color", "Сбросить цвет ника"),
+    ("Ctrl+Click", "Ctrl+клик",  "Reset username color",  "Сбросить цвет ника"),
 ]
 
 _IMAGE_KB = [
-    ("H / ←",           "Previous image",                       "Предыдущее изображение"),
-    ("L / →",           "Next image",                           "Следующее изображение"),
+    ("H / ←",           "Previous image",                   "Предыдущее изображение"),
+    ("L / →",           "Next image",                       "Следующее изображение"),
     (
         "Shift + H / ←",
         "Previous day (hold to fast-seek)",
@@ -262,18 +258,14 @@ _IMAGE_KB = [
         "Next day (hold to fast-seek)",
         "Следующий день (удерживать для быстрой перемотки)",
     ),
-    ("P",               "Start / stop slideshow",               "Запустить / остановить слайдшоу"),
+    ("P",               "Start / stop slideshow",           "Запустить / остановить слайдшоу"),
     (
         "R",
         "Reply to the message with the image",
         "Ответить на сообщение с изображением",
     ),
-    (
-        "G",
-        "Go to the message with the image",
-        "Перейти к сообщению с изображением",
-    ),
-    ("S",               "Save the image to a file",             "Сохранить изображение в файл"),
+    ("G",               "Go to the message with the image", "Перейти к сообщению с изображением"),
+    ("S",               "Save the image to a file",         "Сохранить изображение в файл"),
     (
         "+ / -",
         "Zoom in / out (hold to repeat)",
@@ -284,9 +276,9 @@ _IMAGE_KB = [
         "Fit to screen  /  actual size (100%)",
         "По размеру экрана  /  реальный размер (100%)",
     ),
-    ("Tab",             "Hide / show all panels",               "Скрыть / показать все панели"),
-    ("Enter / Esc",     "Reply field: send / close it",         "Поле ответа: отправить / закрыть"),
-    ("Esc / Space / Q", "Close image viewer",                   "Закрыть просмотр изображения"),
+    ("Tab",             "Hide / show all panels",           "Скрыть / показать все панели"),
+    ("Enter / Esc",     "Reply field: send / close it",     "Поле ответа: отправить / закрыть"),
+    ("Esc / Space / Q", "Close image viewer",               "Закрыть просмотр изображения"),
 ]
 
 _IMAGE_MOUSE = [
@@ -362,31 +354,21 @@ _IMAGE_MOUSE = [
         "Shown when zoomed in: click or drag to move the view",
         "Показывается при увеличении: клик или перетаскивание перемещает вид",
     ),
-    (
-        "Left drag",
-        "Перетаскивание (ЛКМ)",
-        "Pan / move image",
-        "Переместить изображение",
-    ),
+    ("Left drag",   "Перетаскивание (ЛКМ)", "Pan / move image",   "Переместить изображение"),
     (
         "Ctrl + Left drag",
         "Ctrl + перетаскивание (ЛКМ)",
         "Scale image (up / down) around the point where the drag started",
         "Масштаб изображения (+ / −) вокруг точки начала перетаскивания",
     ),
-    ("Wheel",              "Колесо мыши",                 "Zoom in / out", "Приблизить / отдалить"),
+    ("Wheel",       "Колесо мыши",          "Zoom in / out",      "Приблизить / отдалить"),
     (
         "Wheel over the bottom panel",
         "Колесо над нижней панелью",
         "Scroll the thumbnails (no zoom)",
         "Прокрутить миниатюры (без масштабирования)",
     ),
-    (
-        "Right click",
-        "Правый клик",
-        "Close image viewer",
-        "Закрыть просмотр изображения",
-    ),
+    ("Right click", "Правый клик",          "Close image viewer", "Закрыть просмотр изображения"),
 ]
 
 
@@ -394,10 +376,14 @@ _CONTEXTS = {
     "chat": {
         "title": ("Chat — Controls", "Чат — управление"),
         "sections": [
-            (("General", "Общее"),                                        _CHAT_GENERAL_KB, None),
-            (("Ctrl Shortcuts", "Ctrl-сочетания"),                        _CHAT_CTRL_KB,    None),
-            (("Scrolling", "Прокрутка"),                                  _CHAT_SCROLL_KB,  None),
-            (("User List Clicks", "Клики по списку пользователей"),       None, _USERLIST_MOUSE),
+            (("General", "Общее"),                         _CHAT_GENERAL_KB, None),
+            (("Ctrl Shortcuts", "Ctrl-сочетания"),         _CHAT_CTRL_KB,    None),
+            (("Scrolling", "Прокрутка"),                   _CHAT_SCROLL_KB,  None),
+            (
+                ("User List Clicks", "Клики по списку пользователей"),
+                None,
+                _USERLIST_MOUSE,
+            ),
             (
                 ("Message Timestamp Clicks", "Клики по времени сообщения"),
                 None,
@@ -413,66 +399,82 @@ _CONTEXTS = {
                 None,
                 _MSG_COMPETITION_CHIP_MOUSE,
             ),
-            (("Message Body Clicks", "Клики по телу сообщения"),          None, _MSG_BODY_MOUSE),
-            (("URL Interactions", "Взаимодействие с URL"),                None, _MSG_URL_MOUSE),
+            (
+                ("Message Body Clicks", "Клики по телу сообщения"),
+                None,
+                _MSG_BODY_MOUSE,
+            ),
+            (("URL Interactions", "Взаимодействие с URL"), None,             _MSG_URL_MOUSE),
             (
                 ("Notification Popup", "Всплывающее уведомление"),
                 None,
                 _NOTIFICATION_MOUSE,
             ),
-            (("Voice Input", "Голосовой ввод"),                           None, _VOICE_MIC_MOUSE),
+            (("Voice Input", "Голосовой ввод"),            None,             _VOICE_MIC_MOUSE),
         ],
     },
     "chatlog": {
         "title": ("Chatlog — Controls", "Чатлог — управление"),
         "sections": [
-            (
-                ("Navigation", "Навигация"),
-                _CHATLOG_KB,
-                _CHATLOG_MOUSE,
-            ),
-            (("Scrolling", "Прокрутка"),                                 _CHAT_SCROLL_KB,  None),
+            (("Navigation", "Навигация"),                  _CHATLOG_KB,     _CHATLOG_MOUSE),
+            (("Scrolling", "Прокрутка"),                   _CHAT_SCROLL_KB, None),
             (
                 ("User List", "Список пользователей"),
                 None,
                 _CHATLOG_USERLIST_MOUSE,
             ),
-            (("Message Username Clicks", "Клики по нику в сообщении"),   None, _MSG_USERNAME_MOUSE),
+            (
+                ("Message Username Clicks", "Клики по нику в сообщении"),
+                None,
+                _MSG_USERNAME_MOUSE,
+            ),
             (
                 ("Message Timestamp Clicks", "Клики по времени сообщения"),
                 None,
                 _CHATLOG_TIMESTAMP_MOUSE,
             ),
-            (("Message Body Clicks", "Клики по телу сообщения"),         None, _MSG_BODY_MOUSE),
-            (("URL Interactions", "Взаимодействие с URL"),               None, _MSG_URL_MOUSE),
+            (
+                ("Message Body Clicks", "Клики по телу сообщения"),
+                None,
+                _MSG_BODY_MOUSE,
+            ),
+            (("URL Interactions", "Взаимодействие с URL"), None,            _MSG_URL_MOUSE),
         ],
     },
     "parser": {
         "title": ("Chatlog Parser — Keyboard Shortcuts", "Парсер чатлогов — горячие клавиши"),
         "sections": [
-            (("Parser Controls", "Управление парсером"),   _CHATLOG_PARSER_ACTIVE_KB, None),
+            (
+                ("Parser Controls", "Управление парсером"),
+                _CHATLOG_PARSER_ACTIVE_KB,
+                None,
+            ),
             (("Saved Username Tags", "Сохранённые имена"), None, _PARSER_TAG_MOUSE),
         ],
     },
     "accounts_connect": {
         "title": ("Accounts — Connect Page", "Аккаунты — страница подключения"),
         "sections": [
-            (("Keyboard Shortcuts", "Горячие клавиши"),        _ACCOUNTS_CONNECT_KB, None),
-            (("Color Button Clicks", "Клики по кнопке цвета"), None, _ACCOUNTS_CONNECT_MOUSE),
+            (("Keyboard Shortcuts", "Горячие клавиши"), _ACCOUNTS_CONNECT_KB, None),
+            (
+                ("Color Button Clicks", "Клики по кнопке цвета"),
+                None,
+                _ACCOUNTS_CONNECT_MOUSE,
+            ),
         ],
     },
     "emoticon": {
         "title": ("Emoticon Selector — Controls", "Селектор эмотиконов — управление"),
         "sections": [
             (("Keyboard", "Клавиатура"), _EMOTICON_KB, None),
-            (("Mouse", "Мышь"),          None, _EMOTICON_MOUSE),
+            (("Mouse", "Мышь"),          None,         _EMOTICON_MOUSE),
         ],
     },
     "image": {
         "title": ("Image Viewer — Controls", "Просмотр изображений — управление"),
         "sections": [
             (("Keyboard Shortcuts", "Горячие клавиши"), _IMAGE_KB, None),
-            (("Mouse Controls", "Управление мышью"),    None, _IMAGE_MOUSE),
+            (("Mouse Controls", "Управление мышью"),    None,      _IMAGE_MOUSE),
         ],
     },
 }
