@@ -65,7 +65,7 @@ ui/                     screens and windows of the app
   chat/                 ui_chat.py (ChatWindow shell) + chat_*.py mixins (chat_hotkeys.py = local keyboard shortcuts, chat_delivery.py = input draft and delivery markers), ui_room, ui_messages, ui_userlist, ui_buttons, ui_emoticon_selector, voice_input_attach
   tracker/              ui_user_tracker.py + tracker_*.py mixins and models
   chatlog/              ui_chatlog.py + chatlog_*.py mixins, ui_chatlog_userlist, ui_chatlogs_parser.py + parser_*.py
-  messages/             message_model, message_delegate, message_renderer, messages_separator, message_interactions
+  messages/             message_model, message_delegate, message_renderer, message_layout (word wrap: the one layout behind height and painting), message_view_geometry (row heights follow the width), messages_separator, message_interactions
   settings/             ui_settings.py (SettingsWidget shell) + settings_*.py mixins (one per section, e.g. settings_image_viewer.py), settings_options, settings_widgets, sound_selector
   account/              ui_accounts, ui_profile
   ui_banlist.py ui_pronunciation.py   single panels with no related files, directly in ui/
@@ -194,7 +194,7 @@ QSS cannot carry a value that is data or that is used by code. These stay in cod
 - A short-lived dialog whose palette also feeds its rich text may keep one local stylesheet; it must not grow per-widget styles.
 
 ### A theme switch must stay cheap
-- The sequence is: apply the cached application stylesheet, then update only what QSS cannot do. Wrap the application of the stylesheet in `freeze_row_sizes()` when list views exist, so row heights are measured once, then relayout.
+- The sequence is: apply the cached application stylesheet, then update only what QSS cannot do. Row heights are not measured again by a theme switch: every row keeps its geometry on its message, so the relayout that follows only hits the cache. A list asks for it through `MessageDelegate.update_theme`, never with `reset()` or a manual `layoutChanged`.
 - Never call `set_application_font` after a theme change: the stylesheet does not change fonts. It runs once at startup and when a font setting changes; a repeated call is a bug (it also prints twice).
 - A global event filter returns early for events it does not handle: read `event.type()` once into a local variable, never call it repeatedly (each call builds an enum).
 - Create heavy widget groups on first use, not at startup (the emoticon groups are built when first opened). A hidden but polished widget still costs on every stylesheet change.
@@ -226,12 +226,20 @@ QSS cannot carry a value that is data or that is used by code. These stay in cod
 - What the user typed or sent is never lost silently: unsent text is persisted (`InputDrafts`) until the server confirms it, restored into the input field on start, and a message the server may not have gets a visible state (`DeliveryTracker`), never an assumed success. An HTTP 200 of the transport is not a delivery; the server's echo is.
 - Never wipe the input field in code (`clear()`, `setText("")`) to get rid of stray keystrokes, for example after showing the window from the tray by the global hotkey: capture the text before the action and put it back afterwards. The chat may start hidden in the tray with a restored draft, and a blind clear destroys it before the user ever sees it.
 - A message that failed is given back to the input field and removed from `unsent` at once (one copy only: the draft). If its echo still arrives late (a lost poll response, a reconnect, history replay), it is taken out of the input field again; the tracker matches an echo to a pending message before a failed one with the same text.
-- Delivery marker: a small dot painted right after the last character of the message text (`MessageRenderer.content_end`), never at the row edge, so it stays next to its message in a wide window; it is clamped inside the row.
+- Delivery marker: a small dot painted right after the last character of the message text (`TextLayout.content_end` from `message_layout.py`), never at the row edge, so it stays next to its message in a wide window; it is clamped inside the row.
 - Settings are read through `Config.get`; defaults live in code or `settings/config.json`. No hardcoded user paths.
 - Public classes and functions get a one-line English docstring and type hints on new code.
 - Add a dependency only when the standard library or an existing helper cannot do the job.
 - Delete dead code and unused names instead of leaving them.
 - Verify before delivering: the files compile (`python -m py_compile`), pyflakes is clean, every module imports (offscreen Qt), every `.svg` name used in code exists in its icon folder, every `$token` of a `.qss` exists in both palettes, no new or renamed name collides with or shadows another, and any new logic is exercised with a quick check. A change to styling or theming is checked in both themes (offscreen screenshots before and after) and a theme switch is toggled back and forth.
+
+## Message row geometry
+
+- One wrapping implementation: `layout_atoms` in `ui/messages/message_layout.py`. `sizeHint` and painting read the same `_RowGeometry` of the delegate, so a height can never disagree with the drawing. A row of boxes (chips, presence badges) wraps with `wrap_boxes` from the same file. Never write a second loop that counts lines for the height and another that places them for painting.
+- The geometry lives on the message (`layout_cache`) and holds for a whole range of widths `[min_width, max_width)`, so a resize drag rebuilds only the rows whose line breaks really move. Its key lists everything that changes the layout except the width (font revision, compact mode, mention pattern, body, username); a new input of the layout goes into the key.
+- Whatever changes a geometry except the width goes through the delegate: `set_fonts`, `invalidate_geometry` or a setter that emits `geometry_changed`. Never `reset()`, `layoutChanged`, `scheduleDelayedItemsLayout` or a hand-made "force recalculate" method, and no timer of your own for resizes: a list that uses `MessageDelegate` creates one `MessageViewGeometry`, which reacts to the viewport width, spaces the relayouts by their own cost, keeps the scroll position and, from 1000 rows on, measures only the rows near the screen until the resize settles.
+- `sizeHint` runs for every row on each relayout: it reads `model.stored_messages` instead of `index.data()` and allocates nothing but its result. Painting depends only on `option.rect`, so a row drawn between two relayouts is a consistent old layout, never garbage.
+- Check a change of this code offscreen with several thousand messages: simulate a width drag (about 100 resize events), compare the row heights with fresh geometry afterwards, and time one step.
 
 ## Delivery
 
