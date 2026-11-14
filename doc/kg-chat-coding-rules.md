@@ -49,7 +49,7 @@ core/                   no widgets: data, network, XMPP, parsing, persistence
 helpers/                shared non-visual logic and managers
   config.py data.py translate.py cache.py load.py dates.py browser.py sounds.py   (top level)
   colors/               color_utils.py, color_contrast.py
-  fonts/                fonts.py, font_scaler.py
+  fonts/                fonts.py (get_font, set_font_role, refresh_font_roles), font_scaler.py
   text/                 emoticons.py, me_action.py, mention_parser.py
   system/               hotkey_manager.py, power_monitor.py, startup_manager.py, input_activity.py
   window/               window_size_manager.py, resize.py
@@ -59,7 +59,7 @@ helpers/                shared non-visual logic and managers
 components/             reusable widgets used by more than one screen
   context_menu/         message and userlist context menus
   image_viewer/         viewer.py (ImageHoverView) + gallery.py (image URLs, ImageGallery), layer.py (layers, transitions), overlay.py (gallery bar, source badge), options.py (config defaults and accessors)
-  button.py avatar.py video_player.py help_panel.py flash_highlight.py font_scale_slider.py
+  button.py avatar.py video_player.py help_panel.py flash_highlight.py font_scale_slider.py toast.py menu.py (create_menu, add_submenu)
   presence_badge.py search.py tag_button.py (SavedValuesBar: draggable removable chips) mic_button.py loading_spinner.py user_count_row.py tracked_mark.py tray_badge.py colored_label.py
 ui/                     screens and windows of the app
   chat/                 ui_chat.py (ChatWindow shell) + chat_*.py mixins (chat_hotkeys.py = local keyboard shortcuts, chat_delivery.py = input draft and delivery markers), ui_room, ui_messages, ui_userlist, ui_buttons, ui_emoticon_selector, voice_input_attach
@@ -201,6 +201,19 @@ QSS cannot carry a value that is data or that is used by code. These stay in cod
 - Cache lookups that scan all users (`login → user_id` index in `helpers/cache.py`); no linear search in a path that runs per row or per paint.
 - Measure before and after in an offscreen Qt run (`QT_QPA_PLATFORM=offscreen`, hundreds of messages, dozens of users): time `toggle_theme()` and look for functions that run thousands of times with `cProfile`.
 
+## Fonts
+
+The font engine is `helpers/fonts/fonts.py`; nothing else decides a family or a size. `main.py` sets `AA_UseStyleSheetPropagationInWidgetStyles` before the `QApplication` exists: with an application stylesheet Qt otherwise stops font propagation, so `app.setFont` and `setFont` on a parent miss existing children, and the next `app.setStyleSheet` (a theme switch) silently re-syncs them and resets explicit fonts. Never remove that attribute.
+
+- UI font = the application font (`set_application_font`). Widgets inherit it: never call `setFont(get_font(FontType.UI))` on a label, button, input, combo, checkbox, tab bar, dialog or page.
+- Text and header fonts: `set_font_role(widget, FontType.TEXT)` or `FontType.HEADER`. The role is a property on the widget; `refresh_font_roles()` re-applies it to every live widget after a font setting changed (one pass, run by `ChatFontsMixin` only on a settings change). No tree walkers, no per-widget update loops, no list of widget types.
+- Windows that do not inherit from their parent (menus) are created with `create_menu` / `add_submenu` from `components/menu.py`, never `QMenu(...)` or `addMenu("")`; they carry the UI role.
+- Painted text (delegates, `QPainter`) takes its font from `get_font` and is refreshed through its delegate (`set_fonts`, `update_fonts`); it is the only place where a font is held outside a widget.
+- No `QFont("Family", ...)`, no `font-family` / `font-size` / `font:` in a stylesheet or `.qss` for text the user reads: a stylesheet size overrides the UI size setting. Allowed: `font-weight`, monospace for code samples in rich text, and web content. A smaller or larger variant of the UI font is a role or an object name with a weight, not a computed explicit font.
+- `get_font(..., size=...)` is for the few fixed-size glyph labels (profile card icon, avatar placeholder) and stays explicit; everything else uses the role.
+- Never call `set_application_font` after a theme change (see Styling and themes); a font setting change calls it once, then `refresh_font_roles()`.
+- Check fonts offscreen: change the UI font, the text font and toggle the theme back and forth, and compare `widget.font()` of an input, a checkbox, a menu and a role widget; a dialog built after the change must match one built before.
+
 ## Icons
 
 - SVG icons live only in `icons/line/` (outline) or `icons/fill/` (solid), plus the one special folder `icons/emoticon_groups/` (below). Never loose in `icons/`; only `chat.ico` stays in its root. A file name ends with `-line` or `-fill` and the suffix always matches the folder.
@@ -217,6 +230,7 @@ QSS cannot carry a value that is data or that is used by code. These stay in cod
 - One responsibility per file and per function. Keep functions short, use early returns instead of deep nesting. Split a file when it starts to mix concerns.
 - No magic numbers in function bodies: meaningful literals (intervals in milliseconds, sizes, limits) become named constants at the top of the file.
 - Group related state into one small object or dict instead of many sibling variables that are passed, reset or removed together.
+- A confirmation of a finished action (copied, saved, color set or reset, tracking on) is a toast: `show_toast(widget, text, ToastKind.SUCCESS)` from `components/toast.py`; `QMessageBox` is only for errors and questions the user must read. A window that shows toasts creates one `Toast(self, theme_manager.is_dark)`; `show_toast` does nothing in a window without it.
 - Never block the UI thread. Network and heavy disk work run in a worker thread and return to the UI through the existing `_dispatch` signal of ChatWindow; widgets are touched only from the main thread.
 - Never use a name bound by `except ... as e` inside a deferred callback (lambda, `QTimer.singleShot`): Python deletes it when the block ends. Copy it to a variable first.
 - Registries that other modules append to are shared through a function (`register_icon_button`), never by importing the list itself.
