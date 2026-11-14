@@ -1,7 +1,8 @@
 """Word-wrap layout of a message body: one pass gives both the height and the positions the painter draws."""
 
+import math
 import re
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from typing import Callable, Iterator, List, Optional, Tuple
 
 ROLE_TEXT = "text"
@@ -25,7 +26,7 @@ class Atom:
     size: Tuple[int, int] = (0, 0)  # emoticon pixmap size
 
 
-@dataclass(frozen=True)
+@dataclass(slots=True)
 class Fragment:
     """A piece of an Atom placed on one line; x and y are relative to the layout origin."""
     kind: str
@@ -42,24 +43,31 @@ class Fragment:
 
 @dataclass(frozen=True)
 class TextLayout:
-    """Placed fragments with the total height and the spot right after the last one."""
+    """Placed fragments with the total height and the spot right after the last one.
+
+    The same placement holds for every width in [min_width, max_width): no line grows past the width
+    and no word that moved to the next line would fit on the previous one.
+    """
     fragments: List[Fragment]
     height: int
     content_end: Tuple[float, float]
+    min_width: float
+    max_width: float
 
 
 Measure = Callable[[str, bool], float]  # (text, bold) -> advance width
+Piece = Tuple[str, Atom]  # the text of a word and the Atom it comes from
 
 
-def _chunks(atoms: List[Atom]) -> Iterator[Optional[List[Atom]]]:
-    """Yield None for a break opportunity (a space) and a list of atoms for every unbreakable run."""
-    run: List[Atom] = []
+def _chunks(atoms: List[Atom]) -> Iterator[Optional[List[Piece]]]:
+    """Yield None for a break opportunity (a space) and a list of pieces for every unbreakable run."""
+    run: List[Piece] = []
     for atom in atoms:
         if atom.kind != KIND_TEXT:
             if run:
                 yield run
                 run = []
-            yield [atom]
+            yield [(atom.text, atom)]
             continue
         for part in _SPACES.split(atom.text):
             if not part:
@@ -70,7 +78,7 @@ def _chunks(atoms: List[Atom]) -> Iterator[Optional[List[Atom]]]:
                     run = []
                 yield None
             else:
-                run.append(replace(atom, text=part))
+                run.append((part, atom))
     if run:
         yield run
 
@@ -88,24 +96,32 @@ class _Flow:
         self._line_height = line_height
         self._x = 0.0
         self._has_space = False
-        self._open_text = False  # the last fragment is a text fragment that a following word of the same role extends
+        self._open_text = False  # the last fragment is a text fragment that a following word of the same style extends
+        self._min_width = 0.0
+        self._max_width = math.inf
+        self._is_cut = False  # a word was cut by characters: the placement is valid for this width only
 
-    def place(self, run: List[Atom]):
-        widths = [self._measure(atom.text, atom.bold) if atom.kind != KIND_EMOTICON else atom.size[0]
-                  for atom in run]
+    def place(self, run: List[Piece]):
+        widths = [atom.size[0] if atom.kind == KIND_EMOTICON else self._measure(text, atom.bold) for text, atom in run]
         total = sum(widths)
         if self._x > 0 and not self._fits(total):
-            self._break_line()
-        for atom, width in zip(run, widths):
+            self._break_line(total)
+        for (text, atom), width in zip(run, widths):
             if atom.kind == KIND_EMOTICON:
                 self._add_emoticon(atom)
             elif total <= self._width + _EPSILON:
-                self._add_text(atom, width)
+                self._add_text(atom, text, width)
             else:
-                self._add_cut_text(atom)
+                self._add_cut_text(atom, text)
 
     def finish(self) -> TextLayout:
-        return TextLayout(self._fragments, self._line_top + self._line_height, (self._x, self._line_top))
+        self._min_width = max(self._min_width, self._x - _EPSILON)
+        if self._is_cut:
+            self._min_width, self._max_width = self._width, math.nextafter(self._width, math.inf)
+        return TextLayout(
+            self._fragments, self._line_top + self._line_height, (self._x, self._line_top),
+            self._min_width, self._max_width,
+        )
 
     def mark_space(self):
         self._has_space = True
@@ -114,39 +130,47 @@ class _Flow:
         gap = self._space if self._has_space else 0.0
         return self._x + gap + width <= self._width + _EPSILON
 
-    def _break_line(self):
+    def _break_line(self, moved_width: float = 0.0):
+        """Start the next line; moved_width is the run that did not fit, the line would take it from that width on."""
+        self._min_width = max(self._min_width, self._x - _EPSILON)
+        if moved_width:
+            gap = self._space if self._has_space else 0.0
+            self._max_width = min(self._max_width, self._x + gap + moved_width - _EPSILON)
         self._line_top += self._line_height
         self._line_height = self._base_height
         self._x = 0.0
         self._has_space = False
         self._open_text = False
 
-    def _add_text(self, atom: Atom, width: float):
+    def _add_text(self, atom: Atom, text: str, width: float):
         gap = self._space if self._has_space and self._x > 0 else 0.0
-        if self._open_text and atom.kind == KIND_TEXT and self._fragments[-1].role == atom.role and self._fragments[-1].bold == atom.bold:
+        if self._open_text and atom.kind == KIND_TEXT:
             last = self._fragments[-1]
-            text = last.text + (" " if gap else "") + atom.text
-            self._fragments[-1] = replace(last, text=text, width=last.width + gap + width)
-        else:
-            self._fragments.append(Fragment(
-                atom.kind, atom.text, atom.role, atom.bold, self._x + gap, self._line_top, width,
-                self._base_height, atom.url, atom.is_media,
-            ))
+            if last.role == atom.role and last.bold == atom.bold:
+                last.text += (" " if gap else "") + text
+                last.width += gap + width
+                self._x += gap + width
+                self._has_space = False
+                return
+        self._fragments.append(Fragment(
+            atom.kind, text, atom.role, atom.bold, self._x + gap, self._line_top, width,
+            self._base_height, atom.url, atom.is_media,
+        ))
         self._x += gap + width
         self._has_space = False
         self._open_text = atom.kind == KIND_TEXT
 
-    def _add_cut_text(self, atom: Atom):
+    def _add_cut_text(self, atom: Atom, text: str):
         """Place a run wider than a line: as many characters as fit, then continue on the next line."""
-        bold = atom.bold
-        remaining = atom.text
+        self._is_cut = True
+        remaining = text
         while remaining:
             available = self._width - self._x - (self._space if self._has_space and self._x > 0 else 0.0)
-            if self._x > 0 and available < self._measure(remaining[0], bold):
+            if self._x > 0 and available < self._measure(remaining[0], atom.bold):
                 self._break_line()
                 continue
-            chunk = self._fit(remaining, available, bold)
-            self._add_text(replace(atom, text=chunk), self._measure(chunk, bold))
+            chunk = self._fit(remaining, available, atom.bold)
+            self._add_text(atom, chunk, self._measure(chunk, atom.bold))
             remaining = remaining[len(chunk):]
             if remaining:
                 self._break_line()
@@ -166,7 +190,7 @@ class _Flow:
     def _add_emoticon(self, atom: Atom):
         width, height = atom.size
         if self._x > 0 and not self._fits(width):
-            self._break_line()
+            self._break_line(width)
         gap = self._space if self._has_space and self._x > 0 else 0.0
         self._fragments.append(Fragment(
             KIND_EMOTICON, atom.text, atom.role, False, self._x + gap, self._line_top, width, height,

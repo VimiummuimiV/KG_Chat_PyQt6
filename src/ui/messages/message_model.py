@@ -30,7 +30,7 @@ class MessageData:
     joins_next: bool = False
     delivery_id: Optional[int] = None  # own message followed by DeliveryTracker
     delivery: Optional[str] = None
-    layout_cache: Optional[tuple] = field(default=None, compare=False, repr=False)  # (key, TextLayout) kept by MessageDelegate
+    layout_cache: Optional[object] = field(default=None, compare=False, repr=False)  # row geometry kept by MessageDelegate
 
     def get_time_str(self) -> str:
         return self.timestamp.strftime("%H:%M:%S")
