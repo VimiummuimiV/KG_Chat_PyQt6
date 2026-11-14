@@ -257,12 +257,18 @@ class _ThumbnailScrollBar(QWidget):
         travel = self.width() - self._handle_rect().width()
         return max(0, min(steps, round(left / travel * steps))) if travel > 0 else 0
 
-    def _move_handle_to(self, left: float):
-        start = self._start_for_handle_left(left)
+    def _set_start(self, start: int):
         if start != self._start:
             self._start = start
             self.update()
             self.start_changed.emit(start)
+
+    def _move_handle_to(self, left: float):
+        self._set_start(self._start_for_handle_left(left))
+
+    def step(self, direction: int):
+        """Move the window by whole thumbnails; direction is -1 (back) or 1 (forward)."""
+        self._set_start(max(0, min(self._total - self._visible, self._start + direction)))
 
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -403,6 +409,13 @@ class GalleryBar(QFrame):
         self._strip._set_state(window, self._index)
         self._scroll_bar.setFixedWidth(self._strip.width())
         self._scroll_bar.set_range(count, len(window), window.start)
+
+    def wheelEvent(self, event):
+        """The whole panel owns the wheel: it scrolls the thumbnails and keeps the viewer from zooming."""
+        delta = event.angleDelta().y()
+        if delta and self._scroll_bar.isVisible():
+            self._scroll_bar.step(-1 if delta > 0 else 1)
+        event.accept()
 
     def _on_thumbnails_scrolled(self, start: int):
         """The scroll bar moved the window: show it without changing the current image."""

@@ -25,13 +25,25 @@ _CHAT_GENERAL_KB = [
     ("T",           "Toggle always on top", "Поверх всех окон"),
     ("R",           "Reset window size", "Сбросить размер окна"),
     ("C",           "Change username color", "Цвет имени"),
-    ("E",           "Open latest competition race in browser", "Открыть последний соревновательный заезд в браузере"),
-    ("X",           "Exit private chat / Clear markers, presence", "Выйти из ЛС / Очистить маркеры, присутствие"),
+    (
+        "E",
+        "Open latest competition race in browser",
+        "Открыть последний соревновательный заезд в браузере",
+    ),
+    (
+        "X",
+        "Exit private chat / Clear markers, presence",
+        "Выйти из ЛС / Очистить маркеры, присутствие",
+    ),
     ("Esc",         "Clear input focus / Close search", "Снять фокус с ввода / Закрыть поиск"),
 ]
 
 _CHAT_CTRL_KB = [
-    ("Ctrl+Space",     "Hold to dictate, release to stop", "Удерживать — диктовка, отпустить — остановить"),
+    (
+        "Ctrl+Space",
+        "Hold to dictate, release to stop",
+        "Удерживать — диктовка, отпустить — остановить",
+    ),
     ("Ctrl+;",         "Toggle emoticon selector", "Селектор эмотиконов"),
     ("Ctrl+F",         "Toggle search bar", "Строка поиска"),
     ("Ctrl+T",         "Toggle theme", "Тема"),
@@ -64,7 +76,12 @@ _USERLIST_MOUSE = [
 
 _MSG_USERNAME_MOUSE = [
     ("Left click",   "Левый клик",   "Add username to input", "Добавить ник во ввод"),
-    ("Double click", "Двойной клик", "Replace input / clear if solo", "Заменить ввод / очистить если один"),
+    (
+        "Double click",
+        "Двойной клик",
+        "Replace input / clear if solo",
+        "Заменить ввод / очистить если один",
+    ),
     ("Ctrl+Click",   "Ctrl+клик",    "Start private chat", "Приватный чат"),
     ("Shift+Click",  "Shift+клик",   "View user profile", "Профиль пользователя"),
     ("Right click",  "Правый клик",  "Context menu", "Контекстное меню"),
@@ -73,12 +90,27 @@ _MSG_USERNAME_MOUSE = [
 _MSG_TIMESTAMP_MOUSE = [
     ("Left click",    "Левый клик",    "Open chatlog for that day", "Чатлог за этот день"),
     ("Left click 🏆", "Левый клик 🏆", "Open competition room chat", "Чат соревновательной комнаты"),
-    ("Right click",   "Правый клик",   "Open chatlog for that day in split view", "Чатлог за день в разделённом виде"),
+    (
+        "Right click",
+        "Правый клик",
+        "Open chatlog for that day in split view",
+        "Чатлог за день в разделённом виде",
+    ),
 ]
 
 _MSG_BODY_MOUSE = [
-    ("Right click", "Правый клик", "Open selectable text (reply / copy / paste)", "Выделяемый текст (ответ / копировать / вставить)"),
-    ("Right drag", "Перетаскивание ПКМ", "Select several messages and open their text (copy / paste)", "Выделить несколько сообщений и открыть их текст (копировать / вставить)"),
+    (
+        "Right click",
+        "Правый клик",
+        "Open selectable text (reply / copy / paste)",
+        "Выделяемый текст (ответ / копировать / вставить)",
+    ),
+    (
+        "Right drag",
+        "Перетаскивание ПКМ",
+        "Select several messages and open their text (copy / paste)",
+        "Выделить несколько сообщений и открыть их текст (копировать / вставить)",
+    ),
 ]
 
 _MSG_COMPETITION_CHIP_MOUSE = [
@@ -90,7 +122,12 @@ _MSG_URL_MOUSE = [
 ]
 
 _NOTIFICATION_MOUSE = [
-    ("Middle click", "Средний клик", "Quick reply from message notification popup", "Быстрый ответ из попапа уведомления о сообщении"),
+    (
+        "Middle click",
+        "Средний клик",
+        "Quick reply from message notification popup",
+        "Быстрый ответ из попапа уведомления о сообщении",
+    ),
 ]
 
 _VOICE_MIC_MOUSE = [
@@ -100,12 +137,25 @@ _VOICE_MIC_MOUSE = [
 ]
 
 _CHATLOG_TIMESTAMP_MOUSE = [
-    ("Left click", "Левый клик", "Copy chatlog link for that message", "Ссылка на чатлог для сообщения"),
+    (
+        "Left click",
+        "Левый клик",
+        "Copy chatlog link for that message",
+        "Ссылка на чатлог для сообщения",
+    ),
 ]
 
 _CHATLOG_KB = [
-    ("H / ←",           "Previous day (hold to fast-seek)", "Предыдущий день (удерживать для быстрой перемотки)"),
-    ("L / →",           "Next day (hold to fast-seek)", "Следующий день (удерживать для быстрой перемотки)"),
+    (
+        "H / ←",
+        "Previous day (hold to fast-seek)",
+        "Предыдущий день (удерживать для быстрой перемотки)",
+    ),
+    (
+        "L / →",
+        "Next day (hold to fast-seek)",
+        "Следующий день (удерживать для быстрой перемотки)",
+    ),
     ("D",               "Open calendar date picker", "Календарь выбора даты"),
     ("Ctrl+F",          "Toggle search bar", "Панель поиска"),
     ("P",               "Toggle chatlog parser", "Парсер чатлогов"),
@@ -115,8 +165,18 @@ _CHATLOG_KB = [
 ]
 
 _CHATLOG_USERLIST_MOUSE = [
-    ("Left click",  "Левый клик",  "Filter messages by user (click again to clear)", "Фильтр сообщений по пользователю (ещё раз — сброс)"),
-    ("Ctrl+Click",  "Ctrl+клик",   "Add / remove user from filter", "Добавить / убрать пользователя из фильтра"),
+    (
+        "Left click",
+        "Левый клик",
+        "Filter messages by user (click again to clear)",
+        "Фильтр сообщений по пользователю (ещё раз — сброс)",
+    ),
+    (
+        "Ctrl+Click",
+        "Ctrl+клик",
+        "Add / remove user from filter",
+        "Добавить / убрать пользователя из фильтра",
+    ),
     ("Right click", "Правый клик", "Context menu", "Контекстное меню"),
 ]
 
@@ -138,7 +198,12 @@ _EMOTICON_KB = [
 ]
 
 _EMOTICON_MOUSE = [
-    ("Scroll on group tabs", "Прокрутка по вкладкам групп", "Navigate groups prev / next", "Группы назад / вперёд"),
+    (
+        "Scroll on group tabs",
+        "Прокрутка по вкладкам групп",
+        "Navigate groups prev / next",
+        "Группы назад / вперёд",
+    ),
 ]
 
 _CHATLOG_PARSER_ACTIVE_KB = [
@@ -153,8 +218,18 @@ _CHATLOG_PARSER_ACTIVE_KB = [
 
 _PARSER_TAG_MOUSE = [
     ("Left click",   "Левый клик",     "Add username to field", "Добавить ник в поле"),
-    ("Double click", "Двойной клик",   "Replace field / clear if solo", "Заменить поле / очистить если один"),
-    ("Drag",         "Перетаскивание", "Reorder saved usernames", "Изменить порядок сохранённых имён"),
+    (
+        "Double click",
+        "Двойной клик",
+        "Replace field / clear if solo",
+        "Заменить поле / очистить если один",
+    ),
+    (
+        "Drag",
+        "Перетаскивание",
+        "Reorder saved usernames",
+        "Изменить порядок сохранённых имён",
+    ),
 ]
 
 _ACCOUNTS_CONNECT_KB = [
@@ -177,36 +252,141 @@ _ACCOUNTS_CONNECT_MOUSE = [
 _IMAGE_KB = [
     ("H / ←",           "Previous image",                       "Предыдущее изображение"),
     ("L / →",           "Next image",                           "Следующее изображение"),
-    ("Shift + H / ←",   "Previous day (hold to fast-seek)",     "Предыдущий день (удерживать для быстрой перемотки)"),
-    ("Shift + L / →",   "Next day (hold to fast-seek)",         "Следующий день (удерживать для быстрой перемотки)"),
+    (
+        "Shift + H / ←",
+        "Previous day (hold to fast-seek)",
+        "Предыдущий день (удерживать для быстрой перемотки)",
+    ),
+    (
+        "Shift + L / →",
+        "Next day (hold to fast-seek)",
+        "Следующий день (удерживать для быстрой перемотки)",
+    ),
     ("P",               "Start / stop slideshow",               "Запустить / остановить слайдшоу"),
-    ("R",               "Reply to the message with the image",  "Ответить на сообщение с изображением"),
-    ("G",               "Go to the message with the image",     "Перейти к сообщению с изображением"),
+    (
+        "R",
+        "Reply to the message with the image",
+        "Ответить на сообщение с изображением",
+    ),
+    (
+        "G",
+        "Go to the message with the image",
+        "Перейти к сообщению с изображением",
+    ),
     ("S",               "Save the image to a file",             "Сохранить изображение в файл"),
-    ("+ / -",           "Zoom in / out (hold to repeat)",       "Увеличить / уменьшить (удерживать для повтора)"),
-    ("0  /  1",         "Fit to screen  /  actual size (100%)", "По размеру экрана  /  реальный размер (100%)"),
+    (
+        "+ / -",
+        "Zoom in / out (hold to repeat)",
+        "Увеличить / уменьшить (удерживать для повтора)",
+    ),
+    (
+        "0  /  1",
+        "Fit to screen  /  actual size (100%)",
+        "По размеру экрана  /  реальный размер (100%)",
+    ),
     ("Tab",             "Hide / show all panels",               "Скрыть / показать все панели"),
     ("Enter / Esc",     "Reply field: send / close it",         "Поле ответа: отправить / закрыть"),
     ("Esc / Space / Q", "Close image viewer",                   "Закрыть просмотр изображения"),
 ]
 
 _IMAGE_MOUSE = [
-    ("Click source badge",   "Клик по плашке автора",       "Close viewer and scroll to the message with the image", "Закрыть просмотр и перейти к сообщению с изображением"),
-    ("Click reply / go-to buttons", "Клик по кнопкам ответа / перехода", "Close viewer; reply to the message or scroll to it", "Закрыть просмотр; ответить на сообщение или перейти к нему"),
-    ("Click save button",    "Клик по кнопке сохранения",   "Save the image to a file", "Сохранить изображение в файл"),
-    ("Click thumbnail",      "Клик по миниатюре",           "Go to that image", "Перейти к этому изображению"),
-    ("Thumbnail scroll bar", "Полоса прокрутки миниатюр",   "Shown when not all thumbnails fit: drag or click to show the others", "Показывается, если миниатюры не помещаются: тянуть или кликнуть, чтобы показать остальные"),
-    ("Screen edge",          "Край экрана",                 "Side strips appear: click for the previous / next image", "Появляются боковые полосы: клик — предыдущее / следующее изображение"),
-    ("Click zoom buttons",   "Клик по кнопкам масштаба",    "Zoom out / in; the last one toggles 100% and fit to screen", "Уменьшить / увеличить; последняя переключает 100% и по размеру экрана"),
-    ("Zoom slider",          "Ползунок масштаба",           "Drag to zoom (can be hidden in Settings)", "Тянуть для изменения масштаба (скрывается в настройках)"),
-    ("Click day buttons",    "Клик по кнопкам дня",         "Chatlog only: previous / next day", "Только чатлог: предыдущий / следующий день"),
-    ("Click close button",   "Клик по кнопке закрытия",     "Close image viewer", "Закрыть просмотр изображения"),
-    ("Double click",         "Двойной клик",                "Toggle fit to screen / 100% at the cursor", "Переключить по размеру экрана / 100% в точке курсора"),
-    ("Minimap",              "Мини-карта",                  "Shown when zoomed in: click or drag to move the view", "Показывается при увеличении: клик или перетаскивание перемещает вид"),
-    ("Left drag",            "Перетаскивание (ЛКМ)",        "Pan / move image", "Переместить изображение"),
-    ("Ctrl + Left drag",     "Ctrl + перетаскивание (ЛКМ)", "Scale image (up / down) around the point where the drag started", "Масштаб изображения (+ / −) вокруг точки начала перетаскивания"),
-    ("Wheel",                "Колесо мыши",                 "Zoom in / out", "Приблизить / отдалить"),
-    ("Right click",          "Правый клик",                 "Close image viewer", "Закрыть просмотр изображения"),
+    (
+        "Click source badge",
+        "Клик по плашке автора",
+        "Close viewer and scroll to the message with the image",
+        "Закрыть просмотр и перейти к сообщению с изображением",
+    ),
+    (
+        "Click reply / go-to buttons",
+        "Клик по кнопкам ответа / перехода",
+        "Close viewer; reply to the message or scroll to it",
+        "Закрыть просмотр; ответить на сообщение или перейти к нему",
+    ),
+    (
+        "Click save button",
+        "Клик по кнопке сохранения",
+        "Save the image to a file",
+        "Сохранить изображение в файл",
+    ),
+    (
+        "Click thumbnail",
+        "Клик по миниатюре",
+        "Go to that image",
+        "Перейти к этому изображению",
+    ),
+    (
+        "Thumbnail scroll bar",
+        "Полоса прокрутки миниатюр",
+        "Shown when not all thumbnails fit: drag or click to show the others",
+        "Показывается, если миниатюры не помещаются: тянуть или кликнуть, чтобы показать остальные",
+    ),
+    (
+        "Screen edge",
+        "Край экрана",
+        "Side strips appear: click for the previous / next image",
+        "Появляются боковые полосы: клик — предыдущее / следующее изображение",
+    ),
+    (
+        "Click zoom buttons",
+        "Клик по кнопкам масштаба",
+        "Zoom out / in; the last one toggles 100% and fit to screen",
+        "Уменьшить / увеличить; последняя переключает 100% и по размеру экрана",
+    ),
+    (
+        "Zoom slider",
+        "Ползунок масштаба",
+        "Drag to zoom (can be hidden in Settings)",
+        "Тянуть для изменения масштаба (скрывается в настройках)",
+    ),
+    (
+        "Click day buttons",
+        "Клик по кнопкам дня",
+        "Chatlog only: previous / next day",
+        "Только чатлог: предыдущий / следующий день",
+    ),
+    (
+        "Click close button",
+        "Клик по кнопке закрытия",
+        "Close image viewer",
+        "Закрыть просмотр изображения",
+    ),
+    (
+        "Double click",
+        "Двойной клик",
+        "Toggle fit to screen / 100% at the cursor",
+        "Переключить по размеру экрана / 100% в точке курсора",
+    ),
+    (
+        "Minimap",
+        "Мини-карта",
+        "Shown when zoomed in: click or drag to move the view",
+        "Показывается при увеличении: клик или перетаскивание перемещает вид",
+    ),
+    (
+        "Left drag",
+        "Перетаскивание (ЛКМ)",
+        "Pan / move image",
+        "Переместить изображение",
+    ),
+    (
+        "Ctrl + Left drag",
+        "Ctrl + перетаскивание (ЛКМ)",
+        "Scale image (up / down) around the point where the drag started",
+        "Масштаб изображения (+ / −) вокруг точки начала перетаскивания",
+    ),
+    ("Wheel",              "Колесо мыши",                 "Zoom in / out", "Приблизить / отдалить"),
+    (
+        "Wheel over the bottom panel",
+        "Колесо над нижней панелью",
+        "Scroll the thumbnails (no zoom)",
+        "Прокрутить миниатюры (без масштабирования)",
+    ),
+    (
+        "Right click",
+        "Правый клик",
+        "Close image viewer",
+        "Закрыть просмотр изображения",
+    ),
 ]
 
 
@@ -218,23 +398,51 @@ _CONTEXTS = {
             (("Ctrl Shortcuts", "Ctrl-сочетания"),                        _CHAT_CTRL_KB,    None),
             (("Scrolling", "Прокрутка"),                                  _CHAT_SCROLL_KB,  None),
             (("User List Clicks", "Клики по списку пользователей"),       None, _USERLIST_MOUSE),
-            (("Message Timestamp Clicks", "Клики по времени сообщения"),  None, _MSG_TIMESTAMP_MOUSE),
-            (("Message Username Clicks", "Клики по нику в сообщении"),    None, _MSG_USERNAME_MOUSE),
-            (("Competition Player Names", "Имена игроков соревнования"),  None, _MSG_COMPETITION_CHIP_MOUSE),
+            (
+                ("Message Timestamp Clicks", "Клики по времени сообщения"),
+                None,
+                _MSG_TIMESTAMP_MOUSE,
+            ),
+            (
+                ("Message Username Clicks", "Клики по нику в сообщении"),
+                None,
+                _MSG_USERNAME_MOUSE,
+            ),
+            (
+                ("Competition Player Names", "Имена игроков соревнования"),
+                None,
+                _MSG_COMPETITION_CHIP_MOUSE,
+            ),
             (("Message Body Clicks", "Клики по телу сообщения"),          None, _MSG_BODY_MOUSE),
             (("URL Interactions", "Взаимодействие с URL"),                None, _MSG_URL_MOUSE),
-            (("Notification Popup", "Всплывающее уведомление"),           None, _NOTIFICATION_MOUSE),
+            (
+                ("Notification Popup", "Всплывающее уведомление"),
+                None,
+                _NOTIFICATION_MOUSE,
+            ),
             (("Voice Input", "Голосовой ввод"),                           None, _VOICE_MIC_MOUSE),
         ],
     },
     "chatlog": {
         "title": ("Chatlog — Controls", "Чатлог — управление"),
         "sections": [
-            (("Navigation", "Навигация"),                                _CHATLOG_KB,      _CHATLOG_MOUSE),
+            (
+                ("Navigation", "Навигация"),
+                _CHATLOG_KB,
+                _CHATLOG_MOUSE,
+            ),
             (("Scrolling", "Прокрутка"),                                 _CHAT_SCROLL_KB,  None),
-            (("User List", "Список пользователей"),                      None, _CHATLOG_USERLIST_MOUSE),
+            (
+                ("User List", "Список пользователей"),
+                None,
+                _CHATLOG_USERLIST_MOUSE,
+            ),
             (("Message Username Clicks", "Клики по нику в сообщении"),   None, _MSG_USERNAME_MOUSE),
-            (("Message Timestamp Clicks", "Клики по времени сообщения"), None, _CHATLOG_TIMESTAMP_MOUSE),
+            (
+                ("Message Timestamp Clicks", "Клики по времени сообщения"),
+                None,
+                _CHATLOG_TIMESTAMP_MOUSE,
+            ),
             (("Message Body Clicks", "Клики по телу сообщения"),         None, _MSG_BODY_MOUSE),
             (("URL Interactions", "Взаимодействие с URL"),               None, _MSG_URL_MOUSE),
         ],
@@ -316,7 +524,8 @@ class HelpPanel(QWidget):
         # Measure the real content height + chrome (title + footer + margins + spacing)
         content_height = self._scroll_content.sizeHint().height()
         chrome_height = self.height() - (self.findChild(QScrollArea).height())
-        desired_height = content_height + chrome_height + 48  # buffer for layout spacing + window frame
+        # buffer for layout spacing + window frame
+        desired_height = content_height + chrome_height + 48
         h = min(desired_height, geo.height())
         self.resize(self.width(), h)
         self._center_on_screen()
