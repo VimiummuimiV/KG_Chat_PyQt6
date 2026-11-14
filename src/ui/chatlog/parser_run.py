@@ -301,6 +301,12 @@ class ParserRunMixin:
                     if not current_username or kw.lower() != current_username.lower():
                         mention_keywords.append(kw)
 
+            known_keywords = {keyword.lower() for keyword in mention_keywords}
+            for _kind, alias in self.selected_aliases():
+                if alias.lower() not in known_keywords:
+                    mention_keywords.append(alias)
+                    known_keywords.add(alias.lower())
+
             search_terms = [] # In Personal Mentions mode, search_terms are moved to mention_keywords
 
         # Build config

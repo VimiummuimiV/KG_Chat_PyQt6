@@ -132,6 +132,7 @@ class ImageHoverView(QWidget):
         self._gallery_bar.next_requested.connect(lambda: self._navigate(1))
         self._gallery_bar.slideshow_toggled.connect(self._toggle_slideshow)
         self._gallery_bar.thumbnail_clicked.connect(self._on_thumbnail_clicked)
+        self._gallery_bar.thumbnails_scrolled.connect(self._warm_up)
         self._day_hold = HoldRepeater(self._on_day_requested, self)
         self._gallery_bar.day_pressed.connect(self._day_hold.press)
         self._gallery_bar.day_released.connect(self._day_hold.release)

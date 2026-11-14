@@ -7,13 +7,26 @@ import requests
 from PyQt6.QtCore import pyqtBoundSignal, pyqtSignal, QObject, QRunnable, QThreadPool
 
 
-_DOWNLOAD_TIMEOUT_SECONDS = 60
+_CONNECT_TIMEOUT_SECONDS = 5
+_READ_TIMEOUT_SECONDS = 15
 _DOWNLOAD_CHUNK_BYTES = 8192
 _DOWNLOAD_HEADERS = {"User-Agent": "Mozilla/5.0"}
 _FOREGROUND_DOWNLOADS = 2
 _BACKGROUND_DOWNLOADS = 1
 _CACHE_LIMIT_BYTES = 32 * 1024 * 1024
 _UNKNOWN_TOTAL_BYTES = 256 * 1024  # without Content-Length the progress guess reaches one half at this size
+
+
+def _create_pool(thread_count: int) -> QThreadPool:
+    pool = QThreadPool()
+    pool.setMaxThreadCount(thread_count)
+    return pool
+
+
+# Shared by every loader and owned by none: a pool waits for its running downloads when destroyed,
+# so a pool destroyed with a viewer froze the UI for as long as those requests lasted
+_FOREGROUND_POOL = _create_pool(_FOREGROUND_DOWNLOADS)
+_BACKGROUND_POOL = _create_pool(_BACKGROUND_DOWNLOADS)
 
 
 class _DownloadTask(QRunnable):
@@ -36,13 +49,19 @@ class _DownloadTask(QRunnable):
 
     def run(self):
         data = self._download()
-        if not self.cancelled:
+        if self.cancelled:
+            return
+        try:
             self._finished.emit(self.url, data or b"", data is None)
+        except RuntimeError:
+            pass  # the loader was destroyed while this download was running
 
     def _download(self) -> Optional[bytes]:
         """Return the image bytes, or None on failure or cancellation."""
         try:
-            response = requests.get(self.url, headers=_DOWNLOAD_HEADERS, timeout=_DOWNLOAD_TIMEOUT_SECONDS, stream=True)
+            response = requests.get(
+                self.url, headers=_DOWNLOAD_HEADERS, timeout=(_CONNECT_TIMEOUT_SECONDS, _READ_TIMEOUT_SECONDS), stream=True
+            )
             if response.status_code != 200:
                 return None
             announced_size = response.headers.get("Content-Length", "")
@@ -56,7 +75,8 @@ class _DownloadTask(QRunnable):
                     self.received_bytes += len(chunk)
             return b"".join(chunks)
         except Exception as error:
-            print(f"Failed to load {self.url}: {error}")
+            if not self.cancelled:
+                print(f"Failed to load {self.url}: {error}")
             return None
 
 
@@ -68,10 +88,6 @@ class ImageLoader(QObject):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self._foreground_pool = QThreadPool(self)
-        self._foreground_pool.setMaxThreadCount(_FOREGROUND_DOWNLOADS)
-        self._background_pool = QThreadPool(self)
-        self._background_pool.setMaxThreadCount(_BACKGROUND_DOWNLOADS)
         self._cache: OrderedDict[str, bytes] = OrderedDict()
         self._cache_bytes = 0
         self._tasks: dict[str, _DownloadTask] = {}
@@ -86,7 +102,7 @@ class ImageLoader(QObject):
             self._cache.move_to_end(url)
             return data
         if url not in self._tasks and url not in self._failed:
-            task = _DownloadTask(url, self._background_pool if background else self._foreground_pool, self._task_finished)
+            task = _DownloadTask(url, _BACKGROUND_POOL if background else _FOREGROUND_POOL, self._task_finished)
             self._tasks[url] = task
             task._pool.start(task, priority)
         return None
@@ -119,11 +135,7 @@ class ImageLoader(QObject):
 
     def reset(self):
         """Cancel every download and drop the cache."""
-        for task in self._tasks.values():
-            task.cancelled = True
-        self._foreground_pool.clear()
-        self._background_pool.clear()
-        self._tasks.clear()
+        self.cancel_except(())
         self._failed.clear()
         self._cache.clear()
         self._cache_bytes = 0

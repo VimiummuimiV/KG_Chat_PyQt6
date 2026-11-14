@@ -191,21 +191,22 @@ _IMAGE_KB = [
 ]
 
 _IMAGE_MOUSE = [
-    ("Click source badge", "Клик по плашке автора",       "Close viewer and scroll to the message with the image", "Закрыть просмотр и перейти к сообщению с изображением"),
+    ("Click source badge",   "Клик по плашке автора",       "Close viewer and scroll to the message with the image", "Закрыть просмотр и перейти к сообщению с изображением"),
     ("Click reply / go-to buttons", "Клик по кнопкам ответа / перехода", "Close viewer; reply to the message or scroll to it", "Закрыть просмотр; ответить на сообщение или перейти к нему"),
-    ("Click save button",  "Клик по кнопке сохранения",   "Save the image to a file", "Сохранить изображение в файл"),
-    ("Click thumbnail",    "Клик по миниатюре",           "Go to that image", "Перейти к этому изображению"),
-    ("Screen edge",        "Край экрана",                 "Side strips appear: click for the previous / next image", "Появляются боковые полосы: клик — предыдущее / следующее изображение"),
-    ("Click zoom buttons", "Клик по кнопкам масштаба",    "Zoom out / in; the last one toggles 100% and fit to screen", "Уменьшить / увеличить; последняя переключает 100% и по размеру экрана"),
-    ("Zoom slider",        "Ползунок масштаба",           "Drag to zoom (can be hidden in Settings)", "Тянуть для изменения масштаба (скрывается в настройках)"),
-    ("Click day buttons",  "Клик по кнопкам дня",         "Chatlog only: previous / next day", "Только чатлог: предыдущий / следующий день"),
-    ("Click close button", "Клик по кнопке закрытия",     "Close image viewer", "Закрыть просмотр изображения"),
-    ("Double click",       "Двойной клик",                "Toggle fit to screen / 100% at the cursor", "Переключить по размеру экрана / 100% в точке курсора"),
-    ("Minimap",            "Мини-карта",                  "Shown when zoomed in: click or drag to move the view", "Показывается при увеличении: клик или перетаскивание перемещает вид"),
-    ("Left drag",          "Перетаскивание (ЛКМ)",        "Pan / move image", "Переместить изображение"),
-    ("Ctrl + Left drag",   "Ctrl + перетаскивание (ЛКМ)", "Scale image (up / down) around the point where the drag started", "Масштаб изображения (+ / −) вокруг точки начала перетаскивания"),
-    ("Wheel",              "Колесо мыши",                 "Zoom in / out", "Приблизить / отдалить"),
-    ("Right click",        "Правый клик",                 "Close image viewer", "Закрыть просмотр изображения"),
+    ("Click save button",    "Клик по кнопке сохранения",   "Save the image to a file", "Сохранить изображение в файл"),
+    ("Click thumbnail",      "Клик по миниатюре",           "Go to that image", "Перейти к этому изображению"),
+    ("Thumbnail scroll bar", "Полоса прокрутки миниатюр",   "Shown when not all thumbnails fit: drag or click to show the others", "Показывается, если миниатюры не помещаются: тянуть или кликнуть, чтобы показать остальные"),
+    ("Screen edge",          "Край экрана",                 "Side strips appear: click for the previous / next image", "Появляются боковые полосы: клик — предыдущее / следующее изображение"),
+    ("Click zoom buttons",   "Клик по кнопкам масштаба",    "Zoom out / in; the last one toggles 100% and fit to screen", "Уменьшить / увеличить; последняя переключает 100% и по размеру экрана"),
+    ("Zoom slider",          "Ползунок масштаба",           "Drag to zoom (can be hidden in Settings)", "Тянуть для изменения масштаба (скрывается в настройках)"),
+    ("Click day buttons",    "Клик по кнопкам дня",         "Chatlog only: previous / next day", "Только чатлог: предыдущий / следующий день"),
+    ("Click close button",   "Клик по кнопке закрытия",     "Close image viewer", "Закрыть просмотр изображения"),
+    ("Double click",         "Двойной клик",                "Toggle fit to screen / 100% at the cursor", "Переключить по размеру экрана / 100% в точке курсора"),
+    ("Minimap",              "Мини-карта",                  "Shown when zoomed in: click or drag to move the view", "Показывается при увеличении: клик или перетаскивание перемещает вид"),
+    ("Left drag",            "Перетаскивание (ЛКМ)",        "Pan / move image", "Переместить изображение"),
+    ("Ctrl + Left drag",     "Ctrl + перетаскивание (ЛКМ)", "Scale image (up / down) around the point where the drag started", "Масштаб изображения (+ / −) вокруг точки начала перетаскивания"),
+    ("Wheel",                "Колесо мыши",                 "Zoom in / out", "Приблизить / отдалить"),
+    ("Right click",          "Правый клик",                 "Close image viewer", "Закрыть просмотр изображения"),
 ]
 
 

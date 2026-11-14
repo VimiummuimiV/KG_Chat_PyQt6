@@ -6,6 +6,7 @@ from pathlib import Path
 from PyQt6.QtCore import pyqtSignal, QDate, Qt
 from PyQt6.QtWidgets import (
     QCalendarWidget,
+    QCheckBox,
     QComboBox,
     QHBoxLayout,
     QLabel,
@@ -19,6 +20,7 @@ from components.button import create_icon_button
 from components.tag_button import SavedValuesBar
 from core.state.json_state import JsonState
 from helpers.dates import parse_short_date
+from helpers.text.mention_parser import MENTION_GLOBAL, MENTION_ICONS, MENTION_LOCAL
 from helpers.translate import on_language_changed, tr, TranslatableMixin
 from ui.chatlog.parser_modes import ParserModesMixin
 from ui.chatlog.parser_modes_data import MODE_KEYS, MODE_LABELS
@@ -60,6 +62,15 @@ class ChatlogsParserConfigWidget(ParserModesMixin, ParserRunMixin, ParserUsernam
         label.setFixedHeight(self.input_height)
         label.setAlignment(Qt.AlignmentFlag.AlignVCenter)
         return label
+
+    def _create_alias_checkbox(self, kind: str, english: str, russian: str, layout: QHBoxLayout) -> QCheckBox:
+        """Unchecked checkbox of an alias kind, titled with the icon the settings and highlights use."""
+        checkbox = QCheckBox()
+        icon = MENTION_ICONS[kind]
+        self.tr_set(checkbox.setText, f"{icon} {english}", f"{icon} {russian}")
+        checkbox.toggled.connect(self.update_mention_label)
+        layout.addWidget(checkbox)
+        return checkbox
 
     def _create_input(self, placeholder: str = "", object_name: str = "") -> QLineEdit:
         """Create an input field with consistent height"""
@@ -237,6 +248,19 @@ class ChatlogsParserConfigWidget(ParserModesMixin, ParserRunMixin, ParserUsernam
         search_container.setLayout(search_layout)
         self.search_container_widget = search_container
         layout.addWidget(search_container)
+
+        # Alias checkboxes (only for personal mentions mode); both off by default so mentions can be split
+        self.aliases_container_widget = QWidget()
+        aliases_layout = QHBoxLayout(self.aliases_container_widget)
+        aliases_layout.setContentsMargins(0, 0, 0, 0)
+        aliases_layout.setSpacing(self.spacing)
+        self.local_aliases_checkbox = self._create_alias_checkbox(
+            MENTION_LOCAL, "Local aliases", "Локальные алиасы", aliases_layout)
+        self.global_aliases_checkbox = self._create_alias_checkbox(
+            MENTION_GLOBAL, "Global aliases", "Глобальные алиасы", aliases_layout)
+        aliases_layout.addStretch()
+        self.aliases_container_widget.setVisible(False)
+        layout.addWidget(self.aliases_container_widget)
 
         # Mention label (only for personal mentions mode)
         self.mention_label_widget = QLabel()

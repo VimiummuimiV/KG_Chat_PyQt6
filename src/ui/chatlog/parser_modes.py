@@ -3,7 +3,9 @@
 from PyQt6.QtWidgets import QComboBox, QHBoxLayout, QLabel, QWidget
 
 from components.button import create_icon_button
+from core.state.mention_aliases import mention_aliases
 from helpers.dates import DATE_PLACEHOLDER
+from helpers.text.mention_parser import MENTION_GLOBAL, MENTION_ICONS, MENTION_LOCAL
 from helpers.translate import tr
 from ui.chatlog.parser_modes_data import MENTION_SUB_KEYS, MENTION_SUB_LABELS
 
@@ -11,11 +13,23 @@ from ui.chatlog.parser_modes_data import MENTION_SUB_KEYS, MENTION_SUB_LABELS
 class ParserModesMixin:
     """Parser config: search mode and date-mode switching."""
 
+    def selected_aliases(self) -> list:
+        """(kind, alias) pairs of the ticked alias checkboxes: local ones of the account, then global ones."""
+        aliases = []
+        username = (self.account or {}).get('chat_username')
+        if self.local_aliases_checkbox.isChecked():
+            aliases.extend((MENTION_LOCAL, alias) for alias in mention_aliases.local_aliases(username))
+        if self.global_aliases_checkbox.isChecked():
+            aliases.extend((MENTION_GLOBAL, alias) for alias in mention_aliases.global_aliases())
+        return aliases
+
     def update_mention_label(self):
         """Update the mention label based on current mode and inputs"""
         mode = self.mode_combo.currentData() or self.mode_combo.currentText()
+        is_mention_mode = (mode == "Personal Mentions")
+        self.aliases_container_widget.setVisible(is_mention_mode)
 
-        if mode != "Personal Mentions":
+        if not is_mention_mode:
             self.mention_label_widget.setVisible(False)
             return
 
@@ -35,6 +49,7 @@ class ParserModesMixin:
         for term in search_terms:
             if not current_username or term.lower() != current_username.lower():
                 all_mentions.append(term)
+        all_mentions.extend(f"{MENTION_ICONS[kind]} {alias}" for kind, alias in self.selected_aliases())
 
         # Get username filter (which users' messages to search in)
         username_text = self.username_input.text().strip()

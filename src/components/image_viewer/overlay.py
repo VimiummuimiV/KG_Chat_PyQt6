@@ -25,6 +25,8 @@ _THUMBNAIL_GAP = 6
 INNER_IMAGE_RADIUS = 4  # corners of an image inside a panel, smaller than the panel's own
 _THUMBNAIL_BORDER_WIDTH = 2
 _THUMBNAIL_DIMMED_OPACITY = 0.55
+_SCROLL_BAR_HEIGHT = 10
+_SCROLL_BAR_MIN_HANDLE_WIDTH = 28
 _PROGRESS_INTERVAL_MS = 60
 _PROGRESS_FILL_ALPHA = 45
 _UNAVAILABLE_ICON = "fill/image-fill.svg"
@@ -74,10 +76,10 @@ def panel_stylesheet(object_name: str, is_dark: bool) -> str:
     """
 
 
-def _thumbnail_window(index: int, count: int) -> range:
-    """Gallery indices shown in the strip: a window of thumbnails around the current image."""
+def _thumbnail_window(start: int, index: int, count: int) -> range:
+    """Gallery indices shown in the strip: the window at start, moved only as far as needed to keep the current image in it."""
     visible = min(count, _THUMBNAIL_MAX_VISIBLE)
-    start = max(0, min(index - visible // 2, count - visible))
+    start = max(index - visible + 1, min(start, index, count - visible))
     return range(start, start + visible)
 
 
@@ -215,6 +217,81 @@ class _ThumbnailStrip(QWidget):
         event.accept()
 
 
+class _ThumbnailScrollBar(QWidget):
+    """Flat rounded scroll bar under the thumbnail strip; its handle moves a whole thumbnail at a time."""
+
+    start_changed = pyqtSignal(int)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._total = 0
+        self._visible = 0
+        self._start = 0
+        self._is_dark = True
+        self._grab_offset: Optional[float] = None  # distance from the handle's left edge to the cursor while dragging
+        self.setFixedHeight(_SCROLL_BAR_HEIGHT)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.hide()
+
+    def set_range(self, total: int, visible: int, start: int):
+        """Show the bar only while some thumbnails do not fit the strip."""
+        self._total = total
+        self._visible = visible
+        self._start = start
+        self.setVisible(total > visible)
+        self.update()
+
+    def set_theme(self, is_dark: bool):
+        self._is_dark = is_dark
+        self.update()
+
+    def _handle_rect(self) -> QRectF:
+        width = max(_SCROLL_BAR_MIN_HANDLE_WIDTH, self.width() * self._visible / self._total)
+        steps = self._total - self._visible
+        left = (self.width() - width) * self._start / steps if steps else 0
+        return QRectF(left, 0, width, self.height())
+
+    def _start_for_handle_left(self, left: float) -> int:
+        """The window start whose handle position is the closest to left."""
+        steps = self._total - self._visible
+        travel = self.width() - self._handle_rect().width()
+        return max(0, min(steps, round(left / travel * steps))) if travel > 0 else 0
+
+    def _move_handle_to(self, left: float):
+        start = self._start_for_handle_left(left)
+        if start != self._start:
+            self._start = start
+            self.update()
+            self.start_changed.emit(start)
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setPen(Qt.PenStyle.NoPen)
+        radius = self.height() / 2
+        painter.setBrush(QColor(PANEL_STYLES[self._is_dark]["placeholder"]))
+        painter.drawRoundedRect(QRectF(self.rect()), radius, radius)
+        painter.setBrush(QColor(get_user_svg_color(True, self._is_dark)))  # theme accent
+        painter.drawRoundedRect(self._handle_rect(), radius, radius)
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            handle = self._handle_rect()
+            x = event.position().x()
+            self._grab_offset = x - handle.left() if handle.left() <= x <= handle.right() else handle.width() / 2
+            self._move_handle_to(x - self._grab_offset)
+        event.accept()
+
+    def mouseMoveEvent(self, event):
+        if self._grab_offset is not None:
+            self._move_handle_to(event.position().x() - self._grab_offset)
+        event.accept()
+
+    def mouseReleaseEvent(self, event):
+        self._grab_offset = None
+        event.accept()
+
+
 class GalleryBar(QFrame):
     """Translucent panel with message actions, navigation buttons, day buttons, save button and thumbnail strip."""
 
@@ -222,6 +299,7 @@ class GalleryBar(QFrame):
     next_requested = pyqtSignal()
     slideshow_toggled = pyqtSignal()
     thumbnail_clicked = pyqtSignal(int)
+    thumbnails_scrolled = pyqtSignal()  # another window of thumbnails is shown
     day_pressed = pyqtSignal(int)  # -1 / +1; the viewer repeats it while the button stays down
     day_released = pyqtSignal()
     reply_requested = pyqtSignal()
@@ -234,6 +312,8 @@ class GalleryBar(QFrame):
         super().__init__(parent)
         self.setObjectName("galleryBar")
         self._is_playing = False
+        self._thumbnail_start = 0
+        self._index = 0
 
         self._reply_button = create_icon_button(icons_path, "fill/reply-fill.svg", config=config)
         self._source_button = create_icon_button(icons_path, "line/crosshair-2-line.svg", config=config)
@@ -263,6 +343,8 @@ class GalleryBar(QFrame):
 
         self._strip = _ThumbnailStrip(icons_path, progress_source, self)
         self._strip.clicked.connect(self.thumbnail_clicked)
+        self._scroll_bar = _ThumbnailScrollBar(self)
+        self._scroll_bar.start_changed.connect(self._on_thumbnails_scrolled)
 
         controls = QHBoxLayout()
         controls.setSpacing(PANEL_SPACING)
@@ -283,12 +365,14 @@ class GalleryBar(QFrame):
         layout.addLayout(controls)
         layout.setAlignment(controls, Qt.AlignmentFlag.AlignHCenter)
         layout.addWidget(self._strip, 0, Qt.AlignmentFlag.AlignHCenter)
+        layout.addWidget(self._scroll_bar, 0, Qt.AlignmentFlag.AlignHCenter)
 
         self._refresh_tooltips()
 
     def apply_theme(self, is_dark: bool):
         self.setStyleSheet(panel_stylesheet("galleryBar", is_dark))
         self._strip.set_theme(is_dark)
+        self._scroll_bar.set_theme(is_dark)
 
     def set_message_actions(self, can_go_to_source: bool, can_reply: bool):
         """Show the buttons that act on the message of the current image."""
@@ -304,10 +388,27 @@ class GalleryBar(QFrame):
         for button in self._image_buttons:
             button.setEnabled(count > 1)
         self._set_day(day_state)
+        self._index = index
         self._strip.setVisible(show_thumbnails)
-        self._strip._set_state(_thumbnail_window(index, count) if show_thumbnails else range(0), index)
+        if show_thumbnails:
+            window = _thumbnail_window(self._thumbnail_start, index, count)
+            self._thumbnail_start = window.start
+            self._show_window(window, count)
+        else:
+            self._show_window(range(0), 0)
         self._refresh_tooltips()
         self._fit_to_content()
+
+    def _show_window(self, window: range, count: int):
+        self._strip._set_state(window, self._index)
+        self._scroll_bar.setFixedWidth(self._strip.width())
+        self._scroll_bar.set_range(count, len(window), window.start)
+
+    def _on_thumbnails_scrolled(self, start: int):
+        """The scroll bar moved the window: show it without changing the current image."""
+        self._thumbnail_start = start
+        self._strip._set_state(range(start, start + len(self._strip.indices)), self._index)
+        self.thumbnails_scrolled.emit()
 
     def _set_day(self, state: Optional[DayState]):
         """Show the chatlog day buttons for the state, or hide them when days do not apply."""
