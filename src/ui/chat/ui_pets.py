@@ -59,6 +59,7 @@ class PetOverlay(QWidget):
         self._records = PetRecords()
         self._celebration = RecordCelebration(parent)  # a sibling: this widget's mask would clip a child
         self._anchor = anchor
+        self._content = content
         self._config = config
         self._fader = WidgetFader(content)  # what the pets fly over
         self._hide_mode = HIDE_OFF
@@ -268,7 +269,9 @@ class PetOverlay(QWidget):
         self.setGeometry(top_left.x(), 0, self._anchor.width(), line_y)
         self.show()
         self.raise_()  # panes re-adopted by the window (room tabs opened or closed) land above the pets
-        self._celebration.raise_()
+        if self._celebration.isVisible():
+            self._celebration.setGeometry(self._celebration_zone())
+            self._celebration.raise_()
         self._refresh_region()
 
     def _refresh_region(self) -> None:
@@ -348,11 +351,16 @@ class PetOverlay(QWidget):
         self._adjust_tick_rate()
         self._fade_content()
 
+    def _celebration_zone(self) -> QRect:
+        """Return the area of the messages down to the pet line, without the user list: the effect is centered in it."""
+        top = self._content.mapTo(self.parentWidget(), QPoint(0, 0)).y()
+        return QRect(self.x(), top, self.width(), self.y() + self.height() - top)
+
     def _celebrate(self, bounces: int) -> None:
         """Play the effect when the throw that just ended set a record of the account."""
         previous = self._records.submit(self._username, bounces) if bounces else None
         if previous is not None:
-            self._celebration.play(self.geometry(), bounces, previous)
+            self._celebration.play(self._celebration_zone(), bounces, previous)
 
     def _fade_content(self) -> None:
         """Fade the content out for a throw as the mode says and back in once all have landed."""
@@ -363,6 +371,8 @@ class PetOverlay(QWidget):
             is_hidden = bool(thrown) and (self._is_content_hidden or any(pet.bounces for pet in thrown))
         else:
             is_hidden = False
+        if self._hide_mode != HIDE_OFF and self._celebration.isVisible():
+            is_hidden = True  # the messages stay away until the effect is closed
         if is_hidden == self._is_content_hidden:
             return
         self._is_content_hidden = is_hidden

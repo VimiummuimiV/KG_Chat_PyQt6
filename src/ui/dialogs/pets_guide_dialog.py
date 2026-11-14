@@ -93,8 +93,8 @@ _MOUSE = (
         "за курсором следует пиксельная доска, пока питомец выше, пока мышь не возьмёт яйцо; отскок прибавляет к бейджу",
     )),
     (("Record", "Рекорд"), (
-        f"a throw with more bounces than ever before on this account, from {MINIMUM_RECORD}, sets a record: a trophy and confetti",
-        f"бросок с большим числом отскоков, чем когда-либо у этого аккаунта, от {MINIMUM_RECORD}, ставит рекорд: кубок и конфетти",
+        f"a throw with more bounces than ever before on this account, from {MINIMUM_RECORD}, sets a record: a trophy and confetti that stay until Esc",
+        f"бросок с большим числом отскоков, чем когда-либо у этого аккаунта, от {MINIMUM_RECORD}, ставит рекорд: кубок и конфетти, которые висят до Esc",
     )),
     (("On an egg", "По яйцу"), ("pick it up and roll it", "можно поднять и покатать")),
     (("In settings", "В настройках"), ("left click adds a pet, right click removes one, hold to repeat",

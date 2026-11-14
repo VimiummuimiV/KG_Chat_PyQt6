@@ -277,7 +277,7 @@ class EmoticonSelectorWidget(TranslatableMixin, QWidget):
         self._nav_container.installEventFilter(self)
 
         # Create nav buttons
-        self._create_nav_button("emoticon_groups/star.svg", "recent", "Recent", "Недавние", nav_layout, active=True)
+        self._create_nav_button("emoji/star.svg", "recent", "Recent", "Недавние", nav_layout, active=True)
 
         group_tooltips = {
             'Army': ("Army", "Армия"),
@@ -288,12 +288,12 @@ class EmoticonSelectorWidget(TranslatableMixin, QWidget):
             'Inlove': ("Inlove", "Влюблённые"),
         }
         for group_name, (icon_name, key) in {
-            'Army': ('emoticon_groups/military-helmet.svg', 'army'),
-            'Boys': ('emoticon_groups/boy.svg', 'boys'),
-            'Christmas': ('emoticon_groups/christmas-tree.svg', 'christmas'),
-            'Girls': ('emoticon_groups/girl.svg', 'girls'),
-            'Halloween': ('emoticon_groups/jack-o-lantern.svg', 'halloween'),
-            'Inlove': ('emoticon_groups/red-heart.svg', 'inlove')
+            'Army': ('emoji/military-helmet.svg', 'army'),
+            'Boys': ('emoji/boy.svg', 'boys'),
+            'Christmas': ('emoji/christmas-tree.svg', 'christmas'),
+            'Girls': ('emoji/girl.svg', 'girls'),
+            'Halloween': ('emoji/jack-o-lantern.svg', 'halloween'),
+            'Inlove': ('emoji/red-heart.svg', 'inlove')
         }.items():
             tooltip_en, tooltip_ru = group_tooltips[group_name]
             self._create_nav_button(icon_name, key, tooltip_en, tooltip_ru, nav_layout)

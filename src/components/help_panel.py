@@ -35,7 +35,11 @@ _CHAT_GENERAL_KB = [
         "Exit private chat / Clear markers, presence",
         "Выйти из ЛС / Очистить маркеры, присутствие",
     ),
-    ("Esc", "Clear input focus / Close search", "Снять фокус с ввода / Закрыть поиск"),
+    (
+        "Esc",
+        "Clear input focus / Close search / Close record effect",
+        "Снять фокус с ввода / Закрыть поиск / Закрыть эффект рекорда"
+    ),
 ]
 
 _CHAT_CTRL_KB = [
