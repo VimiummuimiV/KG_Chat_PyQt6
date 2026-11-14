@@ -330,7 +330,7 @@ class ChatWindow(
 
         button_spacing = self.config.get("ui", "buttons", "spacing") or 8
 
-        self.input_row = InputRow(self.icons_path, self.config)
+        self.input_row = InputRow(self.icons_path, self.config, with_mention_autocomplete=True)
         self.input_row.submitted.connect(self.send_message)
         self.input_row.emoticon_requested.connect(self.toggle_emoticon_selector)
         self.input_field = self.input_row.input_field

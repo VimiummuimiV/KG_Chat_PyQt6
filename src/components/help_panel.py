@@ -62,6 +62,14 @@ _CHAT_CTRL_KB = [
     ("Ctrl+Scroll",  "Font size up / down",      "Размер шрифта + / −"),
 ]
 
+_MENTION_KB = [
+    ("@ + letter", "Suggest nicknames while typing",     "Подсказки ников при вводе"),
+    ("Tab",        "Insert the highlighted nickname",    "Вставить выбранный ник"),
+    ("↓ / Ctrl+N", "Next suggestion",                    "Следующая подсказка"),
+    ("↑ / Ctrl+P", "Previous suggestion",                "Предыдущая подсказка"),
+    ("Esc",        "Close suggestions",                  "Закрыть подсказки"),
+]
+
 _CHAT_SCROLL_KB = [
     ("J / ↓",       "Scroll down",      "Прокрутка вниз"),
     ("K / ↑",       "Scroll up",        "Прокрутка вверх"),
@@ -383,6 +391,7 @@ _CONTEXTS = {
             (("General", "Общее"),                         _CHAT_GENERAL_KB, None),
             (("Ctrl Shortcuts", "Ctrl-сочетания"),         _CHAT_CTRL_KB,    None),
             (("Scrolling", "Прокрутка"),                   _CHAT_SCROLL_KB,  None),
+            (("Nickname Suggestions", "Подсказки ников"),  _MENTION_KB,      None),
             (
                 ("User List Clicks", "Клики по списку пользователей"),
                 None,

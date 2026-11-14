@@ -107,7 +107,7 @@ class RoomWidget(TranslatableMixin, QWidget):
         pet_strip = QWidget()  # keeps the pets' line free of messages; empty and hidden while there are no pets
         left_layout.addWidget(pet_strip)
 
-        self.input_row = InputRow(self.icons_path, self.config)
+        self.input_row = InputRow(self.icons_path, self.config, with_mention_autocomplete=True)
         self.input_row.submitted.connect(self.send_requested)
         self.input_row.emoticon_requested.connect(self.emoticon_requested)
         self.input_field = self.input_row.input_field

@@ -4,6 +4,7 @@ from PyQt6.QtCore import QEvent, Qt, QTimer
 from PyQt6.QtWidgets import QApplication, QLineEdit, QMenu, QTextEdit
 
 from components.image_viewer.viewer import ImageHoverView
+from components.mention_autocomplete import MentionAutocomplete
 
 
 _HANDLED_EVENT_TYPES = frozenset({
@@ -22,6 +23,9 @@ class ChatHotkeysMixin:
         event_type = event.type()
         # the image viewer keeps every key and mouse action for itself
         if event_type not in _HANDLED_EVENT_TYPES or ImageHoverView.is_open():
+            return super().eventFilter(obj, event)
+        # open nickname suggestions keep Tab, arrows, Ctrl+N / Ctrl+P and Esc for the input
+        if event_type == QEvent.Type.KeyPress and MentionAutocomplete.is_open():
             return super().eventFilter(obj, event)
 
         # Ctrl+Space hold-to-talk. Must live here (not only keyPressEvent):

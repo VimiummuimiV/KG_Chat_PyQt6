@@ -9,6 +9,11 @@ MENTION_GLOBAL = "global"
 MENTION_ICONS = {MENTION_LOCAL: "🏷️", MENTION_GLOBAL: "🌐"}
 
 
+def fold_nickname(text: str) -> str:
+    """Lowercase text where е and ё are the same letter, for case-insensitive nick matching."""
+    return text.lower().replace("ё", "е")
+
+
 def _keyword_pattern(keyword: str) -> str:
     """Escaped keyword where е and ё match each other."""
     return re.sub("[еёЕЁ]", "[её]", re.escape(keyword))

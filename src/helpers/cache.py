@@ -1,16 +1,19 @@
 """Centralized cache system for avatars and user data"""
 
+import bisect
+import itertools
 import json
 import re
 import threading
 from concurrent.futures import ThreadPoolExecutor
-from typing import Callable, Dict, Optional
+from typing import Callable, Dict, List, Optional, Tuple
 
 from PyQt6.QtGui import QPixmap
 
 from helpers.colors.color_contrast import optimize_color_contrast
 from helpers.data import get_data_dir, get_state_dir
 from helpers.load import fetch_avatar_bytes, load_avatar_from_disk
+from helpers.text.mention_parser import fold_nickname
 
 
 class _CacheManager:
@@ -43,6 +46,7 @@ class _CacheManager:
         self._avatar_stamps: Dict[str, str] = {}  # user_id → updated timestamp
         self._data: Dict[str, Dict] = {}          # user_id → {login, background?, light?, dark?}
         self._login_index: Dict[str, str] = {}    # login → user_id
+        self._sorted_logins: List[Tuple[str, str]] = []  # (folded login, login), sorted: prefix search by bisect
         self._avatar_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="cache_avatar_loader")
         self._cache_lock = threading.Lock()
         self._data_path = get_state_dir() / "users.json"
@@ -61,6 +65,7 @@ class _CacheManager:
                         self._login_index.setdefault(entry['login'], str(uid))
         except Exception:
             pass
+        self._sorted_logins = sorted((fold_nickname(login), login) for login in self._login_index)
 
     def _save_data(self, snapshot: dict) -> None:
         try:
@@ -85,9 +90,9 @@ class _CacheManager:
 
             if entry.get('login') != login:
                 if self._login_index.get(entry.get('login')) == user_id:
-                    del self._login_index[entry['login']]
+                    self._remove_login(entry['login'])
                 entry['login'] = login
-                self._login_index.setdefault(login, user_id)
+                self._add_login(login, user_id)
                 changed = True
 
             if background and entry.get('background') != background:
@@ -101,6 +106,30 @@ class _CacheManager:
             self._data[user_id] = entry
             snapshot = self._data.copy()
         self._avatar_executor.submit(self._save_data, snapshot)
+
+    def _add_login(self, login: str, user_id: str) -> None:
+        """Index a login unless it is already taken; the caller holds the lock."""
+        if login in self._login_index:
+            return
+        self._login_index[login] = user_id
+        bisect.insort(self._sorted_logins, (fold_nickname(login), login))
+
+    def _remove_login(self, login: str) -> None:
+        """Drop a login from both indexes; the caller holds the lock."""
+        del self._login_index[login]
+        del self._sorted_logins[bisect.bisect_left(self._sorted_logins, (fold_nickname(login), login))]
+
+    def find_logins(self, prefix: str, limit: int) -> List[str]:
+        """Known logins starting with prefix (case-insensitive, е = ё), alphabetically, at most limit."""
+        key = fold_nickname(prefix)
+        with self._cache_lock:
+            start = bisect.bisect_left(self._sorted_logins, (key,))
+            matches = []
+            for folded, login in itertools.islice(self._sorted_logins, start, start + limit):
+                if not folded.startswith(key):
+                    break
+                matches.append(login)
+        return matches
 
     def get_user_id(self, login: str) -> Optional[str]:
         with self._cache_lock:
