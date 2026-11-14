@@ -464,7 +464,7 @@ def fill_mentions_digest_mode_combo(combo, current=None):
 
 
 def fill_pets_hide_combo(combo, current=None):
-    fill_tooltip_combo(combo, _pets_hide_options(), current, HIDE_OFF)
+    fill_tooltip_combo(combo, _pets_hide_options(), current, HIDE_FLIGHT)
 
 
 def fill_flash_easing_combo(combo, current=None):

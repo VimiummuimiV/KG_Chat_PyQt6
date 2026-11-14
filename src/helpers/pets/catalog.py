@@ -167,7 +167,7 @@ def action_frame_rate_setting() -> tuple[int, int, int]:
 def pets_hide_mode(config) -> str:
     """Return when the content fades out for a throw: HIDE_OFF, HIDE_BOUNCE or HIDE_FLIGHT."""
     mode = config.get("ui", "pets", "hide_mode")
-    return mode if mode in HIDE_MODES else HIDE_OFF
+    return mode if mode in HIDE_MODES else HIDE_FLIGHT
 
 
 def hide_fade_ms(config) -> int:

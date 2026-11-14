@@ -1,0 +1,8 @@
+/* Pet scoreboard hangs from the top edge of the messages: no top border, rounded bottom corners */
+QFrame#petScoreboard {
+    background: $panel_bg;
+    border: 1px solid $panel_border;
+    border-top: none;
+    border-bottom-left-radius: 14px;
+    border-bottom-right-radius: 14px;
+}

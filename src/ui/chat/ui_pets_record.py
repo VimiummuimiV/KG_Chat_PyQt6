@@ -12,10 +12,11 @@ from components.button import create_icon_button
 from helpers.data import get_resource_dir
 from helpers.fonts.fonts import get_display_font
 from helpers.translate import tr
-from ui.chat.ui_pets_counter import CORNER_MARGIN
+from ui.chat.ui_pets_palette import BROWN, GOLD, LetteringPalette
 
 
 _MILLISECONDS = 1000
+_CORNER_MARGIN = 8  # between the close button and the edge of the area
 _INTRO_MS = 3500  # the burst has fallen out of the area by then; the trophy and the score stay until Esc
 _BURST_MS = 300  # the trophy reaches its first peak and the confetti flies
 _TEXT_START_MS = 450
@@ -55,21 +56,6 @@ _MOUSE_EVENTS = (
 )
 _SMOOTH = QEasingCurve(QEasingCurve.Type.InOutSine)
 _SETTLE = QEasingCurve(QEasingCurve.Type.OutCubic)
-
-
-@dataclass(frozen=True)
-class _Palette:
-    """Colors of lettering with volume: face gradient from light to dark, the side, the rim."""
-
-    light: QColor
-    middle: QColor
-    dark: QColor
-    side: QColor
-    rim: QColor
-
-
-_GOLD = _Palette(QColor("#fff6b8"), QColor("#ffd23f"), QColor("#e09a10"), QColor("#8c5a0a"), QColor("#4a2c05"))
-_BROWN = _Palette(QColor("#c99a6b"), QColor("#a0693a"), QColor("#6f4220"), QColor("#3d2210"), QColor("#24120a"))
 
 
 @dataclass(frozen=True)
@@ -130,7 +116,7 @@ def _separator_path() -> QPainterPath:
     return path
 
 
-def _paint_lettering(painter: QPainter, path: QPainterPath, depth: int, palette: _Palette) -> None:
+def _paint_lettering(painter: QPainter, path: QPainterPath, depth: int, palette: LetteringPalette) -> None:
     """Draw the shape with a dark rim around it and a solid side of depth pixels under it."""
     rim = QPen(palette.rim, _OUTLINE_WIDTH * 2, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin)
     painter.setBrush(Qt.BrushStyle.NoBrush)
@@ -204,7 +190,7 @@ class RecordCelebration(QWidget):
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
-        self._close_button.move(self.width() - self._close_button.width() - CORNER_MARGIN, CORNER_MARGIN)
+        self._close_button.move(self.width() - self._close_button.width() - _CORNER_MARGIN, _CORNER_MARGIN)
 
     def eventFilter(self, watched, event):
         if event.type() == QEvent.Type.KeyPress and event.key() == Qt.Key.Key_Escape and self.window().isActiveWindow():
@@ -241,9 +227,9 @@ class RecordCelebration(QWidget):
         """Draw the lettering once: the title and the scores, the beaten score in brown and the new one in gold with a separator between."""
         title = _text_path(tr("NEW RECORD", "НОВЫЙ РЕКОРД"), _TITLE_PIXELS)
         score = _text_path(str(count), _SCORE_PIXELS)
-        shapes = [(score, _GOLD)]
+        shapes = [(score, GOLD)]
         if previous:
-            shapes = [(_text_path(str(previous), _SCORE_PIXELS), _BROWN), (_separator_path(), _GOLD), *shapes]
+            shapes = [(_text_path(str(previous), _SCORE_PIXELS), BROWN), (_separator_path(), GOLD), *shapes]
         gaps = _SEPARATOR_GAP * 2 if previous else 0
         row_width = sum(path.boundingRect().width() for path, _ in shapes) + gaps
         width = math.ceil(max(title.boundingRect().width(), row_width)) + 2 * _TEXT_MARGIN
@@ -252,7 +238,7 @@ class RecordCelebration(QWidget):
         pixmap.fill(Qt.GlobalColor.transparent)
         painter = QPainter(pixmap)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        _paint_lettering(painter, title.translated(width / 2, _TITLE_ROW / 2), _TITLE_DEPTH, _GOLD)
+        _paint_lettering(painter, title.translated(width / 2, _TITLE_ROW / 2), _TITLE_DEPTH, GOLD)
         left = (width - row_width) / 2
         for path, palette in shapes:
             shape_width = path.boundingRect().width()
@@ -268,9 +254,9 @@ class RecordCelebration(QWidget):
             return
         life = 1 - age / _GLOW_MS
         radius = min(self.width(), self.height()) * _GLOW_SHARE * (1.4 - 0.6 * life)
-        gold = QColor(_GOLD.middle)
+        gold = QColor(GOLD.middle)
         gold.setAlphaF(_GLOW_ALPHA * life)
-        fade = QColor(_GOLD.middle)
+        fade = QColor(GOLD.middle)
         fade.setAlpha(0)
         glow = QRadialGradient(center, radius)
         glow.setColorAt(0.0, gold)

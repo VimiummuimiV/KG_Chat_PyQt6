@@ -31,7 +31,7 @@ from helpers.pets.meadow import Meadow
 from helpers.pets.pet import Pet
 from helpers.pets.relations import preys_on
 from helpers.pets.throwable import Throwable
-from ui.chat.ui_pets_counter import BounceCounter, CORNER_MARGIN
+from ui.chat.ui_pets_counter import BounceScoreboard
 from ui.chat.ui_pets_record import RecordCelebration
 
 
@@ -56,7 +56,7 @@ class PetOverlay(QWidget):
         self._username = username
         self._records = PetRecords()
         self._celebration = RecordCelebration(parent, config)  # a sibling: this widget's mask would clip a child
-        self._counter = BounceCounter(parent, config)  # a sibling too, in the corner of the message area
+        self._scoreboard = BounceScoreboard(parent, config)  # a sibling too, hanging from the top of the message area
         self._anchor = anchor
         self._content = content
         self._config = config
@@ -89,7 +89,7 @@ class PetOverlay(QWidget):
         self._timer.stop()
         self._celebration.stop()
         self._celebration.deleteLater()
-        self._counter.deleteLater()
+        self._scoreboard.deleteLater()
         self._show_content()
         if self._anchor is not None:
             self._anchor.removeEventFilter(self)
@@ -154,7 +154,7 @@ class PetOverlay(QWidget):
         super().hideEvent(event)
         self._timer.stop()
         self._celebration.stop()
-        self._counter.hide()
+        self._scoreboard.hide()
         self._show_content()
 
     def paintEvent(self, event):
@@ -257,9 +257,9 @@ class PetOverlay(QWidget):
         zone = self._celebration_zone()
         if self._celebration.isVisible():
             self._celebration.setGeometry(zone)
-        self._counter.move(zone.topLeft() + QPoint(CORNER_MARGIN, CORNER_MARGIN))
+        self._scoreboard.center_in(zone)
         self._celebration.stackUnder(self)  # the pets stay in reach of the mouse and fly in front of the effect
-        self._counter.stackUnder(self)
+        self._scoreboard.stackUnder(self)
         self._refresh_region()
 
     def _refresh_region(self) -> None:
@@ -329,7 +329,7 @@ class PetOverlay(QWidget):
             egg = pet.take_egg()
             if egg:
                 self._eggs.append(egg)
-        self._update_counter()
+        self._update_scoreboard()
         self._replace_carried_off(step_ms, line_width)
         for egg in self._eggs:
             egg.update(step_ms, line_width, area_height)
@@ -350,14 +350,15 @@ class PetOverlay(QWidget):
             self._celebration.play(self._celebration_zone(), bounces, previous)
             self._celebration.stackUnder(self)
 
-    def _update_counter(self) -> None:
-        """Show the highest running bounce count in the corner while it counts; the record effect shows its own."""
+    def _update_scoreboard(self) -> None:
+        """Show the highest running bounce count and the record to beat while it counts; the record effect shows its own."""
         counting = [pet for pet in self._pets if pet.is_visible and pet.bounces]
         if not counting or self._celebration.isVisible():
-            self._counter.hide()
+            self._scoreboard.hide()
             return
-        self._counter.set_value(max(counting, key=lambda pet: pet.bounces).badge_text)
-        self._counter.show()
+        record = self._records.get(self._username)
+        self._scoreboard.set_values(str(record) if record else "", max(counting, key=lambda pet: pet.bounces).badge_text)
+        self._scoreboard.show()
 
     def close_celebration(self) -> None:
         """Close the record effect and give the page back at once, for a page that opens over it."""
