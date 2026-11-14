@@ -1,4 +1,4 @@
-"""Record effect over the pet area: a trophy pulses in, confetti bursts out, the beaten and the new score shine under it, a click on the trophy replays it, a button closes it."""
+"""Record effect over the pet area: a trophy pulses in, confetti bursts out, the beaten and the new score shine under it, a click on the trophy replays the pulse and the burst, a button closes it."""
 
 import math
 import random
@@ -159,8 +159,7 @@ class RecordCelebration(QWidget):
         self._close_button.setParent(self)
         self._close_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)  # Esc stays with the window
         self._close_button.clicked.connect(self.stop)
-        self._count = 0
-        self._previous = 0
+        self._is_replay = False  # the lettering stays once it has appeared
         self._elapsed_ms = 0.0
         self._pieces: list[_Piece] = []
         self._trophy = QPixmap()
@@ -176,15 +175,23 @@ class RecordCelebration(QWidget):
     def play(self, area: QRect, count: int, previous: int) -> None:
         """Celebrate count, which beat previous (zero for the first record), centered in area."""
         self._animation.stop()
-        self._count, self._previous = count, previous
         self.setGeometry(area)
         ratio = self.devicePixelRatioF()
         self._trophy = self._render_trophy(ratio)
-        self._text = self._render_text(self._count, self._previous, ratio)
+        self._text = self._render_text(count, previous, ratio)
         self._pieces = _scatter(area.width(), area.height())
         self._elapsed_ms = 0.0
+        self._is_replay = False
         self._close_button.setToolTip(tr("Close (Esc)", "Закрыть (Esc)"))
         self.show()
+        self._animation.start()
+
+    def replay(self) -> None:
+        """Pulse the trophy and burst the confetti again; the lettering stays as it is."""
+        self._animation.stop()
+        self._pieces = _scatter(self.width(), self.height())
+        self._elapsed_ms = 0.0
+        self._is_replay = True
         self._animation.start()
 
     def stop(self) -> None:
@@ -204,7 +211,7 @@ class RecordCelebration(QWidget):
         event_type = event.type()
         if event_type in _MOUSE_EVENTS:  # a click on the effect must not reach the messages under it
             if event_type == QEvent.Type.MouseButtonPress and event.button() == Qt.MouseButton.LeftButton and self._is_over_trophy(event):
-                self.play(self.geometry(), self._count, self._previous)
+                self.replay()
             event.accept()
             return True
         if event_type == QEvent.Type.MouseMove:
@@ -229,7 +236,7 @@ class RecordCelebration(QWidget):
         self._paint_glow(painter, trophy_center)
         self._paint_confetti(painter, trophy_center)
         self._paint_trophy(painter, trophy_center)
-        reveal = _SETTLE.valueForProgress(_ramp(self._elapsed_ms, _TEXT_START_MS, _TEXT_REVEAL_MS))
+        reveal = 1.0 if self._is_replay else _SETTLE.valueForProgress(_ramp(self._elapsed_ms, _TEXT_START_MS, _TEXT_REVEAL_MS))
         painter.setOpacity(reveal)
         text_left = (self.width() - self._text.width() / self._text.devicePixelRatio()) / 2
         painter.drawPixmap(QPointF(text_left, stack_top + _TROPHY_SIZE + _TEXT_GAP + (1 - reveal) * _TEXT_RISE), self._text)
