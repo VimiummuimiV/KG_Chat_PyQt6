@@ -365,6 +365,8 @@ class PetOverlay(QWidget):
     def _fade_content(self) -> None:
         """Fade the content out for a throw as the mode says and back in once all have landed."""
         thrown = [pet for pet in self._pets if pet.is_thrown]
+        if thrown and self._celebration.isVisible():
+            self._celebration.stop()  # the next throw closes the effect; the messages stay hidden through the handover
         if self._hide_mode == HIDE_FLIGHT:
             is_hidden = bool(thrown)
         elif self._hide_mode == HIDE_BOUNCE:
