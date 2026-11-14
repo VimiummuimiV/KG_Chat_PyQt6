@@ -4,6 +4,7 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import QApplication, QDialog, QFrame, QGridLayout, QHBoxLayout, QLabel, QVBoxLayout
 
+from core.state.pet_records import MINIMUM_RECORD
 from helpers.pets.catalog import list_pet_kinds
 from helpers.translate import tr
 
@@ -90,6 +91,10 @@ _MOUSE = (
     (("Thrown pet", "Брошенный питомец"), (
         "a pixel board follows the cursor while the pet is above it, until the mouse picks up an egg; each bounce adds to its badge",
         "за курсором следует пиксельная доска, пока питомец выше, пока мышь не возьмёт яйцо; отскок прибавляет к бейджу",
+    )),
+    (("Record", "Рекорд"), (
+        f"a throw with more bounces than ever before on this account, from {MINIMUM_RECORD}, sets a record: a trophy and confetti",
+        f"бросок с большим числом отскоков, чем когда-либо у этого аккаунта, от {MINIMUM_RECORD}, ставит рекорд: кубок и конфетти",
     )),
     (("On an egg", "По яйцу"), ("pick it up and roll it", "можно поднять и покатать")),
     (("In settings", "В настройках"), ("left click adds a pet, right click removes one, hold to repeat",

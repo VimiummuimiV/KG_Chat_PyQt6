@@ -76,6 +76,7 @@ class BounceBehavior:
         self._badge_ms = 0  # time left of the counter once the pet is down
         self._is_cursor_ignored = False  # the board that threw or just hit the pet is still on it
         self._was_thrown = False  # let go with a swing, not just put down
+        self._landed_bounces = 0  # the bounces of the throw that has just ended, until take_bounce_result
         self._is_board_withdrawn = False  # the hand took hold of something else: no board for the rest of the flight
 
     @property
@@ -113,8 +114,14 @@ class BounceBehavior:
 
     def land(self, impact_speed: float) -> None:
         super().land(impact_speed)
+        self._landed_bounces = self.bounces if self._was_thrown else 0
         self._was_thrown = False
         self._badge_ms = _BADGE_LINGER_MS
+
+    def take_bounce_result(self) -> int:
+        """Return the bounces of the throw that has just ended, once; zero when none has."""
+        result, self._landed_bounces = self._landed_bounces, 0
+        return result
 
     def age_badge(self, step_ms: int) -> None:
         """Let the counter run out while the pet stands on the floor."""

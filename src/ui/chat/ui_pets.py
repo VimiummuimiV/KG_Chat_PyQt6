@@ -9,6 +9,7 @@ from PyQt6.QtWidgets import QWidget
 from components.badge import counter_pixmap
 from components.button import get_accent_color
 from components.fade import WidgetFader
+from core.state.pet_records import PetRecords
 from helpers.pets.animation import sprite_height
 from helpers.pets.bounce import CollisionBoard, CursorMotion
 from helpers.pets.catalog import (
@@ -31,6 +32,7 @@ from helpers.pets.meadow import Meadow
 from helpers.pets.pet import Pet
 from helpers.pets.relations import preys_on
 from helpers.pets.throwable import Throwable
+from ui.chat.ui_pets_record import RecordCelebration
 
 
 _MILLISECONDS = 1000
@@ -51,8 +53,11 @@ def _tick_ms(frame_rate: int) -> int:
 class PetOverlay(QWidget):
     """Area over everything down to the bottom of anchor, the strip kept free for the pets; the mask leaves only the pets themselves to the mouse."""
 
-    def __init__(self, parent: QWidget, anchor: QWidget, content: QWidget, config):
+    def __init__(self, parent: QWidget, anchor: QWidget, content: QWidget, config, username: str | None):
         super().__init__(parent)
+        self._username = username
+        self._records = PetRecords()
+        self._celebration = RecordCelebration(parent)  # a sibling: this widget's mask would clip a child
         self._anchor = anchor
         self._config = config
         self._fader = WidgetFader(content)  # what the pets fly over
@@ -82,6 +87,8 @@ class PetOverlay(QWidget):
     def shutdown(self) -> None:
         """Detach filters/parent so a deferred _place cannot mapTo after the room is gone."""
         self._timer.stop()
+        self._celebration.stop()
+        self._celebration.deleteLater()
         self._show_content()
         if self._anchor is not None:
             self._anchor.removeEventFilter(self)
@@ -145,6 +152,7 @@ class PetOverlay(QWidget):
     def hideEvent(self, event):
         super().hideEvent(event)
         self._timer.stop()
+        self._celebration.stop()
         self._show_content()
 
     def paintEvent(self, event):
@@ -260,6 +268,7 @@ class PetOverlay(QWidget):
         self.setGeometry(top_left.x(), 0, self._anchor.width(), line_y)
         self.show()
         self.raise_()  # panes re-adopted by the window (room tabs opened or closed) land above the pets
+        self._celebration.raise_()
         self._refresh_region()
 
     def _refresh_region(self) -> None:
@@ -327,6 +336,7 @@ class PetOverlay(QWidget):
                 pet.look_for_food(foods, visible, step_ms)
                 pet.interact(visible, step_ms)
             pet.update(step_ms, line_width, area_height, cursor)
+            self._celebrate(pet.take_bounce_result())
             egg = pet.take_egg()
             if egg:
                 self._eggs.append(egg)
@@ -337,6 +347,12 @@ class PetOverlay(QWidget):
         self._refresh_region()
         self._adjust_tick_rate()
         self._fade_content()
+
+    def _celebrate(self, bounces: int) -> None:
+        """Play the effect when the throw that just ended set a record of the account."""
+        previous = self._records.submit(self._username, bounces) if bounces else None
+        if previous is not None:
+            self._celebration.play(self.geometry(), bounces, previous)
 
     def _fade_content(self) -> None:
         """Fade the content out for a throw as the mode says and back in once all have landed."""
