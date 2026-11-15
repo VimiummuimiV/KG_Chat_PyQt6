@@ -84,7 +84,8 @@ class RowJumpGroup(QObject):
             target = _find_row(self._rows, reference, direction)
             set_entry_enabled(entry, target is not None)
             if self._describe:
-                entry["button"].setToolTip(tooltip if target is None else f"{tooltip}\n{self._describe(self._row_data(target))}")
+                target_data = None if target is None else self._row_data(target)  # None while the rows are stale
+                entry["button"].setToolTip(tooltip if target_data is None else f"{tooltip}\n{self._describe(target_data)}")
 
     def _row_data(self, row: int):
         model = self._list_view.model()
