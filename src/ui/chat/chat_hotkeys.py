@@ -4,7 +4,7 @@ from PyQt6.QtCore import QEvent, Qt, QTimer
 from PyQt6.QtWidgets import QApplication, QLineEdit, QMenu, QTextEdit
 
 from components.image_viewer.viewer import ImageHoverView
-from components.mention_autocomplete import MentionAutocomplete
+from components.mention_autocomplete.autocomplete import MentionAutocomplete
 
 
 _HANDLED_EVENT_TYPES = frozenset({

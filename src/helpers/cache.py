@@ -15,10 +15,7 @@ from helpers.colors.color_contrast import optimize_color_contrast
 from helpers.data import get_data_dir, get_state_dir
 from helpers.load import fetch_avatar_bytes, load_avatar_from_disk
 from helpers.text.mention_parser import fold_nickname
-from helpers.text.nickname_match import fuzzy_pattern, match_key
-
-
-_FUZZY_MIN_QUERY = 2
+from helpers.text.nickname_match import FUZZY_MIN_QUERY, fuzzy_pattern, match_key
 
 
 class _CacheManager:
@@ -130,7 +127,7 @@ class _CacheManager:
     def find_logins(self, query: str, limit: int) -> List[str]:
         """Best known logins for a query (case-insensitive, е = ё), at most limit.
 
-        Prefix matches come first; with at least _FUZZY_MIN_QUERY letters the letters may also be
+        Prefix matches come first; with at least FUZZY_MIN_QUERY letters the letters may also be
         skipped (TW finds TolikWorkaholic), best matches first.
         """
         key = fold_nickname(query)
@@ -141,7 +138,7 @@ class _CacheManager:
                 if not folded.startswith(key):
                     break
                 prefixed.append(login)
-            if len(prefixed) >= limit or len(key) < _FUZZY_MIN_QUERY:
+            if len(prefixed) >= limit or len(key) < FUZZY_MIN_QUERY:
                 return prefixed
             if self._logins_text is None:
                 self._logins_text = "\n".join(login for _, login in self._sorted_logins)

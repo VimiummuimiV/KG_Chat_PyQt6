@@ -1,6 +1,7 @@
 """Image viewer options read from the config; the defaults and limits are shared with the settings page."""
 
 from components.image_viewer.layer import TRANSITION_MODES
+from helpers.config import read_bounded_int
 
 
 DEFAULT_TRANSITION_MODE = "fade"
@@ -18,14 +19,6 @@ DEFAULT_REPLY_MODE = REPLY_MODE_INLINE
 _MS_PER_SECOND = 1000
 
 
-def _read_bounded_int(config, key: str, default: int, bounds: tuple[int, int]) -> int:
-    value = config.get("image_viewer", key) if config else None
-    try:
-        return max(bounds[0], min(bounds[1], int(value)))
-    except (TypeError, ValueError):
-        return default
-
-
 def _read_flag(config, key: str, default: bool) -> bool:
     value = config.get("image_viewer", key) if config else None
     return default if value is None else bool(value)
@@ -37,11 +30,11 @@ def transition_mode(config) -> str:
 
 
 def transition_duration_ms(config) -> int:
-    return _read_bounded_int(config, "transition_ms", DEFAULT_TRANSITION_MS, TRANSITION_MS_RANGE)
+    return read_bounded_int(config, ("image_viewer", "transition_ms"), DEFAULT_TRANSITION_MS, TRANSITION_MS_RANGE)
 
 
 def slideshow_interval_seconds(config) -> int:
-    return _read_bounded_int(config, "slideshow_interval", DEFAULT_SLIDESHOW_SECONDS, SLIDESHOW_SECONDS_RANGE)
+    return read_bounded_int(config, ("image_viewer", "slideshow_interval"), DEFAULT_SLIDESHOW_SECONDS, SLIDESHOW_SECONDS_RANGE)
 
 
 def slideshow_interval_ms(config) -> int:

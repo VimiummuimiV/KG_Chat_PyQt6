@@ -49,3 +49,12 @@ class Config:
             d = d.setdefault(key, {})
         d[keys[-1]] = value
         self.save()
+
+
+def read_bounded_int(config, keys: tuple, default: int, bounds: tuple[int, int]) -> int:
+    """Integer setting clamped to bounds; the default when it is missing or not a number."""
+    value = config.get(*keys) if config else None
+    try:
+        return max(bounds[0], min(bounds[1], int(value)))
+    except (TypeError, ValueError):
+        return default

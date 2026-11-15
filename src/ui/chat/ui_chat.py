@@ -14,7 +14,7 @@ from components.button import set_theme
 from components.font_scale_slider import FontScaleSlider
 from components.help_panel import HelpPanel
 from components.input_row import InputRow
-from components.mention_autocomplete import MentionAutocomplete
+from components.mention_autocomplete.autocomplete import MentionAutocomplete
 from components.toast import Toast
 from core.state.mentions_digest import MentionsDigest
 from core.state.self_ban import SelfBan

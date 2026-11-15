@@ -4,7 +4,16 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QHBoxLayout, QLineEdit, QSizePolicy, QWidget
 
 from components.flash_highlight import DURATION_KEYS, FlashLabel
-from components.mention_autocomplete import is_mention_autocomplete_enabled
+from components.mention_autocomplete.options import (
+    DEFAULT_RECENT_LIMIT,
+    DEFAULT_SUGGESTION_LIMIT,
+    is_autocomplete_enabled,
+    is_recent_shown,
+    recent_limit,
+    RECENT_LIMIT_RANGE,
+    suggestion_limit,
+    SUGGESTION_LIMIT_RANGE,
+)
 from helpers.browser import get_available_browsers
 from helpers.colors.color_utils import (
     get_input_colors,
@@ -133,6 +142,23 @@ class SettingsChatMixin:
             "Tab inserts the highlighted nickname.",
             "Введите @ и несколько букв ника (буквы можно пропускать: TW найдёт TolikWorkaholic). "
             "Tab вставляет выбранный ник.",
+        )
+        self.mention_recent_checkbox = self.add_checkbox(
+            input_layout, tr("Recent nicknames on a bare @", "Недавние ники по одному @"),
+            self._on_mention_recent_toggled,
+        )
+        self.tr_set(
+            self.mention_recent_checkbox.setToolTip,
+            "A bare @ lists the nicknames you inserted last, the newest is highlighted: @ then Tab.",
+            "Одиночный @ показывает ники, вставленные последними, самый свежий выделен: @ и Tab.",
+        )
+        self.mention_recent_spin = self.add_slider_spin_row(
+            input_layout, tr("Recent nicknames shown", "Недавних ников в списке"),
+            *RECENT_LIMIT_RANGE, self._on_mention_recent_changed, default=DEFAULT_RECENT_LIMIT,
+        )
+        self.mention_suggestion_spin = self.add_slider_spin_row(
+            input_layout, tr("Suggested nicknames shown", "Предлагаемых ников в списке"),
+            *SUGGESTION_LIMIT_RANGE, self._on_mention_suggestion_changed, default=DEFAULT_SUGGESTION_LIMIT,
         )
         self.input_hue_spin = self.add_slider_spin_row(
             input_layout, tr("Hue", "Оттенок"), 0, INPUT_HUE_MAX,
@@ -300,7 +326,14 @@ class SettingsChatMixin:
         )
 
         self.copy_username_checkbox.setChecked(bool(self.config.get("ui", "chat", "copy_include_username")))
-        self.mention_autocomplete_checkbox.setChecked(is_mention_autocomplete_enabled(self.config))
+        self.mention_autocomplete_checkbox.setChecked(is_autocomplete_enabled(self.config))
+        self.mention_recent_checkbox.setChecked(is_recent_shown(self.config))
+        for spin, value in (
+            (self.mention_recent_spin, recent_limit(self.config)),
+            (self.mention_suggestion_spin, suggestion_limit(self.config)),
+        ):
+            spin.setValue(value)
+            spin.linked_slider.setValue(value)
         self.copy_timestamp_checkbox.setChecked(bool(self.config.get("ui", "chat", "copy_include_timestamp")))
 
         chat_max_messages = self.config.get("ui", "chat", "max_messages")
@@ -394,6 +427,15 @@ class SettingsChatMixin:
 
     def _on_mention_autocomplete_toggled(self, checked: bool):
         self.config.set("ui", "chat", "mention_autocomplete", value=checked)
+
+    def _on_mention_recent_toggled(self, checked: bool):
+        self.config.set("ui", "chat", "mention_recent", value=checked)
+
+    def _on_mention_recent_changed(self, value: int):
+        self.config.set("ui", "chat", "mention_recent_limit", value=int(value))
+
+    def _on_mention_suggestion_changed(self, value: int):
+        self.config.set("ui", "chat", "mention_suggestion_limit", value=int(value))
 
     def _on_copy_username_toggled(self, checked: bool):
         self.config.set("ui", "chat", "copy_include_username", value=checked)

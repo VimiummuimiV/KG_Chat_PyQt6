@@ -7,7 +7,7 @@ from PyQt6.QtWidgets import QHBoxLayout, QVBoxLayout, QWidget
 
 from components.font_scale_slider import FontScaleSlider
 from components.input_row import InputRow
-from components.mention_autocomplete import MentionAutocomplete
+from components.mention_autocomplete.autocomplete import MentionAutocomplete
 from core.xmpp.client import XMPPClient
 from helpers.fonts.fonts import get_userlist_width
 from helpers.translate import on_language_changed, TranslatableMixin

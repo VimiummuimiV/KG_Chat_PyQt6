@@ -6,6 +6,9 @@ from typing import Optional, Pattern, Tuple
 from helpers.text.mention_parser import fold_nickname, keyword_pattern
 
 
+FUZZY_MIN_QUERY = 2  # a shorter query matches only the start of a nick
+
+
 def fuzzy_pattern(folded_query: str) -> Pattern:
     """Pattern selecting every line of a newline-joined nick list that contains the query letters in order."""
     letters = ".*?".join(keyword_pattern(letter) for letter in folded_query)
