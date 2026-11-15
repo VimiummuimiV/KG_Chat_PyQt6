@@ -140,7 +140,7 @@ class ChatHotkeysMixin:
                         in_menu = True
                         break
                     w = w.parentWidget()
-                if clicked and not in_menu and not isinstance(clicked, QLineEdit):
+                if clicked and not in_menu and not isinstance(clicked, QLineEdit) and not MentionAutocomplete.contains(clicked):
                     self.setFocus()
             except Exception:
                 pass

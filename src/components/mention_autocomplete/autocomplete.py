@@ -5,7 +5,7 @@ from typing import List, Optional, Tuple
 
 from PyQt6.QtCore import QEvent, QObject, QPoint, Qt
 from PyQt6.QtGui import QKeyEvent
-from PyQt6.QtWidgets import QAbstractItemView, QLineEdit, QListWidget, QListWidgetItem
+from PyQt6.QtWidgets import QAbstractItemView, QLineEdit, QListWidget, QListWidgetItem, QWidget
 
 from components.mention_autocomplete.options import (
     is_autocomplete_enabled,
@@ -43,6 +43,14 @@ class MentionAutocomplete(QObject):
     def is_open(cls) -> bool:
         """Whether suggestions are on screen; the global hotkeys then leave the keys to the input."""
         return cls._active is not None
+
+    @classmethod
+    def contains(cls, widget: Optional[QWidget]) -> bool:
+        """Whether the widget is the open suggestion list or lies inside it."""
+        active = cls._active
+        if active is None or widget is None:
+            return False
+        return widget is active._list or active._list.isAncestorOf(widget)
 
     def __init__(self, field: QLineEdit, config):
         super().__init__(field)
@@ -93,7 +101,7 @@ class MentionAutocomplete(QObject):
             self._list = QListWidget(self._field.window())
             self._list.setObjectName("mentionList")
             set_font_role(self._list, FontType.TEXT)
-            self._list.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+            self._list.setFocusProxy(self._field)  # a click on a suggestion must not take the focus from the field
             self._list.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
             self._list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
             self._list.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
@@ -117,8 +125,7 @@ class MentionAutocomplete(QObject):
         start = self._query[0]
         cursor = self._field.cursorPosition()
         text = self._field.text()
-        separator = ", " if start == 0 else " "  # a nick at the very start addresses the message
-        inserted = item.text() + separator
+        inserted = item.text() + ", "
         remember_mention(item.text())
         self._field.setText(text[:start] + inserted + text[cursor:])
         self._field.setCursorPosition(start + len(inserted))
