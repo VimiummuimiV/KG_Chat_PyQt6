@@ -1,20 +1,17 @@
 /* Nickname suggestions above the message input */
 QListWidget#mentionList {
     background: $panel_bg;
-    border: 2px solid $panel_border;
-    border-radius: 8px;
+    border: 1px solid $panel_border;
+    border-radius: 4px;
+    padding: 3px;
     outline: none;
 }
 
 QListWidget#mentionList::item {
-    padding: 4px 10px;
-    border: none;
-}
-
-QListWidget#mentionList::item:hover {
-    background: $btn_hover_bg;
+    padding: 5px 8px;
+    border-radius: 3px;
 }
 
 QListWidget#mentionList::item:selected {
-    background: $btn_active_bg;
+    background: $btn_hover_bg;
 }

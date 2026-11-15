@@ -1,6 +1,7 @@
 """Centralized cache system for avatars and user data"""
 
 import bisect
+import heapq
 import itertools
 import json
 import re
@@ -14,6 +15,10 @@ from helpers.colors.color_contrast import optimize_color_contrast
 from helpers.data import get_data_dir, get_state_dir
 from helpers.load import fetch_avatar_bytes, load_avatar_from_disk
 from helpers.text.mention_parser import fold_nickname
+from helpers.text.nickname_match import fuzzy_pattern, match_key
+
+
+_FUZZY_MIN_QUERY = 2
 
 
 class _CacheManager:
@@ -47,6 +52,7 @@ class _CacheManager:
         self._data: Dict[str, Dict] = {}          # user_id → {login, background?, light?, dark?}
         self._login_index: Dict[str, str] = {}    # login → user_id
         self._sorted_logins: List[Tuple[str, str]] = []  # (folded login, login), sorted: prefix search by bisect
+        self._logins_text: Optional[str] = None  # the logins joined by newlines, built on the first fuzzy search
         self._avatar_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="cache_avatar_loader")
         self._cache_lock = threading.Lock()
         self._data_path = get_state_dir() / "users.json"
@@ -113,23 +119,35 @@ class _CacheManager:
             return
         self._login_index[login] = user_id
         bisect.insort(self._sorted_logins, (fold_nickname(login), login))
+        self._logins_text = None
 
     def _remove_login(self, login: str) -> None:
         """Drop a login from both indexes; the caller holds the lock."""
         del self._login_index[login]
         del self._sorted_logins[bisect.bisect_left(self._sorted_logins, (fold_nickname(login), login))]
+        self._logins_text = None
 
-    def find_logins(self, prefix: str, limit: int) -> List[str]:
-        """Known logins starting with prefix (case-insensitive, е = ё), alphabetically, at most limit."""
-        key = fold_nickname(prefix)
+    def find_logins(self, query: str, limit: int) -> List[str]:
+        """Best known logins for a query (case-insensitive, е = ё), at most limit.
+
+        Prefix matches come first; with at least _FUZZY_MIN_QUERY letters the letters may also be
+        skipped (TW finds TolikWorkaholic), best matches first.
+        """
+        key = fold_nickname(query)
         with self._cache_lock:
             start = bisect.bisect_left(self._sorted_logins, (key,))
-            matches = []
+            prefixed = []
             for folded, login in itertools.islice(self._sorted_logins, start, start + limit):
                 if not folded.startswith(key):
                     break
-                matches.append(login)
-        return matches
+                prefixed.append(login)
+            if len(prefixed) >= limit or len(key) < _FUZZY_MIN_QUERY:
+                return prefixed
+            if self._logins_text is None:
+                self._logins_text = "\n".join(login for _, login in self._sorted_logins)
+            logins_text = self._logins_text
+        ranked = ((match_key(login, key), login) for login in fuzzy_pattern(key).findall(logins_text))
+        return [login for _, login in heapq.nsmallest(limit, (item for item in ranked if item[0] is not None))]
 
     def get_user_id(self, login: str) -> Optional[str]:
         with self._cache_lock:

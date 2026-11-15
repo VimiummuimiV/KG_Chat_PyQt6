@@ -4,6 +4,7 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QHBoxLayout, QLineEdit, QSizePolicy, QWidget
 
 from components.flash_highlight import DURATION_KEYS, FlashLabel
+from components.mention_autocomplete import is_mention_autocomplete_enabled
 from helpers.browser import get_available_browsers
 from helpers.colors.color_utils import (
     get_input_colors,
@@ -121,16 +122,17 @@ class SettingsChatMixin:
         input_header, input_content, input_layout = self.add_subsection(
             section, tr("⌨️ Input Field", "⌨️ Строка ввода")
         )
-        self.mention_suggest_checkbox = self.add_checkbox(
+        self.mention_autocomplete_checkbox = self.add_checkbox(
             input_layout,
-            tr("Suggest nicknames right after @ (without the first letter)",
-               "Подсказывать ники сразу после @ (без первой буквы)"),
-            self._on_mention_suggest_toggled,
+            tr("Nickname suggestions after @", "Подсказки ников после @"),
+            self._on_mention_autocomplete_toggled,
         )
         self.tr_set(
-            self.mention_suggest_checkbox.setToolTip,
-            "Off: suggestions appear after @ and the first letter. Tab inserts the highlighted nickname.",
-            "Выключено: подсказки появляются после @ и первой буквы. Tab вставляет выбранный ник.",
+            self.mention_autocomplete_checkbox.setToolTip,
+            "Type @ and a few letters of a nickname (letters may be skipped: TW finds TolikWorkaholic). "
+            "Tab inserts the highlighted nickname.",
+            "Введите @ и несколько букв ника (буквы можно пропускать: TW найдёт TolikWorkaholic). "
+            "Tab вставляет выбранный ник.",
         )
         self.input_hue_spin = self.add_slider_spin_row(
             input_layout, tr("Hue", "Оттенок"), 0, INPUT_HUE_MAX,
@@ -298,7 +300,7 @@ class SettingsChatMixin:
         )
 
         self.copy_username_checkbox.setChecked(bool(self.config.get("ui", "chat", "copy_include_username")))
-        self.mention_suggest_checkbox.setChecked(bool(self.config.get("ui", "chat", "mention_suggest_on_at")))
+        self.mention_autocomplete_checkbox.setChecked(is_mention_autocomplete_enabled(self.config))
         self.copy_timestamp_checkbox.setChecked(bool(self.config.get("ui", "chat", "copy_include_timestamp")))
 
         chat_max_messages = self.config.get("ui", "chat", "max_messages")
@@ -390,8 +392,8 @@ class SettingsChatMixin:
     def _on_parser_validate_usernames_toggled(self, checked: bool):
         self.config.set("chatlog_parser", "validate_usernames", value=checked)
 
-    def _on_mention_suggest_toggled(self, checked: bool):
-        self.config.set("ui", "chat", "mention_suggest_on_at", value=checked)
+    def _on_mention_autocomplete_toggled(self, checked: bool):
+        self.config.set("ui", "chat", "mention_autocomplete", value=checked)
 
     def _on_copy_username_toggled(self, checked: bool):
         self.config.set("ui", "chat", "copy_include_username", value=checked)

@@ -14,7 +14,7 @@ def fold_nickname(text: str) -> str:
     return text.lower().replace("ё", "е")
 
 
-def _keyword_pattern(keyword: str) -> str:
+def keyword_pattern(keyword: str) -> str:
     """Escaped keyword where е and ё match each other."""
     return re.sub("[еёЕЁ]", "[её]", re.escape(keyword))
 
@@ -23,7 +23,7 @@ def compile_mention_pattern(username: str, local_aliases: Iterable[str], global_
     """Case-insensitive whole-word pattern; the matched group name tells the nick, a local and a global alias apart."""
     groups = []
     for kind, keywords in ((MENTION_NICK, [username]), (MENTION_LOCAL, local_aliases), (MENTION_GLOBAL, global_aliases)):
-        patterns = [_keyword_pattern(keyword) for keyword in keywords if keyword]
+        patterns = [keyword_pattern(keyword) for keyword in keywords if keyword]
         if patterns:
             groups.append(f"(?P<{kind}>" + "|".join(patterns) + ")")
     if not groups:

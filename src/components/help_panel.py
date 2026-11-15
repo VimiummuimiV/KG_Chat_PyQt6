@@ -63,7 +63,7 @@ _CHAT_CTRL_KB = [
 ]
 
 _MENTION_KB = [
-    ("@ + letter", "Suggest nicknames while typing",     "Подсказки ников при вводе"),
+    ("@ + letters", "Suggest nicknames (letters may be skipped: TW)", "Подсказки ников (буквы можно пропускать: TW)"),
     ("Tab",        "Insert the highlighted nickname",    "Вставить выбранный ник"),
     ("↓ / Ctrl+N", "Next suggestion",                    "Следующая подсказка"),
     ("↑ / Ctrl+P", "Previous suggestion",                "Предыдущая подсказка"),

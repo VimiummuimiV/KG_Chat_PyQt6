@@ -19,6 +19,12 @@ _ARROW_STEPS = {Qt.Key.Key_Down: 1, Qt.Key.Key_Up: -1}
 _CTRL_STEP_KEYS = {Qt.Key.Key_N: 1, Qt.Key.Key_P: -1}
 
 
+def is_mention_autocomplete_enabled(config) -> bool:
+    """Whether the Settings page allows nickname suggestions (on unless switched off)."""
+    value = config.get("ui", "chat", "mention_autocomplete")
+    return True if value is None else bool(value)
+
+
 def find_mention(text: str, cursor: int) -> Optional[Tuple[int, str]]:
     """The @prefix that ends at the cursor as (index of the @, prefix), or None."""
     match = _MENTION_PATTERN.search(text, 0, cursor)
@@ -45,14 +51,11 @@ class MentionAutocomplete(QObject):
         field.textEdited.connect(self._refresh)
         field.cursorPositionChanged.connect(self._refresh)
 
-    def _suggest_without_letter(self) -> bool:
-        return bool(self._config.get("ui", "chat", "mention_suggest_on_at"))
-
     def _refresh(self, *_):
         if not self._field.hasFocus():
             return
         query = find_mention(self._field.text(), self._field.cursorPosition())
-        if query and not query[1] and not self._suggest_without_letter():
+        if query and not is_mention_autocomplete_enabled(self._config):
             query = None
         if query == self._query:
             return
@@ -81,6 +84,8 @@ class MentionAutocomplete(QObject):
         if self._list is None:
             self._list = QListWidget(self._field.window())
             self._list.setObjectName("mentionList")
+            self._list.setMouseTracking(True)
+            self._list.itemEntered.connect(self._list.setCurrentItem)
             set_font_role(self._list, FontType.TEXT)
             self._list.setFocusPolicy(Qt.FocusPolicy.NoFocus)
             self._list.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
