@@ -1,6 +1,6 @@
 """Parser config: search mode and date-mode switching."""
 
-from PyQt6.QtWidgets import QComboBox, QHBoxLayout, QLabel, QWidget
+from PyQt6.QtWidgets import QComboBox, QHBoxLayout, QLabel, QLineEdit, QWidget
 
 from components.button import create_icon_button
 from core.state.mention_aliases import mention_aliases
@@ -138,7 +138,7 @@ class ParserModesMixin:
             self.date_layout.addWidget(info)
 
         elif mode == "Date Range":
-            self._add_date_input(tr("Range:", "Диапазон:"), "range_dates", f"{DATE_PLACEHOLDER}  {DATE_PLACEHOLDER}")
+            self._add_date_input(tr("Range:", "Диапазон:"), "range_from_date", "range_to_date")
 
         elif mode == "From Start":
             info = QLabel(tr("Will parse from 2012-12-02 to today", "Парсинг с 2012-12-02 до сегодня"))
@@ -207,7 +207,7 @@ class ParserModesMixin:
         elif sub_mode == "From Date":
             self._add_date_input(tr("From:", "С:"), "mention_from_date")
         elif sub_mode == "Date Range":
-            self._add_date_input(tr("Range:", "Диапазон:"), "mention_range_dates", f"{DATE_PLACEHOLDER}  {DATE_PLACEHOLDER}")
+            self._add_date_input(tr("Range:", "Диапазон:"), "mention_range_from_date", "mention_range_to_date")
         elif sub_mode == "From Start":
             pass # No input needed
         elif sub_mode == "Last N Days":
@@ -218,21 +218,27 @@ class ParserModesMixin:
             container.setLayout(days_layout)
             self.date_layout.addWidget(container)
 
-    def _add_date_input(self, label_text: str, obj_name: str, placeholder: str = None):
-        """Add a date input field with calendar picker"""
-        layout, line_edit = self.create_input_row(label_text, placeholder or DATE_PLACEHOLDER, obj_name)
+    def _add_date_input(self, label_text: str, obj_name: str, to_obj_name: str = ""):
+        """Add a date input row with calendar picker; a second date field when to_obj_name is given"""
+        layout, line_edit = self.create_input_row(label_text, DATE_PLACEHOLDER, obj_name)
+        self._add_calendar_button(layout, line_edit)
 
-        # Add auto-format on blur
+        if to_obj_name:
+            to_edit = self._create_input(DATE_PLACEHOLDER, to_obj_name)
+            layout.addWidget(to_edit, stretch=1)
+            self._add_calendar_button(layout, to_edit)
+
+        container = QWidget()
+        container.setLayout(layout)
+        self.date_layout.addWidget(container)
+
+    def _add_calendar_button(self, layout: QHBoxLayout, line_edit: QLineEdit):
+        """Auto-format the field on blur and add its calendar button to the row"""
         line_edit.editingFinished.connect(lambda: self.auto_format_date(line_edit))
 
-        # Add calendar button
         calendar_button = create_icon_button(
             self.icons_path, "fill/calendar-fill.svg", "Select date",
             size_type="large", config=self.config
         )
         calendar_button.clicked.connect(lambda: self.show_date_picker(line_edit, calendar_button))
         layout.addWidget(calendar_button)
-
-        container = QWidget()
-        container.setLayout(layout)
-        self.date_layout.addWidget(container)

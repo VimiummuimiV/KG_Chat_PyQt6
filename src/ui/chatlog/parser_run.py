@@ -108,6 +108,17 @@ class ParserRunMixin:
         else:
             self.progress_label.setText(f"{start_date} - {current_date}")
 
+    def _read_date_range(self, from_name: str, to_name: str) -> Optional[tuple]:
+        """(from, to) texts of a range's two date fields, or None after warning about an empty one."""
+        from_input = self.findChild(QLineEdit, from_name)
+        to_input = self.findChild(QLineEdit, to_name)
+        if not from_input or not to_input or not from_input.text().strip() or not to_input.text().strip():
+            QMessageBox.warning(self,
+                tr("Missing Dates", "Нет дат"),
+                tr("Please enter both dates of the range", "Введите обе даты диапазона"))
+            return None
+        return from_input.text().strip(), to_input.text().strip()
+
     def _build_parse_config(self) -> Optional[ParseConfig]:
         """Build ParseConfig from UI inputs"""
         mode = self.mode_combo.currentData() or self.mode_combo.currentText()
@@ -139,17 +150,8 @@ class ParserRunMixin:
             to_date = datetime.now().strftime('%Y-%m-%d')
 
         elif mode == "Date Range":
-            range_input = self.findChild(QLineEdit, "range_dates")
-            if not range_input or not range_input.text().strip():
-                QMessageBox.warning(self,
-                    tr("Missing Dates", "Нет дат"),
-                    tr("Please enter date range in format YYYY-MM-DD YYYY-MM-DD", "Введите диапазон в формате ГГГГ-ММ-ДД ГГГГ-ММ-ДД"))
-                return None
-            dates = range_input.text().strip().split()
-            if len(dates) != 2:
-                QMessageBox.warning(self,
-                    tr("Invalid Format", "Неверный формат"),
-                    tr("Invalid range format - use YYYY-MM-DD YYYY-MM-DD", "Неверный формат диапазона — используйте ГГГГ-ММ-ДД ГГГГ-ММ-ДД"))
+            dates = self._read_date_range("range_from_date", "range_to_date")
+            if not dates:
                 return None
             from_date, to_date = dates
 
@@ -235,17 +237,8 @@ class ParserRunMixin:
                 to_date = datetime.now().strftime('%Y-%m-%d')
 
             elif sub_mode == "Date Range":
-                range_input = self.findChild(QLineEdit, "mention_range_dates")
-                if not range_input or not range_input.text().strip():
-                    QMessageBox.warning(self,
-                        tr("Missing Dates", "Нет дат"),
-                        tr("Please enter date range in format YYYY-MM-DD YYYY-MM-DD", "Введите диапазон в формате ГГГГ-ММ-ДД ГГГГ-ММ-ДД"))
-                    return None
-                dates = range_input.text().strip().split()
-                if len(dates) != 2:
-                    QMessageBox.warning(self,
-                        tr("Invalid Format", "Неверный формат"),
-                        tr("Invalid range format - use YYYY-MM-DD YYYY-MM-DD", "Неверный формат диапазона — используйте ГГГГ-ММ-ДД ГГГГ-ММ-ДД"))
+                dates = self._read_date_range("mention_range_from_date", "mention_range_to_date")
+                if not dates:
                     return None
                 from_date, to_date = dates
 
