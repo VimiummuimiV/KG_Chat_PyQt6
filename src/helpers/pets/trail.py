@@ -12,7 +12,7 @@ from helpers.pets.throwable import GRAVITY
 
 _MILLISECONDS = 1000
 _MINIMUM_SPEED = 300  # device pixels per second; a slower pet leaves nothing
-_SPACING_ART_PIXELS = 2  # the pet flies this far between two sparks
+_SPACING_ART_PIXELS = 3  # the pet flies this far between two sparks
 _MAXIMUM_SPARKS_PER_STEP = 64
 _LIFE_RANGE_MS = (450, 900)
 _KEPT_SPEED_SHARE = 0.25  # of the velocity of the pet that a spark keeps when it leaves
@@ -20,9 +20,9 @@ _SIDE_SPREAD_SHARE = 0.18  # of the speed of the pet: the most a spark is thrown
 _ALONG_SPREAD_SHARE = 0.12  # the same along the flight, which makes the streaks ragged
 _DRAG = 3.5  # per second: the sparks slow down
 _FALL = GRAVITY * 0.15  # sparks sag slower than the pets fall
-_SIZE_RANGE = (1, 3)  # art pixels
+_SIZE_RANGE = (1, 2)  # art pixels
 _SHRINK_AT = 0.5  # share of its life after which a spark loses a pixel
-_COLORS = tuple(QColor(code) for code in ("#fff6b8", "#ffd23f", "#ff9a1f", "#ff5252", "#a63a4a"))  # young to old
+_COLORS = tuple(QColor(code) for code in ("#eee3c2", "#d9c79e", "#c5ad8f", "#aa8f83", "#8d7b83"))  # young to old
 
 
 @dataclass
