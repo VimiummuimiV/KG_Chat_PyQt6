@@ -15,6 +15,7 @@ from helpers.pets.egg import Egg
 from helpers.pets.food import BITES_PER_FOOD, Food
 from helpers.pets.hunting import HuntingBehavior
 from helpers.pets.throwable import Throwable
+from helpers.pets.trail import Trail
 
 
 # Body lengths covered per cycle of the walk animation: ties speed to body size and animation tempo.
@@ -23,6 +24,7 @@ _WALK_STRIDE_RATIO = 0.8
 _GAIT_SPEED_FACTOR = {"walk": 1.0, "walk_fast": 1.6, "run": 2.5}
 _CARRY_SPEED_FACTOR = 2.0  # a predator slowed by its prey
 _WALL_BOUNCE = 0.5  # share of the sideways speed a flying pet keeps after hitting a side
+_FLIGHT_TURN_SPEED = 40  # device pixels per second of sideways speed from which a flying pet turns to that side
 _TURN_CHANCE = 0.4
 _CONTACT_ART_PIXELS = 2  # how close two pets must get to touch
 # state: (pick weight, minimum ms, maximum ms); running is not here: a pet runs only to chase, flee or reach food
@@ -71,6 +73,7 @@ class Pet(HuntingBehavior, DefenseBehavior, BounceBehavior, Throwable):
         self.kind = kind
         self.pixel_size = pixel_size
         self.stepped = True
+        self.trail = Trail(pixel_size)
         self._lays_eggs = kind.species in _LAYING_SPECIES
         self._egg_countdown_ms = random.randint(*_EGG_INTERVAL_MS)
         self._egg_due = False
@@ -135,8 +138,9 @@ class Pet(HuntingBehavior, DefenseBehavior, BounceBehavior, Throwable):
     def update(
         self, step_ms: int, line_width: int, area_height: int, cursor: CursorMotion | None = None
     ) -> None:
-        """Advance the pet by step_ms and keep it inside; a flying pet bounces off the cursor."""
+        """Advance the pet by step_ms and keep it inside; a flying pet bounces off the cursor, turns to its flight and leaves sparks."""
         self._line_width = line_width
+        self.trail.age(step_ms)
         if self._is_seized:
             return
         if self._is_away:
@@ -144,10 +148,12 @@ class Pet(HuntingBehavior, DefenseBehavior, BounceBehavior, Throwable):
             return
         if self.is_flying:
             self.fly_past_cursor(step_ms, area_height, cursor)
+            self._face_flight()
         elif not self.is_held:
             self._walk(step_ms)
         self.age_badge(step_ms)
         self._keep_inside(line_width)
+        self.trail.emit(self._exhaust_point(area_height) if self.is_flying else None, self.velocity, step_ms)
 
     def take_egg(self) -> Egg | None:
         """Return the egg the pet has just laid at its tail, if any."""
@@ -223,7 +229,25 @@ class Pet(HuntingBehavior, DefenseBehavior, BounceBehavior, Throwable):
 
     def land(self, impact_speed: float) -> None:
         super().land(impact_speed)
-        self._scare()
+        self._scare(keep_facing=True)
+
+    def _face_flight(self) -> None:
+        """Turn a flying pet to the side it moves to, as soon as it moves sideways at all."""
+        if self.is_flying and abs(self.velocity[0]) >= _FLIGHT_TURN_SPEED:
+            self._turn(self.velocity[0] > 0)
+
+    def _turn(self, facing_right: bool) -> None:
+        """Face a side without moving the body: the mirrored sprite sits differently inside its canvas."""
+        if facing_right == self._facing_right:
+            return
+        center_x = self.center_x
+        self._facing_right = facing_right
+        self.x += center_x - self.center_x
+
+    def _exhaust_point(self, area_height: int) -> tuple[float, float]:
+        """Return the x and the lift of the middle of the body, where the trail starts."""
+        center = self.rect(area_height).center()
+        return center.x(), area_height - center.y()
 
     def _maximum_lift(self, area_height: int) -> float:
         animation = self._current()[0]
@@ -266,12 +290,15 @@ class Pet(HuntingBehavior, DefenseBehavior, BounceBehavior, Throwable):
         if state in _GAIT_SPEED_FACTOR and random.random() < _TURN_CHANCE:
             self._facing_right = not self._facing_right
 
-    def _scare(self, away_from: float | None = None, duration_ms: tuple[int, int] = _SCARE_MS) -> None:
-        """Run around in panic for a moment, forgetting any food; run from the x away_from when given."""
+    def _scare(
+        self, away_from: float | None = None, duration_ms: tuple[int, int] = _SCARE_MS, keep_facing: bool = False
+    ) -> None:
+        """Run around in panic for a moment, forgetting any food; run from the x away_from when given, or on the way it faces."""
         self._abort_raid()
         self._meal = self._noticed = self._watching = self._chasing = None
         self._is_scared = True
-        self._facing_right = random.choice((True, False)) if away_from is None else self.center_x > away_from
+        if not keep_facing:
+            self._facing_right = random.choice((True, False)) if away_from is None else self.center_x > away_from
         self._start_state(RUN_STATE, random.randint(*duration_ms))
 
     def _walk(self, step_ms: int) -> None:

@@ -43,6 +43,7 @@ _RESPAWN_SHARE = 0.5  # a carried-off pet is replaced after this share of the ti
 _MAXIMUM_STEP_MS = 100  # a stall (sleep, window drag) must not make pets jump across the line
 _BOARD_SHADE = 150  # percent; the lower row of the board is the accent color darkened by this much
 _ANCHOR_EVENTS = (QEvent.Type.Move, QEvent.Type.Resize, QEvent.Type.Show, QEvent.Type.Hide)
+_TRAIL_KEY = "trail"  # the sparks of all trails are one item of the last picture
 
 
 def _tick_ms(frame_rate: int) -> int:
@@ -73,6 +74,7 @@ class PetOverlay(QWidget):
         self._cursor_point: QPoint | None = None  # where the cursor was on the previous tick
         self._board = CollisionBoard.for_pets(())
         self._items: dict = {}  # what was drawn last: where and which picture, to repaint only changes
+        self._sparks: list[tuple[QRect, QColor]] = []  # the squares of every trail, in device pixels
         self._mask = QRegion()
         self._clock = QElapsedTimer()
         self._timer = QTimer(self)
@@ -163,6 +165,8 @@ class PetOverlay(QWidget):
         painter.scale(1 / self.devicePixelRatioF(), 1 / self.devicePixelRatioF())  # draw in device pixels
         area_height = self._device_size()[1]
         changed = event.rect()
+        for rect, color in self._sparks:
+            painter.fillRect(rect, color)  # behind the pets: the trail starts at the middle of the body
         for body in self._bodies():
             item = self._items.get(body)
             if item is None or item[0].intersects(changed):
@@ -274,6 +278,13 @@ class PetOverlay(QWidget):
         board = self._board_rect()
         if board:
             items["board"] = (self._logical_rect(board), 0)
+        trails = [pet.trail for pet in self._pets if pet.is_visible and pet.trail.is_active]
+        self._sparks = [cell for trail in trails for cell in trail.cells(area_height)]
+        if self._sparks:
+            bounds = QRect()
+            for rect, _ in self._sparks:
+                bounds = bounds.united(rect)
+            items[_TRAIL_KEY] = (self._logical_rect(bounds), sum(trail.revision for trail in trails))
         dirty = QRegion()
         for key in self._items.keys() | items.keys():
             before, after = self._items.get(key), items.get(key)
@@ -285,7 +296,9 @@ class PetOverlay(QWidget):
             return
         strip = QRect(0, self.height() - self._anchor.height(), self.width(), self._anchor.height())
         mask = QRegion(strip)
-        for rect, _ in items.values():
+        sparks = (self._logical_rect(rect) for rect, _ in self._sparks)  # a box around the trail would take the mouse from the messages
+        rects = [rect for key, (rect, _) in items.items() if key != _TRAIL_KEY]
+        for rect in (*rects, *sparks):
             if not strip.contains(rect.intersected(self.rect())):
                 mask += rect
         if mask != self._mask:
@@ -398,7 +411,7 @@ class PetOverlay(QWidget):
 
     def _adjust_tick_rate(self) -> None:
         """Tick fast while a body is held or in the air, slowly otherwise."""
-        is_action = any(body.is_flying or body.is_held for body in self._bodies())
+        is_action = any(body.is_flying or body.is_held for body in self._bodies()) or any(pet.trail.is_active for pet in self._pets)
         interval = self._action_tick_ms if is_action else self._ground_tick_ms
         if interval != self._timer.interval():
             self._timer.setInterval(interval)

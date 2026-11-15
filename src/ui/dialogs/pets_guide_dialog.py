@@ -92,6 +92,10 @@ _MOUSE = (
         "a pixel board follows the cursor while the pet is above it, until the mouse picks up an egg; each bounce adds to the counter in the top left corner",
         "за курсором следует пиксельная доска, пока питомец выше, пока мышь не возьмёт яйцо; каждый отскок прибавляет счётчик в левом верхнем углу",
     )),
+    (("In the air", "В воздухе"), (
+        "the pet turns to the side it flies to, lands facing the same way and leaves a trail of pixel sparks",
+        "питомец поворачивается в сторону полёта, приземляется лицом туда же и оставляет шлейф из пиксельных искр",
+    )),
     (("Record", "Рекорд"), (
         f"a throw with more bounces than ever before on this account, from {MINIMUM_RECORD}, sets a record: a trophy and confetti that stay until Esc, the close button, the next throw or another page opening",
         f"бросок с большим числом отскоков, чем когда-либо у этого аккаунта, от {MINIMUM_RECORD}, ставит рекорд: кубок и конфетти, которые висят до Esc, кнопки закрытия, следующего броска или открытия другой страницы",
