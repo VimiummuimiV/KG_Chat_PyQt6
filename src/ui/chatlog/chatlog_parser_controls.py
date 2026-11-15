@@ -1,6 +1,6 @@
 """ChatlogWidget: parser mode and parse progress handling."""
 
-from datetime import datetime
+from datetime import datetime, time
 
 from PyQt6.QtWidgets import QMessageBox
 
@@ -128,6 +128,7 @@ class ChatlogParserControlsMixin:
             self.model.clear()
             self.all_messages = []
             self.temp_parsed_messages = []
+            self.parsed_message_count = 0
             self.last_parsed_date = None
             self.update_confirm_search_button()
         else:
@@ -207,17 +208,18 @@ class ChatlogParserControlsMixin:
             self.last_parsed_date = date
 
         # Convert ChatMessage to MessageData - msg already has all fields
+        day = datetime.strptime(date, "%Y-%m-%d").date()
         for msg in messages:
             try:
-                t = datetime.strptime(msg.timestamp, "%H:%M:%S").time()
-                timestamp = datetime.combine(datetime.strptime(date, "%Y-%m-%d").date(), t)
+                hours, minutes, seconds = map(int, msg.timestamp.split(":"))
+                timestamp = datetime.combine(day, time(hours, minutes, seconds))
                 msg_data = MessageData(timestamp, msg.username, msg.message, None, msg.username)
                 self.temp_parsed_messages.append(msg_data)
+                self.parsed_message_count += 1
             except Exception as e:
                 print(f"Error processing message: {e}")
 
-        # Check if exceeded limit
-        message_count = sum(1 for m in self.temp_parsed_messages if not m.is_separator)
+        message_count = self.parsed_message_count
         if message_count > self.model.max_messages and not self.exceeded_max_messages:
             self.exceeded_max_messages = True
             self.info_label.setText(tr(

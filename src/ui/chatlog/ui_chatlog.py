@@ -7,7 +7,6 @@ from PyQt6.QtCore import pyqtSignal, Qt, QTimer
 from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
-    QListView,
     QSizePolicy,
     QSplitter,
     QStackedWidget,
@@ -36,8 +35,8 @@ from ui.chatlog.chatlog_split_view import ChatlogSplitViewMixin
 from ui.chatlog.ui_chatlogs_parser import ChatlogsParserConfigWidget
 from ui.messages.message_delegate import MessageDelegate
 from ui.messages.message_interactions import MessageInteractions
+from ui.messages.message_list_view import MessageListView
 from ui.messages.message_model import MessageListModel
-from ui.messages.message_view_geometry import MessageViewGeometry
 
 
 class ChatlogWidget(
@@ -79,9 +78,11 @@ class ChatlogWidget(
         self.filtered_usernames = set()
         self.search_text = ""
         self.filter_mentions = False 
+        self.search_index = None  # MessageSearchIndex of all_messages, built by the first text search
         self.all_messages = []
         self.last_parsed_date = None
         self.temp_parsed_messages = [] # Temp storage during parsing
+        self.parsed_message_count = 0
         self.is_parsing = False  # Track if we're in parse mode
         self.exceeded_max_messages = False
         self.split_chatlog_widget = None  # Side pane showing full chatlog for a clicked date
@@ -126,6 +127,15 @@ class ChatlogWidget(
 
         # Timestamp clicks stay in MessageDelegate.editorEvent, so handle_timestamp=False
         self.interactions = MessageInteractions(self.list_view, self.delegate, handle_timestamp=False)
+
+    @property
+    def all_messages(self) -> list:
+        return self._all_messages
+
+    @all_messages.setter
+    def all_messages(self, messages: list):
+        self._all_messages = messages
+        self.search_index = None
 
     def set_account(self, account):
         """Update account for parser widget"""
@@ -281,18 +291,11 @@ class ChatlogWidget(
         layout.addWidget(self.content_splitter, stretch=1)
 
         # List view page
-        self.list_view = QListView()
+        self.list_view = MessageListView()
         self.list_view.setModel(self.model)
         self.list_view.setItemDelegate(self.delegate)
         self.delegate.set_list_view(self.list_view)
-        self.view_geometry = MessageViewGeometry(self.list_view, self.delegate)
 
-        self.list_view.setVerticalScrollMode(QListView.ScrollMode.ScrollPerPixel)
-        self.list_view.setUniformItemSizes(False)
-        self.list_view.setSpacing(0)
-
-        self.list_view.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.list_view.setSelectionMode(QListView.SelectionMode.NoSelection)
         self.list_view.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.list_view.setMouseTracking(True)
         self.list_view.viewport().setMouseTracking(True)

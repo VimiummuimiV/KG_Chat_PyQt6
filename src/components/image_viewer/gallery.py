@@ -43,7 +43,10 @@ def _iter_images(messages: Iterable) -> Iterator[GalleryImage]:
     """Every image link of the messages in order."""
     seen = set()
     for message in messages:
-        for match in URL_PATTERN.finditer(getattr(message, "body", "") or ""):
+        body = getattr(message, "body", "") or ""
+        if "://" not in body:
+            continue
+        for match in URL_PATTERN.finditer(body):
             url = extract_image_url(match.group(0))
             if not url or (url, id(message)) in seen:
                 continue

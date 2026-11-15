@@ -42,32 +42,27 @@ def parse_search_text(text: str):
     return user_filter, message_filter, True
 
 
-def _message_matches_search(msg_data, search_text: str) -> bool:
-    """Match a message against plain text or U:/M: prefix query."""
-    if not search_text:
-        return True
+class SearchQuery:
+    """A search text parsed once: plain text, or U:/M: prefixes for the users and the message text.
 
-    users, message_filter, is_prefix = parse_search_text(search_text)
-    username = (msg_data.username or "").lower()
-    body = (msg_data.body or "").lower()
+    The one place that decides whether a message matches, for the live chat, the chatlog and the parser results."""
 
-    if is_prefix:
-        if users and username not in {u.lower() for u in users}:
+    def __init__(self, text: str):
+        self.text = (text or "").strip()
+        self.users, self.message_text, self.is_prefix_mode = parse_search_text(self.text)
+        self._users_lower = {user.lower() for user in self.users}
+        self.needle = self.message_text if self.is_prefix_mode else self.text.lower()  # lower-cased text a message must contain
+        self.highlight_text = self.message_text if self.is_prefix_mode else self.text
+
+    def matches(self, username: str, body: str) -> bool:
+        """Whether a message of this user with this body passes the query (case-insensitive)."""
+        if self.is_prefix_mode and self._users_lower and (username or "").lower() not in self._users_lower:
             return False
-        if message_filter and message_filter not in body:
-            return False
-        return True
-
-    search_lower = search_text.lower()
-    return search_lower in username or search_lower in body
-
-
-def _highlight_from_search(search_text: str) -> str:
-    """Text to highlight in the delegate for the current query."""
-    users, message_filter, is_prefix = parse_search_text(search_text)
-    if is_prefix:
-        return message_filter
-    return search_text
+        if not self.needle:
+            return True
+        if self.is_prefix_mode:
+            return self.needle in (body or "").lower()
+        return self.needle in (username or "").lower() or self.needle in (body or "").lower()
 
 
 class MessageSearchBar(QWidget):
@@ -97,7 +92,7 @@ class MessageSearchBar(QWidget):
         self._get_messages = get_messages
         self._set_messages = set_messages
         self._filter_enabled = get_messages is not None and set_messages is not None
-        self.search_text = ""
+        self.query = SearchQuery("")
         self.visible_state = bool(config.get("ui", config_key) or False)
         self._backup = None
 
@@ -144,7 +139,7 @@ class MessageSearchBar(QWidget):
         self.field.blockSignals(True)
         self.field.clear()
         self.field.blockSignals(False)
-        self.search_text = ""
+        self.query = SearchQuery("")
         self.text_changed.emit("")
         if self._backup is not None and self._set_messages is not None:
             self._set_messages(self._backup)
@@ -153,7 +148,7 @@ class MessageSearchBar(QWidget):
     def reset(self):
         """Drop backup/query state without restoring the model (caller already cleared it)."""
         self._backup = None
-        self.search_text = ""
+        self.query = SearchQuery("")
         if self.visible_state:
             self.field.blockSignals(True)
             self.field.clear()
@@ -161,10 +156,10 @@ class MessageSearchBar(QWidget):
         self.text_changed.emit("")
 
     def _matches(self, msg_data) -> bool:
-        return _message_matches_search(msg_data, self.search_text)
+        return self.query.matches(msg_data.username, msg_data.body)
 
     def highlight_text(self) -> str:
-        return _highlight_from_search(self.search_text)
+        return self.query.highlight_text
 
     def register_message(self, msg_data, max_messages: int) -> bool:
         """Sync backup with a new message; returns whether it should appear in the list now."""
@@ -181,11 +176,11 @@ class MessageSearchBar(QWidget):
             self._backup = [m for m in self._backup if not predicate(m)]
 
     def _on_text_changed(self, text: str):
-        self.search_text = text.strip()
-        self.text_changed.emit(self.search_text)
+        self.query = SearchQuery(text)
+        self.text_changed.emit(self.query.text)
         if not self._filter_enabled:
             return
-        if not self.search_text:
+        if not self.query.text:
             if self._backup is not None:
                 self._set_messages(self._backup)
                 self._backup = None

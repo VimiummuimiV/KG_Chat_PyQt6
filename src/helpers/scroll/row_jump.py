@@ -65,7 +65,10 @@ class RowJumpGroup(QObject):
         """Collect the accepted rows and show the buttons only when there are some."""
         model = self._list_view.model()
         count = model.rowCount() if model else 0
-        self._rows = [row for row in range(count) if self._is_target(self._row_data(row))]
+        rows_data = getattr(model, "stored_messages", None)  # a plain list is far cheaper to walk than model.data per row
+        if rows_data is None:
+            rows_data = (self._row_data(row) for row in range(count))
+        self._rows = [row for row, data in enumerate(rows_data) if self._is_target(data)]
         self._cursor = None
         is_visible = bool(self._rows)
         for entry in self._entries:

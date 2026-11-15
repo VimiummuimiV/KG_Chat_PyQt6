@@ -301,7 +301,6 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
         # Animation support for GIF emoticons
         self.list_view = None
         self._model = None
-        self.exact_rows: Optional[tuple] = None  # (first, last) row measured exactly during a draft relayout, None for all rows
         self._animated_rows = set()
         self._animation_frames = {}
         self.animation_timer = QTimer()
@@ -505,8 +504,6 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
         width = self._row_width(option)
         if not self.message_renderer:
             return QSize(width, 50)
-        if self.exact_rows is not None and msg.layout_cache is not None and not self.exact_rows[0] <= index.row() <= self.exact_rows[1]:
-            return QSize(width, msg.layout_cache.height)  # far from the screen: the old height does until the resize settles
         gutter_left, gutter_right = self._row_gutter(msg)
         content_width = width - gutter_left - gutter_right
         if msg.is_presence_log:

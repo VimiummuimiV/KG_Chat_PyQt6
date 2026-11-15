@@ -47,7 +47,7 @@ class MessageData:
             return False
         if self.is_system or self.is_private or self.is_ban or self.is_competition or self.is_presence_log:
             return False
-        return fold_nickname(self.username) != fold_nickname(username) and mention_aliases.is_mentioned(username, self.body)
+        return mention_aliases.is_mentioned(username, self.body) and fold_nickname(self.username) != fold_nickname(username)
 
 
 class MessageListModel(QAbstractListModel):

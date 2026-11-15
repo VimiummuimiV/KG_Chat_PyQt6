@@ -29,12 +29,12 @@ DEFAULTS = {
         "log_height_collapsed": 32,
     },
     "chatlog": {
-        "max_messages": 50000,
+        "max_messages": 1000000,
         "max_messages_min": 1000,
-        "max_messages_max": 100000,
-        "live_search_max_messages": 5000,
+        "max_messages_max": 5000000,
+        "live_search_max_messages": 100000,
         "live_search_max_messages_min": 500,
-        "live_search_max_messages_max": 50000,
+        "live_search_max_messages_max": 5000000,
         "filtered_click_action": "reveal",
     },
     "chat": {

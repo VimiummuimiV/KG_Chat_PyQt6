@@ -102,9 +102,9 @@ class SettingsChatMixin:
             self._on_chatlog_max_messages_changed,
             default=DEFAULTS["chatlog"]["max_messages"],
         )
-        self.chatlog_max_messages_spin.setSingleStep(1000)
-        self.chatlog_max_messages_spin.linked_slider.setSingleStep(1000)
-        self.chatlog_max_messages_spin.linked_slider.setPageStep(5000)
+        self.chatlog_max_messages_spin.setSingleStep(10000)
+        self.chatlog_max_messages_spin.linked_slider.setSingleStep(10000)
+        self.chatlog_max_messages_spin.linked_slider.setPageStep(100000)
 
         self.chatlog_live_search_spin = self.add_slider_spin_row(
             limits_layout, tr("Chatlog live search up to (messages)", "Живой поиск чатлога до (сообщений)"),
@@ -113,9 +113,9 @@ class SettingsChatMixin:
             self._on_chatlog_live_search_max_changed,
             default=DEFAULTS["chatlog"]["live_search_max_messages"],
         )
-        self.chatlog_live_search_spin.setSingleStep(500)
-        self.chatlog_live_search_spin.linked_slider.setSingleStep(500)
-        self.chatlog_live_search_spin.linked_slider.setPageStep(2000)
+        self.chatlog_live_search_spin.setSingleStep(10000)
+        self.chatlog_live_search_spin.linked_slider.setSingleStep(10000)
+        self.chatlog_live_search_spin.linked_slider.setPageStep(100000)
 
         self.chat_max_messages_spin = self.add_slider_spin_row(
             limits_layout, tr("Chat messages display limit", "Лимит отображения сообщений чата"),

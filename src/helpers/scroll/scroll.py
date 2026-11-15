@@ -1,5 +1,5 @@
 from PyQt6.QtCore import QPoint, QTimer
-from PyQt6.QtWidgets import QAbstractItemView, QListView, QScrollArea
+from PyQt6.QtWidgets import QAbstractItemView, QScrollArea
 
 
 def is_separator_row(data) -> bool:
@@ -39,8 +39,8 @@ def scroll(widget, mode="bottom", pos=0.0, delay=10, target_row=None):
         except RuntimeError:
             return  # Widget deleted during access
 
-        # QListView - use model-based scrolling when possible
-        if isinstance(widget, QListView):
+        # Item views - use model-based scrolling when possible
+        if isinstance(widget, QAbstractItemView):
             try:
                 m = widget.model()
                 if not m or not m.rowCount():

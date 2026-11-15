@@ -1,10 +1,12 @@
 """ChatlogWidget: search bar, mention and username filters."""
 
 import re
+from bisect import bisect_right
 from datetime import datetime
 
 from components.button import set_button_icon
-from components.search import parse_search_text
+from components.search import SearchQuery
+from core.chatlogs.search_index import MessageSearchIndex
 from core.state.mention_aliases import mention_aliases
 from helpers.dates import parse_short_date
 from helpers.translate import tr
@@ -63,8 +65,8 @@ class ChatlogSearchMixin:
 
         self.apply_filter()
 
-    def parse_current_search_text(self):
-        return parse_search_text(self.search_text)
+    def current_search_query(self) -> SearchQuery:
+        return SearchQuery(self.search_text)
 
     def _clear_search(self):
         self.search.clear()
@@ -80,33 +82,26 @@ class ChatlogSearchMixin:
         self.apply_filter()
         self.filter_changed.emit(self.filtered_usernames)
 
-    def _message_matches_filters(self, msg, search_users, search_message, is_prefix_mode) -> bool:
+    def _message_matches_filters(self, msg, query: SearchQuery) -> bool:
         if self.filter_mentions and self.account and self.account.get('chat_username'):
             if not mention_aliases.is_mentioned(self.account.get('chat_username'), msg.body):
                 return False
+        if not query.is_prefix_mode and self.filtered_usernames and msg.username not in self.filtered_usernames:
+            return False
+        return query.matches(msg.username, msg.body)
 
-        if is_prefix_mode:
-            if search_users and msg.username.lower() not in search_users:
-                return False
-            if search_message and search_message not in msg.body.lower():
-                return False
-        else:
-            if self.filtered_usernames and msg.username not in self.filtered_usernames:
-                return False
-            if self.search_text:
-                search_lower = self.search_text.lower()
-                if search_lower not in msg.username.lower() and search_lower not in msg.body.lower():
-                    return False
-        return True
-
-    def filter_messages(self, messages, search_users, search_message, is_prefix_mode):
+    def filter_messages(self, messages, query: SearchQuery):
         """Keep matching messages together with the date separator that precedes them.
-        search_users/search_message/is_prefix_mode come from _parse_search_text(),
-        parsed once by the caller and shared - never re-parsed here."""
+        The query is parsed once by the caller and shared - never re-parsed here."""
         if not self.has_active_search_or_filter():
             return list(messages)
 
-        search_users_lower = {u.lower() for u in search_users} if search_users else set()
+        if query.needle and messages is self.all_messages:
+            if self.search_index is None:
+                self.search_index = MessageSearchIndex(messages)
+            rows = self.search_index.rows_containing(query.needle)
+            if rows is not None:
+                return self._filter_rows(messages, rows, query)
         result = []
         pending_separator = None
         previous_shown = None
@@ -116,7 +111,7 @@ class ChatlogSearchMixin:
                 pending_separator = msg
                 previous_shown = None
                 continue
-            if self._message_matches_filters(msg, search_users_lower, search_message, is_prefix_mode):
+            if self._message_matches_filters(msg, query):
                 if pending_separator is not None:
                     result.append(pending_separator)
                     pending_separator = None
@@ -135,6 +130,29 @@ class ChatlogSearchMixin:
                 hidden_since_previous = True
         return result
 
+    def _filter_rows(self, messages, rows, query: SearchQuery):
+        """filter_messages for a text search: checks only the rows that contain the text, the result is the same."""
+        separator_rows = self.search_index.separator_rows
+        result = []
+        previous_row = None
+        shown_separator_row = None
+        for row in rows:
+            msg = messages[row]
+            if not self._message_matches_filters(msg, query):
+                continue
+            separator_index = bisect_right(separator_rows, row) - 1
+            if separator_index >= 0 and separator_rows[separator_index] != shown_separator_row:
+                shown_separator_row = separator_rows[separator_index]
+                result.append(messages[shown_separator_row])
+            previous = messages[previous_row] if previous_row is not None else None
+            msg.joins_previous = previous_row == row - 1 and previous.username == msg.username
+            msg.joins_next = False
+            if previous is not None:
+                previous.joins_next = msg.joins_previous
+            previous_row = row
+            result.append(msg)
+        return result
+
     def apply_filter(self):
         self.list_view.setUpdatesEnabled(False)
         self.model.clear()
@@ -144,11 +162,11 @@ class ChatlogSearchMixin:
             self.update_copy_save_tooltips()
             return
 
-        search_users, search_message, is_prefix_mode = self.parse_current_search_text()
-        self.delegate.set_highlight_text(search_message if is_prefix_mode else self.search_text)
+        query = self.current_search_query()
+        self.delegate.set_highlight_text(query.highlight_text)
         self.delegate.set_continuity_rails(self.has_active_search_or_filter())
         self.clear_anchors()
-        messages_to_show = self.filter_messages(self.all_messages, search_users, search_message, is_prefix_mode)
+        messages_to_show = self.filter_messages(self.all_messages, query)
         self.model.set_messages(messages_to_show)
         self.list_view.setUpdatesEnabled(True)
         self.update_copy_save_tooltips()
@@ -159,11 +177,11 @@ class ChatlogSearchMixin:
         filters = []
         if self.filter_mentions:
             filters.append("mentions only")
-        if is_prefix_mode:
-            if search_users:
-                filters.append(f"users: {', '.join(sorted(search_users))}")
-            if search_message:
-                filters.append(f"message: '{search_message}'")
+        if query.is_prefix_mode:
+            if query.users:
+                filters.append(f"users: {', '.join(sorted(query.users))}")
+            if query.message_text:
+                filters.append(f"message: '{query.message_text}'")
         else:
             if self.filtered_usernames:
                 filters.append(f"users: {', '.join(sorted(self.filtered_usernames))}")

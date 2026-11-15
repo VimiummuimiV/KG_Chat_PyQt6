@@ -4,7 +4,7 @@ from datetime import datetime
 from types import SimpleNamespace
 
 from PyQt6.QtCore import pyqtSignal, Qt
-from PyQt6.QtWidgets import QListView, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QVBoxLayout, QWidget
 
 from components.search import MessageSearchBar
 from helpers.cache import get_cache
@@ -17,8 +17,8 @@ from helpers.translate import on_language_changed, TranslatableMixin
 from helpers.users.presence_log import add_presence_entry, presence_entries_to_text
 from ui.messages.message_delegate import MessageDelegate
 from ui.messages.message_interactions import MessageInteractions
+from ui.messages.message_list_view import MessageListView
 from ui.messages.message_model import MessageData, MessageListModel
-from ui.messages.message_view_geometry import MessageViewGeometry
 from ui.settings.settings_options import DEFAULTS
 
 
@@ -151,20 +151,12 @@ class MessagesWidget(TranslatableMixin, QWidget):
             )
             layout.addWidget(self.search)
 
-        self.list_view = QListView()
+        self.list_view = MessageListView()
         self.list_view.setModel(self.model)
         self.list_view.setItemDelegate(self.delegate)
         self.delegate.set_list_view(self.list_view)
-        self.view_geometry = MessageViewGeometry(self.list_view, self.delegate)
 
-        self.list_view.setVerticalScrollMode(QListView.ScrollMode.ScrollPerPixel)
-        self.list_view.setUniformItemSizes(False)
-        self.list_view.setSpacing(0)
-
-        self.list_view.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.list_view.setSelectionMode(QListView.SelectionMode.NoSelection)
         self.list_view.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self.list_view.setWordWrap(False)
         self.list_view.setMouseTracking(True)
         self.list_view.viewport().setMouseTracking(True)
 

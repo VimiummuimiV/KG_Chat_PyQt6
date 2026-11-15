@@ -5,7 +5,6 @@ from PyQt6.QtWidgets import (
     QAbstractItemView,
     QApplication,
     QGraphicsOpacityEffect,
-    QListView,
     QSizePolicy,
     QSpacerItem,
     QVBoxLayout,
@@ -73,7 +72,7 @@ class ScrollButtonsPanel(QObject):
         mentions=True adds prev/next-mention buttons for a list of MessageData whose
         delegate knows the own username; they appear only while a mention is in the list."""
         super().__init__(parent)  # Parent the QObject properly
-        self.list_view = list_view  # QListView or QScrollArea
+        self.list_view = list_view  # item view or QScrollArea
 
         # Paths
         self.icons_path = get_resource_dir("icons")
@@ -234,7 +233,7 @@ class ScrollButtonsPanel(QObject):
 
     def _page_scroll(self, direction: int):
         """Scroll by one page. For QListView uses whole rows; for QScrollArea uses scrollbar page step."""
-        if isinstance(self.list_view, QListView):
+        if isinstance(self.list_view, QAbstractItemView):
             model = self.list_view.model()
             if not model or not model.rowCount():
                 return

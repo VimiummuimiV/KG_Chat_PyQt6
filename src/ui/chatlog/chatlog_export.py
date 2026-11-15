@@ -26,8 +26,7 @@ class ChatlogExportMixin:
         filter is active, otherwise the full parsed log."""
         if not self.has_active_search_or_filter():
             return self.all_messages
-        search_users, search_message, is_prefix_mode = self.parse_current_search_text()
-        return self.filter_messages(self.all_messages, search_users, search_message, is_prefix_mode)
+        return self.filter_messages(self.all_messages, self.current_search_query())
 
     def _format_messages_export(self, messages):
         text_lines = []
