@@ -14,7 +14,7 @@ from helpers.fonts.fonts import FontType, set_font_role
 _MAX_SUGGESTIONS = 8
 _POPUP_WIDTH = 260
 _POPUP_GAP = 4
-_MENTION_PATTERN = re.compile(r"(?<!\S)@([^\s@]*)$")
+_MENTION_PATTERN = re.compile(r"(?<!\S)@([^\s@]+)$")
 _ARROW_STEPS = {Qt.Key.Key_Down: 1, Qt.Key.Key_Up: -1}
 _CTRL_STEP_KEYS = {Qt.Key.Key_N: 1, Qt.Key.Key_P: -1}
 
