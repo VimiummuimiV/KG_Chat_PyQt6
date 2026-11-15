@@ -45,6 +45,7 @@ class Toast(QFrame):
         super().__init__(host)
         self._host = host
         self._is_dark_fn = is_dark_fn
+        self._kind = None
         self._progress = 0.0
         self._dodge = 0.0
         self._is_dodged = False
@@ -82,7 +83,26 @@ class Toast(QFrame):
         self.hide()
 
     def show_message(self, text: str, kind: ToastKind = ToastKind.INFO, duration_ms: int = DEFAULT_DURATION_MS) -> None:
-        """Show the text in the colors of the kind and keep it fully visible for duration_ms."""
+        """Show the text in the colors of the kind and keep it fully visible for duration_ms.
+
+        A toast of the same kind that is still on screen only gets the new text and a fresh duration."""
+        is_update = self.isVisible() and kind is self._kind
+        if not is_update:
+            self._apply_kind(kind)
+            self._dodge_animation.stop()
+            self._dodge = 0.0
+            self._is_dodged = False
+        self._text_label.setText(text)
+        self.adjustSize()
+        self._animation.stop()
+        self._start_animation(duration_ms, self._progress if is_update else 0.0)
+        self.show()
+        self.raise_()
+        self._animation.start()
+        self._cursor_timer.start()
+
+    def _apply_kind(self, kind: ToastKind) -> None:
+        self._kind = kind
         icon_name, base_color = kind.value
         background, foreground, border = tinted_chip_colors(base_color, self._is_dark_fn())
         self.setStyleSheet(
@@ -91,26 +111,18 @@ class Toast(QFrame):
         )
         icon = render_svg_icon(get_resource_dir("icons") / icon_name, _ICON_SIZE, color=foreground)
         self._icon_label.setPixmap(icon.pixmap(_ICON_SIZE, _ICON_SIZE))
-        self._text_label.setText(text)
-        self.adjustSize()
 
-        total_ms = _ENTER_MS + duration_ms + _EXIT_MS
-        self._animation.stop()
-        self._dodge_animation.stop()
-        self._dodge = 0.0
-        self._is_dodged = False
+    def _start_animation(self, duration_ms: int, start_progress: float) -> None:
+        """Rise from start_progress to fully visible, hold for duration_ms, then fade out."""
+        enter_ms = round(_ENTER_MS * (1.0 - start_progress))
+        total_ms = enter_ms + duration_ms + _EXIT_MS
+        key_values = [(0.0, start_progress)]
+        if enter_ms:
+            key_values.append((enter_ms / total_ms, 1.0))
+        key_values += [(1.0 - _EXIT_MS / total_ms, 1.0), (1.0, 0.0)]
         self._animation.setDuration(total_ms)
-        self._animation.setKeyValues([
-            (0.0, 0.0),
-            (_ENTER_MS / total_ms, 1.0),
-            (1.0 - _EXIT_MS / total_ms, 1.0),
-            (1.0, 0.0),
-        ])
-        self._apply_progress(0.0)
-        self.show()
-        self.raise_()
-        self._animation.start()
-        self._cursor_timer.start()
+        self._animation.setKeyValues(key_values)
+        self._apply_progress(start_progress)
 
     def eventFilter(self, watched, event) -> bool:
         if watched is self._host and event.type() == QEvent.Type.Resize and self.isVisible():
