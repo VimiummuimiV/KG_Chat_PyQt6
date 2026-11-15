@@ -13,6 +13,7 @@ from PyQt6.QtWidgets import (
 )
 
 from components.button import create_disabled_icon, create_icon_button
+from components.toast import show_toast, ToastKind
 from helpers.config import Config
 from helpers.data import get_resource_dir
 from helpers.scroll.row_jump import RowJumpGroup, set_entry_enabled
@@ -25,6 +26,7 @@ _OPACITY_VISIBLE  = 1.0
 _FADE_DURATION    = 180
 _BUTTON_GAP       = 6
 _REVEAL_PADDING   = 150 
+_JUMP_TOAST_MS    = 5000
 
 # Top-to-bottom order, matching the on-screen stack: full-up, page-up, page-down, full-down
 # tooltips: (en, ru) resolved at button creation
@@ -44,9 +46,14 @@ _DATE_JUMP_ACTIONS = (
 )
 
 _MENTION_JUMP_ACTIONS = (
-    ("fill/at-arrow-up-fill.svg",   "Previous mention", "Предыдущее упоминание"),
-    ("fill/at-arrow-down-fill.svg", "Next mention",     "Следующее упоминание"),
+    ("line/at-arrow-up-line.svg",   "Previous mention", "Предыдущее упоминание"),
+    ("line/at-arrow-down-line.svg", "Next mention",     "Следующее упоминание"),
 )
+
+
+def _describe_mention(message) -> str:
+    """Author and moment of a mention, for the button tooltips and the jump toast."""
+    return f"{message.username} · {message.get_date_time_str()}"
 
 
 class ScrollButtonsPanel(QObject):
@@ -107,7 +114,9 @@ class ScrollButtonsPanel(QObject):
             self._add_jump_group(_DATE_JUMP_ACTIONS, is_separator_row)
         if mentions:
             delegate = self.list_view.itemDelegate()
-            self._add_jump_group(_MENTION_JUMP_ACTIONS, self._is_mention, delegate.highlight_row, (delegate.geometry_changed,))
+            self._add_jump_group(
+                _MENTION_JUMP_ACTIONS, self._is_mention, self._on_mention_jump, (delegate.geometry_changed,), _describe_mention
+            )
 
         if extra_actions:
             self._layout.addItem(QSpacerItem(0, _BUTTON_GAP * 2, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed))
@@ -151,12 +160,12 @@ class ScrollButtonsPanel(QObject):
             "icon_dimmed": create_disabled_icon(self.icons_path, icon_name, icon_size=button.icon_size),
         }
 
-    def _add_jump_group(self, actions: tuple, is_target, on_jump=None, rescan_signals=()) -> None:
+    def _add_jump_group(self, actions: tuple, is_target, on_jump=None, rescan_signals=(), describe=None) -> None:
         """Add a previous / next button pair that is shown only while some row is_target accepts."""
         spacer = QSpacerItem(0, 0, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
         self._layout.addItem(spacer)
         entries = [self._create_entry(icon, tr(tooltip_en, tooltip_ru)) for icon, tooltip_en, tooltip_ru in actions]
-        group = RowJumpGroup(self.list_view, entries, is_target, on_jump, rescan_signals, parent=self)
+        group = RowJumpGroup(self.list_view, entries, is_target, on_jump, rescan_signals, describe, parent=self)
         group.visibility_changed.connect(lambda is_visible, item=spacer: self._set_gap(item, is_visible))
         group.rescan()
         self._jump_groups.append(group)
@@ -168,6 +177,17 @@ class ScrollButtonsPanel(QObject):
 
     def _is_mention(self, message) -> bool:
         return message.mentions(self.list_view.itemDelegate().my_username)
+
+    def _on_mention_jump(self, row: int, position: int, total: int) -> None:
+        """Highlight the mention and tell who wrote it, when, and its place among all mentions."""
+        self.list_view.itemDelegate().highlight_row(row)
+        description = _describe_mention(self.list_view.model().stored_messages[row])
+        show_toast(
+            self.list_view,
+            tr(f"Mention {position} of {total} · {description}", f"Упоминание {position} из {total} · {description}"),
+            ToastKind.INFO,
+            _JUMP_TOAST_MS,
+        )
 
     def _update_buttons(self, *_args):
         """Hide the container entirely when nothing is scrollable; disable up-buttons

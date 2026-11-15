@@ -38,6 +38,9 @@ class MessageData:
     def get_time_str(self) -> str:
         return self.timestamp.strftime("%H:%M:%S")
 
+    def get_date_time_str(self) -> str:
+        return self.timestamp.strftime("%Y-%m-%d %H:%M:%S")
+
     def mentions(self, username: Optional[str]) -> bool:
         """Whether this is another user's regular message that contains the username or one of its aliases."""
         if not username or not self.body:

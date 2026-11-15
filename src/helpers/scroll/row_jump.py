@@ -30,13 +30,16 @@ class RowJumpGroup(QObject):
     visibility_changed = pyqtSignal(bool)
 
     def __init__(self, list_view, entries: list, is_target: Callable, on_jump: Optional[Callable] = None,
-                 rescan_signals: Iterable = (), parent=None):
-        """entries: the two panel buttons (previous, next) as dicts with button, icon_normal, icon_dimmed."""
+                 rescan_signals: Iterable = (), describe: Optional[Callable] = None, parent=None):
+        """entries: the two panel buttons (previous, next) as dicts with button, icon_normal, icon_dimmed.
+        on_jump(row, position, total) runs after a jump; describe(row data) names the target in a button tooltip."""
         super().__init__(parent)
         self._list_view = list_view
         self._entries = entries
         self._is_target = is_target
         self._on_jump = on_jump
+        self._describe = describe
+        self._tooltips = [entry["button"].toolTip() for entry in entries]
         self._rows: list = []
         self._cursor: Optional[int] = None  # row of the last jump; the next one starts there while it stays on screen
         self._is_visible = False
@@ -62,8 +65,7 @@ class RowJumpGroup(QObject):
         """Collect the accepted rows and show the buttons only when there are some."""
         model = self._list_view.model()
         count = model.rowCount() if model else 0
-        role = Qt.ItemDataRole.DisplayRole
-        self._rows = [row for row in range(count) if self._is_target(model.data(model.index(row, 0), role))]
+        self._rows = [row for row in range(count) if self._is_target(self._row_data(row))]
         self._cursor = None
         is_visible = bool(self._rows)
         for entry in self._entries:
@@ -78,8 +80,15 @@ class RowJumpGroup(QObject):
         if not self._rows:
             return
         reference = self._reference_row()
-        for direction, entry in zip(_DIRECTIONS, self._entries):
-            set_entry_enabled(entry, _find_row(self._rows, reference, direction) is not None)
+        for direction, entry, tooltip in zip(_DIRECTIONS, self._entries, self._tooltips):
+            target = _find_row(self._rows, reference, direction)
+            set_entry_enabled(entry, target is not None)
+            if self._describe:
+                entry["button"].setToolTip(tooltip if target is None else f"{tooltip}\n{self._describe(self._row_data(target))}")
+
+    def _row_data(self, row: int):
+        model = self._list_view.model()
+        return model.data(model.index(row, 0), Qt.ItemDataRole.DisplayRole)
 
     def _reference_row(self) -> int:
         """The last jump target while it is on screen (a target in the last page cannot reach the top), else the top row."""
@@ -95,7 +104,7 @@ class RowJumpGroup(QObject):
         scroll(self._list_view, mode="top", target_row=target, delay=0)
         self.update_enabled()
         if self._on_jump:
-            self._on_jump(target)
+            self._on_jump(target, bisect_left(self._rows, target) + 1, len(self._rows))
 
     def cleanup(self) -> None:
         """Stop the timer and disconnect from the model and the extra signals."""
