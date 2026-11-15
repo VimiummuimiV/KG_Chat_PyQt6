@@ -45,6 +45,12 @@ class MentionAutocomplete(QObject):
         return cls._active is not None
 
     @classmethod
+    def raise_open(cls) -> None:
+        """Put the open suggestion list back above the widgets that were raised after it."""
+        if cls._active is not None:
+            cls._active._list.raise_()
+
+    @classmethod
     def contains(cls, widget: Optional[QWidget]) -> bool:
         """Whether the widget is the open suggestion list or lies inside it."""
         active = cls._active

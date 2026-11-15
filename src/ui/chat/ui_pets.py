@@ -8,6 +8,7 @@ from PyQt6.QtWidgets import QWidget
 
 from components.button import get_accent_color
 from components.fade import WidgetFader
+from components.mention_autocomplete.autocomplete import MentionAutocomplete
 from core.state.pet_records import PetRecords
 from helpers.pets.animation import sprite_height
 from helpers.pets.bounce import CollisionBoard, CursorMotion
@@ -254,6 +255,7 @@ class PetOverlay(QWidget):
         self.setGeometry(top_left.x(), 0, self._anchor.width(), line_y)
         self.show()
         self.raise_()  # panes re-adopted by the window (room tabs opened or closed) land above the pets
+        MentionAutocomplete.raise_open()  # the nickname suggestions stay in front of the pets
         zone = self._celebration_zone()
         if self._celebration.isVisible():
             self._celebration.setGeometry(zone)
