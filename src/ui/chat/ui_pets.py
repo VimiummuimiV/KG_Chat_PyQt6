@@ -25,6 +25,7 @@ from helpers.pets.catalog import (
     pets_enabled,
     pets_hide_mode,
     pets_stepped,
+    pets_trail,
     predator_visit_ms,
 )
 from helpers.pets.egg import Egg
@@ -32,6 +33,7 @@ from helpers.pets.meadow import Meadow
 from helpers.pets.pet import Pet
 from helpers.pets.relations import preys_on
 from helpers.pets.throwable import Throwable
+from ui.chat.ui_emoticon_selector import EmoticonSelectorWidget
 from ui.chat.ui_pets_counter import BounceScoreboard
 from ui.chat.ui_pets_record import RecordCelebration
 
@@ -125,6 +127,7 @@ class PetOverlay(QWidget):
         self._respawn_ms = round(sum(visit_ms) / 2 * _RESPAWN_SHARE)
         for pet in self._pets:
             pet.stepped = pets_stepped(self._config)
+            pet.has_trail = pets_trail(self._config)
             pet.away_ms = visit_ms
         self._respawns.clear()
         tallest = max((sprite_height(kind, pixel_size) for kind, pixel_size in {(pet.kind, pet.pixel_size) for pet in self._pets}), default=0)
@@ -260,6 +263,9 @@ class PetOverlay(QWidget):
         self.show()
         self.raise_()  # panes re-adopted by the window (room tabs opened or closed) land above the pets
         MentionAutocomplete.raise_open()  # the nickname suggestions stay in front of the pets
+        selector = parent.findChild(EmoticonSelectorWidget, options=Qt.FindChildOption.FindDirectChildrenOnly)
+        if selector and selector.isVisible():
+            selector.raise_()  # so does the emoticon panel
         zone = self._celebration_zone()
         if self._celebration.isVisible():
             self._celebration.setGeometry(zone)
@@ -324,6 +330,7 @@ class PetOverlay(QWidget):
         for kind, pixel_size, _, exit_right in [respawn for respawn in self._respawns if respawn[2] <= 0]:
             newcomer = Pet(kind, pixel_size, line_width)
             newcomer.stepped = pets_stepped(self._config)
+            newcomer.has_trail = pets_trail(self._config)
             newcomer.enter(line_width, self._safer_edge_is_right(kind, exit_right, line_width))
             self._pets.append(newcomer)
         self._respawns = [respawn for respawn in self._respawns if respawn[2] > 0]

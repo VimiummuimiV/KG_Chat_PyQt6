@@ -74,6 +74,7 @@ class Pet(HuntingBehavior, DefenseBehavior, BounceBehavior, Throwable):
         self.pixel_size = pixel_size
         self.stepped = True
         self.trail = Trail(pixel_size)
+        self.has_trail = True
         self._lays_eggs = kind.species in _LAYING_SPECIES
         self._egg_countdown_ms = random.randint(*_EGG_INTERVAL_MS)
         self._egg_due = False
@@ -153,7 +154,7 @@ class Pet(HuntingBehavior, DefenseBehavior, BounceBehavior, Throwable):
             self._walk(step_ms)
         self.age_badge(step_ms)
         self._keep_inside(line_width)
-        self.trail.emit(self._exhaust_point(area_height) if self.is_flying else None, self.velocity, step_ms)
+        self.trail.emit(self._exhaust_point(area_height) if self.has_trail and self.is_flying else None, self.velocity, step_ms)
 
     def take_egg(self) -> Egg | None:
         """Return the egg the pet has just laid at its tail, if any."""

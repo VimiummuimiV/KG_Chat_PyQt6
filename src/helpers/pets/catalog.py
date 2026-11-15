@@ -140,6 +140,12 @@ def pets_stepped(config) -> bool:
     return True if stepped is None else bool(stepped)
 
 
+def pets_trail(config) -> bool:
+    """Return True when a flying pet leaves a trail of sparks."""
+    trail = config.get("ui", "pets", "trail")
+    return True if trail is None else bool(trail)
+
+
 def _pets_setting(config, name: str, setting: tuple[int, int, int]) -> int:
     """Return a whole-number pets option kept inside its limits; the default if it is no number."""
     default, minimum, maximum = setting

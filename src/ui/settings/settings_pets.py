@@ -26,6 +26,7 @@ from helpers.pets.catalog import (
     pets_enabled,
     pets_hide_mode,
     pets_stepped,
+    pets_trail,
     predator_visit_seconds,
 )
 from helpers.pets.relations import PREDATOR_SPECIES
@@ -111,6 +112,9 @@ class SettingsPetsMixin:
         )
         self.pets_stepped_checkbox = self.add_checkbox(
             section, tr("Move in steps like real paws", "Двигаться шагами, как на настоящих лапах"), self._on_pets_stepped_toggled
+        )
+        self.pets_trail_checkbox = self.add_checkbox(
+            section, tr("Spark trail behind a flying pet", "Шлейф искр за летящим питомцем"), self._on_pets_trail_toggled
         )
         hint = tr(
             "Left click: add a pet · Right click: remove one · Hold to repeat",
@@ -236,6 +240,7 @@ class SettingsPetsMixin:
     def refresh_pets(self):
         self.pets_checkbox.setChecked(pets_enabled(self.config))
         self.pets_stepped_checkbox.setChecked(pets_stepped(self.config))
+        self.pets_trail_checkbox.setChecked(pets_trail(self.config))
         fill_pets_hide_combo(self.pets_hide_combo, pets_hide_mode(self.config))
         fade_ms = hide_fade_ms(self.config)
         self.pets_hide_fade_spin.setValue(fade_ms)
@@ -289,6 +294,10 @@ class SettingsPetsMixin:
 
     def _on_pets_stepped_toggled(self, checked: bool):
         self.config.set("ui", "pets", "stepped", value=checked)
+        self.pets_changed.emit()
+
+    def _on_pets_trail_toggled(self, checked: bool):
+        self.config.set("ui", "pets", "trail", value=checked)
         self.pets_changed.emit()
 
     def _on_pets_hide_changed(self, _text: str = ""):
