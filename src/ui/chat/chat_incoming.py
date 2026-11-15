@@ -115,8 +115,7 @@ class ChatIncomingMixin:
     def message_mentions_me(self, msg):
         if not self.account or not msg.body:
             return False
-        pattern = mention_aliases.pattern(self.my_username)
-        return bool(pattern and pattern.search(msg.body))
+        return mention_aliases.is_mentioned(self.my_username, msg.body)
 
     def on_presence(self, pres):
         if not self.xmpp_client or self.initial_roster_loading:

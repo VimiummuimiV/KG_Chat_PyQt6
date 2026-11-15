@@ -1,4 +1,4 @@
-from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtCore import QPoint, QTimer
 from PyQt6.QtWidgets import QAbstractItemView, QListView, QScrollArea
 
 
@@ -11,19 +11,13 @@ def is_separator_row(data) -> bool:
     return bool(getattr(data, 'is_separator', False))
 
 
-def jump_to_date(view, direction: int, is_separator=is_separator_row):
-    """Scroll a QListView to the next/previous date-separator row, aligned to the top.
-    Works with any model whose rows expose an is_separator flag (dict key or attribute)."""
-    model = view.model()
-    if not model or not model.rowCount():
-        return
-    top_index = view.indexAt(view.viewport().rect().topLeft())
-    row = (top_index.row() if top_index.isValid() else (0 if direction > 0 else model.rowCount() - 1)) + direction
-    while 0 <= row < model.rowCount():
-        if is_separator(model.data(model.index(row, 0), Qt.ItemDataRole.DisplayRole)):
-            scroll(view, mode="top", target_row=row, delay=0)
-            return
-        row += direction
+def visible_rows(view) -> tuple[int, int]:
+    """First and last row at least partly visible in a QListView; an empty or short view reports row 0 and the last row."""
+    viewport = view.viewport()
+    top_index = view.indexAt(viewport.rect().topLeft())
+    bottom_index = view.indexAt(QPoint(1, viewport.height() - 1))
+    last_row = max(view.model().rowCount() - 1, 0)
+    return (top_index.row() if top_index.isValid() else 0), (bottom_index.row() if bottom_index.isValid() else last_row)
 
 
 def scroll(widget, mode="bottom", pos=0.0, delay=10, target_row=None):

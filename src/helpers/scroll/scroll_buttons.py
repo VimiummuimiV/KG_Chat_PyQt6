@@ -15,7 +15,8 @@ from PyQt6.QtWidgets import (
 from components.button import create_disabled_icon, create_icon_button
 from helpers.config import Config
 from helpers.data import get_resource_dir
-from helpers.scroll.scroll import is_separator_row, jump_to_date, scroll
+from helpers.scroll.row_jump import RowJumpGroup, set_entry_enabled
+from helpers.scroll.scroll import is_separator_row, scroll
 from helpers.translate import tr
 
 
@@ -36,9 +37,15 @@ _BUTTONS = (
 )
 
 
+# Previous first, then next
 _DATE_JUMP_ACTIONS = (
-    (-1, "fill/calendar-arrow-up-fill.svg",  "Previous day", "Предыдущий день"),
-    (1, "fill/calendar-arrow-down-fill.svg", "Next day",     "Следующий день"),
+    ("fill/calendar-arrow-up-fill.svg",   "Previous day", "Предыдущий день"),
+    ("fill/calendar-arrow-down-fill.svg", "Next day",     "Следующий день"),
+)
+
+_MENTION_JUMP_ACTIONS = (
+    ("fill/at-arrow-up-fill.svg",   "Previous mention", "Предыдущее упоминание"),
+    ("fill/at-arrow-down-fill.svg", "Next mention",     "Следующее упоминание"),
 )
 
 
@@ -52,10 +59,12 @@ class ScrollButtonsPanel(QObject):
     """
     _clicked_scroll = pyqtSignal(str)  # emits the action that was triggered: top/page_up/page_down/bottom
 
-    def __init__(self, list_view, parent=None, extra_actions=None, date_jump=False):
+    def __init__(self, list_view, parent=None, extra_actions=None, date_jump=False, mentions=False):
         """extra_actions: optional list of {"icon", "tooltip", "callback"} dicts for
         buttons appended after the standard four. date_jump=True adds prev/next-day
-        buttons that scroll to the nearest is_separator row (dict key or attribute)."""
+        buttons that scroll to the nearest is_separator row (dict key or attribute).
+        mentions=True adds prev/next-mention buttons for a list of MessageData whose
+        delegate knows the own username; they appear only while a mention is in the list."""
         super().__init__(parent)  # Parent the QObject properly
         self.list_view = list_view  # QListView or QScrollArea
 
@@ -88,39 +97,20 @@ class ScrollButtonsPanel(QObject):
 
         self._entries = []
         for icon_name, tooltip_en, tooltip_ru, action in _BUTTONS:
-            button = self._create_button(icon_name, tr(tooltip_en, tooltip_ru))
-            button.clicked.connect(lambda _checked=False, a=action: self._on_clicked(a))
+            entry = self._create_entry(icon_name, tr(tooltip_en, tooltip_ru))
+            entry["action"] = action
+            entry["button"].clicked.connect(lambda _checked=False, a=action: self._on_clicked(a))
+            self._entries.append(entry)
 
-            icon_normal = button.icon()
-            icon_dimmed = create_disabled_icon(self.icons_path, icon_name, icon_size=button.icon_size)
-
-            self._entries.append({
-                "button": button,
-                "action": action,
-                "icon_normal": icon_normal,
-                "icon_dimmed": icon_dimmed,
-            })
-
-        self._has_extra_actions = bool(extra_actions)
-        self._date_spacer = None
-        if date_jump or extra_actions:
-            self._date_spacer = QSpacerItem(0, _BUTTON_GAP * 2, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
-            self._layout.addItem(self._date_spacer)
-
-        self._date_buttons = []
-        self._separator_rows = []
+        self._jump_groups = []
         if date_jump:
-            for direction, icon, tooltip_en, tooltip_ru in _DATE_JUMP_ACTIONS:
-                button = self._create_button(icon, tr(tooltip_en, tooltip_ru))
-                button.clicked.connect((lambda d: lambda: jump_to_date(self.list_view, d))(direction))
-                self._date_buttons.append({
-                    "button": button,
-                    "direction": direction,
-                    "icon_normal": button.icon(),
-                    "icon_dimmed": create_disabled_icon(self.icons_path, icon, icon_size=button.icon_size),
-                })
+            self._add_jump_group(_DATE_JUMP_ACTIONS, is_separator_row)
+        if mentions:
+            delegate = self.list_view.itemDelegate()
+            self._add_jump_group(_MENTION_JUMP_ACTIONS, self._is_mention, delegate.highlight_row, (delegate.geometry_changed,))
 
         if extra_actions:
+            self._layout.addItem(QSpacerItem(0, _BUTTON_GAP * 2, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed))
             for extra in extra_actions:
                 tip = extra["tooltip"]
                 if isinstance(tip, tuple) and len(tip) == 2:
@@ -135,19 +125,6 @@ class ScrollButtonsPanel(QObject):
         scroll_bar.rangeChanged.connect(self._update_buttons)
         scroll_bar.valueChanged.connect(self._update_buttons)
         self._update_buttons()
-
-        self._date_jump_model = None
-        self._date_update_timer = QTimer(self)
-        self._date_update_timer.setSingleShot(True)
-        self._date_update_timer.setInterval(0)
-        self._date_update_timer.timeout.connect(self._update_date_buttons)
-        if date_jump:
-            self._date_jump_model = self.list_view.model()
-            if self._date_jump_model:
-                self._date_jump_model.modelReset.connect(self._schedule_date_update)
-                self._date_jump_model.rowsInserted.connect(self._schedule_date_update)
-                self._date_jump_model.rowsRemoved.connect(self._schedule_date_update)
-            self._update_date_buttons()
 
         # Position update timer
         self._position_timer = QTimer(self)  # Parent timer to the QObject
@@ -165,6 +142,33 @@ class ScrollButtonsPanel(QObject):
         self._layout.addWidget(button)
         return button
 
+    def _create_entry(self, icon_name: str, tooltip: str) -> dict:
+        """A panel button with its normal and dimmed icons."""
+        button = self._create_button(icon_name, tooltip)
+        return {
+            "button": button,
+            "icon_normal": button.icon(),
+            "icon_dimmed": create_disabled_icon(self.icons_path, icon_name, icon_size=button.icon_size),
+        }
+
+    def _add_jump_group(self, actions: tuple, is_target, on_jump=None, rescan_signals=()) -> None:
+        """Add a previous / next button pair that is shown only while some row is_target accepts."""
+        spacer = QSpacerItem(0, 0, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
+        self._layout.addItem(spacer)
+        entries = [self._create_entry(icon, tr(tooltip_en, tooltip_ru)) for icon, tooltip_en, tooltip_ru in actions]
+        group = RowJumpGroup(self.list_view, entries, is_target, on_jump, rescan_signals, parent=self)
+        group.visibility_changed.connect(lambda is_visible, item=spacer: self._set_gap(item, is_visible))
+        group.rescan()
+        self._jump_groups.append(group)
+
+    def _set_gap(self, spacer: QSpacerItem, is_visible: bool) -> None:
+        spacer.changeSize(0, _BUTTON_GAP * 2 if is_visible else 0, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
+        self._layout.invalidate()
+        self.container.adjustSize()
+
+    def _is_mention(self, message) -> bool:
+        return message.mentions(self.list_view.itemDelegate().my_username)
+
     def _update_buttons(self, *_args):
         """Hide the container entirely when nothing is scrollable; disable up-buttons
         at the top and down-buttons at the bottom of the range."""
@@ -174,47 +178,9 @@ class ScrollButtonsPanel(QObject):
         at_bottom = scroll_bar.value() >= scroll_bar.maximum()
         self.container.setVisible(scrollable)
         for entry in self._entries:
-            enabled = not (at_top if entry["action"] in ("top", "page_up") else at_bottom)
-            if enabled != entry["button"].isEnabled():
-                entry["button"].setEnabled(enabled)
-                entry["button"].setIcon(entry["icon_normal"] if enabled else entry["icon_dimmed"])
-        if self._date_buttons:
-            self._update_date_enabled()
-
-    def _schedule_date_update(self, *_args):
-        self._date_update_timer.start()
-
-    def _update_date_buttons(self, *_args):
-        model = self._date_jump_model
-        self._separator_rows = []
-        if model:
-            for row in range(model.rowCount()):
-                if is_separator_row(model.data(model.index(row, 0), Qt.ItemDataRole.DisplayRole)):
-                    self._separator_rows.append(row)
-
-        visible = bool(self._separator_rows)
-        for entry in self._date_buttons:
-            entry["button"].setVisible(visible)
-        if self._date_spacer is not None:
-            h = _BUTTON_GAP * 2 if (visible or self._has_extra_actions) else 0
-            self._date_spacer.changeSize(0, h, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
-            self._layout.invalidate()
-            self.container.adjustSize()
-        self._update_date_enabled()
-
-    def _update_date_enabled(self):
-        if not self._date_buttons or not self.list_view:
-            return
-        top_index = self.list_view.indexAt(self.list_view.viewport().rect().topLeft())
-        top_row = top_index.row() if top_index.isValid() else 0
-        for entry in self._date_buttons:
-            if entry["direction"] < 0:
-                enabled = any(r < top_row for r in self._separator_rows)
-            else:
-                enabled = any(r > top_row for r in self._separator_rows)
-            if enabled != entry["button"].isEnabled():
-                entry["button"].setEnabled(enabled)
-                entry["button"].setIcon(entry["icon_normal"] if enabled else entry["icon_dimmed"])
+            set_entry_enabled(entry, not (at_top if entry["action"] in ("top", "page_up") else at_bottom))
+        for group in self._jump_groups:
+            group.update_enabled()
 
     def eventFilter(self, obj, event):
         if obj is self.container:
@@ -311,20 +277,13 @@ class ScrollButtonsPanel(QObject):
         """Stop timers and release the container"""
         if self._position_timer:
             self._position_timer.stop()
-        if self._date_update_timer:
-            self._date_update_timer.stop()
+        for group in self._jump_groups:
+            group.cleanup()
         if self.list_view:
             try:
                 scroll_bar = self.list_view.verticalScrollBar()
                 scroll_bar.rangeChanged.disconnect(self._update_buttons)
                 scroll_bar.valueChanged.disconnect(self._update_buttons)
-            except (RuntimeError, TypeError):
-                pass
-        if self._date_jump_model:
-            try:
-                self._date_jump_model.modelReset.disconnect(self._schedule_date_update)
-                self._date_jump_model.rowsInserted.disconnect(self._schedule_date_update)
-                self._date_jump_model.rowsRemoved.disconnect(self._schedule_date_update)
             except (RuntimeError, TypeError):
                 pass
         self.container.hide()

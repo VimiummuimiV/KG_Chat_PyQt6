@@ -6,6 +6,9 @@ from typing import List, Optional
 
 from PyQt6.QtCore import QAbstractListModel, QModelIndex, Qt
 
+from core.state.mention_aliases import mention_aliases
+from helpers.text.mention_parser import fold_nickname
+
 
 @dataclass
 class MessageData:
@@ -34,6 +37,14 @@ class MessageData:
 
     def get_time_str(self) -> str:
         return self.timestamp.strftime("%H:%M:%S")
+
+    def mentions(self, username: Optional[str]) -> bool:
+        """Whether this is another user's regular message that contains the username or one of its aliases."""
+        if not username or not self.body:
+            return False
+        if self.is_system or self.is_private or self.is_ban or self.is_competition or self.is_presence_log:
+            return False
+        return fold_nickname(self.username) != fold_nickname(username) and mention_aliases.is_mentioned(username, self.body)
 
 
 class MessageListModel(QAbstractListModel):

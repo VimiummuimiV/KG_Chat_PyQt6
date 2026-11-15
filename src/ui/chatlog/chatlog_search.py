@@ -82,8 +82,7 @@ class ChatlogSearchMixin:
 
     def _message_matches_filters(self, msg, search_users, search_message, is_prefix_mode) -> bool:
         if self.filter_mentions and self.account and self.account.get('chat_username'):
-            pattern = mention_aliases.pattern(self.account.get('chat_username'))
-            if not (pattern and pattern.search(msg.body)):
+            if not mention_aliases.is_mentioned(self.account.get('chat_username'), msg.body):
                 return False
 
         if is_prefix_mode:

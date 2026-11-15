@@ -40,5 +40,10 @@ class MentionAliases:
             self._patterns[username] = compile_mention_pattern(username, self.local_aliases(username), self.global_aliases())
         return self._patterns[username]
 
+    def is_mentioned(self, username: str, text: str) -> bool:
+        """Whether the text contains the username or one of its aliases."""
+        pattern = self.pattern(username)
+        return bool(pattern and text and pattern.search(text))
+
 
 mention_aliases = MentionAliases()
