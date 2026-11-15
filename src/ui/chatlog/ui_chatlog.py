@@ -108,6 +108,8 @@ class ChatlogWidget(
         self.load_generation = 0
 
         self.day_hold = HoldRepeater(self.navigate, self)
+        self.view_hint_timer = QTimer(self)
+        self.view_hint_timer.timeout.connect(self._bounce_view_button)
 
         self._setup_ui()
         self.model.modelReset.connect(self.update_image_button)

@@ -4,7 +4,7 @@ from datetime import datetime
 
 from PyQt6.QtWidgets import QMessageBox
 
-from components.button import set_button_icon
+from components.button import animate_button_bounce, set_button_icon
 from core.chatlogs.range_parser import ParseConfig
 from helpers.deferred import call_later
 from helpers.scroll.scroll import scroll
@@ -16,6 +16,7 @@ from ui.settings.settings_options import DEFAULTS
 
 _LIMIT_EXCEEDED_SUFFIX_EN = "Rendering disabled. Use Copy/Save buttons."
 _LIMIT_EXCEEDED_SUFFIX_RU = "Отрисовка отключена. Используйте кнопки Копировать/Сохранить."
+_VIEW_HINT_INTERVAL_MS = 4000
 
 
 class ChatlogParserControlsMixin:
@@ -26,6 +27,7 @@ class ChatlogParserControlsMixin:
         if self.parser_visible:
             # Hide parser, show list
             self.parser_visible = False
+            self.view_hint_timer.stop()
             self.stacked.setCurrentWidget(self.list_view)
             set_button_icon(self.parse_btn, "fill/play-large-fill.svg")
             self.parse_btn.setToolTip(
@@ -49,6 +51,16 @@ class ChatlogParserControlsMixin:
 
         # The "Loaded N messages" status belongs to the chatlog list, not the parser config screen
         self.info_label.setVisible(not self.parser_visible)
+
+    def _start_view_hint(self):
+        """Bounce the button that opens the parsed messages until the user leaves the parser screen."""
+        if not self.parser_visible:
+            return
+        self._bounce_view_button()
+        self.view_hint_timer.start(_VIEW_HINT_INTERVAL_MS)
+
+    def _bounce_view_button(self):
+        animate_button_bounce(self.parse_btn)
 
     def set_parsing_mode(self, value: bool):
         self.is_parsing = value
@@ -105,6 +117,7 @@ class ChatlogParserControlsMixin:
     def on_parse_started(self, config: ParseConfig):
         """Start parsing with given config"""
         self.set_parsing_mode(True)
+        self.view_hint_timer.stop()
         self.exceeded_max_messages = False
         self.date_label.setText(tr("Parser", "Парсер"))
         if config.mode != 'syncdatabase':
@@ -166,6 +179,7 @@ class ChatlogParserControlsMixin:
                 self.messages_loaded.emit(non_separator_messages)
                 self.parser_widget.show_copy_save_buttons()
                 self.update_copy_save_tooltips()
+                self._start_view_hint()
                 call_later(self, 100, lambda: scroll(self.list_view, mode="top", delay=50))
                 message_count = len(non_separator_messages)
                 self.info_label.setText(tr(
@@ -253,6 +267,7 @@ class ChatlogParserControlsMixin:
                 non_separator_messages = [m for m in self.all_messages if not m.is_separator]
                 self.messages_loaded.emit(non_separator_messages)
                 call_later(self, 100, lambda: scroll(self.list_view, mode="top", delay=50))
+                self._start_view_hint()
 
             self.parser_widget.show_copy_save_buttons()
             self.update_copy_save_tooltips()
