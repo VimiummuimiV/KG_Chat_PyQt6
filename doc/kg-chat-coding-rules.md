@@ -54,7 +54,7 @@ helpers/                shared non-visual logic and managers
   system/               hotkey_manager.py, power_monitor.py, startup_manager.py, input_activity.py
   window/               window_size_manager.py, resize.py
   users/                ban_manager.py, user_tracker.py, pronunciation_manager.py, username_color_manager.py, presence_log.py
-  scroll/               scrolling behavior and scroll buttons
+  scroll/               scroll.py (scroll, visible_rows), scroll_buttons.py (ScrollButtonsPanel), row_jump.py (RowJumpGroup: previous / next buttons between rows), auto_scroll.py, scrollable_buttons.py
   voice/                TTS and voice input engines
 components/             reusable widgets used by more than one screen
   context_menu/         message and userlist context menus
@@ -80,6 +80,7 @@ ui/                     screens and windows of the app
 - A component with its own options keeps their defaults, limits and config accessors in its own `options.py`; the settings page imports them from there instead of repeating the numbers.
 - A list of removable, draggable chips (saved usernames, aliases) is always `SavedValuesBar` from `components/tag_button.py`, built as `SavedValuesBar(icons_path, load_values, save_values)`: the storage (config, `ByUserStore`, anything) is passed as two callables, so the component never knows where the values live. Its look is only `themes/styles/tag_button.qss` (`tag_*` and `drop_line` tokens); dragging, the drop line, flow layout and removal are inside the component. Never write a second chip widget or copy its drag code; a screen adds only the input row and reacts to `value_selected` / `value_double_clicked`.
 - Switching an icon button's icon at runtime: `set_button_icon` from `components/button.py`.
+- Previous / next navigation between the rows of a list (days, mentions) is a `RowJumpGroup` from `helpers/scroll/row_jump.py`, added to `ScrollButtonsPanel` by a constructor flag (`date_jump`, `mentions`) through `_add_jump_group`. The group keeps its own sorted rows, hides its buttons while no row matches, starts from the last jump target while it is on screen (a target in the last page cannot reach the top) and rescans on model changes. A new kind of jump is one more predicate and one more icon pair, never another prev / next loop or button visibility code. A predicate about a message belongs to `MessageData` (`mentions`), not to the panel.
 - Every new hotkey or mouse action of a view is registered in the matching context of `components/help_panel.py` (F1).
 - `ui/`: screens. A mixin file contains only methods of one concern of its shell class.
 
@@ -115,7 +116,7 @@ Where it goes:
 
 A mark, color or label that stands for one concept in several places (an emoji in a settings title and the same emoji in front of a highlighted word, a mention kind and its color) is one constant next to the logic that owns the concept (`MENTION_ICONS` in `helpers/text/mention_parser.py`), imported by every screen. Never retype the emoji or the color literal in a second file.
 
-Matching of user-entered words (mentions, aliases) is case-insensitive, whole-word, and treats е and ё as the same letter; it is built once in `helpers/text/mention_parser.py` and cached per account by `core/state/mention_aliases.py`, never re-implemented per screen.
+Matching of user-entered words (mentions, aliases) is case-insensitive, whole-word, and treats е and ё as the same letter; it is built once in `helpers/text/mention_parser.py` and cached per account by `core/state/mention_aliases.py`, never re-implemented per screen. The one check of a text is `mention_aliases.is_mentioned(username, text)`; the one check of a message row (own, private, system, ban, competition and presence rows never count) is `MessageData.mentions(username)`. A screen never calls `pattern.search` itself.
 
 ## Imports
 
@@ -219,7 +220,7 @@ The font engine is `helpers/fonts/fonts.py`; nothing else decides a family or a 
 - SVG icons live only in `icons/line/` (outline) or `icons/fill/` (solid), plus the one special folder `icons/emoticon_groups/` (below). Never loose in `icons/`; only `chat.ico` stays in its root. A file name ends with `-line` or `-fill` and the suffix always matches the folder.
 - The name is the original icon name from the library it came from (Remix Icons or Feather Icons, lowercase kebab-case), never a name by usage (`close-large-line`, not `close-button`; `delete-bin-fill`, not `trash`). Original names keep similar symbols apart: `close-large-line` (plain X) and `close-circle-line` (X in a circle), `delete-bin-fill` and `delete-bin-2-fill`.
 - Remix names already end with `-line` / `-fill` and are kept as is (`user-3-fill`, `arrow-left-s-line`). A name without a style suffix gets one: Remix `align-center` → `align-center-line`, `hashtag` → `hashtag-line`; every Feather icon is stroke-based, so it gets `-line` (`chevron-down-line`).
-- A modified or hand-made icon keeps the name of the icon it is based on and puts the change in front of the suffix: `calendar-arrow-left-fill`, `delete-bin-2-up-fill`. The style comes from how the icon is drawn (outline or solid), not from its base: a hand-made solid icon is `-fill` even when it resembles a `-line` icon.
+- A modified or hand-made icon keeps the name of the icon it is based on and puts the change in front of the suffix: `calendar-arrow-left-fill`, `delete-bin-2-up-fill`, `at-arrow-up-fill` (the Remix `at-fill` with an arrow beside it). The style comes from how the icon is drawn (outline or solid), not from its base: a hand-made solid icon is `-fill` even when it resembles a `-line` icon.
 - When a shape looks the same in both styles (a plain X, a spinner), it is a line icon.
 - Code refers to an icon with its folder: `"line/close-large-line.svg"`, `"fill/user-3-fill.svg"` (`icons_path / name` stays unchanged). When an icon is renamed or moved, update every reference in the same change.
 - `icons/emoticon_groups/` holds the colour icons of the emoticon panel group buttons, taken from Noto Color Emoji. Names are the Noto / CLDR emoji names (`christmas-tree.svg`, `red-heart.svg`) with no `-line` / `-fill` suffix, because these icons are never recoloured: load them with `QIcon(path)`, not `render_svg_icon`. Qt SVG needs plain presentation attributes: no `style="..."`, no `<use>`, and `clipPath` only inside `<defs>`. A new group gets its icon from there, never an emoji character in a button text.
