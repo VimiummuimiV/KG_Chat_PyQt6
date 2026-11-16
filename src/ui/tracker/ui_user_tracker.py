@@ -7,7 +7,6 @@ from PyQt6.QtWidgets import (
     QGridLayout,
     QHBoxLayout,
     QLabel,
-    QListView,
     QScrollArea,
     QStackedWidget,
     QTabWidget,
@@ -22,8 +21,9 @@ from helpers.scroll.auto_scroll import AutoScroller
 from helpers.scroll.scroll_buttons import ScrollButtonsPanel
 from helpers.translate import on_language_changed, tr, TranslatableMixin
 from helpers.users.user_tracker import UserTracker
+from ui.messages.message_list_view import MessageListView
 from ui.tracker.tracker_delegate import TrackerEventDelegate
-from ui.tracker.tracker_events import TrackerEventFilterProxy, TrackerEventModel
+from ui.tracker.tracker_events import TrackerEventModel
 from ui.tracker.tracker_filters import TrackerFiltersMixin
 from ui.tracker.tracker_history import TrackerHistoryMixin
 from ui.tracker.tracker_selection import TrackerSelectionMixin
@@ -161,19 +161,12 @@ class UserTrackerWidget(
         history_layout.addLayout(history_row, stretch=1)
 
         self.history_model = TrackerEventModel()
-        self.history_proxy = TrackerEventFilterProxy()
-        self.history_proxy.setSourceModel(self.history_model)
         self.history_delegate = TrackerEventDelegate(self.config)
 
-        self.history_list_view = QListView()
-        self.history_list_view.setModel(self.history_proxy)
+        self.history_list_view = MessageListView()
+        self.history_list_view.setModel(self.history_model)
         self.history_list_view.setItemDelegate(self.history_delegate)
         self.history_delegate.set_list_view(self.history_list_view)
-        self.history_list_view.setVerticalScrollMode(QListView.ScrollMode.ScrollPerPixel)
-        self.history_list_view.setUniformItemSizes(False)
-        self.history_list_view.setSpacing(0)
-        self.history_list_view.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.history_list_view.setSelectionMode(QListView.SelectionMode.NoSelection)
         self.history_list_view.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.history_list_view.setMouseTracking(True)
         self.history_list_view.viewport().setMouseTracking(True)

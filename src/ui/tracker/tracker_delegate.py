@@ -67,7 +67,7 @@ class TrackerEventDelegate(RowFlashMixin, QStyledItemDelegate):
         self.click_rects.clear()
         if self.list_view is not None:
             try:
-                self.list_view.scheduleDelayedItemsLayout()
+                self.list_view.doItemsLayout()
                 self.list_view.viewport().update()
             except RuntimeError:
                 pass

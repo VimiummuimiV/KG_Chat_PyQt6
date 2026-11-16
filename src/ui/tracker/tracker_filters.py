@@ -72,10 +72,11 @@ class TrackerFiltersMixin:
         )
 
     def apply_event_filter(self):
-        self.history_proxy.set_filters(self.filtered_logins, self.filtered_types, self.filtered_dates)
+        self.history_model.set_filters(self.filtered_logins, self.filtered_types, self.filtered_dates)
         self.history_delegate.clear_click_rects()
         self.update_history_empty_state()
         self.update_info_label()
+        self._scroll_history_to_bottom()
 
     def _update_chip_highlights(self):
         for login, chip in self.chip_widgets.items():

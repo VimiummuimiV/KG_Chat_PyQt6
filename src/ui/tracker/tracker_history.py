@@ -1,6 +1,6 @@
 """UserTrackerWidget: history list updates and info label."""
 
-from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtCore import QTimer
 from PyQt6.QtWidgets import QMessageBox
 
 from helpers.deferred import call_later
@@ -12,25 +12,17 @@ class TrackerHistoryMixin:
     """UserTrackerWidget: history list updates and info label."""
 
     def update_history_empty_state(self):
-        self.history_stack.setCurrentIndex(1 if self.history_proxy.rowCount() == 0 else 0)
+        self.history_stack.setCurrentIndex(1 if self.history_model.rowCount() == 0 else 0)
 
     def _scroll_history_to_bottom(self):
         scroll(self.history_list_view, mode="bottom", delay=10)
 
     def update_info_label(self):
-        total = sum(
-            1 for e in self.history_model.get_events() if not e.get('is_separator')
-        )
+        total = self.history_model.total_count
         if total == 0:
             self.info_label.setText(tr("No events", "Нет событий"))
             return
-        shown = 0
-        for row in range(self.history_proxy.rowCount()):
-            event = self.history_proxy.data(
-                self.history_proxy.index(row, 0), Qt.ItemDataRole.DisplayRole
-            )
-            if event and not event.get('is_separator'):
-                shown += 1
+        shown = self.history_model.shown_count
         desc = self.filter_description()
         if desc:
             self.info_label.setText(tr(
@@ -101,13 +93,9 @@ class TrackerHistoryMixin:
         if self.has_active_filters():
             self.clear_filter()
 
-        source_row = self.history_model.find_row(login, event_ts)
-        if source_row is None:
+        row = self.history_model.find_row(login, event_ts)
+        if row is None:
             return
-        proxy_index = self.history_proxy.mapFromSource(self.history_model.index(source_row, 0))
-        if not proxy_index.isValid():
-            return
-        row = proxy_index.row()
 
         scroll(self.history_list_view, mode="middle", target_row=row, delay=100)
         call_later(self, 250, lambda: self.history_delegate.highlight_row(row))
