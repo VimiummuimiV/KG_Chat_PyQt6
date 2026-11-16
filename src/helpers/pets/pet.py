@@ -9,7 +9,7 @@ from PyQt6.QtCore import QPoint, QRect
 
 from helpers.pets.animation import load_animation
 from helpers.pets.bounce import BounceBehavior, CursorMotion
-from helpers.pets.catalog import BARK_STATE, EAT_STATE, LAY_STATE, LIE_STATE, RUN_STATE, WALK_STATE, PetKind
+from helpers.pets.catalog import BARK_STATE, EAT_STATE, FLY_STATE, LAY_STATE, LIE_STATE, RUN_STATE, WALK_STATE, PetKind
 from helpers.pets.defense import DefenseBehavior
 from helpers.pets.egg import Egg
 from helpers.pets.food import BITES_PER_FOOD, Food
@@ -86,6 +86,7 @@ class Pet(HuntingBehavior, DefenseBehavior, BounceBehavior, Throwable):
         self._watching: Food | None = None  # the food whose race the pet watches instead of running
         self._is_scared = False
         self._state = WALK_STATE
+        self._flight_ms = 0  # time in the air; clocks the fly animation
         self._line_width = line_width
         self._init_hunting()
         self._init_defense()
@@ -147,6 +148,7 @@ class Pet(HuntingBehavior, DefenseBehavior, BounceBehavior, Throwable):
         if self._is_away:
             self.wait_away(step_ms, line_width)
             return
+        self._flight_ms = self._flight_ms + step_ms if self.is_flying else 0
         if self.is_flying:
             self.fly_past_cursor(step_ms, area_height, cursor)
             self._face_flight()
@@ -258,7 +260,9 @@ class Pet(HuntingBehavior, DefenseBehavior, BounceBehavior, Throwable):
         return load_animation(self.kind, state, self.pixel_size)
 
     def _current(self):
-        """Return the animation on screen and its clock; a held or flying pet is frozen on its first idle frame."""
+        """Return the animation on screen and its clock; a held pet is frozen on its first idle frame, a flying one too unless its kind has a fly animation."""
+        if self.is_flying and FLY_STATE in self.kind.states:
+            return self._load(FLY_STATE), self._flight_ms
         if self.is_flying or self.is_held:
             return self._load("idle"), 0
         return self._animation, self._state_elapsed_ms
