@@ -26,20 +26,13 @@ _MINIMUM_FRAME_RATE = 10
 _LOWEST_MAXIMUM_FRAME_RATE = 165  # the maximum is the fastest screen's rate, but at least this
 _VISIT_SPREAD = 0.3  # a visit every n seconds means every n -30% to n +30% seconds
 _MILLISECONDS = 1000
-# States of the pets, in order of priority for the sprite file names.
-WALK_FAST_STATE = "walk_fast"
-WITH_BALL_STATE = "with_ball"
-FLY_STATE = "fly"
-WALK_STATE = "walk"
+EAT_STATE = "eat"
 RUN_STATE = "run"
-IDLE_STATE = "idle"
-SWIPE_STATE = "swipe"
+WALK_STATE = "walk"
+BARK_STATE = "bark"
 LIE_STATE = "lie"
 LAY_STATE = "lay"
-STAND_STATE = "stand"
-BARK_STATE = "bark"
-EAT_STATE = "eat"
-# ---------------------------
+FLY_STATE = "fly"
 PETS_CATEGORY = "pets"  # folders of the animals that roam the line
 FOOD_CATEGORY = "food"  # folders of what they eat: not pets
 _RESOURCE_FOLDER = "ecosystem"
@@ -47,10 +40,7 @@ _ANIMATIONS_FOLDER = "animations"
 _ICONS_FOLDER = "icons"
 _SPRITE_SUFFIX = "_8fps.gif"
 # Longest names first so "walk_fast" is not read as "walk".
-_STATE_NAMES = (
-    WALK_FAST_STATE, WITH_BALL_STATE, FLY_STATE, WALK_STATE, RUN_STATE, IDLE_STATE, SWIPE_STATE,
-    LIE_STATE, LAY_STATE, STAND_STATE, BARK_STATE, EAT_STATE,
-)
+_STATE_NAMES = ("walk_fast", "with_ball", "walk", "run", "idle", "swipe", "lie", "lay", "stand", "bark", FLY_STATE, EAT_STATE)
 _PIXEL_GRID_FILE = "pixel_grid.json"
 
 
