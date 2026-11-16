@@ -8,6 +8,7 @@ from components.button import animate_button_bounce, set_button_icon
 from core.chatlogs.range_parser import ParseConfig
 from helpers.deferred import call_later
 from helpers.scroll.scroll import scroll
+from helpers.system.memory import release_memory_soon
 from helpers.translate import tr
 from ui.chatlog.parser_worker import ParserWorker
 from ui.messages.message_model import MessageData
@@ -276,6 +277,7 @@ class ChatlogParserControlsMixin:
         else:
             self.info_label.setText(tr("No messages found", "Сообщения не найдены"))
 
+        release_memory_soon()
         if self.parent_window:
             self.parent_window.handle_parse_finished()
 

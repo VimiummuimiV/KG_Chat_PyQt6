@@ -40,6 +40,8 @@ class ChatlogSearchMixin:
         self.apply_filter()
 
     def on_search_changed(self, text: str):
+        if text == self.search_text:
+            return
         self.search_text = text
         if not self.requires_confirmed_search():
             self.apply_filter()

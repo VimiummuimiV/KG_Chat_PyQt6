@@ -369,6 +369,9 @@ class ChatlogWidget(
             self._scroll_buttons.cleanup()
         if hasattr(self, 'auto_scroller'):
             self.auto_scroller.cleanup()
+        self.model.clear()
+        self.all_messages = []
+        self.temp_parsed_messages = []
         if hasattr(self.parser, 'db'):
             self.parser.db.close()
         if self.split_chatlog_widget:

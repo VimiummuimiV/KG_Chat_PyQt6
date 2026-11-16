@@ -136,6 +136,8 @@ class MessageSearchBar(QWidget):
             self.clear()
 
     def clear(self):
+        if not self.field.text() and self._backup is None:
+            return
         self.field.blockSignals(True)
         self.field.clear()
         self.field.blockSignals(False)

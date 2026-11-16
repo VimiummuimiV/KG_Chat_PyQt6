@@ -245,6 +245,7 @@ class ChatlogUserlistWidget(TranslatableMixin, QWidget):
         sorted_users = sorted(counts.items(), key=lambda x: (-x[1], x[0].lower()))
 
         # Create widgets - all users shown here are NOT banned (or we're in parse mode)
+        self.setUpdatesEnabled(False)
         for username, count in sorted_users:
             try:
                 user_id = self.cache.get_user_id(username)
@@ -265,6 +266,8 @@ class ChatlogUserlistWidget(TranslatableMixin, QWidget):
                 self._user_layout.insertWidget(self._user_layout.count() - 1, widget)
             except Exception as e:
                 print(f"Error creating chatlog user widget: {e}")
+
+        self.setUpdatesEnabled(True)
 
         # Update clear button visibility
         self._clear_filter_button.setVisible(bool(self.filtered_usernames))
