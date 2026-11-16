@@ -3,12 +3,21 @@
 import re
 from pathlib import Path
 
-from PyQt6.QtCore import pyqtSignal
+from PyQt6.QtCore import pyqtSignal, Qt
 from PyQt6.QtWidgets import QHBoxLayout, QLineEdit, QWidget
 
-from components.button import create_icon_button
+from components.button import create_icon_button, create_icon_entry
+from components.mention_autocomplete.autocomplete import MentionAutocomplete
 from helpers.fonts.fonts import FontType, set_font_role
+from helpers.scroll.row_jump import RowJumpGroup
 from helpers.translate import tr
+
+
+# Previous first, then next
+_MATCH_JUMP_ACTIONS = (
+    ("line/chevron-up-line.svg",   "Previous match", "Предыдущее совпадение"),
+    ("line/chevron-down-line.svg", "Next match",     "Следующее совпадение"),
+)
 
 
 def parse_search_text(text: str):
@@ -31,7 +40,7 @@ def parse_search_text(text: str):
     if has_u_prefix:
         match = re.search(r'[Uu]:\s*(.+?)(?:\s+[Mm]:|$)', text)
         if match:
-            users = [u.strip() for u in match.group(1).strip().split(',') if u.strip()]
+            users = [u.strip().lstrip('@') for u in match.group(1).strip().split(',') if u.strip()]
             user_filter.update(users)
 
     if has_m_prefix:
@@ -108,6 +117,13 @@ class MessageSearchBar(QWidget):
         self.field.textChanged.connect(self._on_text_changed)
         self.field.returnPressed.connect(self.return_pressed.emit)
         layout.addWidget(self.field, stretch=1)
+        MentionAutocomplete(self.field, config, prefix_chars=":,", suffix="", is_recorded=False)  # @nick, U:@nick, U:@a,@b
+
+        self._jump_entries = [create_icon_entry(icons_path, icon, tr(en, ru), config) for icon, en, ru in _MATCH_JUMP_ACTIONS]
+        for entry in self._jump_entries:
+            entry["button"].setFocusPolicy(Qt.FocusPolicy.NoFocus)  # clicking it must not take focus from the field
+            entry["button"].setVisible(False)  # shown by the jump group while some message matches
+            layout.addWidget(entry["button"])
 
         for widget in extra_widgets or ():
             layout.addWidget(widget)
@@ -121,6 +137,18 @@ class MessageSearchBar(QWidget):
         layout.addWidget(self._clear_button)
 
         self.setVisible(self.visible_state)
+
+    def attach_list_view(self, list_view):
+        """Previous / next buttons that scroll the list to the messages the search text matches."""
+        group = RowJumpGroup(
+            list_view, self._jump_entries, self._is_match,
+            lambda row, *_: list_view.itemDelegate().highlight_row(row),
+            scroll_mode="middle", parent=self,
+        )
+        group.rescan()
+
+    def _is_match(self, message) -> bool:
+        return bool(self.query.text) and not message.is_separator and self.query.matches(message.username, message.body)
 
     @property
     def active(self) -> bool:

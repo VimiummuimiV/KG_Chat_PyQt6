@@ -25,9 +25,9 @@ _ARROW_STEPS = {Qt.Key.Key_Down: 1, Qt.Key.Key_Up: -1}
 _CTRL_STEP_KEYS = {Qt.Key.Key_N: 1, Qt.Key.Key_P: -1}
 
 
-def find_mention(text: str, cursor: int) -> Optional[Tuple[int, str]]:
+def find_mention(text: str, cursor: int, pattern=_MENTION_PATTERN) -> Optional[Tuple[int, str]]:
     """The @prefix that ends at the cursor as (index of the @, prefix), or None."""
-    match = _MENTION_PATTERN.search(text, 0, cursor)
+    match = pattern.search(text, 0, cursor)
     return (match.start(), match.group(1)) if match else None
 
 
@@ -58,10 +58,15 @@ class MentionAutocomplete(QObject):
             return False
         return widget is active._list or active._list.isAncestorOf(widget)
 
-    def __init__(self, field: QLineEdit, config):
+    def __init__(self, field: QLineEdit, config, *, prefix_chars: str = "", suffix: str = ", ", is_recorded: bool = True):
+        """prefix_chars: characters besides whitespace that may stand right before the @ (a search bar takes ":" and ",");
+        suffix follows an inserted nickname; is_recorded: whether an inserted nickname joins the recent mentions."""
         super().__init__(field)
         self._field = field
         self._config = config
+        self._pattern = re.compile(rf"(?<![^\s{re.escape(prefix_chars)}])@([^\s@]*)$")
+        self._suffix = suffix
+        self._is_recorded = is_recorded
         self._list: Optional[QListWidget] = None
         self._query: Optional[Tuple[int, str]] = None
         field.installEventFilter(self)
@@ -71,7 +76,7 @@ class MentionAutocomplete(QObject):
     def _refresh(self, *_):
         if not self._field.hasFocus():
             return
-        query = find_mention(self._field.text(), self._field.cursorPosition())
+        query = find_mention(self._field.text(), self._field.cursorPosition(), self._pattern)
         if query and not is_autocomplete_enabled(self._config):
             query = None
         if query == self._query:
@@ -97,7 +102,8 @@ class MentionAutocomplete(QObject):
             _POPUP_WIDTH, suggestions.sizeHintForRow(0) * len(nicks) + 2 * suggestions.frameWidth()
         )
         origin = self._field.mapTo(self._field.window(), QPoint(0, 0))
-        suggestions.move(origin.x(), max(0, origin.y() - suggestions.height() - _POPUP_GAP))
+        above = origin.y() - suggestions.height() - _POPUP_GAP
+        suggestions.move(origin.x(), above if above >= 0 else origin.y() + self._field.height() + _POPUP_GAP)  # below a field at the top
         suggestions.show()
         suggestions.raise_()
         MentionAutocomplete._active = self
@@ -131,8 +137,9 @@ class MentionAutocomplete(QObject):
         start = self._query[0]
         cursor = self._field.cursorPosition()
         text = self._field.text()
-        inserted = item.text() + ", "
-        remember_mention(item.text())
+        inserted = item.text() + self._suffix
+        if self._is_recorded:
+            remember_mention(item.text())
         self._field.setText(text[:start] + inserted + text[cursor:])
         self._field.setCursorPosition(start + len(inserted))
         self._close()

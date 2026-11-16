@@ -30,15 +30,17 @@ class RowJumpGroup(QObject):
     visibility_changed = pyqtSignal(bool)
 
     def __init__(self, list_view, entries: list, is_target: Callable, on_jump: Optional[Callable] = None,
-                 rescan_signals: Iterable = (), describe: Optional[Callable] = None, parent=None):
+                 rescan_signals: Iterable = (), describe: Optional[Callable] = None, scroll_mode: str = "top", parent=None):
         """entries: the two panel buttons (previous, next) as dicts with button, icon_normal, icon_dimmed.
-        on_jump(row, position, total) runs after a jump; describe(row data) names the target in a button tooltip."""
+        on_jump(row, position, total) runs after a jump; describe(row data) names the target in a button tooltip;
+        scroll_mode is where the target row lands ("top" or "middle")."""
         super().__init__(parent)
         self._list_view = list_view
         self._entries = entries
         self._is_target = is_target
         self._on_jump = on_jump
         self._describe = describe
+        self._scroll_mode = scroll_mode
         self._tooltips = [entry["button"].toolTip() for entry in entries]
         self._rows: list = []
         self._cursor: Optional[int] = None  # row of the last jump; the next one starts there while it stays on screen
@@ -105,7 +107,7 @@ class RowJumpGroup(QObject):
         if target is None:
             return
         self._cursor = target
-        scroll(self._list_view, mode="top", target_row=target, delay=0)
+        scroll(self._list_view, mode=self._scroll_mode, target_row=target, delay=0)
         self.update_enabled()
         if self._on_jump:
             self._on_jump(target, bisect_left(self._rows, target) + 1, len(self._rows))

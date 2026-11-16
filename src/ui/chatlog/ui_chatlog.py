@@ -295,6 +295,7 @@ class ChatlogWidget(
         self.list_view.setModel(self.model)
         self.list_view.setItemDelegate(self.delegate)
         self.delegate.set_list_view(self.list_view)
+        self.search.attach_list_view(self.list_view)
 
         self.list_view.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.list_view.setMouseTracking(True)

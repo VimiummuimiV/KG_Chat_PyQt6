@@ -11,7 +11,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from components.button import create_disabled_icon, create_icon_button
+from components.button import create_icon_button, create_icon_entry
 from components.toast import show_toast, ToastKind
 from helpers.config import Config
 from helpers.data import get_resource_dir
@@ -152,12 +152,9 @@ class ScrollButtonsPanel(QObject):
 
     def _create_entry(self, icon_name: str, tooltip: str) -> dict:
         """A panel button with its normal and dimmed icons."""
-        button = self._create_button(icon_name, tooltip)
-        return {
-            "button": button,
-            "icon_normal": button.icon(),
-            "icon_dimmed": create_disabled_icon(self.icons_path, icon_name, icon_size=button.icon_size),
-        }
+        entry = create_icon_entry(self.icons_path, icon_name, tooltip, self.config)
+        self._layout.addWidget(entry["button"])
+        return entry
 
     def _add_jump_group(self, actions: tuple, is_target, on_jump=None, rescan_signals=(), describe=None) -> None:
         """Add a previous / next button pair that is shown only while some row is_target accepts."""

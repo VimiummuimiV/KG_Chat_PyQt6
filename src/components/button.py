@@ -166,6 +166,16 @@ def create_disabled_icon(icons_path: Path, icon_name: str, icon_size: int) -> QI
     return render_svg_icon(icons_path / icon_name, icon_size, color=COLOR_GRAY)
 
 
+def create_icon_entry(icons_path: Path, icon_name: str, tooltip: str, config=None) -> dict:
+    """An icon button with its normal and dimmed icons, as a RowJumpGroup takes it."""
+    button = create_icon_button(icons_path, icon_name, tooltip, size_type="large", config=config)
+    return {
+        "button": button,
+        "icon_normal": button.icon(),
+        "icon_dimmed": create_disabled_icon(icons_path, icon_name, icon_size=button.icon_size),
+    }
+
+
 def set_visual_active(widget, is_active: bool, opacity: float = 0.5):
     """Dim widget when inactive"""
     if widget is None:
