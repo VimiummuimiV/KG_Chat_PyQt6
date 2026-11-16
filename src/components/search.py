@@ -2,16 +2,19 @@
 
 import re
 from pathlib import Path
+from typing import Callable, Optional
 
-from PyQt6.QtCore import pyqtSignal, Qt
+from PyQt6.QtCore import pyqtSignal, QEvent, Qt
 from PyQt6.QtWidgets import QHBoxLayout, QLineEdit, QWidget
 
 from components.button import create_icon_button, create_icon_entry
 from components.mention_autocomplete.autocomplete import MentionAutocomplete
 from helpers.fonts.fonts import FontType, set_font_role
-from helpers.scroll.row_jump import RowJumpGroup
+from helpers.scroll.row_jump import NEXT, PREVIOUS, RowJumpGroup
 from helpers.translate import tr
 
+
+_ENTER_KEYS = (Qt.Key.Key_Return, Qt.Key.Key_Enter)
 
 # Previous first, then next
 _MATCH_JUMP_ACTIONS = (
@@ -80,6 +83,9 @@ class MessageSearchBar(QWidget):
     With get_messages/set_messages: keeps a backup while a query is active and
     filters by plain text or U:/M: prefixes. Without them: UI + visibility only;
     the host reacts to text_changed / return_pressed (chatlog).
+
+    Enter / Shift+Enter jump to the next / previous match. While needs_confirmation() holds (live search over
+    its limit) the first Enter only confirms the text and return_pressed fires; Enter jumps once the text is confirmed.
     """
     text_changed = pyqtSignal(str)
     return_pressed = pyqtSignal()
@@ -94,6 +100,7 @@ class MessageSearchBar(QWidget):
         set_messages=None,
         placeholder: str = "",
         extra_widgets=None,
+        needs_confirmation: Optional[Callable[[], bool]] = None,
     ):
         super().__init__()
         self.config = config
@@ -104,6 +111,9 @@ class MessageSearchBar(QWidget):
         self.query = SearchQuery("")
         self.visible_state = bool(config.get("ui", config_key) or False)
         self._backup = None
+        self._needs_confirmation = needs_confirmation
+        self._confirmed_text: Optional[str] = None
+        self._jump_group: Optional[RowJumpGroup] = None
 
         layout = QHBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
@@ -115,9 +125,9 @@ class MessageSearchBar(QWidget):
         set_font_role(self.field, FontType.TEXT)
         self.field.setFixedHeight(config.get("ui", "input_height") or 48)
         self.field.textChanged.connect(self._on_text_changed)
-        self.field.returnPressed.connect(self.return_pressed.emit)
+        self.field.installEventFilter(self)
         layout.addWidget(self.field, stretch=1)
-        MentionAutocomplete(self.field, config, prefix_chars=":,", suffix="", is_recorded=False)  # @nick, U:@nick, U:@a,@b
+        MentionAutocomplete(self.field, config, prefix_chars=":,", is_recorded=False)  # @nick, U:@nick, U:@a,@b
 
         self._jump_entries = [create_icon_entry(icons_path, icon, tr(en, ru), config) for icon, en, ru in _MATCH_JUMP_ACTIONS]
         for entry in self._jump_entries:
@@ -140,12 +150,31 @@ class MessageSearchBar(QWidget):
 
     def attach_list_view(self, list_view):
         """Previous / next buttons that scroll the list to the messages the search text matches."""
-        group = RowJumpGroup(
+        self._jump_group = RowJumpGroup(
             list_view, self._jump_entries, self._is_match,
             lambda row, *_: list_view.itemDelegate().highlight_row(row),
             scroll_mode="middle", parent=self,
         )
-        group.rescan()
+        self._jump_group.rescan()
+
+    def eventFilter(self, watched, event):
+        if event.type() == QEvent.Type.KeyPress and event.key() in _ENTER_KEYS:
+            self._on_enter(is_backward=bool(event.modifiers() & Qt.KeyboardModifier.ShiftModifier))
+            return True
+        return super().eventFilter(watched, event)
+
+    def _on_enter(self, is_backward: bool):
+        is_confirmed = self.field.text() == self._confirmed_text
+        is_confirmation_needed = self._needs_confirmation is not None and self._needs_confirmation()
+        if is_confirmation_needed and not is_confirmed:
+            self.confirm()
+        elif self._jump_group is not None:
+            self._jump_group.jump(PREVIOUS if is_backward else NEXT)
+
+    def confirm(self):
+        """Ask the host to apply the current text (the search button and the first Enter)."""
+        self._confirmed_text = self.field.text()
+        self.return_pressed.emit()
 
     def _is_match(self, message) -> bool:
         return bool(self.query.text) and not message.is_separator and self.query.matches(message.username, message.body)
@@ -164,6 +193,7 @@ class MessageSearchBar(QWidget):
             self.clear()
 
     def clear(self):
+        self._confirmed_text = None
         if not self.field.text() and self._backup is None:
             return
         self.field.blockSignals(True)
@@ -178,6 +208,7 @@ class MessageSearchBar(QWidget):
     def reset(self):
         """Drop backup/query state without restoring the model (caller already cleared it)."""
         self._backup = None
+        self._confirmed_text = None
         self.query = SearchQuery("")
         if self.visible_state:
             self.field.blockSignals(True)

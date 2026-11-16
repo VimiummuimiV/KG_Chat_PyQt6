@@ -8,7 +8,8 @@ from PyQt6.QtCore import pyqtSignal, QObject, Qt, QTimer
 from helpers.scroll.scroll import scroll, visible_rows
 
 
-_DIRECTIONS = (-1, 1)  # previous, next
+PREVIOUS, NEXT = -1, 1
+_DIRECTIONS = (PREVIOUS, NEXT)
 
 
 def set_entry_enabled(entry: dict, enabled: bool) -> None:
@@ -58,7 +59,7 @@ class RowJumpGroup(QObject):
             signal.connect(self._schedule_rescan)
 
         for direction, entry in zip(_DIRECTIONS, entries):
-            entry["button"].clicked.connect(lambda _checked=False, step=direction: self._jump(step))
+            entry["button"].clicked.connect(lambda _checked=False, step=direction: self.jump(step))
 
     def _schedule_rescan(self, *_args) -> None:
         self._timer.start()
@@ -102,7 +103,8 @@ class RowJumpGroup(QObject):
         cursor = self._cursor
         return cursor if cursor is not None and top_row <= cursor <= bottom_row else top_row
 
-    def _jump(self, direction: int) -> None:
+    def jump(self, direction: int) -> None:
+        """Scroll to the nearest accepted row before (PREVIOUS) or after (NEXT) the current position."""
         target = _find_row(self._rows, self._reference_row(), direction)
         if target is None:
             return

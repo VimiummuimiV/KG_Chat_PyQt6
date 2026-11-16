@@ -20,6 +20,7 @@ from helpers.fonts.fonts import FontType, set_font_role
 
 _POPUP_WIDTH = 260
 _POPUP_GAP = 4
+_SUFFIX = ", "  # follows an inserted nickname
 _MENTION_PATTERN = re.compile(r"(?<!\S)@([^\s@]*)$")
 _ARROW_STEPS = {Qt.Key.Key_Down: 1, Qt.Key.Key_Up: -1}
 _CTRL_STEP_KEYS = {Qt.Key.Key_N: 1, Qt.Key.Key_P: -1}
@@ -58,14 +59,13 @@ class MentionAutocomplete(QObject):
             return False
         return widget is active._list or active._list.isAncestorOf(widget)
 
-    def __init__(self, field: QLineEdit, config, *, prefix_chars: str = "", suffix: str = ", ", is_recorded: bool = True):
+    def __init__(self, field: QLineEdit, config, *, prefix_chars: str = "", is_recorded: bool = True):
         """prefix_chars: characters besides whitespace that may stand right before the @ (a search bar takes ":" and ",");
-        suffix follows an inserted nickname; is_recorded: whether an inserted nickname joins the recent mentions."""
+        is_recorded: whether an inserted nickname joins the recent mentions."""
         super().__init__(field)
         self._field = field
         self._config = config
         self._pattern = re.compile(rf"(?<![^\s{re.escape(prefix_chars)}])@([^\s@]*)$")
-        self._suffix = suffix
         self._is_recorded = is_recorded
         self._list: Optional[QListWidget] = None
         self._query: Optional[Tuple[int, str]] = None
@@ -137,7 +137,7 @@ class MentionAutocomplete(QObject):
         start = self._query[0]
         cursor = self._field.cursorPosition()
         text = self._field.text()
-        inserted = item.text() + self._suffix
+        inserted = item.text() + _SUFFIX
         if self._is_recorded:
             remember_mention(item.text())
         self._field.setText(text[:start] + inserted + text[cursor:])

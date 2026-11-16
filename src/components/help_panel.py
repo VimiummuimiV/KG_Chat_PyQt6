@@ -71,6 +71,11 @@ _MENTION_KB = [
     ("Esc",        "Close suggestions",                  "Закрыть подсказки"),
 ]
 
+_SEARCH_KB = [
+    ("Enter",       "Next match (first confirms a long search)", "Следующее совпадение (сначала подтверждает долгий поиск)"),
+    ("Shift+Enter", "Previous match",                            "Предыдущее совпадение"),
+]
+
 _CHAT_SCROLL_KB = [
     ("J / ↓",       "Scroll down",      "Прокрутка вниз"),
     ("K / ↑",       "Scroll up",        "Прокрутка вверх"),
@@ -392,6 +397,7 @@ _CONTEXTS = {
             (("General", "Общее"),                         _CHAT_GENERAL_KB, None),
             (("Ctrl Shortcuts", "Ctrl-сочетания"),         _CHAT_CTRL_KB,    None),
             (("Scrolling", "Прокрутка"),                   _CHAT_SCROLL_KB,  None),
+            (("Search", "Поиск"),                          _SEARCH_KB,       None),
             (("Nickname Suggestions", "Подсказки ников"),  _MENTION_KB,      None),
             (
                 ("User List Clicks", "Клики по списку пользователей"),
@@ -432,6 +438,7 @@ _CONTEXTS = {
         "sections": [
             (("Navigation", "Навигация"),                  _CHATLOG_KB,     _CHATLOG_MOUSE),
             (("Scrolling", "Прокрутка"),                   _CHAT_SCROLL_KB, None),
+            (("Search", "Поиск"),                          _SEARCH_KB,      None),
             (
                 ("User List", "Список пользователей"),
                 None,

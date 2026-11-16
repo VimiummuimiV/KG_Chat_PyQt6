@@ -12,6 +12,9 @@ from helpers.dates import parse_short_date
 from helpers.translate import tr
 
 
+_DATE_ENTRY = re.compile(r'^[Dd]:\s*(\S+)')
+
+
 class ChatlogSearchMixin:
     """ChatlogWidget: search bar, mention and username filters."""
 
@@ -46,9 +49,13 @@ class ChatlogSearchMixin:
         if not self.requires_confirmed_search():
             self.apply_filter()
 
+    def search_needs_confirmation(self) -> bool:
+        """Whether Enter must apply the search text first: live search is over its limit, or a 'D:<date>' entry."""
+        return self.requires_confirmed_search() or bool(_DATE_ENTRY.match(self.search_text))
+
     def on_search_enter(self):
         """Enter/search button - jump to date for a 'D:<date>' entry, otherwise apply the search."""
-        match = re.match(r'^[Dd]:\s*(\S+)', self.search_text)
+        match = _DATE_ENTRY.match(self.search_text)
         if match:
             date_str = parse_short_date(match.group(1))
             try:

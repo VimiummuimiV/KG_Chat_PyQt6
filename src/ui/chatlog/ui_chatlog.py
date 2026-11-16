@@ -264,14 +264,15 @@ class ChatlogWidget(
         self.confirm_search_button = create_icon_button(self.icons_path, "line/search-line.svg", "",
                                                      size_type="large", config=self.config)
         self.tr_set(self.confirm_search_button.setToolTip, "Search (Enter)", "Поиск (Enter)")
-        self.confirm_search_button.clicked.connect(self.on_search_enter)
         self.confirm_search_button.setVisible(False)
 
         self.search = MessageSearchBar(
             self.config, self.icons_path,
             config_key="chatlog_search_visible",
             extra_widgets=(self.confirm_search_button,),
+            needs_confirmation=self.search_needs_confirmation,
         )
+        self.confirm_search_button.clicked.connect(self.search.confirm)
         self.tr_set(
             self.search.field.setPlaceholderText,
             f"Search: 'text' or 'U:Bob' or 'U:Bob,Alice' or 'M:hello' or 'D:{DATE_PLACEHOLDER}' (Enter)",
