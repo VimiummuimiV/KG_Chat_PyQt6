@@ -109,6 +109,7 @@ Where it goes:
 - One feature with local and shared parts: one file, one class, local under the username and shared beside it (`mention_aliases.json`: `{"local": {...}, "global": [...]}`). Never two files for one feature.
 - Remembered UI state of the app: `ui_state` from `core/state/ui_state.py` (`data/ui_state.json`), one key per concern (`window`, `window_presets`, `emoticons`). It holds only state the program remembers by itself.
 - A list the user builds by hand (saved usernames, saved rooms) is data, not UI state: it gets its own file named after the feature (`parser_users.json`, `saved_rooms.json`), a `JsonState` private to the one module that uses it. Ask "is this something the user typed in, or something the program remembers?" to pick between the two.
+- A state file with one entry per user (many entries) is written one entry per line, like `users.json`: `JsonState(name, one_line_entries=True)` or `dump_entries_per_line` from `core/state/json_state.py`, never a second writer. A file read from disk is checked at the boundary (an entry of the wrong type is skipped), not migrated.
 - Data files are plain JSON with no schema migration code: a format change means the old file is deleted or replaced, as with databases.
 - A new key written with `config.set` is checked against the rule above first; a default value for a setting goes to `settings/config.json`, a default for state lives in the code that reads it (`or []`).
 
