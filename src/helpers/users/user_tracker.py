@@ -170,9 +170,14 @@ class UserTracker:
     def get_selected(self) -> Dict[str, str]:
         return dict(self.selected)
 
-    def clear_selected(self):
-        self.selected.clear()
-        self.frozen.clear()
+    def replace_selected(self, selected: Dict[str, str]):
+        """Replace the tracked users with one write; those still tracked keep their frozen state."""
+        selected = {str(user_id): username for user_id, username in selected.items()}
+        frozen = self.frozen & selected.keys()
+        if selected == self.selected and frozen == self.frozen:
+            return
+        self.selected = selected
+        self.frozen = frozen
         self.save()
 
     def seed_state(self, user_id: str, login: str, event_type: str, game_id: str = None):

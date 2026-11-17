@@ -83,10 +83,11 @@ class TrackerSelectionMixin:
         self.tracked_count_label.setText(tr(f"Total: {count}", f"Всего: {count}"))
 
     def save_selected(self):
-        self.user_tracker.clear_selected()
+        selected = {}
         for item in self.user_items:
             username, user_id = item.get_data()
             if username and user_id and item.username_valid:
-                self.user_tracker.add_selected(user_id, username)
+                selected[user_id] = username
+        self.user_tracker.replace_selected(selected)
         self.update_tracked_count()
         self.tracked_users_changed.emit()
