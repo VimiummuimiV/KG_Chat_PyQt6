@@ -18,7 +18,8 @@ class PronunciationManager:
         if self._file_path.exists():
             try:
                 with open(self._file_path, 'r', encoding='utf-8') as f:
-                    self._entries = json.load(f)
+                    entries = json.load(f)
+                self._entries = {user_id: entry for user_id, entry in entries.items() if isinstance(entry, dict)}
             except Exception as e:
                 print(f"Error loading pronunciation mappings: {e}")
                 self._entries = {}

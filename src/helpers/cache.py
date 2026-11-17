@@ -11,6 +11,7 @@ from typing import Callable, Dict, List, Optional, Tuple
 
 from PyQt6.QtGui import QPixmap
 
+from core.state.json_state import dump_entries_per_line
 from helpers.colors.color_contrast import optimize_color_contrast
 from helpers.data import get_data_dir, get_state_dir
 from helpers.load import fetch_avatar_bytes, load_avatar_from_disk
@@ -73,11 +74,7 @@ class _CacheManager:
 
     def _save_data(self, snapshot: dict) -> None:
         try:
-            lines = ',\n'.join(
-                f'  {json.dumps(uid)}: {json.dumps(entry, ensure_ascii=False)}'
-                for uid, entry in snapshot.items()
-            )
-            self._data_path.write_text(f'{{\n{lines}\n}}', encoding='utf-8')
+            self._data_path.write_text(dump_entries_per_line(snapshot), encoding='utf-8')
         except Exception as e:
             print(f"Error saving users.json: {e}")
 

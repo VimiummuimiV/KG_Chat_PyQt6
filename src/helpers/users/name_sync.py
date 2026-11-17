@@ -37,7 +37,7 @@ class NameSync(QObject):
         super().__init__()
         self._stores = stores
         self._cache = get_cache()
-        self._state = JsonState("name_checks.json")  # {"checked": {user_id: {"username", "checked_at"}}}
+        self._state = JsonState("name_checks.json", one_line_entries=True)  # {user_id: {"username", "checked_at"}}
         self._is_checking = False
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._start_pass)
@@ -72,8 +72,7 @@ class NameSync(QObject):
         if self._is_checking:
             return
         known = self._known_usernames()
-        saved = self._state.get("checked") or {}
-        checked = {user_id: entry for user_id, entry in saved.items() if user_id in known and isinstance(entry, dict)}
+        checked = {user_id: entry for user_id, entry in self._state.get().items() if user_id in known and isinstance(entry, dict)}
         now = time.time()
         stale = sorted(
             (user_id for user_id in known if now - _checked_at(checked, user_id) >= _RECHECK_TTL_SECONDS),
@@ -104,6 +103,6 @@ class NameSync(QObject):
                 failures += 1
                 if failures >= _MAX_CONSECUTIVE_FAILURES:
                     break
-            self._state.set("checked", value=checked)
+            self._state.replace(checked)
         finally:
             self._is_checking = False
