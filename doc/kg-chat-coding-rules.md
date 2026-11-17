@@ -1,6 +1,6 @@
 ---
 name: kg-chat-coding-rules
-description: Coding conventions and project structure for KG_Chat_PyQt6, the PyQt6 XMPP chat client for Klavogonki (main.py, core/, helpers/, components/, ui/, themes/, settings/). Covers clean-code rules (no duplication, no over-engineering), where every new file must live, import order, naming rules (full names, no digits, leading underscore for file-private names), styling and themes (QSS templates with palette tokens, object names and properties instead of per-widget setStyleSheet, when QSS is not the tool, fast theme switching), SVG icon folders and file naming, good practices and delivery rules. Use whenever writing, editing, reviewing or adding files to this project, even for small changes, and whenever the user mentions the chat client, ui_chat.py, KG_Chat_Data, Klavobot, or any file or folder from this project.
+description: Coding conventions and project structure for KG_Chat_PyQt6, the PyQt6 XMPP chat client for Klavogonki (main.py, core/, helpers/, components/, ui/, themes/, settings/). Covers clean-code rules (no duplication, no over-engineering), where every new file must live, import order, naming rules (full names, no digits, leading underscore for file-private names), styling and themes (QSS templates with palette tokens, object names and properties instead of per-widget setStyleSheet, when QSS is not the tool, fast theme switching), SVG icon folders and file naming, text that follows the language, the lifecycle of the main window panels, shared user rows and list actions, good practices and delivery rules. Use whenever writing, editing, reviewing or adding files to this project, even for small changes, and whenever the user mentions the chat client, ui_chat.py, KG_Chat_Data, Klavobot, or any file or folder from this project.
 ---
 
 # KG_Chat_PyQt6 coding rules
@@ -248,6 +248,30 @@ The font engine is `helpers/fonts/fonts.py`; nothing else decides a family or a 
 - Delete dead code and unused names instead of leaving them.
 - Verify before delivering: the files compile (`python -m py_compile`), pyflakes is clean, every module imports (offscreen Qt), every `.svg` name used in code exists in its icon folder, every `$token` of a `.qss` exists in both palettes, no new or renamed name collides with or shadows another, and any new logic is exercised with a quick check. A change to styling or theming is checked in both themes (offscreen screenshots before and after) and a theme switch is toggled back and forth.
 
+## Language, panels and list actions
+
+### Text that follows the language
+- Static text: `tr_set(setter, en, ru)`. A text built at runtime (counts, state-dependent tooltips such as freeze / unfreeze, validation messages) has one method that renders it (`_update_counts`, `_show_freeze_tooltip`), and the widget overrides `retranslate_all` to call `super().retranslate_all(code)` and then that method. A `tr(...)` result must never be left in a persistent widget without one of the two.
+- A widget with such text mixes in `TranslatableMixin`, calls `init_translatable()` and `on_language_changed(self.retranslate_all)` with a bound method, never a lambda: a bound method of a QObject disconnects when the object dies, a lambda stays connected and fails on a deleted widget.
+- Buttons built for a `RowJumpGroup` come from `create_icon_entry`, which keeps the translatable tooltip; the group re-renders it itself.
+- Check it: switch the language back and forth in an offscreen run and read every label and tooltip of the screen; none stays in the old language. Texts built at call time (`QMessageBox`, toasts) need nothing.
+
+### Panels of the main window
+- A panel (profile, settings, ban list, tracker, pronunciation) exists only while it is the open view: it is built when opened and destroyed when left (`release_closed_panels`, connected to `stacked_widget.currentChanged`), as the chatlog is, so the live chat keeps no hidden views in memory. A new panel is added to `_PANEL_ATTRS`, builds its data from the managers and config in its constructor, and has `cleanup()` when it runs timers or workers.
+- Code outside a panel reaches it only through `getattr(self, "name", None)` and tolerates `None`. A panel holds no state that a manager or the config does not also hold.
+- Registries of widgets are weak (`weakref.WeakSet`), otherwise a destroyed panel stays in memory through the registry.
+- Never add a hidden-but-alive view to the stack.
+
+### Rows, actions and lists
+- A user row of an editable list is `UserEntryRow` (`components/user_entry_row.py`): avatar, username, user id, the list's own widgets added with `add_action(widget, base_width)`, and a remove button. A list subclasses it and adds only what differs; it never draws its own copy of a row. A row reports through signals (`changed`, `remove_requested`), never through a reference to its parent.
+- A row loaded from saved data never checks names against the site one by one (`check_on_load=False` when the data has no user id); the site is asked when the user edits a name.
+- The counts of a list (total, per section) sit beside the title on its left: the title does not stretch, the count label does.
+- A button that acts on every element of a reusable list (clear all) is part of the reusable component (`SavedValuesBar` has it as the last item of its flow) and asks for a confirmation.
+- After a blocking `menu.exec()` (or any dialog) the row that opened it may be gone, for example when the user left the chat. A choice is run through the list that owns the row (`run_userlist_action(action, owner, ...)`), which outlives the row, with the data the row held when the menu opened. A row never emits its own signal or calls a Qt method of itself after `exec`.
+- A live update of a sorted list places the new or changed element where a full rebuild would (`place_chip`), with the same sort key.
+- A list of search results does not scroll by itself while the user types: the first results stay on top, the first jump lands on the first result (`starts_at_top`), a jump highlights with the short `JUMP_FLASH_DURATION_MS` and shows its place in a toast (`announce_jump`).
+- Text color that is data cannot be set on an editable `QLineEdit` without a per-widget stylesheet (QSS `palette()` ignores the widget palette); show it in a `ColoredLabel`.
+
 ## Message row geometry
 
 - One wrapping implementation: `layout_atoms` in `ui/messages/message_layout.py`. `sizeHint` and painting read the same `_RowGeometry` of the delegate, so a height can never disagree with the drawing. A row of boxes (chips, presence badges) wraps with `wrap_boxes` from the same file. Never write a second loop that counts lines for the height and another that places them for painting.
@@ -260,4 +284,6 @@ The font engine is `helpers/fonts/fonts.py`; nothing else decides a family or a 
 
 - Return only the files that were changed or newly created, at their project paths. After a restructure return the full tree as a zip plus the list of moved and removed files.
 - Files use CRLF line endings: keep them in edited files and use them in new ones.
+- A zip for replacing files has the same paths as the uploaded `src.zip` (no extra `src/` folder), so it extracts over the project.
+- Two modules never share a dotted name (a `name.py` next to a `name/` package): the package silently wins. When a task meets such a leftover, report it.
 - Discuss with the user in Russian or English; keep all code and code comments in English.
