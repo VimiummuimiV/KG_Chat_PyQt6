@@ -20,7 +20,7 @@ from helpers.fonts.fonts import FontType, set_font_role
 
 _POPUP_WIDTH = 260
 _POPUP_GAP = 4
-_SUFFIX = ", "  # follows an inserted nickname
+_LIST_SUFFIX = ", "  # follows a nickname inserted into a comma-separated list
 _MENTION_PATTERN = re.compile(r"(?<!\S)@([^\s@]*)$")
 _BARE_PATTERN = re.compile(r"(?<![^\s,])([^\s,@]+)$")  # a nickname typed without the @, as in a comma-separated list
 _ARROW_STEPS = {Qt.Key.Key_Down: 1, Qt.Key.Key_Up: -1}
@@ -38,6 +38,7 @@ class MentionAutocomplete(QObject):
 
     A bare @ lists the recently inserted nicknames, @ and some letters lists the matching nicknames.
     With bare=True the letters alone start the list (no @, no recent nicknames), for a field of comma-separated nicknames.
+    With suffix="" the field holds one nickname: it is inserted as is and an exact match is not offered again.
     """
 
     _active: Optional["MentionAutocomplete"] = None  # only the focused input shows suggestions
@@ -61,15 +62,20 @@ class MentionAutocomplete(QObject):
             return False
         return widget is active._list or active._list.isAncestorOf(widget)
 
-    def __init__(self, field: QLineEdit, config, *, prefix_chars: str = "", is_recorded: bool = True, bare: bool = False):
+    def __init__(
+        self, field: QLineEdit, config, *, prefix_chars: str = "", is_recorded: bool = True, bare: bool = False,
+        suffix: str = _LIST_SUFFIX,
+    ):
         """prefix_chars: characters besides whitespace that may stand right before the @ (a search bar takes ":" and ",");
         is_recorded: whether an inserted nickname joins the recent mentions;
-        bare: nicknames are typed without the @."""
+        bare: nicknames are typed without the @;
+        suffix: what follows an inserted nickname."""
         super().__init__(field)
         self._field = field
         self._config = config
         self._pattern = _BARE_PATTERN if bare else re.compile(rf"(?<![^\s{re.escape(prefix_chars)}])@([^\s@]*)$")
         self._is_recorded = is_recorded
+        self._suffix = suffix
         self._list: Optional[QListWidget] = None
         self._query: Optional[Tuple[int, str]] = None
         field.installEventFilter(self)
@@ -93,7 +99,8 @@ class MentionAutocomplete(QObject):
 
     def _collect(self, prefix: str) -> List[str]:
         if prefix:
-            return get_cache().find_logins(prefix, suggestion_limit(self._config))
+            logins = get_cache().find_logins(prefix, suggestion_limit(self._config))
+            return logins if self._suffix else [login for login in logins if login != prefix]
         return get_recent_mentions()[:recent_limit(self._config)] if is_recent_shown(self._config) else []
 
     def _show(self, nicks: List[str]):
@@ -140,7 +147,7 @@ class MentionAutocomplete(QObject):
         start = self._query[0]
         cursor = self._field.cursorPosition()
         text = self._field.text()
-        inserted = item.text() + _SUFFIX
+        inserted = item.text() + self._suffix
         if self._is_recorded:
             remember_mention(item.text())
         self._field.setText(text[:start] + inserted + text[cursor:])

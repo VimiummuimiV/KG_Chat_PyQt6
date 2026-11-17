@@ -7,6 +7,7 @@ from PyQt6.QtWidgets import QHBoxLayout, QLabel, QLineEdit, QSizePolicy, QWidget
 
 from components.avatar import apply_user_avatar, make_avatar_label, refresh_avatar_placeholder
 from components.button import create_icon_button, render_svg_icon
+from components.mention_autocomplete.autocomplete import MentionAutocomplete
 from core.web.api_data import validate_username_and_get_id
 from helpers.fonts.fonts import FontType, get_scaled_width, set_font_role
 from helpers.translate import on_language_changed, tr, TranslatableMixin
@@ -61,6 +62,7 @@ class UserEntryRow(TranslatableMixin, QWidget):
         self.username_input.setText(username)
         self.username_input.setFixedHeight(self.input_height)
         self.username_input.editingFinished.connect(self._validate)
+        MentionAutocomplete(self.username_input, config, bare=True, is_recorded=False, suffix="")
         self._main_layout.addWidget(self.username_input)
 
         arrow_label = QLabel()
