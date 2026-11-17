@@ -4,7 +4,7 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QHBoxLayout, QLineEdit, QSizePolicy, QWidget
 
 from components.flash_highlight import DURATION_KEYS, FlashLabel
-from components.mention_autocomplete.options import (
+from components.username_autocomplete.options import (
     DEFAULT_RECENT_LIMIT,
     DEFAULT_SUGGESTION_LIMIT,
     is_autocomplete_enabled,
@@ -131,17 +131,17 @@ class SettingsChatMixin:
         input_header, input_content, input_layout = self.add_subsection(
             section, tr("⌨️ Input Field", "⌨️ Строка ввода")
         )
-        self.mention_autocomplete_checkbox = self.add_checkbox(
+        self.username_autocomplete_checkbox = self.add_checkbox(
             input_layout,
-            tr("Nickname suggestions after @", "Подсказки ников после @"),
-            self._on_mention_autocomplete_toggled,
+            tr("Nickname suggestions", "Подсказки ников"),
+            self._on_username_autocomplete_toggled,
         )
         self.tr_set(
-            self.mention_autocomplete_checkbox.setToolTip,
-            "Type @ and a few letters of a nickname (letters may be skipped: TW finds TolikWorkaholic). "
-            "Tab inserts the highlighted nickname.",
-            "Введите @ и несколько букв ника (буквы можно пропускать: TW найдёт TolikWorkaholic). "
-            "Tab вставляет выбранный ник.",
+            self.username_autocomplete_checkbox.setToolTip,
+            "Type @ and a few letters of a nickname in the message input, or just the letters in a username field "
+            "(letters may be skipped: TW finds TolikWorkaholic). Tab inserts the highlighted nickname.",
+            "Введите @ и несколько букв ника в строке сообщения или просто буквы в поле имени "
+            "(буквы можно пропускать: TW найдёт TolikWorkaholic). Tab вставляет выбранный ник.",
         )
         self.mention_recent_checkbox = self.add_checkbox(
             input_layout, tr("Recent nicknames on a bare @", "Недавние ники по одному @"),
@@ -326,7 +326,7 @@ class SettingsChatMixin:
         )
 
         self.copy_username_checkbox.setChecked(bool(self.config.get("ui", "chat", "copy_include_username")))
-        self.mention_autocomplete_checkbox.setChecked(is_autocomplete_enabled(self.config))
+        self.username_autocomplete_checkbox.setChecked(is_autocomplete_enabled(self.config))
         self.mention_recent_checkbox.setChecked(is_recent_shown(self.config))
         for spin, value in (
             (self.mention_recent_spin, recent_limit(self.config)),
@@ -425,8 +425,8 @@ class SettingsChatMixin:
     def _on_parser_validate_usernames_toggled(self, checked: bool):
         self.config.set("chatlog_parser", "validate_usernames", value=checked)
 
-    def _on_mention_autocomplete_toggled(self, checked: bool):
-        self.config.set("ui", "chat", "mention_autocomplete", value=checked)
+    def _on_username_autocomplete_toggled(self, checked: bool):
+        self.config.set("ui", "chat", "username_autocomplete", value=checked)
 
     def _on_mention_recent_toggled(self, checked: bool):
         self.config.set("ui", "chat", "mention_recent", value=checked)

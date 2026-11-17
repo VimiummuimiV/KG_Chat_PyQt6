@@ -1,0 +1,17 @@
+/* Nickname suggestions next to an input */
+QListWidget#usernameList {
+    background: $panel_bg;
+    border: 1px solid $panel_border;
+    border-radius: 4px;
+    padding: 3px;
+    outline: none;
+}
+
+QListWidget#usernameList::item {
+    padding: 5px 8px;
+    border-radius: 3px;
+}
+
+QListWidget#usernameList::item:selected {
+    background: $btn_hover_bg;
+}

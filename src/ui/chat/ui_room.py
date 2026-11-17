@@ -7,7 +7,7 @@ from PyQt6.QtWidgets import QHBoxLayout, QVBoxLayout, QWidget
 
 from components.font_scale_slider import FontScaleSlider
 from components.input_row import InputRow
-from components.mention_autocomplete.autocomplete import MentionAutocomplete
+from components.username_autocomplete.autocomplete import UsernameAutocomplete
 from core.xmpp.client import XMPPClient
 from helpers.fonts.fonts import get_userlist_width
 from helpers.translate import on_language_changed, TranslatableMixin
@@ -112,7 +112,7 @@ class RoomWidget(TranslatableMixin, QWidget):
         self.input_row.submitted.connect(self.send_requested)
         self.input_row.emoticon_requested.connect(self.emoticon_requested)
         self.input_field = self.input_row.input_field
-        MentionAutocomplete(self.input_field, self.config)
+        UsernameAutocomplete(self.input_field, self.config)
         self.send_button = self.input_row.send_button
         self.emoticon_button = self.input_row.emoticon_button
         left_layout.addWidget(self.input_row)

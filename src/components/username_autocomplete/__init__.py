@@ -1,5 +1,5 @@
-"""Nickname suggestions for message inputs."""
+"""Nickname suggestions for message inputs and username fields."""
 
-from .autocomplete import MentionAutocomplete
+from .autocomplete import UsernameAutocomplete
 
-__all__ = ["MentionAutocomplete"]
+__all__ = ["UsernameAutocomplete"]

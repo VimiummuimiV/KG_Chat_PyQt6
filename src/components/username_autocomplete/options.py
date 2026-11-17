@@ -12,7 +12,7 @@ SUGGESTION_LIMIT_RANGE = (1, 15)
 
 def is_autocomplete_enabled(config) -> bool:
     """Whether nickname suggestions are on (on unless switched off in Settings)."""
-    value = config.get("ui", "chat", "mention_autocomplete")
+    value = config.get("ui", "chat", "username_autocomplete")
     return True if value is None else bool(value)
 
 

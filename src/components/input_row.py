@@ -6,7 +6,6 @@ from PyQt6.QtCore import pyqtSignal, Qt
 from PyQt6.QtWidgets import QHBoxLayout, QLineEdit, QWidget
 
 from components.button import create_icon_button, HoverIconButton
-from components.mention_autocomplete import MentionAutocomplete
 from helpers.fonts.fonts import FontType, set_font_role
 from helpers.translate import on_language_changed, TranslatableMixin
 
@@ -16,15 +15,12 @@ _DEFAULT_SPACING = 8
 
 
 class InputRow(TranslatableMixin, QWidget):
-    """Text field with a send button and, optionally, an emoticon selector button and nickname suggestions."""
+    """Text field with a send button and, optionally, an emoticon selector button."""
 
     submitted = pyqtSignal(str)  # the stripped, non-empty text; the field is already cleared
     emoticon_requested = pyqtSignal()
 
-    def __init__(
-        self, icons_path: Path, config=None, with_emoticons: bool = True,
-        with_mention_autocomplete: bool = False, parent=None,
-    ):
+    def __init__(self, icons_path: Path, config=None, with_emoticons: bool = True, parent=None):
         super().__init__(parent)
         self.init_translatable()
         self._layout = QHBoxLayout(self)
@@ -37,8 +33,6 @@ class InputRow(TranslatableMixin, QWidget):
             (config.get("ui", "buttons", "large_button", "button_size") if config else None) or _DEFAULT_FIELD_HEIGHT
         )
         self.input_field.returnPressed.connect(self._submit)
-        if with_mention_autocomplete:
-            MentionAutocomplete(self.input_field, config)
         self._layout.addWidget(self.input_field, stretch=1)
 
         self.send_button = create_icon_button(icons_path, "fill/send-plane-2-fill.svg", "", size_type="large", config=config)

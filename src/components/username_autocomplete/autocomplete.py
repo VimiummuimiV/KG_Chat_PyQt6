@@ -1,4 +1,4 @@
-"""Nickname suggestions for a message input: type @ and a few letters, Tab inserts the nickname."""
+"""Nickname suggestions for an input: type @ and a few letters (or the letters alone in a username field), Tab inserts the nickname."""
 
 import re
 from typing import List, Optional, Tuple
@@ -7,7 +7,7 @@ from PyQt6.QtCore import QEvent, QObject, QPoint, Qt
 from PyQt6.QtGui import QKeyEvent
 from PyQt6.QtWidgets import QAbstractItemView, QLineEdit, QListWidget, QListWidgetItem, QWidget
 
-from components.mention_autocomplete.options import (
+from components.username_autocomplete.options import (
     is_autocomplete_enabled,
     is_recent_shown,
     recent_limit,
@@ -27,13 +27,13 @@ _ARROW_STEPS = {Qt.Key.Key_Down: 1, Qt.Key.Key_Up: -1}
 _CTRL_STEP_KEYS = {Qt.Key.Key_N: 1, Qt.Key.Key_P: -1}
 
 
-def find_mention(text: str, cursor: int, pattern=_MENTION_PATTERN) -> Optional[Tuple[int, str]]:
+def find_username_query(text: str, cursor: int, pattern=_MENTION_PATTERN) -> Optional[Tuple[int, str]]:
     """The @prefix that ends at the cursor as (index of the @, prefix), or None."""
     match = pattern.search(text, 0, cursor)
     return (match.start(), match.group(1)) if match else None
 
 
-class MentionAutocomplete(QObject):
+class UsernameAutocomplete(QObject):
     """Suggestion list above a QLineEdit; while it is open it owns Tab, Up, Down, Ctrl+N, Ctrl+P and Esc.
 
     A bare @ lists the recently inserted nicknames, @ and some letters lists the matching nicknames.
@@ -41,7 +41,7 @@ class MentionAutocomplete(QObject):
     With suffix="" the field holds one nickname: it is inserted as is and an exact match is not offered again.
     """
 
-    _active: Optional["MentionAutocomplete"] = None  # only the focused input shows suggestions
+    _active: Optional["UsernameAutocomplete"] = None  # only the focused input shows suggestions
 
     @classmethod
     def is_open(cls) -> bool:
@@ -85,7 +85,7 @@ class MentionAutocomplete(QObject):
     def _refresh(self, *_):
         if not self._field.hasFocus():
             return
-        query = find_mention(self._field.text(), self._field.cursorPosition(), self._pattern)
+        query = find_username_query(self._field.text(), self._field.cursorPosition(), self._pattern)
         if query and not is_autocomplete_enabled(self._config):
             query = None
         if query == self._query:
@@ -116,12 +116,12 @@ class MentionAutocomplete(QObject):
         suggestions.move(origin.x(), above if above >= 0 else origin.y() + self._field.height() + _POPUP_GAP)  # below a field at the top
         suggestions.show()
         suggestions.raise_()
-        MentionAutocomplete._active = self
+        UsernameAutocomplete._active = self
 
     def _ensure_list(self) -> QListWidget:
         if self._list is None:
             self._list = QListWidget(self._field.window())
-            self._list.setObjectName("mentionList")
+            self._list.setObjectName("usernameList")
             set_font_role(self._list, FontType.TEXT)
             self._list.setFocusProxy(self._field)  # a click on a suggestion must not take the focus from the field
             self._list.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
@@ -136,8 +136,8 @@ class MentionAutocomplete(QObject):
         self._query = None
         if self._list is not None:
             self._list.hide()
-        if MentionAutocomplete._active is self:
-            MentionAutocomplete._active = None
+        if UsernameAutocomplete._active is self:
+            UsernameAutocomplete._active = None
 
     def _step(self, step: int):
         self._list.setCurrentRow((self._list.currentRow() + step) % self._list.count())
@@ -179,7 +179,7 @@ class MentionAutocomplete(QObject):
 
     def eventFilter(self, watched, event):
         event_type = event.type()
-        if event_type == QEvent.Type.KeyPress and MentionAutocomplete._active is self:
+        if event_type == QEvent.Type.KeyPress and UsernameAutocomplete._active is self:
             return self._handle_key(event)
         if event_type in (QEvent.Type.FocusOut, QEvent.Type.Hide):
             self._close()

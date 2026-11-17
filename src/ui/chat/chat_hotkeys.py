@@ -4,7 +4,7 @@ from PyQt6.QtCore import QEvent, Qt, QTimer
 from PyQt6.QtWidgets import QApplication, QLineEdit, QMenu, QTextEdit
 
 from components.image_viewer.viewer import ImageHoverView
-from components.mention_autocomplete.autocomplete import MentionAutocomplete
+from components.username_autocomplete.autocomplete import UsernameAutocomplete
 
 
 _HANDLED_EVENT_TYPES = frozenset({
@@ -25,7 +25,7 @@ class ChatHotkeysMixin:
         if event_type not in _HANDLED_EVENT_TYPES or ImageHoverView.is_open():
             return super().eventFilter(obj, event)
         # open nickname suggestions keep Tab, arrows, Ctrl+N / Ctrl+P and Esc for the input
-        if event_type == QEvent.Type.KeyPress and MentionAutocomplete.is_open():
+        if event_type == QEvent.Type.KeyPress and UsernameAutocomplete.is_open():
             return super().eventFilter(obj, event)
 
         # Ctrl+Space hold-to-talk. Must live here (not only keyPressEvent):
@@ -140,7 +140,7 @@ class ChatHotkeysMixin:
                         in_menu = True
                         break
                     w = w.parentWidget()
-                if clicked and not in_menu and not isinstance(clicked, QLineEdit) and not MentionAutocomplete.contains(clicked):
+                if clicked and not in_menu and not isinstance(clicked, QLineEdit) and not UsernameAutocomplete.contains(clicked):
                     self.setFocus()
             except Exception:
                 pass

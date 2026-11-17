@@ -14,8 +14,8 @@ from components.button import set_theme
 from components.font_scale_slider import FontScaleSlider
 from components.help_panel import HelpPanel
 from components.input_row import InputRow
-from components.mention_autocomplete.autocomplete import MentionAutocomplete
 from components.toast import Toast
+from components.username_autocomplete.autocomplete import UsernameAutocomplete
 from core.state.mentions_digest import MentionsDigest
 from core.state.self_ban import SelfBan
 from helpers.cache import get_cache
@@ -335,7 +335,7 @@ class ChatWindow(
         self.input_row.submitted.connect(self.send_message)
         self.input_row.emoticon_requested.connect(self.toggle_emoticon_selector)
         self.input_field = self.input_row.input_field
-        MentionAutocomplete(self.input_field, self.config)
+        UsernameAutocomplete(self.input_field, self.config)
         self.send_button = self.input_row.send_button
         self.emoticon_button = self.input_row.emoticon_button
         input_main_layout.addWidget(self.input_row)

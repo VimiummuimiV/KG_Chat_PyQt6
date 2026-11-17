@@ -8,7 +8,7 @@ from PyQt6.QtWidgets import QWidget
 
 from components.button import get_accent_color
 from components.fade import WidgetFader
-from components.mention_autocomplete.autocomplete import MentionAutocomplete
+from components.username_autocomplete.autocomplete import UsernameAutocomplete
 from core.state.pet_records import PetRecords
 from helpers.pets.animation import sprite_height
 from helpers.pets.bounce import CollisionBoard, CursorMotion
@@ -262,7 +262,7 @@ class PetOverlay(QWidget):
         self.setGeometry(top_left.x(), 0, self._anchor.width(), line_y)
         self.show()
         self.raise_()  # panes re-adopted by the window (room tabs opened or closed) land above the pets
-        MentionAutocomplete.raise_open()  # the nickname suggestions stay in front of the pets
+        UsernameAutocomplete.raise_open()  # the nickname suggestions stay in front of the pets
         selector = parent.findChild(EmoticonSelectorWidget, options=Qt.FindChildOption.FindDirectChildrenOnly)
         if selector and selector.isVisible():
             selector.raise_()  # so does the emoticon panel

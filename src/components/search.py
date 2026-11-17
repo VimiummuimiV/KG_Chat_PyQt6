@@ -8,7 +8,7 @@ from PyQt6.QtCore import pyqtSignal, QEvent, Qt
 from PyQt6.QtWidgets import QHBoxLayout, QLineEdit, QWidget
 
 from components.button import create_icon_button, create_icon_entry
-from components.mention_autocomplete.autocomplete import MentionAutocomplete
+from components.username_autocomplete.autocomplete import UsernameAutocomplete
 from helpers.fonts.fonts import FontType, set_font_role
 from helpers.scroll.row_jump import announce_jump, describe_message, NEXT, PREVIOUS, RowJumpGroup
 from helpers.translate import on_language_changed, tr, TranslatableMixin
@@ -129,7 +129,7 @@ class MessageSearchBar(TranslatableMixin, QWidget):
         self.field.textChanged.connect(self._on_text_changed)
         self.field.installEventFilter(self)
         layout.addWidget(self.field, stretch=1)
-        MentionAutocomplete(self.field, config, prefix_chars=":,", is_recorded=False)  # @nick, U:@nick, U:@a,@b
+        UsernameAutocomplete(self.field, config, prefix_chars=":,", is_recorded=False)  # @nick, U:@nick, U:@a,@b
 
         self._jump_entries = [create_icon_entry(icons_path, icon, tr(en, ru), config) for icon, en, ru in _MATCH_JUMP_ACTIONS]
         for entry in self._jump_entries:
