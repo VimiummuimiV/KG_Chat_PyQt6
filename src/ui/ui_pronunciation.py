@@ -3,8 +3,6 @@
 from pathlib import Path
 
 from PyQt6.QtCore import pyqtSignal, Qt, QTimer
-from PyQt6.QtGui import QPainter, QPixmap
-from PyQt6.QtSvg import QSvgRenderer
 from PyQt6.QtWidgets import (
     QGridLayout,
     QHBoxLayout,
@@ -18,146 +16,34 @@ from PyQt6.QtWidgets import (
 
 from components.button import create_icon_button
 from components.toast import show_toast, ToastKind
-from core.web.api_data import get_exact_user_id_by_name
+from components.user_entry_row import UserEntryRow
+from helpers.cache import get_cache
 from helpers.fonts.fonts import FontType, set_font_role
 from helpers.translate import on_language_changed, tr, TranslatableMixin
-from themes.stylesheet import set_style_property
 
 
-class _PronunciationItemWidget(TranslatableMixin, QWidget):
-    """Single pronunciation mapping item"""
-    remove_requested = pyqtSignal(object)  # Emits self
+class _PronunciationItemWidget(UserEntryRow):
+    """Pronunciation row: the shared user row with a field for how the name is spoken."""
 
-    def __init__(self, config, icons_path: Path, original: str = "", pronunciation: str = ""):
-        super().__init__()
-        self.init_translatable()
-        self.config = config
-        self.icons_path = icons_path
-        self.username_valid = True  # Track validation state
+    PRONUNCIATION_BASE_WIDTH = 200
 
-        spacing = self.config.get("ui", "spacing", "widget_elements") or 6
-
-        # Use horizontal layout
-        layout = QHBoxLayout()
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(spacing)
-        self.setLayout(layout)
-
-        # Original username input
-        self._original_input = QLineEdit()
-        self.tr_set(self._original_input.setPlaceholderText, "Username", "Имя пользователя")
-        self._original_input.setText(original)
-        set_font_role(self._original_input, FontType.TEXT)
-        input_height = self.config.get("ui", "input_height") or 48
-        self._original_input.setFixedHeight(input_height)
-        self._original_input.setFixedWidth(250)
-
-        # Connect to validation on focus out
-        self._original_input.editingFinished.connect(self._validate_username)
-
-        layout.addWidget(self._original_input)
-
-        # Arrow icon label (SVG as QLabel)
-        arrow_label = QLabel()
-        arrow_svg_path = self.icons_path / "line/arrow-right-s-line.svg"
-        if arrow_svg_path.exists():
-            # Get icon size from config
-            icon_size = 30  # Default large icon size
-            button_config = config.get("ui", "buttons")
-            if button_config and isinstance(button_config, dict):
-                large_button = button_config.get("large_button", {})
-                if isinstance(large_button, dict):
-                    icon_size = large_button.get("icon_size", 30)
-
-            # Render SVG to pixmap with gray color
-            with open(arrow_svg_path, 'r') as f:
-                svg_content = f.read()
-
-            # Use gray color for arrow (works on both light and dark backgrounds)
-            svg_content = svg_content.replace('fill="currentColor"', 'fill="#888888"')
-
-            renderer = QSvgRenderer()
-            renderer.load(svg_content.encode('utf-8'))
-            pixmap = QPixmap(icon_size, icon_size)
-            pixmap.fill(Qt.GlobalColor.transparent)
-            painter = QPainter(pixmap)
-            renderer.render(painter)
-            painter.end()
-
-            arrow_label.setPixmap(pixmap)
-            arrow_label.setFixedSize(icon_size, icon_size)
-
-        layout.addWidget(arrow_label)
-
-        # Pronunciation input
-        self._pronunciation_input = QLineEdit()
-        self.tr_set(self._pronunciation_input.setPlaceholderText, "Pronunciation", "Произношение")
-        self._pronunciation_input.setText(pronunciation)
-        set_font_role(self._pronunciation_input, FontType.TEXT)
-        self._pronunciation_input.setFixedHeight(input_height)
-        self._pronunciation_input.setFixedWidth(250)
-        layout.addWidget(self._pronunciation_input)
-
-        # Set tab order: Username -> Pronunciation
-        self.setTabOrder(self._original_input, self._pronunciation_input)
-
-        # Remove button
-        self._remove_button = create_icon_button(
-            self.icons_path, "fill/delete-bin-fill.svg", "", 
-            size_type="large", config=self.config
-        )
-        self.tr_set(self._remove_button.setToolTip, "Remove", "Удалить")
-        self._remove_button.clicked.connect(lambda: self.remove_requested.emit(self))
-        layout.addWidget(self._remove_button)
-
-        # Set fixed width for the whole item
-        # 250 + 30 + 250 + 48 + spacing*3
-        total_width = 250 + icon_size + 250 + 48 + (spacing * 3)
-        self.setFixedWidth(total_width)
-        on_language_changed(self.retranslate_all)
-
-    def _validate_username(self):
-        """Validate username exists using API"""
-        username = self._original_input.text().strip()
-
-        # If empty, reset to valid state
-        if not username:
-            self.username_valid = True
-            self.update_input_style()
-            return
-
-        # Check if user exists
-        try:
-            user_id = get_exact_user_id_by_name(username)
-            self.username_valid = (user_id is not None)
-        except Exception:
-            self.username_valid = False
-
-        self.update_input_style()
-
-    def update_input_style(self):
-        """Update input styling based on validation state"""
-        if not self.username_valid:
-            # Invalid username - show red border
-            set_style_property(self._original_input, "validation", "invalid")
-            self._original_input.setToolTip(tr("User not found", "Пользователь не найден"))
-        else:
-            # Valid or empty - remove custom styling
-            set_style_property(self._original_input, "validation", "")
-            self._original_input.setToolTip("")
+    def __init__(self, config, icons_path: Path, original: str = "", pronunciation: str = "", user_id: str = ""):
+        super().__init__(config, icons_path, original, user_id, check_on_load=False)  # saved names are not looked up one by one
+        self.pronunciation_input = QLineEdit()
+        self.tr_set(self.pronunciation_input.setPlaceholderText, "Pronunciation", "Произношение")
+        self.pronunciation_input.setText(pronunciation)
+        set_font_role(self.pronunciation_input, FontType.TEXT)
+        self.pronunciation_input.setFixedHeight(self.input_height)
+        self.add_action(self.pronunciation_input, self.PRONUNCIATION_BASE_WIDTH)
+        self.setTabOrder(self.username_input, self.pronunciation_input)
 
     def get_values(self):
         """Get original and pronunciation values"""
-        return self._original_input.text().strip(), self._pronunciation_input.text().strip()
+        return self.username_input.text().strip(), self.pronunciation_input.text().strip()
 
     def is_empty(self):
         """Check if both inputs are empty"""
-        original, pronunciation = self.get_values()
-        return not original and not pronunciation
-
-    def is_valid(self):
-        """Check if username is valid"""
-        return self.username_valid
+        return super().is_empty() and not self.pronunciation_input.text().strip()
 
 
 class PronunciationWidget(TranslatableMixin, QWidget):
@@ -203,15 +89,12 @@ class PronunciationWidget(TranslatableMixin, QWidget):
         title_label = QLabel()
         set_font_role(title_label, FontType.HEADER)
         self.tr_set(title_label.setText, "Username Pronunciation", "Произношение имён")
-        header_layout.addWidget(title_label, stretch=1)
+        header_layout.addWidget(title_label)
 
-        # Clear All button
-        self._clear_all_button = create_icon_button(
-            self.icons_path, "fill/delete-bin-fill.svg", "", config=self.config
-        )
-        self.tr_set(self._clear_all_button.setToolTip, "Clear All", "Очистить всё")
-        self._clear_all_button.clicked.connect(self._clear_all)
-        header_layout.addWidget(self._clear_all_button)
+        self._total_count_label = QLabel()
+        self._total_count_label.setObjectName("mutedHint")
+        self._total_count_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        header_layout.addWidget(self._total_count_label, stretch=1)
 
         # Add button
         self._add_button = create_icon_button(
@@ -220,6 +103,14 @@ class PronunciationWidget(TranslatableMixin, QWidget):
         self.tr_set(self._add_button.setToolTip, "Add Mapping", "Добавить соответствие")
         self._add_button.clicked.connect(self._add_new_item)
         header_layout.addWidget(self._add_button)
+
+        # Clear All button
+        self._clear_all_button = create_icon_button(
+            self.icons_path, "fill/delete-bin-fill.svg", "", config=self.config
+        )
+        self.tr_set(self._clear_all_button.setToolTip, "Clear All", "Очистить всё")
+        self._clear_all_button.clicked.connect(self._clear_all)
+        header_layout.addWidget(self._clear_all_button)
 
         # Scroll area for items
         self.scroll = QScrollArea()
@@ -260,15 +151,17 @@ class PronunciationWidget(TranslatableMixin, QWidget):
 
         # Initial layout calculation
         QTimer.singleShot(100, self.recalculate_layout)
+        self._update_count()
 
     def _add_item(self, original: str = "", pronunciation: str = ""):
         """Add a pronunciation item to the list"""
-        item = _PronunciationItemWidget(self.config, self.icons_path, original, pronunciation)
+        user_id = get_cache().get_user_id(original) if original else None
+        item = _PronunciationItemWidget(self.config, self.icons_path, original, pronunciation, str(user_id or ""))
         item.remove_requested.connect(self._remove_item)
 
-        # Connect inputs to auto-save
-        item._original_input.textChanged.connect(self._save_mappings)
-        item._pronunciation_input.textChanged.connect(self._save_mappings)
+        # Auto-save: after the name is checked and while the pronunciation is typed
+        item.changed.connect(self._save_mappings)
+        item.pronunciation_input.textChanged.connect(self._save_mappings)
 
         self.items.append(item)
         self.recalculate_layout()
@@ -303,8 +196,22 @@ class PronunciationWidget(TranslatableMixin, QWidget):
         for item in self.items:
             original, pronunciation = item.get_values()
             # Only save if both fields filled AND username is valid
-            if original and pronunciation and item.is_valid():
+            if original and pronunciation and item.username_valid:
                 self.pronunciation_manager.add_mapping(original, pronunciation)
+        self._update_count()
+
+    def _update_count(self):
+        count = sum(1 for item in self.items if not item.is_empty())
+        self._total_count_label.setText(tr(f"Total: {count}", f"Всего: {count}"))
+
+    def retranslate_all(self, _code=None):
+        super().retranslate_all(_code)
+        self._update_count()
+
+    def update_theme(self):
+        is_dark = (self.config.get("ui", "theme") or "dark") == "dark"
+        for item in self.items:
+            item.update_theme(is_dark)
 
     def _clear_all(self):
         """Clear all pronunciation mappings"""
@@ -331,6 +238,7 @@ class PronunciationWidget(TranslatableMixin, QWidget):
 
             # Add one empty item
             self._add_item("", "")
+            self._update_count()
 
     def recalculate_layout(self):
         """Recalculate grid layout based on available width"""

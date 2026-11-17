@@ -17,6 +17,10 @@ _ARROW_SIZE = 26
 _ARROW_COLOR = "#888888"
 _DEFAULT_INPUT_HEIGHT = 44
 _DEFAULT_SPACING = 6
+_VALIDATION_TOOLTIPS = {
+    "missing": ("Fill username before adding new item", "Заполните имя пользователя перед добавлением новой записи"),
+    "invalid": ("User not found", "Пользователь не найден"),
+}
 
 
 class UserEntryRow(TranslatableMixin, QWidget):
@@ -32,13 +36,15 @@ class UserEntryRow(TranslatableMixin, QWidget):
     remove_requested = pyqtSignal(object)
     changed = pyqtSignal()
 
-    def __init__(self, config, icons_path: Path, username: str = "", user_id: str = ""):
+    def __init__(self, config, icons_path: Path, username: str = "", user_id: str = "", check_on_load: bool = True):
+        """check_on_load: whether a username given without its user id is checked against the site right away."""
         super().__init__()
         self.init_translatable()
         self.config = config
         self.icons_path = icons_path
         self.user_id = user_id
         self.username_valid = True
+        self._scaled_widgets = []
 
         self._main_layout = QHBoxLayout()
         self._main_layout.setContentsMargins(0, 0, 0, 0)
@@ -77,14 +83,16 @@ class UserEntryRow(TranslatableMixin, QWidget):
 
         self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         self.update_font_scale()
-        if username and not user_id:
+        if check_on_load and username and not user_id:
             self._validate()
         on_language_changed(self.retranslate_all)
 
-    def add_action(self, widget: QWidget):
-        """Put a button of the owning list in front of the remove button."""
+    def add_action(self, widget: QWidget, base_width: int | None = None):
+        """Put a widget of the owning list in front of the remove button; base_width makes it follow the font scale."""
         self._main_layout.insertWidget(self._main_layout.count() - 1, widget)
-        self.fit_width()
+        if base_width:
+            self._scaled_widgets.append((widget, base_width))
+        self.update_font_scale()
 
     def fit_width(self):
         """Make the row exactly as wide as its parts, so a grid can count how many rows fit."""
@@ -96,6 +104,8 @@ class UserEntryRow(TranslatableMixin, QWidget):
         set_font_role(self.user_id_input, FontType.TEXT)
         self.username_input.setFixedWidth(get_scaled_width(self.USERNAME_BASE_WIDTH))
         self.user_id_input.setFixedWidth(get_scaled_width(self.USER_ID_BASE_WIDTH))
+        for widget, base_width in self._scaled_widgets:
+            widget.setFixedWidth(get_scaled_width(base_width))
         self.fit_width()
 
     def update_theme(self, is_dark: bool):
@@ -119,17 +129,21 @@ class UserEntryRow(TranslatableMixin, QWidget):
     def update_input_style(self, highlight_empty: bool = False):
         """Mark the username field as missing or not found."""
         if highlight_empty and not self.username_input.text().strip():
-            set_style_property(self.username_input, "validation", "missing")
-            self.username_input.setToolTip(tr(
-                "Fill username before adding new item",
-                "Заполните имя пользователя перед добавлением новой записи")
-            )
+            state = "missing"
         elif self.username_input.text().strip() and not self.username_valid:
-            set_style_property(self.username_input, "validation", "invalid")
-            self.username_input.setToolTip(tr("User not found", "Пользователь не найден"))
+            state = "invalid"
         else:
-            set_style_property(self.username_input, "validation", "")
-            self.username_input.setToolTip("")
+            state = ""
+        set_style_property(self.username_input, "validation", state)
+        self._show_validation_tooltip()
+
+    def _show_validation_tooltip(self):
+        messages = _VALIDATION_TOOLTIPS.get(self.username_input.property("validation"))
+        self.username_input.setToolTip(tr(*messages) if messages else "")
+
+    def retranslate_all(self, _code=None):
+        super().retranslate_all(_code)
+        self._show_validation_tooltip()
 
     def is_empty(self) -> bool:
         """Whether no username is typed."""

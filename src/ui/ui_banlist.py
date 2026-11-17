@@ -364,6 +364,10 @@ class BanListWidget(TranslatableMixin, QWidget):
         total = permanent + temporary
         self._total_count_label.setText(tr(f"Total: {total}", f"Всего: {total}"))
 
+    def retranslate_all(self, _code=None):
+        super().retranslate_all(_code)
+        self._update_counts()
+
     def update_theme(self):
         is_dark = (self.config.get("ui", "theme") or "dark") == "dark"
         for item in self._perm_items + self._temp_items:

@@ -1,5 +1,6 @@
 import math
 import re
+import weakref
 from pathlib import Path
 
 from PyQt6 import sip
@@ -10,7 +11,7 @@ from PyQt6.QtWidgets import QGraphicsOpacityEffect, QPushButton
 
 
 # Global state
-_icon_registry = []
+_icon_registry = weakref.WeakSet()  # buttons of a destroyed panel drop out by themselves
 is_dark_theme = True
 
 # Theme accent colors
@@ -32,7 +33,7 @@ def set_theme(is_dark: bool):
 
 def register_icon_button(button) -> None:
     """Track a button so its icon is re-rendered on theme change."""
-    _icon_registry.append(button)
+    _icon_registry.add(button)
 
 
 def get_accent_color() -> str:
@@ -171,6 +172,7 @@ def create_icon_entry(icons_path: Path, icon_name: str, tooltip: str, config=Non
     button = create_icon_button(icons_path, icon_name, tooltip, size_type="large", config=config)
     return {
         "button": button,
+        "tooltip": tooltip,
         "icon_normal": button.icon(),
         "icon_dimmed": create_disabled_icon(icons_path, icon_name, icon_size=button.icon_size),
     }
@@ -228,8 +230,8 @@ class HoverIconButton(QPushButton):
 
 def update_all_icons():
     """Update all registered icon buttons when theme changes"""
-    _icon_registry[:] = [btn for btn in _icon_registry if not sip.isdeleted(btn)]
-
-    for button in _icon_registry:
+    for button in list(_icon_registry):
+        if sip.isdeleted(button):
+            continue
         if hasattr(button, 'icon_path') and hasattr(button, '_icon_name'):
             set_button_icon(button, button._icon_name)

@@ -231,6 +231,12 @@ class UserTrackerWidget(
         self.tr_set(lambda text, i=history_tab_index: self.tabs.setTabText(i, text), "History", "История")
         on_language_changed(self.retranslate_all)
 
+    def retranslate_all(self, _code=None):
+        super().retranslate_all(_code)
+        self.update_tracked_count()
+        self.update_info_label()
+        self._update_filter_button()
+
     def toggle_userlist(self) -> bool:
         self.userlist_visible = not self.userlist_visible
         self.config.set("ui", "userlist", "tracker", value=self.userlist_visible)

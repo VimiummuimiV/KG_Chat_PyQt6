@@ -1,5 +1,6 @@
 """ChatWindow: stacked panels (profile, settings, ban list, tracker, pronunciation)."""
 
+from helpers.system.memory import release_memory_soon
 from ui.account.ui_profile import ProfileWidget
 from ui.settings.ui_settings import SettingsWidget
 from ui.tracker.ui_user_tracker import UserTrackerWidget
@@ -7,8 +8,35 @@ from ui.ui_banlist import BanListWidget
 from ui.ui_pronunciation import PronunciationWidget
 
 
+_PANEL_ATTRS = (
+    "profile_widget",
+    "ban_list_widget",
+    "user_tracker_widget",
+    "pronunciation_widget"
+    "settings_widget",
+)
+
+
 class ChatPanelsMixin:
-    """ChatWindow: stacked panels (profile, settings, ban list, tracker, pronunciation)."""
+    """ChatWindow: stacked panels (profile, settings, ban list, tracker, pronunciation).
+    A panel exists only while it is the open view: it is built on opening and destroyed on leaving."""
+
+    def release_closed_panels(self):
+        """Destroy every panel that is no longer the open view; a hidden panel only holds memory."""
+        current = self.stacked_widget.currentWidget()
+        is_released = False
+        for attr in _PANEL_ATTRS:
+            widget = getattr(self, attr, None)
+            if widget is None or widget is current:
+                continue
+            if hasattr(widget, "cleanup"):
+                widget.cleanup()
+            self.stacked_widget.removeWidget(widget)
+            widget.deleteLater()
+            setattr(self, attr, None)
+            is_released = True
+        if is_released:
+            release_memory_soon()
 
     def on_switch_account(self):
         """Handle switch account request from button panel"""

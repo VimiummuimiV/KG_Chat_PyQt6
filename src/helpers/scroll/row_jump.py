@@ -8,7 +8,7 @@ from PyQt6.QtCore import pyqtSignal, QObject, Qt, QTimer
 from components.flash_highlight import JUMP_FLASH_DURATION_MS
 from components.toast import show_toast, ToastKind
 from helpers.scroll.scroll import scroll, visible_rows
-from helpers.translate import tr
+from helpers.translate import on_language_changed, tr, TrStr
 
 
 PREVIOUS, NEXT = -1, 1
@@ -49,7 +49,7 @@ class RowJumpGroup(QObject):
     def __init__(self, list_view, entries: list, is_target: Callable, on_jump: Optional[Callable] = None,
                  rescan_signals: Iterable = (), describe: Optional[Callable] = None, scroll_mode: str = "top",
                  starts_at_top: bool = False, parent=None):
-        """entries: the two panel buttons (previous, next) as dicts with button, icon_normal, icon_dimmed.
+        """entries: the two panel buttons (previous, next) as made by create_icon_entry (button, tooltip, icon_normal, icon_dimmed).
         on_jump(row, position, total) runs after a jump; describe(row data) names the target in a button tooltip;
         scroll_mode is where the target row lands ("top" or "middle");
         starts_at_top lets the first jump from the top of the list land on its first row (a list of search results)."""
@@ -61,11 +61,13 @@ class RowJumpGroup(QObject):
         self._describe = describe
         self._scroll_mode = scroll_mode
         self._starts_at_top = starts_at_top
-        self._tooltips = [entry["button"].toolTip() for entry in entries]
+        self._tooltip_sources = [entry["tooltip"] for entry in entries]
+        self._tooltips = list(self._tooltip_sources)
         self._rows: list = []
         self._cursor: Optional[int] = None  # row of the last jump; the next one starts there while it stays on screen
         self._is_visible = False
 
+        on_language_changed(self._retranslate)
         self._signals = list(rescan_signals)
         model = list_view.model()
         if model:
@@ -98,6 +100,13 @@ class RowJumpGroup(QObject):
         if is_visible != self._is_visible:
             self._is_visible = is_visible
             self.visibility_changed.emit(is_visible)
+        self.update_enabled()
+
+    def _retranslate(self, _code=None) -> None:
+        """Show the button tooltips in the new language."""
+        self._tooltips = [tr(source.en, source.ru) if isinstance(source, TrStr) else source for source in self._tooltip_sources]
+        for entry, tooltip in zip(self._entries, self._tooltips):
+            entry["button"].setToolTip(tooltip)
         self.update_enabled()
 
     def update_enabled(self) -> None:

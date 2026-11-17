@@ -11,7 +11,7 @@ from components.button import create_icon_button, create_icon_entry
 from components.mention_autocomplete.autocomplete import MentionAutocomplete
 from helpers.fonts.fonts import FontType, set_font_role
 from helpers.scroll.row_jump import announce_jump, describe_message, NEXT, PREVIOUS, RowJumpGroup
-from helpers.translate import tr
+from helpers.translate import on_language_changed, tr, TranslatableMixin
 
 
 _ENTER_KEYS = (Qt.Key.Key_Return, Qt.Key.Key_Enter)
@@ -77,7 +77,7 @@ class SearchQuery:
         return self.needle in (username or "").lower() or self.needle in (body or "").lower()
 
 
-class MessageSearchBar(QWidget):
+class MessageSearchBar(TranslatableMixin, QWidget):
     """Search bar over a message list.
 
     With get_messages/set_messages: keeps a backup while a query is active and
@@ -103,6 +103,7 @@ class MessageSearchBar(QWidget):
         needs_confirmation: Optional[Callable[[], bool]] = None,
     ):
         super().__init__()
+        self.init_translatable()
         self.config = config
         self._config_key = config_key
         self._get_messages = get_messages
@@ -122,6 +123,7 @@ class MessageSearchBar(QWidget):
 
         self.field = QLineEdit()
         self.field.setPlaceholderText(placeholder)
+        self.register_tr(self.field.setPlaceholderText, placeholder)
         set_font_role(self.field, FontType.TEXT)
         self.field.setFixedHeight(config.get("ui", "input_height") or 48)
         self.field.textChanged.connect(self._on_text_changed)
@@ -142,11 +144,12 @@ class MessageSearchBar(QWidget):
             icons_path, "fill/delete-bin-fill.svg", "",
             size_type="large", config=config,
         )
-        self._clear_button.setToolTip(tr("Clear search", "Очистить поиск"))
+        self.tr_set(self._clear_button.setToolTip, "Clear search", "Очистить поиск")
         self._clear_button.clicked.connect(self.clear)
         layout.addWidget(self._clear_button)
 
         self.setVisible(self.visible_state)
+        on_language_changed(self.retranslate_all)
 
     def attach_list_view(self, list_view):
         """Previous / next buttons that scroll the list to the messages the search text matches."""

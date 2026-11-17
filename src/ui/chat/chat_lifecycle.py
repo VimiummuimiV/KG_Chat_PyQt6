@@ -126,6 +126,9 @@ class ChatLifecycleMixin:
             if getattr(self, "ban_list_widget", None):
                 self.ban_list_widget.update_theme()
 
+            if getattr(self, "pronunciation_widget", None):
+                self.pronunciation_widget.update_theme()
+
             self.messages_widget.rebuild_messages()
             if self.presence_log_widget:
                 self.presence_log_widget.rebuild_messages()

@@ -7,21 +7,7 @@ from PyQt6.QtGui import QCursor
 from PyQt6.QtWidgets import QApplication, QHBoxLayout, QLabel, QScrollArea, QVBoxLayout, QWidget
 
 from components.button import create_icon_button
-from components.context_menu.userlist import (
-    BAN_PERMANENT,
-    BAN_TEMPORARY,
-    COPY_ID,
-    COPY_USERNAME,
-    FILTER,
-    PASTE_USERNAME,
-    PRIVATE,
-    PROFILE,
-    SET_PRONUNCIATION,
-    show_userlist_context_menu,
-    TRACK,
-    UNTRACK,
-)
-from components.toast import copy_text_with_toast
+from components.context_menu.userlist import FILTER, run_userlist_action, show_userlist_context_menu
 from components.tracked_mark import TrackedMarkMixin
 from components.user_count_row import UserCountRow
 from helpers.cache import get_cache
@@ -33,16 +19,11 @@ from helpers.translate import on_language_changed, TranslatableMixin
 class _ChatlogUserWidget(TrackedMarkMixin, UserCountRow):
     """Single user widget for chatlog - adds context menu (profile/private/track/etc) on top of the base row"""
 
-    profile_requested = pyqtSignal(str, str, str)  # jid, username, user_id
-    private_chat_requested = pyqtSignal(str, str, str)  # jid, username, user_id
-    paste_requested = pyqtSignal(str) # username
-    track_requested = pyqtSignal(str, str, bool)  # user_id, login, track
-    ban_requested = pyqtSignal(str, str, str, bool, object)  # jid, username, user_id, permanent, duration
-    pronunciation_requested = pyqtSignal(str)  # username
-
     def __init__(self, username, msg_count, config, icons_path, my_username=None, user_id=None,
-                       user_tracker=None, pronunciation_manager=None):
+                       user_tracker=None, pronunciation_manager=None, *, owner):
+        """owner is the ChatlogUserlistWidget: its signals carry every action, so they outlive this row."""
         super().__init__(username, msg_count, config, icons_path, user_id=user_id)
+        self.owner = owner
         self.my_username = my_username
         self.pronunciation_manager = pronunciation_manager
         self.user_tracker = user_tracker
@@ -71,28 +52,10 @@ class _ChatlogUserWidget(TrackedMarkMixin, UserCountRow):
             show_ban=not is_own_user,
             has_pronunciation=has_pronunciation,
         )
-        if action == PROFILE:
-            self.profile_requested.emit("", self.username, self.user_id or "")
-        elif action == PRIVATE:
-            self.private_chat_requested.emit("", self.username, self.user_id or "")
-        elif action == PASTE_USERNAME:
-            self.paste_requested.emit(self.username)
-        elif action == COPY_USERNAME:
-            copy_text_with_toast(self, self.username)
-        elif action == COPY_ID:
-            copy_text_with_toast(self, str(self.user_id or ""))
-        elif action == FILTER:
-            self.clicked.emit(self.username, False)
-        elif action == TRACK:
-            self.track_requested.emit(str(self.user_id or ""), self.username, True)
-        elif action == UNTRACK:
-            self.track_requested.emit(str(self.user_id or ""), self.username, False)
-        elif action == BAN_PERMANENT:
-            self.ban_requested.emit("", self.username, str(self.user_id or ""), True, None)
-        elif action == BAN_TEMPORARY:
-            self.ban_requested.emit("", self.username, str(self.user_id or ""), False, None)
-        elif action == SET_PRONUNCIATION:
-            self.pronunciation_requested.emit(self.username)
+        if run_userlist_action(action, self.owner, "", self.username, self.user_id):
+            return
+        if action == FILTER:
+            self.owner.handle_user_click(self.username, False)
 
 
 class ChatlogUserlistWidget(TranslatableMixin, QWidget):
@@ -171,7 +134,7 @@ class ChatlogUserlistWidget(TranslatableMixin, QWidget):
         """Control whether banned users are shown (for parse mode)"""
         self._show_banned = show
 
-    def _handle_user_click(self, username: str, ctrl_pressed: bool):
+    def handle_user_click(self, username: str, ctrl_pressed: bool):
         """Handle user click with Ctrl modifier support"""
         if ctrl_pressed:
             # Toggle username in filter
@@ -252,15 +215,9 @@ class ChatlogUserlistWidget(TranslatableMixin, QWidget):
                 widget = _ChatlogUserWidget(
                     username, count, self.config, self.icons_path,
                     my_username=self.my_username, user_id=user_id,
-                    user_tracker=self.user_tracker, pronunciation_manager=self.pronunciation_manager,
+                    user_tracker=self.user_tracker, pronunciation_manager=self.pronunciation_manager, owner=self,
                 )
-                widget.clicked.connect(self._handle_user_click)
-                widget.profile_requested.connect(self.profile_requested.emit)
-                widget.private_chat_requested.connect(self.private_chat_requested.emit)
-                widget.paste_requested.connect(self.paste_requested.emit)
-                widget.track_requested.connect(self.track_requested.emit)
-                widget.ban_requested.connect(self.ban_requested.emit)
-                widget.pronunciation_requested.connect(self.pronunciation_requested.emit)
+                widget.clicked.connect(self.handle_user_click)
                 widget.set_filtered(username in self.filtered_usernames)
                 self.user_widgets[username] = widget
                 self._user_layout.insertWidget(self._user_layout.count() - 1, widget)

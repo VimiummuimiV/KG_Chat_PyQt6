@@ -3,11 +3,9 @@
 from pathlib import Path
 from typing import Optional
 
-from PyQt6 import sip
-
 from components.button import render_svg_icon
 from components.menu import create_menu
-from components.toast import show_toast, ToastKind
+from components.toast import copy_text_with_toast
 from helpers.translate import tr
 
 
@@ -41,8 +39,7 @@ def show_userlist_context_menu(
     def icon(name: str):
         return render_svg_icon(icons_path / name, 16)
 
-    window = parent.window()
-    menu = create_menu(window)  # not a child of the row: its filter highlight stylesheet would cascade into the menu
+    menu = create_menu(parent.window())  # not a child of the row: its filter highlight stylesheet would cascade into the menu
 
     profile_action = menu.addAction(icon("fill/user-3-fill.svg"), tr("Profile", "Профиль"))
     private_action = None
@@ -86,9 +83,6 @@ def show_userlist_context_menu(
     chosen = menu.exec(global_pos)
     if chosen is None:
         return None
-    if sip.isdeleted(parent):  # the user left while the menu was open: the row is gone, so no action can run on it
-        show_toast(window, tr("The user has left the chat", "Пользователь вышел из чата"), ToastKind.WARNING)
-        return None
     if chosen is profile_action:
         return PROFILE
     if private_action is not None and chosen is private_action:
@@ -112,3 +106,33 @@ def show_userlist_context_menu(
     if open_game_action is not None and chosen is open_game_action:
         return OPEN_GAME
     return None
+
+
+def run_userlist_action(action: Optional[str], owner, jid: str, login: str, user_id) -> bool:
+    """Run a menu choice through the list that owns the row, never through the row itself: the row may be
+    gone (the user left while the menu was open) and the choice still completes with the data it was opened on.
+    Returns whether the action was one of these; the rest belong to the row's own list."""
+    user_id = str(user_id or "")
+    if action == PROFILE:
+        owner.profile_requested.emit(jid, login, user_id)
+    elif action == PRIVATE:
+        owner.private_chat_requested.emit(jid, login, user_id)
+    elif action == PASTE_USERNAME:
+        owner.paste_requested.emit(login)
+    elif action == COPY_USERNAME:
+        copy_text_with_toast(owner, login)
+    elif action == COPY_ID:
+        copy_text_with_toast(owner, user_id)
+    elif action == TRACK:
+        owner.track_requested.emit(user_id, login, True)
+    elif action == UNTRACK:
+        owner.track_requested.emit(user_id, login, False)
+    elif action == BAN_PERMANENT:
+        owner.ban_requested.emit(jid, login, user_id, True, None)
+    elif action == BAN_TEMPORARY:
+        owner.ban_requested.emit(jid, login, user_id, False, None)
+    elif action == SET_PRONUNCIATION:
+        owner.pronunciation_requested.emit(login)
+    else:
+        return False
+    return True

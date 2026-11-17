@@ -17,6 +17,7 @@ from PyQt6.QtWidgets import (
 )
 
 from components.button import create_icon_button
+from components.mention_autocomplete import MentionAutocomplete
 from components.tag_button import SavedValuesBar
 from core.state.json_state import JsonState
 from helpers.dates import parse_short_date
@@ -179,6 +180,8 @@ class ChatlogsParserConfigWidget(ParserModesMixin, ParserRunMixin, ParserUsernam
             tr("Usernames:", "Имена:"),
             tr("comma-separated (leave empty for all users)", "через запятую (пусто = все пользователи)")
         )
+
+        MentionAutocomplete(self.username_input, self.config, bare=True, is_recorded=False)
 
         # Get reference to the label that was created
         self.username_label = username_layout.itemAt(0).widget()

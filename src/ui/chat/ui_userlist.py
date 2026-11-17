@@ -17,21 +17,7 @@ from components.avatar import (
     show_real_avatar,
 )
 from components.colored_label import ColoredLabel
-from components.context_menu.userlist import (
-    BAN_PERMANENT,
-    BAN_TEMPORARY,
-    COPY_ID,
-    COPY_USERNAME,
-    OPEN_GAME,
-    PASTE_USERNAME,
-    PRIVATE,
-    PROFILE,
-    SET_PRONUNCIATION,
-    show_userlist_context_menu,
-    TRACK,
-    UNTRACK,
-)
-from components.toast import copy_text_with_toast
+from components.context_menu.userlist import OPEN_GAME, run_userlist_action, show_userlist_context_menu
 from components.tracked_mark import TrackedMarkMixin
 from core.xmpp.userlist import ChatUser
 from helpers.cache import get_cache
@@ -47,17 +33,11 @@ class _UserWidget(TrackedMarkMixin, QWidget):
     AVATAR_SIZE = 36
     SVG_AVATAR_SIZE = 24
 
-    profile_requested = pyqtSignal(str, str, str)  # jid, username, user_id
-    private_chat_requested = pyqtSignal(str, str, str)  # jid, username, user_id
-    paste_requested = pyqtSignal(str)  # username
-    open_game_requested = pyqtSignal(str)  # game_id
-    track_requested = pyqtSignal(str, str, bool)  # user_id, login, track
-    ban_requested = pyqtSignal(str, str, str, bool, object)  # jid, username, user_id, permanent, duration
-    pronunciation_requested = pyqtSignal(str)  # username
-
     def __init__(self, user, config, icons_path, is_dark_theme, game_counter=None, is_tracked=False,
-                 user_tracker=None, my_username=None, pronunciation_manager=None):
+                 user_tracker=None, my_username=None, pronunciation_manager=None, *, owner):
+        """owner is the UserListWidget: its signals carry every action, so they outlive this row."""
         super().__init__()
+        self.owner = owner
         self.user = user
         self.icons_path = icons_path
         self.is_tracked = is_tracked
@@ -190,12 +170,12 @@ class _UserWidget(TrackedMarkMixin, QWidget):
         if event.button() == Qt.MouseButton.LeftButton:
             modifiers = QApplication.keyboardModifiers()
             if modifiers & Qt.KeyboardModifier.ControlModifier:
-                self.private_chat_requested.emit(self.user.jid, self.user.login, self.user.user_id)
+                self.owner.private_chat_requested.emit(self.user.jid, self.user.login, self.user.user_id)
             else:
-                self.profile_requested.emit(self.user.jid, self.user.login, self.user.user_id)
+                self.owner.profile_requested.emit(self.user.jid, self.user.login, self.user.user_id)
         elif event.button() == Qt.MouseButton.MiddleButton:
             if self.user.game_id:
-                self.open_game_requested.emit(str(self.user.game_id))
+                self.owner.open_game_requested.emit(str(self.user.game_id))
         super().mousePressEvent(event)
 
     def contextMenuEvent(self, event):
@@ -216,28 +196,10 @@ class _UserWidget(TrackedMarkMixin, QWidget):
             show_ban=not is_own_user,
             has_pronunciation=has_pronunciation,
         )
-        if action == PROFILE:
-            self.profile_requested.emit(self.user.jid, self.user.login, self.user.user_id)
-        elif action == PRIVATE:
-            self.private_chat_requested.emit(self.user.jid, self.user.login, self.user.user_id)
-        elif action == PASTE_USERNAME:
-            self.paste_requested.emit(self.user.login)
-        elif action == COPY_USERNAME:
-            copy_text_with_toast(self, self.user.login)
-        elif action == COPY_ID:
-            copy_text_with_toast(self, str(self.user.user_id or ""))
-        elif action == OPEN_GAME and has_game:
-            self.open_game_requested.emit(str(self.user.game_id))
-        elif action == TRACK:
-            self.track_requested.emit(str(self.user.user_id or ""), self.user.login, True)
-        elif action == UNTRACK:
-            self.track_requested.emit(str(self.user.user_id or ""), self.user.login, False)
-        elif action == BAN_PERMANENT:
-            self.ban_requested.emit(self.user.jid, self.user.login, str(self.user.user_id or ""), True, None)
-        elif action == BAN_TEMPORARY:
-            self.ban_requested.emit(self.user.jid, self.user.login, str(self.user.user_id or ""), False, None)
-        elif action == SET_PRONUNCIATION:
-            self.pronunciation_requested.emit(self.user.login)
+        if run_userlist_action(action, self.owner, self.user.jid, self.user.login, self.user.user_id):
+            return
+        if action == OPEN_GAME and has_game:
+            self.owner.open_game_requested.emit(str(self.user.game_id))
 
 
 class UserListWidget(TranslatableMixin, QWidget):
@@ -435,15 +397,6 @@ class UserListWidget(TranslatableMixin, QWidget):
         for user in users:
             self._update_game_counter(user)
 
-        def _wire(widget):
-            widget.profile_requested.connect(self.profile_requested.emit)
-            widget.private_chat_requested.connect(self.private_chat_requested.emit)
-            widget.paste_requested.connect(self.paste_requested.emit)
-            widget.open_game_requested.connect(self.open_game_requested.emit)
-            widget.track_requested.connect(self.track_requested.emit)
-            widget.ban_requested.connect(self.ban_requested.emit)
-            widget.pronunciation_requested.connect(self.pronunciation_requested.emit)
-
         if bulk:
             # Clear all widgets safely
             for widget in list(self.user_widgets.values()):
@@ -471,9 +424,8 @@ class UserListWidget(TranslatableMixin, QWidget):
                     widget = _UserWidget(
                         user, self.config, self.icons_path, self.is_dark_theme,
                         is_tracked=self._is_tracked(user), user_tracker=self.user_tracker,
-                        my_username=self.my_username, pronunciation_manager=self.pronunciation_manager,
+                        my_username=self.my_username, pronunciation_manager=self.pronunciation_manager, owner=self,
                     )
-                    _wire(widget)
                     self._chat_container.addWidget(widget)
                     self.user_widgets[user.jid] = widget
                 except Exception as e:
@@ -486,9 +438,8 @@ class UserListWidget(TranslatableMixin, QWidget):
                     widget = _UserWidget(
                         user, self.config, self.icons_path, self.is_dark_theme, game_counter,
                         is_tracked=self._is_tracked(user), user_tracker=self.user_tracker,
-                        my_username=self.my_username, pronunciation_manager=self.pronunciation_manager,
+                        my_username=self.my_username, pronunciation_manager=self.pronunciation_manager, owner=self,
                     )
-                    _wire(widget)
                     self._game_container.addWidget(widget)
                     self.user_widgets[user.jid] = widget
                 except Exception as e:
@@ -517,9 +468,8 @@ class UserListWidget(TranslatableMixin, QWidget):
                 widget = _UserWidget(
                     user, self.config, self.icons_path, self.is_dark_theme, game_counter,
                     is_tracked=self._is_tracked(user), user_tracker=self.user_tracker,
-                    my_username=self.my_username, pronunciation_manager=self.pronunciation_manager,
+                    my_username=self.my_username, pronunciation_manager=self.pronunciation_manager, owner=self,
                 )
-                _wire(widget)
                 self.user_widgets[user.jid] = widget
 
                 # Find sorted position and insert

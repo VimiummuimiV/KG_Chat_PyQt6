@@ -8,7 +8,7 @@ from PyQt6.QtGui import QDrag
 from PyQt6.QtWidgets import QApplication, QHBoxLayout, QLabel, QLayout, QMessageBox, QPushButton, QWidget
 
 from components import button as icon_helpers
-from helpers.translate import tr
+from helpers.translate import on_language_changed, tr, TranslatableMixin
 
 
 # Close (x) button
@@ -167,7 +167,7 @@ class _FlowLayout(QLayout):
         return y - spacing - rect.y() if rows else 0
 
 
-class SavedValuesBar(QWidget):
+class SavedValuesBar(TranslatableMixin, QWidget):
     """Row of removable, draggable chips backed by any list storage, e.g. saved usernames or aliases.
     Owns loading/saving/rebuilding and the clear-all button; the parent widget only reacts to chip clicks."""
 
@@ -176,6 +176,7 @@ class SavedValuesBar(QWidget):
 
     def __init__(self, icons_path: Path, load_values: Callable[[], list], save_values: Callable[[list], None]):
         super().__init__()
+        self.init_translatable()
         self.icons_path = icons_path
         self._save_values = save_values
         self.values = load_values()
@@ -183,8 +184,9 @@ class SavedValuesBar(QWidget):
 
         self._layout = _FlowLayout(self)
         clear_button = icon_helpers.create_icon_button(
-            icons_path, "fill/delete-bin-fill.svg", tr("Remove all", "Удалить все"), size_type="small"
+            icons_path, "fill/delete-bin-fill.svg", "", size_type="small"
         )
+        self.tr_set(clear_button.setToolTip, "Remove all", "Удалить все")
         clear_button.clicked.connect(self._clear_values)
         self._layout.set_trailing_widget(clear_button)
         self._drop_indicator = QWidget(self)
@@ -194,6 +196,7 @@ class SavedValuesBar(QWidget):
         self._drop_target = (None, False)
         self.setAcceptDrops(True)
         self._rebuild()
+        on_language_changed(self.retranslate_all)
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
