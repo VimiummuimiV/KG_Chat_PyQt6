@@ -138,23 +138,23 @@ class SettingsChatMixin:
         )
         self.tr_set(
             self.username_autocomplete_checkbox.setToolTip,
-            "Type @ and a few letters of a nickname in the message input, or just the letters in a username field "
+            "Press Ctrl twice, then type a few letters of a nickname in the message input or a username field "
             "(letters may be skipped: TW finds TolikWorkaholic). Tab or Enter inserts the highlighted nickname.",
-            "Введите @ и несколько букв ника в строке сообщения или просто буквы в поле имени "
+            "Дважды нажмите Ctrl и введите несколько букв ника в строке сообщения или в поле имени "
             "(буквы можно пропускать: TW найдёт TolikWorkaholic). Tab или Enter вставляют выбранный ник.",
         )
-        self.mention_recent_checkbox = self.add_checkbox(
-            input_layout, tr("Recent nicknames on a bare @", "Недавние ники по одному @"),
-            self._on_mention_recent_toggled,
+        self.username_recent_checkbox = self.add_checkbox(
+            input_layout, tr("Recent nicknames before typing", "Недавние ники до ввода букв"),
+            self._on_username_recent_toggled,
         )
         self.tr_set(
-            self.mention_recent_checkbox.setToolTip,
-            "A bare @ lists the nicknames you inserted last, the newest is highlighted: @ then Tab.",
-            "Одиночный @ показывает ники, вставленные последними, самый свежий выделен: @ и Tab.",
+            self.username_recent_checkbox.setToolTip,
+            "Ctrl twice lists the nicknames you inserted last, the newest is highlighted: Ctrl Ctrl, then Tab.",
+            "Двойной Ctrl показывает ники, вставленные последними, самый свежий выделен: Ctrl Ctrl и Tab.",
         )
-        self.mention_recent_spin = self.add_slider_spin_row(
+        self.username_recent_spin = self.add_slider_spin_row(
             input_layout, tr("Recent nicknames shown", "Недавних ников в списке"),
-            *RECENT_LIMIT_RANGE, self._on_mention_recent_changed, default=DEFAULT_RECENT_LIMIT,
+            *RECENT_LIMIT_RANGE, self._on_username_recent_changed, default=DEFAULT_RECENT_LIMIT,
         )
         self.username_suggestion_spin = self.add_slider_spin_row(
             input_layout, tr("Suggested nicknames shown", "Предлагаемых ников в списке"),
@@ -327,9 +327,9 @@ class SettingsChatMixin:
 
         self.copy_username_checkbox.setChecked(bool(self.config.get("ui", "chat", "copy_include_username")))
         self.username_autocomplete_checkbox.setChecked(is_autocomplete_enabled(self.config))
-        self.mention_recent_checkbox.setChecked(is_recent_shown(self.config))
+        self.username_recent_checkbox.setChecked(is_recent_shown(self.config))
         for spin, value in (
-            (self.mention_recent_spin, recent_limit(self.config)),
+            (self.username_recent_spin, recent_limit(self.config)),
             (self.username_suggestion_spin, suggestion_limit(self.config)),
         ):
             spin.setValue(value)
@@ -428,11 +428,11 @@ class SettingsChatMixin:
     def _on_username_autocomplete_toggled(self, checked: bool):
         self.config.set("ui", "chat", "username_autocomplete", value=checked)
 
-    def _on_mention_recent_toggled(self, checked: bool):
-        self.config.set("ui", "chat", "mention_recent", value=checked)
+    def _on_username_recent_toggled(self, checked: bool):
+        self.config.set("ui", "chat", "username_recent", value=checked)
 
-    def _on_mention_recent_changed(self, value: int):
-        self.config.set("ui", "chat", "mention_recent_limit", value=int(value))
+    def _on_username_recent_changed(self, value: int):
+        self.config.set("ui", "chat", "username_recent_limit", value=int(value))
 
     def _on_username_suggestion_changed(self, value: int):
         self.config.set("ui", "chat", "username_suggestion_limit", value=int(value))

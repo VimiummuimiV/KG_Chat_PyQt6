@@ -384,7 +384,7 @@ class SettingsWidget(
             self.chatlog_filtered_click_combo,
             self.parser_validate_usernames_checkbox,
             self.copy_username_checkbox, self.copy_timestamp_checkbox, self.username_autocomplete_checkbox,
-            self.mention_recent_checkbox, self.mention_recent_spin, self.username_suggestion_spin,
+            self.username_recent_checkbox, self.username_recent_spin, self.username_suggestion_spin,
             self.badge_size_spin, self.input_hue_spin, self.input_saturation_spin,
             self.input_opacity_spin, self.input_idle_opacity_spin,
             self.mentions_digest_mode_combo,

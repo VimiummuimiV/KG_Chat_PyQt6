@@ -62,9 +62,9 @@ _CHAT_CTRL_KB = [
     ("Ctrl+Scroll",  "Font size up / down",      "Размер шрифта + / −"),
 ]
 
-_MENTION_KB = [
-    ("@",           "Recently inserted nicknames",       "Недавно вставленные ники"),
-    ("@ + letters", "Suggest nicknames (TW finds TolikWorkaholic)", "Подсказки ников (TW найдёт TolikWorkaholic)"),
+_USERNAME_KB = [
+    ("Ctrl Ctrl",           "Recently inserted nicknames",                  "Недавно вставленные ники"),
+    ("Ctrl Ctrl + letters", "Suggest nicknames (TW finds TolikWorkaholic)", "Подсказки ников (TW найдёт TolikWorkaholic)"),
     ("Tab / Enter", "Insert the highlighted nickname",   "Вставить выбранный ник"),
     ("↓ / Ctrl+N", "Next suggestion",                    "Следующая подсказка"),
     ("↑ / Ctrl+P", "Previous suggestion",                "Предыдущая подсказка"),
@@ -398,7 +398,7 @@ _CONTEXTS = {
             (("Ctrl Shortcuts", "Ctrl-сочетания"),         _CHAT_CTRL_KB,    None),
             (("Scrolling", "Прокрутка"),                   _CHAT_SCROLL_KB,  None),
             (("Search", "Поиск"),                          _SEARCH_KB,       None),
-            (("Nickname Suggestions", "Подсказки ников"),  _MENTION_KB,      None),
+            (("Nickname Suggestions", "Подсказки ников"),  _USERNAME_KB,      None),
             (
                 ("User List Clicks", "Клики по списку пользователей"),
                 None,

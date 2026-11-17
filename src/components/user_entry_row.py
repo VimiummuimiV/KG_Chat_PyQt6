@@ -62,7 +62,7 @@ class UserEntryRow(TranslatableMixin, QWidget):
         self.username_input.setText(username)
         self.username_input.setFixedHeight(self.input_height)
         self.username_input.editingFinished.connect(self._validate)
-        UsernameAutocomplete(self.username_input, config, bare=True, is_recorded=False, suffix="")
+        UsernameAutocomplete(self.username_input, config, is_recorded=False, suffix="")
         self._main_layout.addWidget(self.username_input)
 
         arrow_label = QLabel()

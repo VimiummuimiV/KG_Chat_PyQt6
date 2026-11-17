@@ -45,7 +45,7 @@ core/                   no widgets: data, network, XMPP, parsing, persistence
   xmpp/                 client.py (BOSH), messages.py, userlist.py, jid_utils.py, delivery.py (DeliveryTracker: pending / delivered / failed state of own messages)
   chatlogs/             fetch.py, database.py (SQLite), range_parser.py (workers), workers_calculator.py
   web/                  api_data.py, scores.py, races_listener.py, youtube.py, image_loader.py (parallel image downloads + LRU cache)
-  state/                accounts.py, user_state.py (ByUserStore), presence_db.py, mentions_digest.py, self_ban.py, input_drafts.py (draft and unsent messages), mention_aliases.py (extra mention words, one file: local per account + global), json_state.py (JsonState: nested JSON file in data/), ui_state.py (ui_state: remembered UI state, not lists); data/name_checks.json belongs to NameSync
+  state/                accounts.py, user_state.py (ByUserStore), presence_db.py, mentions_digest.py, self_ban.py, input_drafts.py (draft and unsent messages), mention_aliases.py (extra mention words, one file: local per account + global), recent_usernames.py (usernames the autocomplete inserted last, in ui_state), json_state.py (JsonState: nested JSON file in data/), ui_state.py (ui_state: remembered UI state, not lists); data/name_checks.json belongs to NameSync
 helpers/                shared non-visual logic and managers
   config.py data.py translate.py cache.py load.py dates.py browser.py sounds.py   (top level)
   colors/               color_utils.py, color_contrast.py
@@ -59,6 +59,7 @@ helpers/                shared non-visual logic and managers
 components/             reusable widgets used by more than one screen
   context_menu/         message and userlist context menus
   image_viewer/         viewer.py (ImageHoverView) + gallery.py (image URLs, ImageGallery), layer.py (layers, transitions), overlay.py (gallery bar, source badge), options.py (config defaults and accessors)
+  username_autocomplete/ autocomplete.py (UsernameAutocomplete: suggestion list above a QLineEdit), options.py (config accessors, defaults and limits)
   button.py avatar.py video_player.py help_panel.py flash_highlight.py font_scale_slider.py toast.py menu.py (create_menu, add_submenu)
   presence_badge.py search.py tag_button.py (SavedValuesBar: draggable removable chips) mic_button.py loading_spinner.py user_count_row.py tracked_mark.py tray_badge.py colored_label.py
 ui/                     screens and windows of the app
@@ -82,6 +83,8 @@ ui/                     screens and windows of the app
 - Switching an icon button's icon at runtime: `set_button_icon` from `components/button.py`.
 - Previous / next navigation between the rows of a list (days, mentions) is a `RowJumpGroup` from `helpers/scroll/row_jump.py`, added to `ScrollButtonsPanel` by a constructor flag (`date_jump`, `mentions`) through `_add_jump_group`. The group keeps its own sorted rows, hides its buttons while no row matches, starts from the last jump target while it is on screen (a target in the last page cannot reach the top) and rescans on model changes. A new kind of jump is one more predicate and one more icon pair, never another prev / next loop or button visibility code. A predicate about a message belongs to `MessageData` (`mentions`), not to the panel.
 - Every new hotkey or mouse action of a view is registered in the matching context of `components/help_panel.py` (F1).
+- A hotkey or a trigger never depends on a character that moves with the keyboard layout (`@`, `"`, `:`) and never asks the user to switch the layout: it uses modifier keys, named keys or `nativeVirtualKey`. A double press of a modifier is two non-auto-repeat presses within a named interval (`_DOUBLE_CONTROL_SECONDS`), and any other key between them cancels it.
+- Nickname suggestions are `UsernameAutocomplete` from `components/username_autocomplete/`, one component for every input that takes a username, never a second list widget. Every input asks for them the same way, with a double Ctrl and then letters on any layout: no `@` trigger and no mode where letters alone start the list. Its recent usernames are `core/state/recent_usernames.py`, its options are read through `components/username_autocomplete/options.py`.
 - `ui/`: screens. A mixin file contains only methods of one concern of its shell class.
 
 ### Where does a new file go
@@ -100,7 +103,7 @@ ui/                     screens and windows of the app
 
 `settings/config.json` (the `Config` class) holds only settings: booleans, numbers, and short choices the user sets on the Settings page (an enum string, a font family, a hotkey, an executable path). Everything else is state and goes to `KG_Chat_Data/data/`, never into `config.json`:
 
-- Lists and dicts of user content: saved usernames, saved rooms, recent emoticons, aliases, window presets.
+- Lists and dicts of user content: saved usernames, recent usernames, saved rooms, recent emoticons, aliases, window presets.
 - Remembered UI state: window size and position, last selected group or tab, scroll or cursor positions.
 - Anything per account (it needs the username as a key) or filled in by the program while it runs.
 
@@ -163,6 +166,7 @@ from helpers.translate import tr
   - read, called, connected or imported from another file (including a sibling mixin of the same shell class, e.g. `ui_chat.py` ↔ `chat_*.py`) → `name`, `CONSTANT`, `helper()`, `PublicClass` — no leading underscore
   - local variables inside a function need no underscore
   - when something becomes shared across files or stops being shared, rename it project-wide so the prefix stays truthful (also dynamic attributes set on other objects and `getattr` strings)
+- A name, a config key and a state key follow the concept, not the place where it was first used. A mention is a word addressed to the user (`mention_aliases`, `MessageData.mentions`, the mentions digest); the nickname autocomplete and its recents are about usernames (`username_recent`, `username_recent_limit`), never `mention_*`. When a concept is renamed, its keys are renamed with it and the old keys are not migrated.
 - Constants are UPPER_SNAKE_CASE, classes PascalCase, everything else snake_case. Related constants of one concept are grouped, not scattered as many sibling names.
 
 ## Styling and themes

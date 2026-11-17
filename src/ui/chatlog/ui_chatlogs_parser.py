@@ -181,7 +181,7 @@ class ChatlogsParserConfigWidget(ParserModesMixin, ParserRunMixin, ParserUsernam
             tr("comma-separated (leave empty for all users)", "через запятую (пусто = все пользователи)")
         )
 
-        UsernameAutocomplete(self.username_input, self.config, bare=True, is_recorded=False)
+        UsernameAutocomplete(self.username_input, self.config, is_recorded=False)
 
         # Get reference to the label that was created
         self.username_label = username_layout.itemAt(0).widget()

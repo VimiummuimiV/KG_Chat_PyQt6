@@ -1,6 +1,7 @@
-"""Nickname suggestions for an input: type @ and a few letters (or the letters alone in a username field), Tab inserts the nickname."""
+"""Nickname suggestions for an input: press Ctrl twice, then letters of a nickname; Tab inserts the nickname."""
 
 import re
+import time
 from typing import List, Optional, Tuple
 
 from PyQt6.QtCore import QEvent, QObject, QPoint, Qt
@@ -13,7 +14,7 @@ from components.username_autocomplete.options import (
     recent_limit,
     suggestion_limit,
 )
-from core.state.recent_mentions import get_recent_mentions, remember_mention
+from core.state.recent_usernames import get_recent_usernames, remember_username
 from helpers.cache import get_cache
 from helpers.fonts.fonts import FontType, set_font_role
 
@@ -21,24 +22,17 @@ from helpers.fonts.fonts import FontType, set_font_role
 _POPUP_WIDTH = 260
 _POPUP_GAP = 4
 _LIST_SUFFIX = ", "  # follows a nickname inserted into a comma-separated list
-_MENTION_PATTERN = re.compile(r"(?<!\S)@([^\s@]*)$")
-_BARE_PATTERN = re.compile(r"(?<![^\s,])([^\s,@]+)$")  # a nickname typed without the @, as in a comma-separated list
+_DOUBLE_CONTROL_SECONDS = 0.4
 _ARROW_STEPS = {Qt.Key.Key_Down: 1, Qt.Key.Key_Up: -1}
 _CTRL_STEP_KEYS = {Qt.Key.Key_N: 1, Qt.Key.Key_P: -1}
 _ACCEPT_KEYS = (Qt.Key.Key_Tab, Qt.Key.Key_Return, Qt.Key.Key_Enter)  # Enter inserts the nickname instead of sending the text
 
 
-def find_username_query(text: str, cursor: int, pattern=_MENTION_PATTERN) -> Optional[Tuple[int, str]]:
-    """The @prefix that ends at the cursor as (index of the @, prefix), or None."""
-    match = pattern.search(text, 0, cursor)
-    return (match.start(), match.group(1)) if match else None
-
-
 class UsernameAutocomplete(QObject):
     """Suggestion list above a QLineEdit; while it is open it owns Tab, Enter, Up, Down, Ctrl+N, Ctrl+P and Esc.
 
-    A bare @ lists the recently inserted nicknames, @ and some letters lists the matching nicknames.
-    With bare=True the letters alone start the list (no @, no recent nicknames), for a field of comma-separated nicknames.
+    Ctrl pressed twice (the same on every keyboard layout) asks for suggestions for the word at the cursor:
+    an empty word lists the recently inserted nicknames, letters list the matching nicknames.
     With suffix="" the field holds one nickname: it is inserted as is and an exact match is not offered again.
     """
 
@@ -64,29 +58,44 @@ class UsernameAutocomplete(QObject):
         return widget is active._list or active._list.isAncestorOf(widget)
 
     def __init__(
-        self, field: QLineEdit, config, *, prefix_chars: str = "", is_recorded: bool = True, bare: bool = False,
-        suffix: str = _LIST_SUFFIX,
+        self, field: QLineEdit, config, *, prefix_chars: str = "", is_recorded: bool = True, suffix: str = _LIST_SUFFIX,
     ):
-        """prefix_chars: characters besides whitespace that may stand right before the @ (a search bar takes ":" and ",");
-        is_recorded: whether an inserted nickname joins the recent mentions;
-        bare: nicknames are typed without the @;
+        """prefix_chars: characters besides whitespace and a comma that may stand right before the word (a search bar takes ":");
+        is_recorded: whether an inserted nickname joins the recent usernames;
         suffix: what follows an inserted nickname."""
         super().__init__(field)
         self._field = field
         self._config = config
-        self._pattern = _BARE_PATTERN if bare else re.compile(rf"(?<![^\s{re.escape(prefix_chars)}])@([^\s@]*)$")
+        self._pattern = re.compile(rf"(?<![^\s,{re.escape(prefix_chars)}])([^\s,]*)$")
         self._is_recorded = is_recorded
         self._suffix = suffix
         self._list: Optional[QListWidget] = None
         self._query: Optional[Tuple[int, str]] = None
+        self._armed_start: Optional[int] = None  # where the word starts that a double Ctrl asked suggestions for
+        self._control_pressed_at: Optional[float] = None
         field.installEventFilter(self)
         field.textEdited.connect(self._refresh)
         field.cursorPositionChanged.connect(self._refresh)
 
+    def _find_query(self) -> Optional[Tuple[int, str]]:
+        """The word that ends at the cursor as (index where it starts, letters) while a double Ctrl keeps it asked."""
+        match = self._pattern.search(self._field.text(), 0, self._field.cursorPosition())
+        if match is None or match.start() != self._armed_start:
+            self._armed_start = None  # the cursor left the word
+            return None
+        return match.start(), match.group(1)
+
+    def _arm(self):
+        """Ask suggestions for the word at the cursor (double Ctrl)."""
+        match = self._pattern.search(self._field.text(), 0, self._field.cursorPosition())
+        if match is not None and self._field.hasFocus():
+            self._armed_start = match.start()
+            self._refresh()
+
     def _refresh(self, *_):
         if not self._field.hasFocus():
             return
-        query = find_username_query(self._field.text(), self._field.cursorPosition(), self._pattern)
+        query = self._find_query()
         if query and not is_autocomplete_enabled(self._config):
             query = None
         if query == self._query:
@@ -102,7 +111,7 @@ class UsernameAutocomplete(QObject):
         if prefix:
             logins = get_cache().find_logins(prefix, suggestion_limit(self._config))
             return logins if self._suffix else [login for login in logins if login != prefix]
-        return get_recent_mentions()[:recent_limit(self._config)] if is_recent_shown(self._config) else []
+        return get_recent_usernames()[:recent_limit(self._config)] if is_recent_shown(self._config) else []
 
     def _show(self, nicks: List[str]):
         suggestions = self._ensure_list()
@@ -140,6 +149,10 @@ class UsernameAutocomplete(QObject):
         if UsernameAutocomplete._active is self:
             UsernameAutocomplete._active = None
 
+    def _dismiss(self):
+        self._armed_start = None
+        self._close()
+
     def _step(self, step: int):
         self._list.setCurrentRow((self._list.currentRow() + step) % self._list.count())
 
@@ -150,10 +163,10 @@ class UsernameAutocomplete(QObject):
         text = self._field.text()
         inserted = item.text() + self._suffix
         if self._is_recorded:
-            remember_mention(item.text())
+            remember_username(item.text())
         self._field.setText(text[:start] + inserted + text[cursor:])
         self._field.setCursorPosition(start + len(inserted))
-        self._close()
+        self._dismiss()
         self._field.setFocus()
 
     def _handle_key(self, event: QKeyEvent) -> bool:
@@ -171,17 +184,29 @@ class UsernameAutocomplete(QObject):
         elif key in _ACCEPT_KEYS:
             self._accept()
         elif key == Qt.Key.Key_Escape:
-            self._close()
+            self._dismiss()
         elif key in _ARROW_STEPS:
             self._step(_ARROW_STEPS[key])
         else:
             return False
         return True
 
+    def _on_control_pressed(self):
+        previous, self._control_pressed_at = self._control_pressed_at, time.monotonic()
+        if previous is not None and self._control_pressed_at - previous <= _DOUBLE_CONTROL_SECONDS:
+            self._control_pressed_at = None
+            self._arm()
+
     def eventFilter(self, watched, event):
         event_type = event.type()
-        if event_type == QEvent.Type.KeyPress and UsernameAutocomplete._active is self:
-            return self._handle_key(event)
-        if event_type in (QEvent.Type.FocusOut, QEvent.Type.Hide):
-            self._close()
+        if event_type == QEvent.Type.KeyPress:
+            if event.key() == Qt.Key.Key_Control:
+                if not event.isAutoRepeat():
+                    self._on_control_pressed()
+                return False
+            self._control_pressed_at = None  # any other key breaks the double press
+            if UsernameAutocomplete._active is self:
+                return self._handle_key(event)
+        elif event_type in (QEvent.Type.FocusOut, QEvent.Type.Hide):
+            self._dismiss()
         return False
