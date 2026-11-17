@@ -150,11 +150,12 @@ class BanListWidget(TranslatableMixin, QWidget):
         label = QLabel()
         set_font_role(label, FontType.HEADER)
         self.tr_set(label.setText, title_en, title_ru)
-        header.addWidget(label, stretch=1)
+        header.addWidget(label)
 
         count_label = QLabel()
         count_label.setObjectName("mutedHint")
-        header.addWidget(count_label)
+        count_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        header.addWidget(count_label, stretch=1)
 
         add_button = create_icon_button(self.icons_path, "line/add-large-line.svg", "", config=self.config)
         self.tr_set(add_button.setToolTip, tooltip_en, tooltip_ru)
@@ -198,11 +199,12 @@ class BanListWidget(TranslatableMixin, QWidget):
         title_label = QLabel()
         set_font_role(title_label, FontType.HEADER)
         self.tr_set(title_label.setText, "Ban List", "Список забаненных")
-        header_layout.addWidget(title_label, stretch=1)
+        header_layout.addWidget(title_label)
 
         self._total_count_label = QLabel()
         self._total_count_label.setObjectName("mutedHint")
-        header_layout.addWidget(self._total_count_label)
+        self._total_count_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        header_layout.addWidget(self._total_count_label, stretch=1)
 
         self._clear_all_button = create_icon_button(
             self.icons_path, "fill/delete-bin-fill.svg", "", config=self.config

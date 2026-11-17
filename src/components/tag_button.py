@@ -17,9 +17,6 @@ _CLOSE_ICON_SIZE = 12
 _CLOSE_ICON_COLOR = "#999999"
 _CLOSE_ICON_STROKE_WIDTH = 2 
 
-# Gap between the chips and the clear-all button column
-_CLEAR_BUTTON_GAP = 6
-
 # Drag-to-reorder insertion line
 _DROP_LINE_WIDTH = 6
 
@@ -104,6 +101,13 @@ class _FlowLayout(QLayout):
         self.setContentsMargins(0, 0, 0, 0)
         self.setSpacing(spacing)
         self._items = []
+        self._trailing = None
+
+    def set_trailing_widget(self, widget):
+        """Keep one widget (the clear-all button) after every other item, wherever the rows wrap."""
+        self.addWidget(widget)
+        self._trailing = self._items[-1]
+
     def addItem(self, item):
         self._items.append(item)
 
@@ -131,24 +135,36 @@ class _FlowLayout(QLayout):
         """Reorder existing items to match the given widget order (no add/remove/recreate)."""
         by_widget = {item.widget(): item for item in self._items}
         self._items = [by_widget[w] for w in widgets if w in by_widget]
+        if self._trailing:
+            self._items.append(self._trailing)
         self.invalidate()
 
     def _arrange(self, rect, apply):
-        """Place items left-to-right, wrapping rows as needed. Shared by setGeometry
-        (actually moves items) and height_for_width (just measures)."""
+        """Place items left-to-right, wrapping rows as needed, each row centered vertically.
+        Shared by setGeometry (actually moves items) and height_for_width (just measures)."""
         spacing = self.spacing()
-        x, y, line_height = rect.x(), rect.y(), 0
-
-        for item in self._items:
+        rows, row, x = [], [], rect.x()
+        for item in [i for i in self._items if i is not self._trailing] + ([self._trailing] if self._trailing else []):
             hint = item.sizeHint()
-            if x + hint.width() > rect.right() and line_height:
-                x, y, line_height = rect.x(), y + line_height + spacing, 0
-            if apply:
-                item.setGeometry(QRect(x, y, hint.width(), hint.height()))
+            if row and x + hint.width() > rect.right():
+                rows.append(row)
+                row, x = [], rect.x()
+            row.append((item, hint))
             x += hint.width() + spacing
-            line_height = max(line_height, hint.height())
+        if row:
+            rows.append(row)
 
-        return y + line_height - rect.y()
+        y = rect.y()
+        for row in rows:
+            line_height = max(hint.height() for _, hint in row)
+            x = rect.x()
+            for item, hint in row:
+                if apply:
+                    item.setGeometry(QRect(x, y + (line_height - hint.height()) // 2, hint.width(), hint.height()))
+                x += hint.width() + spacing
+            y += line_height + spacing
+
+        return y - spacing - rect.y() if rows else 0
 
 
 class SavedValuesBar(QWidget):
@@ -165,15 +181,12 @@ class SavedValuesBar(QWidget):
         self.values = load_values()
         self._tags = {}
 
-        self._clear_button = icon_helpers.create_icon_button(
+        self._layout = _FlowLayout(self)
+        clear_button = icon_helpers.create_icon_button(
             icons_path, "fill/delete-bin-fill.svg", tr("Remove all", "Удалить все"), size_type="small"
         )
-        self._clear_button.setParent(self)
-        self._clear_button.show()
-        self._clear_button.clicked.connect(self._clear_values)
-        self._reserved_width = self._clear_button.width() + _CLEAR_BUTTON_GAP
-        self.setContentsMargins(0, 0, self._reserved_width, 0)
-        self._layout = _FlowLayout(self)
+        clear_button.clicked.connect(self._clear_values)
+        self._layout.set_trailing_widget(clear_button)
         self._drop_indicator = QWidget(self)
         self._drop_indicator.setObjectName("tagDropLine")
         self._drop_indicator.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
@@ -182,14 +195,10 @@ class SavedValuesBar(QWidget):
         self.setAcceptDrops(True)
         self._rebuild()
 
-    def _chips_width(self, width: int) -> int:
-        return width - self._reserved_width
-
     def resizeEvent(self, event):
         super().resizeEvent(event)
-        self._clear_button.move(self.width() - self._clear_button.width(), 0)
         if self.values:
-            self.setFixedHeight(self._layout._height_for_width(self._chips_width(event.size().width())))
+            self.setFixedHeight(self._layout._height_for_width(event.size().width()))
 
     def add_values(self, values: list):
         """Add any values not already saved, and persist"""
@@ -293,11 +302,10 @@ class SavedValuesBar(QWidget):
         self._layout.addWidget(tag)
 
     def _rebuild(self):
-        """Full teardown/recreate - the initial load and clearing every chip"""
-        while self._layout.count():
-            item = self._layout.takeAt(0)
-            if item.widget():
-                item.widget().deleteLater()
+        """Full teardown/recreate of the chips - the initial load and clearing every chip"""
+        for tag in self._tags.values():
+            self._layout.removeWidget(tag)
+            tag.deleteLater()
         self._tags.clear()
 
         for value in self.values:
@@ -312,4 +320,4 @@ class SavedValuesBar(QWidget):
 
     def _apply_content_height(self):
         """Measure and apply height after Qt has settled the layout (deferred - see _update_size)"""
-        self.setFixedHeight(self._layout._height_for_width(self._chips_width(self.width() or self.sizeHint().width())))
+        self.setFixedHeight(self._layout._height_for_width(self.width() or self.sizeHint().width()))
