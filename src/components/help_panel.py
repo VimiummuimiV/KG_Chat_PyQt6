@@ -65,7 +65,7 @@ _CHAT_CTRL_KB = [
 _MENTION_KB = [
     ("@",           "Recently inserted nicknames",       "Недавно вставленные ники"),
     ("@ + letters", "Suggest nicknames (TW finds TolikWorkaholic)", "Подсказки ников (TW найдёт TolikWorkaholic)"),
-    ("Tab",        "Insert the highlighted nickname",    "Вставить выбранный ник"),
+    ("Tab / Enter", "Insert the highlighted nickname",   "Вставить выбранный ник"),
     ("↓ / Ctrl+N", "Next suggestion",                    "Следующая подсказка"),
     ("↑ / Ctrl+P", "Previous suggestion",                "Предыдущая подсказка"),
     ("Esc",        "Close suggestions",                  "Закрыть подсказки"),

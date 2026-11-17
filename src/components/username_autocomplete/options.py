@@ -30,5 +30,5 @@ def recent_limit(config) -> int:
 def suggestion_limit(config) -> int:
     """How many suggested nicknames are shown."""
     return read_bounded_int(
-        config, ("ui", "chat", "mention_suggestion_limit"), DEFAULT_SUGGESTION_LIMIT, SUGGESTION_LIMIT_RANGE
+        config, ("ui", "chat", "username_suggestion_limit"), DEFAULT_SUGGESTION_LIMIT, SUGGESTION_LIMIT_RANGE
     )

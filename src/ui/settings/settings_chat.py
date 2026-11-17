@@ -139,9 +139,9 @@ class SettingsChatMixin:
         self.tr_set(
             self.username_autocomplete_checkbox.setToolTip,
             "Type @ and a few letters of a nickname in the message input, or just the letters in a username field "
-            "(letters may be skipped: TW finds TolikWorkaholic). Tab inserts the highlighted nickname.",
+            "(letters may be skipped: TW finds TolikWorkaholic). Tab or Enter inserts the highlighted nickname.",
             "Введите @ и несколько букв ника в строке сообщения или просто буквы в поле имени "
-            "(буквы можно пропускать: TW найдёт TolikWorkaholic). Tab вставляет выбранный ник.",
+            "(буквы можно пропускать: TW найдёт TolikWorkaholic). Tab или Enter вставляют выбранный ник.",
         )
         self.mention_recent_checkbox = self.add_checkbox(
             input_layout, tr("Recent nicknames on a bare @", "Недавние ники по одному @"),
@@ -156,9 +156,9 @@ class SettingsChatMixin:
             input_layout, tr("Recent nicknames shown", "Недавних ников в списке"),
             *RECENT_LIMIT_RANGE, self._on_mention_recent_changed, default=DEFAULT_RECENT_LIMIT,
         )
-        self.mention_suggestion_spin = self.add_slider_spin_row(
+        self.username_suggestion_spin = self.add_slider_spin_row(
             input_layout, tr("Suggested nicknames shown", "Предлагаемых ников в списке"),
-            *SUGGESTION_LIMIT_RANGE, self._on_mention_suggestion_changed, default=DEFAULT_SUGGESTION_LIMIT,
+            *SUGGESTION_LIMIT_RANGE, self._on_username_suggestion_changed, default=DEFAULT_SUGGESTION_LIMIT,
         )
         self.input_hue_spin = self.add_slider_spin_row(
             input_layout, tr("Hue", "Оттенок"), 0, INPUT_HUE_MAX,
@@ -330,7 +330,7 @@ class SettingsChatMixin:
         self.mention_recent_checkbox.setChecked(is_recent_shown(self.config))
         for spin, value in (
             (self.mention_recent_spin, recent_limit(self.config)),
-            (self.mention_suggestion_spin, suggestion_limit(self.config)),
+            (self.username_suggestion_spin, suggestion_limit(self.config)),
         ):
             spin.setValue(value)
             spin.linked_slider.setValue(value)
@@ -434,8 +434,8 @@ class SettingsChatMixin:
     def _on_mention_recent_changed(self, value: int):
         self.config.set("ui", "chat", "mention_recent_limit", value=int(value))
 
-    def _on_mention_suggestion_changed(self, value: int):
-        self.config.set("ui", "chat", "mention_suggestion_limit", value=int(value))
+    def _on_username_suggestion_changed(self, value: int):
+        self.config.set("ui", "chat", "username_suggestion_limit", value=int(value))
 
     def _on_copy_username_toggled(self, checked: bool):
         self.config.set("ui", "chat", "copy_include_username", value=checked)

@@ -24,7 +24,7 @@ class ChatHotkeysMixin:
         # the image viewer keeps every key and mouse action for itself
         if event_type not in _HANDLED_EVENT_TYPES or ImageHoverView.is_open():
             return super().eventFilter(obj, event)
-        # open nickname suggestions keep Tab, arrows, Ctrl+N / Ctrl+P and Esc for the input
+        # open nickname suggestions keep Tab, Enter, arrows, Ctrl+N / Ctrl+P and Esc for the input
         if event_type == QEvent.Type.KeyPress and UsernameAutocomplete.is_open():
             return super().eventFilter(obj, event)
 

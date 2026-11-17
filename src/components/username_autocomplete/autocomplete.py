@@ -25,6 +25,7 @@ _MENTION_PATTERN = re.compile(r"(?<!\S)@([^\s@]*)$")
 _BARE_PATTERN = re.compile(r"(?<![^\s,])([^\s,@]+)$")  # a nickname typed without the @, as in a comma-separated list
 _ARROW_STEPS = {Qt.Key.Key_Down: 1, Qt.Key.Key_Up: -1}
 _CTRL_STEP_KEYS = {Qt.Key.Key_N: 1, Qt.Key.Key_P: -1}
+_ACCEPT_KEYS = (Qt.Key.Key_Tab, Qt.Key.Key_Return, Qt.Key.Key_Enter)  # Enter inserts the nickname instead of sending the text
 
 
 def find_username_query(text: str, cursor: int, pattern=_MENTION_PATTERN) -> Optional[Tuple[int, str]]:
@@ -34,7 +35,7 @@ def find_username_query(text: str, cursor: int, pattern=_MENTION_PATTERN) -> Opt
 
 
 class UsernameAutocomplete(QObject):
-    """Suggestion list above a QLineEdit; while it is open it owns Tab, Up, Down, Ctrl+N, Ctrl+P and Esc.
+    """Suggestion list above a QLineEdit; while it is open it owns Tab, Enter, Up, Down, Ctrl+N, Ctrl+P and Esc.
 
     A bare @ lists the recently inserted nicknames, @ and some letters lists the matching nicknames.
     With bare=True the letters alone start the list (no @, no recent nicknames), for a field of comma-separated nicknames.
@@ -157,7 +158,7 @@ class UsernameAutocomplete(QObject):
 
     def _handle_key(self, event: QKeyEvent) -> bool:
         key = event.key()
-        modifiers = event.modifiers()
+        modifiers = event.modifiers() & ~Qt.KeyboardModifier.KeypadModifier
         if modifiers == Qt.KeyboardModifier.ControlModifier:
             step = _CTRL_STEP_KEYS.get(key) or _CTRL_STEP_KEYS.get(event.nativeVirtualKey())
             if not step:
@@ -167,7 +168,7 @@ class UsernameAutocomplete(QObject):
             self._step(-1)
         elif modifiers != Qt.KeyboardModifier.NoModifier:
             return False
-        elif key == Qt.Key.Key_Tab:
+        elif key in _ACCEPT_KEYS:
             self._accept()
         elif key == Qt.Key.Key_Escape:
             self._close()
