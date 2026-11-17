@@ -1,4 +1,4 @@
-"""Nickname suggestions for an input: press Ctrl twice, then letters of a nickname; Tab inserts the nickname."""
+"""Nickname suggestions for an input: press Ctrl twice (or Alt+Space), then letters of a nickname; Tab inserts the nickname."""
 
 import re
 import time
@@ -31,7 +31,7 @@ _ACCEPT_KEYS = (Qt.Key.Key_Tab, Qt.Key.Key_Return, Qt.Key.Key_Enter)  # Enter in
 class UsernameAutocomplete(QObject):
     """Suggestion list above a QLineEdit; while it is open it owns Tab, Enter, Up, Down, Ctrl+N, Ctrl+P and Esc.
 
-    Ctrl pressed twice (the same on every keyboard layout) asks for suggestions for the word at the cursor:
+    Ctrl pressed twice or Alt+Space (the same on every keyboard layout) asks for suggestions for the word at the cursor:
     an empty word lists the recently inserted nicknames, letters list the matching nicknames.
     With suffix="" the field holds one nickname: it is inserted as is and an exact match is not offered again.
     """
@@ -111,7 +111,9 @@ class UsernameAutocomplete(QObject):
         if prefix:
             logins = get_cache().find_logins(prefix, suggestion_limit(self._config))
             return logins if self._suffix else [login for login in logins if login != prefix]
-        return get_recent_usernames()[:recent_limit(self._config)] if is_recent_shown(self._config) else []
+        if not is_recent_shown(self._config):
+            return []
+        return get_recent_usernames()[:recent_limit(self._config)] or get_cache().find_logins("", suggestion_limit(self._config))
 
     def _show(self, nicks: List[str]):
         suggestions = self._ensure_list()
@@ -204,6 +206,9 @@ class UsernameAutocomplete(QObject):
                 if not event.isAutoRepeat():
                     self._on_control_pressed()
                 return False
+            if event.key() == Qt.Key.Key_Space and event.modifiers() == Qt.KeyboardModifier.AltModifier:
+                self._arm()
+                return True
             self._control_pressed_at = None  # any other key breaks the double press
             if UsernameAutocomplete._active is self:
                 return self._handle_key(event)

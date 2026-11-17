@@ -138,9 +138,9 @@ class SettingsChatMixin:
         )
         self.tr_set(
             self.username_autocomplete_checkbox.setToolTip,
-            "Press Ctrl twice, then type a few letters of a nickname in the message input or a username field "
+            "Press Ctrl twice (or Alt+Space), then type a few letters of a nickname in the message input or a username field "
             "(letters may be skipped: TW finds TolikWorkaholic). Tab or Enter inserts the highlighted nickname.",
-            "Дважды нажмите Ctrl и введите несколько букв ника в строке сообщения или в поле имени "
+            "Дважды нажмите Ctrl (или Alt+Space) и введите несколько букв ника в строке сообщения или в поле имени "
             "(буквы можно пропускать: TW найдёт TolikWorkaholic). Tab или Enter вставляют выбранный ник.",
         )
         self.username_recent_checkbox = self.add_checkbox(
@@ -149,8 +149,8 @@ class SettingsChatMixin:
         )
         self.tr_set(
             self.username_recent_checkbox.setToolTip,
-            "Ctrl twice lists the nicknames you inserted last, the newest is highlighted: Ctrl Ctrl, then Tab.",
-            "Двойной Ctrl показывает ники, вставленные последними, самый свежий выделен: Ctrl Ctrl и Tab.",
+            "Ctrl twice (or Alt+Space) lists the nicknames you inserted last, the newest is highlighted, then Tab.",
+            "Двойной Ctrl (или Alt+Space) показывает ники, вставленные последними, самый свежий выделен, затем Tab.",
         )
         self.username_recent_spin = self.add_slider_spin_row(
             input_layout, tr("Recent nicknames shown", "Недавних ников в списке"),
