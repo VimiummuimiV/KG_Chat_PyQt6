@@ -97,8 +97,6 @@ class ParserRunMixin:
         """Show copy and save buttons after successful parse"""
         self.copy_button.setVisible(True)
         self.save_button.setVisible(True)
-        if not self.is_sync_mode:
-            self.saved_usernames_bar.add_values(self.get_usernames())
 
     def update_progress(self, start_date: str, current_date: str, percent: int):
         """Update progress display"""

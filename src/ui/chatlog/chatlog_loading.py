@@ -79,12 +79,12 @@ class ChatlogLoadingMixin:
 
     def scroll_to_bottom(self):
         """Scroll to bottom after a load, unless suppressed by a cross-date message search.
-        Only auto-scrolls for today's log (where "latest" = bottom); for past dates the
-        user reads top-to-bottom and scrolls down manually as needed."""
+        Only auto-scrolls for today's log (where "latest" = bottom) and never while a search or filter
+        is active, so its first results stay on top; for past dates the user reads top-to-bottom."""
         if self.suppress_bottom_scroll:
             self.suppress_bottom_scroll = False
             return
-        if self.current_date != datetime.now().date():
+        if self.current_date != datetime.now().date() or self.has_active_search_or_filter():
             return
         call_later(self, 0, lambda: scroll(self.list_view, mode="bottom", delay=100))
 

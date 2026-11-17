@@ -12,10 +12,9 @@ from PyQt6.QtWidgets import (
 )
 
 from components.button import create_icon_button, create_icon_entry
-from components.toast import show_toast, ToastKind
 from helpers.config import Config
 from helpers.data import get_resource_dir
-from helpers.scroll.row_jump import RowJumpGroup, set_entry_enabled
+from helpers.scroll.row_jump import announce_jump, describe_message, RowJumpGroup, set_entry_enabled
 from helpers.scroll.scroll import is_separator_row, scroll
 from helpers.translate import tr
 
@@ -25,7 +24,6 @@ _OPACITY_VISIBLE  = 1.0
 _FADE_DURATION    = 180
 _BUTTON_GAP       = 6
 _REVEAL_PADDING   = 150 
-_JUMP_TOAST_MS    = 5000
 
 # Top-to-bottom order, matching the on-screen stack: full-up, page-up, page-down, full-down
 # tooltips: (en, ru) resolved at button creation
@@ -48,11 +46,6 @@ _MENTION_JUMP_ACTIONS = (
     ("line/at-arrow-up-line.svg",   "Previous mention", "Предыдущее упоминание"),
     ("line/at-arrow-down-line.svg", "Next mention",     "Следующее упоминание"),
 )
-
-
-def _describe_mention(message) -> str:
-    """Author and moment of a mention, for the button tooltips and the jump toast."""
-    return f"{message.username} · {message.get_date_time_str()}"
 
 
 class ScrollButtonsPanel(QObject):
@@ -114,7 +107,7 @@ class ScrollButtonsPanel(QObject):
         if mentions:
             delegate = self.list_view.itemDelegate()
             self._add_jump_group(
-                _MENTION_JUMP_ACTIONS, self._is_mention, self._on_mention_jump, (delegate.geometry_changed,), _describe_mention
+                _MENTION_JUMP_ACTIONS, self._is_mention, self._on_mention_jump, (delegate.geometry_changed,), describe_message
             )
 
         if extra_actions:
@@ -175,15 +168,7 @@ class ScrollButtonsPanel(QObject):
         return message.mentions(self.list_view.itemDelegate().my_username)
 
     def _on_mention_jump(self, row: int, position: int, total: int) -> None:
-        """Highlight the mention and tell who wrote it, when, and its place among all mentions."""
-        self.list_view.itemDelegate().highlight_row(row)
-        description = _describe_mention(self.list_view.model().stored_messages[row])
-        show_toast(
-            self.list_view,
-            tr(f"Mention {position} of {total} · {description}", f"Упоминание {position} из {total} · {description}"),
-            ToastKind.INFO,
-            _JUMP_TOAST_MS,
-        )
+        announce_jump(self.list_view, row, position, total, tr("Mention", "Упоминание"))
 
     def _update_buttons(self, *_args):
         """Hide the container entirely when nothing is scrollable; disable up-buttons

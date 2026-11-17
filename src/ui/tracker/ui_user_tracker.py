@@ -100,6 +100,11 @@ class UserTrackerWidget(
         self.info_label.setVisible(False)
         header_layout.addWidget(self.info_label, stretch=1)
 
+        self.tracked_count_label = QLabel("")
+        self.tracked_count_label.setObjectName("mutedHint")
+        self.tracked_count_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        header_layout.addWidget(self.tracked_count_label, stretch=1)
+
         self._add_user_button = create_icon_button(
             self.icons_path, "line/add-large-line.svg", "", config=self.config
         )
@@ -120,6 +125,13 @@ class UserTrackerWidget(
         self.tr_set(self._clear_history_button.setToolTip, "Clear History", "Очистить историю")
         self._clear_history_button.clicked.connect(self.clear_history)
         header_layout.addWidget(self._clear_history_button)
+
+        self._clear_users_button = create_icon_button(
+            self.icons_path, "fill/delete-bin-fill.svg", "", config=self.config
+        )
+        self.tr_set(self._clear_users_button.setToolTip, "Remove all users", "Удалить всех пользователей")
+        self._clear_users_button.clicked.connect(self.clear_users)
+        header_layout.addWidget(self._clear_users_button)
 
         self.tabs = QTabWidget()
         self.tabs.currentChanged.connect(self._on_tab_changed)
@@ -229,6 +241,8 @@ class UserTrackerWidget(
         is_tracked = index == 0
         self._add_user_button.setVisible(is_tracked)
         self._clear_history_button.setVisible(not is_tracked)
+        self._clear_users_button.setVisible(is_tracked)
+        self.tracked_count_label.setVisible(is_tracked)
         self.clear_filter_button.setVisible(not is_tracked and self.has_active_filters())
         self.info_label.setVisible(not is_tracked)
         if not is_tracked:
@@ -270,13 +284,12 @@ class UserTrackerWidget(
             QTimer.singleShot(0, self.recalculate_layout)
 
     def update_theme(self):
+        is_dark = (self.config.get("ui", "theme") or "dark") == "dark"
         self.history_delegate.update_theme()
         self.history_list_view.viewport().update()
         for item in self.user_items:
-            if hasattr(item, "apply_theme"):
-                item.apply_theme()
-        theme = self.config.get("ui", "theme") or "dark"
-        self.type_filter_bar.update_theme(theme == "dark")
+            item.update_theme(is_dark)
+        self.type_filter_bar.update_theme(is_dark)
         self.rebuild_filter_chips()
 
     def _apply_default_tab(self):

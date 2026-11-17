@@ -5,11 +5,27 @@ from typing import Callable, Iterable, Optional
 
 from PyQt6.QtCore import pyqtSignal, QObject, Qt, QTimer
 
+from components.flash_highlight import JUMP_FLASH_DURATION_MS
+from components.toast import show_toast, ToastKind
 from helpers.scroll.scroll import scroll, visible_rows
+from helpers.translate import tr
 
 
 PREVIOUS, NEXT = -1, 1
 _DIRECTIONS = (PREVIOUS, NEXT)
+_JUMP_TOAST_MS = 5000
+
+
+def describe_message(message) -> str:
+    """Author and moment of a message, for the jump button tooltips and the jump toast."""
+    return f"{message.username} · {message.get_date_time_str()}"
+
+
+def announce_jump(list_view, row: int, position: int, total: int, noun: str) -> None:
+    """Highlight the row a jump reached and tell its place among the targets, e.g. 'Mention 3 of 12 · Bob · 2026-11-16 12:30'."""
+    list_view.itemDelegate().highlight_row(row, duration_ms=JUMP_FLASH_DURATION_MS)
+    description = describe_message(list_view.model().stored_messages[row])
+    show_toast(list_view, f"{noun} {position} {tr('of', 'из')} {total} · {description}", ToastKind.INFO, _JUMP_TOAST_MS)
 
 
 def set_entry_enabled(entry: dict, enabled: bool) -> None:
@@ -31,10 +47,12 @@ class RowJumpGroup(QObject):
     visibility_changed = pyqtSignal(bool)
 
     def __init__(self, list_view, entries: list, is_target: Callable, on_jump: Optional[Callable] = None,
-                 rescan_signals: Iterable = (), describe: Optional[Callable] = None, scroll_mode: str = "top", parent=None):
+                 rescan_signals: Iterable = (), describe: Optional[Callable] = None, scroll_mode: str = "top",
+                 starts_at_top: bool = False, parent=None):
         """entries: the two panel buttons (previous, next) as dicts with button, icon_normal, icon_dimmed.
         on_jump(row, position, total) runs after a jump; describe(row data) names the target in a button tooltip;
-        scroll_mode is where the target row lands ("top" or "middle")."""
+        scroll_mode is where the target row lands ("top" or "middle");
+        starts_at_top lets the first jump from the top of the list land on its first row (a list of search results)."""
         super().__init__(parent)
         self._list_view = list_view
         self._entries = entries
@@ -42,6 +60,7 @@ class RowJumpGroup(QObject):
         self._on_jump = on_jump
         self._describe = describe
         self._scroll_mode = scroll_mode
+        self._starts_at_top = starts_at_top
         self._tooltips = [entry["button"].toolTip() for entry in entries]
         self._rows: list = []
         self._cursor: Optional[int] = None  # row of the last jump; the next one starts there while it stays on screen
@@ -85,9 +104,8 @@ class RowJumpGroup(QObject):
         """Dim a button when no accepted row lies in its direction."""
         if not self._rows:
             return
-        reference = self._reference_row()
         for direction, entry, tooltip in zip(_DIRECTIONS, self._entries, self._tooltips):
-            target = _find_row(self._rows, reference, direction)
+            target = self._target_row(direction)
             set_entry_enabled(entry, target is not None)
             if self._describe:
                 target_data = None if target is None else self._row_data(target)  # None while the rows are stale
@@ -103,9 +121,15 @@ class RowJumpGroup(QObject):
         cursor = self._cursor
         return cursor if cursor is not None and top_row <= cursor <= bottom_row else top_row
 
+    def _target_row(self, direction: int) -> Optional[int]:
+        """The accepted row a jump in this direction lands on."""
+        is_untouched_top = self._starts_at_top and self._cursor is None and self._list_view.verticalScrollBar().value() == 0
+        reference = -1 if is_untouched_top and direction == NEXT else self._reference_row()
+        return _find_row(self._rows, reference, direction)
+
     def jump(self, direction: int) -> None:
         """Scroll to the nearest accepted row before (PREVIOUS) or after (NEXT) the current position."""
-        target = _find_row(self._rows, self._reference_row(), direction)
+        target = self._target_row(direction)
         if target is None:
             return
         self._cursor = target

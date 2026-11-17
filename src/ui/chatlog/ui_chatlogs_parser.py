@@ -197,7 +197,7 @@ class ChatlogsParserConfigWidget(ParserModesMixin, ParserRunMixin, ParserUsernam
         self.fetch_history_button.setEnabled(False)
         username_layout.addWidget(self.fetch_history_button)
 
-        # Add current usernames to the saved chips (not just after a successful parse)
+        # The only way a username becomes a saved chip
         self.add_username_button = create_icon_button(
             self.icons_path, "line/add-large-line.svg", "",
             size_type="large", config=self.config

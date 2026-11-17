@@ -10,7 +10,7 @@ from PyQt6.QtWidgets import QHBoxLayout, QLineEdit, QWidget
 from components.button import create_icon_button, create_icon_entry
 from components.mention_autocomplete.autocomplete import MentionAutocomplete
 from helpers.fonts.fonts import FontType, set_font_role
-from helpers.scroll.row_jump import NEXT, PREVIOUS, RowJumpGroup
+from helpers.scroll.row_jump import announce_jump, describe_message, NEXT, PREVIOUS, RowJumpGroup
 from helpers.translate import tr
 
 
@@ -152,8 +152,8 @@ class MessageSearchBar(QWidget):
         """Previous / next buttons that scroll the list to the messages the search text matches."""
         self._jump_group = RowJumpGroup(
             list_view, self._jump_entries, self._is_match,
-            lambda row, *_: list_view.itemDelegate().highlight_row(row),
-            scroll_mode="middle", parent=self,
+            lambda row, position, total: announce_jump(list_view, row, position, total, tr("Match", "Совпадение")),
+            describe=describe_message, scroll_mode="middle", starts_at_top=True, parent=self,
         )
         self._jump_group.rescan()
 

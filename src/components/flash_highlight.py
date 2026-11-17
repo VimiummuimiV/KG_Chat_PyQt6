@@ -25,6 +25,7 @@ TIMING_FUNCTIONS = {
 }
 _DEFAULT_FLASH_DURATION_MS = 1000
 _DEFAULT_FLASH_EASING = "linear"
+JUMP_FLASH_DURATION_MS = 400  # short, so rows reached one after another do not pile up highlights
 
 DURATION_KEYS = {
     "row": "flash_row_duration_ms",
@@ -112,10 +113,10 @@ class FlashFade(QObject):
         self.timer.setInterval(interval_ms)
         self.timer.timeout.connect(self._tick)
 
-    def start(self):
+    def start(self, duration_ms: int | None = None):
         self.opacity = 1.0
         self._elapsed_ms = 0
-        self._duration_ms = max(1, flash_duration_ms(self.config, self._duration_kind))
+        self._duration_ms = max(1, duration_ms or flash_duration_ms(self.config, self._duration_kind))
         self._easing = QEasingCurve(flash_easing(self.config))
         if not self.timer.isActive():
             self.timer.start()
@@ -182,13 +183,13 @@ class FlashLabel(QLabel):
 class RowFlashMixin:
     """Per-row fade-out highlight for item delegates (needs row_flashes, list_view and config)."""
 
-    def highlight_row(self, row: int):
-        """Start or restart the fade-out highlight of one row."""
+    def highlight_row(self, row: int, duration_ms: int | None = None):
+        """Start or restart the fade-out highlight of one row; duration_ms replaces the configured row duration."""
         flash = self.row_flashes.get(row)
         if flash is None:
             flash = FlashFade(lambda r=row: self._on_row_highlight_tick(r), parent=self, config=self.config, duration_kind="row")
             self.row_flashes[row] = flash
-        flash.start()
+        flash.start(duration_ms)
 
     def _on_row_highlight_tick(self, row: int):
         flash = self.row_flashes.get(row)

@@ -123,6 +123,9 @@ class ChatLifecycleMixin:
             if getattr(self, "user_tracker_widget", None):
                 self.user_tracker_widget.update_theme()
 
+            if getattr(self, "ban_list_widget", None):
+                self.ban_list_widget.update_theme()
+
             self.messages_widget.rebuild_messages()
             if self.presence_log_widget:
                 self.presence_log_widget.rebuild_messages()

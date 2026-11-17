@@ -5,9 +5,10 @@ from typing import Callable
 
 from PyQt6.QtCore import pyqtSignal, QMimeData, QRect, QSize, Qt, QTimer
 from PyQt6.QtGui import QDrag
-from PyQt6.QtWidgets import QApplication, QHBoxLayout, QLabel, QLayout, QPushButton, QWidget
+from PyQt6.QtWidgets import QApplication, QHBoxLayout, QLabel, QLayout, QMessageBox, QPushButton, QWidget
 
 from components import button as icon_helpers
+from helpers.translate import tr
 
 
 # Close (x) button
@@ -15,6 +16,9 @@ _CLOSE_BUTTON_SIZE = 22
 _CLOSE_ICON_SIZE = 12 
 _CLOSE_ICON_COLOR = "#999999"
 _CLOSE_ICON_STROKE_WIDTH = 2 
+
+# Gap between the chips and the clear-all button column
+_CLEAR_BUTTON_GAP = 6
 
 # Drag-to-reorder insertion line
 _DROP_LINE_WIDTH = 6
@@ -149,7 +153,7 @@ class _FlowLayout(QLayout):
 
 class SavedValuesBar(QWidget):
     """Row of removable, draggable chips backed by any list storage, e.g. saved usernames or aliases.
-    Owns loading/saving/rebuilding; the parent widget only reacts to chip clicks."""
+    Owns loading/saving/rebuilding and the clear-all button; the parent widget only reacts to chip clicks."""
 
     value_selected = pyqtSignal(str)
     value_double_clicked = pyqtSignal(str)
@@ -161,6 +165,14 @@ class SavedValuesBar(QWidget):
         self.values = load_values()
         self._tags = {}
 
+        self._clear_button = icon_helpers.create_icon_button(
+            icons_path, "fill/delete-bin-fill.svg", tr("Remove all", "Удалить все"), size_type="small"
+        )
+        self._clear_button.setParent(self)
+        self._clear_button.show()
+        self._clear_button.clicked.connect(self._clear_values)
+        self._reserved_width = self._clear_button.width() + _CLEAR_BUTTON_GAP
+        self.setContentsMargins(0, 0, self._reserved_width, 0)
         self._layout = _FlowLayout(self)
         self._drop_indicator = QWidget(self)
         self._drop_indicator.setObjectName("tagDropLine")
@@ -170,10 +182,14 @@ class SavedValuesBar(QWidget):
         self.setAcceptDrops(True)
         self._rebuild()
 
+    def _chips_width(self, width: int) -> int:
+        return width - self._reserved_width
+
     def resizeEvent(self, event):
         super().resizeEvent(event)
+        self._clear_button.move(self.width() - self._clear_button.width(), 0)
         if self.values:
-            self.setFixedHeight(self._layout._height_for_width(event.size().width()))
+            self.setFixedHeight(self._layout._height_for_width(self._chips_width(event.size().width())))
 
     def add_values(self, values: list):
         """Add any values not already saved, and persist"""
@@ -195,6 +211,18 @@ class SavedValuesBar(QWidget):
             self._layout.removeWidget(tag)
             tag.deleteLater()
         self._update_size()
+
+    def _clear_values(self):
+        reply = QMessageBox.question(
+            self, tr("Remove all", "Удалить все"),
+            tr(f"Remove all {len(self.values)} saved items?", f"Удалить все сохранённые элементы ({len(self.values)})?"),
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+        self.values = []
+        self._save()
+        self._rebuild()
 
     def _save(self):
         self._save_values(self.values)
@@ -265,7 +293,7 @@ class SavedValuesBar(QWidget):
         self._layout.addWidget(tag)
 
     def _rebuild(self):
-        """Full teardown/recreate - only needed for the initial load from config"""
+        """Full teardown/recreate - the initial load and clearing every chip"""
         while self._layout.count():
             item = self._layout.takeAt(0)
             if item.widget():
@@ -284,4 +312,4 @@ class SavedValuesBar(QWidget):
 
     def _apply_content_height(self):
         """Measure and apply height after Qt has settled the layout (deferred - see _update_size)"""
-        self.setFixedHeight(self._layout._height_for_width(self.width() or self.sizeHint().width()))
+        self.setFixedHeight(self._layout._height_for_width(self._chips_width(self.width() or self.sizeHint().width())))

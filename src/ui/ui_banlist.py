@@ -4,13 +4,11 @@ import time
 from pathlib import Path
 
 from PyQt6.QtCore import pyqtSignal, Qt, QTimer
-from PyQt6.QtGui import QFontMetrics, QPainter, QPixmap
-from PyQt6.QtSvg import QSvgRenderer
+from PyQt6.QtGui import QFontMetrics
 from PyQt6.QtWidgets import (
     QGridLayout,
     QHBoxLayout,
     QLabel,
-    QLineEdit,
     QMessageBox,
     QPushButton,
     QScrollArea,
@@ -20,12 +18,15 @@ from PyQt6.QtWidgets import (
 
 from components.button import create_icon_button
 from components.toast import show_toast, ToastKind
-from core.web.api_data import validate_username_and_get_id
+from components.user_entry_row import UserEntryRow
 from helpers.fonts.fonts import FontType, set_font_role
 from helpers.translate import on_language_changed, tr, TranslatableMixin
 from helpers.users.ban_manager import BanManager
-from themes.stylesheet import set_style_property
 from ui.dialogs.duration_dialog import DurationDialog
+
+_DURATION_MIN_WIDTH = 110
+_DURATION_TEXT_PADDING = 40
+_COUNTDOWN_TICK_MS = 1000
 
 
 def _format_time_remaining(seconds: int) -> str:
@@ -60,213 +61,62 @@ def _format_time_remaining(seconds: int) -> str:
         return f"{s}s"
 
 
-class _BanItemWidget(TranslatableMixin, QWidget):
-    """Single ban item (shared by both permanent and temporary sections)"""
-    remove_requested = pyqtSignal(object)
+class _BanItemWidget(UserEntryRow):
+    """Ban row: the shared user row, with a countdown button that changes the duration of a temporary ban."""
     expired = pyqtSignal(object)  # Signal when temporary ban expires
 
     def __init__(self, config, icons_path: Path, username="", user_id="", expires_at=None, is_temporary=False):
-        super().__init__()
-        self.init_translatable()
-        self.config = config
-        self.icons_path = icons_path
-        self.user_id = user_id
+        super().__init__(config, icons_path, username, user_id)
         self.expires_at = expires_at
         self.is_temporary = is_temporary
-        self.parent_widget = None
-        self.username_valid = True
 
-        spacing = config.get("ui", "spacing", "widget_elements") or 6
-        layout = QHBoxLayout()
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(spacing)
-        self.setLayout(layout)
-
-        # Username
-        self.username_input = QLineEdit()
-        self.tr_set(self.username_input.setPlaceholderText, "Username", "Имя пользователя")
-        self.username_input.setText(username)
-        set_font_role(self.username_input, FontType.TEXT)
-        input_height = config.get("ui", "input_height") or 44
-        self.username_input.setFixedHeight(input_height)
-        self.username_input.setFixedWidth(220)
-        self.username_input.editingFinished.connect(self._validate)
-        layout.addWidget(self.username_input)
-
-        # Arrow icon
-        arrow_label = QLabel()
-        arrow_svg = icons_path / "line/arrow-right-s-line.svg"
-        if arrow_svg.exists():
-            with open(arrow_svg, 'r') as f:
-                svg_content = f.read().replace('fill="currentColor"', 'fill="#888888"')
-            renderer = QSvgRenderer()
-            renderer.load(svg_content.encode('utf-8'))
-            pixmap = QPixmap(26, 26)
-            pixmap.fill(Qt.GlobalColor.transparent)
-            painter = QPainter(pixmap)
-            renderer.render(painter)
-            painter.end()
-            arrow_label.setPixmap(pixmap)
-            arrow_label.setFixedSize(26, 26)
-        layout.addWidget(arrow_label)
-
-        # User ID (read-only)
-        self._user_id_input = QLineEdit()
-        self.tr_set(self._user_id_input.setPlaceholderText, "ID", "ID")
-        self._user_id_input.setText(user_id)
-        set_font_role(self._user_id_input, FontType.TEXT)
-        self._user_id_input.setFixedHeight(input_height)
-        self._user_id_input.setFixedWidth(125)
-        self._user_id_input.setReadOnly(True)
-        self._user_id_input.setObjectName("readOnlyField")
-        layout.addWidget(self._user_id_input)
-
-        # Duration button (only for temporary section) - clickable to change duration
-        if self.is_temporary:
+        if is_temporary:
             self._duration_button = QPushButton()
             set_font_role(self._duration_button, FontType.TEXT)
-            self._duration_button.setFixedHeight(input_height)
-            self._duration_button.setMinimumWidth(110)  # Minimum width
+            self._duration_button.setFixedHeight(self.input_height)
+            self._duration_button.setMinimumWidth(_DURATION_MIN_WIDTH)
             self._duration_button.setCursor(Qt.CursorShape.PointingHandCursor)
             self._duration_button.clicked.connect(self._change_duration)
-            self._update_duration_text()  # This will set initial width
-            layout.addWidget(self._duration_button)
+            self.add_action(self._duration_button)
 
-            # Timer for countdown
-            self._update_timer = QTimer()
+            self._update_timer = QTimer(self)
             self._update_timer.timeout.connect(self._update_duration_text)
-            self._update_timer.start(1000)
-
-        # Remove button
-        self._remove_button = create_icon_button(
-            icons_path, "fill/delete-bin-fill.svg", "", 
-            size_type="large", config=config
-        )
-        self.tr_set(self._remove_button.setToolTip, "Remove", "Удалить")
-        self._remove_button.clicked.connect(lambda: self.remove_requested.emit(self))
-        layout.addWidget(self._remove_button)
-
-        # Set fixed width - will be updated by _update_duration_text for temp items
-        spacing = config.get("ui", "spacing", "widget_elements") or 6
-        if self.is_temporary:
-            # Initial width using minimum button size
-            button_width = 110
-            total_width = 220 + 26 + 125 + button_width + 48 + (spacing * 4)
-        else:
-            total_width = 220 + 26 + 125 + 48 + (spacing * 3)
-        self.setFixedWidth(total_width)
-
-        # Validate if username but no ID
-        if username and not user_id:
-            self._validate()
-        on_language_changed(self.retranslate_all)
-
-    def _validate(self):
-        """Validate username and fetch ID"""
-        username = self.username_input.text().strip()
-
-        if not username:
-            self.username_valid = True
-            self.user_id = ""
-            self._user_id_input.clear()
-            self.update_input_style()
-            if self.parent_widget:
-                self.parent_widget._save_bans()
-            return
-
-        user_id = validate_username_and_get_id(username)
-        self.username_valid = (user_id is not None)
-        if self.username_valid:
-            self.user_id = user_id
-            self._user_id_input.setText(self.user_id)
-        else:
-            self.user_id = ""
-            self._user_id_input.clear()
-
-        self.update_input_style()
-
-        if self.parent_widget:
-            self.parent_widget._save_bans()
-
-    def _update_widths(self):
-        """Update button and item widths based on duration text"""
-        if not self.is_temporary or not hasattr(self, '_duration_button'):
-            return
-
-        # Calculate button width based on text
-        metrics = QFontMetrics(self._duration_button.font())
-        text_width = metrics.horizontalAdvance(self._duration_button.text())
-        button_width = max(110, text_width + 40)
-        self._duration_button.setFixedWidth(button_width)
-
-        # Update item total width
-        spacing = self.config.get("ui", "spacing", "widget_elements") or 6
-        total_width = 220 + 26 + 125 + button_width + 48 + (spacing * 4)
-        self.setFixedWidth(total_width)
-
-    def update_input_style(self, highlight_empty=False):
-        """Update input styling based on validation"""
-        if highlight_empty and not self.username_input.text().strip():
-            set_style_property(self.username_input, "validation", "missing")
-            self.username_input.setToolTip(tr(
-                "Fill username before adding new item",
-                "Заполните имя пользователя перед добавлением новой записи")
-            )
-        elif not self.username_valid:
-            set_style_property(self.username_input, "validation", "invalid")
-            self.username_input.setToolTip(tr("User not found", "Пользователь не найден"))
-        else:
-            set_style_property(self.username_input, "validation", "")
-            self.username_input.setToolTip("")
+            self._update_timer.start(_COUNTDOWN_TICK_MS)
+            self._update_duration_text()
 
     def _update_duration_text(self):
-        """Update duration button for temporary bans"""
-        if not self.is_temporary or not hasattr(self, '_duration_button'):
+        """Show the time left; an expired ban asks the list to remove it."""
+        if not self.expires_at:
             return
-
-        if self.expires_at:
-            remaining = max(0, self.expires_at - int(time.time()))
-            if remaining == 0:
-                # Expired - emit signal to remove
-                self._update_timer.stop()
-                self.expired.emit(self)
-            else:
-                self._duration_button.setText(_format_time_remaining(remaining))
-                self._update_widths()
+        remaining = max(0, self.expires_at - int(time.time()))
+        if remaining == 0:
+            self._update_timer.stop()
+            self.expired.emit(self)
+            return
+        self._duration_button.setText(_format_time_remaining(remaining))
+        text_width = QFontMetrics(self._duration_button.font()).horizontalAdvance(self._duration_button.text())
+        self._duration_button.setFixedWidth(max(_DURATION_MIN_WIDTH, text_width + _DURATION_TEXT_PADDING))
+        self.fit_width()
 
     def _change_duration(self):
         """Show dialog to change duration for temporary ban"""
-        if not self.is_temporary:
-            return
-
-        # Calculate current remaining time
         current_remaining = max(60, self.expires_at - int(time.time())) if self.expires_at else 3600
 
-        # Show dialog with current remaining time (will preserve the unit if possible)
+        # The dialog keeps the unit of the current remaining time when it can
         seconds, ok = DurationDialog.get_duration(self, current_remaining)
         if ok and seconds > 0:
-            # Update duration
             self.expires_at = int(time.time()) + seconds
             self._update_duration_text()
-            if self.parent_widget:
-                self.parent_widget._save_bans()
+            self.changed.emit()
 
     def get_values(self):
         """Get username, user_id, and expires_at"""
-        return self.username_input.text().strip(), self.user_id, self.expires_at
-
-    def is_empty(self):
-        """Check if item is empty"""
-        username, user_id, _ = self.get_values()
-        return not username and not user_id
-
-    def is_valid(self):
-        """Check if item is valid"""
-        return self.username_valid
+        username, user_id = self.get_data()
+        return username, user_id, self.expires_at
 
     def cleanup(self):
-        """Cleanup timers"""
-        if hasattr(self, '_update_timer'):
+        """Stop the countdown"""
+        if self.is_temporary:
             self._update_timer.stop()
 
 
@@ -302,6 +152,10 @@ class BanListWidget(TranslatableMixin, QWidget):
         self.tr_set(label.setText, title_en, title_ru)
         header.addWidget(label, stretch=1)
 
+        count_label = QLabel()
+        count_label.setObjectName("mutedHint")
+        header.addWidget(count_label)
+
         add_button = create_icon_button(self.icons_path, "line/add-large-line.svg", "", config=self.config)
         self.tr_set(add_button.setToolTip, tooltip_en, tooltip_ru)
         add_button.clicked.connect(lambda: self._add_new_item(is_temporary))
@@ -317,7 +171,7 @@ class BanListWidget(TranslatableMixin, QWidget):
         grid.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
         section_layout.addLayout(grid)
 
-        return section, grid, add_button
+        return section, grid, count_label
 
     def _setup_ui(self):
         """Setup UI with separate sections"""
@@ -346,6 +200,10 @@ class BanListWidget(TranslatableMixin, QWidget):
         self.tr_set(title_label.setText, "Ban List", "Список забаненных")
         header_layout.addWidget(title_label, stretch=1)
 
+        self._total_count_label = QLabel()
+        self._total_count_label.setObjectName("mutedHint")
+        header_layout.addWidget(self._total_count_label)
+
         self._clear_all_button = create_icon_button(
             self.icons_path, "fill/delete-bin-fill.svg", "", config=self.config
         )
@@ -368,13 +226,13 @@ class BanListWidget(TranslatableMixin, QWidget):
         self._items_container.setLayout(sections_layout)
 
         # Create permanent section
-        perm_section, self._perm_layout, _ = self._create_section(
+        perm_section, self._perm_layout, self._perm_count_label = self._create_section(
             "Permanent", "Постоянные", "Add to Permanent", "Добавить в постоянные", is_temporary=False
         )
         sections_layout.addWidget(perm_section)
 
         # Create temporary section
-        temp_section, self._temp_layout, _ = self._create_section(
+        temp_section, self._temp_layout, self._temp_count_label = self._create_section(
             "Temporary", "Временные", "Add to Temporary", "Добавить во временные", is_temporary=True
         )
         sections_layout.addWidget(temp_section)
@@ -413,6 +271,7 @@ class BanListWidget(TranslatableMixin, QWidget):
         # Don't create empty items - users can click [+] button to add
         if all_bans:  # Only recalculate if we loaded something
             QTimer.singleShot(100, self.recalculate_layout)
+        self._update_counts()
 
     def _add_item(self, username="", user_id="", expires_at=None, is_temporary=False):
         """Add ban item to appropriate section"""
@@ -424,8 +283,8 @@ class BanListWidget(TranslatableMixin, QWidget):
             expires_at,
             is_temporary=is_temporary
         )
-        item.parent_widget = self
         item.remove_requested.connect(self._remove_item)
+        item.changed.connect(self._save_bans)
 
         if is_temporary:
             item.expired.connect(self._on_expired)
@@ -482,16 +341,31 @@ class BanListWidget(TranslatableMixin, QWidget):
         # Save permanent bans
         for item in self._perm_items:
             username, user_id, _ = item.get_values()
-            if username and user_id and item.is_valid():
+            if username and user_id and item.username_valid:
                 self.ban_manager.add_user(user_id, username, duration=None)
 
         # Save temporary bans
         for item in self._temp_items:
             username, user_id, expires_at = item.get_values()
-            if username and user_id and item.is_valid() and expires_at:
+            if username and user_id and item.username_valid and expires_at:
                 duration = max(0, expires_at - int(time.time()))
                 if duration > 0:  # Only save if not expired
                     self.ban_manager.add_user(user_id, username, duration=duration)
+        self._update_counts()
+
+    def _update_counts(self):
+        """Counts of the filled rows: permanent and temporary beside their headers, the total beside the title."""
+        permanent = sum(1 for item in self._perm_items if not item.is_empty())
+        temporary = sum(1 for item in self._temp_items if not item.is_empty())
+        self._perm_count_label.setText(str(permanent))
+        self._temp_count_label.setText(str(temporary))
+        total = permanent + temporary
+        self._total_count_label.setText(tr(f"Total: {total}", f"Всего: {total}"))
+
+    def update_theme(self):
+        is_dark = (self.config.get("ui", "theme") or "dark") == "dark"
+        for item in self._perm_items + self._temp_items:
+            item.update_theme(is_dark)
 
     def _clear_all(self):
         """Clear all bans from both sections"""
@@ -521,6 +395,7 @@ class BanListWidget(TranslatableMixin, QWidget):
             self._temp_items.clear()
 
             self.ban_manager.clear_all()
+            self._update_counts()
             # Don't create empty item - users can click [+] to add
 
     def recalculate_layout(self):

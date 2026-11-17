@@ -82,6 +82,16 @@ class TrackerFiltersMixin:
         for login, chip in self.chip_widgets.items():
             chip.set_filtered(login in self.filtered_logins)
 
+    def place_chip(self, chip):
+        """Put one chip where a full rebuild would: most events first, then by login."""
+        def sort_key(other):
+            return -int(other.count_label.text()), other.login.lower()
+
+        self.filter_chips_layout.removeWidget(chip)
+        others = [self.filter_chips_layout.itemAt(index).widget() for index in range(self.filter_chips_layout.count() - 1)]  # the last item is the stretch
+        position = next((index for index, other in enumerate(others) if sort_key(other) > sort_key(chip)), len(others))
+        self.filter_chips_layout.insertWidget(position, chip)
+
     def rebuild_filter_chips(self):
         while self.filter_chips_layout.count() > 1:
             item = self.filter_chips_layout.takeAt(0)

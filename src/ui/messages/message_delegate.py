@@ -1038,9 +1038,9 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
             gallery = self._image_gallery(model, first.source, first.url)
             self.message_renderer.image_viewer.show_preview(first.url, QCursor.pos(), gallery)
 
-    def highlight_row(self, row: int, anchor: bool = False):
+    def highlight_row(self, row: int, anchor: bool = False, duration_ms: Optional[int] = None):
         """Highlight a row with fade-out effect, independent of any other row's fade.
         With anchor=True the message also keeps a resting frame until the next anchor."""
         if anchor and self.anchor_frame_enabled() and self.list_view:
             self.set_anchor(self.list_view.model().data(self.list_view.model().index(row, 0)))
-        super().highlight_row(row)
+        super().highlight_row(row, duration_ms)

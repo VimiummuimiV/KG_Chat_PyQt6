@@ -71,9 +71,10 @@ class TrackerHistoryMixin:
         chip = self.chip_widgets.get(login)
         if chip is not None:
             chip.count_label.setText(str(int(chip.count_label.text()) + 1))
+            self.place_chip(chip)
             return
         chip = self.make_chip(login, 1, event.get('user_id') or None)
-        self.filter_chips_layout.insertWidget(0, chip)
+        self.place_chip(chip)
         self.update_filter_panel_visibility()
 
     def clear_history(self):
