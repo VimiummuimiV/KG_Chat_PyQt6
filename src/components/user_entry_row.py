@@ -94,7 +94,8 @@ class UserEntryRow(TranslatableMixin, QWidget):
         self._main_layout.insertWidget(self._main_layout.count() - 1, widget)
         if base_width:
             self._scaled_widgets.append((widget, base_width))
-        self.update_font_scale()
+            widget.setFixedWidth(get_scaled_width(base_width))
+        self.fit_width()
 
     def fit_width(self):
         """Make the row exactly as wide as its parts, so a grid can count how many rows fit."""

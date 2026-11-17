@@ -58,7 +58,8 @@ def handle_chat_resize(chat_window, width: int):
         tracker = chat_window.user_tracker_widget
         auto_hide = chat_window.auto_hide_tracker_userlist
         show = False if (is_compact and auto_hide) else tracker.userlist_visible
-        tracker.filter_panel.setVisible(show and bool(tracker.chip_widgets))
+        tracker.is_userlist_auto_hidden = is_compact and auto_hide
+        tracker.update_filter_panel_visibility()
         bp = getattr(chat_window, 'button_panel', None)
         if bp and getattr(bp, 'toggle_userlist_button', None):
             bp.set_button_state(bp.toggle_userlist_button, show)

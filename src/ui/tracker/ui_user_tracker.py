@@ -16,6 +16,7 @@ from PyQt6.QtWidgets import (
 
 from components.badge import TypeFilterBar
 from components.button import create_icon_button
+from components.row_grid import fill_grid
 from helpers.fonts.fonts import FontType, get_userlist_width, set_font_role
 from helpers.scroll.auto_scroll import AutoScroller
 from helpers.scroll.scroll_buttons import ScrollButtonsPanel
@@ -51,10 +52,12 @@ class UserTrackerWidget(
         self.filtered_types = set()
         self.filtered_dates = set()
         self.chip_widgets = {}
+        self.is_userlist_auto_hidden = False
+        self._are_rows_stale = True  # the rows and the chips are built when their tab opens
+        self._are_chips_stale = True
         userlist_visible = config.get("ui", "userlist", "tracker")
         self.userlist_visible = True if userlist_visible is None else bool(userlist_visible)
         self._setup_ui()
-        self.load_selected()
         self.rebuild_events()
         self._apply_default_tab()
         self._on_tab_changed(self.tabs.currentIndex())
@@ -134,7 +137,6 @@ class UserTrackerWidget(
         header_layout.addWidget(self._clear_users_button)
 
         self.tabs = QTabWidget()
-        self.tabs.currentChanged.connect(self._on_tab_changed)
         main_layout.addWidget(self.tabs, stretch=1)
 
         list_spacing = self.config.get("ui", "spacing", "list_items") or 2
@@ -229,6 +231,7 @@ class UserTrackerWidget(
 
         history_tab_index = self.tabs.addTab(history_page, "")
         self.tr_set(lambda text, i=history_tab_index: self.tabs.setTabText(i, text), "History", "История")
+        self.tabs.currentChanged.connect(self._on_tab_changed)
         on_language_changed(self.retranslate_all)
 
     def retranslate_all(self, _code=None):
@@ -239,6 +242,7 @@ class UserTrackerWidget(
 
     def toggle_userlist(self) -> bool:
         self.userlist_visible = not self.userlist_visible
+        self.is_userlist_auto_hidden = False
         self.config.set("ui", "userlist", "tracker", value=self.userlist_visible)
         self.update_filter_panel_visibility()
         return self.userlist_visible
@@ -253,32 +257,20 @@ class UserTrackerWidget(
         self.info_label.setVisible(not is_tracked)
         if not is_tracked:
             self.update_info_label()
+        self._build_current_tab()
         if is_tracked and self.user_items:
             QTimer.singleShot(0, self.recalculate_layout)
 
+    def _build_current_tab(self):
+        """Build the rows or the chips of the open tab if they are out of date; a closed tab costs nothing."""
+        if self.tabs.currentIndex() == 0:
+            if self._are_rows_stale:
+                self.load_selected()
+        elif self._are_chips_stale:
+            self.rebuild_filter_chips()
+
     def recalculate_layout(self):
-        if not self.user_items:
-            return
-
-        available_width = self._users_scroll.viewport().width()
-        h_spacing = self.users_grid.horizontalSpacing()
-        if h_spacing == -1:
-            h_spacing = self.users_grid.spacing()
-
-        margins = self.users_grid.contentsMargins()
-        available_for_items = available_width - (margins.left() + margins.right())
-        max_item_width = max(item.width() for item in self.user_items)
-        columns = max(1, (available_for_items + h_spacing) // (max_item_width + h_spacing))
-
-        for i in reversed(range(self.users_grid.count())):
-            widget = self.users_grid.itemAt(i).widget()
-            if widget:
-                self.users_grid.removeWidget(widget)
-
-        for index, item in enumerate(self.user_items):
-            row = index // columns
-            col = index % columns
-            self.users_grid.addWidget(item, row, col)
+        fill_grid(self.users_grid, self.user_items, self._users_scroll.viewport().width())
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
@@ -296,14 +288,14 @@ class UserTrackerWidget(
         for item in self.user_items:
             item.update_theme(is_dark)
         self.type_filter_bar.update_theme(is_dark)
-        self.rebuild_filter_chips()
+        self.invalidate_chips()
 
     def _apply_default_tab(self):
         tab = self.config.get("user_tracker", "default_tab") or "tracked"
         self.tabs.setCurrentIndex(1 if tab == "history" else 0)
 
     def refresh(self):
-        self.load_selected()
+        self._are_rows_stale = True
         self.rebuild_events()
         self._apply_default_tab()
         self._on_tab_changed(self.tabs.currentIndex())

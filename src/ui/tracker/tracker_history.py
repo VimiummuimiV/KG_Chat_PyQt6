@@ -39,7 +39,7 @@ class TrackerHistoryMixin:
         self.apply_event_filter()
         if events:
             QTimer.singleShot(0, self._scroll_history_to_bottom)
-        self.rebuild_filter_chips()
+        self.invalidate_chips()
         self.update_info_label()
 
     def remove_login_from_view(self, login: str):
@@ -66,7 +66,7 @@ class TrackerHistoryMixin:
 
     def _bump_chip_count(self, event: dict):
         login = event.get('login')
-        if not login:
+        if not login or self._are_chips_stale:
             return
         chip = self.chip_widgets.get(login)
         if chip is not None:

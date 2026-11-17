@@ -17,6 +17,7 @@ from PyQt6.QtWidgets import (
 )
 
 from components.button import create_icon_button
+from components.row_grid import fill_grid
 from components.toast import show_toast, ToastKind
 from components.user_entry_row import UserEntryRow
 from helpers.fonts.fonts import FontType, set_font_role
@@ -267,7 +268,8 @@ class BanListWidget(TranslatableMixin, QWidget):
                 ban_data['username'], 
                 user_id, 
                 ban_data.get('expires_at'),
-                is_temporary=is_temporary
+                is_temporary=is_temporary,
+                recalculate=False
             )
 
         # Don't create empty items - users can click [+] button to add
@@ -275,7 +277,7 @@ class BanListWidget(TranslatableMixin, QWidget):
             QTimer.singleShot(100, self.recalculate_layout)
         self._update_counts()
 
-    def _add_item(self, username="", user_id="", expires_at=None, is_temporary=False):
+    def _add_item(self, username="", user_id="", expires_at=None, is_temporary=False, recalculate=True):
         """Add ban item to appropriate section"""
         item = _BanItemWidget(
             self.config, 
@@ -294,7 +296,8 @@ class BanListWidget(TranslatableMixin, QWidget):
         else:
             self._perm_items.append(item)
 
-        self.recalculate_layout()
+        if recalculate:
+            self.recalculate_layout()
 
     def _add_new_item(self, is_temporary: bool):
         """Add new empty item to specified section"""
@@ -406,38 +409,9 @@ class BanListWidget(TranslatableMixin, QWidget):
 
     def recalculate_layout(self):
         """Recalculate grid layout for both sections"""
-        def _layout_section(grid_layout, items_list):
-            if not items_list:
-                return
-
-            available_width = self.scroll.viewport().width()
-            h_spacing = grid_layout.horizontalSpacing()
-            if h_spacing == -1:
-                h_spacing = grid_layout.spacing()
-
-            available_for_items = available_width - (grid_layout.contentsMargins().left() + 
-                                                     grid_layout.contentsMargins().right())
-
-            # Find max item width (temp items may have different widths due to duration)
-            max_item_width = max(item.width() for item in items_list)
-
-            columns = max(1, (available_for_items + h_spacing) // (max_item_width + h_spacing))
-
-            # Clear layout
-            for i in reversed(range(grid_layout.count())):
-                widget = grid_layout.itemAt(i).widget()
-                if widget:
-                    grid_layout.removeWidget(widget)
-
-            # Re-add items in grid
-            for idx, item in enumerate(items_list):
-                row = idx // columns
-                col = idx % columns
-                grid_layout.addWidget(item, row, col)
-
-        # Layout both sections independently
-        _layout_section(self._perm_layout, self._perm_items)
-        _layout_section(self._temp_layout, self._temp_items)
+        available_width = self.scroll.viewport().width()
+        fill_grid(self._perm_layout, self._perm_items, available_width)
+        fill_grid(self._temp_layout, self._temp_items, available_width)
 
     def resizeEvent(self, event):
         """Handle resize"""

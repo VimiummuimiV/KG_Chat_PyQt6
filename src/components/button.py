@@ -1,6 +1,7 @@
 import math
 import re
 import weakref
+from functools import lru_cache
 from pathlib import Path
 
 from PyQt6 import sip
@@ -47,14 +48,22 @@ def get_user_svg_color(is_known: bool, is_dark: bool) -> str:
 
 
 def render_svg_icon(svg_file: Path, icon_size: int, color: str = None, stroke_width: float = None):
-    """Render SVG file to QIcon with given or current-theme color, optionally overriding stroke-width."""
+    """Render SVG file to QIcon with given or current-theme color, optionally overriding stroke-width.
+
+    The same file, size, color and stroke are rendered once; the icon is shared, never modify it."""
+    size = icon_size if isinstance(icon_size, QSize) else QSize(icon_size, icon_size)
+    return _render_icon(str(svg_file), size.width(), size.height(), color or get_accent_color(), stroke_width)
+
+
+@lru_cache(maxsize=512)
+def _render_icon(svg_path: str, width: int, height: int, color: str, stroke_width: float | None) -> QIcon:
+    svg_file = Path(svg_path)
     if not svg_file.exists():
         return QIcon()
 
     with open(svg_file, 'r') as f:
         svg = f.read()
 
-    color = color or get_accent_color()
     for attr in ('fill', 'stroke'):  # skip "none" - it means don't paint this channel
         svg = re.sub(rf'{attr}="(?!none")[^"]*"', f'{attr}="{color}"', svg)
 
@@ -64,10 +73,7 @@ def render_svg_icon(svg_file: Path, icon_size: int, color: str = None, stroke_wi
     renderer = QSvgRenderer()
     renderer.load(svg.encode('utf-8'))
 
-    if isinstance(icon_size, int):
-        icon_size = QSize(icon_size, icon_size)
-
-    pixmap = QPixmap(icon_size)
+    pixmap = QPixmap(width, height)
     pixmap.fill(Qt.GlobalColor.transparent)
     painter = QPainter(pixmap)
     renderer.render(painter)

@@ -12,7 +12,8 @@ class TrackerSelectionMixin:
 
     def make_chip(self, login: str, count: int, user_id: str = None) -> "TrackerUserChip":
         chip = TrackerUserChip(self.config, self.icons_path, login, count, user_id)
-        chip.set_filtered(login in self.filtered_logins)
+        if login in self.filtered_logins:
+            chip.set_filtered(True)
         chip.clicked.connect(self.handle_filter_click)
         chip.delete_requested.connect(self.handle_chip_delete_requested)
         self.chip_widgets[login] = chip
@@ -26,6 +27,7 @@ class TrackerSelectionMixin:
         self.user_items.clear()
 
     def load_selected(self):
+        self._are_rows_stale = False
         self._discard_items()
         for user_id, username in self.user_tracker.get_selected().items():
             self._add_item(username, user_id, recalculate=False)

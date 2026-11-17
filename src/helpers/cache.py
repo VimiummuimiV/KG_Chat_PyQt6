@@ -6,6 +6,7 @@ import itertools
 import json
 import re
 import threading
+import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import Callable, Dict, List, Optional, Tuple
 
@@ -17,6 +18,9 @@ from helpers.data import get_data_dir, get_state_dir
 from helpers.load import fetch_avatar_bytes, load_avatar_from_disk
 from helpers.text.mention_parser import fold_nickname
 from helpers.text.nickname_match import FUZZY_MIN_QUERY, fuzzy_pattern, match_key
+
+
+_AVATAR_RETRY_SECONDS = 600  # how long a user without an avatar on the site is not asked for it again
 
 
 class _CacheManager:
@@ -48,6 +52,8 @@ class _CacheManager:
             return
         self._login_listeners: List[Callable[[str, str], None]] = []  # called when a login is new or changed
         self._avatar_stamps: Dict[str, str] = {}  # user_id → updated timestamp
+        self._avatar_waiters: Dict[str, List[Callable]] = {}  # user_id → callbacks of the load in progress
+        self._avatar_missing: Dict[str, float] = {}  # user_id → when the site last had no avatar of him
         self._data: Dict[str, Dict] = {}          # user_id → {login, background?, light?, dark?}
         self._login_index: Dict[str, str] = {}    # login → user_id
         self._sorted_logins: List[Tuple[str, str]] = []  # (folded login, login), sorted: prefix search by bisect
@@ -193,8 +199,14 @@ class _CacheManager:
         m = re.search(r'updated=(\d+)', avatar_path or '')
         return m.group(1) if m else None
 
-    def _fetch_and_save(self, user_id: str, path, callback: Callable = None) -> None:
+    def _fetch_and_save(self, user_id: str, path, callback: Callable = None) -> bool:
+        """Download the avatar into path; whether the site had one."""
         data = fetch_avatar_bytes(user_id)
+        with self._cache_lock:
+            if data:
+                self._avatar_missing.pop(user_id, None)
+            else:
+                self._avatar_missing[user_id] = time.monotonic()
         if data:
             path.write_bytes(data)
             for f in self._dir().glob(f"{user_id}_*.png"):
@@ -202,6 +214,7 @@ class _CacheManager:
             if callback:
                 px = load_avatar_from_disk(path)
                 if px: callback(user_id, px)
+        return bool(data)
 
     def get_avatar(self, user_id: str) -> Optional[QPixmap]:
         upd = self._avatar_stamps.get(user_id)
@@ -214,6 +227,7 @@ class _CacheManager:
         with self._cache_lock:
             prev = self._avatar_stamps.get(user_id)
             self._avatar_stamps[user_id] = updated
+            self._avatar_missing.pop(user_id, None)
 
         def _work():
             path = self._path(user_id, updated)
@@ -227,24 +241,48 @@ class _CacheManager:
         self._avatar_executor.submit(_work)
 
     def load_avatar_async(self, user_id: str, callback: Callable, timeout: int = 2) -> None:
-        def _work():
+        """Call callback(user_id, pixmap) from a worker thread once the avatar is loaded.
+
+        Askers of one user share a single load; a user the site has no avatar of is not asked again for a while."""
+        with self._cache_lock:
+            missing_since = self._avatar_missing.get(user_id)
+            if missing_since is not None and time.monotonic() - missing_since < _AVATAR_RETRY_SECONDS:
+                return
+            waiters = self._avatar_waiters.get(user_id)
+            if waiters is not None:
+                waiters.append(callback)
+                return
+            self._avatar_waiters[user_id] = [callback]
+
+        def _load() -> Optional[QPixmap]:
             upd = self._avatar_stamps.get(user_id)
             if upd:
-                px = load_avatar_from_disk(self._path(user_id, upd))
-                if px: callback(user_id, px)
-                return
+                return load_avatar_from_disk(self._path(user_id, upd))
             for f in self._dir().glob(f"{user_id}_*.png"):
                 px = load_avatar_from_disk(f)
                 if px:
                     with self._cache_lock:
                         self._avatar_stamps[user_id] = f.stem.split("_", 1)[1]
-                    callback(user_id, px); return
-            self._fetch_and_save(user_id, self._dir() / f"{user_id}_0.png", callback)
+                    return px
+            path = self._dir() / f"{user_id}_0.png"
+            return load_avatar_from_disk(path) if self._fetch_and_save(user_id, path) else None
+
+        def _work():
+            try:
+                px = _load()
+            finally:
+                with self._cache_lock:
+                    callbacks = self._avatar_waiters.pop(user_id)
+            if px:
+                for waiting_callback in callbacks:
+                    waiting_callback(user_id, px)
 
         self._avatar_executor.submit(_work)
 
     def _clear_avatars(self) -> None:
-        with self._cache_lock: self._avatar_stamps.clear()
+        with self._cache_lock:
+            self._avatar_stamps.clear()
+            self._avatar_missing.clear()
 
     def remove_avatar(self, user_id: str) -> None:
         with self._cache_lock: self._avatar_stamps.pop(user_id, None)

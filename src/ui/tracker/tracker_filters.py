@@ -12,7 +12,9 @@ class TrackerFiltersMixin:
     """UserTrackerWidget: history filters and filter chips."""
 
     def update_filter_panel_visibility(self):
-        self.filter_panel.setVisible(self.userlist_visible and bool(self.chip_widgets))
+        self.filter_panel.setVisible(
+            self.userlist_visible and not self.is_userlist_auto_hidden and bool(self.chip_widgets)
+        )
 
     def _toggle_filter_set(self, attr: str, value: str, ctrl_pressed: bool, on_changed=None):
         if not value:
@@ -92,7 +94,14 @@ class TrackerFiltersMixin:
         position = next((index for index, other in enumerate(others) if sort_key(other) > sort_key(chip)), len(others))
         self.filter_chips_layout.insertWidget(position, chip)
 
+    def invalidate_chips(self):
+        """The chips are out of date: rebuilt at once when their tab is open, else when it opens."""
+        self._are_chips_stale = True
+        if self.tabs.currentIndex() == 1:
+            self.rebuild_filter_chips()
+
     def rebuild_filter_chips(self):
+        self._are_chips_stale = False
         while self.filter_chips_layout.count() > 1:
             item = self.filter_chips_layout.takeAt(0)
             widget = item.widget()

@@ -158,9 +158,8 @@ class ChatPanelsMixin:
         width = self.width()
         tracker_userlist_visible = self.user_tracker_widget.userlist_visible
         show = False if (width <= 1000 and self.auto_hide_tracker_userlist) else tracker_userlist_visible
-        self.user_tracker_widget.filter_panel.setVisible(
-            show and bool(self.user_tracker_widget.chip_widgets)
-        )
+        self.user_tracker_widget.is_userlist_auto_hidden = width <= 1000 and self.auto_hide_tracker_userlist
+        self.user_tracker_widget.update_filter_panel_visibility()
         if hasattr(self, 'button_panel'):
             self.button_panel.set_button_state(self.button_panel.toggle_userlist_button, show)
 

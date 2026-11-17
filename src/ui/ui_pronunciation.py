@@ -15,6 +15,7 @@ from PyQt6.QtWidgets import (
 )
 
 from components.button import create_icon_button
+from components.row_grid import fill_grid
 from components.toast import show_toast, ToastKind
 from components.user_entry_row import UserEntryRow
 from helpers.fonts.fonts import FontType, set_font_role
@@ -66,7 +67,6 @@ class PronunciationWidget(TranslatableMixin, QWidget):
         self.icons_path = icons_path
         self.pronunciation_manager = pronunciation_manager
         self.items = []
-        self._current_columns = 1
         self._save_timer = QTimer(self)
         self._save_timer.setSingleShot(True)
         self._save_timer.setInterval(_SAVE_DELAY_MS)
@@ -156,17 +156,17 @@ class PronunciationWidget(TranslatableMixin, QWidget):
         """Load existing pronunciation mappings"""
         mappings = self.pronunciation_manager.get_entries()
         for user_id, entry in mappings.items():
-            self._add_item(entry["username"], entry["pronunciation"], user_id)
+            self._add_item(entry["username"], entry["pronunciation"], user_id, recalculate=False)
 
         # Add one empty item if no mappings exist
         if not mappings:
-            self._add_item("", "")
+            self._add_item("", "", recalculate=False)
 
         # Initial layout calculation
         QTimer.singleShot(100, self.recalculate_layout)
         self._update_count()
 
-    def _add_item(self, original: str = "", pronunciation: str = "", user_id: str = ""):
+    def _add_item(self, original: str = "", pronunciation: str = "", user_id: str = "", recalculate: bool = True):
         """Add a pronunciation item to the list"""
         item = _PronunciationItemWidget(self.config, self.icons_path, original, pronunciation, user_id)
         item.remove_requested.connect(self._remove_item)
@@ -176,7 +176,8 @@ class PronunciationWidget(TranslatableMixin, QWidget):
         item.pronunciation_input.textChanged.connect(self._schedule_save)
 
         self.items.append(item)
-        self.recalculate_layout()
+        if recalculate:
+            self.recalculate_layout()
 
     def refresh(self):
         """Reload mappings after adding, editing, or removing one from the context menu."""
@@ -261,39 +262,7 @@ class PronunciationWidget(TranslatableMixin, QWidget):
 
     def recalculate_layout(self):
         """Recalculate grid layout based on available width"""
-        if not self.items:
-            return
-
-        # Get available width
-        available_width = self.scroll.viewport().width()
-
-        # Each item has fixed width, calculate from first item
-        if self.items:
-            item_width = self.items[0].width()
-            # Get horizontal spacing
-            h_spacing = self._items_layout.horizontalSpacing()
-            if h_spacing == -1:  # Use default if not set
-                h_spacing = self._items_layout.spacing()
-
-            # Calculate how many columns can fit
-            # Need to account for spacing between items
-            available_for_items = available_width - (self._items_layout.contentsMargins().left() + 
-                                                     self._items_layout.contentsMargins().right())
-            columns = max(1, (available_for_items + h_spacing) // (item_width + h_spacing))
-
-            # Clear layout
-            for i in reversed(range(self._items_layout.count())):
-                widget = self._items_layout.itemAt(i).widget()
-                if widget:
-                    self._items_layout.removeWidget(widget)
-
-            # Re-add items in grid
-            for index, item in enumerate(self.items):
-                row = index // columns
-                col = index % columns
-                self._items_layout.addWidget(item, row, col)
-
-            self._current_columns = columns
+        fill_grid(self._items_layout, self.items, self.scroll.viewport().width())
 
     def resizeEvent(self, event):
         """Handle resize to recalculate grid layout"""
