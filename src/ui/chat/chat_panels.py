@@ -12,7 +12,7 @@ _PANEL_ATTRS = (
     "profile_widget",
     "ban_list_widget",
     "user_tracker_widget",
-    "pronunciation_widget"
+    "pronunciation_widget",
     "settings_widget",
 )
 
