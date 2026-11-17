@@ -154,6 +154,19 @@ class UserTracker:
             return True
         return False
 
+    def user_ids(self) -> List[str]:
+        """Ids of every tracked user."""
+        return list(self.selected)
+
+    def rename_user(self, user_id: str, login: str) -> bool:
+        """Store the current login of a tracked user; False when nothing changed."""
+        uid = str(user_id)
+        if uid not in self.selected or self.selected[uid] == login:
+            return False
+        self.selected[uid] = login
+        self.save()
+        return True
+
     def get_selected(self) -> Dict[str, str]:
         return dict(self.selected)
 

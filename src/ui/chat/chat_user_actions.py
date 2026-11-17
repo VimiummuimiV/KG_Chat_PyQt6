@@ -116,7 +116,7 @@ class ChatUserActionsMixin:
             is_presence = bool(getattr(msg, 'is_presence_log', False))
 
             has_pronunciation = bool(
-                self.pronunciation_manager and username and username in self.pronunciation_manager.mappings
+                self.pronunciation_manager and self.pronunciation_manager.has_pronunciation(uid)
             )
             action = show_message_user_context_menu(
                 self.icons_path, self, global_pos,
@@ -282,15 +282,19 @@ class ChatUserActionsMixin:
         Empty input + OK removes the mapping."""
         if not username or not self.pronunciation_manager:
             return
+        user_id = self.cache.get_user_id(username)
+        if not user_id:
+            show_toast(self, tr("User not found", "Пользователь не найден"), ToastKind.ERROR)
+            return
         pronunciation, ok = PronunciationDialog.get_pronunciation_for_user(
             self, username=username
         )
         if not ok:
             return
         if pronunciation:
-            self.pronunciation_manager.add_mapping(username, pronunciation)
+            self.pronunciation_manager.set_pronunciation(user_id, username, pronunciation)
         else:
-            self.pronunciation_manager.remove_mapping(username)
+            self.pronunciation_manager.remove_pronunciation(user_id)
         widget = getattr(self, 'pronunciation_widget', None)
         if widget is not None:
             widget.refresh()

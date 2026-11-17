@@ -187,7 +187,7 @@ class _UserWidget(TrackedMarkMixin, QWidget):
         )
         is_own_user = bool(self.my_username) and self.user.login == self.my_username
         has_pronunciation = bool(
-            self.pronunciation_manager and self.user.login in self.pronunciation_manager.mappings
+            self.pronunciation_manager and self.pronunciation_manager.has_pronunciation(self.user.user_id)
         )
         action = show_userlist_context_menu(
             self.icons_path, self, QCursor.pos(),

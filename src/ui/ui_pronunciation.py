@@ -17,7 +17,6 @@ from PyQt6.QtWidgets import (
 from components.button import create_icon_button
 from components.toast import show_toast, ToastKind
 from components.user_entry_row import UserEntryRow
-from helpers.cache import get_cache
 from helpers.fonts.fonts import FontType, set_font_role
 from helpers.translate import on_language_changed, tr, TranslatableMixin
 
@@ -40,6 +39,13 @@ class _PronunciationItemWidget(UserEntryRow):
     def get_values(self):
         """Get original and pronunciation values"""
         return self.username_input.text().strip(), self.pronunciation_input.text().strip()
+
+    def _get_entry(self):
+        """The (user_id, username, pronunciation) to store, or None while the row is incomplete or its name is unknown."""
+        username, pronunciation = self.get_values()
+        if not (username and pronunciation and self.user_id and self.username_valid):
+            return None
+        return self.user_id, username, pronunciation
 
     def is_empty(self):
         """Check if both inputs are empty"""
@@ -141,9 +147,9 @@ class PronunciationWidget(TranslatableMixin, QWidget):
 
     def _load_mappings(self):
         """Load existing pronunciation mappings"""
-        mappings = self.pronunciation_manager.get_all_mappings()
-        for original, pronunciation in mappings.items():
-            self._add_item(original, pronunciation)
+        mappings = self.pronunciation_manager.get_entries()
+        for user_id, entry in mappings.items():
+            self._add_item(entry["username"], entry["pronunciation"], user_id)
 
         # Add one empty item if no mappings exist
         if not mappings:
@@ -153,15 +159,14 @@ class PronunciationWidget(TranslatableMixin, QWidget):
         QTimer.singleShot(100, self.recalculate_layout)
         self._update_count()
 
-    def _add_item(self, original: str = "", pronunciation: str = ""):
+    def _add_item(self, original: str = "", pronunciation: str = "", user_id: str = ""):
         """Add a pronunciation item to the list"""
-        user_id = get_cache().get_user_id(original) if original else None
-        item = _PronunciationItemWidget(self.config, self.icons_path, original, pronunciation, str(user_id or ""))
+        item = _PronunciationItemWidget(self.config, self.icons_path, original, pronunciation, user_id)
         item.remove_requested.connect(self._remove_item)
 
-        # Auto-save: after the name is checked and while the pronunciation is typed
+        # Auto-save: after the name is checked and when the pronunciation is finished, not on every key
         item.changed.connect(self._save_mappings)
-        item.pronunciation_input.textChanged.connect(self._save_mappings)
+        item.pronunciation_input.editingFinished.connect(self._save_mappings)
 
         self.items.append(item)
         self.recalculate_layout()
@@ -188,17 +193,19 @@ class PronunciationWidget(TranslatableMixin, QWidget):
             self.recalculate_layout()
 
     def _save_mappings(self):
-        """Save all pronunciation mappings"""
-        # Clear existing mappings
-        self.pronunciation_manager.clear_all()
-
-        # Save only valid, non-empty mappings
+        """Save the complete rows with one write"""
+        entries = {}
         for item in self.items:
-            original, pronunciation = item.get_values()
-            # Only save if both fields filled AND username is valid
-            if original and pronunciation and item.username_valid:
-                self.pronunciation_manager.add_mapping(original, pronunciation)
+            entry = item._get_entry()
+            if entry:
+                user_id, username, pronunciation = entry
+                entries[user_id] = {"username": username, "pronunciation": pronunciation}
+        self.pronunciation_manager.replace_all(entries)
         self._update_count()
+
+    def cleanup(self):
+        """Save what a field still holds when the panel is left."""
+        self._save_mappings()
 
     def _update_count(self):
         count = sum(1 for item in self.items if not item.is_empty())
@@ -233,8 +240,7 @@ class PronunciationWidget(TranslatableMixin, QWidget):
                 item.deleteLater()
             self.items.clear()
 
-            # Clear pronunciation manager
-            self.pronunciation_manager.clear_all()
+            self.pronunciation_manager.replace_all({})
 
             # Add one empty item
             self._add_item("", "")

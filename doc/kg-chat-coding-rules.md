@@ -45,7 +45,7 @@ core/                   no widgets: data, network, XMPP, parsing, persistence
   xmpp/                 client.py (BOSH), messages.py, userlist.py, jid_utils.py, delivery.py (DeliveryTracker: pending / delivered / failed state of own messages)
   chatlogs/             fetch.py, database.py (SQLite), range_parser.py (workers), workers_calculator.py
   web/                  api_data.py, scores.py, races_listener.py, youtube.py, image_loader.py (parallel image downloads + LRU cache)
-  state/                accounts.py, user_state.py (ByUserStore), presence_db.py, mentions_digest.py, self_ban.py, input_drafts.py (draft and unsent messages), mention_aliases.py (extra mention words, one file: local per account + global), json_state.py (JsonState: nested JSON file in data/), ui_state.py (ui_state: remembered UI state, not lists)
+  state/                accounts.py, user_state.py (ByUserStore), presence_db.py, mentions_digest.py, self_ban.py, input_drafts.py (draft and unsent messages), mention_aliases.py (extra mention words, one file: local per account + global), json_state.py (JsonState: nested JSON file in data/), ui_state.py (ui_state: remembered UI state, not lists); data/name_checks.json belongs to NameSync
 helpers/                shared non-visual logic and managers
   config.py data.py translate.py cache.py load.py dates.py browser.py sounds.py   (top level)
   colors/               color_utils.py, color_contrast.py
@@ -53,7 +53,7 @@ helpers/                shared non-visual logic and managers
   text/                 emoticons.py, me_action.py, mention_parser.py
   system/               hotkey_manager.py, power_monitor.py, startup_manager.py, input_activity.py
   window/               window_size_manager.py, resize.py
-  users/                ban_manager.py, user_tracker.py, pronunciation_manager.py, username_color_manager.py, presence_log.py
+  users/                ban_manager.py, user_tracker.py, pronunciation_manager.py (the three lists keyed by user id), name_sync.py (NameSync: keeps their usernames current), username_color_manager.py, presence_log.py
   scroll/               scroll.py (scroll, visible_rows), scroll_buttons.py (ScrollButtonsPanel), row_jump.py (RowJumpGroup: previous / next buttons between rows), auto_scroll.py, scrollable_buttons.py
   voice/                TTS and voice input engines
 components/             reusable widgets used by more than one screen
@@ -277,6 +277,9 @@ One kind of control has one wording in every screen. Before writing a label or t
 - Never add a hidden-but-alive view to the stack.
 
 ### Rows, actions and lists
+- A list of users (ban list, tracker, pronunciations) is keyed by the user id: `{user_id: {"username": ..., ...}}`, the same shape in every list. The username is only a label and is never a key, because a user can rename himself. A new list of users gets `user_ids()` and `rename_user(user_id, username)` (returns whether it changed, writes only then) and is added to the stores that `main.py` gives to `NameSync`; it never refreshes names itself.
+- A changed login reaches those lists in two ways, both through `NameSync`: instantly through `cache.add_login_listener` (the cache calls it only when a login is new or changed, so a message or a presence costs nothing) and for users who never show up in the chat through a background check by id (`get_current_login`, oldest check first, one request a second, a few at a time, `name_checks.json`). A list never calls the site for names and never scans on every message.
+- A panel that edits a list saves with one write (`replace_all`, which skips an unchanged list), never `clear_all` plus one write per row, and a text field saves on `editingFinished` and in `cleanup()`, not on every key.
 - A user row of an editable list is `UserEntryRow` (`components/user_entry_row.py`): avatar, username, user id, the list's own widgets added with `add_action(widget, base_width)`, and a remove button. A list subclasses it and adds only what differs; it never draws its own copy of a row. A row reports through signals (`changed`, `remove_requested`), never through a reference to its parent.
 - A row loaded from saved data never checks names against the site one by one (`check_on_load=False` when the data has no user id); the site is asked when the user edits a name.
 - The counts of a list (total, per section) sit beside the title on its left: the title does not stretch, the count label does.

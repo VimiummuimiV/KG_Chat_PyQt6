@@ -275,6 +275,11 @@ def _extract_data(data: Dict, data_type: str, api_type: str) -> Any:
 
     return None
 
+def get_current_login(user_id: str) -> Optional[str]:
+    """Current login of a user by id; None when the site does not answer."""
+    login = _get_data_by_id(int(user_id), 'currentLogin')
+    return login if isinstance(login, str) and login else None
+
 # Convenience helper functions (used by parser)
 def get_usernames_history(username: str) -> List[str]:
     """Get username history for a user"""

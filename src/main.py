@@ -27,9 +27,10 @@ from helpers.fonts.fonts import load_fonts, set_application_font, set_config, se
 from helpers.system import hotkey_manager as hotkey
 from helpers.system.power_monitor import power_monitor
 from helpers.translate import on_language_changed, set_language, tr
+from helpers.users.name_sync import NameSync
 from helpers.users.ban_manager import BanManager
-from helpers.users.pronunciation_manager import PronunciationManager
 from helpers.users.user_tracker import UserTracker
+from helpers.users.pronunciation_manager import PronunciationManager
 from helpers.users.username_color_manager import change_username_color, reset_username_color
 from ui.account.ui_accounts import AccountWindow
 from ui.chat.ui_chat import ChatWindow
@@ -98,6 +99,9 @@ class Application(QObject):
         self.ban_manager = BanManager(self._data_path)
         # Initialize user tracker
         self.user_tracker = UserTracker(self._data_path, self.config)
+        # Keep the names stored by id in those three equal to the current logins
+        self.name_sync = NameSync([self.ban_manager, self.user_tracker, self.pronunciation_manager])
+        self.name_sync.start()
 
         self._account_window = None
         self.chat_window = None
@@ -406,6 +410,7 @@ class Application(QObject):
             self._lock_file.unlock()
 
         power_monitor.stop()
+        self.name_sync.stop()
         self.app.quit()
 
     def run(self):

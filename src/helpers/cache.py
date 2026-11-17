@@ -45,6 +45,7 @@ class _CacheManager:
     def __init__(self):
         if self._initialized:
             return
+        self._login_listeners: List[Callable[[str, str], None]] = []  # called when a login is new or changed
         self._avatar_stamps: Dict[str, str] = {}  # user_id → updated timestamp
         self._data: Dict[str, Dict] = {}          # user_id → {login, background?, light?, dark?}
         self._login_index: Dict[str, str] = {}    # login → user_id
@@ -90,8 +91,9 @@ class _CacheManager:
         with self._cache_lock:
             entry = dict(self._data.get(user_id, {}))
             changed = False
+            is_login_changed = entry.get('login') != login
 
-            if entry.get('login') != login:
+            if is_login_changed:
                 if self._login_index.get(entry.get('login')) == user_id:
                     self._remove_login(entry['login'])
                 entry['login'] = login
@@ -108,7 +110,21 @@ class _CacheManager:
                 return
             self._data[user_id] = entry
             snapshot = self._data.copy()
+            listeners = tuple(self._login_listeners) if is_login_changed else ()
         self._avatar_executor.submit(self._save_data, snapshot)
+        for listener in listeners:
+            listener(user_id, login)
+
+    def add_login_listener(self, listener: Callable[[str, str], None]) -> None:
+        """Call listener(user_id, login) whenever a login is first seen or changes."""
+        with self._cache_lock:
+            self._login_listeners.append(listener)
+
+    def remove_login_listener(self, listener: Callable[[str, str], None]) -> None:
+        """Stop calling a listener added with add_login_listener."""
+        with self._cache_lock:
+            if listener in self._login_listeners:
+                self._login_listeners.remove(listener)
 
     def _add_login(self, login: str, user_id: str) -> None:
         """Index a login unless it is already taken; the caller holds the lock."""
@@ -149,6 +165,11 @@ class _CacheManager:
     def get_user_id(self, login: str) -> Optional[str]:
         with self._cache_lock:
             return self._login_index.get(login)
+
+    def get_login(self, user_id: str) -> Optional[str]:
+        """Last known login of a user id."""
+        with self._cache_lock:
+            return self._data.get(str(user_id), {}).get('login')
 
     def get_username_color(self, login: str, is_dark: bool) -> str:
         """Return precomputed color for login, or theme default if unknown."""

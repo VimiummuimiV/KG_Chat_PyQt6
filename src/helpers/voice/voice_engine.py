@@ -12,6 +12,8 @@ from gtts import gTTS
 from playsound3 import playsound
 from PyQt6.QtWidgets import QApplication
 
+from helpers.cache import get_cache
+
 
 def _clean_text_for_tts(text: str) -> str:
     """Clean text for TTS by removing symbols, URLs, and punctuation"""
@@ -119,7 +121,7 @@ class _VoiceEngine:
         # Get pronunciation for username if manager is available
         spoken_username = username
         if self.pronunciation_manager:
-            spoken_username = self.pronunciation_manager.get_pronunciation(username)
+            spoken_username = self.pronunciation_manager.get_pronunciation(get_cache().get_user_id(username), username)
 
         # Clean the message for natural TTS reading
         cleaned_message = _clean_text_for_tts(message)

@@ -3,7 +3,7 @@
 import json
 import time
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
 
 class BanManager:
@@ -83,6 +83,19 @@ class BanManager:
                 'is_temporary': 'expires_at' in data
             }
         return result
+
+    def user_ids(self) -> List[str]:
+        """Ids of every banned user."""
+        return list(self._bans)
+
+    def rename_user(self, user_id: str, username: str) -> bool:
+        """Store the current username of a banned user; False when nothing changed."""
+        ban = self._bans.get(str(user_id))
+        if ban is None or ban['username'] == username:
+            return False
+        ban['username'] = username
+        self.save()
+        return True
 
     def clear_all(self):
         """Clear all bans"""
