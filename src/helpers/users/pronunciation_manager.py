@@ -2,7 +2,7 @@
 
 import json
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict
 
 
 class PronunciationManager:
@@ -64,9 +64,9 @@ class PronunciationManager:
         self._entries = entries
         self.save()
 
-    def user_ids(self) -> List[str]:
-        """Ids of every user with a pronunciation."""
-        return list(self._entries)
+    def usernames(self) -> Dict[str, str]:
+        """{user_id: username} of every user with a pronunciation."""
+        return {user_id: entry['username'] for user_id, entry in self._entries.items()}
 
     def rename_user(self, user_id: str, username: str) -> bool:
         """Store the current username of a user; False when nothing changed."""

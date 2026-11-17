@@ -2,7 +2,7 @@
 
 import threading
 import time
-from typing import Dict, List
+from typing import Dict
 
 from PyQt6.QtCore import QObject, pyqtSignal, QTimer
 
@@ -19,6 +19,10 @@ _REQUEST_DELAY_SECONDS = 1.0
 _MAX_CONSECUTIVE_FAILURES = 3
 
 
+def _checked_at(checked: Dict[str, dict], user_id: str) -> int:
+    return checked.get(user_id, {}).get("checked_at", 0)
+
+
 class NameSync(QObject):
     """Applies a changed login to every store that keeps users by id.
 
@@ -29,11 +33,11 @@ class NameSync(QObject):
     _renamed = pyqtSignal(str, str)  # queued to the main thread when emitted by the checking thread
 
     def __init__(self, stores: list):
-        """Every store has user_ids() and rename_user(user_id, username)."""
+        """Every store has usernames() -> {user_id: username} and rename_user(user_id, username)."""
         super().__init__()
         self._stores = stores
         self._cache = get_cache()
-        self._state = JsonState("name_checks.json")  # {"checked": {user_id: time of the last check}}
+        self._state = JsonState("name_checks.json")  # {"checked": {user_id: {"username", "checked_at"}}}
         self._is_checking = False
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._start_pass)
@@ -42,7 +46,7 @@ class NameSync(QObject):
 
     def start(self):
         """Catch up with the names the cache already knows, then check the stale ones after the start settles."""
-        for user_id in self._known_user_ids():
+        for user_id in self._known_usernames():
             login = self._cache.get_login(user_id)
             if login:
                 self._apply_rename(user_id, login)
@@ -60,26 +64,27 @@ class NameSync(QObject):
         for store in self._stores:
             store.rename_user(user_id, login)
 
-    def _known_user_ids(self) -> set:
-        return {user_id for store in self._stores for user_id in store.user_ids()}
+    def _known_usernames(self) -> Dict[str, str]:
+        return {user_id: username for store in self._stores for user_id, username in store.usernames().items()}
 
     def _start_pass(self):
         self._timer.setInterval(_PASS_INTERVAL_MS)
         if self._is_checking:
             return
-        known = self._known_user_ids()
-        checked = {user_id: moment for user_id, moment in (self._state.get("checked") or {}).items() if user_id in known}
+        known = self._known_usernames()
+        saved = self._state.get("checked") or {}
+        checked = {user_id: entry for user_id, entry in saved.items() if user_id in known and isinstance(entry, dict)}
         now = time.time()
         stale = sorted(
-            (user_id for user_id in known if now - checked.get(user_id, 0) >= _RECHECK_TTL_SECONDS),
-            key=lambda user_id: checked.get(user_id, 0),
+            (user_id for user_id in known if now - _checked_at(checked, user_id) >= _RECHECK_TTL_SECONDS),
+            key=lambda user_id: _checked_at(checked, user_id),
         )[:_PASS_LIMIT]
         if not stale:
             return
         self._is_checking = True
-        threading.Thread(target=self._check, args=(stale, checked), daemon=True).start()
+        threading.Thread(target=self._check, args=(stale, known, checked), daemon=True).start()
 
-    def _check(self, user_ids: List[str], checked: Dict[str, float]):
+    def _check(self, user_ids: list, known: Dict[str, str], checked: Dict[str, dict]):
         """Ask the site for the current login of each id; runs in a worker thread."""
         failures = 0
         try:
@@ -87,14 +92,15 @@ class NameSync(QObject):
                 if index:
                     time.sleep(_REQUEST_DELAY_SECONDS)
                 login = get_current_login(user_id)
-                now = time.time()
+                now = int(time.time())
                 if login:
                     failures = 0
-                    checked[user_id] = now
+                    checked[user_id] = {"username": login, "checked_at": now}
                     self._cache.update_user(user_id, login)
                     self._renamed.emit(user_id, login)
                     continue
-                checked[user_id] = now - _RECHECK_TTL_SECONDS + _RETRY_AFTER_SECONDS
+                # A failed check is dated so that it is asked again after _RETRY_AFTER_SECONDS
+                checked[user_id] = {"username": known[user_id], "checked_at": now - _RECHECK_TTL_SECONDS + _RETRY_AFTER_SECONDS}
                 failures += 1
                 if failures >= _MAX_CONSECUTIVE_FAILURES:
                     break

@@ -154,9 +154,9 @@ class UserTracker:
             return True
         return False
 
-    def user_ids(self) -> List[str]:
-        """Ids of every tracked user."""
-        return list(self.selected)
+    def usernames(self) -> Dict[str, str]:
+        """{user_id: login} of every tracked user."""
+        return dict(self.selected)
 
     def rename_user(self, user_id: str, login: str) -> bool:
         """Store the current login of a tracked user; False when nothing changed."""

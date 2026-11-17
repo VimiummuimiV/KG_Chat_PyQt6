@@ -21,6 +21,9 @@ from helpers.fonts.fonts import FontType, set_font_role
 from helpers.translate import on_language_changed, tr, TranslatableMixin
 
 
+_SAVE_DELAY_MS = 500
+
+
 class _PronunciationItemWidget(UserEntryRow):
     """Pronunciation row: the shared user row with a field for how the name is spoken."""
 
@@ -64,6 +67,10 @@ class PronunciationWidget(TranslatableMixin, QWidget):
         self.pronunciation_manager = pronunciation_manager
         self.items = []
         self._current_columns = 1
+        self._save_timer = QTimer(self)
+        self._save_timer.setSingleShot(True)
+        self._save_timer.setInterval(_SAVE_DELAY_MS)
+        self._save_timer.timeout.connect(self._save_mappings)
 
         self._setup_ui()
         self._load_mappings()
@@ -164,9 +171,9 @@ class PronunciationWidget(TranslatableMixin, QWidget):
         item = _PronunciationItemWidget(self.config, self.icons_path, original, pronunciation, user_id)
         item.remove_requested.connect(self._remove_item)
 
-        # Auto-save: after the name is checked and when the pronunciation is finished, not on every key
+        # Auto-save: after the name is checked, and shortly after the last key of a pronunciation
         item.changed.connect(self._save_mappings)
-        item.pronunciation_input.editingFinished.connect(self._save_mappings)
+        item.pronunciation_input.textChanged.connect(self._schedule_save)
 
         self.items.append(item)
         self.recalculate_layout()
@@ -203,9 +210,15 @@ class PronunciationWidget(TranslatableMixin, QWidget):
         self.pronunciation_manager.replace_all(entries)
         self._update_count()
 
-    def cleanup(self):
-        """Save what a field still holds when the panel is left."""
-        self._save_mappings()
+    def _schedule_save(self):
+        self._save_timer.start()
+
+    def hideEvent(self, event):
+        """Save at once what is still waiting when the panel is left or the window closes."""
+        if self._save_timer.isActive():
+            self._save_timer.stop()
+            self._save_mappings()
+        super().hideEvent(event)
 
     def _update_count(self):
         count = sum(1 for item in self.items if not item.is_empty())

@@ -3,7 +3,7 @@
 import json
 import time
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 
 
 class BanManager:
@@ -84,9 +84,9 @@ class BanManager:
             }
         return result
 
-    def user_ids(self) -> List[str]:
-        """Ids of every banned user."""
-        return list(self._bans)
+    def usernames(self) -> Dict[str, str]:
+        """{user_id: username} of every banned user."""
+        return {user_id: ban['username'] for user_id, ban in self._bans.items()}
 
     def rename_user(self, user_id: str, username: str) -> bool:
         """Store the current username of a banned user; False when nothing changed."""
