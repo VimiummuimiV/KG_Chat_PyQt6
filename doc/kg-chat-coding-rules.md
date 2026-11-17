@@ -256,6 +256,20 @@ The font engine is `helpers/fonts/fonts.py`; nothing else decides a family or a 
 - Buttons built for a `RowJumpGroup` come from `create_icon_entry`, which keeps the translatable tooltip; the group re-renders it itself.
 - Check it: switch the language back and forth in an offscreen run and read every label and tooltip of the screen; none stays in the old language. Texts built at call time (`QMessageBox`, toasts) need nothing.
 
+### Labels, counters and tooltips
+One kind of control has one wording in every screen. Before writing a label or tooltip, search the project for the same kind (`grep -rn "setToolTip\|Total:"`) and copy its form; when two screens differ, fix them all in the same change (Russian included).
+- Case: sentence case, first word capitalised, nothing else (`Back to messages`, not `Back to Messages`). Exceptions are proper names and the shortcut hint, which goes last in parentheses (`Previous day (H)`).
+- Pattern: a verb and the object, in the imperative (`Add user`, `Copy log`, `Open profile in browser`). A state tooltip is `<Subject>: <state> (<key>)` with a lowercase state (`Notifications: enabled (N)`). The tooltip names the same thing as the title of the screen and its confirmation dialog.
+- The verbs have fixed meanings:
+  - `Add <noun>`: adds one row (`Add user`, `Add mapping`, `Add permanent ban`).
+  - `Remove <noun>`: takes one element out of a list. `Remove all <nouns>`: takes out every element of the list (`Remove all users`, `Remove all bans`, `Remove all mappings`). Never `Clear all` for a list.
+  - `Clear <content>`: empties what stays in place and is not a list of items: history, log, search, filter (`Clear history`, `Clear log`, `Clear search`).
+  - `Delete <noun>`: destroys a file or a record (`Delete sound`); `Reset to default` restores a setting.
+  - `Back to messages` on every panel that returns to the chat.
+- The confirmation dialog of a button has the tooltip as its title (`Remove all bans`), and its question repeats the same noun.
+- A count beside the title of a list is `Total: N` / `Всего: N` on every list screen; a per-section count is the bare number beside the section header. A count that would need a different word to be true gets a name by meaning (`Mentions: N new`), never a synonym of Total.
+- The same Russian word for the same thing everywhere (`Цвет имени`, not `Цвет ника`). Every tooltip goes through `tr_set` / `register_tr`, never a bare English string.
+
 ### Panels of the main window
 - A panel (profile, settings, ban list, tracker, pronunciation) exists only while it is the open view: it is built when opened and destroyed when left (`release_closed_panels`, connected to `stacked_widget.currentChanged`), as the chatlog is, so the live chat keeps no hidden views in memory. A new panel is added to `_PANEL_ATTRS`, builds its data from the managers and config in its constructor, and has `cleanup()` when it runs timers or workers.
 - Code outside a panel reaches it only through `getattr(self, "name", None)` and tolerates `None`. A panel holds no state that a manager or the config does not also hold.

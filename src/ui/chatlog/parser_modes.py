@@ -237,8 +237,9 @@ class ParserModesMixin:
         line_edit.editingFinished.connect(lambda: self.auto_format_date(line_edit))
 
         calendar_button = create_icon_button(
-            self.icons_path, "fill/calendar-fill.svg", "Select date",
+            self.icons_path, "fill/calendar-fill.svg", "",
             size_type="large", config=self.config
         )
+        self.tr_set(calendar_button.setToolTip, "Select date", "Выбрать дату")
         calendar_button.clicked.connect(lambda: self.show_date_picker(line_edit, calendar_button))
         layout.addWidget(calendar_button)

@@ -115,8 +115,8 @@ class TrackerFiltersMixin:
 
     def handle_chip_delete_requested(self, login: str):
         reply = QMessageBox.question(
-            self, tr("Remove History", "Удалить историю"),
-            tr(f"Remove all history for {login}?", f"Удалить всю историю пользователя {login}?"),
+            self, tr("Clear history", "Очистить историю"),
+            tr(f"Clear all history of {login}?", f"Очистить всю историю пользователя {login}?"),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
         )
         if reply != QMessageBox.StandardButton.Yes:

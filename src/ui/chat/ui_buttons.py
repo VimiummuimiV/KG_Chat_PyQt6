@@ -100,8 +100,8 @@ class ButtonPanel(QWidget):
     def _get_notification_tooltip(self) -> str:
         muted = self.config.get("notification", "muted") or False
         if muted:
-            return tr("Notifications: Disabled (N)", "Уведомления: выкл (N)")
-        return tr("Notifications: Enabled (N)", "Уведомления: вкл (N)")
+            return tr("Notifications: disabled (N)", "Уведомления: выкл (N)")
+        return tr("Notifications: enabled (N)", "Уведомления: вкл (N)")
 
     def _get_effects_icon(self) -> str:
         """Get current effects icon based on state"""
@@ -116,9 +116,9 @@ class ButtonPanel(QWidget):
         if enabled is None:
             enabled = True
         return (
-            tr("Sound Effects: Enabled (M)", "Звуковые эффекты: вкл (M)")
+            tr("Sound effects: enabled (M)", "Звуковые эффекты: вкл (M)")
             if enabled else
-            tr("Sound Effects: Disabled (M)", "Звуковые эффекты: выкл (M)")
+            tr("Sound effects: disabled (M)", "Звуковые эффекты: выкл (M)")
         )
 
     def _get_pin_icon(self) -> str:
@@ -129,9 +129,9 @@ class ButtonPanel(QWidget):
     def _get_pin_tooltip(self) -> str:
         enabled = self.config.get("ui", "always_on_top") or False
         return (
-            tr("Always on Top: Enabled (T)", "Поверх всех окон: вкл (T)")
+            tr("Always on top: enabled (T)", "Поверх всех окон: вкл (T)")
             if enabled else
-            tr("Always on Top: Disabled (T)", "Поверх всех окон: выкл (T)")
+            tr("Always on top: disabled (T)", "Поверх всех окон: выкл (T)")
         )
 
     def _tracker_base_tooltip(self) -> str:
@@ -141,20 +141,20 @@ class ButtonPanel(QWidget):
         """Create all buttons for the panel"""
         self.toggle_userlist_button = self._create_button(
             "fill/user-3-fill.svg",
-            tr("Toggle User List (U)", "Список пользователей (U)"),
+            tr("Toggle user list (U)", "Список пользователей (U)"),
             self.toggle_userlist_requested.emit
         )
         self.toggle_userlist_button._is_visually_active = True
 
         self._switch_account_button = self._create_button(
             "fill/user-shared-2-fill.svg",
-            tr("Switch Account (Ctrl+U)", "Сменить аккаунт (Ctrl+U)"),
+            tr("Switch account (Ctrl+U)", "Сменить аккаунт (Ctrl+U)"),
             self.switch_account_requested.emit
         )
 
         self._ban_button = self._create_button(
             "fill/user-forbid-fill.svg",
-            tr("Show Ban List (B)", "Список забаненных (B)"),
+            tr("Show ban list (B)", "Список забаненных (B)"),
             lambda: self.show_banlist_requested.emit()
         )
 
@@ -177,7 +177,7 @@ class ButtonPanel(QWidget):
 
         self._join_room_button = self._create_button(
             "fill/chat-new-fill.svg",
-            tr("Join / Create Room (Ctrl+J)", "Войти / создать комнату (Ctrl+J)"),
+            tr("Join / create room (Ctrl+J)", "Войти / создать комнату (Ctrl+J)"),
             lambda: self.join_room_requested.emit()
         )
 
@@ -195,7 +195,7 @@ class ButtonPanel(QWidget):
 
         self.voice_button = self._create_button(
             "fill/user-voice-fill.svg",
-            tr("Toggle Voice Sound (V) (RMB for Username Pronunciation (P))",
+            tr("Toggle voice sound (V) (RMB for username pronunciation (P))",
                "Голосовой звук (V) (ПКМ — произношение имён (P))"),
             lambda: self.toggle_voice_requested.emit()
         )
@@ -236,7 +236,7 @@ class ButtonPanel(QWidget):
 
         self.reset_size_button = self._create_button(
             "fill/aspect-ratio-fill.svg",
-            tr("Reset Window Size and Position to Default (R) (RMB for Presets)",
+            tr("Reset window size and position (R) (RMB for presets)",
                "Сбросить размер и позицию окна (R) (ПКМ — пресеты)"),
             lambda: self.reset_window_size_requested.emit()
         )
@@ -258,41 +258,41 @@ class ButtonPanel(QWidget):
 
         self._data_folder_button = self._create_button(
             "fill/folder-fill.svg",
-            tr("Open Data Folder (KG_Chat_Data)", "Открыть папку данных (KG_Chat_Data)"),
+            tr("Open data folder (KG_Chat_Data)", "Открыть папку данных (KG_Chat_Data)"),
             lambda: open_in_file_manager(),
         )
 
         self._exit_button = self._create_button(
             "fill/door-closed-fill.svg",
-            tr("Exit Application", "Выход"),
+            tr("Exit application", "Выйти из приложения"),
             lambda: self.exit_requested.emit()
         )
 
         self.reconnect_button = self._create_button(
             "line/refresh-line.svg",
-            tr("Reconnect to Chat", "Переподключиться к чату"),
+            tr("Reconnect to chat", "Переподключиться к чату"),
             lambda: self.reconnect_requested.emit()
         )
         self.reconnect_button.setVisible(False)
 
     def _theme_tooltip(self, is_dark: bool) -> str:
         if is_dark:
-            return tr("Switch to Light Mode (Ctrl+T)", "Переключить на светлую тему (Ctrl+T)")
-        return tr("Switch to Dark Mode (Ctrl+T)", "Переключить на тёмную тему (Ctrl+T)")
+            return tr("Switch to light mode (Ctrl+T)", "Переключить на светлую тему (Ctrl+T)")
+        return tr("Switch to dark mode (Ctrl+T)", "Переключить на тёмную тему (Ctrl+T)")
 
     def _retranslate(self, _code=None):
         if self.toggle_userlist_button:
             self.toggle_userlist_button.setToolTip(
-                tr("Toggle User List (U)", "Список пользователей (U)"))
+                tr("Toggle user list (U)", "Список пользователей (U)"))
         if self._switch_account_button:
             self._switch_account_button.setToolTip(
-                tr("Switch Account (Ctrl+U)", "Сменить аккаунт (Ctrl+U)"))
+                tr("Switch account (Ctrl+U)", "Сменить аккаунт (Ctrl+U)"))
         if self._ban_button:
             self._ban_button.setToolTip(
-                tr("Show Ban List (B)", "Список забаненных (B)"))
+                tr("Show ban list (B)", "Список забаненных (B)"))
         if self._join_room_button:
             self._join_room_button.setToolTip(
-                tr("Join / Create Room (Ctrl+J)", "Войти / создать комнату (Ctrl+J)"))
+                tr("Join / create room (Ctrl+J)", "Войти / создать комнату (Ctrl+J)"))
         if self._search_button:
             self._search_button.setToolTip(
                 tr("Toggle search (Ctrl+F)", "Поиск (Ctrl+F)"))
@@ -301,7 +301,7 @@ class ButtonPanel(QWidget):
                 tr("Copy all messages (Ctrl+A)", "Копировать все сообщения (Ctrl+A)"))
         if self.voice_button:
             self.voice_button.setToolTip(
-                tr("Toggle Voice Sound (V) (RMB for Username Pronunciation (P))",
+                tr("Toggle voice sound (V) (RMB for username pronunciation (P))",
                    "Голосовой звук (V) (ПКМ — произношение имён (P))"))
         if self._color_button:
             self._color_button.setToolTip(
@@ -309,18 +309,18 @@ class ButtonPanel(QWidget):
                    "Цвет имени (C: выбрать | Ctrl+C/клик: сбросить)"))
         if self.reset_size_button:
             self.reset_size_button.setToolTip(
-                tr("Reset Window Size and Position to Default (R) (RMB for Presets)",
+                tr("Reset window size and position (R) (RMB for presets)",
                    "Сбросить размер и позицию окна (R) (ПКМ — пресеты)"))
         if self._settings_button:
             self._settings_button.setToolTip(tr("Settings (Ctrl+,)", "Настройки (Ctrl+,)"))
         if self._data_folder_button:
             self._data_folder_button.setToolTip(
-                tr("Open Data Folder (KG_Chat_Data)", "Открыть папку данных (KG_Chat_Data)"))
+                tr("Open data folder (KG_Chat_Data)", "Открыть папку данных (KG_Chat_Data)"))
         if self._exit_button:
-            self._exit_button.setToolTip(tr("Exit Application", "Выход"))
+            self._exit_button.setToolTip(tr("Exit application", "Выйти из приложения"))
         if self.reconnect_button:
             self.reconnect_button.setToolTip(
-                tr("Reconnect to Chat", "Переподключиться к чату"))
+                tr("Reconnect to chat", "Переподключиться к чату"))
 
         self.update_notification_button_icon()
         self.update_effects_button_icon()

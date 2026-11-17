@@ -53,7 +53,7 @@ class ChatParseStatusMixin:
         parse_status_layout.addWidget(parse_current_label)
 
         stop_parse_btn = create_icon_button(self.icons_path, "fill/stop-large-fill.svg", "", config=self.config)
-        self.tr_set(stop_parse_btn.setToolTip, "Stop Parsing", "Остановить парсинг")
+        self.tr_set(stop_parse_btn.setToolTip, "Stop parsing", "Остановить парсинг")
         stop_parse_btn.setObjectName("stop_parse_btn")
         stop_parse_btn.clicked.connect(self._on_parse_status_stop)
         parse_status_layout.addWidget(stop_parse_btn)

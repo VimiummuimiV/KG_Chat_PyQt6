@@ -68,7 +68,7 @@ class TrackerSelectionMixin:
         if not self.user_items:
             return
         reply = QMessageBox.question(
-            self, tr("Remove All", "Удалить всех"),
+            self, tr("Remove all users", "Удалить всех пользователей"),
             tr("Stop tracking all users?", "Прекратить отслеживание всех пользователей?"),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
         )
@@ -78,7 +78,7 @@ class TrackerSelectionMixin:
 
     def update_tracked_count(self):
         count = sum(1 for item in self.user_items if not item.is_empty())
-        self.tracked_count_label.setText(tr(f"Tracked: {count}", f"Отслеживается: {count}"))
+        self.tracked_count_label.setText(tr(f"Total: {count}", f"Всего: {count}"))
 
     def save_selected(self):
         self.user_tracker.clear_selected()

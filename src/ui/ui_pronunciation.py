@@ -81,7 +81,7 @@ class PronunciationWidget(TranslatableMixin, QWidget):
         self._back_button = create_icon_button(
             self.icons_path, "line/arrow-go-back-line.svg", "", config=self.config
         )
-        self.tr_set(self._back_button.setToolTip, "Back to Messages", "Назад к сообщениям")
+        self.tr_set(self._back_button.setToolTip, "Back to messages", "Назад к сообщениям")
         self._back_button.clicked.connect(self.back_requested.emit)
         header_layout.addWidget(self._back_button)
 
@@ -100,7 +100,7 @@ class PronunciationWidget(TranslatableMixin, QWidget):
         self._add_button = create_icon_button(
             self.icons_path, "line/add-large-line.svg", "", config=self.config
         )
-        self.tr_set(self._add_button.setToolTip, "Add Mapping", "Добавить соответствие")
+        self.tr_set(self._add_button.setToolTip, "Add mapping", "Добавить соответствие")
         self._add_button.clicked.connect(self._add_new_item)
         header_layout.addWidget(self._add_button)
 
@@ -108,7 +108,7 @@ class PronunciationWidget(TranslatableMixin, QWidget):
         self._clear_all_button = create_icon_button(
             self.icons_path, "fill/delete-bin-fill.svg", "", config=self.config
         )
-        self.tr_set(self._clear_all_button.setToolTip, "Clear All", "Очистить всё")
+        self.tr_set(self._clear_all_button.setToolTip, "Remove all mappings", "Удалить все соответствия")
         self._clear_all_button.clicked.connect(self._clear_all)
         header_layout.addWidget(self._clear_all_button)
 
@@ -221,8 +221,8 @@ class PronunciationWidget(TranslatableMixin, QWidget):
 
         reply = QMessageBox.question(
             self,
-            tr("Confirm Clear All", "Подтвердите очистку"),
-            tr("Remove all pronunciation mappings?", "Удалить все соответствия произношения?"),
+            tr("Remove all mappings", "Удалить все соответствия"),
+            tr("Remove all mappings?", "Удалить все соответствия?"),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
         )
 

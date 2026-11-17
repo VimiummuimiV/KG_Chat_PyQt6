@@ -326,7 +326,7 @@ class SettingsWidget(
         header_layout.setSpacing(self.element_spacing())
         main_layout.addLayout(header_layout)
 
-        back_tooltip = tr("Back to Messages", "Назад к сообщениям")
+        back_tooltip = tr("Back to messages", "Назад к сообщениям")
         self._back_button = create_icon_button(
             self.icons_path, "line/arrow-go-back-line.svg", back_tooltip, config=self.config
         )

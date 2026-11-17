@@ -192,7 +192,7 @@ class BanListWidget(TranslatableMixin, QWidget):
         self._back_button = create_icon_button(
             self.icons_path, "line/arrow-go-back-line.svg", "", config=self.config
         )
-        self.tr_set(self._back_button.setToolTip, "Back to Messages", "Назад к сообщениям")
+        self.tr_set(self._back_button.setToolTip, "Back to messages", "Назад к сообщениям")
         self._back_button.clicked.connect(self.back_requested.emit)
         header_layout.addWidget(self._back_button)
 
@@ -209,7 +209,7 @@ class BanListWidget(TranslatableMixin, QWidget):
         self._clear_all_button = create_icon_button(
             self.icons_path, "fill/delete-bin-fill.svg", "", config=self.config
         )
-        self.tr_set(self._clear_all_button.setToolTip, "Clear All", "Очистить всё")
+        self.tr_set(self._clear_all_button.setToolTip, "Remove all bans", "Удалить все баны")
         self._clear_all_button.clicked.connect(self._clear_all)
         header_layout.addWidget(self._clear_all_button)
 
@@ -229,13 +229,13 @@ class BanListWidget(TranslatableMixin, QWidget):
 
         # Create permanent section
         perm_section, self._perm_layout, self._perm_count_label = self._create_section(
-            "Permanent", "Постоянные", "Add to Permanent", "Добавить в постоянные", is_temporary=False
+            "Permanent", "Постоянные", "Add permanent ban", "Добавить постоянный бан", is_temporary=False
         )
         sections_layout.addWidget(perm_section)
 
         # Create temporary section
         temp_section, self._temp_layout, self._temp_count_label = self._create_section(
-            "Temporary", "Временные", "Add to Temporary", "Добавить во временные", is_temporary=True
+            "Temporary", "Временные", "Add temporary ban", "Добавить временный бан", is_temporary=True
         )
         sections_layout.addWidget(temp_section)
 
@@ -380,8 +380,8 @@ class BanListWidget(TranslatableMixin, QWidget):
             return
 
         reply = QMessageBox.question(
-            self, tr("Confirm Clear All", "Подтвердите очистку"),
-                  tr("Remove all users from ban list?", "Удалить всех пользователей из списка забаненных?"),
+            self, tr("Remove all bans", "Удалить все баны"),
+                  tr("Remove all bans?", "Удалить все баны?"),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
         )
 

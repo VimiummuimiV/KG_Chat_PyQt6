@@ -43,7 +43,7 @@ class ChatPrivateModeMixin:
             self.exit_private_button = create_icon_button(
                 self.icons_path, "line/close-large-line.svg", "", config=self.config
             )
-            self.tr_set(self.exit_private_button.setToolTip, "Exit Private Chat", "Выйти из приватного чата")
+            self.tr_set(self.exit_private_button.setToolTip, "Exit private chat", "Выйти из приватного чата")
             self.exit_private_button.clicked.connect(self.exit_private_mode)
             self.input_row.append_button(self.exit_private_button)
         else:

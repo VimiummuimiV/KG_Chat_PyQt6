@@ -61,7 +61,7 @@ class TrackerUserChip(TranslatableMixin, UserCountRow):
         self.init_translatable()
         self.login = login
         self._delete_button = create_icon_button(icons_path, "fill/delete-bin-fill.svg", "", size_type="small", config=config)
-        self.tr_set(self._delete_button.setToolTip, "Remove history for this user", "Удалить историю этого пользователя")
+        self.tr_set(self._delete_button.setToolTip, "Clear history of this user", "Очистить историю этого пользователя")
         on_language_changed(self.retranslate_all)
         self._delete_button.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         self._delete_button.clicked.connect(lambda: self.delete_requested.emit(self.login))

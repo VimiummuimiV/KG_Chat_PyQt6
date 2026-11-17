@@ -85,7 +85,7 @@ class UserTrackerWidget(
         self._back_button = create_icon_button(
             self.icons_path, "line/arrow-go-back-line.svg", "", config=self.config
         )
-        self.tr_set(self._back_button.setToolTip, "Back to Messages", "Назад к сообщениям")
+        self.tr_set(self._back_button.setToolTip, "Back to messages", "Назад к сообщениям")
         self._back_button.clicked.connect(self.back_requested.emit)
         header_layout.addWidget(self._back_button)
 
@@ -122,7 +122,7 @@ class UserTrackerWidget(
         self._clear_history_button = create_icon_button(
             self.icons_path, "fill/delete-bin-fill.svg", "", config=self.config
         )
-        self.tr_set(self._clear_history_button.setToolTip, "Clear History", "Очистить историю")
+        self.tr_set(self._clear_history_button.setToolTip, "Clear history", "Очистить историю")
         self._clear_history_button.clicked.connect(self.clear_history)
         header_layout.addWidget(self._clear_history_button)
 

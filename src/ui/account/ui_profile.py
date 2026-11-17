@@ -260,14 +260,14 @@ class ProfileWidget(TranslatableMixin, QWidget):
         self._back_button = create_icon_button(
             self.icons_path, "line/arrow-go-back-line.svg", "", config=self.config
         )
-        self.tr_set(self._back_button.setToolTip, "Back to Messages", "Назад к сообщениям")
+        self.tr_set(self._back_button.setToolTip, "Back to messages", "Назад к сообщениям")
         self._back_button.clicked.connect(self.back_requested.emit)
         top_bar.addWidget(self._back_button)
 
         self._open_profile_button = create_icon_button(
             self.icons_path, "fill/user-3-fill.svg", "", config=self.config
         )
-        self.tr_set(self._open_profile_button.setToolTip, "Open Profile in Browser", "Открыть профиль в браузере")
+        self.tr_set(self._open_profile_button.setToolTip, "Open profile in browser", "Открыть профиль в браузере")
         self._open_profile_button.clicked.connect(self._open_profile_in_browser)
         self._open_profile_button.setEnabled(False)
         top_bar.addWidget(self._open_profile_button)

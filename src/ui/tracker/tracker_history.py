@@ -81,7 +81,7 @@ class TrackerHistoryMixin:
         if not self.user_tracker.get_events():
             return
         reply = QMessageBox.question(
-            self, tr("Clear History", "Очистить историю"),
+            self, tr("Clear history", "Очистить историю"),
                   tr("Clear all join/left history?", "Очистить всю историю входов/выходов?"),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
         )

@@ -50,7 +50,7 @@ class InputRow(TranslatableMixin, QWidget):
         self.emoticon_button = None
         if with_emoticons:
             self.emoticon_button = HoverIconButton(icons_path, "fill/emotion-normal-fill.svg", "fill/emotion-happy-fill.svg", "")
-            self.tr_set(self.emoticon_button.setToolTip, "Toggle Emoticon Selector", "Селектор эмотиконов")
+            self.tr_set(self.emoticon_button.setToolTip, "Toggle emoticon selector", "Селектор эмотиконов")
             self.emoticon_button.clicked.connect(self.emoticon_requested)
             self.emoticon_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
             self._layout.addWidget(self.emoticon_button)

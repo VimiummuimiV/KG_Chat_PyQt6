@@ -186,7 +186,7 @@ class AccountWindow(TranslatableMixin, QWidget):
         # Color picker button
         color_button_tooltip = tr(
             "Username color (C: pick | Ctrl+C/Click: reset)",
-            "Цвет ника (C: выбрать | Ctrl+C/клик: сбросить)",
+            "Цвет имени (C: выбрать | Ctrl+C/клик: сбросить)",
         )
         self._color_button = create_icon_button(
             self.icons_path, "fill/palette-fill.svg",
