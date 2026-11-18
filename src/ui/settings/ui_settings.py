@@ -53,6 +53,7 @@ from ui.settings.settings_options import (
 from ui.settings.settings_player import SettingsPlayerMixin
 from ui.settings.settings_sound import SettingsSoundMixin
 from ui.settings.settings_tracker import SettingsTrackerMixin
+from ui.settings.settings_updates import SettingsUpdatesMixin
 from ui.settings.settings_widgets import (
     NoWheelComboBox,
     NoWheelSlider,
@@ -75,6 +76,7 @@ class SettingsWidget(
     SettingsPlayerMixin,
     SettingsSoundMixin,
     SettingsTrackerMixin,
+    SettingsUpdatesMixin,
     QWidget,
 ):
     """Settings page organized into collapsible sections"""
@@ -92,6 +94,7 @@ class SettingsWidget(
     resource_changed = pyqtSignal()
     delivery_marker_changed = pyqtSignal()
     pets_changed = pyqtSignal()
+    update_check_requested = pyqtSignal()
 
     def __init__(self, config, icons_path: Path, my_username, font_scaler=None, emoticon_manager=None):
         super().__init__()
@@ -355,6 +358,7 @@ class SettingsWidget(
         self.scroll.setWidget(content)
 
         self.build_startup_section()
+        self.build_updates_section()
         self.build_chat_section()
         self.build_player_section()
         self.build_image_viewer_section()
@@ -374,6 +378,7 @@ class SettingsWidget(
             self.start_minimized_checkbox, self.start_with_system_checkbox, self.close_action_combo,
             self.resource_combo, self.own_message_mode_combo, self.delivery_marker_checkbox,
             self.clear_private_checkbox, self.youtube_checkbox, self.voice_input_checkbox,
+            self.update_auto_check_checkbox, self.update_interval_spin,
             self.player_tls_checkbox, self.player_hwdec_combo, self.player_volume_spin,
             self.player_log_checkbox, self.player_keep_open_checkbox, self.player_ontop_checkbox,
             self.player_ytdl_format_combo,
@@ -419,6 +424,7 @@ class SettingsWidget(
             widget.blockSignals(True)
 
         self.refresh_general()
+        self.refresh_updates()
         self.refresh_player()
         self.refresh_image_viewer()
         self.refresh_pets()
@@ -480,6 +486,7 @@ class SettingsWidget(
         self.retranslate_all()
         self._refill_option_combos()
         self.refresh_hotkey_row()
+        self.refresh_update_status()
 
     def sync_combo_tooltip(self, combo):
         tip = combo.itemData(combo.currentIndex(), Qt.ItemDataRole.ToolTipRole)

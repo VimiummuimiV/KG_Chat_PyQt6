@@ -40,6 +40,7 @@ class ButtonPanel(QWidget):
     join_room_requested = pyqtSignal()
     search_requested = pyqtSignal()
     copy_messages_requested = pyqtSignal()
+    update_requested = pyqtSignal()
 
     def __init__(self, config: Config, icons_path: Path, theme_manager):
         super().__init__()
@@ -48,6 +49,8 @@ class ButtonPanel(QWidget):
         self.theme_manager = theme_manager
 
         # Button references
+        self.update_button = None
+        self._update_commit = None
         self.toggle_userlist_button = None
         self._switch_account_button = None
         self._ban_button = None
@@ -139,6 +142,13 @@ class ButtonPanel(QWidget):
 
     def _create_buttons(self):
         """Create all buttons for the panel"""
+        self.update_button = self._create_button(
+            "fill/download-2-fill.svg",
+            "",
+            lambda: self.update_requested.emit()
+        )
+        self.update_button.setVisible(False)
+
         self.toggle_userlist_button = self._create_button(
             "fill/user-3-fill.svg",
             tr("Toggle user list (U)", "Список пользователей (U)"),
@@ -281,6 +291,7 @@ class ButtonPanel(QWidget):
         return tr("Switch to dark mode (Ctrl+T)", "Переключить на тёмную тему (Ctrl+T)")
 
     def _retranslate(self, _code=None):
+        self._refresh_update_tooltip()
         if self.toggle_userlist_button:
             self.toggle_userlist_button.setToolTip(
                 tr("Toggle user list (U)", "Список пользователей (U)"))
@@ -327,6 +338,18 @@ class ButtonPanel(QWidget):
         self.update_pin_button_icon()
         self.update_theme_button_icon()
         self._refresh_tracker_badge()
+
+    def set_update_available(self, commit: str | None):
+        """Show the update button for the commit, or hide it when there is no update."""
+        self._update_commit = commit
+        self.update_button.setVisible(commit is not None)
+        self._refresh_update_tooltip()
+
+    def _refresh_update_tooltip(self):
+        if self._update_commit:
+            self.update_button.setToolTip(
+                tr(f"Install update ({self._update_commit})", f"Установить обновление ({self._update_commit})")
+            )
 
     def set_button_state(self, button, is_active: bool):
         """Set visual state for any button without disabling it"""

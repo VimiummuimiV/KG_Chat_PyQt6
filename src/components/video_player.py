@@ -1,10 +1,10 @@
 """Video player widget - launches mpvnet player for video URLs"""
 
+import importlib.metadata
 import platform
 import re
 import shutil
 import subprocess
-import sys
 from datetime import datetime
 from pathlib import Path
 from urllib.parse import urlparse
@@ -13,7 +13,6 @@ from PyQt6.QtCore import QPoint, Qt, QTimer
 from PyQt6.QtWidgets import QApplication, QMessageBox, QWidget
 
 from components.loading_spinner import LoadingSpinner
-from helpers.data import get_app_dir
 from helpers.translate import tr
 
 
@@ -135,26 +134,20 @@ class VideoPlayer(QWidget):
 
         return 'mpv'  # Fallback
 
-    @staticmethod
-    def _app_base_dir() -> Path:
-        """Project root dir (handles both source layout and frozen/PyInstaller builds)"""
-        if getattr(sys, 'frozen', False):
-            return Path(sys.executable).resolve().parent
-        # bin/ sits in the project root
-        return get_app_dir()
-
-    _YTDLP_BUNDLED_NAMES = {'Windows': 'yt-dlp.exe', 'Darwin': 'yt-dlp_macos', 'Linux': 'yt-dlp_linux'}
-
     def _find_ytdlp(self) -> str | None:
-        """Find yt-dlp: prefer a standalone build bundled with the app, fall back to PATH"""
-        system = platform.system()
-        bundled_name = self._YTDLP_BUNDLED_NAMES.get(system)
-        if bundled_name:
-            base_dir = self._app_base_dir()
-            for candidate in (base_dir / 'bin' / bundled_name, base_dir / bundled_name):
-                if candidate.exists():
-                    return str(candidate)
-        return shutil.which('yt-dlp')
+        """Find the launcher of the pip package yt-dlp"""
+        try:
+            package_files = importlib.metadata.distribution('yt-dlp').files or []
+        except importlib.metadata.PackageNotFoundError:
+            package_files = []
+        for package_file in package_files:
+            # pip puts the launcher into bin/ (Linux, macOS) or Scripts/ (Windows) of the Python environment;
+            # the package also ships a shell completion file with the same name
+            if package_file.name in ('yt-dlp', 'yt-dlp.exe') and package_file.parent.name in ('bin', 'Scripts'):
+                launcher = Path(package_file.locate()).resolve()
+                if launcher.exists():
+                    return str(launcher)
+        return None
 
     @staticmethod
     def is_video_url(url: str) -> bool:

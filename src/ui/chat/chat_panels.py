@@ -233,6 +233,7 @@ class ChatPanelsMixin:
             self.settings_widget.resource_changed.connect(self.manual_reconnect)
             self.settings_widget.delivery_marker_changed.connect(self.apply_delivery_marker_setting)
             self.settings_widget.pets_changed.connect(self._reload_all_pets)
+            self.settings_widget.update_check_requested.connect(self.check_for_update_manually)
             self.stacked_widget.addWidget(self.settings_widget)
         else:
             # Reflect any state changed elsewhere (tray menu, hotkeys) since it was last shown

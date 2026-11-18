@@ -49,6 +49,7 @@ from ui.chat.chat_presence_log import ChatPresenceLogMixin
 from ui.chat.chat_private_mode import ChatPrivateModeMixin
 from ui.chat.chat_room_tabs import ChatRoomTabsMixin
 from ui.chat.chat_self_ban import ChatSelfBanMixin
+from ui.chat.chat_updates import ChatUpdatesMixin
 from ui.chat.chat_user_actions import ChatUserActionsMixin
 from ui.chat.chat_views import ChatViewsMixin
 from ui.chat.ui_buttons import ButtonPanel
@@ -89,6 +90,7 @@ class ChatWindow(
     ChatPrivateModeMixin,
     ChatRoomTabsMixin,
     ChatSelfBanMixin,
+    ChatUpdatesMixin,
     ChatUserActionsMixin,
     ChatViewsMixin,
     QWidget,
@@ -416,7 +418,9 @@ class ChatWindow(
         self.button_panel.join_room_requested.connect(self.on_join_room_requested)
         self.button_panel.search_requested.connect(self.toggle_search_for_current_view)
         self.button_panel.copy_messages_requested.connect(self.copy_messages_from_current_view)
+        self.button_panel.update_requested.connect(self.show_update_dialog)
         self.toast = Toast(self, self.theme_manager.is_dark)
+        self.setup_update_checks()
 
         content_wrapper.addWidget(self.button_panel, stretch=0)
 

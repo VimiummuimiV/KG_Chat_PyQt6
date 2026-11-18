@@ -19,6 +19,7 @@ from components.button import render_svg_icon
 from components.menu import add_submenu, create_menu
 from components.tray_badge import TrayIconWithBadge
 from core.state.accounts import AccountManager
+from core.web.updater import apply_pending_update, relaunch_application
 from helpers.config import Config, get_config_path
 from helpers.data import get_state_dir
 from helpers.deferred import call_later
@@ -45,6 +46,7 @@ class Application(QObject):
         self.app = QApplication(sys.argv)
         self._toggle_signal.connect(self._toggle_chat_visibility)
         self._is_initial_launch = True
+        self._restart_requested = False
 
         # Set Windows taskbar icon (must be done before any windows are created)
         if sys.platform == 'win32':
@@ -413,6 +415,11 @@ class Application(QObject):
         self.name_sync.stop()
         self.app.quit()
 
+    def restart_application(self):
+        """Exit completely; main() starts a new instance afterwards."""
+        self._restart_requested = True
+        self.exit_application()
+
     def run(self):
         """Run the application - check auto-login or show account window"""
         # Setup global hotkey after Qt is fully initialized
@@ -633,8 +640,14 @@ class Application(QObject):
 
 def main():
     """Application entry point"""
+    if apply_pending_update():
+        relaunch_application()  # the modules imported so far are the old ones: start over with the new files
+        return
     application = Application()
-    sys.exit(application.run())
+    exit_code = application.run()
+    if application._restart_requested:
+        relaunch_application()
+    sys.exit(exit_code)
 
 
 if __name__ == "__main__":
