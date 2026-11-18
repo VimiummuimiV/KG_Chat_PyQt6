@@ -3,7 +3,7 @@
 from PyQt6.QtWidgets import QApplication
 
 from helpers.deferred import call_later
-from helpers.window.resize import handle_chat_resize, recalculate_layout
+from helpers.window.resize import handle_chat_resize
 from ui.dialogs.window_presets_dialog import WindowPresetsDialog
 
 
@@ -161,5 +161,3 @@ class ChatGeometryMixin:
         # Force resize handler to sync everything
         call_later(self, 10, lambda: self.apply_resize(width))
 
-        # Force recalculation after visibility change
-        call_later(self, 20, lambda: recalculate_layout(self))

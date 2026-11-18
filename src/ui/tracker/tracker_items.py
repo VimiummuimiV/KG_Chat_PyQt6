@@ -1,52 +1,13 @@
-"""Tracked user rows and history filter chips."""
+"""History filter chips."""
 
 from pathlib import Path
 
 from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtWidgets import QSizePolicy
 
-from components.button import create_icon_button, set_visual_active
+from components.button import create_icon_button
 from components.user_count_row import UserCountRow
-from components.user_entry_row import UserEntryRow
-from helpers.translate import on_language_changed, tr, TranslatableMixin
-
-
-class TrackedUserItem(UserEntryRow):
-    """Tracked user row: the shared user row with a freeze button."""
-
-    freeze_toggled = pyqtSignal(str, bool)  # user_id, frozen
-
-    def __init__(self, config, icons_path: Path, username="", user_id=""):
-        super().__init__(config, icons_path, username, user_id)
-        self.frozen = False
-
-        self._freeze_button = create_icon_button(icons_path, "line/snowflake-line.svg", "", size_type="large", config=config)
-        self._freeze_button.clicked.connect(self._toggle_freeze)
-        self._show_freeze_tooltip()
-        self.add_action(self._freeze_button)
-
-    def set_frozen(self, frozen: bool):
-        self.frozen = bool(frozen)
-        set_visual_active(self.username_input, not self.frozen)
-        set_visual_active(self.user_id_input, not self.frozen)
-        set_visual_active(self._freeze_button, not self.frozen)
-        self._show_freeze_tooltip()
-
-    def _show_freeze_tooltip(self):
-        self._freeze_button.setToolTip(
-            tr("Unfreeze tracking", "Разморозить отслеживание") if self.frozen
-            else tr("Freeze tracking", "Заморозить отслеживание")
-        )
-
-    def retranslate_all(self, _code=None):
-        super().retranslate_all(_code)
-        self._show_freeze_tooltip()
-
-    def _toggle_freeze(self):
-        if not self.user_id:
-            return
-        self.set_frozen(not self.frozen)
-        self.freeze_toggled.emit(self.user_id, self.frozen)
+from helpers.translate import on_language_changed, TranslatableMixin
 
 
 class TrackerUserChip(TranslatableMixin, UserCountRow):

@@ -3,15 +3,6 @@
 from PyQt6.QtCore import QTimer
 
 
-def recalculate_layout(chat_window):
-    """Re-layout the tracker after userlist visibility / width change; message lists re-measure their rows by themselves."""
-    current_view = chat_window.stacked_widget.currentWidget()
-
-    if current_view is getattr(chat_window, 'user_tracker_widget', None):
-        chat_window.user_tracker_widget.recalculate_layout()
-        QTimer.singleShot(50, chat_window.user_tracker_widget.recalculate_layout)
-
-
 def handle_chat_resize(chat_window, width: int):
     """
     Handle all resize logic for ChatWindow

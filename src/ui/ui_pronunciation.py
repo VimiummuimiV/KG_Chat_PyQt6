@@ -1,13 +1,12 @@
 """Username Pronunciation Management Widget"""
 
+from functools import partial
 from pathlib import Path
 
 from PyQt6.QtCore import pyqtSignal, Qt, QTimer
 from PyQt6.QtWidgets import (
-    QGridLayout,
     QHBoxLayout,
     QLabel,
-    QLineEdit,
     QMessageBox,
     QScrollArea,
     QVBoxLayout,
@@ -15,45 +14,27 @@ from PyQt6.QtWidgets import (
 )
 
 from components.button import create_icon_button
-from components.row_grid import fill_grid
 from components.toast import show_toast, ToastKind
-from components.user_entry_row import UserEntryRow
+from components.user_row.model import COLUMN_FIELD, ExtraColumn, UserRow
+from components.user_row.view import UserRowView
 from helpers.fonts.fonts import FontType, set_font_role
+from helpers.scroll.auto_scroll import AutoScroller
+from helpers.scroll.scroll import scroll
 from helpers.translate import on_language_changed, tr, TranslatableMixin
 
 
 _SAVE_DELAY_MS = 500
+_REVEAL_DELAY_MS = 50
 
 
-class _PronunciationItemWidget(UserEntryRow):
-    """Pronunciation row: the shared user row with a field for how the name is spoken."""
+_PRONUNCIATION = "pronunciation"
+_PRONUNCIATION_COLUMN = ExtraColumn(
+    _PRONUNCIATION, COLUMN_FIELD, placeholder=("Pronunciation", "Произношение"), base_width=200
+)
 
-    PRONUNCIATION_BASE_WIDTH = 200
 
-    def __init__(self, config, icons_path: Path, original: str = "", pronunciation: str = "", user_id: str = ""):
-        super().__init__(config, icons_path, original, user_id, check_on_load=False)  # saved names are not looked up one by one
-        self.pronunciation_input = QLineEdit()
-        self.tr_set(self.pronunciation_input.setPlaceholderText, "Pronunciation", "Произношение")
-        self.pronunciation_input.setText(pronunciation)
-        set_font_role(self.pronunciation_input, FontType.TEXT)
-        self.pronunciation_input.setFixedHeight(self.input_height)
-        self.add_action(self.pronunciation_input, self.PRONUNCIATION_BASE_WIDTH)
-        self.setTabOrder(self.username_input, self.pronunciation_input)
-
-    def get_values(self):
-        """Get original and pronunciation values"""
-        return self.username_input.text().strip(), self.pronunciation_input.text().strip()
-
-    def _get_entry(self):
-        """The (user_id, username, pronunciation) to store, or None while the row is incomplete or its name is unknown."""
-        username, pronunciation = self.get_values()
-        if not (username and pronunciation and self.user_id and self.username_valid):
-            return None
-        return self.user_id, username, pronunciation
-
-    def is_empty(self):
-        """Check if both inputs are empty"""
-        return super().is_empty() and not self.pronunciation_input.text().strip()
+def _is_row_empty(row: UserRow) -> bool:
+    return not row.username and not row.extras[_PRONUNCIATION].strip()
 
 
 class PronunciationWidget(TranslatableMixin, QWidget):
@@ -66,7 +47,6 @@ class PronunciationWidget(TranslatableMixin, QWidget):
         self.config = config
         self.icons_path = icons_path
         self.pronunciation_manager = pronunciation_manager
-        self.items = []
         self._save_timer = QTimer(self)
         self._save_timer.setSingleShot(True)
         self._save_timer.setInterval(_SAVE_DELAY_MS)
@@ -131,87 +111,51 @@ class PronunciationWidget(TranslatableMixin, QWidget):
         self.scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         main_layout.addWidget(self.scroll, stretch=1)
 
-        # Container for items with limited width
-        self._items_container = QWidget()
-        # Don't set fixed width - let it be flexible but items will wrap
-
         items_margin = self.config.get("ui", "margins", "widget") or 5
-        items_spacing = self.config.get("ui", "spacing", "list_items") or 2
+        self.users_view = UserRowView(self.config, self.icons_path, (_PRONUNCIATION_COLUMN,))
+        self.users_view.changed.connect(self._save_mappings)
+        self.users_view.extra_changed.connect(self._schedule_save)
+        self.users_view.editor_shown.connect(self.scroll.ensureWidgetVisible)
+        self._items_container = QWidget()
+        container_layout = QVBoxLayout(self._items_container)
+        container_layout.setContentsMargins(items_margin, items_margin, items_margin, items_margin)
+        container_layout.addWidget(self.users_view)
+        container_layout.addStretch()
 
-        # Use grid layout for adaptive columns
-        self._items_layout = QGridLayout()
-        self._items_layout.setContentsMargins(items_margin, items_margin, items_margin, items_margin)
-        self._items_layout.setSpacing(items_spacing)
-        # Add vertical spacing between rows
-        self._items_layout.setVerticalSpacing(items_spacing * 2)
-        # Increase horizontal spacing significantly
-        self._items_layout.setHorizontalSpacing(items_spacing * 4)
-        self._items_layout.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
-        self._items_container.setLayout(self._items_layout)
-
+        self.users_view.row_added.connect(partial(scroll, self.scroll, mode="bottom", delay=_REVEAL_DELAY_MS))
         self.scroll.setWidget(self._items_container)
+        self.auto_scroller = AutoScroller(self.scroll)
         on_language_changed(self.retranslate_all)
 
     def _load_mappings(self):
-        """Load existing pronunciation mappings"""
-        mappings = self.pronunciation_manager.get_entries()
-        for user_id, entry in mappings.items():
-            self._add_item(entry["username"], entry["pronunciation"], user_id, recalculate=False)
-
-        # Add one empty item if no mappings exist
-        if not mappings:
-            self._add_item("", "", recalculate=False)
-
-        # Initial layout calculation
-        QTimer.singleShot(100, self.recalculate_layout)
+        """Show the saved mappings, or one empty row when there are none."""
+        rows = [
+            UserRow(entry["username"], user_id, {_PRONUNCIATION: entry["pronunciation"]})
+            for user_id, entry in self.pronunciation_manager.get_entries().items()
+        ]
+        self.users_view.set_rows(rows or [UserRow(extras={_PRONUNCIATION: ""})])
         self._update_count()
-
-    def _add_item(self, original: str = "", pronunciation: str = "", user_id: str = "", recalculate: bool = True):
-        """Add a pronunciation item to the list"""
-        item = _PronunciationItemWidget(self.config, self.icons_path, original, pronunciation, user_id)
-        item.remove_requested.connect(self._remove_item)
-
-        # Auto-save: after the name is checked, and shortly after the last key of a pronunciation
-        item.changed.connect(self._save_mappings)
-        item.pronunciation_input.textChanged.connect(self._schedule_save)
-
-        self.items.append(item)
-        if recalculate:
-            self.recalculate_layout()
 
     def refresh(self):
         """Reload mappings after adding, editing, or removing one from the context menu."""
-        for item in self.items:
-            self._items_layout.removeWidget(item)
-            item.deleteLater()
-        self.items.clear()
         self._load_mappings()
 
     def _add_new_item(self):
-        """Add a new empty pronunciation item"""
-        self._add_item("", "")
-
-    def _remove_item(self, item: _PronunciationItemWidget):
-        """Remove a pronunciation item"""
-        if item in self.items:
-            self.items.remove(item)
-            self._items_layout.removeWidget(item)
-            item.deleteLater()
-            self._save_mappings()
-            self.recalculate_layout()
+        """Edit the empty row, or add one"""
+        if not self.users_view.edit_empty_row():
+            self.users_view.add_row(UserRow(extras={_PRONUNCIATION: ""}))
 
     def _save_mappings(self):
         """Save the complete rows with one write"""
         entries = {}
-        for item in self.items:
-            entry = item._get_entry()
-            if entry:
-                user_id, username, pronunciation = entry
-                entries[user_id] = {"username": username, "pronunciation": pronunciation}
+        for row in self.users_view.rows:
+            pronunciation = row.extras[_PRONUNCIATION].strip()
+            if row.is_confirmed and pronunciation:
+                entries[row.user_id] = {"username": row.username, "pronunciation": pronunciation}
         self.pronunciation_manager.replace_all(entries)
         self._update_count()
 
-    def _schedule_save(self):
+    def _schedule_save(self, *_):
         self._save_timer.start()
 
     def hideEvent(self, event):
@@ -222,7 +166,7 @@ class PronunciationWidget(TranslatableMixin, QWidget):
         super().hideEvent(event)
 
     def _update_count(self):
-        count = sum(1 for item in self.items if not item.is_empty())
+        count = sum(1 for row in self.users_view.rows if not _is_row_empty(row))
         self._total_count_label.setText(tr(f"Total: {count}", f"Всего: {count}"))
 
     def retranslate_all(self, _code=None):
@@ -230,13 +174,11 @@ class PronunciationWidget(TranslatableMixin, QWidget):
         self._update_count()
 
     def update_theme(self):
-        is_dark = (self.config.get("ui", "theme") or "dark") == "dark"
-        for item in self.items:
-            item.update_theme(is_dark)
+        self.users_view.update_theme()
 
     def _clear_all(self):
         """Clear all pronunciation mappings"""
-        if not any(not item.is_empty() for item in self.items):
+        if all(_is_row_empty(row) for row in self.users_view.rows):
             show_toast(self, tr("Pronunciation list is already empty", "Список произношений уже пуст"), ToastKind.INFO)
             return
 
@@ -248,23 +190,5 @@ class PronunciationWidget(TranslatableMixin, QWidget):
         )
 
         if reply == QMessageBox.StandardButton.Yes:
-            # Remove all items
-            for item in list(self.items):
-                self._items_layout.removeWidget(item)
-                item.deleteLater()
-            self.items.clear()
-
             self.pronunciation_manager.replace_all({})
-
-            # Add one empty item
-            self._add_item("", "")
-            self._update_count()
-
-    def recalculate_layout(self):
-        """Recalculate grid layout based on available width"""
-        fill_grid(self._items_layout, self.items, self.scroll.viewport().width())
-
-    def resizeEvent(self, event):
-        """Handle resize to recalculate grid layout"""
-        super().resizeEvent(event)
-        QTimer.singleShot(50, self.recalculate_layout)
+            self._load_mappings()

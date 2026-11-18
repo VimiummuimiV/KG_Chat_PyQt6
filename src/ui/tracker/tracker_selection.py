@@ -1,10 +1,16 @@
 """UserTrackerWidget: tracked user list editing and persistence."""
 
-from PyQt6.QtCore import QTimer
 from PyQt6.QtWidgets import QMessageBox
 
+from components.user_row.model import COLUMN_TOGGLE, ExtraColumn, UserRow
 from helpers.translate import tr
-from ui.tracker.tracker_items import TrackedUserItem, TrackerUserChip
+from ui.tracker.tracker_items import TrackerUserChip
+
+
+FREEZE_COLUMN = ExtraColumn(
+    "frozen", COLUMN_TOGGLE, icon="line/snowflake-line.svg", dims_row=True,
+    tooltips=(("Freeze tracking", "Заморозить отслеживание"), ("Unfreeze tracking", "Разморозить отслеживание")),
+)
 
 
 class TrackerSelectionMixin:
@@ -19,55 +25,22 @@ class TrackerSelectionMixin:
         self.chip_widgets[login] = chip
         return chip
 
-    def _discard_items(self):
-        for item in self.user_items:
-            self.users_grid.removeWidget(item)
-            item.cleanup()
-            item.deleteLater()
-        self.user_items.clear()
-
     def load_selected(self):
         self._are_rows_stale = False
-        self._discard_items()
-        for user_id, username in self.user_tracker.get_selected().items():
-            self._add_item(username, user_id, recalculate=False)
-            item = self.user_items[-1]
-            if self.user_tracker.is_frozen(user_id=user_id):
-                item.set_frozen(True)
-
-        if self.user_items:
-            QTimer.singleShot(50, self.recalculate_layout)
+        tracker = self.user_tracker
+        self.users_view.set_rows([
+            UserRow(username, user_id, {"frozen": tracker.is_frozen(user_id=user_id)})
+            for user_id, username in tracker.get_selected().items()
+        ])
         self.update_tracked_count()
 
-    def _add_item(self, username="", user_id="", recalculate=True):
-        item = TrackedUserItem(self.config, self.icons_path, username, user_id)
-        item.remove_requested.connect(self._remove_item)
-        item.changed.connect(self.save_selected)
-        item.freeze_toggled.connect(self.user_tracker.set_frozen)
-        self.user_items.append(item)
-        if recalculate:
-            self.recalculate_layout()
-
     def add_new_item(self):
-        for item in self.user_items:
-            if item.is_empty():
-                item.update_input_style(highlight_empty=True)
-                item.username_input.setFocus()
-                return
-        self._add_item()
-
-    def _remove_item(self, item: TrackedUserItem):
-        if item in self.user_items:
-            self.user_items.remove(item)
-            self.users_grid.removeWidget(item)
-            item.cleanup()
-            item.deleteLater()
-            self.save_selected()
-            self.recalculate_layout()
+        if not self.users_view.edit_empty_row():
+            self.users_view.add_row()
 
     def clear_users(self):
         """Stop tracking every user, after a confirmation."""
-        if not self.user_items:
+        if not self.users_view.rows:
             return
         reply = QMessageBox.question(
             self, tr("Remove all users", "Удалить всех пользователей"),
@@ -75,19 +48,17 @@ class TrackerSelectionMixin:
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
         )
         if reply == QMessageBox.StandardButton.Yes:
-            self._discard_items()
+            self.users_view.clear()
             self.save_selected()
 
     def update_tracked_count(self):
-        count = sum(1 for item in self.user_items if not item.is_empty())
+        count = self.users_view.filled_count()
         self.tracked_count_label.setText(tr(f"Total: {count}", f"Всего: {count}"))
 
+    def handle_freeze_changed(self, row: UserRow, _key: str):
+        self.user_tracker.set_frozen(row.user_id, row.extras["frozen"])
+
     def save_selected(self):
-        selected = {}
-        for item in self.user_items:
-            username, user_id = item.get_data()
-            if username and user_id and item.username_valid:
-                selected[user_id] = username
-        self.user_tracker.replace_selected(selected)
+        self.user_tracker.replace_selected({row.user_id: row.username for row in self.users_view.rows if row.is_confirmed})
         self.update_tracked_count()
         self.tracked_users_changed.emit()
