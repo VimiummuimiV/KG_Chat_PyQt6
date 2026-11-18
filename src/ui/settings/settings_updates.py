@@ -27,7 +27,7 @@ class SettingsUpdatesMixin:
     """SettingsWidget: automatic update check, its interval and the manual check."""
 
     def build_updates_section(self):
-        section = self.create_section(tr("🔄 Updates", "🔄 Обновления"))
+        section = self.create_section(tr("📥 Updates", "📥 Обновления"))
         self.update_auto_check_checkbox = self.add_checkbox(
             section, tr("Check for updates automatically", "Проверять обновления автоматически"),
             self._on_update_auto_check_toggled,
