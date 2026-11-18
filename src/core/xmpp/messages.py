@@ -21,6 +21,7 @@ class Message:
     initial: bool = False
     delivery_id: Optional[int] = None  # set on own messages followed by DeliveryTracker
     delivery: Optional[str] = None
+    recipient: Optional[str] = None  # username an own private message is addressed to
 
 @dataclass
 class _Presence:

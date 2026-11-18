@@ -55,6 +55,7 @@ _REVEAL_HIGHLIGHT_DELAY_MS = 250
 _MAX_ROW_HEIGHT = 500
 _FALLBACK_ROW_WIDTH = 800
 _COMPACT_HEADER_GAP = 2  # space between the header line and the body in compact mode
+_RECIPIENT_ARROW = "•"  # between the sender and the recipient of an own private message
 
 
 @dataclass(frozen=True)
@@ -66,6 +67,7 @@ class _RowGeometry:
     height: int
     timestamp_width: int
     username_width: int
+    recipient_width: int  # arrow and recipient name after the sender, 0 when the message has no recipient
     has_username: bool
     key: tuple
     min_width: float  # the geometry holds for every content width in [min_width, max_width)
@@ -536,7 +538,7 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
     def _row_geometry(self, msg, content_width: int) -> _RowGeometry:
         """Where the parts of a regular row sit; sizeHint and paint both read it, so the height always matches the drawing."""
         renderer = self.message_renderer
-        key = (renderer.layout_revision, self.compact_mode, renderer.mention_pattern(), msg.body, msg.username)
+        key = (renderer.layout_revision, self.compact_mode, renderer.mention_pattern(), msg.body, msg.username, msg.recipient)
         cached = msg.layout_cache
         is_valid = cached is not None and cached.key == key and cached.min_width <= content_width < cached.max_width
         if is_valid and not msg.competition_players:
@@ -551,12 +553,13 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
         label_height = max(font_metrics.height(), timestamp_metrics.height())
         timestamp_width = timestamp_metrics.horizontalAdvance(msg.get_time_str())
         username_width = 0 if is_system else font_metrics.horizontalAdvance(msg.username)
+        recipient_width = font_metrics.horizontalAdvance(_RECIPIENT_ARROW + msg.recipient) if msg.recipient and not is_system else 0
         full_width = content_width - 2 * self.padding
 
         if self.compact_mode:
             body_x, body_y, body_width = self.padding, self.padding + label_height + _COMPACT_HEADER_GAP, full_width
         else:
-            body_x = self.padding + timestamp_width + self.spacing + (0 if is_system else username_width + self.spacing)
+            body_x = self.padding + timestamp_width + self.spacing + (0 if is_system else username_width + recipient_width + self.spacing)
             body_y, body_width = self.padding, content_width - body_x - self.padding
 
         if body is None:
@@ -569,7 +572,7 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
             height = max(label_height, body.height) + chips_height + 2 * self.padding
         extra = content_width - body_width
         geometry = _RowGeometry(
-            body, body_x, body_y, min(height, _MAX_ROW_HEIGHT), timestamp_width, username_width, not is_system,
+            body, body_x, body_y, min(height, _MAX_ROW_HEIGHT), timestamp_width, username_width, recipient_width, not is_system,
             key, body.min_width + extra, body.max_width + extra,
         )
         msg.layout_cache = geometry
@@ -716,6 +719,14 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
             painter.setPen(QColor(self._get_username_color(msg.username, msg.background_color)))
             painter.drawText(username_rect, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, msg.username)
             self.click_rects[row]['username'] = username_rect
+            if geometry.recipient_width:
+                arrow_width = body_font_metrics.horizontalAdvance(_RECIPIENT_ARROW)
+                arrow_rect = QRect(username_rect.right() + 1, y, arrow_width, username_rect.height())
+                recipient_rect = QRect(arrow_rect.right() + 1, y, geometry.recipient_width - arrow_width, username_rect.height())
+                painter.setPen(QColor(timestamp_color))
+                painter.drawText(arrow_rect, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, _RECIPIENT_ARROW)
+                painter.setPen(QColor(self._get_username_color(msg.recipient, None)))
+                painter.drawText(recipient_rect, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, msg.recipient)
         else:
             self.click_rects[row]['username'] = QRect()
 

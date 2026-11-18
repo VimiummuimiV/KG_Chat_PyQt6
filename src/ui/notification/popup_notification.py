@@ -540,7 +540,8 @@ class PopupNotification(AutoHidePopupMixin, QWidget):
                     avatar=self.data.account.get('avatar'),
                     background=effective_background,
                     timestamp=datetime.now(),
-                    initial=False
+                    initial=False,
+                    recipient=self.data.title if msg_type == 'chat' else None
                 )
 
                 own_msg.is_private = (msg_type == 'chat')

@@ -66,7 +66,8 @@ class ChatInputMixin:
                     timestamp=datetime.now(),
                     initial=False,
                     delivery_id=delivery_id,
-                    delivery=PENDING
+                    delivery=PENDING,
+                    recipient=self.private_chat_username if msg_type == 'chat' else None
                 )
                 own_msg.is_private = (msg_type == 'chat')
                 add_message_fn(own_msg)

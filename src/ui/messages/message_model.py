@@ -33,6 +33,7 @@ class MessageData:
     joins_next: bool = False
     delivery_id: Optional[int] = None  # own message followed by DeliveryTracker
     delivery: Optional[str] = None
+    recipient: str = ""  # own private message: the username it is addressed to
     layout_cache: Optional[object] = field(default=None, compare=False, repr=False)  # row geometry kept by MessageDelegate
 
     def get_time_str(self) -> str:

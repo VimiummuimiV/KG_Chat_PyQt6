@@ -200,6 +200,7 @@ class MessagesWidget(TranslatableMixin, QWidget):
             presence_entries=getattr(msg, 'presence_entries', None),
             delivery_id=getattr(msg, 'delivery_id', None),
             delivery=getattr(msg, 'delivery', None),
+            recipient=getattr(msg, 'recipient', None) or "",
         )
         if not self.search.register_message(msg_data, self.model.max_messages):
             return -1
