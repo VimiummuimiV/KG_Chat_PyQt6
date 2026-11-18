@@ -95,6 +95,13 @@ QLabel#mutedLabel[filtered="true"] {
     border-radius: 4px;
 }
 
+/* Row of the private recipient in the live userlist: its name and game counter are highlighted */
+QLabel#userName[private="true"],
+QLabel#mutedLabel[private="true"] {
+    background-color: rgba(226, 67, 67, 0.25);
+    border-radius: 4px;
+}
+
 /* Join room dialog fields; height comes from the dialog (a stylesheet min-height overrides setFixedHeight) */
 QLineEdit#joinRoomField,
 QComboBox#joinRoomField {

@@ -25,6 +25,7 @@ from helpers.data import get_resource_dir
 from helpers.deferred import call_later
 from helpers.fonts.fonts import FontType, set_font_role
 from helpers.scroll.auto_scroll import AutoScroller
+from themes.stylesheet import set_style_property
 from helpers.translate import on_language_changed, tr, TranslatableMixin
 
 
@@ -67,6 +68,7 @@ class _UserWidget(TrackedMarkMixin, QWidget):
         text_color = self.cache.get_username_color(user.login, is_dark_theme)
 
         self.username_label = ColoredLabel(color=text_color)
+        self.username_label.setObjectName("userName")
         set_font_role(self.username_label, FontType.TEXT)
 
         # Build username text with role icon
@@ -110,6 +112,14 @@ class _UserWidget(TrackedMarkMixin, QWidget):
             self.game_counter_label.setObjectName("mutedLabel")
             layout.addWidget(self.game_counter_label)
         layout.addStretch()
+        self.refresh_private_highlight()
+
+    def refresh_private_highlight(self):
+        """Highlight name and game counter while this user is the private recipient."""
+        is_private = self.owner.is_private_user(self.user.user_id)
+        for label in (self.username_label, self.game_counter_label):
+            if label is not None:
+                set_style_property(label, "private", is_private)
 
     def _retranslate_tooltip(self):
         """Recompute the combined tooltip in the current language. Called by
@@ -224,6 +234,7 @@ class UserListWidget(TranslatableMixin, QWidget):
         self.pronunciation_manager = None
         self.user_widgets = {}
         self._user_game_state = {}
+        self._private_user_id = None
         self.cache = get_cache()
         self.background_hex = "#1E1E1E" if config.get("ui", "theme") == "dark" else "#FFFFFF"
         self.is_dark_theme = config.get("ui", "theme") == "dark"
@@ -286,6 +297,16 @@ class UserListWidget(TranslatableMixin, QWidget):
         self._main_layout.addStretch()
 
         on_language_changed(self._retranslate)
+
+    def set_private_user(self, user_id):
+        """Keep the private recipient highlighted; held here, so a user who leaves and joins again is still marked."""
+        self._private_user_id = str(user_id) if user_id else None
+        for widget in self.user_widgets.values():
+            widget.refresh_private_highlight()
+
+    def is_private_user(self, user_id) -> bool:
+        """Whether this id is the private recipient."""
+        return bool(self._private_user_id) and str(user_id) == self._private_user_id
 
     def _retranslate(self, _code=None):
         self.retranslate_all()

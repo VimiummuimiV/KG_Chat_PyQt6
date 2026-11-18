@@ -51,6 +51,7 @@ class ChatPrivateModeMixin:
 
         # Update UI
         self.update_input_style()
+        self.update_private_highlight()
 
         # Focus input for immediate typing — deferred so userlist click doesn't steal it back
         QTimer.singleShot(0, self.input_field.setFocus)
@@ -77,6 +78,7 @@ class ChatPrivateModeMixin:
 
         # Update UI
         self.update_input_style()
+        self.update_private_highlight()
 
         # Restore window title
         self.set_connection_status(self.connection_status)
@@ -103,6 +105,12 @@ class ChatPrivateModeMixin:
         room_style = resolve_input_style(self.config, is_dark, None, ban_placeholder)
         for room in (*self.game_rooms.values(), *self.custom_rooms.values()):
             self._style_input(room.input_field, room_style)
+
+    def update_private_highlight(self):
+        """Mark the private recipient in the main userlist and in every room userlist."""
+        for room in (*self.game_rooms.values(), *self.custom_rooms.values()):
+            room.user_list_widget.set_private_user(self.private_chat_user_id)
+        self.user_list_widget.set_private_user(self.private_chat_user_id)
 
     @staticmethod
     def _style_input(field, style):

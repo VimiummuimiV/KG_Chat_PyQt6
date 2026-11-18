@@ -76,6 +76,7 @@ class ChatRoomTabsMixin:
         )
         widget.send_requested.connect(lambda text, w=widget: self._send_room_message(text, w))
         self.wire_userlist_signals(widget)
+        widget.user_list_widget.set_private_user(self.private_chat_user_id)
         widget.open_game_requested.connect(self.open_game_room_by_id)
         widget.emoticon_requested.connect(lambda w=widget: self.on_room_emoticon_requested(w))
         self.wire_username_signals(widget, right_click_widget=widget.messages_widget)
