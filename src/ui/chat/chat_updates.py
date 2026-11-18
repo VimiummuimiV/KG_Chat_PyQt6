@@ -11,6 +11,7 @@ from components.toast import ToastKind
 from core.web.updater import (
     check_for_update,
     check_interval_days,
+    installed_commit,
     is_auto_check_enabled,
     is_development_checkout,
     last_checked_at,
@@ -65,7 +66,10 @@ class ChatUpdatesMixin:
         if not is_auto_check_enabled(self.config):
             return
         checked_at = last_checked_at()
-        if checked_at is not None and time.time() - checked_at < check_interval_days(self.config) * _SECONDS_PER_DAY:
+        is_recently_checked = (
+            checked_at is not None and time.time() - checked_at < check_interval_days(self.config) * _SECONDS_PER_DAY
+        )
+        if installed_commit() is not None and is_recently_checked:  # without the installed commit the first check is due at once
             return
         self._run_update_check(manual=False)
 
