@@ -55,7 +55,7 @@ _REVEAL_HIGHLIGHT_DELAY_MS = 250
 _MAX_ROW_HEIGHT = 500
 _FALLBACK_ROW_WIDTH = 800
 _COMPACT_HEADER_GAP = 2  # space between the header line and the body in compact mode
-_RECIPIENT_ARROW = "→"  # between the sender and the recipient of an own private message
+_RECIPIENT_ARROW = " → "  # between the sender and the recipient of an own private message
 
 
 @dataclass(frozen=True)
