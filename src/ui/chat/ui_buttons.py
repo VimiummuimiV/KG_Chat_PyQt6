@@ -143,7 +143,7 @@ class ButtonPanel(QWidget):
     def _create_buttons(self):
         """Create all buttons for the panel"""
         self.update_button = self._create_button(
-            "fill/download-2-fill.svg",
+            "fill/arrow-down-circle-fill.svg",
             "",
             lambda: self.update_requested.emit()
         )

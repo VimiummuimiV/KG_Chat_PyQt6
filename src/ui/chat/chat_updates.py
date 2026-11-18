@@ -26,6 +26,7 @@ from ui.dialogs.update_dialog import UpdateDialog
 
 
 _STARTUP_CHECK_DELAY_MS = 5000
+_UPDATE_HINT_INTERVAL_MS = 4000
 _DUE_POLL_INTERVAL_MS = 60 * 60 * 1000
 _DOWNLOAD_TOAST_MS = 60 * 1000
 _SECONDS_PER_DAY = 24 * 60 * 60
@@ -41,9 +42,9 @@ class ChatUpdatesMixin:
         self._update_installing = False
         if is_development_checkout():
             return
+        self._update_hint_timer = QTimer(self)
+        self._update_hint_timer.timeout.connect(self._bounce_update_button)
         self._set_available_update(saved_update())
-        if self._available_update:
-            call_later(self, _STARTUP_CHECK_DELAY_MS, lambda: animate_button_bounce(self.button_panel.update_button))
         due_timer = QTimer(self)
         due_timer.timeout.connect(self._check_for_update_when_due)
         due_timer.start(_DUE_POLL_INTERVAL_MS)
@@ -99,14 +100,22 @@ class ChatUpdatesMixin:
         if info and (is_new or manual):
             commit = short_commit(info.latest_commit)
             self.toast.show_message(tr(f"Update available: {commit}", f"Доступно обновление: {commit}"), ToastKind.INFO)
-            animate_button_bounce(self.button_panel.update_button)
+            self._bounce_update_button()
         elif manual:
             self.toast.show_message(tr("You have the latest version", "У вас последняя версия"), ToastKind.SUCCESS)
         self._refresh_settings_update_status()
 
     def _set_available_update(self, info):
+        """Show the update button and bounce its icon periodically while an update waits."""
         self._available_update = info
         self.button_panel.set_update_available(short_commit(info.latest_commit) if info else None)
+        if info:
+            self._update_hint_timer.start(_UPDATE_HINT_INTERVAL_MS)
+        else:
+            self._update_hint_timer.stop()
+
+    def _bounce_update_button(self):
+        animate_button_bounce(self.button_panel.update_button)
 
     def _refresh_settings_update_status(self):
         settings = getattr(self, "settings_widget", None)
