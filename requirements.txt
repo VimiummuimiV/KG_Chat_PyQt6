@@ -13,3 +13,4 @@ numpy
 SpeechRecognition
 pillow
 resvg_py
+yt-dlp
