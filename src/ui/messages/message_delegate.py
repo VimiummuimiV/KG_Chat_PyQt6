@@ -40,7 +40,7 @@ from helpers.fonts.fonts import FontType, get_font
 from helpers.scroll.scroll import scroll
 from helpers.text.emoticons import EmoticonManager
 from helpers.text.me_action import format_me_action
-from helpers.text.message_format import message_line_parts
+from helpers.text.message_format import message_line_parts, RECIPIENT_ARROW
 from helpers.translate import tr
 from ui.messages.message_html import message_line_html
 from ui.messages.message_layout import TextLayout
@@ -55,7 +55,6 @@ _REVEAL_HIGHLIGHT_DELAY_MS = 250
 _MAX_ROW_HEIGHT = 500
 _FALLBACK_ROW_WIDTH = 800
 _COMPACT_HEADER_GAP = 2  # space between the header line and the body in compact mode
-_RECIPIENT_ARROW = " → "  # between the sender and the recipient of an own private message
 
 
 @dataclass(frozen=True)
@@ -553,7 +552,7 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
         label_height = max(font_metrics.height(), timestamp_metrics.height())
         timestamp_width = timestamp_metrics.horizontalAdvance(msg.get_time_str())
         username_width = 0 if is_system else font_metrics.horizontalAdvance(msg.username)
-        recipient_width = font_metrics.horizontalAdvance(_RECIPIENT_ARROW + msg.recipient) if msg.recipient and not is_system else 0
+        recipient_width = font_metrics.horizontalAdvance(RECIPIENT_ARROW + msg.recipient) if msg.recipient and not is_system else 0
         full_width = content_width - 2 * self.padding
 
         if self.compact_mode:
@@ -720,11 +719,11 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
             painter.drawText(username_rect, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, msg.username)
             self.click_rects[row]['username'] = username_rect
             if geometry.recipient_width:
-                arrow_width = body_font_metrics.horizontalAdvance(_RECIPIENT_ARROW)
+                arrow_width = body_font_metrics.horizontalAdvance(RECIPIENT_ARROW)
                 arrow_rect = QRect(username_rect.right() + 1, y, arrow_width, username_rect.height())
                 recipient_rect = QRect(arrow_rect.right() + 1, y, geometry.recipient_width - arrow_width, username_rect.height())
                 painter.setPen(QColor(timestamp_color))
-                painter.drawText(arrow_rect, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, _RECIPIENT_ARROW)
+                painter.drawText(arrow_rect, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, RECIPIENT_ARROW)
                 painter.setPen(QColor(self._get_username_color(msg.recipient, None)))
                 painter.drawText(recipient_rect, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, msg.recipient)
         else:
@@ -905,12 +904,13 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
         return not (msg.is_separator or msg.is_new_messages_marker or msg.is_presence_log)
 
     def _copy_line_parts(self, msg) -> tuple:
-        """The time, sender and body of one copied line, as the settings ask."""
+        """The time, sender, recipient and body of one copied line, as the settings ask."""
         return message_line_parts(
             "" if msg.is_system or msg.is_competition else msg.username,
             msg.body, msg.timestamp,
             bool(self.config.get("ui", "chat", "copy_include_username")),
             bool(self.config.get("ui", "chat", "copy_include_timestamp")),
+            msg.recipient,
         )
 
     def copy_text_for(self, messages) -> str:
@@ -925,6 +925,7 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
                 self._get_username_color(msg.username, msg.background_color),
                 msg.is_private, msg.is_ban, self._get_display_body(msg)[1],
                 bool(getattr(msg, 'is_competition', False)), bool(getattr(msg, 'is_parser', False)),
+                self._get_username_color(msg.recipient, None),
             )
             for msg in messages
         )

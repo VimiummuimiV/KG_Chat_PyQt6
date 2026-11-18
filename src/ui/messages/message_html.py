@@ -19,9 +19,10 @@ def message_line_html(
     is_system: bool,
     is_competition: bool = False,
     is_parser: bool = False,
+    recipient_color: str = "",
 ) -> str:
-    """One paragraph for the ("[time] ", "username: ", body) parts: time, username, text and links each in their own color."""
-    time_text, username_text, body = parts
+    """One paragraph for the message_line_parts pieces: time, arrow, names, text and links each in their own color."""
+    time_text, username_text, arrow_text, recipient_text, body = parts
     text_color = renderer.get_text_color(is_ban, is_private, is_system, is_competition, is_parser)
     time_color = renderer.get_timestamp_color(is_ban, is_private, is_system, is_competition, is_parser)
 
@@ -35,5 +36,6 @@ def message_line_html(
 
     return (
         '<p style="margin:0; white-space:pre-wrap">'
-        f"{_span(time_color, time_text)}{_span(username_color, username_text)}{''.join(body_html)}</p>"
+        f"{_span(time_color, time_text)}{_span(username_color, username_text)}{_span(time_color, arrow_text)}"
+        f"{_span(recipient_color, recipient_text)}{''.join(body_html)}</p>"
     )
