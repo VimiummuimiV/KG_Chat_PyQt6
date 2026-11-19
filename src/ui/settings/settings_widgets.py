@@ -16,13 +16,20 @@ def _preview_box_colors(theme: str) -> tuple[str, str, str]:
     return "#F5F5F5", "#333333", "#CCCCCC"
 
 
-def preview_box_stylesheet(widget_selector: str, theme: str) -> str:
+def _preview_box_stylesheet(widget_selector: str, theme: str) -> str:
     bg, fg, border = _preview_box_colors(theme)
     return (
         f"{widget_selector} {{ background-color: {bg}; color: {fg}; "
         f"border: {FONT_PREVIEW_BORDER}px solid {border}; border-radius: 4px; "
         f"padding: {FONT_PREVIEW_PADDING}px; }}"
     )
+
+
+def apply_preview_box_theme(config, widget_selector: str, *previews):
+    """Give preview widgets the themed box look; the selector is the Qt class name of the previews."""
+    stylesheet = _preview_box_stylesheet(widget_selector, config.get("ui", "theme") or "dark")
+    for preview in previews:
+        preview.setStyleSheet(stylesheet)
 
 
 def gradient_slider_stylesheet(color_stops: list[str]) -> str:

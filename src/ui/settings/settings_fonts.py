@@ -17,7 +17,7 @@ from helpers.translate import tr
 from ui.settings.settings_widgets import (
     FONT_PREVIEW_BORDER,
     FONT_PREVIEW_PADDING,
-    preview_box_stylesheet,
+    apply_preview_box_theme,
 )
 
 
@@ -110,9 +110,7 @@ class SettingsFontsMixin:
     def apply_font_preview_theme(self):
         if not hasattr(self, "_font_preview"):
             return
-        self._font_preview.setStyleSheet(
-            preview_box_stylesheet("QTextEdit", self.config.get("ui", "theme") or "dark")
-        )
+        apply_preview_box_theme(self.config, "QTextEdit", self._font_preview)
 
     def update_font_preview(self):
         if not hasattr(self, "_font_preview"):

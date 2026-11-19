@@ -42,7 +42,7 @@ from ui.settings.settings_options import (
     fill_tooltip_combo,
     LANGUAGE_OPTIONS,
 )
-from ui.settings.settings_widgets import gradient_slider_stylesheet, preview_box_stylesheet
+from ui.settings.settings_widgets import apply_preview_box_theme, gradient_slider_stylesheet
 
 _HUE_GRADIENT_STEP = 60
 _GRADIENT_LIGHTNESS = 50
@@ -498,9 +498,7 @@ class SettingsChatMixin:
     def apply_flash_preview_theme(self):
         if not hasattr(self, "_flash_preview"):
             return
-        preview_style = preview_box_stylesheet("QLabel", self.config.get("ui", "theme") or "dark")
-        for preview in self._flash_preview.values():
-            preview.setStyleSheet(preview_style)
+        apply_preview_box_theme(self.config, "QLabel", *self._flash_preview.values())
 
     def _load_flash_duration_spins(self):
         dmin = DEFAULTS["chat"]["flash_duration_ms_min"]
@@ -586,7 +584,7 @@ class SettingsChatMixin:
                 f'<span style="color:{body_color}">{body}</span>'
             )
         self._message_tint_preview.setText("<br>".join(lines))
-        self._message_tint_preview.setStyleSheet(preview_box_stylesheet("QLabel", theme))
+        apply_preview_box_theme(self.config, "QLabel", self._message_tint_preview)
 
     def _on_message_tint_toggled(self, checked: bool):
         self.config.set("ui", "chat", "message_tint_enabled", value=checked)
