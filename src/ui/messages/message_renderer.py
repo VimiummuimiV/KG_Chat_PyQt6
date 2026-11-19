@@ -21,6 +21,8 @@ from helpers.colors.color_utils import (
     get_competition_message_colors,
     get_competition_value_colors,
     get_mention_colors,
+    get_message_body_color,
+    get_message_tint_ratio,
     get_parser_message_colors,
     get_private_message_colors,
     get_rank_chip_colors,
@@ -78,6 +80,8 @@ class MessageRenderer(QObject):
         self.competition_colors = get_competition_message_colors(config, is_dark_theme)
         self._competition_value_colors = get_competition_value_colors(is_dark_theme)
         self.parser_colors = get_parser_message_colors(config, is_dark_theme)
+        self._tinted_body_colors: Dict[str, str] = {}  # username color → body color, dropped with the theme or the setting
+        self.update_body_colors()
 
         # Font setup
         self.layout_revision = 0
@@ -204,12 +208,27 @@ class MessageRenderer(QObject):
         palette = self._message_palette(is_ban, is_private, is_system, is_competition, is_parser)
         return palette["text"] if palette else timestamp_color(self.is_dark_theme)
 
-    def get_text_color(self, is_ban: bool, is_private: bool, is_system: bool, is_competition: bool = False, is_parser: bool = False) -> str:
-        """Return the body text color for the message type"""
+    def get_text_color(
+        self, is_ban: bool, is_private: bool, is_system: bool, is_competition: bool = False, is_parser: bool = False,
+        username_color: Optional[str] = None,
+    ) -> str:
+        """Return the body text color for the message type; a regular message is tinted with its username color"""
         palette = self._message_palette(is_ban, is_private, is_system, is_competition, is_parser)
         if palette:
             return palette["text"]
-        return "#FFFFFF" if self.is_dark_theme else "#000000"
+        if not (username_color and self._tint_ratio):
+            return self._body_color
+        tinted = self._tinted_body_colors.get(username_color)
+        if tinted is None:
+            tinted = get_message_body_color(self.is_dark_theme, username_color, self._tint_ratio)
+            self._tinted_body_colors[username_color] = tinted
+        return tinted
+
+    def update_body_colors(self):
+        """Read the theme and the message tint setting again; regular message text follows them at the next paint."""
+        self._body_color = get_message_body_color(self.is_dark_theme)
+        self._tint_ratio = get_message_tint_ratio(self.config)
+        self._tinted_body_colors.clear()
 
     def get_link_color(self, url: str, is_media: Optional[bool] = None) -> str:
         """Return the link color: media, chatlog or normal; pass is_media when it is already known"""
@@ -238,6 +257,7 @@ class MessageRenderer(QObject):
         self.competition_colors = get_competition_message_colors(self.config, is_dark_theme)
         self._competition_value_colors = get_competition_value_colors(is_dark_theme)
         self.parser_colors = get_parser_message_colors(self.config, is_dark_theme)
+        self.update_body_colors()
         self.emoticon_cache.clear()
         self.invalidate_layouts()
         if self.image_viewer:
@@ -338,9 +358,10 @@ class MessageRenderer(QObject):
         is_competition: bool = False,
         is_parser: bool = False,
         highlight_text: str = "",
+        username_color: Optional[str] = None,
     ) -> List[Tuple[QRect, str, bool]]:
         """Paint a laid out body with its top-left at (x, y); returns (QRect, url, is_media) for every link piece."""
-        text_color = self.get_text_color(is_ban, is_private, is_system, is_competition, is_parser)
+        text_color = self.get_text_color(is_ban, is_private, is_system, is_competition, is_parser, username_color)
         highlight_pattern = re.compile(re.escape(highlight_text), re.IGNORECASE) if highlight_text else None
         link_rects = []
         for fragment in layout.fragments:

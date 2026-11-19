@@ -23,7 +23,7 @@ def message_line_html(
 ) -> str:
     """One paragraph for the message_line_parts pieces: time, arrow, names, text and links each in their own color."""
     time_text, username_text, arrow_text, recipient_text, body = parts
-    text_color = renderer.get_text_color(is_ban, is_private, is_system, is_competition, is_parser)
+    text_color = renderer.get_text_color(is_ban, is_private, is_system, is_competition, is_parser, username_color)
     time_color = renderer.get_timestamp_color(is_ban, is_private, is_system, is_competition, is_parser)
 
     body_html = []

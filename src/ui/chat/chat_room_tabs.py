@@ -28,6 +28,12 @@ class ChatRoomTabsMixin:
         """Every open RoomWidget — game/competition rooms and custom rooms."""
         return list(self.game_rooms.values()) + list(self.custom_rooms.values())
 
+    def all_message_widgets(self):
+        """Every open message list: the general chat, presence log, chatlogs and the rooms."""
+        widgets = [self.messages_widget, self.presence_log_widget, self.chatlog_widget, self.chatlog_split_widget]
+        widgets.extend(room.messages_widget for room in self.all_room_widgets() if room)
+        return [widget for widget in widgets if widget]
+
     def current_room(self):
         """RoomWidget of the currently selected tab, or None if General."""
         if not self.room_tabs or self.room_tabs.currentIndex() <= 0:

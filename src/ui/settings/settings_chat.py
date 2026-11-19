@@ -1,9 +1,9 @@
 """SettingsWidget: chat, chatlog, mentions digest and flash highlight options."""
 
 from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QHBoxLayout, QLineEdit, QSizePolicy, QWidget
+from PyQt6.QtWidgets import QHBoxLayout, QLabel, QLineEdit, QSizePolicy, QWidget
 
-from components.flash_highlight import DURATION_KEYS, FlashLabel
+from components.flash_highlight import DURATION_KEYS, FlashLabel, timestamp_color
 from components.username_autocomplete.options import (
     DEFAULT_RECENT_LIMIT,
     DEFAULT_SUGGESTION_LIMIT,
@@ -18,6 +18,9 @@ from helpers.browser import get_available_browsers
 from helpers.colors.color_utils import (
     get_input_colors,
     get_input_stylesheet,
+    get_message_body_color,
+    get_message_tint_percent,
+    get_message_tint_ratio,
     hsl_to_hex,
     INPUT_HUE_DEFAULT,
     INPUT_HUE_MAX,
@@ -26,7 +29,10 @@ from helpers.colors.color_utils import (
     INPUT_OPACITY_MAX,
     INPUT_SATURATION_DEFAULT,
     INPUT_SATURATION_MAX,
+    MESSAGE_TINT_PERCENT_DEFAULT,
+    MESSAGE_TINT_PERCENT_MAX,
 )
+from helpers.fonts.fonts import FontType, set_font_role
 from helpers.translate import tr
 from ui.settings.settings_options import (
     DEFAULTS,
@@ -41,6 +47,12 @@ from ui.settings.settings_widgets import gradient_slider_stylesheet, preview_box
 _HUE_GRADIENT_STEP = 60
 _GRADIENT_LIGHTNESS = 50
 _HUE_GRADIENT_STOPS = [hsl_to_hex(hue, 100, _GRADIENT_LIGHTNESS) for hue in range(0, 361, _HUE_GRADIENT_STEP)]
+# (time, username, username color in the dark theme, in the light theme, text)
+_TINT_PREVIEW_MESSAGES = (
+    ("12:30", "Alice", "#FF6B6B", "#C62828", "Шла Маша по шоссе и сосала сушку"),
+    ("12:31", "Boris", "#6BCB77", "#2E7D32", "The quick brown fox jumps over the lazy dog 😀"),
+    ("12:32", "Clara", "#5DADE2", "#1565C0", "0 1 2 3 4 5 6 7 8 9 🎉 🚀 ❤️ 👍 🔥"),
+)
 
 
 class SettingsChatMixin:
@@ -196,6 +208,30 @@ class SettingsChatMixin:
         self._update_input_saturation_gradient()
         self.apply_input_preview()
         self.add_collapse_toggle(input_header, input_content, ("ui", "settings", "widgets", "chat_input"))
+
+        tint_header, tint_content, tint_layout = self.add_subsection(
+            section, tr("🎨 Message Text Color", "🎨 Цвет текста сообщений")
+        )
+        self.message_tint_checkbox = self.add_checkbox(
+            tint_layout, tr("Mix the username color into message text", "Подмешивать цвет имени в текст сообщений"),
+            self._on_message_tint_toggled,
+        )
+        self.tr_set(
+            self.message_tint_checkbox.setToolTip,
+            "Regular messages only: system, private, ban and competition messages keep their own colors.",
+            "Только обычные сообщения: системные, личные, баны и соревнования сохраняют свои цвета.",
+        )
+        self.message_tint_spin = self.add_slider_spin_row(
+            tint_layout, tr("Mix amount (%)", "Степень подмешивания (%)"), 0, MESSAGE_TINT_PERCENT_MAX,
+            self._on_message_tint_percent_changed, default=MESSAGE_TINT_PERCENT_DEFAULT,
+        )
+        self._message_tint_preview = QLabel()
+        self._message_tint_preview.setTextFormat(Qt.TextFormat.RichText)
+        self._message_tint_preview.setWordWrap(True)
+        set_font_role(self._message_tint_preview, FontType.TEXT)
+        tint_layout.addWidget(self._message_tint_preview)
+        self.apply_message_tint_preview()
+        self.add_collapse_toggle(tint_header, tint_content, ("ui", "settings", "widgets", "chat_message_text"))
 
         xmpp_header, xmpp_content, xmpp_layout = self.add_subsection(section, "🔌 XMPP")
         self.resource_combo = self.add_combo_row(
@@ -384,6 +420,14 @@ class SettingsChatMixin:
         self.input_idle_opacity_spin.linked_slider.setValue(input_idle_opacity)
         self.apply_input_preview()
 
+        message_tint_enabled = bool(self.config.get("ui", "chat", "message_tint_enabled"))
+        message_tint_percent = get_message_tint_percent(self.config)
+        self.message_tint_checkbox.setChecked(message_tint_enabled)
+        self.message_tint_spin.setValue(message_tint_percent)
+        self.message_tint_spin.linked_slider.setValue(message_tint_percent)
+        self.set_spin_enabled(self.message_tint_spin, message_tint_enabled)
+        self.apply_message_tint_preview()
+
         fill_mentions_digest_mode_combo(
             self.mentions_digest_mode_combo,
             self.config.get("ui", "chat", "mentions_digest_mode"),
@@ -523,6 +567,39 @@ class SettingsChatMixin:
         """The unfocused opacity can never exceed the focused one."""
         if self.input_idle_opacity_spin.value() > self.input_opacity_spin.value():
             self.input_idle_opacity_spin.setValue(self.input_opacity_spin.value())
+
+    def apply_message_tint_preview(self):
+        """Show sample messages as the chat paints them with the current text tint, in the current theme."""
+        if not hasattr(self, "_message_tint_preview"):
+            return
+        theme = self.config.get("ui", "theme") or "dark"
+        is_dark = theme == "dark"
+        ratio = get_message_tint_ratio(self.config)
+        time_color = timestamp_color(is_dark)
+        lines = []
+        for time_text, username, dark_color, light_color, body in _TINT_PREVIEW_MESSAGES:
+            username_color = dark_color if is_dark else light_color
+            body_color = get_message_body_color(is_dark, username_color, ratio)
+            lines.append(
+                f'<span style="color:{time_color}">{time_text}</span>&nbsp;&nbsp;'
+                f'<span style="color:{username_color}">{username}</span>&nbsp;&nbsp;'
+                f'<span style="color:{body_color}">{body}</span>'
+            )
+        self._message_tint_preview.setText("<br>".join(lines))
+        self._message_tint_preview.setStyleSheet(preview_box_stylesheet("QLabel", theme))
+
+    def _on_message_tint_toggled(self, checked: bool):
+        self.config.set("ui", "chat", "message_tint_enabled", value=checked)
+        self.set_spin_enabled(self.message_tint_spin, checked)
+        self._on_message_tint_changed()
+
+    def _on_message_tint_percent_changed(self, value: int):
+        self.config.set("ui", "chat", "message_tint_percent", value=int(value))
+        self._on_message_tint_changed()
+
+    def _on_message_tint_changed(self):
+        self.apply_message_tint_preview()
+        self.message_tint_changed.emit()
 
     def _on_mentions_digest_mode_changed(self, _text: str = ""):
         mode = self.mentions_digest_mode_combo.currentData()

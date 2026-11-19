@@ -413,6 +413,12 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
             self.message_renderer.update_theme(self.is_dark_theme)
         self.geometry_changed.emit()  # the emoticons of the other theme may have another size
 
+    def update_message_tint(self):
+        """The message text tint setting changed: only colors differ, so the rows are repainted, not measured again."""
+        if self.message_renderer:
+            self.message_renderer.update_body_colors()
+        self._refresh_viewport()
+
     def set_fonts(self, font):
         """Use one font for bodies and timestamps; every cached layout of the old font is dropped."""
         self.body_font = font
@@ -710,12 +716,13 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
         )
         self.click_rects[row]['timestamp'] = timestamp_rect
 
+        username_color = self._get_username_color(msg.username, msg.background_color) if geometry.has_username else None
         if geometry.has_username:
             username_rect = QRect(
                 x + geometry.timestamp_width + self.spacing, y, geometry.username_width, body_font_metrics.height()
             )
             painter.setFont(self.body_font)
-            painter.setPen(QColor(self._get_username_color(msg.username, msg.background_color)))
+            painter.setPen(QColor(username_color))
             painter.drawText(username_rect, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, msg.username)
             self.click_rects[row]['username'] = username_rect
             if geometry.recipient_width:
@@ -732,7 +739,7 @@ class MessageDelegate(RowFlashMixin, QStyledItemDelegate):
         body_x, body_y = rect.x() + geometry.body_x, rect.y() + geometry.body_y
         self.click_rects[row]['links'] = self.message_renderer.paint_layout(
             painter, geometry.body, body_x, body_y,
-            msg.is_private, msg.is_ban, is_system, is_competition, is_parser, self.highlight_text
+            msg.is_private, msg.is_ban, is_system, is_competition, is_parser, self.highlight_text, username_color
         )
 
         players = getattr(msg, 'competition_players', None)

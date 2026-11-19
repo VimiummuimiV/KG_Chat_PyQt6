@@ -1,7 +1,9 @@
 """Color utilities — conversions, blending, and app palette helpers."""
 
 import colorsys
+from typing import Optional
 
+from helpers.config import read_bounded_int
 from helpers.text.mention_parser import MENTION_GLOBAL, MENTION_LOCAL, MENTION_NICK
 
 
@@ -83,6 +85,8 @@ def blend_hex_colors(base_hex: str, accent_hex: str, ratio: float = 0.15) -> str
     ))
 
 
+MESSAGE_TINT_PERCENT_DEFAULT = 30
+MESSAGE_TINT_PERCENT_MAX = 100
 INPUT_HUE_DEFAULT = 130
 INPUT_HUE_MAX = 359
 INPUT_SATURATION_DEFAULT = 30
@@ -180,6 +184,26 @@ def get_ban_message_colors(config, is_dark_theme: bool) -> dict:
 def get_system_message_colors(config, is_dark_theme: bool) -> dict:
     return _themed_hsl_colors(config, "system_message_color", 240, 0, is_dark_theme,
                                {"text": 60}, {"text": 50})
+
+
+def get_message_tint_percent(config) -> int:
+    """How much of the username color the message text gets, in percent (the slider value)."""
+    return read_bounded_int(
+        config, ("ui", "chat", "message_tint_percent"), MESSAGE_TINT_PERCENT_DEFAULT, (0, MESSAGE_TINT_PERCENT_MAX)
+    )
+
+
+def get_message_tint_ratio(config) -> float:
+    """Share (0..1) of the username color mixed into regular message text; 0 while the option is off."""
+    if not config.get("ui", "chat", "message_tint_enabled"):
+        return 0.0
+    return get_message_tint_percent(config) / 100
+
+
+def get_message_body_color(is_dark_theme: bool, username_color: Optional[str] = None, ratio: float = 0.0) -> str:
+    """Text color of a regular message: the theme's base color, tinted toward the username color by ratio."""
+    base = "#FFFFFF" if is_dark_theme else "#000000"
+    return blend_hex_colors(base, username_color, ratio) if username_color and ratio else base
 
 
 def get_mention_colors(is_dark_theme: bool) -> dict:

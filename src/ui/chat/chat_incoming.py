@@ -215,17 +215,13 @@ class ChatIncomingMixin:
 
     def refresh_youtube_previews(self):
         """Re-layout message views so YouTube link text matches the current setting."""
-        widgets = [
-            self.messages_widget, self.presence_log_widget,
-            self.chatlog_widget, self.chatlog_split_widget,
-        ]
-        widgets.extend(
-            room.messages_widget for room in self.all_room_widgets()
-            if room and room.messages_widget
-        )
-        for widget in widgets:
-            if widget:
-                widget.invalidate_geometry()
+        for widget in self.all_message_widgets():
+            widget.invalidate_geometry()
+
+    def refresh_message_tint(self):
+        """Repaint every message list after the message text tint setting changed."""
+        for widget in self.all_message_widgets():
+            widget.delegate.update_message_tint()
 
     def remove_message(self, msg, single: bool = True, direction: str = None, widget=None):
         """Remove message(s) without banning user.

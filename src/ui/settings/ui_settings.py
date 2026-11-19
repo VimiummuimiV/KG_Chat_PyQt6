@@ -87,6 +87,7 @@ class SettingsWidget(
     font_family_changed = pyqtSignal()
     tracker_badge_style_changed = pyqtSignal()
     input_style_changed = pyqtSignal()
+    message_tint_changed = pyqtSignal()
     tracker_enabled_changed = pyqtSignal(bool)
     tracker_presence_log_changed = pyqtSignal(bool)
     tracker_userlist_star_changed = pyqtSignal(bool)
@@ -392,6 +393,7 @@ class SettingsWidget(
             self.username_recent_checkbox, self.username_recent_spin, self.username_suggestion_spin,
             self.badge_size_spin, self.input_hue_spin, self.input_saturation_spin,
             self.input_opacity_spin, self.input_idle_opacity_spin,
+            self.message_tint_checkbox, self.message_tint_spin,
             self.mentions_digest_mode_combo,
             self.mentions_digest_interval_spin,
             self.flash_easing_combo, self.flash_row_duration_spin, self.flash_copy_duration_spin,
@@ -500,6 +502,7 @@ class SettingsWidget(
         self.apply_font_preview_theme()
         self.apply_flash_preview_theme()
         self.apply_input_preview()
+        self.apply_message_tint_preview()
         if not hasattr(self, "competitions_log"):
             return
         lines = self.competitions_log.toPlainText().splitlines()

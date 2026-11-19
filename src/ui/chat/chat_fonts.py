@@ -32,16 +32,8 @@ class ChatFontsMixin:
 
         # Message views paint with delegate fonts and cache row geometry
         text_font = get_font(FontType.TEXT)
-        message_widgets = [
-            self.messages_widget, self.presence_log_widget,
-            self.chatlog_widget, self.chatlog_split_widget,
-        ]
-        message_widgets.extend(
-            room.messages_widget for room in self.all_room_widgets() if room and room.messages_widget
-        )
-        for widget in message_widgets:
-            if widget:
-                widget.delegate.set_fonts(text_font)
+        for widget in self.all_message_widgets():
+            widget.delegate.set_fonts(text_font)
 
         if getattr(self, 'settings_widget', None) and hasattr(self.settings_widget, 'update_font_preview'):
             self.settings_widget.update_font_preview()
