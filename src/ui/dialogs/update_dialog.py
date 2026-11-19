@@ -4,7 +4,8 @@ from html import escape
 
 from PyQt6.QtWidgets import QDialog, QHBoxLayout, QLabel, QPushButton, QTextBrowser, QVBoxLayout
 
-from core.web.updater import installed_commit, short_commit, UpdateInfo
+from core.web.updater import changes_url, installed_commit, short_commit, UpdateInfo
+from helpers.browser import open_url
 from helpers.translate import tr
 
 
@@ -36,7 +37,7 @@ def _notes_html(info: UpdateInfo) -> str:
 class UpdateDialog(QDialog):
     """Shows what an update changes; accepted when the user chooses to install it."""
 
-    def __init__(self, parent, info: UpdateInfo):
+    def __init__(self, parent, config, info: UpdateInfo):
         super().__init__(parent)
         self.setWindowTitle(tr("Update available", "Доступно обновление"))
         self.resize(_DIALOG_WIDTH, _DIALOG_HEIGHT)
@@ -50,6 +51,10 @@ class UpdateDialog(QDialog):
         main_layout.addWidget(notes, stretch=1)
 
         button_layout = QHBoxLayout()
+        github_button = QPushButton(tr("Open on GitHub", "Открыть на GitHub"))
+        github_button.setAutoDefault(False)
+        github_button.clicked.connect(lambda: open_url(changes_url(info), config.get("browser")))
+        button_layout.addWidget(github_button)
         button_layout.addStretch(1)
         later_button = QPushButton(tr("Later", "Позже"))
         later_button.clicked.connect(self.reject)

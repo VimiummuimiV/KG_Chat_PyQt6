@@ -59,7 +59,7 @@ class ChatUpdatesMixin:
         """Show the release notes and install the update when the user agrees."""
         if self._available_update is None or self._update_installing:
             return
-        if UpdateDialog(self, self._available_update).exec() == QDialog.DialogCode.Accepted:
+        if UpdateDialog(self, self.config, self._available_update).exec() == QDialog.DialogCode.Accepted:
             self._install_update(self._available_update)
 
     def _check_for_update_when_due(self):

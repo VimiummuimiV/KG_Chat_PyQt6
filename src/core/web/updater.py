@@ -62,6 +62,14 @@ def short_commit(commit: str) -> str:
     return commit[:_SHORT_COMMIT_LENGTH]
 
 
+def changes_url(info: UpdateInfo) -> str:
+    """The GitHub page of the update: the commits and changed files, or the latest commit when the history cannot be compared."""
+    current = installed_commit()
+    if current is None or not info.messages:
+        return f"https://github.com/{_REPOSITORY}/commit/{info.latest_commit}"
+    return f"https://github.com/{_REPOSITORY}/compare/{current}...{info.latest_commit}"
+
+
 def is_development_checkout() -> bool:
     """True when the app runs from a git working copy, which an update must never overwrite."""
     return (get_app_dir().parent / ".git").exists()
