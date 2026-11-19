@@ -418,6 +418,7 @@ class ChatWindow(
         self.button_panel.join_room_requested.connect(self.on_join_room_requested)
         self.button_panel.search_requested.connect(self.toggle_search_for_current_view)
         self.button_panel.copy_messages_requested.connect(self.copy_messages_from_current_view)
+        self.button_panel.clear_messages_requested.connect(self.clear_live_messages)
         self.button_panel.update_requested.connect(self.show_update_dialog)
         self.toast = Toast(self, self.theme_manager.is_dark)
         self.setup_update_checks()

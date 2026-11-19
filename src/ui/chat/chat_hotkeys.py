@@ -282,6 +282,10 @@ class ChatHotkeysMixin:
             if self.chatlog_widget and not self.chatlog_widget.parser_visible:
                 self.chatlog_widget.toggle_parser()
             return
+        # Ctrl+R / F5 clear the live chat messages (the chatlog is not touched)
+        if (ctrl and (key == Qt.Key.Key_R or event.nativeVirtualKey() == Qt.Key.Key_R)) or key == Qt.Key.Key_F5:
+            self.clear_live_messages()
+            return
         # Ctrl+Shift+U toggle user tracker
         if ctrl_held and shift_held and (key == Qt.Key.Key_U or event.nativeVirtualKey() == Qt.Key.Key_U):
             self.toggle_user_tracker_view()

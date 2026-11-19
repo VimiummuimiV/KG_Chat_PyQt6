@@ -40,6 +40,7 @@ class ButtonPanel(QWidget):
     join_room_requested = pyqtSignal()
     search_requested = pyqtSignal()
     copy_messages_requested = pyqtSignal()
+    clear_messages_requested = pyqtSignal()
     update_requested = pyqtSignal()
 
     def __init__(self, config: Config, icons_path: Path, theme_manager):
@@ -59,6 +60,7 @@ class ButtonPanel(QWidget):
         self.effects_button = None
         self.notification_button = None
         self.copy_messages_button = None
+        self.clear_messages_button = None
         self._color_button = None
         self._theme_button = None
         self.reset_size_button = None
@@ -203,6 +205,12 @@ class ButtonPanel(QWidget):
             lambda: self.copy_messages_requested.emit()
         )
 
+        self.clear_messages_button = self._create_button(
+            "fill/eraser-fill.svg",
+            tr("Clear messages (Ctrl+R | F5)", "Очистить сообщения (Ctrl+R | F5)"),
+            lambda: self.clear_messages_requested.emit()
+        )
+
         self.voice_button = self._create_button(
             "fill/user-voice-fill.svg",
             tr("Toggle voice sound (V) (RMB for username pronunciation (P))",
@@ -310,6 +318,9 @@ class ButtonPanel(QWidget):
         if self.copy_messages_button:
             self.copy_messages_button.setToolTip(
                 tr("Copy all messages (Ctrl+A)", "Копировать все сообщения (Ctrl+A)"))
+        if self.clear_messages_button:
+            self.clear_messages_button.setToolTip(
+                tr("Clear messages (Ctrl+R | F5)", "Очистить сообщения (Ctrl+R | F5)"))
         if self.voice_button:
             self.voice_button.setToolTip(
                 tr("Toggle voice sound (V) (RMB for username pronunciation (P))",

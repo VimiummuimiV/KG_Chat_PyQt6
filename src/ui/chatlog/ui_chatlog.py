@@ -14,7 +14,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from components.button import create_icon_button
+from components.button import create_icon_button, set_visual_active
 from components.flash_highlight import FlashLabel
 from components.image_viewer.gallery import DayNavigation
 from components.search import MessageSearchBar
@@ -63,7 +63,8 @@ class ChatlogWidget(
         icons_path: Path,
         account=None,
         parent_window=None,
-        ban_manager=None
+        ban_manager=None,
+        can_freeze: bool = False
         ):
         super().__init__()
         self.init_translatable()
@@ -73,6 +74,8 @@ class ChatlogWidget(
         self.account = account
         self.parent_window = parent_window
         self.ban_manager = ban_manager
+        self.can_freeze = can_freeze
+        self.is_frozen = False  # a frozen chatlog keeps its messages, filter and search when the view is left
         self.parser = ChatlogsParser()
         self.current_date = datetime.now().date()
         self.filtered_usernames = set()
@@ -256,6 +259,14 @@ class ChatlogWidget(
         self.parse_btn.clicked.connect(self.toggle_parser)
         self._nav_buttons_container.add_widget(self.parse_btn)
 
+        self.freeze_button = None
+        if self.can_freeze:
+            self.freeze_button = create_icon_button(self.icons_path, "line/snowflake-line.svg", "",
+                                                    size_type="large", config=self.config)
+            self.freeze_button.clicked.connect(self.toggle_freeze)
+            self._nav_buttons_container.add_widget(self.freeze_button)
+            self.update_freeze_button()
+
         self._main_bar.addWidget(self._nav_buttons_container)
 
         self._compact_layout = False
@@ -361,8 +372,21 @@ class ChatlogWidget(
         """Drop every cached row layout (link labels or emoticon sizes changed) and measure the rows again."""
         self.delegate.invalidate_geometry()
 
+    def toggle_freeze(self):
+        self.is_frozen = not self.is_frozen
+        self.update_freeze_button()
+
+    def update_freeze_button(self):
+        set_visual_active(self.freeze_button, self.is_frozen)
+        if self.freeze_button:
+            self.freeze_button.setToolTip(
+                tr("Unfreeze chatlog", "Разморозить чатлог") if self.is_frozen
+                else tr("Freeze chatlog", "Заморозить чатлог")
+            )
+
     def _retranslate(self, _code=None):
         self.retranslate_all()
+        self.update_freeze_button()
 
     def cleanup(self):
         if self.delegate:

@@ -57,6 +57,7 @@ _CHAT_CTRL_KB = [
     ("Ctrl+J",       "Join / Create room",       "Войти / создать комнату"),
     ("Ctrl+P",       "Open chatlog parser",      "Парсер чатлогов"),
     ("Ctrl+A",       "Copy all messages",        "Копировать все сообщения"),
+    ("Ctrl+R / F5",  "Clear messages",           "Очистить сообщения"),
     ("Ctrl+C",       "Reset username color",     "Сбросить цвет имени"),
     ("Ctrl + / -",   "Font size up / down",      "Размер шрифта + / −"),
     ("Ctrl+Scroll",  "Font size up / down",      "Размер шрифта + / −"),

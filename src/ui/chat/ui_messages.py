@@ -297,6 +297,8 @@ class MessagesWidget(TranslatableMixin, QWidget):
             self.auto_scroller.cleanup()
 
     def clear(self):
+        if self.delegate.text_selector:
+            self.delegate.text_selector.close()
         self.model.clear()
         self.search.reset()
 

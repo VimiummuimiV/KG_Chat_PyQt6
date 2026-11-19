@@ -5,9 +5,11 @@ from datetime import datetime
 from PyQt6.QtGui import QCursor
 from PyQt6.QtWidgets import QApplication
 
+from components.toast import show_toast, ToastKind
 from helpers.deferred import call_later
 from helpers.scroll.scroll import scroll
 from helpers.system.memory import release_memory_soon
+from helpers.translate import tr
 from ui.chatlog.ui_chatlog import ChatlogWidget
 from ui.chatlog.ui_chatlog_userlist import ChatlogUserlistWidget
 
@@ -18,8 +20,11 @@ class ChatViewsMixin:
     def show_messages_view(self):
         """Switch back to messages and conditionally destroy chatlog widgets"""
         self.ensure_general_tab_visible()
-        # Cleanup and destroy chatlog userlist
-        if self.chatlog_userlist_widget:
+        is_frozen = bool(self.chatlog_widget and self.chatlog_widget.is_frozen)
+        # Cleanup and destroy chatlog userlist, a frozen chatlog keeps it
+        if self.chatlog_userlist_widget and is_frozen:
+            self.chatlog_userlist_widget.setVisible(False)
+        elif self.chatlog_userlist_widget:
             try:
                 self.chatlog_userlist_widget.filter_requested.disconnect()
                 self.chatlog_userlist_widget.clear_cache()
@@ -29,10 +34,10 @@ class ChatViewsMixin:
             self.chatlog_userlist_widget.deleteLater()
             self.chatlog_userlist_widget = None
 
-        # For chatlog widget, destroy only if not parsing
+        # For chatlog widget, destroy only if not parsing and not frozen
         if self.chatlog_widget:
-            if self.chatlog_widget.parser_widget.is_parsing:
-                # Keep alive during parsing, just switch view
+            if is_frozen or self.chatlog_widget.parser_widget.is_parsing:
+                # Keep alive while frozen or parsing, just switch view
                 pass
             else:
                 try:
@@ -72,6 +77,21 @@ class ChatViewsMixin:
         if self.chatlog_widget and self.chatlog_widget.parser_widget.is_parsing:
             self.start_parse_status()
 
+    def clear_live_messages(self):
+        """Drop every message of the open live chat tab from memory."""
+        if self.stacked_widget.currentWidget() != self.messages_splitter:
+            return
+        widget = self.active_messages_widget()
+        count = len(widget.model.stored_messages)
+        if not count:
+            show_toast(self, tr("Nothing to clear", "Нечего очищать"), ToastKind.WARNING)
+            return
+        widget.clear()
+        if widget is self.messages_widget:
+            self.has_new_messages_marker = False
+        release_memory_soon()
+        show_toast(self, tr(f"Cleared {count} messages", f"Очищено сообщений: {count}"), ToastKind.SUCCESS)
+
     def configure_chatlog_widget(self, widget):
         """Configure chatlog widget (main + split view) with actions support and shared settings."""
         if not widget:
@@ -98,6 +118,7 @@ class ChatViewsMixin:
                 self.account,
                 parent_window=self,
                 ban_manager=self.ban_manager,
+                can_freeze=True,
             )
             self.chatlog_widget.back_requested.connect(self.on_stacked_back)
             self.chatlog_widget.messages_loaded.connect(self._on_chatlog_messages_loaded)
@@ -146,8 +167,8 @@ class ChatViewsMixin:
         if self.chatlog_widget and self.chatlog_userlist_widget:
             self.chatlog_userlist_widget.set_show_banned(self.chatlog_widget.is_parsing)
 
-        # If reload is True and the parser is not visible, reset to today's date
-        if reload and not self.chatlog_widget.parser_visible:
+        # If reload is True and the parser is not visible, reset to today's date; a frozen chatlog stays as it was
+        if reload and not self.chatlog_widget.parser_visible and not self.chatlog_widget.is_frozen:
             self.chatlog_widget.current_date = datetime.now().date()
             self.chatlog_widget.update_date_display()
             self.chatlog_widget.load_current_date()
