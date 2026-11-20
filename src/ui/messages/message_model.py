@@ -36,6 +36,14 @@ class MessageData:
     recipient: str = ""  # own private message: the username it is addressed to
     layout_cache: Optional[object] = field(default=None, compare=False, repr=False)  # row geometry kept by MessageDelegate
 
+    @property
+    def is_room_message(self) -> bool:
+        """Whether this row is a room message from the server, which a reconnect replays (not private or made here)."""
+        return not (
+            self.is_private or self.is_separator or self.is_new_messages_marker
+            or self.is_competition or self.is_presence_log
+        )
+
     def get_time_str(self) -> str:
         return self.timestamp.strftime("%H:%M:%S")
 

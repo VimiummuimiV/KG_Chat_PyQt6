@@ -90,12 +90,23 @@ def expanded_reply_width(config, base_width: int, screen_width: int) -> int:
     return max(base_width, min(int(screen_width * 0.8), base_width + expand))
 
 
+MUTE_BYPASS_DEFAULTS = {
+    "competitions_bypass_mute": "default",
+    "mentions_bypass_mute": "default",
+    "bans_bypass_mute": "default",
+    "tracked_bypass_mute": "duration",
+    "messages_bypass_mute": "off",
+    "parser_bypass_mute": "default",
+    "connection_bypass_mute": "duration",
+}
+
+
 def mute_bypass_mode(config, key: str) -> str:
-    """Read notification.*_bypass_mute: off | default | duration."""
+    """Read notification.*_bypass_mute: off | default | duration; a setting never saved has its default."""
     if not config:
         return "off"
     value = config.get("notification", key)
-    return value if value in ("default", "duration") else "off"
+    return value if value in ("off", "default", "duration") else MUTE_BYPASS_DEFAULTS[key]
 
 
 

@@ -277,8 +277,9 @@ class MessagesWidget(TranslatableMixin, QWidget):
         self.delegate.is_dark_theme = (theme == "dark")
         self.delegate.background_hex = "#1E1E1E" if theme == "dark" else "#FFFFFF"
 
-    def set_delivery(self, delivery_id: int, state: str):
-        self.model.set_delivery(delivery_id, state)
+    def set_delivery(self, delivery_id: int, state: str) -> bool:
+        """Set the delivery state of a row; False if this list has no row for the message."""
+        return self.model.set_delivery(delivery_id, state)
 
     def set_show_delivery_marker(self, enabled: bool):
         self.delegate.set_show_delivery_marker(enabled)

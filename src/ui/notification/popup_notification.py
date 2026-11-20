@@ -93,7 +93,9 @@ class PopupNotification(AutoHidePopupMixin, QWidget):
         kind = data.source_label
         if not kind and data.is_competition:
             kind = "competition"
-        if kind == "competition":
+        if data.is_connection:
+            accent = data.accent_color
+        elif kind == "competition":
             accent = self.message_renderer.competition_colors["text"]
         elif kind == "game":
             accent = get_game_message_colors(data.config, is_dark)["text"]
@@ -101,7 +103,7 @@ class PopupNotification(AutoHidePopupMixin, QWidget):
             accent = None
 
         # Title
-        if data.is_competition:
+        if data.is_competition or data.is_connection:
             username_color = accent
         elif data.is_parser:
             username_color = self.message_renderer.parser_colors["text"]
@@ -115,7 +117,7 @@ class PopupNotification(AutoHidePopupMixin, QWidget):
         self.username_label.setStyleSheet(f"color: {username_color};")
         set_font_role(self.username_label, FontType.TEXT)
         self.username_label.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-        if data.profile_callback and not data.is_parser and not data.is_competition:
+        if data.profile_callback and not data.is_notice and not data.is_competition:
             self.username_label.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
 
         # Timestamp
@@ -138,7 +140,9 @@ class PopupNotification(AutoHidePopupMixin, QWidget):
         self.avatar_label = make_avatar_label(AVATAR_SIZE)
 
         avatar_pixmap = None
-        if data.is_parser:
+        if data.is_connection:
+            avatar_pixmap = make_avatar_pixmap(self.icons_path, None, AVATAR_SIZE, SVG_AVATAR_SIZE, data.accent_color, data.icon)
+        elif data.is_parser:
             color = self.message_renderer.parser_colors["text"]
             avatar_pixmap = make_avatar_pixmap(self.icons_path, None, AVATAR_SIZE, SVG_AVATAR_SIZE, color, "line/at-line.svg")
         elif data.is_competition:
@@ -159,7 +163,7 @@ class PopupNotification(AutoHidePopupMixin, QWidget):
         if avatar_pixmap:
             self.avatar_label.setPixmap(avatar_pixmap)
 
-        if avatar_pixmap or (not data.is_system and not data.is_parser):
+        if avatar_pixmap or (not data.is_system and not data.is_notice):
             top_row.addWidget(self.avatar_label, stretch=0)
             top_row.addSpacing(self.spacing)
 
@@ -187,7 +191,7 @@ class PopupNotification(AutoHidePopupMixin, QWidget):
         buttons_layout.addWidget(self._position_button)
 
         # Answer button - hide for ban, system, competition, parser messages
-        if not data.is_ban and not data.is_system and not data.is_parser and not data.is_competition:
+        if not data.is_ban and not data.is_system and not data.is_notice and not data.is_competition:
             self._answer_button = icon_btn(self.icons_path, "fill/reply-fill.svg", tr("Reply", "Ответить"), data.config)
             self._answer_button.clicked.connect(self._on_answer)
             buttons_layout.addWidget(self._answer_button)
@@ -242,6 +246,7 @@ class PopupNotification(AutoHidePopupMixin, QWidget):
             data.is_competition,
             data.is_parser,
             data.players,
+            data.accent_color,
         )
         self._message_widget.content_resized.connect(self._on_content_resized)
         msg_layout.addWidget(self._message_widget)
@@ -252,7 +257,7 @@ class PopupNotification(AutoHidePopupMixin, QWidget):
         self.emoticon_selector = None
         self.emoticon_button = None
 
-        if not data.is_ban and not data.is_system and not data.is_parser:
+        if not data.is_ban and not data.is_system and not data.is_notice:
             self._reply_container = InputRow(self.icons_path, data.config, with_emoticons=bool(data.emoticon_manager))
             self._reply_container.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
             self._reply_container.submitted.connect(self._on_send_reply)
@@ -307,7 +312,7 @@ class PopupNotification(AutoHidePopupMixin, QWidget):
 
             # Username in the header - opens profile (skip synthetic titles: system/parser/competition)
             if (self.childAt(event.pos()) is self.username_label and self.data.profile_callback
-                    and not self.data.is_parser and not self.data.is_competition):
+                    and not self.data.is_notice and not self.data.is_competition):
                 safe_call(self.data.window_show_callback, err_msg="Error showing window")
                 safe_call(self.data.profile_callback, self.data.title, err_msg="Profile from notification username")
                 return

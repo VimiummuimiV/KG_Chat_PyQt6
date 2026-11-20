@@ -177,6 +177,7 @@ class ChatCompetitionsMixin:
         self._flush_pending_competitions()
         self._restore_competition_messages()
         self.start_mentions_digest_check()
+        self.send_queued()
 
     def _on_competition_found(self, info: dict):
         game_id, mult, url, tag = self._competition_fields(info)

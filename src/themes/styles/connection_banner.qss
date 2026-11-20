@@ -1,0 +1,27 @@
+/* Connection banner above the message input */
+#connectionBanner {
+    border-radius: 6px;
+}
+
+#connectionBanner[state="offline"] {
+    background-color: $connection_offline_bg;
+    border: 1px solid $connection_offline_border;
+}
+
+QLabel#connectionBannerText[state="offline"] {
+    color: $connection_offline_text;
+}
+
+#connectionBanner[state="connecting"] {
+    background-color: $connection_connecting_bg;
+    border: 1px solid $connection_connecting_border;
+}
+
+QLabel#connectionBannerText[state="connecting"] {
+    color: $connection_connecting_text;
+}
+
+QLabel#connectionBannerText {
+    background: transparent;
+    border: none;
+}

@@ -32,7 +32,7 @@ from components.flash_highlight import (
 from components.image_viewer.gallery import DayNavigation, first_image, ImageGallery, InlineReply, is_image_url
 from components.menu import create_menu
 from components.toast import copy_messages_with_toast, copy_text_with_toast
-from core.xmpp.delivery import DELIVERED, FAILED, is_marker_enabled, PENDING
+from core.xmpp.delivery import DELIVERED, FAILED, is_marker_enabled, PENDING, QUEUED
 from helpers.cache import get_cache
 from helpers.data import get_resource_dir
 from helpers.deferred import call_later
@@ -121,7 +121,7 @@ class _DeliveryMarker:
     GUTTER = 16
     _DIAMETER = 8
     _TEXT_GAP = 6
-    _COLORS = {PENDING: "#E8A33D", DELIVERED: "#4CAF50", FAILED: "#E5484D"}
+    _COLORS = {PENDING: "#E8A33D", QUEUED: "#E8A33D", DELIVERED: "#4CAF50", FAILED: "#E5484D"}  # queued waits like pending
 
     @classmethod
     def paint(cls, painter: QPainter, rect: QRect, state: str, text_end: QPoint, line_height: int):

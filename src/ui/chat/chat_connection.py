@@ -4,10 +4,15 @@ import threading
 
 from PyQt6.QtCore import QTimer
 
-from components.toast import show_toast, ToastKind
+from components.toast import ToastKind
 from core.xmpp.client import XMPPClient
+from core.xmpp.history_replay import HistoryReplayFilter
+from helpers.colors.color_utils import tinted_chip_colors
 from helpers.translate import tr
 from ui.notification.popup_manager import show_notification
+
+
+_SHOWN_HISTORY_ROWS = 50  # well above the ~20 messages the server replays
 
 
 class ChatConnectionMixin:
@@ -18,10 +23,46 @@ class ChatConnectionMixin:
         self.allow_reconnect = False
         self._cancel_reconnect_timer()
 
+    def _notify_connection_change(self, status: str):
+        """Pop up a notice once when the connection is lost and once when it is back, for a window out of sight."""
+        if status == 'offline' and not self.connection_lost_notified:
+            self.connection_lost_notified = True
+            self._show_connection_notice(
+                ToastKind.ERROR, tr("No connection", "Нет соединения"),
+                tr("Reconnecting automatically", "Идёт переподключение"),
+            )
+        elif status == 'online' and self.connection_lost_notified:
+            self.connection_lost_notified = False
+            self._show_connection_notice(
+                ToastKind.SUCCESS, tr("Connection restored", "Соединение восстановлено"),
+                tr("Back online", "Чат снова в сети"),
+            )
+
+    def _show_connection_notice(self, kind: ToastKind, title: str, message: str):
+        if self.isActiveWindow():  # the banner above the input is in sight
+            return
+        icon, base_color = kind.value
+        show_notification(
+            title=title,
+            message=message,
+            config=self.config,
+            emoticon_manager=self.emoticon_manager,
+            account=self.account,
+            is_connection=True,
+            icon=icon,
+            accent_color=tinted_chip_colors(base_color, self.theme_manager.is_dark())[1],
+            window_show_callback=self.show_and_focus_window,
+        )
+
+    def _shown_history(self):
+        """(username, body, timestamp) of the last room messages on screen, to tell the replayed ones from new."""
+        rows = self.messages_widget.model.stored_messages[-_SHOWN_HISTORY_ROWS:]
+        return [(row.username, row.body, row.timestamp) for row in rows if row.is_room_message]
+
     def _clear_for_reconnect(self):
-        """Clear messages and userlist for fresh reconnection"""
-        # Clear all messages to avoid duplicates (server will send last 20 again)
-        self.messages_widget.clear()
+        """A fresh session is live: rebuild what it sends again; the messages stay, the replayed ones are dropped"""
+        self.history_replay_filter = HistoryReplayFilter(self._shown_history())
+        self.replay_oldest = None
         if self.presence_log_widget:
             self.presence_log_widget.clear()
 
@@ -62,21 +103,14 @@ class ChatConnectionMixin:
                 return self.connect_generation == my_generation
 
             try:
-                # Clear old state before reconnecting
-                QTimer.singleShot(0, self._clear_for_reconnect)
-
                 if not client.connect(self.account):
                     if is_current():
                         self.xmpp_client = client
-                        self.dispatch.emit(lambda: show_notification(
-                            title=tr("Connection Failed", "Ошибка подключения"),
-                            message=tr("Could not connect to XMPP server", "Не удалось подключиться к серверу XMPP"),
-                            config=self.config,
-                            emoticon_manager=self.emoticon_manager,
-                            account=self.account
-                        ))
                         self.signal_emitter.connection_changed.emit('offline')
                     return
+
+                if is_current():
+                    self.dispatch.emit(self._clear_for_reconnect)  # a failed attempt leaves the chat as it was
 
                 client.set_message_callback(self.message_callback)
                 client.set_presence_callback(self._presence_callback)
@@ -115,20 +149,13 @@ class ChatConnectionMixin:
                 if is_current():
                     self.signal_emitter.connection_changed.emit('offline')
             except Exception as e:
-                error_text = str(e)
+                print(f"❌ Connection error: {e}")
                 # Clear sid on error too
                 client.sid = None
                 client.jid = None
 
                 if is_current():
                     self.xmpp_client = client
-                    self.dispatch.emit(lambda: show_notification(
-                        title=tr("Error", "Ошибка"),
-                        message=tr(f"Connection error: {error_text}", f"Ошибка подключения: {error_text}"),
-                        config=self.config,
-                        emoticon_manager=self.emoticon_manager,
-                        account=self.account
-                    ))
                     self.signal_emitter.connection_changed.emit('offline')
             finally:
                 # A forced abort (e.g. system resume) may have already started a
@@ -159,14 +186,13 @@ class ChatConnectionMixin:
 
     def set_connection_status(self, status: str):
         status = (status or '').lower()
-        previous_status = getattr(self, 'connection_status', None)
         self.connection_status = status
         self.update_connection_title()
+        self.connection_banner.set_connection(status, attempt=self.reconnect_count)
+        self._notify_connection_change(status)
 
         # Reset on success
         if status == 'online':
-            if status != previous_status:
-                show_toast(self, tr("Connected", "Подключено"), ToastKind.SUCCESS)
             self.reconnect_count = 0
             if hasattr(self, 'button_panel') and hasattr(self.button_panel, 'reconnect_button'):
                 self.button_panel.reconnect_button.setVisible(False)
@@ -175,9 +201,6 @@ class ChatConnectionMixin:
         elif status == 'offline':
             if getattr(self, 'really_close', False):
                 return
-
-            if previous_status == 'online':  # not on every failed retry
-                show_toast(self, tr("Connection lost", "Соединение потеряно"), ToastKind.ERROR)
 
             # Show manual reconnect button immediately
             if hasattr(self, 'button_panel') and hasattr(self.button_panel, 'reconnect_button'):
@@ -202,6 +225,7 @@ class ChatConnectionMixin:
         self.reconnect_timer.setSingleShot(True)
         self.reconnect_timer.timeout.connect(self._run_scheduled_reconnect)
         self.reconnect_timer.start(delay_ms)
+        self.connection_banner.set_connection(self.connection_status, delay_ms // 1000, self.reconnect_count)
 
     def _run_scheduled_reconnect(self):
         self.reconnect_timer = None
@@ -234,7 +258,6 @@ class ChatConnectionMixin:
             self.button_panel.reconnect_button.setVisible(False)
 
         print("🔄 Manual reconnection (auto-reconnect cancelled)...")
-        show_toast(self, tr("Reconnecting…", "Переподключение…"), ToastKind.INFO)
         self.set_connection_status('connecting')
         self.connect_xmpp()
 

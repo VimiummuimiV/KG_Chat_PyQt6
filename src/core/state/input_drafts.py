@@ -1,4 +1,4 @@
-"""Text typed for the chat but not delivered: the draft in the input field and messages still unsent."""
+"""Text typed for the chat but not delivered: the draft in the input field, messages still unsent, and the queue."""
 
 from core.state.user_state import ByUserStore
 
@@ -24,6 +24,21 @@ class InputDrafts:
         if text in remaining:
             remaining.remove(text)
             self._update(username, unsent=remaining)
+
+    def queued(self, username: str) -> list:
+        """Messages that never left the client (no connection), as {"text", "at"}; they are sent again by themselves."""
+        return list(self._entry(username).get("queued", []))
+
+    def add_queued(self, username: str, text: str, queued_at: float):
+        self._update(username, queued=[*self.queued(username), {"text": text, "at": queued_at}])
+
+    def remove_queued(self, username: str, text: str):
+        remaining = self.queued(username)
+        for entry in remaining:
+            if entry["text"] == text:
+                remaining.remove(entry)
+                self._update(username, queued=remaining)
+                return
 
     def restorable_text(self, username: str) -> str:
         """Unsent messages followed by the draft, as one text for the input field."""

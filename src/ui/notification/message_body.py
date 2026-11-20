@@ -18,7 +18,7 @@ class MessageBodyWidget(QWidget):
     def __init__(self, message_renderer: MessageRenderer, text: str, 
                  is_private: bool = False, is_ban: bool = False, is_system: bool = False,
                  is_competition: bool = False, is_parser: bool = False,
-                 players: Optional[list] = None):
+                 players: Optional[list] = None, text_color: Optional[str] = None):
         super().__init__()
         self.message_renderer = message_renderer
         self.text = MessageRenderer.emoji_prefix(text, is_private, is_ban, is_system, is_competition, is_parser)
@@ -27,6 +27,7 @@ class MessageBodyWidget(QWidget):
         self.is_system = is_system
         self.is_competition = is_competition
         self.is_parser = is_parser
+        self.text_color = text_color
         self.players = players or []
         self._layout: Optional[TextLayout] = None
         self._layout_key = None
@@ -89,6 +90,7 @@ class MessageBodyWidget(QWidget):
             self.is_system,
             self.is_competition,
             self.is_parser,
+            color_override=self.text_color,
         )
 
         if self.players:

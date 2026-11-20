@@ -359,9 +359,10 @@ class MessageRenderer(QObject):
         is_parser: bool = False,
         highlight_text: str = "",
         username_color: Optional[str] = None,
+        color_override: Optional[str] = None,
     ) -> List[Tuple[QRect, str, bool]]:
         """Paint a laid out body with its top-left at (x, y); returns (QRect, url, is_media) for every link piece."""
-        text_color = self.get_text_color(is_ban, is_private, is_system, is_competition, is_parser, username_color)
+        text_color = color_override or self.get_text_color(is_ban, is_private, is_system, is_competition, is_parser, username_color)
         highlight_pattern = re.compile(re.escape(highlight_text), re.IGNORECASE) if highlight_text else None
         link_rects = []
         for fragment in layout.fragments:

@@ -18,6 +18,7 @@ from components.toast import Toast
 from components.username_autocomplete.autocomplete import UsernameAutocomplete
 from core.state.mentions_digest import MentionsDigest
 from core.state.self_ban import SelfBan
+from core.xmpp.history_replay import HistoryReplayFilter
 from helpers.cache import get_cache
 from helpers.config import Config, get_config_path
 from helpers.data import get_resource_dir
@@ -53,6 +54,7 @@ from ui.chat.chat_updates import ChatUpdatesMixin
 from ui.chat.chat_user_actions import ChatUserActionsMixin
 from ui.chat.chat_views import ChatViewsMixin
 from ui.chat.ui_buttons import ButtonPanel
+from ui.chat.ui_connection_banner import ConnectionBanner
 from ui.chat.ui_emoticon_selector import EmoticonSelectorWidget
 from ui.chat.ui_messages import MessagesWidget
 from ui.chat.ui_pets import PetOverlay
@@ -137,6 +139,8 @@ class ChatWindow(
         self.races_status = "disconnected"
         self.pending_competitions = []  # queued while chat history isn't ready yet
         self.chat_ready = False  # True once initial history has settled once
+        self.history_replay_filter = HistoryReplayFilter([])  # drops the replayed messages the chat already shows
+        self.replay_oldest = None  # oldest message of the history replayed on the last connect: how far back it reaches
         self.history_settle_timer = QTimer(self)  # fires when history stream goes quiet
         self.history_settle_timer.setSingleShot(True)
         self.history_settle_timer.timeout.connect(self.on_history_settled)
@@ -166,6 +170,7 @@ class ChatWindow(
         self.is_connecting = False # True when attempting to connect
         self.allow_reconnect = True # Disable when switching accounts
         self.reconnect_count = 0 # Incremented each time a reconnect attempt is made
+        self.connection_lost_notified = False  # the popup for a lost connection was shown; the next online one says it is back
         self.reconnect_timer = None # Timer for delayed reconnect attempts
         self.connect_generation = 0 # Bumped per attempt so a stale worker can't clobber a newer one's state
         self.connection_status = 'offline'  # normalized key, kept in sync by set_connection_status
@@ -322,6 +327,9 @@ class ChatWindow(
 
         pet_strip = QWidget()  # keeps the pets' line free of messages; empty and hidden while there are no pets
         left_layout.addWidget(pet_strip)
+
+        self.connection_banner = ConnectionBanner()
+        left_layout.addWidget(self.connection_banner)
 
         # Input area
         self.input_container = QWidget()

@@ -73,6 +73,9 @@ class ChatIncomingMixin:
 
         if is_initial:
             self.history_settle_timer.start(self.HISTORY_SETTLE_MS)
+            self.note_replayed(msg.timestamp)
+            if self.history_replay_filter.is_duplicate(msg.login or "Unknown", msg.body, msg.timestamp):
+                return
 
         if self.should_skip_own_echo(msg, is_initial):
             return

@@ -79,11 +79,15 @@ class _PopupManager:
         if not force:
             if data.is_competition:
                 key = "competitions_bypass_mute"
+            elif data.is_connection:
+                key = "connection_bypass_mute"
+            elif data.is_parser:
+                key = "parser_bypass_mute"
             elif data.is_mention or data.is_private:
                 key = "mentions_bypass_mute"
             elif data.is_ban:
                 key = "bans_bypass_mute"
-            elif not data.is_system and not data.is_parser:
+            elif not data.is_system:
                 key = "messages_bypass_mute"
             else:
                 key = None

@@ -1,11 +1,11 @@
 """ChatWindow: composing and sending messages."""
 
 import re
-import threading
 from datetime import datetime
 
 from core.xmpp.delivery import PENDING
 from core.xmpp.messages import Message
+from ui.chat.chat_delivery import CHUNK_SEND_DELAY_SECONDS
 
 
 class ChatInputMixin:
@@ -36,48 +36,44 @@ class ChatInputMixin:
             and self._own_message_mode() == "local"
         )
 
-    def dispatch_chat_message(self, text: str, msg_type: str, target_jid, add_message_fn):
-        """Chunk `text`, optionally echo each chunk locally via add_message_fn,
-        then send each chunk to target_jid on a staggered delay. Shared by the
-        general chat's send_message and room tabs' _send_room_message so
-        the two don't duplicate the chunk/echo/send dance."""
-        # Get own user data
+    def add_local_echo(self, body: str, msg_type: str, delivery_id: int, add_message_fn):
+        """Show an own message at once, before the server echoes it (own message mode "local")."""
+        if self._own_message_mode() != "local":
+            return
         own_user = None
         for user in self.xmpp_client.user_list.get_all():
             if (self.my_username and self.my_username in user.jid) or user.login == self.my_username:
                 own_user = user
                 break
+        own_msg = Message(
+            from_jid=self.xmpp_client.jid,
+            body=body,
+            msg_type=msg_type,
+            login=self.my_username,
+            avatar=None,
+            background=own_user.background if own_user else None,
+            timestamp=datetime.now(),
+            initial=False,
+            delivery_id=delivery_id,
+            delivery=PENDING,
+            recipient=self.private_chat_username if msg_type == 'chat' else None
+        )
+        own_msg.is_private = (msg_type == 'chat')
+        add_message_fn(own_msg)
 
+    def dispatch_chat_message(self, text: str, msg_type: str, target_jid, add_message_fn):
+        """Chunk `text`, optionally echo each chunk locally via add_message_fn,
+        then send each chunk to target_jid on a staggered delay. Shared by the
+        general chat's send_message and room tabs' _send_room_message so
+        the two don't duplicate the chunk/echo/send dance."""
         # Chunk message if over 300 characters
         chunks = self._chunk_message(text, 300)
-        local_echo = self._own_message_mode() == "local"
 
         # Send each chunk
         for i, chunk in enumerate(chunks):
             delivery_id = self.track_outgoing(target_jid, chunk, msg_type)
-            if local_echo:
-                own_msg = Message(
-                    from_jid=self.xmpp_client.jid,
-                    body=chunk,
-                    msg_type=msg_type,
-                    login=self.my_username,
-                    avatar=None,
-                    background=own_user.background if own_user else None,
-                    timestamp=datetime.now(),
-                    initial=False,
-                    delivery_id=delivery_id,
-                    delivery=PENDING,
-                    recipient=self.private_chat_username if msg_type == 'chat' else None
-                )
-                own_msg.is_private = (msg_type == 'chat')
-                add_message_fn(own_msg)
-
-            delay = i * 0.8 # 800ms delay between chunks
-            threading.Timer(
-                delay,
-                self.send_tracked_chunk,
-                args=(chunk, target_jid, msg_type, delivery_id)
-            ).start()
+            self.add_local_echo(chunk, msg_type, delivery_id, add_message_fn)
+            self.start_tracked_send(i * CHUNK_SEND_DELAY_SECONDS, chunk, target_jid, msg_type, delivery_id)
 
     def _chunk_message(self, text: str, max_len: int) -> list:
         """Break message into chunks, keeping URLs intact"""

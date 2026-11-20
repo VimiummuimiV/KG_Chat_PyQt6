@@ -28,6 +28,7 @@ class NotificationData:
     is_system: bool = False
     is_parser: bool = False
     is_competition: bool = False
+    is_connection: bool = False  # the connection was lost or restored
     is_mention: bool = False
     auto_hide_after_duration: bool = False
     timestamp: Optional[datetime] = None
@@ -39,6 +40,12 @@ class NotificationData:
     competition_entered_callback: Optional[Callable] = None  # game_id → remove chat message + close this notification
     self_ban_placeholder_callback: Optional[Callable] = None  # () → input placeholder while our own ban is active, else None
     icon: Optional[str] = None  # svg filename fallback avatar for non-user notifications
+    accent_color: Optional[str] = None  # color of the title, timestamp, icon and text of a connection notice
+
+    @property
+    def is_notice(self) -> bool:
+        """A notice made by the app, not a message from a person: nothing to reply to, no profile to open."""
+        return self.is_parser or self.is_connection
 
 
 def apply_mute_bypass(data: NotificationData, muted: bool, key: str) -> bool:

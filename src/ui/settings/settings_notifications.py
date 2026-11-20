@@ -8,7 +8,7 @@ from components.tag_button import SavedValuesBar
 from core.state.mention_aliases import mention_aliases
 from helpers.text.mention_parser import MENTION_GLOBAL, MENTION_ICONS, MENTION_LOCAL
 from helpers.translate import tr
-from ui.notification.notification_settings import expanded_reply_width, resolve_notification_width
+from ui.notification.notification_settings import expanded_reply_width, mute_bypass_mode, resolve_notification_width
 from ui.notification.popup_manager import popup_manager, show_notification
 from ui.settings.settings_options import (
     DEFAULTS,
@@ -17,6 +17,18 @@ from ui.settings.settings_options import (
     fill_notification_mute_bypass_combo,
     fill_notification_position_combo,
     fill_reply_style_combo,
+)
+
+
+# (config key, label) of the "Bypass When Muted" rows; the defaults are MUTE_BYPASS_DEFAULTS
+_MUTE_BYPASS_ROWS = (
+    ("competitions_bypass_mute", tr("Competitions", "Соревнования")),
+    ("mentions_bypass_mute", tr("Mentions & private messages", "Упоминания и приватные сообщения")),
+    ("bans_bypass_mute", tr("Bans", "Баны")),
+    ("tracked_bypass_mute", tr("Tracked users", "Отслеживаемые пользователи")),
+    ("messages_bypass_mute", tr("Regular messages", "Обычные сообщения")),
+    ("parser_bypass_mute", tr("Mention search", "Поиск упоминаний")),
+    ("connection_bypass_mute", tr("Connection", "Подключение")),
 )
 
 
@@ -86,26 +98,13 @@ class SettingsNotificationsMixin:
         )
 
         bypass_header, bypass_content, bypass_layout = self.add_subsection(section, tr("🚧 Bypass When Muted", "🚧 Показ при отключении уведомлений"))
-        self.competitions_bypass_combo = self.add_combo_row(
-            bypass_layout, tr("Competitions", "Соревнования"), [],
-            lambda _t: self._on_mute_bypass_changed(self.competitions_bypass_combo, "competitions_bypass_mute"),
-        )
-        self.mentions_bypass_combo = self.add_combo_row(
-            bypass_layout, tr("Mentions & private messages", "Упоминания и приватные сообщения"), [],
-            lambda _t: self._on_mute_bypass_changed(self.mentions_bypass_combo, "mentions_bypass_mute"),
-        )
-        self.bans_bypass_combo = self.add_combo_row(
-            bypass_layout, tr("Bans", "Баны"), [],
-            lambda _t: self._on_mute_bypass_changed(self.bans_bypass_combo, "bans_bypass_mute"),
-        )
-        self.tracker_bypass_combo = self.add_combo_row(
-            bypass_layout, tr("Tracked users", "Отслеживаемые пользователи"), [],
-            lambda _t: self._on_mute_bypass_changed(self.tracker_bypass_combo, "tracked_bypass_mute"),
-        )
-        self.messages_bypass_combo = self.add_combo_row(
-            bypass_layout, tr("Regular messages", "Обычные сообщения"), [],
-            lambda _t: self._on_mute_bypass_changed(self.messages_bypass_combo, "messages_bypass_mute"),
-        )
+        self._bypass_combos = {}
+        for config_key, label in _MUTE_BYPASS_ROWS:
+            combo = self.add_combo_row(
+                bypass_layout, label, [],
+                lambda _t, key=config_key: self._on_mute_bypass_changed(self._bypass_combos[key], key),
+            )
+            self._bypass_combos[config_key] = combo
         self.add_collapse_toggle(bypass_header, bypass_content, ("ui", "settings", "widgets", "notifications_bypass"))
 
         if self.my_username:
@@ -158,21 +157,8 @@ class SettingsNotificationsMixin:
         add_button.clicked.connect(add_aliases)
 
     def refresh_notification_bypass(self):
-        fill_notification_mute_bypass_combo(
-            self.competitions_bypass_combo, self.config.get("notification", "competitions_bypass_mute")
-        )
-        fill_notification_mute_bypass_combo(
-            self.mentions_bypass_combo, self.config.get("notification", "mentions_bypass_mute")
-        )
-        fill_notification_mute_bypass_combo(
-            self.bans_bypass_combo, self.config.get("notification", "bans_bypass_mute")
-        )
-        fill_notification_mute_bypass_combo(
-            self.tracker_bypass_combo, self.config.get("notification", "tracked_bypass_mute")
-        )
-        fill_notification_mute_bypass_combo(
-            self.messages_bypass_combo, self.config.get("notification", "messages_bypass_mute")
-        )
+        for config_key, combo in self._bypass_combos.items():
+            fill_notification_mute_bypass_combo(combo, mute_bypass_mode(self.config, config_key))
 
     def refresh_notifications(self):
         fill_notification_mode_combo(self.notification_mode_combo, self.config.get("notification", "mode"))
