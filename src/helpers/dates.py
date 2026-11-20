@@ -1,9 +1,15 @@
-"""Shared date parsing helpers"""
+"""Shared date and time helpers"""
 
+import time
 from datetime import datetime, timedelta
 
 
 DATE_PLACEHOLDER = "YYYY-MM-DD / YYMMDD / today / yesterday / -7"
+
+def now_seconds() -> int:
+    """The current Unix time in whole seconds: how a time is written to a JSON file."""
+    return int(time.time())
+
 
 def parse_short_date(date_str: str) -> str:
     """Convert shorthand date entries (YYMMDD, YYYYMMDD, today, yesterday, -N) to YYYY-MM-DD.

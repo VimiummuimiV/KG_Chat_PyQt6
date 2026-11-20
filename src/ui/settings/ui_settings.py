@@ -377,7 +377,7 @@ class SettingsWidget(
         widgets = (
             self.settings_accordion_checkbox, self.auto_login_checkbox,
             self.start_minimized_checkbox, self.start_with_system_checkbox, self.close_action_combo,
-            self.resource_combo, self.own_message_mode_combo, self.delivery_marker_checkbox,
+            self.resource_combo, self.own_message_mode_combo, self.delivery_marker_checkbox, self.queue_max_age_spin,
             self.clear_private_checkbox, self.youtube_checkbox, self.voice_input_checkbox,
             self.update_auto_check_checkbox, self.update_interval_spin,
             self.player_tls_checkbox, self.player_hwdec_combo, self.player_volume_spin,

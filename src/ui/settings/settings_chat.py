@@ -14,6 +14,7 @@ from components.username_autocomplete.options import (
     suggestion_limit,
     SUGGESTION_LIMIT_RANGE,
 )
+from core.xmpp.delivery import QUEUE_MAX_AGE_MINUTES_DEFAULT, QUEUE_MAX_AGE_MINUTES_MAX
 from helpers.browser import get_available_browsers
 from helpers.colors.color_utils import (
     get_input_colors,
@@ -250,6 +251,18 @@ class SettingsChatMixin:
             self.delivery_marker_checkbox.setToolTip,
             "Orange dot: sending. Green dot: the server has the message. Red dot: not delivered.",
             "Оранжевая точка: отправляется. Зелёная: сервер получил сообщение. Красная: не доставлено.",
+        )
+        self.queue_max_age_spin = self.add_slider_spin_row(
+            xmpp_layout, tr("Queued message lifetime (min)", "Срок хранения очереди отправки (мин)"),
+            0, QUEUE_MAX_AGE_MINUTES_MAX, self.on_queue_max_age_changed, default=QUEUE_MAX_AGE_MINUTES_DEFAULT,
+        )
+        self.tr_set(self.queue_max_age_spin.setSpecialValueText, "No limit", "Без ограничения")
+        self.tr_set(
+            self.queue_max_age_spin.setToolTip,
+            "A message that could not be sent without a connection is sent by itself once it is back. "
+            "Older than this, it returns to the input field instead. 0: no limit.",
+            "Сообщение, которое не ушло без связи, отправится само после подключения. "
+            "Если оно старше этого срока, оно вернётся в поле ввода. 0: без ограничения.",
         )
         self.add_collapse_toggle(xmpp_header, xmpp_content, ("ui", "settings", "widgets", "chat_xmpp"))
 

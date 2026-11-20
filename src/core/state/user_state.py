@@ -21,6 +21,16 @@ class ByUserStore:
         else:
             self._state.set("by_user", username, value=value)
 
+    def entry(self, username: str) -> dict:
+        """The user's value when it is a dict, else an empty one."""
+        value = self.get(username)
+        return value if isinstance(value, dict) else {}
+
+    def update(self, username: str, **fields) -> None:
+        """Merge fields into the user's dict value; an empty field is dropped, and so is an entry left empty."""
+        entry = {key: value for key, value in {**self.entry(username), **fields}.items() if value}
+        self.set(username, entry or None)
+
     def clear(self) -> None:
         """Remove the values of all users."""
         self._state.remove("by_user")

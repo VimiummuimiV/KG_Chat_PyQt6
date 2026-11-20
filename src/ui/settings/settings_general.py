@@ -2,7 +2,7 @@
 
 from PyQt6.QtWidgets import QMessageBox
 
-from core.xmpp.delivery import is_marker_enabled
+from core.xmpp.delivery import is_marker_enabled, queue_max_age_minutes
 from helpers.translate import get_language, set_language, tr
 from ui.settings.settings_options import fill_close_action_combo, fill_own_message_mode_combo, fill_resource_combo
 
@@ -44,6 +44,9 @@ class SettingsGeneralMixin:
             self.config.get("ui", "own_message_mode") or "local",
         )
         self.delivery_marker_checkbox.setChecked(is_marker_enabled(self.config))
+        queue_max_age = queue_max_age_minutes(self.config)
+        self.queue_max_age_spin.setValue(queue_max_age)
+        self.queue_max_age_spin.linked_slider.setValue(queue_max_age)
 
         self.clear_private_checkbox.setChecked(bool(self.config.get("ui", "clear_private_messages_on_exit")))
 
@@ -103,6 +106,9 @@ class SettingsGeneralMixin:
     def on_delivery_marker_toggled(self, checked: bool):
         self.config.set("ui", "show_delivery_marker", value=checked)
         self.delivery_marker_changed.emit()
+
+    def on_queue_max_age_changed(self, value: int):
+        self.config.set("ui", "queue_max_age_minutes", value=int(value))
 
     def on_language_changed(self, _text: str = ""):
         code = self.language_combo.currentData()

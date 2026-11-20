@@ -59,14 +59,14 @@ class ChatConnectionMixin:
         rows = self.messages_widget.model.stored_messages[-_SHOWN_HISTORY_ROWS:]
         return [(row.username, row.body, row.timestamp) for row in rows if row.is_room_message]
 
-    def _clear_for_reconnect(self):
-        """A fresh session is live: rebuild what it sends again; the messages stay, the replayed ones are dropped"""
+    def _reset_for_new_session(self):
+        """A new session is live: drop what belongs to the old one. The messages stay; the history it replays is merged."""
         self.history_replay_filter = HistoryReplayFilter(self._shown_history())
         self.replay_oldest = None
         if self.presence_log_widget:
             self.presence_log_widget.clear()
 
-        # History is being reloaded from scratch - hold competitions back until it settles again
+        # The new session replays the history: hold competitions back until it settles again
         self.chat_ready = False
         self.history_settle_timer.stop()
 
@@ -110,7 +110,7 @@ class ChatConnectionMixin:
                     return
 
                 if is_current():
-                    self.dispatch.emit(self._clear_for_reconnect)  # a failed attempt leaves the chat as it was
+                    self.dispatch.emit(self._reset_for_new_session)  # a failed attempt leaves the chat as it was
 
                 client.set_message_callback(self.message_callback)
                 client.set_presence_callback(self._presence_callback)
