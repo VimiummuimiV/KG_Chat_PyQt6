@@ -1,7 +1,6 @@
 """ChatWindow: automatic and manual update checks, the update button and the install flow."""
 
 import threading
-import time
 
 from PyQt6.QtCore import QTimer
 from PyQt6.QtWidgets import QApplication, QDialog, QMessageBox
@@ -21,6 +20,7 @@ from core.web.updater import (
     stage_update,
     upgrade_ytdlp,
 )
+from helpers.dates import now_seconds
 from helpers.deferred import call_later
 from helpers.translate import tr
 from ui.dialogs.update_dialog import UpdateDialog
@@ -67,7 +67,7 @@ class ChatUpdatesMixin:
             return
         checked_at = last_checked_at()
         is_recently_checked = (
-            checked_at is not None and time.time() - checked_at < check_interval_days(self.config) * _SECONDS_PER_DAY
+            checked_at is not None and now_seconds() - checked_at < check_interval_days(self.config) * _SECONDS_PER_DAY
         )
         if installed_commit() is not None and is_recently_checked:  # without the installed commit the first check is due at once
             return
@@ -96,7 +96,7 @@ class ChatUpdatesMixin:
                 self.toast.show_message(tr("Update check failed", "Не удалось проверить обновления"), ToastKind.ERROR)
             self._refresh_settings_update_status()
             return
-        save_check_result(info, int(time.time()))
+        save_check_result(info, now_seconds())
         is_new = info is not None and (
             self._available_update is None or self._available_update.latest_commit != info.latest_commit
         )

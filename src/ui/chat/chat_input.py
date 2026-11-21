@@ -5,7 +5,6 @@ from datetime import datetime
 
 from core.xmpp.delivery import PENDING
 from core.xmpp.messages import Message
-from ui.chat.chat_delivery import SEND_INTERVAL_SECONDS
 
 
 class ChatInputMixin:
@@ -70,10 +69,10 @@ class ChatInputMixin:
         chunks = self._chunk_message(text, 300)
 
         # Send each chunk
-        for i, chunk in enumerate(chunks):
+        for chunk in chunks:
             delivery_id = self.track_outgoing(target_jid, chunk, msg_type)
             self.add_local_echo(chunk, msg_type, delivery_id, add_message_fn)
-            self.start_tracked_send(i * SEND_INTERVAL_SECONDS, chunk, target_jid, msg_type, delivery_id)
+            self.start_tracked_send(chunk, target_jid, msg_type, delivery_id)
 
     def _chunk_message(self, text: str, max_len: int) -> list:
         """Break message into chunks, keeping URLs intact"""

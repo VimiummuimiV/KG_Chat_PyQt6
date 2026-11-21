@@ -1,6 +1,7 @@
 """ChatWindow: the draft in the input field, the delivery state of sent messages, and the queue for a lost connection."""
 
 import threading
+import time
 from datetime import datetime
 
 from PyQt6.QtCore import QTimer
@@ -9,7 +10,8 @@ from components.toast import show_toast, ToastKind
 from core.state.input_drafts import InputDrafts
 from core.state.message_outbox import MessageOutbox
 from core.xmpp.delivery import (
-    DELIVERED, DeliveryTracker, FAILED, is_marker_enabled, PENDING, queue_max_age_seconds, QUEUED, QueuedMessage,
+    DELIVERED, DELIVERED_MARKER_LIFETIME_MS, DeliveryTracker, FAILED, is_marker_enabled, PENDING, queue_max_age_seconds,
+    QUEUED, QueuedMessage, SETTLED,
 )
 from core.xmpp.history_replay import CLOCK_TOLERANCE
 from helpers.dates import now_seconds
@@ -17,7 +19,7 @@ from helpers.deferred import call_later
 from helpers.translate import tr
 
 
-SEND_INTERVAL_SECONDS = 0.8  # between messages sent in a row (parts of a long one, the queue): the server takes all and keeps their order
+SEND_INTERVAL_SECONDS = 1.0  # the least pause between two messages: a server may take faster ones for flooding and drop them
 _DRAFT_SAVE_DELAY_MS = 400
 _DELIVERY_TIMEOUT_MS = 15000  # a delivered groupchat message is echoed by the server well within this time
 
@@ -29,6 +31,7 @@ class ChatDeliveryMixin:
         self.delivery_tracker = DeliveryTracker()
         self.input_drafts = InputDrafts()
         self.message_outbox = MessageOutbox()
+        self._next_send_at = 0.0  # when the next message may be sent, on the monotonic clock
         self._given_back_ids = set()  # failed messages returned to the input, in case the server still turns out to have them
         for entry in self.message_outbox.queued(self.my_username):  # the queue outlives the chat window
             self.delivery_tracker.restore_queued(entry["text"], entry["at"], entry["certain"])
@@ -63,9 +66,12 @@ class ChatDeliveryMixin:
         self.message_outbox.add_unconfirmed(self.my_username, body)
         return self.delivery_tracker.register(target_jid, body, msg_type)
 
-    def start_tracked_send(self, delay_seconds: float, body: str, target_jid, msg_type: str, delivery_id: int):
-        """Send a tracked chunk from a timer thread after the delay."""
-        threading.Timer(delay_seconds, self.send_tracked_chunk, args=(body, target_jid, msg_type, delivery_id)).start()
+    def start_tracked_send(self, body: str, target_jid, msg_type: str, delivery_id: int):
+        """Send a tracked chunk from a timer thread, at least SEND_INTERVAL_SECONDS after the one sent before it."""
+        now = time.monotonic()
+        send_at = max(now, self._next_send_at)
+        self._next_send_at = send_at + SEND_INTERVAL_SECONDS
+        threading.Timer(send_at - now, self.send_tracked_chunk, args=(body, target_jid, msg_type, delivery_id)).start()
 
     def note_replayed(self, timestamp: datetime):
         """The oldest message of the history replayed on connect tells how far back the server's history reaches."""
@@ -89,9 +95,7 @@ class ChatDeliveryMixin:
             self._apply_delivery_changes(changes)
             if not has_row:  # queued before the chat was closed: its row is gone
                 self.add_local_echo(message.body, message.msg_type, message.delivery_id, self.messages_widget.add_message)
-            self.start_tracked_send(
-                sent * SEND_INTERVAL_SECONDS, message.body, message.target_jid, message.msg_type, message.delivery_id
-            )
+            self.start_tracked_send(message.body, message.target_jid, message.msg_type, message.delivery_id)
             sent += 1
         if sent:
             show_toast(self, tr("Queued messages sent", "Сообщения из очереди отправлены"), ToastKind.INFO)
@@ -135,6 +139,7 @@ class ChatDeliveryMixin:
             for widget in self.message_widgets():
                 widget.set_delivery(delivery_id, state)
             if state == DELIVERED:
+                call_later(self, DELIVERED_MARKER_LIFETIME_MS, lambda delivery_id=delivery_id: self._settle_marker(delivery_id))
                 self.message_outbox.remove_unconfirmed(self.my_username, body)
                 self.message_outbox.remove_queued(self.my_username, body)
                 if delivery_id in self._given_back_ids:
@@ -150,6 +155,11 @@ class ChatDeliveryMixin:
             elif state == FAILED:
                 self._give_back_to_input(delivery_id, body)
         self.connection_banner.set_queued(len(self.delivery_tracker.queued()))
+
+    def _settle_marker(self, delivery_id: int):
+        """The delivered dot has had its time: it goes, and only a repaint of that row is needed."""
+        for widget in self.message_widgets():
+            widget.set_delivery(delivery_id, SETTLED)
 
     def _give_back_to_input(self, delivery_id: int, body: str):
         """Put a message the server did not get back into the input field so it can be sent again."""

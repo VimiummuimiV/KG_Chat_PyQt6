@@ -1,6 +1,5 @@
 """Ban List Management UI Widget"""
 
-import time
 from pathlib import Path
 
 from PyQt6.QtCore import pyqtSignal, Qt, QTimer
@@ -17,6 +16,7 @@ from components.button import create_icon_button
 from components.toast import show_toast, ToastKind
 from components.user_row.model import COLUMN_BUTTON, ExtraColumn, UserRow
 from components.user_row.view import UserRowView
+from helpers.dates import now_seconds
 from helpers.fonts.fonts import FontType, set_font_role
 from helpers.scroll.auto_scroll import AutoScroller
 from helpers.translate import on_language_changed, tr, TranslatableMixin
@@ -61,7 +61,7 @@ def _format_time_remaining(seconds: int) -> str:
 
 
 def _seconds_left(row: UserRow) -> int:
-    return max(0, row.extras[_EXPIRES] - int(time.time()))
+    return max(0, row.extras[_EXPIRES] - now_seconds())
 
 
 _DURATION_COLUMN = ExtraColumn(
@@ -214,13 +214,13 @@ class BanListWidget(TranslatableMixin, QWidget):
             return
         seconds, ok = DurationDialog.get_duration(self, default_seconds=3600)
         if ok:
-            view.add_row(UserRow(extras={_EXPIRES: int(time.time()) + seconds}))
+            view.add_row(UserRow(extras={_EXPIRES: now_seconds() + seconds}))
 
     def _change_duration(self, row: UserRow, _key: str):
         """Ask for a new duration of a temporary ban; the dialog keeps the unit of the time left when it can."""
         seconds, ok = DurationDialog.get_duration(self, max(60, _seconds_left(row)))
         if ok and seconds > 0:
-            row.extras[_EXPIRES] = int(time.time()) + seconds
+            row.extras[_EXPIRES] = now_seconds() + seconds
             self._temp_view.refresh()
             self._save_bans()
 

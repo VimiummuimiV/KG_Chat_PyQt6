@@ -249,8 +249,8 @@ class SettingsChatMixin:
         )
         self.tr_set(
             self.delivery_marker_checkbox.setToolTip,
-            "Orange dot: sending. Green dot: the server has the message. Red dot: not delivered.",
-            "Оранжевая точка: отправляется. Зелёная: сервер получил сообщение. Красная: не доставлено.",
+            "Orange dot: sending. Green dot: the server has the message (it goes after a few seconds). Red dot: not delivered.",
+            "Оранжевая точка: отправляется. Зелёная: сервер получил сообщение (через несколько секунд исчезает). Красная: не доставлено.",
         )
         self.queue_max_age_spin = self.add_slider_spin_row(
             xmpp_layout, tr("Queued message lifetime (min)", "Срок хранения очереди отправки (мин)"),

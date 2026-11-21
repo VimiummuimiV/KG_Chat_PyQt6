@@ -32,7 +32,7 @@ from components.flash_highlight import (
 from components.image_viewer.gallery import DayNavigation, first_image, ImageGallery, InlineReply, is_image_url
 from components.menu import create_menu
 from components.toast import copy_messages_with_toast, copy_text_with_toast
-from core.xmpp.delivery import DELIVERED, FAILED, is_marker_enabled, PENDING, QUEUED
+from core.xmpp.delivery import DELIVERED, FAILED, is_marker_enabled, PENDING, QUEUED, SETTLED
 from helpers.cache import get_cache
 from helpers.data import get_resource_dir
 from helpers.deferred import call_later
@@ -117,7 +117,10 @@ class _ContinuityRail:
 
 
 class _DeliveryMarker:
-    """Small dot right after the last character of an own message: amber while sending, green once delivered, red when not delivered"""
+    """Small dot right after the last character of an own message: amber while sending, green once delivered, red when not delivered.
+
+    A settled row paints nothing but keeps the gutter, so its text does not reflow when the dot goes.
+    """
     GUTTER = 16
     _DIAMETER = 8
     _TEXT_GAP = 6
@@ -125,6 +128,8 @@ class _DeliveryMarker:
 
     @classmethod
     def paint(cls, painter: QPainter, rect: QRect, state: str, text_end: QPoint, line_height: int):
+        if state == SETTLED:
+            return
         radius = cls._DIAMETER / 2
         center_x = min(text_end.x() + cls._TEXT_GAP + radius, rect.right() - radius)  # never leaves the row
         center = QPointF(center_x, text_end.y() + line_height / 2)

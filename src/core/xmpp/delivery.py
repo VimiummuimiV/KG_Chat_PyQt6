@@ -10,9 +10,10 @@ PENDING = "pending"      # sent, the server has not echoed it yet
 DELIVERED = "delivered"  # the server echoed it (private messages: accepted by the server)
 FAILED = "failed"        # no echo came in time, or the message cannot be sent again by itself
 QUEUED = "queued"        # the request failed: it waits for the connection and is sent again by itself
+SETTLED = "settled"      # delivered a while ago; only a row shows it: no dot, but the gutter stays so the text does not reflow
 
 
-QUEUE_MAX_AGE_MINUTES_DEFAULT = 30 
+QUEUE_MAX_AGE_MINUTES_DEFAULT = 30
 QUEUE_MAX_AGE_MINUTES_MAX = 1440
 
 
@@ -35,6 +36,9 @@ class QueuedMessage(NamedTuple):
     msg_type: str
     queued_at: int  # Unix seconds
     is_certain: bool  # the connection was down when it was sent, so it cannot have reached the server
+
+
+DELIVERED_MARKER_LIFETIME_MS = 5000  # how long the green dot stays: long enough to notice, short enough not to make noise
 
 
 def is_marker_enabled(config) -> bool:

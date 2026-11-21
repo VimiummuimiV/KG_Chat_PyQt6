@@ -9,6 +9,7 @@ from PyQt6.QtCore import QObject, pyqtSignal, QTimer
 from core.state.json_state import JsonState
 from core.web.api_data import get_current_login
 from helpers.cache import get_cache
+from helpers.dates import now_seconds
 
 _RECHECK_TTL_SECONDS = 7 * 24 * 3600
 _RETRY_AFTER_SECONDS = 24 * 3600
@@ -102,7 +103,7 @@ class NameSync(QObject):
             self._checked = kept
         if is_pruned:
             self._save_checked()
-        now = time.time()
+        now = now_seconds()
         stale = sorted(
             (user_id for user_id in known if now - _checked_at(kept, user_id) >= _RECHECK_TTL_SECONDS),
             key=lambda user_id: _checked_at(kept, user_id),
@@ -120,7 +121,7 @@ class NameSync(QObject):
                 if index:
                     time.sleep(_REQUEST_DELAY_SECONDS)
                 login = get_current_login(user_id)
-                now = int(time.time())
+                now = now_seconds()
                 if login:
                     failures = 0
                     with self._checked_lock:

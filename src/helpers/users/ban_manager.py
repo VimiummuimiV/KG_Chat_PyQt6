@@ -1,9 +1,10 @@
 """Ban List Manager - Centralized user blocking system"""
 
 import json
-import time
 from pathlib import Path
 from typing import Dict, Optional
+
+from helpers.dates import now_seconds
 
 
 class BanManager:
@@ -42,7 +43,7 @@ class BanManager:
 
         ban_data = {'username': username}
         if duration:
-            ban_data['expires_at'] = int(time.time()) + int(duration)
+            ban_data['expires_at'] = now_seconds() + int(duration)
 
         self._bans[str(user_id)] = ban_data
         self.save()
@@ -50,7 +51,7 @@ class BanManager:
 
     def _purge_expired(self):
         """Remove expired temporary bans"""
-        now = int(time.time())
+        now = now_seconds()
         expired = [uid for uid, data in self._bans.items() 
                    if 'expires_at' in data and data['expires_at'] <= now]
         for uid in expired:
